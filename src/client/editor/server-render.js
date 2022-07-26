@@ -35,7 +35,7 @@ const viewPaths = [
         path: '/engine',
         homePaths: ['/'],
         title: { en: 'Engine', es: 'Engine' },
-        component: 'underpost_engine',
+        component: 'editor',
         options: false,
         menu: true,
         home: true,

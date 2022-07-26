@@ -4,10 +4,10 @@ const errorIcon = /*html*/`<i class='fa fa-exclamation-triangle' aria-hidden='tr
 const sucessIcon = /*html*/`<i class='fa fa-check-circle' aria-hidden='true'></i>`;
 const uriApi = 'editor';
 
-this.underpost_engine = {
+this.editor = {
     init: function () {
         const IDS = s4();
-        this[IDS] = range(0, maxIdComponent).map(() => 'underpost_engine-' + s4());
+        this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
         setTimeout(() => {
             tinymce.init({
                 selector: 'textarea#my-expressjs-tinymce-app',
