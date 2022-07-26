@@ -49,6 +49,8 @@ const renderView = dataView => {
     ).styles}
             </style>
             <link rel='stylesheet' href='/fontawesome/all.min.css'>
+            <!-- Script element sourcing TinyMCE -->
+            <script type="application/javascript" src= "/tinymce/tinymce.min.js"></script>
         </head>
         <body>                  
             <script>
@@ -68,6 +70,7 @@ const ssr = (app, renderData) => {
     app.use('/.well-known', express.static(`./src/client/.well-known`));
     app.use('/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
     app.use('/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
+    app.use('/tinymce', express.static('./node_modules/tinymce'));
 
     const renders = viewPaths.filter(view => view.render).map(view => {
         return {

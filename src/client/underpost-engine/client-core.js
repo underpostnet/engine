@@ -9,13 +9,45 @@ this.underpost_engine = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'underpost_engine-' + s4());
         setTimeout(() => {
-            // const setContentSelection = (content, replace) => {
-            //     const selection = window.getSelection().getRangeAt(0);
-            //     const selectedText = selection.extractContents();
-            //     const node = document.createElement('underpost_engine-' + s4());
-            //     node.innerHTML = replace ? content.replace('[REPLACE]', selectedText.textContent) : content;
-            //     return selection.insertNode(node);
-            // };
+            tinymce.init({
+                selector: 'textarea#my-expressjs-tinymce-app',
+                min_height: 400,
+                menubar: true,
+                plugins: [
+                    'advlist',
+                    'anchor',
+                    'autolink',
+                    'autoresize',
+                    'autosave',
+                    'charmap',
+                    'code',
+                    'codesample',
+                    'directionality',
+                    'emoticons',
+                    'fullscreen',
+                    'help',
+                    'image',
+                    'importcss',
+                    'insertdatetime',
+                    'link',
+                    'lists',
+                    'media',
+                    'nonbreaking',
+                    'pagebreak',
+                    'preview',
+                    'quickbars',
+                    'save',
+                    'searchreplace',
+                    'table',
+                    'template',
+                    'visualblocks',
+                    'visualchars',
+                    'wordcount'
+                ],
+                toolbar: 'undo redo | casechange blocks | bold italic backcolor | ' +
+                    'alignleft aligncenter alignright alignjustify | ' +
+                    'bullist numlist checklist outdent indent | removeformat | a11ycheck code table help'
+            });
 
 
         });
@@ -23,7 +55,7 @@ this.underpost_engine = {
            <style>
            </style>
            <div class='in container'>
-                              
+                      <textarea id='my-expressjs-tinymce-app'></textarea>
            </div>
              
         `
