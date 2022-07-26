@@ -14,7 +14,7 @@ import { apiUtil } from '../../api/util.js';
 // server side client render
 import { ssr } from '../../modules/views.js';
 // views
-import { viewMetaData, viewPaths } from '../../client/editor/server-render.js';
+import { viewMetaData, viewPaths } from '../../client/underpost-engine/server-render.js';
 
 import dotenv from 'dotenv';
 

@@ -96,7 +96,7 @@ this.router = options => {
 //  Asymmetric Key Manager
 append('body', /*html*/`
         <div class='in container banner' style='${borderChar(1, 'white')}'>
-               Editor
+               ${viewMetaData.mainTitle}
         </div>
         <modal></modal>
         <main>
@@ -108,7 +108,7 @@ append('body', /*html*/`
             <div class='in container' style='text-align: right'>
                 Source Code
                 <img src='/assets/github.png' class='inl' style='width: 20px; top: 5px'> 
-                <a href='https://github.com/underpostnet'>GitHub</a>
+                <a href='https://github.com/underpostnet/underpost-engine'>GitHub</a>
                 <br>
                 Developed By
                 <img src='/assets/underpost.png' class='inl' style='width: 23px; top: 5px; left: 3px'> 
