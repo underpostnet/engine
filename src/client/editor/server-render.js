@@ -1,5 +1,5 @@
 
-const clientID = 'underpost-engine';
+const clientID = 'editor';
 const viewMetaData = {
     clientID,
     mainTitle: 'underpost engine',
@@ -34,7 +34,7 @@ const viewPaths = [
     {
         path: '/engine',
         homePaths: ['/'],
-        title: { en: 'Engine', es: 'Engine' },
+        title: { en: 'Editor', es: 'Editor' },
         component: 'editor',
         options: false,
         menu: true,
