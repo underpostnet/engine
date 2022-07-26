@@ -32,7 +32,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: '/engine',
+        path: '/editor',
         homePaths: ['/'],
         title: { en: 'Editor', es: 'Editor' },
         component: 'editor',
