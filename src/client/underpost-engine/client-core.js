@@ -9,24 +9,21 @@ this.underpost_engine = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'underpost_engine-' + s4());
         setTimeout(() => {
-            s('.' + this[IDS[0]]).onclick = () => {
-                alert();
-            };
+            // const setContentSelection = (content, replace) => {
+            //     const selection = window.getSelection().getRangeAt(0);
+            //     const selectedText = selection.extractContents();
+            //     const node = document.createElement('underpost_engine-' + s4());
+            //     node.innerHTML = replace ? content.replace('[REPLACE]', selectedText.textContent) : content;
+            //     return selection.insertNode(node);
+            // };
+
+
         });
         return /*html*/`
            <style>
-            edit-box {
-                outline: none !important;
-                min-height: 200px;
-            }
            </style>
            <div class='in container'>
-                <div class='in container'>                
-                    <button class='${this[IDS[0]]}'>bold</button>
-                </div>
-                <div class='in container'>
-                        <edit-box class='in' contenteditable='true'></edit-box>
-                </div>                    
+                              
            </div>
              
         `
