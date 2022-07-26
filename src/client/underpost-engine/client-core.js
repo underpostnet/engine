@@ -9,7 +9,9 @@ this.underpost_engine = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'underpost_engine-' + s4());
         setTimeout(() => {
-
+            s('.' + this[IDS[0]]).onclick = () => {
+                alert();
+            };
         });
         return /*html*/`
            <style>
@@ -20,7 +22,7 @@ this.underpost_engine = {
            </style>
            <div class='in container'>
                 <div class='in container'>                
-                    <button>bold</button>
+                    <button class='${this[IDS[0]]}'>bold</button>
                 </div>
                 <div class='in container'>
                         <edit-box class='in' contenteditable='true'></edit-box>
