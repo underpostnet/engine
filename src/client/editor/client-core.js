@@ -4,6 +4,17 @@ const errorIcon = /*html*/`<i class='fa fa-exclamation-triangle' aria-hidden='tr
 const sucessIcon = /*html*/`<i class='fa fa-check-circle' aria-hidden='true'></i>`;
 const uriApi = 'editor';
 
+
+this.markdown = {
+    init: function(){
+        return /*html*/`
+        
+        
+        
+        `
+    }
+};
+
 this.editor = {
     init: function () {
         const IDS = s4();

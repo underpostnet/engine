@@ -34,8 +34,20 @@ const viewPaths = [
     {
         path: '/editor',
         homePaths: ['/'],
-        title: { en: 'Editor', es: 'Editor' },
+        title: { en: 'editor', es: 'editor' },
         component: 'editor',
+        options: false,
+        menu: true,
+        home: true,
+        nohome: true,
+        render: true,
+        display: true
+    },
+    {
+        path: '/markdown',
+        homePaths: ['/'],
+        title: { en: 'markdown', es: 'markdown' },
+        component: 'markdown',
         options: false,
         menu: true,
         home: true,
