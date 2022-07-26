@@ -1,0 +1,42 @@
+{
+  "name": "underpost.net",
+  "description": "underpost.net",
+  "version": "2.0.0",
+  "type": "module",
+  "main": "./src/server.js",
+  "scripts": {
+    "start": "node src/apps/editor/server",
+    "dev": "nodemon src/apps/editor/server"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/underpostnet"
+  },
+  "keywords": [
+    "underpost.net"
+  ],
+  "author": "Francisco Verdugo <fcoverdugoa@underpost.net> (https://underpost.net/)",
+  "license": "MIT",
+  "homepage": "https://underpost.net",
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^6.1.1",
+    "ajv": "^8.11.0",
+    "axios": "latest",
+    "chalk": "4.1.2",
+    "clean-css": "^5.3.1",
+    "clipboardy": "^3.0.0",
+    "colors": "1.4.0",
+    "crypto-js": "latest",
+    "dotenv": "latest",
+    "express": "latest",
+    "file-get-contents": "^1.0.0",
+    "morgan": "latest",
+    "node-fetch": "^3.2.8",
+    "nodemon": "latest",
+    "read": "^1.0.7",
+    "shelljs": "latest",
+    "ua-parser-js": "^1.0.2",
+    "uglify-js": "^3.16.2",
+    "winston": "latest"
+  }
+}

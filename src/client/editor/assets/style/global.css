@@ -1,0 +1,194 @@
+/* app */
+body {
+   
+    background: black;
+    color: #cfcfcf;
+    
+}
+
+a {
+
+    color: magenta;
+    text-decoration: underline;
+
+}
+
+a:hover {
+
+    color: white;
+
+}
+
+.container {
+    max-width: 630px;
+    margin: auto;
+    border: 3px solid #141414;
+    padding: 10px;
+}
+
+html,
+body,
+input,
+button,
+form {
+    border: none;
+    outline: none;
+    padding: 5px;
+    margin: 5px;
+    font-size: 18px;
+    overflow: auto;
+    font-family: arial;
+}
+
+button {
+    cursor: pointer;
+    border: 3px solid magenta;
+    background: black;
+    color: magenta;
+    margin-top: 20px;
+    text-transform: uppercase;
+}
+
+button:hover {
+    border: 3px solid white;
+    color: white;
+}
+
+.label {
+    transition: .3s;
+    z-index: 1;
+    color: purple;
+    padding-left: 20px;
+}
+
+input {
+    background: #1f1f1f;
+    color: #cfcfcf;
+    min-width: 350px;
+}
+
+.fa {
+    padding: 5px;
+}
+
+.error-input {
+    color: red;
+    display: none;
+    padding: 5px;
+    border-top: 3px solid red;
+}
+
+.success-input {
+    color: green;
+    display: none;
+    padding: 5px;
+    border-top: 3px solid green;
+}
+
+.title {
+    color: purple;
+    font-size: 20px;
+    /* border-bottom: 3px solid purple; */
+    font-weight: bold;
+    text-transform: uppercase;
+}
+
+.banner {
+    font-weight: bold;
+    color: black;
+    font-size: 25px;
+}
+
+th {
+    border-bottom: 3px solid purple;
+    padding: 5px;
+}
+
+.header-table {
+    text-align: center;
+    color: purple;
+}
+
+modal {
+    display: none;
+}
+
+/*
+
+.outline {
+    outline: none !important;
+}
+
+*/
+
+
+/*
+  placeholder
+*/
+
+::placeholder {
+    color: red;
+    opacity: 1;
+    /* Firefox */
+    background: none;
+}
+
+:-ms-input-placeholder {
+    /* Internet Explorer 10-11 */
+    color: red;
+    background: none;
+}
+
+::-ms-input-placeholder {
+    /* Microsoft Edge */
+    color: red;
+    background: none;
+}
+
+/*
+    selection
+  */
+
+::-moz-selection {
+    /* Code for Firefox */
+    color: black;
+    background: red;
+}
+
+::selection {
+    color: black;
+    background: red;
+}
+
+
+/*
+    scrollbar
+  Hide scrollbar for Chrome, Safari and Opera
+  [TAG]::-webkit-scrollbar {
+    display: none;
+  }
+  Hide scrollbar for IE, Edge and Firefox
+  [TAG] {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+  }
+  */
+
+::-webkit-scrollbar {
+    width: 10px;
+}
+
+/* Track */
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+/* Handle */
+::-webkit-scrollbar-thumb {
+    background: #888;
+}
+
+/* Handle on hover */
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
