@@ -49,15 +49,27 @@ this.editor = {
                     'bullist numlist checklist outdent indent | removeformat | a11ycheck code table help'
             });
 
+            s('.' + this[IDS][0]).onclick = () => {
+                append('board', /*html*/`
+                <div class='in container'>
+                    ${tinymce.activeEditor.getContent()}
+                </div>
+                `);
+                tinyMCE.activeEditor.setContent('');
+            }
+
 
         });
         return /*html*/`
            <style>
            </style>
+           <board></board>
            <div class='in container'>
                       <textarea id='my-expressjs-tinymce-app'></textarea>
            </div>
-             
+           <div class='in container'>
+                <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+           </div>             
         `
     }
 };
