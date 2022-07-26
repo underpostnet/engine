@@ -50,7 +50,7 @@ const renderView = dataView => {
             </style>
             <link rel='stylesheet' href='/fontawesome/all.min.css'>
             <!-- Script element sourcing TinyMCE -->
-            <script type="application/javascript" src= "/tinymce/tinymce.min.js"></script>
+            <script type='application/javascript' src= '/tinymce/tinymce.min.js'></script>
         </head>
         <body>                  
             <script>
