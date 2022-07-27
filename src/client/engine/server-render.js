@@ -54,6 +54,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: '/vanilla-js',
+        homePaths: ['/'],
+        title: { en: 'vanilla-js', es: 'vanilla-js' },
+        component: 'vanilla_js',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 

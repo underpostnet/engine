@@ -22,6 +22,9 @@ const renderView = dataView => {
         const viewPaths = JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}');
         const view = JSON.parse('${JSON.stringify(view)}');
         const viewMetaData = JSON.parse('${JSON.stringify(viewMetaData)}');
+        const maxIdComponent = 50;
+        const errorIcon = ${/*html*/"`<i class='fa fa-exclamation-triangle' aria-hidden='true'></i>`"};
+        const sucessIcon = ${/*html*/"`<i class='fa fa-check-circle' aria-hidden='true'></i>`"};
         
         const dev =  ${process.env.NODE_ENV != 'development' ? 'false' : 'true'};
         if(!dev){
@@ -32,6 +35,7 @@ const renderView = dataView => {
         
         console.log('dataView', view);
         ${fs.readFileSync(viewMetaData.router, viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/router.js', viewMetaData.charset)}
     })()`;
     if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
     return /*html*/`

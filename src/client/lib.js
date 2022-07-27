@@ -1,6 +1,6 @@
-const s = _el => document.querySelector(_el);
-const htmls = (_el, _html) => s(_el).innerHTML = _html;
-const append = (_el, _html) => s(_el).insertAdjacentHTML('beforeend', _html);
+const s = el => document.querySelector(el);
+const htmls = (el, html) => s(el).innerHTML = html;
+const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const fadeIn = (el, display) => {
     el.style.opacity = 0;
     el.style.display = display || 'block';
