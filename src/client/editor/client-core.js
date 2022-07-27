@@ -6,11 +6,37 @@ const uriApi = 'editor';
 
 
 this.markdown = {
-    init: function(){
+    init: function () {
+        const IDS = s4();
+        this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
+
+        // let labelInputs = [1];
+        // let inputValueContent = [2];
+        // let errorsIdInput = [3];
+
+        setTimeout(() => {
+            marked.setOptions();
+
+            this.instance = new SimpleMDE({ element: s('.markdown-editor') });
+
+            s('.' + this[IDS][0]).onclick = () => {
+                append(this[IDS][1], /*html*/`
+                    <div class='in container'>
+                        <div class='in markdown-css' style='background: #d9d9d9'>
+                            ${marked.parse(this.instance.value())}
+                        </div> 
+                    </div>               
+                `);
+            };
+        });
         return /*html*/`
-        
-        
-        
+        <${this[IDS][1]}></${this[IDS][1]}>
+        <div class='in container' style='background: white'>
+            <textarea class='markdown-editor'></textarea>
+        </div>
+        <div class='in container'>
+            <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+        </div>
         `
     }
 };
@@ -108,7 +134,7 @@ this.editor = {
             });
 
             s('.' + this[IDS][0]).onclick = () => {
-                append('board', /*html*/`
+                append(this[IDS][4], /*html*/`
                 <div class='in container'>
                     ${tinymce.activeEditor.getContent()}
                 </div>
@@ -121,7 +147,7 @@ this.editor = {
         return /*html*/`
            <style>
            </style>
-           <board></board>
+           <${this[IDS][4]}></${this[IDS][4]}>
            <div class='in container'>
                 <div class='in label ${this[IDS][1]}' style='top: ${topLabelInput};'>
                 ${renderLang({ es: 'Titulo', en: 'Title' })}

@@ -38,8 +38,8 @@ const viewPaths = [
         component: 'editor',
         options: false,
         menu: true,
-        home: true,
-        nohome: true,
+        home: false,
+        nohome: false,
         render: true,
         display: true
     },
@@ -50,8 +50,8 @@ const viewPaths = [
         component: 'markdown',
         options: false,
         menu: true,
-        home: true,
-        nohome: true,
+        home: false,
+        nohome: false,
         render: true,
         display: true
     }

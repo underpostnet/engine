@@ -51,6 +51,11 @@ const renderView = dataView => {
             <link rel='stylesheet' href='/fontawesome/all.min.css'>
             <!-- Script element sourcing TinyMCE -->
             <script type='application/javascript' src= '/tinymce/tinymce.min.js'></script>
+            <link rel='stylesheet' href='/simplemde/simplemde.min.css'>
+            <script src='/simplemde/simplemde.min.js'></script>
+            <script src='/marked/marked.min.js'></script>
+
+            <link rel='stylesheet' href='/spectre-markdown.css/dist/markdown.min.css'>
         </head>
         <body>                  
             <script>
@@ -71,6 +76,9 @@ const ssr = (app, renderData) => {
     app.use('/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
     app.use('/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
     app.use('/tinymce', express.static('./node_modules/tinymce'));
+    app.use('/simplemde', express.static('./node_modules/simplemde/dist'));
+    app.use('/marked', express.static('./node_modules/marked'));
+    app.use('/spectre-markdown.css', express.static('./node_modules/spectre-markdown.css'));
 
     const renders = viewPaths.filter(view => view.render).map(view => {
         return {
