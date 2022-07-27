@@ -73,9 +73,9 @@ const renderView = dataView => {
 
 const ssr = (app, renderData) => {
 
-    const { viewMetaData, viewPaths } = renderData;
+    const { viewPaths } = renderData;
 
-    app.use('/assets', express.static(`./src/client/${viewMetaData.clientID}/assets`));
+    app.use('/assets', express.static(`./src/client/assets`));
     app.use('/.well-known', express.static(`./src/client/.well-known`));
     app.use('/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
     app.use('/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
