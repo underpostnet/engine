@@ -1,6 +1,7 @@
 const s = el => document.querySelector(el);
 const htmls = (el, html) => s(el).innerHTML = html;
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
+const prepend = (el, html) => s(el).insertAdjacentHTML('afterbegin', html);
 const fadeIn = (el, display) => {
     el.style.opacity = 0;
     el.style.display = display || 'block';

@@ -5,7 +5,7 @@ const uriApi = 'editor';
 
 this.vanilla_js = {
 
-    init: function(){
+    init: function () {
 
         return /*html*/`
             <div class='in container'>
@@ -203,5 +203,12 @@ append('body', /*html*/`
         
 
 `);
+
+// external links modules router
+setTimeout(() => {
+    append('post_menu_container', /*html*/`
+            <button onclick='location.href="/en/vanilla-js"' >vanilla-js</button>
+    `);
+});
 
 
