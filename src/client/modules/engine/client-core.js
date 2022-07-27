@@ -5,7 +5,7 @@ const uriApi = '';
 this.markdown = {
     init: function () {
         const IDS = s4();
-        this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
+        this[IDS] = range(0, maxIdComponent).map(() => 'markdown-' + s4());
 
         // let labelInputs = [1];
         // let inputValueContent = [2];
@@ -158,6 +158,32 @@ this.editor = {
            <div class='in container'>
                 <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
            </div>             
+        `
+    }
+};
+
+this.js_demo = {
+    init: function () {
+        // https://prismjs.com/download.html
+        const IDS = s4();
+        this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
+        setTimeout(() => {
+            s('.' + this[IDS][2]).onclick = () => {
+                append(this[IDS][1], /*html*/`               
+                <pre><code>${Prism.highlight(s('.' + this[IDS][0]).value, Prism.languages.javascript, 'javascript')}</pre></code>
+                `);
+            }
+        });
+        return /*html*/`
+            <div class='in container'>    
+                <${this[IDS][1]}></${this[IDS][1]}>
+            </div>
+            <div class='in container'>                       
+                    <textarea class='${this[IDS][0]}'>code here...</textarea>
+            </div>
+            <div class='in container'>
+                    <button class='${this[IDS][2]}'>send</button>
+            </div>
         `
     }
 };

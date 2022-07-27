@@ -61,8 +61,11 @@ const renderView = dataView => {
             <!-- Script element sourcing TinyMCE -->
             <script type='application/javascript' src= '/tinymce/tinymce.min.js'></script>
             <link rel='stylesheet' href='/simplemde/simplemde.min.css'>
-            <script src='/simplemde/simplemde.min.js'></script>
-            <script src='/marked/marked.min.js'></script>
+            <script type='application/javascript' src='/simplemde/simplemde.min.js'></script>
+            <script type='application/javascript' src='/marked/marked.min.js'></script>
+
+            <link rel='stylesheet' href='/assets/prism/prism.css'>
+            <script type='application/javascript' src='/assets/prism/prism.js'></script>
 
             <link rel='stylesheet' href='/spectre-markdown.css/dist/markdown.min.css'>
         </head>

@@ -56,6 +56,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + 'js-demo',
+        homePaths: [baseHome],
+        title: { en: 'js-demo', es: 'js-demo' },
+        component: 'js_demo',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 
