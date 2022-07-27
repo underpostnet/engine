@@ -13,6 +13,9 @@ dotenv.config();
 
 const cssClientCore = `html{scroll-behavior:smooth}.fl{position:relative;display:flow-root}.abs,.in{display:block}.fll{float:left}.flr{float:right}.abs{position:absolute}.in,.inl{position:relative}.inl{display:inline-table}.fix{position:fixed;display:block}.center{transform:translate(-50%,-50%);top:50%;left:50%;width:100%;text-align:center}`;
 
+const renderComponents = () => viewPaths.map(path =>/*html*/`
+<${path.component}>${this[path.options ? path.options.origin : path.component].init(path.options)}</${path.component}>
+`).join('');
 
 const renderView = dataView => {
     const { view, viewMetaData, viewPaths } = dataView;
@@ -25,6 +28,7 @@ const renderView = dataView => {
         const maxIdComponent = 50;
         const errorIcon = ${/*html*/"`<i class='fa fa-exclamation-triangle' aria-hidden='true'></i>`"};
         const sucessIcon = ${/*html*/"`<i class='fa fa-check-circle' aria-hidden='true'></i>`"};
+        const renderComponents = ${renderComponents};
         
         const dev =  ${process.env.NODE_ENV != 'development' ? 'false' : 'true'};
         if(!dev){
@@ -34,6 +38,7 @@ const renderView = dataView => {
         }
         
         console.log('dataView', view);
+        ${fs.readFileSync('./src/client/menu.js', viewMetaData.charset)}
         ${fs.readFileSync(viewMetaData.router, viewMetaData.charset)}
         ${fs.readFileSync('./src/client/router.js', viewMetaData.charset)}
     })()`;
