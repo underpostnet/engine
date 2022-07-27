@@ -14,7 +14,7 @@ import { apiUtil } from './api/util.js';
 // server side client render
 import { ssr } from './client/ssr.js';
 // views
-import { viewMetaData, viewPaths } from './client/engine/server-render.js';
+import { viewMetaData, viewPaths } from './client/modules/engine/server-render.js';
 
 import dotenv from 'dotenv';
 

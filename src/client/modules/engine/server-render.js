@@ -10,7 +10,7 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    router: `./src/client/${clientID}/client-core.js`,
+    router: `./src/client/modules/${clientID}/client-core.js`,
     styles: [
         `./src/client/assets/style/global.css`,
         `./src/client/assets/style/spinner-ellipsis.css`
