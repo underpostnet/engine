@@ -1,8 +1,8 @@
 
-const clientID = 'editor';
+const clientID = 'engine';
 const viewMetaData = {
     clientID,
-    mainTitle: 'Editor',
+    mainTitle: 'Engine',
     favicon: {
         type: 'image/png',
         path: '/assets/underpost.png'
