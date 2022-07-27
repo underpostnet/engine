@@ -13,21 +13,20 @@ import { buildDev } from './build-dev.js';
 import { apiUtil } from './api/util.js';
 // server side client render
 import { ssr } from './client/ssr.js';
-// views
-import { viewMetaData, viewPaths } from './client/modules/engine/server-render.js';
+// views modules
+import { engine } from './client/modules/engine/server-render.js';
 
 import dotenv from 'dotenv';
 
 const app = express();
 buildDev(app);
-
 dotenv.config();
 
 app.use(express.json({ limit: '20MB' }));
 app.use(morganMiddleware);
 
 // apiUtil(app);
-ssr(app, { viewMetaData, viewPaths });
+ssr(app, engine);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);

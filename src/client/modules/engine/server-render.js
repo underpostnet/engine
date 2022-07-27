@@ -69,7 +69,9 @@ const viewPaths = [
     }
 ];
 
-export {
+const engine = {
     viewMetaData,
     viewPaths
 };
+
+export { engine };
