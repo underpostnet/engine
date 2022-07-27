@@ -6,7 +6,7 @@ import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
 import { commonFunctions } from '../api/util.js';
-import { logger } from './logger.js';
+import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
