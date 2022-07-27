@@ -15,6 +15,7 @@ import { apiUtil } from './api/util.js';
 import { ssr } from './client/ssr.js';
 // views modules
 import { engine } from './client/modules/engine/server-render.js';
+import { _public } from './client/modules/public/server-render.js';
 
 import dotenv from 'dotenv';
 
@@ -27,6 +28,7 @@ app.use(morganMiddleware);
 
 // apiUtil(app);
 ssr(app, engine);
+ssr(app, _public);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);

@@ -1,8 +1,8 @@
 
-const clientID = 'engine';
+const clientID = 'public';
 const viewMetaData = {
     clientID,
-    mainTitle: 'Engine',
+    mainTitle: 'underpost.net',
     favicon: {
         type: 'image/png',
         path: '/assets/underpost.png'
@@ -17,7 +17,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/';
+const baseHome = '/en/';
 
 // module render group
 const viewPaths = [
@@ -34,22 +34,10 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'editor',
+        path: baseHome + 'vanilla-js',
         homePaths: [baseHome],
-        title: { en: 'editor', es: 'editor' },
-        component: 'editor',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: true,
-        display: true
-    },
-    {
-        path: baseHome + 'markdown',
-        homePaths: [baseHome],
-        title: { en: 'markdown', es: 'markdown' },
-        component: 'markdown',
+        title: { en: 'vanilla-js', es: 'vanilla-js' },
+        component: 'vanilla_js',
         options: false,
         menu: true,
         home: false,
@@ -59,9 +47,9 @@ const viewPaths = [
     }
 ];
 
-const engine = {
+const _public = {
     viewMetaData,
     viewPaths
 };
 
-export { engine };
+export { _public };
