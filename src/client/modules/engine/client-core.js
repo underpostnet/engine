@@ -168,6 +168,10 @@ this.js_demo = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
         setTimeout(() => {
+
+            s('.' + this[IDS][3]).onclick = async () =>
+                s('.' + this[IDS][0]).value = await pasteData();
+
             s('.' + this[IDS][2]).onclick = () => {
 
                 const idDemo = `demo-${s4()}`;
@@ -176,7 +180,7 @@ this.js_demo = {
 
                 setTimeout(() => eval(contentEval));
 
-                append(this[IDS][1], /*html*/`
+                htmls(this[IDS][1], /*html*/`
                        <div class='fl'>
                             <div class='in fll js_demo_cell'>
                                 <div class='in container title'>
@@ -194,7 +198,7 @@ this.js_demo = {
                             </div>
                         </div>
                 `);
-                s('.' + this[IDS][0]).value = '';
+                // s('.' + this[IDS][0]).value = '';
             }
         });
         return /*html*/`
@@ -231,6 +235,7 @@ this.js_demo = {
             </div>
             <div class='in container'>
                     <button class='${this[IDS][2]}'>send</button>
+                    <button class='${this[IDS][3]}'>paste</button>
             </div>
         `
     }
