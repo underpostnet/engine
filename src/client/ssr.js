@@ -32,7 +32,6 @@ const renderStyleView = (dirStyle, viewMetaData) => {
     if (dirStyle == './src/client/assets/styles/global.css') {
         let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
         defaultTheme.map(color => engineTheme = replaceAll(engineTheme, color, randomColor()));
-        logger.error('test');
         return engineTheme;
     }
     return fs.readFileSync(dirStyle, viewMetaData.charset);
