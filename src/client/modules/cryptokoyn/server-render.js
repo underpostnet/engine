@@ -7,6 +7,12 @@ const viewMetaData = {
         type: 'image/png',
         path: '/assets/cryptokoyn.png'
     },
+    apiURIS: [
+        {
+            name: 'uriApi',
+            path: 'keys'
+        }
+    ],
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',

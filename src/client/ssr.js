@@ -55,7 +55,10 @@ const renderView = dataView => {
         const renderComponents = ${renderComponents};
         const topLabelInput = '35px';
         const botLabelInput = '0px';
-        const uriApi = 'keys';
+        
+        ${viewMetaData.apiURIS.map(dataApiUri => `
+            const ${dataApiUri.name} = '${dataApiUri.path}';
+        `).join('')}
         
         const dev =  ${process.env.NODE_ENV != 'development' ? 'false' : 'true'};
         if(!dev){

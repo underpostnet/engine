@@ -7,6 +7,7 @@ const viewMetaData = {
         type: 'image/png',
         path: '/assets/underpost.png'
     },
+    apiURIS: [],
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
