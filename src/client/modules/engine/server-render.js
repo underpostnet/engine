@@ -10,7 +10,13 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    router: `./src/client/modules/${clientID}/client-core.js`,
+    externalRouter: [
+        {
+            type: 'post_menu_container',
+            name: { en: 'vanilla-js-gallery', es: 'vanilla-js-gallery' },
+            link: '/en/vanilla-js-gallery'
+        }
+    ],
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`

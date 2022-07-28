@@ -10,7 +10,23 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    router: `./src/client/modules/${clientID}/client-core.js`,
+    externalRouter: [
+        {
+            type: 'pre_menu_container',
+            name: { en: 'markdown', es: 'markdown' },
+            link: '/markdown'
+        },
+        {
+            type: 'pre_menu_container',
+            name: { en: 'editor', es: 'editor' },
+            link: '/editor'
+        },
+        {
+            type: 'pre_menu_container',
+            name: { en: 'js-demo', es: 'js-demo' },
+            link: '/js-demo'
+        }
+    ],
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
