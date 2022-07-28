@@ -172,9 +172,8 @@ this.js_demo = {
 
                 const idDemo = `demo-${s4()}`;
                 const contentEval = s('.' + this[IDS][0]).value.replaceAll(`'body'`, `'${idDemo}'`);
-                const displayJS = `append('body', '<${idDemo}></${idDemo}>');
-                ${contentEval}
-                `;
+                const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
+
                 setTimeout(() => eval(contentEval));
 
                 append(this[IDS][1], /*html*/`

@@ -1,3 +1,7 @@
+// vanilla-js thin layer
+
+// install VS Code 'es6-string-html' extension 
+
 const s = el => document.querySelector(el);
 const htmls = (el, html) => s(el).innerHTML = html;
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
@@ -49,6 +53,11 @@ const copyData = data => new Promise((resolve, reject) =>
     )
 );
 
+const pasteData = () => new Promise(resolve =>
+    navigator.clipboard.readText().then(
+        clipText => resolve(clipText)
+    ));
+
 const renderMediaQuery = mediaData => {
     return /*html*/`
     <style>
@@ -60,6 +69,9 @@ const renderMediaQuery = mediaData => {
     </style>    
     `
 };
+const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
 
 const setURI = (uri, objData, title) =>
     history.pushState(objData, title, uri)
