@@ -34,10 +34,10 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'vanilla-js',
+        path: baseHome + 'vanilla-js-gallery',
         homePaths: [baseHome],
-        title: { en: 'vanilla-js', es: 'vanilla-js' },
-        component: 'vanilla_js',
+        title: { en: 'vanilla js gallery', es: 'vanilla js gallery' },
+        component: 'vanilla_js_gallery',
         options: false,
         menu: true,
         home: false,

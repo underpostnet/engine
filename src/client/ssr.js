@@ -38,7 +38,11 @@ const renderView = dataView => {
         }
         
         console.log('dataView', view);
-        ${fs.readFileSync('./src/client/menu.js', viewMetaData.charset)}
+        ${viewPaths.filter(path => path.render).map(path =>
+        fs.existsSync(`./src/client/${path.component}.js`) ?
+            fs.readFileSync(`./src/client/${path.component}.js`) :
+            fs.readFileSync(`./src/client/modules/${viewMetaData.clientID}/components/${path.component}.js`)
+    ).join('')}
         ${fs.readFileSync(viewMetaData.router, viewMetaData.charset)}
         ${fs.readFileSync('./src/client/router.js', viewMetaData.charset)}
     })()`;

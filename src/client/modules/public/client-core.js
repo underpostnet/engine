@@ -1,30 +1,34 @@
 
+append('body', /*html*/`
+<div class='in container banner' style='${borderChar(1, 'white')}'>
+       ${viewMetaData.mainTitle}
+</div>
+<modal></modal>
+<main>
+${renderComponents()}
+</main>
+<footer>
+    <div class='in container' style='text-align: right'>
+        Source Code
+        <img src='/assets/github.png' class='inl' style='width: 20px; top: 5px'> 
+        <a href='https://github.com/underpostnet/underpost-engine'>GitHub</a>
+        <br>
+        Developed By
+        <img src='/assets/underpost.png' class='inl' style='width: 23px; top: 5px; left: 3px'> 
+        <a href='https://underpost.net/'>UNDERpost.net</a>
+    </div> 
+</footer>
 
-const uriApi = '';
 
 
-this.vanilla_js = {
-
-    init: function () {
-
-        return /*html*/`
-            <div class='in container'>
-                    
-                    vanilla js
-            
-            </div>
-        `
-    }
-
-};
-
-append('body', renderComponents());
+`);
 
 // external links modules router
 setTimeout(() => {
     append('pre_menu_container', /*html*/`
         <button onclick='location.href="/editor"' >editor</button>
         <button onclick='location.href="/markdown"' >markdown</button>
+        <button onclick='location.href="/js-demo"' >js demo</button>
     `);
 });
 
