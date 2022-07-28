@@ -146,9 +146,9 @@ this.editor = {
            </style>
            <${this[IDS][4]}></${this[IDS][4]}>
            <div class='in container'>
-                <div class='in label ${this[IDS][1]}' style='top: ${topLabelInput};'>
+                <label class='in ${this[IDS][1]}' style='top: ${topLabelInput};'>
                 ${renderLang({ es: 'Titulo', en: 'Title' })}
-                </div>
+                </label>
                 <input class='in ${this[IDS][2]}' type='text' autocomplete='off'>
                 <div class='in error-input ${this[IDS][3]}'></div>
            </div>
