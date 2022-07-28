@@ -169,16 +169,22 @@ this.js_demo = {
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
         setTimeout(() => {
 
-            s('.' + this[IDS][3]).onclick = async () =>
-                s('.' + this[IDS][0]).value = await pasteData();
+            const liveJS = () => {
 
-            s('.' + this[IDS][2]).onclick = () => {
 
                 const idDemo = `demo-${s4()}`;
                 const contentEval = s('.' + this[IDS][0]).value.replaceAll(`'body'`, `'${idDemo}'`);
                 const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
 
-                setTimeout(() => eval(contentEval));
+                setTimeout(() => {
+                    try {
+                        eval(contentEval);
+                        s('.' + this[IDS][2]).style.display = 'none';
+                    } catch (error) {
+                        htmls('.' + this[IDS][2], errorIcon + error.message);
+                        fadeIn(s('.' + this[IDS][2]));
+                    }
+                });
 
                 htmls(this[IDS][1], /*html*/`
                        <div class='fl'>
@@ -187,6 +193,7 @@ this.js_demo = {
                                     CODE
                                 </div>
                                 <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>
+                                <div class='in error-input ${this[IDS][2]}'></div>
                             </div>
                             <div class='in fll js_demo_cell'>
                                 <div class='in container title'>
@@ -198,8 +205,14 @@ this.js_demo = {
                             </div>
                         </div>
                 `);
-                // s('.' + this[IDS][0]).value = '';
-            }
+            };
+
+            s('.' + this[IDS][0]).onblur = () =>
+                liveJS();
+            s('.' + this[IDS][0]).oninput = () =>
+                liveJS();
+
+
         });
         return /*html*/`
         <style>
@@ -232,10 +245,6 @@ this.js_demo = {
             </div>
             <div class='in container'>
                 <textarea class='in js_demo_textarea ${this[IDS][0]}' placeholder='Code...'></textarea>
-            </div>
-            <div class='in container'>
-                    <button class='${this[IDS][2]}'>send</button>
-                    <button class='${this[IDS][3]}'>paste</button>
             </div>
         `
     }
