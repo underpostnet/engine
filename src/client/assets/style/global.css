@@ -30,6 +30,7 @@ html,
 body,
 input,
 button,
+textarea,
 form {
     border: none;
     outline: none;
@@ -62,13 +63,15 @@ button:hover {
     padding-left: 20px;
 }
 
-input {
+input,
+textarea {
     background: #1f1f1f;
     color: #cfcfcf;
     min-width: 350px;
 }
 
 input,
+textarea,
 .label {
     font-size: 24px;
 }

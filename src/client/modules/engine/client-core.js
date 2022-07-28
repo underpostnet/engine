@@ -169,17 +169,67 @@ this.js_demo = {
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
         setTimeout(() => {
             s('.' + this[IDS][2]).onclick = () => {
-                append(this[IDS][1], /*html*/`               
-                <pre><code>${Prism.highlight(s('.' + this[IDS][0]).value, Prism.languages.javascript, 'javascript')}</pre></code>
+                append(this[IDS][1], /*html*/`
+                       <div class='fl'>
+                            <div class='in fll js_demo_cell'>
+                                <div class='in container title'>
+                                 CODE
+                                </div>
+                                <pre  class='in container'><code>${Prism.highlight(s('.' + this[IDS][0]).value, Prism.languages.javascript, 'javascript')}</pre></code>
+                            </div>
+                            <div class='in fll js_demo_cell'>
+                                <div class='in container title'>
+                                 DEMO
+                                </div>
+                            </div>
+                            <div class='in fll js_demo_cell'>
+                                <div class='in container title'>
+                                 TEST
+                                </div>
+                            </div>
+                        </div>
                 `);
+                s('.' + this[IDS][0]).value = '';
             }
         });
         return /*html*/`
+        <style>
+            .js_demo_textarea {
+                min-height: 200px;
+                width: 95%;
+            }
+            .js_demo_cell {
+                overflow: auto;
+            }
+        </style>
+        ${renderMediaQuery([
+            {
+                limit: 0,
+                css: /*css*/`
+                .js_demo_cell {
+                    width: 100%;
+                }
+            `},
+            {
+                limit: 800,
+                css: /*css*/`
+                .js_demo_cell {
+                    width: 50%;
+                }
+            `},
+            {
+                limit: 1200,
+                css: /*css*/`
+                .js_demo_cell {
+                    width: 33.3%;
+                }
+            `}
+        ])}
             <div class='in container'>    
                 <${this[IDS][1]}></${this[IDS][1]}>
             </div>
-            <div class='in container'>                       
-                    <textarea class='${this[IDS][0]}'>code here...</textarea>
+            <div class='in container'>
+                <textarea class='in js_demo_textarea ${this[IDS][0]}' placeholder='Code...'></textarea>
             </div>
             <div class='in container'>
                     <button class='${this[IDS][2]}'>send</button>

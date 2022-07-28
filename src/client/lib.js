@@ -49,6 +49,18 @@ const copyData = data => new Promise((resolve, reject) =>
     )
 );
 
+const renderMediaQuery = mediaData => {
+    return /*html*/`
+    <style>
+        ${mediaData.map(mediaState => /*css*/`
+                @media only screen and (min-width: ${mediaState.limit}px) {
+                    ${mediaState.css}
+                }
+        `).join('')}
+    </style>    
+    `
+};
+
 const setURI = (uri, objData, title) =>
     history.pushState(objData, title, uri)
 
