@@ -138,7 +138,7 @@ modal {
 */
 
 ::placeholder {
-    color: red;
+    color: gray;
     opacity: 1;
     /* Firefox */
     background: none;
@@ -146,13 +146,13 @@ modal {
 
 :-ms-input-placeholder {
     /* Internet Explorer 10-11 */
-    color: red;
+    color: gray;
     background: none;
 }
 
 ::-ms-input-placeholder {
     /* Microsoft Edge */
-    color: red;
+    color: gray;
     background: none;
 }
 
@@ -163,12 +163,12 @@ modal {
 ::-moz-selection {
     /* Code for Firefox */
     color: black;
-    background: red;
+    background: gray;
 }
 
 ::selection {
     color: black;
-    background: red;
+    background: gray;
 }
 
 
