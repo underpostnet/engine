@@ -29,7 +29,7 @@ const defaultTheme = [
 ];
 
 const renderStyleView = (dirStyle, viewMetaData) => {
-    if (dirStyle == './src/client/assets/styles/global.css') {
+    if (dirStyle == './src/client/assets/styles/global.css' && false) {
         let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
         defaultTheme.map(color => engineTheme = replaceAll(engineTheme, color, randomColor()));
         return engineTheme;
@@ -53,6 +53,9 @@ const renderView = dataView => {
         const errorIcon = ${/*html*/"`<i class='fa fa-exclamation-triangle' aria-hidden='true'></i>`"};
         const sucessIcon = ${/*html*/"`<i class='fa fa-check-circle' aria-hidden='true'></i>`"};
         const renderComponents = ${renderComponents};
+        const topLabelInput = '35px';
+        const botLabelInput = '0px';
+        const uriApi = 'keys';
         
         const dev =  ${process.env.NODE_ENV != 'development' ? 'false' : 'true'};
         if(!dev){
@@ -63,9 +66,10 @@ const renderView = dataView => {
         
         console.log('dataView', view);
         ${viewPaths.filter(path => path.render).map(path =>
-        fs.existsSync(`./src/client/${path.component}.js`) ?
-            fs.readFileSync(`./src/client/${path.component}.js`) :
-            fs.readFileSync(`./src/client/modules/${viewMetaData.clientID}/components/${path.component}.js`)
+        path.options && path.options.origin ? '' :
+            fs.existsSync(`./src/client/${path.component}.js`) ?
+                fs.readFileSync(`./src/client/${path.component}.js`) :
+                fs.readFileSync(`./src/client/modules/${viewMetaData.clientID}/components/${path.component}.js`)
     ).join('')}
         ${fs.readFileSync('./src/client/external-links.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/init-render.js', viewMetaData.charset)}

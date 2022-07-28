@@ -4,8 +4,13 @@
 import shell from 'shelljs';
 import fs from 'fs';
 
+const nameFolderModules = 'underpost_modules';
+
+if (!fs.existsSync(`./${nameFolderModules}`)) fs.mkdirSync(`./${nameFolderModules}`);
+shell.cd(nameFolderModules);
 
 [
+    'underpost-library',
     'underpost.net',
     'underpost-data-template'
 ].map(underpostModule => {

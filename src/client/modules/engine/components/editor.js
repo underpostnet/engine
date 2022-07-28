@@ -10,9 +10,6 @@ this.editor = {
         // let url = () => `/api/${uriApi}/create-key`;
         // let method = 'POST';
 
-        const topLabelInput = '35px';
-        const botLabelInput = '0px';
-
         setTimeout(() => {
 
             const renderMsgInput = (ID, MSG, STATUS) => {
