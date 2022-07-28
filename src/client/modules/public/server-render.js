@@ -12,8 +12,8 @@ const viewMetaData = {
     dir: 'ltr',
     router: `./src/client/modules/${clientID}/client-core.js`,
     styles: [
-        `./src/client/assets/style/global.css`,
-        `./src/client/assets/style/spinner-ellipsis.css`
+        `./src/client/assets/styles/global.css`,
+        `./src/client/assets/styles/spinner-ellipsis.css`
     ]
 };
 

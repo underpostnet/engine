@@ -88,3 +88,12 @@ this.js_demo = {
         `
     }
 };
+
+
+/*
+
+.addEventListener("input", function() {
+    console.log("input event fired");
+}, false);
+
+*/

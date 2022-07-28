@@ -5,13 +5,38 @@ import express from 'express';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions } from '../api/util.js';
+import { commonFunctions, randomColor, replaceAll } from '../api/util.js';
 import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const cssClientCore = `html{scroll-behavior:smooth}.fl{position:relative;display:flow-root}.abs,.in{display:block}.fll{float:left}.flr{float:right}.abs{position:absolute}.in,.inl{position:relative}.inl{display:inline-table}.fix{position:fixed;display:block}.center{transform:translate(-50%,-50%);top:50%;left:50%;width:100%;text-align:center}`;
+
+
+const defaultTheme = [
+    'black',
+    '#cfcfcf',
+    'magenta',
+    'white',
+    '#1f1f1f',
+    '#141414',
+    'purple',
+    'gray',
+    '#f1f1f1',
+    '#888',
+    '#555'
+];
+
+const renderStyleView = (dirStyle, viewMetaData) => {
+    if (dirStyle == './src/client/assets/styles/global.css') {
+        let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
+        defaultTheme.map(color => engineTheme = replaceAll(engineTheme, color, randomColor()));
+        logger.error('test');
+        return engineTheme;
+    }
+    return fs.readFileSync(dirStyle, viewMetaData.charset);
+};
 
 const renderComponents = () => viewPaths.map(path =>/*html*/`
 <${path.component}>${this[path.options ? path.options.origin : path.component].init(path.options)}</${path.component}>
@@ -58,7 +83,7 @@ const renderView = dataView => {
             <meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=0'>
             <style>
                 ${new CleanCSS().minify(cssClientCore
-        + viewMetaData.styles.map(dirStyle => fs.readFileSync(dirStyle, viewMetaData.charset)).join('')
+        + viewMetaData.styles.map(dirStyle => renderStyleView(dirStyle, viewMetaData)).join('')
         + viewPaths.filter(path => path.render).map(path => path.component + `{ display: none; }`).join('')
     ).styles}
             </style>

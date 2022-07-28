@@ -18,10 +18,21 @@ const apiUtil = app => {
     app.get(`/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
 };
 
+const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+const replaceAll = (str, replaceWhat, replaceTo) => {
+    replaceWhat = replaceWhat.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+    return str.replace(new RegExp(replaceWhat, 'g'), replaceTo);
+};
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
     const range = ${range};
+    const random = ${random};
+    const randomColor = ${randomColor};
 `;
 
 export {
@@ -30,5 +41,8 @@ export {
     commonFunctions,
     s4,
     getHash,
-    range
+    range,
+    random,
+    randomColor,
+    replaceAll
 };

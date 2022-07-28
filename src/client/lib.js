@@ -69,9 +69,6 @@ const renderMediaQuery = mediaData => {
     </style>    
     `
 };
-const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
-
-const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
 
 const setURI = (uri, objData, title) =>
     history.pushState(objData, title, uri)
