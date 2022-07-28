@@ -171,7 +171,7 @@ this.js_demo = {
             s('.' + this[IDS][2]).onclick = () => {
 
                 const idDemo = `demo-${s4()}`;
-                const contentEval = s('.' + this[IDS][0]).value.replaceAll('body', idDemo);
+                const contentEval = s('.' + this[IDS][0]).value.replaceAll(`'body'`, `'${idDemo}'`);
                 const displayJS = `append('body', '<${idDemo}></${idDemo}>');
                 ${contentEval}
                 `;
