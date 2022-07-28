@@ -169,22 +169,28 @@ this.js_demo = {
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
         setTimeout(() => {
             s('.' + this[IDS][2]).onclick = () => {
+
+                const idDemo = `demo-${s4()}`;
+                const contentEval = s('.' + this[IDS][0]).value.replaceAll('body', idDemo);
+                const displayJS = `append('body', '<${idDemo}></${idDemo}>');
+                ${contentEval}
+                `;
+                setTimeout(() => eval(contentEval));
+
                 append(this[IDS][1], /*html*/`
                        <div class='fl'>
                             <div class='in fll js_demo_cell'>
                                 <div class='in container title'>
-                                 CODE
+                                    CODE
                                 </div>
-                                <pre  class='in container'><code>${Prism.highlight(s('.' + this[IDS][0]).value, Prism.languages.javascript, 'javascript')}</pre></code>
+                                <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>
                             </div>
                             <div class='in fll js_demo_cell'>
                                 <div class='in container title'>
-                                 DEMO
+                                    DEMO
                                 </div>
-                            </div>
-                            <div class='in fll js_demo_cell'>
-                                <div class='in container title'>
-                                 TEST
+                                <div class='in container'>
+                                    <${idDemo}></${idDemo}>
                                 </div>
                             </div>
                         </div>
@@ -211,17 +217,10 @@ this.js_demo = {
                 }
             `},
             {
-                limit: 800,
+                limit: 1000,
                 css: /*css*/`
                 .js_demo_cell {
                     width: 50%;
-                }
-            `},
-            {
-                limit: 1200,
-                css: /*css*/`
-                .js_demo_cell {
-                    width: 33.3%;
                 }
             `}
         ])}
