@@ -30,8 +30,10 @@
     "dotenv": "latest",
     "express": "latest",
     "file-get-contents": "^1.0.0",
+    "file-sizeof": "^1.1.0",
     "marked": "^4.0.18",
     "morgan": "latest",
+    "mp3-duration": "^1.1.0",
     "node-fetch": "^3.2.8",
     "nodemon": "latest",
     "read": "^1.0.7",
@@ -41,6 +43,7 @@
     "tinymce": "^6.1.0",
     "ua-parser-js": "^1.0.2",
     "uglify-js": "^3.16.2",
-    "winston": "latest"
+    "winston": "latest",
+    "ws": "7.4.6"
   }
 }
