@@ -243,6 +243,9 @@ this.js_demo = {
             <div class='in container'>    
                 <${this[IDS][1]}></${this[IDS][1]}>
             </div>
+            <div class='in container title'>
+                LIVE CODE
+            </div>
             <div class='in container'>
                 <textarea class='in js_demo_textarea ${this[IDS][0]}' placeholder='Code...'></textarea>
             </div>
