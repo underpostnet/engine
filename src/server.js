@@ -34,9 +34,9 @@ app.use(morganMiddleware);
 // apiUtil(app);
 apiKeys(app);
 
-// ssr(app, engine);
-// ssr(app, _public);
-ssr(app, cryptokoyn);
+ssr(app, engine);
+ssr(app, _public);
+// ssr(app, cryptokoyn);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);
