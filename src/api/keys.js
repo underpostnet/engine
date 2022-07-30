@@ -322,11 +322,11 @@ const postEmitLinkItemCyberia = async (req, res) => {
                 const postTransactionStatus =
                     await new Promise((resolve, reject) => axios.post(endPointTransaction, endObjTransaction)
                         .then(function (response) {
-                            console.log(endPointTransaction, response);
+                            // console.log(endPointTransaction, response);
                             resolve(response);
                         })
                         .catch(function (error) {
-                            console.log(endPointTransaction, error);
+                            // console.log(endPointTransaction, error);
                             reject(error);
                         }));
 
