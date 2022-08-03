@@ -13,6 +13,7 @@ import { buildDev } from './build-dev.js';
 // api
 import { apiUtil } from './api/util.js';
 import { apiKeys } from './api/keys.js';
+import { apiUploader } from './api/uploader.js';
 
 // server side client render
 import { ssr } from './client/ssr.js';
@@ -28,12 +29,17 @@ const app = express();
 buildDev(app);
 dotenv.config();
 
+// json request
 app.use(express.json({ limit: '20MB' }));
+// files upload
+app.use(express.urlencoded({ extended: true }));
+// log events
 app.use(morganMiddleware);
 
 // apiUtil(app);
 apiKeys(app);
 
+apiUploader(app);
 ssr(app, engine);
 ssr(app, _public);
 // ssr(app, cryptokoyn);

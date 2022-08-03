@@ -81,6 +81,7 @@ const renderView = dataView => {
         ${fs.readFileSync('./src/client/init-render.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/router.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/footer.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/keys.js', viewMetaData.charset)}
     })()`;
     if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
     return /*html*/`

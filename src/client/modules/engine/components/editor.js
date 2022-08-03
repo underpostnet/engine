@@ -54,6 +54,50 @@ this.editor = {
                     ${tinymce.activeEditor.getContent()}
                 </div>
                 `);
+
+
+                // error this[IDS][5]
+
+
+
+
+                let body = new FormData();
+                // tinymce.activeEditor.getContent()
+                body.append('tinymce', 'test');
+
+                // const body = {
+                //     test: "test"
+                // };
+
+
+                const url = () => './api/uploader';
+                const method = 'POST';
+                const headers = {
+                    // 'Content-Type': 'application/json',
+                    // 'content-type': 'application/octet-stream'
+                    //  'content-length': CHUNK.length,
+                };
+
+                console.log('init fetch body:', body);
+
+                fetch(url(), {
+                    method,
+                    headers,
+                    body, // : method == 'GET' ? undefined : JSON.stringify(body)
+                })
+                    .then(async (res) => {
+                        let raw = await res.clone();
+                        raw = await raw.text();
+                        console.log(url(), raw);
+                        return { ...await res.json(), codeStatus: res.status, raw };
+                    })
+                    .then((res) => {
+                        console.log('fetch success', url(), res);
+                    }).catch(error => {
+                        console.error('fetch error ', url(), error);
+                    });
+
+
                 tinyMCE.activeEditor.setContent('');
             }
 
@@ -68,6 +112,10 @@ this.editor = {
            </div>
            <div class='in container'>
                 <textarea id='my-expressjs-tinymce-app'></textarea>
+           </div>
+           <div class='in container'>
+                <div class='in error-input ${this[IDS][5]}'></div>
+                <div class='in success-input ${this[IDS][6]}'></div>
            </div>
            <div class='in container'>
                 <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
