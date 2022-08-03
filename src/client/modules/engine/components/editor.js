@@ -3,49 +3,10 @@ this.editor = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
 
-        let labelInputs = [1];
-        let inputValueContent = [2];
-        let errorsIdInput = [3];
-
         // let url = () => `/api/${uriApi}/create-key`;
         // let method = 'POST';
 
         setTimeout(() => {
-
-            const renderMsgInput = (ID, MSG, STATUS) => {
-                htmls('.' + this[IDS][ID], (STATUS ? sucessIcon : errorIcon) + MSG);
-                fadeIn(s('.' + this[IDS][ID]));
-            };
-
-            const checkInput = (i, inputId) => {
-                if (s('.' + this[IDS][inputId]).value == '') {
-                    s('.' + this[IDS][labelInputs[i]]).style.top = topLabelInput;
-                    renderMsgInput(errorsIdInput[i], renderLang({ es: 'Campo vacio', en: 'Empty Field' }));
-                    return false;
-                }
-                s('.' + this[IDS][labelInputs[i]]).style.top = botLabelInput;
-                s('.' + this[IDS][errorsIdInput[i]]).style.display = 'none';
-                return true;
-            };
-
-            const checkAllInput = (setEvent) => inputValueContent.map((inputId, i) => {
-                if (setEvent) {
-                    s('.' + this[IDS][inputId]).onblur = () =>
-                        checkInput(i, inputId);
-                    s('.' + this[IDS][inputId]).oninput = () =>
-                        checkInput(i, inputId);
-                    s('.' + this[IDS][labelInputs[i]]).onclick = () =>
-                        s('.' + this[IDS][inputId]).focus();
-                    s('.' + this[IDS][inputId]).onclick = () =>
-                        s('.' + this[IDS][labelInputs[i]]).style.top = botLabelInput;
-                    s('.' + this[IDS][inputId]).onfocus = () =>
-                        s('.' + this[IDS][labelInputs[i]]).style.top = botLabelInput;
-                    return;
-                };
-                return s('.' + this[IDS][inputId]).oninput();
-            }).filter(x => x == false).length === 0;
-
-            checkAllInput(true);
 
             tinymce.init({
                 selector: 'textarea#my-expressjs-tinymce-app',
@@ -103,14 +64,10 @@ this.editor = {
            </style>
            <${this[IDS][4]}></${this[IDS][4]}>
            <div class='in container'>
-                <label class='in ${this[IDS][1]}' style='top: ${topLabelInput};'>
-                ${renderLang({ es: 'Titulo', en: 'Title' })}
-                </label>
-                <input class='in ${this[IDS][2]}' type='text' autocomplete='off'>
-                <div class='in error-input ${this[IDS][3]}'></div>
+                ${renderInput(this[IDS], renderLang({ es: 'Titulo', en: 'Title' }), [1, 2, 3])}
            </div>
            <div class='in container'>
-                      <textarea id='my-expressjs-tinymce-app'></textarea>
+                <textarea id='my-expressjs-tinymce-app'></textarea>
            </div>
            <div class='in container'>
                 <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
