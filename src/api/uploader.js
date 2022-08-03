@@ -1,8 +1,8 @@
 
-const uriUploader = 'uploader';
-
 
 import fs from 'fs';
+
+const uriUploader = 'uploader';
 
 const srcFolders = ['./data/uploads'];
 
