@@ -7,14 +7,27 @@ const uriUploader = 'uploader';
 const srcFolders = ['./data/uploads'];
 
 const onUploadFile = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
 
+        console.log("onUploadFile files:", req.files);
+        console.log("onUploadFile body:", req.body);
 
-    console.log("onUploadFile files:", req.files);
-    console.log("onUploadFile body:", req.body);
+        if (req.files) {
+            Object.keys(req.files).map(keyFile => {
+                fs.writeFileSync(srcFolders[0] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+            });
+        }
 
-    if (req.files) {
-        Object.keys(req.files).map(keyFile => {
-            fs.writeFileSync(srcFolders[0] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+        return res.status(200).json({
+            status: 'success',
+            data: 'ok'
+        });
+
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
         });
     }
 
@@ -30,11 +43,6 @@ const onUploadFile = (req, res) => {
     //     status: 'error',
     //     data: error.message,
     // });
-
-    return res.status(200).json({
-        status: 'success',
-        data: 'ok'
-    });
 
 };
 
