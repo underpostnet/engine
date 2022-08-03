@@ -62,12 +62,9 @@ this.editor = {
 
 
                 let body = new FormData();
-                // tinymce.activeEditor.getContent()
-                body.append('tinymce', 'test');
 
-                // const body = {
-                //     test: "test"
-                // };
+
+                body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], s4() + '.html'));
 
 
                 const url = () => './api/uploader';
@@ -82,7 +79,7 @@ this.editor = {
 
                 fetch(url(), {
                     method,
-                    headers,
+                    // headers,
                     body, // : method == 'GET' ? undefined : JSON.stringify(body)
                 })
                     .then(async (res) => {

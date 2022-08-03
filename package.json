@@ -30,6 +30,7 @@
     "crypto-js": "latest",
     "dotenv": "latest",
     "express": "latest",
+    "express-fileupload": "^1.4.0",
     "express-session": "^1.17.3",
     "express-useragent": "^1.0.15",
     "file-get-contents": "^1.0.0",

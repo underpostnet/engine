@@ -6,6 +6,7 @@ import express from 'express';
 // server modules
 import { morganMiddleware } from './modules/morgan.js';
 import { logger } from './modules/logger.js';
+import fileUpload from 'express-fileupload';
 
 // buil dev env
 import { buildDev } from './build-dev.js';
@@ -29,10 +30,15 @@ const app = express();
 buildDev(app);
 dotenv.config();
 
-// json request
+// parse requests of content-type - application/json
+// app.use(bodyParser.json({ limit: '25mb' }));
 app.use(express.json({ limit: '20MB' }));
-// files upload
-app.use(express.urlencoded({ extended: true }));
+
+// parse requests of content-type - application/x-www-form-urlencoded
+// app.use(bodyParser.urlencoded({ limit: '25mb', extended: true }));
+app.use(express.urlencoded({ extended: true, limit: '20MB' }));
+app.use(fileUpload());
+
 // log events
 app.use(morganMiddleware);
 

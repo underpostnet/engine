@@ -8,10 +8,15 @@ const srcFolders = ['./data/uploads'];
 
 const onUploadFile = (req, res) => {
 
+
     console.log("onUploadFile files:", req.files);
-    console.log("onUploadFile file:", req.file);
     console.log("onUploadFile body:", req.body);
 
+    if (req.files) {
+        Object.keys(req.files).map(keyFile => {
+            fs.writeFileSync(srcFolders[0] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+        });
+    }
 
     // return res.status(400).json({
     //     status: 'error',
