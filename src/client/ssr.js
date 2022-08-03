@@ -45,7 +45,7 @@ const renderView = dataView => {
     const { view, viewMetaData, viewPaths } = dataView;
     let jsClientCore = `(function(){
         ${commonFunctions()}
-        ${fs.readFileSync('./src/client/lib.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/vanilla.js', viewMetaData.charset)}
         const viewPaths = JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}');
         const view = JSON.parse('${JSON.stringify(view)}');
         const viewMetaData = JSON.parse('${JSON.stringify(viewMetaData)}');
