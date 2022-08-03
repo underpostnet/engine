@@ -88,6 +88,9 @@ this.js_demo = {
             <div class='in container'>
                 <textarea class='in js_demo_textarea ${this[IDS][0]}' placeholder='Code...'></textarea>
             </div>
+            <div class='in container'>
+                <button class='${this[IDS][6]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+            </div>   
         `
     }
 };

@@ -24,6 +24,9 @@ this.markdown = {
         });
         return /*html*/`
         <${this[IDS][1]}></${this[IDS][1]}>
+        <div class='in container'>
+            ${renderInput(this[IDS], renderLang({ es: 'Titulo', en: 'Title' }), [2, 3, 4])}
+        </div>
         <div class='in container' style='background: white'>
             <textarea class='markdown-editor'></textarea>
         </div>
