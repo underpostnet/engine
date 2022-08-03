@@ -76,6 +76,9 @@ this.js_demo = {
                 }
             `}
         ])}
+            <div class='in container'>
+                ${renderInput(this[IDS], renderLang({ es: 'Titulo', en: 'Title' }), [3, 4, 5])}
+            </div>
             <div class='in container'>    
                 <${this[IDS][1]}></${this[IDS][1]}>
             </div>
