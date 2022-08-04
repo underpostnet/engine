@@ -57,7 +57,7 @@ const renderView = dataView => {
 
         ${commonFunctions()}
         ${fs.readFileSync('./src/client/vanilla.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/lib.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/input.js', viewMetaData.charset)}
         
         ${viewMetaData.apiURIS.map(dataApiUri => `
             const ${dataApiUri.name} = '${dataApiUri.path}';
