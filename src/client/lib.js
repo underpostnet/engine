@@ -1,4 +1,4 @@
-const renderInput = (_this, name, matrix, customValidator) => {
+const renderInput = (_this, name, matrix, customValidator, options) => {
 
     let labelInputs = [matrix[0]];
     let inputValueContent = [matrix[1]];
@@ -46,7 +46,9 @@ const renderInput = (_this, name, matrix, customValidator) => {
             <label class='in ${_this[matrix[0]]}' style='top: ${topLabelInput};'>
                 ${name}
             </label>
-            <input class='in ${_this[matrix[1]]}' type='text' autocomplete='off'>
+            <input class='in ${_this[matrix[1]]}' 
+            type='${options && options.type ? options.type : 'text'}'            
+            autocomplete='${options && options.autocomplete ? options.autocomplete : 'off'}'>
             <div class='in error-input ${_this[matrix[2]]}'></div>
         `
 
