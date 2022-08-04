@@ -27,12 +27,61 @@ const replaceAll = (str, replaceWhat, replaceTo) => {
     return str.replace(new RegExp(replaceWhat, 'g'), replaceTo);
 };
 
+const passwordValidator = str => {
+
+    let msg = '';
+    let validate = true;
+    let regex;
+
+    if (str.length < 8) {
+        validate = false;
+        msg += ' > charLength';
+    }
+
+    regex = /^(?=.*[a-z]).+$/;
+    if (!regex.test(str)) {
+        validate = false;
+        msg += ' > lowercase';
+    }
+
+    regex = /^(?=.*[A-Z]).+$/;
+    if (!regex.test(str)) {
+        validate = false;
+        msg += ' > uppercase';
+    }
+
+    regex = /^(?=.*[0-9_\W]).+$/;
+    if (!regex.test(str)) {
+        validate = false;
+        msg += ' > number or special';
+    }
+
+    return {
+        msg,
+        validate
+    }
+};
+
+
+const emailValidator = str => {
+
+    let msg = ' > invalid email';
+    let validate = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,8})+$/.test(str);
+
+    return {
+        msg,
+        validate
+    }
+};
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
     const range = ${range};
     const random = ${random};
     const randomColor = ${randomColor};
+    const passwordValidator = ${passwordValidator};
+    const emailValidator = ${emailValidator};
 `;
 
 export {

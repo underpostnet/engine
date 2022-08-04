@@ -16,6 +16,7 @@ this.register = {
                 matrix: [0, 1, 2],
                 displayName: renderLang({ es: 'email', en: 'email' }),
                 options: {
+                    type: 'email',
                     autocomplete: 'new-password'
                 },
                 validator: () => true,

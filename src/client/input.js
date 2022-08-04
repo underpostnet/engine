@@ -1,37 +1,5 @@
-const passwordValidator = str => {
 
-    let msg = '';
-    let validate = true;
-    let regex;
 
-    if (str.length < 8) {
-        validate = false;
-        msg += ' >' + renderLang({ es: 'charLength', en: 'charLength' });
-    }
-
-    regex = /^(?=.*[a-z]).+$/;
-    if (!regex.test(str)) {
-        validate = false;
-        msg += '>' + renderLang({ es: 'lowercase', en: 'lowercase' });
-    }
-
-    regex = /^(?=.*[A-Z]).+$/;
-    if (!regex.test(str)) {
-        validate = false;
-        msg += ' >' + renderLang({ es: 'uppercase', en: 'uppercase' });
-    }
-
-    regex = /^(?=.*[0-9_\W]).+$/;
-    if (!regex.test(str)) {
-        validate = false;
-        msg += ' >' + renderLang({ es: 'number or special', en: 'number or special' });
-    }
-
-    return {
-        msg,
-        validate
-    }
-};
 
 
 const renderInput = (_this, name, matrix, customValidator, options) => {
@@ -58,6 +26,13 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
             const testPassword = passwordValidator(s('.' + _this[inputId]).value);
             if (!testPassword.validate) {
                 renderMsgInput(errorsIdInput[i], testPassword.msg);
+                return false;
+            }
+        }
+        if (options && options.type == 'email') {
+            const testEmail = emailValidator(s('.' + _this[inputId]).value);
+            if (!testEmail.validate) {
+                renderMsgInput(errorsIdInput[i], testEmail.msg);
                 return false;
             }
         }
