@@ -50,13 +50,31 @@ this.register = {
             s('.' + this[IDS][9]).onclick = e => {
                 e.preventDefault();
 
-                let authObj = {};
+                let body = {};
 
                 inputsData.map(inputsData =>
-                    authObj[inputsData.model] = inputsData.getValue());
+                    body[inputsData.model] = inputsData.getValue());
 
-                console.log('authObj', authObj);
+                console.log('Auth Obj body', body);
 
+                const url = () => `/api/${uriAuth}`;
+                const method = 'POST';
+                const headers = {
+                    'Content-Type': 'application/json',
+                    // 'content-type': 'application/octet-stream'
+                    //  'content-length': CHUNK.length,
+                };
+
+                console.log('init fetch body:', body);
+
+                (async () => {
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        headers,
+                        body: JSON.stringify(body), // : method == 'GET' ? undefined : JSON.stringify(body)
+                    });
+                    console.log('end fetch requestResult:', requestResult);
+                })();
 
             };
         });

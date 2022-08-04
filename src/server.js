@@ -15,6 +15,7 @@ import { buildDev } from './build-dev.js';
 import { apiUtil } from './api/util.js';
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
+import { apiAuth } from './api/auth.js';
 
 // server side client render
 import { ssr } from './client/ssr.js';
@@ -45,6 +46,7 @@ app.use(morganMiddleware);
 
 // apiUtil(app);
 apiKeys(app);
+apiAuth(app);
 
 apiUploader(app);
 ssr(app, engine);

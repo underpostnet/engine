@@ -8,10 +8,10 @@ const viewMetaData = {
         path: '/assets/underpost.png'
     },
     apiURIS: [
-        // {
-        //     name: 'uriApi',
-        //     path: 'keys'
-        // }
+        {
+            name: 'uriAuth',
+            path: 'auth'
+        }
     ],
     lang: 'en',
     charset: 'utf-8',
