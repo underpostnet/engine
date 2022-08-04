@@ -80,4 +80,23 @@ const getURI = () => {
     return uri;
 };
 
+const serviceRequest = (url, options) => new Promise(
+    (resolve, reject) => {
+        fetch(url(), options)
+            .then(async (res) => {
+                let raw = await res.clone();
+                raw = await raw.text();
+                console.log(`${url()} raw: `, raw);
+                return { ...await res.json(), codeStatus: res.status, raw };
+            })
+            .then((res) => {
+                console.log('fetch success', url(), res);
+                resolve(res);
+            }).catch(error => {
+                console.error('fetch error ', url(), error);
+                reject(error);
+            });
+    }
+);
+
 const GLOBAL = this;

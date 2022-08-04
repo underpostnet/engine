@@ -77,25 +77,20 @@ this.editor = {
 
                 console.log('init fetch body:', body);
 
-                fetch(url(), {
-                    method,
-                    // headers,
-                    body, // : method == 'GET' ? undefined : JSON.stringify(body)
-                })
-                    .then(async (res) => {
-                        let raw = await res.clone();
-                        raw = await raw.text();
-                        console.log(url(), raw);
-                        return { ...await res.json(), codeStatus: res.status, raw };
-                    })
-                    .then((res) => {
-                        console.log('fetch success', url(), res);
-                    }).catch(error => {
-                        console.error('fetch error ', url(), error);
+
+                (async () => {
+
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        // headers,
+                        body, // : method == 'GET' ? undefined : JSON.stringify(body)
                     });
 
+                    console.log('request', requestResult);
 
-                tinyMCE.activeEditor.setContent('');
+                    tinyMCE.activeEditor.setContent('');
+
+                })();
             }
 
 
