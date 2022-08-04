@@ -23,6 +23,7 @@ import { ssr } from './client/ssr.js';
 import { engine } from './client/modules/engine/server-render.js';
 import { _public } from './client/modules/public/server-render.js';
 import { cryptokoyn } from './client/modules/cryptokoyn/server-render.js';
+import { authClient } from './client/modules/auth/server-render.js';
 
 import dotenv from 'dotenv';
 
@@ -48,6 +49,7 @@ apiKeys(app);
 apiUploader(app);
 ssr(app, engine);
 ssr(app, _public);
+ssr(app, authClient);
 // ssr(app, cryptokoyn);
 
 app.listen(process.env.PORT, () => {
