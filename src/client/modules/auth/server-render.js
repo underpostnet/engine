@@ -28,16 +28,16 @@ const baseHome = '/auth/';
 // module render group
 const viewPaths = [
     {
-        path: baseHome,
+        path: baseHome.slice(0, -1),
         homePaths: [baseHome],
         title: { en: '', es: '' },
         component: 'main_menu',
         options: false,
         menu: false,
-        home: false,
-        nohome: false,
+        home: true,
+        nohome: true,
         render: true,
-        display: false
+        display: true
     },
     {
         path: baseHome + 'register',

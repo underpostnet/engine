@@ -39,7 +39,7 @@ const baseHome = '/en/';
 // module render group
 const viewPaths = [
     {
-        path: baseHome,
+        path: baseHome.slice(0, -1),
         homePaths: [baseHome],
         title: { en: '', es: '' },
         component: 'main_menu',

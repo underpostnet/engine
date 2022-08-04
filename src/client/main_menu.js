@@ -9,7 +9,7 @@ this.main_menu = {
 
         setTimeout(() => {
 
-            prepend('.' + this[IDS][viewPaths.length], renderMmenubtn(viewPaths[0], 0));
+            if (viewPaths[0].menu) prepend('.' + this[IDS][viewPaths.length], renderMmenubtn(viewPaths[0], 0));
 
             viewPaths.map((path, i) => {
 

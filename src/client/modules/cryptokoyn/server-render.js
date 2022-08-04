@@ -41,7 +41,7 @@ const viewPaths = [
     },
     {
         path: baseHome + 'keys/create',
-        homePaths: ['/'],
+        homePaths: [baseHome],
         title: { en: 'Create Key', es: 'Crear Llaves' },
         component: 'form_key',
         options: false,
