@@ -11,15 +11,6 @@ const saltRounds = 10;
 
 // console.log(process.env.SECRET);
 // console.log(process.env.EXPIRE);
-// To check a password:
-// // Load hash from your password DB.
-// bcrypt.compare(myPlaintextPassword, hash, function(err, result) {
-//     // result == true
-// });
-// bcrypt.compare(someOtherPlaintextPassword, hash, function(err, result) {
-//     // result == false
-// });
-
 
 const uriAuth = 'auth';
 
@@ -118,16 +109,45 @@ const register = async (req, res) => {
 
 };
 
-const login = (req, res) => {
+const login = async (req, res) => {
 
     logger.info('login:');
     logger.info(req.body);
 
+    try {
+        req.body.email = `${req.body.email}`;
+        const user = getUsers().find(userData => userData.email == req.body.email.toLowerCase());
 
-    return res.status(200).json({
-        status: 'success',
-        data: 'ok'
-    });
+        // To check a password:
+        // Load hash from your password DB.
+
+        const validateLogIng = await new Promise((resolve, reject) => {
+            try {
+                bcrypt.compare(`${req.body.pass}`, user.pass, function (err, result) {
+                    resolve(result);
+                });
+            } catch (error) {
+                reject(false);
+            }
+        });
+
+        if (validateLogIng === true) {
+            return res.status(200).json({
+                status: 'success',
+                data: 'ok'
+            });
+        }
+        return res.status(400).json({
+            status: 'error',
+            data: renderLang({ es: 'Email o Contraseñas invalidos', en: 'Invalid Email or passphrase' }, req)
+        });
+    } catch (error) {
+        logger.error(error);
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
 
 };
 
