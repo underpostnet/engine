@@ -5,8 +5,8 @@ import express from 'express';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions, randomColor, replaceAll } from '../api/util.js';
-import { logger } from '../modules/logger.js';
+import { commonFunctions, randomColor, replaceAll } from '../../api/util.js';
+import { logger } from '../../modules/logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -56,8 +56,8 @@ const renderView = dataView => {
         const botLabelInput = '0px';
 
         ${commonFunctions()}
-        ${fs.readFileSync('./src/client/vanilla.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/input.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/input.js', viewMetaData.charset)}
         
         ${viewMetaData.apiURIS.map(dataApiUri => `
             const ${dataApiUri.name} = '${dataApiUri.path}';
@@ -73,15 +73,15 @@ const renderView = dataView => {
         console.log('dataView', view);
         ${viewPaths.filter(path => path.render).map(path =>
         path.options && path.options.origin ? '' :
-            fs.existsSync(`./src/client/${path.component}.js`) ?
-                fs.readFileSync(`./src/client/${path.component}.js`) :
-                fs.readFileSync(`./src/client/modules/${viewMetaData.clientID}/components/${path.component}.js`)
+            fs.existsSync(`./src/client/core/${path.component}.js`) ?
+                fs.readFileSync(`./src/client/core/${path.component}.js`) :
+                fs.readFileSync(`./src/client/components/${path.component}.js`)
     ).join('')}
-        ${fs.readFileSync('./src/client/external-links.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/init-render.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/router.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/footer.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/keys.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/external-links.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/init-render.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/router.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/footer.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/keys.js', viewMetaData.charset)}
     })()`;
     if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
     return /*html*/`

@@ -18,13 +18,13 @@ import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
 
 // server side client render
-import { ssr } from './client/ssr.js';
+import { ssr } from './client/core/ssr.js';
 
 // views modules
-import { engine } from './client/modules/engine/server-render.js';
-import { _public } from './client/modules/public/server-render.js';
-import { cryptokoyn } from './client/modules/cryptokoyn/server-render.js';
-import { authClient } from './client/modules/auth/server-render.js';
+import { engine } from './client/modules/engine.js';
+import { _public } from './client/modules/public.js';
+import { cryptokoyn } from './client/modules/cryptokoyn.js';
+import { authClient } from './client/modules/auth.js';
 
 import dotenv from 'dotenv';
 

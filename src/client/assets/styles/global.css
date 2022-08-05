@@ -32,6 +32,7 @@ input,
 button,
 textarea,
 iframe,
+mini-modal,
 form {
     border: none;
     outline: none;
@@ -40,6 +41,11 @@ form {
     font-size: 18px;
     overflow: auto;
     font-family: arial;
+}
+
+mini-modal {
+    background: rgba(0, 0, 0, 0.5);
+    border: 3px solid #141414;
 }
 
 button {
