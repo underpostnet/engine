@@ -30,7 +30,12 @@ this.register = {
                     type: 'password',
                     autocomplete: 'new-password'
                 },
-                validator: () => true,
+                validator: (inputId, labelId) => {
+                    if (s('.' + this[IDS][inputId]).value == s('.' + this[IDS][7]).value) {
+                        s('.' + this[IDS][8]).style.display = 'none';
+                    }
+                    return true;
+                },
                 getValue: () => s(`.${this[IDS][4]}`).value
             },
             {
@@ -83,21 +88,23 @@ this.register = {
                 console.log('init fetch body:', body);
 
                 (async () => {
+                    s('.' + this[IDS][11]).style.display = 'none';
+                    fadeIn(s('.' + this[IDS][10]));
                     const requestResult = await serviceRequest(url, {
                         method,
                         headers,
                         body: JSON.stringify(body), // : method == 'GET' ? undefined : JSON.stringify(body)
                     });
                     console.log('end fetch requestResult:', requestResult);
+                    s('.' + this[IDS][10]).style.display = 'none';
+                    fadeIn(s('.' + this[IDS][11]));
                 })();
 
             };
         });
 
-        // ${renderInput(this[IDS], , , ,)}
-
         return /*html*/`
-                <form class='in container'>
+                <form class='in container ${this[IDS][11]}'>
 
                     ${inputsData.map(dataInput => renderInput(
             this[IDS],
@@ -112,6 +119,7 @@ this.register = {
             ${renderLang({ es: 'Iniciar Sesion', en: 'Log In' })}
         </button>                        
                 </form> 
+                ${renderSpinner(this[IDS][10])}
         `
     }
 };

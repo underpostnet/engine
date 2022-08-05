@@ -19,9 +19,6 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
             renderMsgInput(errorsIdInput[i], renderLang({ es: 'Campo vacio', en: 'Empty Field' }));
             return false;
         }
-        if (customValidator !== undefined && customValidator(inputId, errorsIdInput[i]) == false) {
-            return false;
-        }
         if (options && options.type == 'password') {
             const testPassword = passwordValidator(s('.' + _this[inputId]).value);
             if (!testPassword.validate) {
@@ -35,6 +32,9 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
                 renderMsgInput(errorsIdInput[i], testEmail.msg);
                 return false;
             }
+        }
+        if (customValidator !== undefined && customValidator(inputId, errorsIdInput[i]) == false) {
+            return false;
         }
         s('.' + _this[labelInputs[i]]).style.top = botLabelInput;
         s('.' + _this[errorsIdInput[i]]).style.display = 'none';

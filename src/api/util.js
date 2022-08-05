@@ -93,5 +93,7 @@ export {
     range,
     random,
     randomColor,
-    replaceAll
+    replaceAll,
+    passwordValidator,
+    emailValidator
 };
