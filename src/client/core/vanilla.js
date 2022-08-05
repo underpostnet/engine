@@ -6,6 +6,7 @@ const s = el => document.querySelector(el);
 const htmls = (el, html) => s(el).innerHTML = html;
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const prepend = (el, html) => s(el).insertAdjacentHTML('afterbegin', html);
+
 const fadeIn = (el, display) => {
     el.style.opacity = 0;
     el.style.display = display || 'block';
@@ -13,6 +14,17 @@ const fadeIn = (el, display) => {
         let val = parseFloat(el.style.opacity);
         if (!((val += .1) > 1)) {
             el.style.opacity = val;
+            requestAnimationFrame(fade);
+        }
+    };
+    fade();
+};
+const fadeOut = (el) => {
+    el.style.opacity = 1;
+    const fade = () => {
+        if ((el.style.opacity -= .1) < 0) {
+            el.style.display = "none";
+        } else {
             requestAnimationFrame(fade);
         }
     };
@@ -100,8 +112,10 @@ const serviceRequest = (url, options) => new Promise(
 );
 
 const renderFixModal = options => {
+    const timeOut = 2500;
     setTimeout(() => fadeIn(s('.' + options.id)));
-    setTimeout(() => s('.' + options.id).remove(), 2500);
+    setTimeout(() => fadeOut(s('.' + options.id)), timeOut);
+    setTimeout(() => s('.' + options.id).remove(), (timeOut + 500));
     return /*html*/`
     <style>
         .${options.id} {

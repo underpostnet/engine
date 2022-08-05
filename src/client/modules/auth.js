@@ -13,7 +13,7 @@ const viewMetaData = {
             path: 'auth'
         }
     ],
-    lang: 'en',
+    lang: 'es',
     charset: 'utf-8',
     dir: 'ltr',
     externalRouter: [],

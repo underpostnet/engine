@@ -1,6 +1,6 @@
 
 import fs from 'fs';
-import { emailValidator, passwordValidator } from './util.js';
+import { emailValidator, passwordValidator, renderLang } from './util.js';
 import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
@@ -40,14 +40,14 @@ const register = async (req, res) => {
 
         if (req.body.email) req.body.email = req.body.email.toLowerCase();
 
-        const testEmail = emailValidator(req.body.email);
+        const testEmail = emailValidator(req.body.email, req);
         if (!testEmail.validate)
             return res.status(400).json({
                 status: 'error',
                 data: testEmail.msg
             });
 
-        const testPass = passwordValidator(req.body.pass);
+        const testPass = passwordValidator(req.body.pass, req);
         if (!testPass.validate)
             return res.status(400).json({
                 status: 'error',
@@ -59,7 +59,7 @@ const register = async (req, res) => {
         if (users.find(x => x.email == req.body.email))
             return res.status(400).json({
                 status: 'error',
-                data: 'exist email'
+                data: renderLang({ en: 'existing email', es: 'email ya existente' }, req)
             });
 
         req.body.pass = await new Promise((resolve, reject) => {

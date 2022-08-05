@@ -27,7 +27,13 @@ const replaceAll = (str, replaceWhat, replaceTo) => {
     return str.replace(new RegExp(replaceWhat, 'g'), replaceTo);
 };
 
-const passwordValidator = str => {
+const renderLang = (langs, req) => {
+    const getLang = `${req.acceptsLanguages()[0].split('-')[0]}`.toLowerCase();
+    if (Object.keys(langs).includes(getLang)) return langs[getLang];
+    return langs['en'];
+};
+
+const passwordValidator = (str, req) => {
 
     let msg = '';
     let validate = true;
@@ -35,25 +41,25 @@ const passwordValidator = str => {
 
     if (str.length < 8) {
         validate = false;
-        msg += ' > charLength';
+        msg += ` > ${renderLang({ en: '8 char Length', es: '8 caracteres' }, req)}`;
     }
 
     regex = /^(?=.*[a-z]).+$/;
     if (!regex.test(str)) {
         validate = false;
-        msg += ' > lowercase';
+        msg += ` > ${renderLang({ en: 'lowercase', es: 'una minuscula' }, req)}`;
     }
 
     regex = /^(?=.*[A-Z]).+$/;
     if (!regex.test(str)) {
         validate = false;
-        msg += ' > uppercase';
+        msg += ` > ${renderLang({ en: 'uppercase', es: 'una mayuscula' }, req)}`;
     }
 
     regex = /^(?=.*[0-9_\W]).+$/;
     if (!regex.test(str)) {
         validate = false;
-        msg += ' > number or special';
+        msg += ` > ${renderLang({ en: 'number or special', es: 'numero o caracter especial' }, req)}`;
     }
 
     return {
@@ -63,13 +69,11 @@ const passwordValidator = str => {
 };
 
 
-const emailValidator = str => {
+const emailValidator = (str, req) => {
 
-    let msg = ' > invalid email';
-    let validate = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,8})+$/.test(str);
-
+    const validate = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,8})+$/.test(str);
     return {
-        msg,
+        msg: validate ? '' : ` > ${renderLang({ en: 'invalid email', es: 'email invalido' }, req)}`,
         validate
     }
 };
@@ -95,5 +99,6 @@ export {
     randomColor,
     replaceAll,
     passwordValidator,
-    emailValidator
+    emailValidator,
+    renderLang
 };
