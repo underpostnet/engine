@@ -118,6 +118,19 @@ const register = async (req, res) => {
 
 };
 
+const login = (req, res) => {
+
+    logger.info('login:');
+    logger.info(req.body);
+
+
+    return res.status(200).json({
+        status: 'success',
+        data: 'ok'
+    });
+
+};
+
 const apiAuth = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -125,7 +138,8 @@ const apiAuth = app => {
     if (!fs.existsSync(usersDataPath))
         fs.writeFileSync(usersDataPath, '[]', 'utf8');
 
-    app.post(`/api/${uriAuth}`, register);
+    app.post(`/api/${uriAuth}/register`, register);
+    app.post(`/api/${uriAuth}/login`, login);
     // app.get(`/api/${uriKeys}`, getKeys);
 
 }

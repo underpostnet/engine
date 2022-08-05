@@ -50,6 +50,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + 'login',
+        homePaths: [baseHome],
+        title: { en: 'Log In', es: 'Iniciar Session' },
+        component: 'login',
+        options: { origin: 'register', mode: 'login' },
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 

@@ -1,7 +1,7 @@
 
 
 this.register = {
-    init: function () {
+    init: function (options) {
 
 
 
@@ -9,7 +9,9 @@ this.register = {
         this[IDS] = range(0, maxIdComponent).map(() => 'register-' + s4());
 
 
-
+        url = () => `/api/${uriAuth}/register`;
+        let valueInputs = [1, 4, 7];
+        let labelInputs = [2, 5, 8];
         let inputsData = [
             {
                 model: 'email',
@@ -31,7 +33,7 @@ this.register = {
                     autocomplete: 'new-password'
                 },
                 validator: (inputId, labelId) => {
-                    if (s('.' + this[IDS][inputId]).value == s('.' + this[IDS][7]).value) {
+                    if (s('.' + this[IDS][7]) && s('.' + this[IDS][inputId]).value == s('.' + this[IDS][7]).value) {
                         s('.' + this[IDS][8]).style.display = 'none';
                     }
                     return true;
@@ -59,13 +61,27 @@ this.register = {
 
         ];
 
+        if (options) {
+            switch (options.mode) {
+                case 'login':
+                    url = () => `/api/${uriAuth}/login`;
+                    valueInputs.pop();
+                    labelInputs.pop();
+                    inputsData.pop();
+                    break;
+
+                default:
+                    break;
+            }
+        }
+
         setTimeout(() => {
             s('.' + this[IDS][9]).onclick = e => {
                 e.preventDefault();
 
-                [1, 4, 7].map(x => s('.' + this[IDS][x]).oninput());
+                valueInputs.map(x => s('.' + this[IDS][x]).oninput());
 
-                if ([2, 5, 8].filter(x => s('.' + this[IDS][x]).style.display == 'block').length > 0) {
+                if (labelInputs.filter(x => s('.' + this[IDS][x]).style.display == 'block').length > 0) {
                     console.error('invalid form');
                     return;
                 };
@@ -77,7 +93,6 @@ this.register = {
 
                 console.log('Auth Obj body', body);
 
-                const url = () => `/api/${uriAuth}`;
                 const method = 'POST';
                 const headers = {
                     'Content-Type': 'application/json',
@@ -103,7 +118,9 @@ this.register = {
                             id: 'mini-modal-' + s4(),
                             icon: sucessIcon,
                             color: 'green',
-                            content: renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
+                            content: options && options.mode == 'login' ?
+                                renderLang({ es: 'Ingreso exitoso', en: 'Success login' }) :
+                                renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
                         }));
                     } else {
                         append('body', renderFixModal({
