@@ -41,7 +41,14 @@ this.register = {
                     type: 'password',
                     autocomplete: 'new-password'
                 },
-                validator: () => true,
+                validator: (inputId, labelId) => {
+                    if (s('.' + this[IDS][inputId]).value != s('.' + this[IDS][4]).value) {
+                        htmls('.' + this[IDS][labelId], errorIcon + ' invalid match password');
+                        fadeIn(s('.' + this[IDS][labelId]));
+                        return false;
+                    }
+                    return true;
+                },
                 getValue: () => s(`.${this[IDS][7]}`).value
             },
 
@@ -50,6 +57,13 @@ this.register = {
         setTimeout(() => {
             s('.' + this[IDS][9]).onclick = e => {
                 e.preventDefault();
+
+                [1, 4, 7].map(x => s('.' + this[IDS][x]).oninput());
+
+                if ([2, 5, 8].filter(x => s('.' + this[IDS][x]).style.display == 'block').length > 0) {
+                    console.error('invalid form');
+                    return;
+                };
 
                 let body = {};
 
