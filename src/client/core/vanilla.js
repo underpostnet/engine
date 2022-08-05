@@ -99,4 +99,29 @@ const serviceRequest = (url, options) => new Promise(
     }
 );
 
+const renderFixModal = options => {
+    setTimeout(() => fadeIn(s('.' + options.id)));
+    setTimeout(() => s('.' + options.id).remove(), 2500);
+    return /*html*/`
+    <style>
+        .${options.id} {
+            width: 200px;
+            height: 120px;
+            display: none;
+            color: ${options.color};
+            z-index: 9999;
+            font-weight: bold;                                        
+        }
+    </style>
+    <mini-modal class='fix center ${options.id}'>
+        <div class='abs center'>
+            <span style='font-size: 35px'> ${options.icon} </span> 
+            <br> <br>
+            ${options.content}
+        </div>
+    </mini-modal>
+                    
+`
+};
+
 const GLOBAL = this;

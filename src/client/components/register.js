@@ -98,6 +98,21 @@ this.register = {
                     console.log('end fetch requestResult:', requestResult);
                     s('.' + this[IDS][10]).style.display = 'none';
                     fadeIn(s('.' + this[IDS][11]));
+                    if (requestResult.status == 'success') {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
                 })();
 
             };
