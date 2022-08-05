@@ -9,7 +9,7 @@ this.register = {
         this[IDS] = range(0, maxIdComponent).map(() => 'register-' + s4());
 
 
-        url = () => `/api/${uriAuth}/register`;
+        let url = () => `/api/${uriAuth}/register`;
         let valueInputs = [1, 4, 7];
         let labelInputs = [2, 5, 8];
         let inputsData = [
@@ -122,6 +122,9 @@ this.register = {
                                 renderLang({ es: 'Ingreso exitoso', en: 'Success login' }) :
                                 renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
                         }));
+                        if (options && options.mode == 'login') {
+                            console.log('set token bearer');
+                        }
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),

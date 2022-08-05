@@ -4,13 +4,11 @@ import { emailValidator, passwordValidator, renderLang } from './util.js';
 import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
+import jwt from 'jsonwebtoken';
 
 dotenv.config();
 
 const saltRounds = 10;
-
-// console.log(process.env.SECRET);
-// console.log(process.env.EXPIRE);
 
 const uriAuth = 'auth';
 
@@ -132,9 +130,18 @@ const login = async (req, res) => {
         });
 
         if (validateLogIng === true) {
+
+            const token = jwt.sign(
+                {
+                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * process.env.EXPIRE),
+                    data: user
+                },
+                process.env.SECRET
+            );
+
             return res.status(200).json({
                 status: 'success',
-                data: 'ok'
+                data: token
             });
         }
         return res.status(400).json({

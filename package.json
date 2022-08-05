@@ -36,6 +36,7 @@
     "express-useragent": "^1.0.15",
     "file-get-contents": "^1.0.0",
     "file-sizeof": "^1.1.0",
+    "jsonwebtoken": "^8.5.1",
     "marked": "^4.0.18",
     "mime": "^3.0.0",
     "morgan": "latest",
