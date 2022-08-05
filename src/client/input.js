@@ -18,6 +18,8 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
             s('.' + _this[labelInputs[i]]).style.top = topLabelInput;
             renderMsgInput(errorsIdInput[i], renderLang({ es: 'Campo vacio', en: 'Empty Field' }));
             return false;
+        } else {
+            s('.' + _this[labelInputs[i]]).style.top = botLabelInput;
         }
         if (options && options.type == 'password') {
             const testPassword = passwordValidator(s('.' + _this[inputId]).value);
@@ -36,7 +38,6 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         if (customValidator !== undefined && customValidator(inputId, errorsIdInput[i]) == false) {
             return false;
         }
-        s('.' + _this[labelInputs[i]]).style.top = botLabelInput;
         s('.' + _this[errorsIdInput[i]]).style.display = 'none';
         return true;
     };
