@@ -22,7 +22,7 @@ import { ssr } from './client/core/ssr.js';
 
 // views modules
 import { engine } from './client/modules/engine.js';
-import { _public } from './client/modules/public.js';
+import { underpost } from './client/modules/underpost.js';
 import { cryptokoyn } from './client/modules/cryptokoyn.js';
 import { authClient } from './client/modules/auth.js';
 
@@ -49,8 +49,8 @@ apiKeys(app);
 apiAuth(app);
 
 apiUploader(app);
-// ssr(app, engine);
-// ssr(app, _public);
+ssr(app, engine);
+ssr(app, underpost);
 ssr(app, authClient);
 ssr(app, cryptokoyn);
 

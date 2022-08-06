@@ -88,7 +88,6 @@ const setURI = (uri, objData, title) =>
 const getURI = () => {
     const uri = location.pathname.slice(-1) == '/' ?
         location.pathname.slice(0, -1) : location.pathname;
-    if (uri == '') return '/';
     return uri;
 };
 

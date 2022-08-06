@@ -16,19 +16,18 @@ const viewMetaData = {
     lang: 'es',
     charset: 'utf-8',
     dir: 'ltr',
-    externalRouter: [],
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
     ]
 };
 
-const baseHome = '/auth/';
+const baseHome = '/auth';
 
 // module render group
 const viewPaths = [
     {
-        path: baseHome.slice(0, -1),
+        path: baseHome,
         homePaths: [baseHome],
         title: { en: '', es: '' },
         component: 'main_menu',
@@ -40,7 +39,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'register',
+        path: baseHome + '/register',
         homePaths: [baseHome],
         title: { en: 'Register', es: 'Registrar' },
         component: 'register',
@@ -52,7 +51,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'login',
+        path: baseHome + '/login',
         homePaths: [baseHome],
         title: { en: 'Log In', es: 'Iniciar Session' },
         component: 'login',

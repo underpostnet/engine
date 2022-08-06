@@ -1,18 +1,22 @@
 this.router = options => {
     console.log('INIT ROUTER', options);
     let valid = false;
-    const testEvalPath = options && options.newPath ? options.newPath : view.path;
+    let testEvalPath;
+    try {
+        testEvalPath = options.newPath;
+    } catch (error) {
+        testEvalPath = view.path;
+    }
+    options && options.newPath ? console.log('new path set') : console.log('default set');
     viewPaths.map((path, i) => {
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath;
         // console.log('-------------------------------------');
-        // console.log('router options', options);
-        // console.log('testEvalPath', testEvalPath);
-        // console.log('testIncludesHome', testIncludesHome);
+        console.warn('valid path', validPath);
         if (validPath) {
             valid = true;
             if (testEvalPath != getURI()) {
-                setURI(testEvalPath);
+                setURI(testEvalPath == '' ? '/' : testEvalPath);
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
                     + viewMetaData.mainTitle);
             };

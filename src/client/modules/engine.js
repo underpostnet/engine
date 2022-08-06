@@ -11,20 +11,13 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    externalRouter: [
-        {
-            type: 'post_menu_container',
-            name: { en: 'vanilla-js-gallery', es: 'vanilla-js-gallery' },
-            link: '/en/vanilla-js-gallery'
-        }
-    ],
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
     ]
 };
 
-const baseHome = '/';
+const baseHome = '/engine';
 
 // module render group
 const viewPaths = [
@@ -41,7 +34,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'editor',
+        path: baseHome + '/editor',
         homePaths: [baseHome],
         title: { en: 'editor', es: 'editor' },
         component: 'editor',
@@ -53,7 +46,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'markdown',
+        path: baseHome + '/markdown',
         homePaths: [baseHome],
         title: { en: 'markdown', es: 'markdown' },
         component: 'markdown',
@@ -65,7 +58,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'js-demo',
+        path: baseHome + '/js-demo',
         homePaths: [baseHome],
         title: { en: 'js-demo', es: 'js-demo' },
         component: 'js_demo',

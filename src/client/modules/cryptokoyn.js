@@ -16,14 +16,13 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    externalRouter: [],
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
     ]
 };
 
-const baseHome = '/';
+const baseHome = '/wallet';
 
 // module render group
 const viewPaths = [
@@ -40,7 +39,7 @@ const viewPaths = [
         display: false
     },
     {
-        path: baseHome + 'keys/create',
+        path: baseHome + '/keys/create',
         homePaths: [baseHome],
         title: { en: 'Create Key', es: 'Crear Llaves' },
         component: 'form_key',
@@ -52,7 +51,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'keys/search',
+        path: baseHome + '/keys/search',
         homePaths: [baseHome],
         title: { en: 'Search Key', es: 'Buscar Llave' },
         component: 'form_key_search',
@@ -64,7 +63,7 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + 'keys/list',
+        path: baseHome + '/keys/list',
         homePaths: [baseHome],
         title: { en: 'Keys List', es: 'Listar Llave' },
         component: 'table_keys',
