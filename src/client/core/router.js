@@ -7,7 +7,6 @@ this.router = options => {
     } catch (error) {
         testEvalPath = view.path;
     }
-    options && options.newPath ? console.log('new path set') : console.log('default set');
     viewPaths.map((path, i) => {
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath;
