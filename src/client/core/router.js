@@ -11,7 +11,7 @@ this.router = options => {
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath;
         // console.log('-------------------------------------');
-        console.warn('valid path', validPath);
+        // console.warn('valid path', validPath);
         if (validPath) {
             valid = true;
             if (testEvalPath != getURI()) {

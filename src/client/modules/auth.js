@@ -66,7 +66,8 @@ const viewPaths = [
 
 const authClient = {
     viewMetaData,
-    viewPaths
+    viewPaths,
+    baseHome
 };
 
 export { authClient };

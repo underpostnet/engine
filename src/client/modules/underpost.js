@@ -49,7 +49,8 @@ const viewPaths = [
 
 const underpost = {
     viewMetaData,
-    viewPaths
+    viewPaths,
+    baseHome
 };
 
 export { underpost };

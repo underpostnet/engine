@@ -73,7 +73,8 @@ const viewPaths = [
 
 const engine = {
     viewMetaData,
-    viewPaths
+    viewPaths,
+    baseHome
 };
 
 export { engine };

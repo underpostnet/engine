@@ -49,10 +49,10 @@ apiKeys(app);
 apiAuth(app);
 
 apiUploader(app);
-ssr(app, engine);
-ssr(app, underpost);
-ssr(app, authClient);
-ssr(app, cryptokoyn);
+ssr(app, [engine]);
+ssr(app, [underpost]);
+ssr(app, [authClient]);
+ssr(app, [cryptokoyn, authClient]);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);

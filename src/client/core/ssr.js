@@ -121,7 +121,20 @@ const renderView = dataView => {
 
 const ssr = (app, renderData) => {
 
-    const { viewPaths } = renderData;
+    let { viewPaths, baseHome } = renderData[0];
+
+    renderData.map((renderSingle, i) => {
+        if (i > 0) {
+            const mergeModule = renderSingle.viewPaths;
+            mergeModule.shift();
+            viewPaths = viewPaths.concat(mergeModule.map(mergeFix => {
+                mergeFix.homePaths.push(viewPaths[0].path);
+                mergeFix.path = mergeFix.path.replace(renderSingle.baseHome, baseHome);
+                return mergeFix;
+            }));
+        }
+    });
+    renderData[0].viewPaths = viewPaths;
 
     app.use('/assets', express.static(`./src/client/assets`));
     app.use('/.well-known', express.static(`./src/client/.well-known`));
@@ -137,7 +150,7 @@ const ssr = (app, renderData) => {
             path: view.path,
             render: renderView({
                 view,
-                ...renderData
+                ...renderData[0]
             })
         };
     });

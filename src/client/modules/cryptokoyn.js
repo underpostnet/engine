@@ -34,9 +34,9 @@ const viewPaths = [
         options: false,
         menu: false,
         home: false,
-        nohome: false,
+        nohome: true,
         render: true,
-        display: false
+        display: true
     },
     {
         path: baseHome + '/keys/create',
@@ -78,7 +78,8 @@ const viewPaths = [
 
 const cryptokoyn = {
     viewMetaData,
-    viewPaths
+    viewPaths,
+    baseHome
 };
 
 export { cryptokoyn };
