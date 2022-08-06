@@ -7,6 +7,7 @@ this.table_keys = {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`
             },
         })
             .then((res) => res.json())

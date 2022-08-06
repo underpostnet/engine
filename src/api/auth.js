@@ -133,10 +133,10 @@ const login = async (req, res) => {
 
             const token = jwt.sign(
                 {
-                    exp: Math.floor(Date.now() / 1000) + (60 * 60 * process.env.EXPIRE),
                     data: user
                 },
-                process.env.SECRET
+                process.env.SECRET,
+                { expiresIn: `${process.env.EXPIRE}h` }
             );
 
             return res.status(200).json({
@@ -171,7 +171,43 @@ const apiAuth = app => {
 
 }
 
+const authValidator = (req, res, next) => {
+    try {
+        const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
+        if (authHeader.startsWith('Bearer ')) {
+            const token = authHeader.substring(7, authHeader.length);
+            console.log(token);
+            const response = jwt.verify(token, process.env.SECRET);
+            logger.info('authValidator');
+            logger.info(response);
+            if (typeof response == 'object') {
+                if ((response.exp * 1000) <= (+ new Date()))
+                    return res.status(401).json({
+                        status: 'error',
+                        data: 'expire unauthorized'
+                    });
+
+                if (getUsers().find(userData =>
+                    userData.email == response.data.email && userData.pass == response.data.pass))
+                    return next();
+            }
+        }
+        return res.status(401).json({
+            status: 'error',
+            data: 'unauthorized'
+        });
+    } catch (error) {
+        logger.error('authValidator');
+        logger.error(error);
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+}
+
 export {
     uriAuth,
-    apiAuth
+    apiAuth,
+    authValidator
 };

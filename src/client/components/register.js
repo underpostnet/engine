@@ -123,7 +123,7 @@ this.register = {
                                 renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
                         }));
                         if (options && options.mode == 'login') {
-                            console.log('set token bearer');
+                            localStorage.setItem('_b', requestResult.data);
                         }
                     } else {
                         append('body', renderFixModal({

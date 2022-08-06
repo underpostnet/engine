@@ -11,6 +11,7 @@ import { logger } from '../modules/logger.js';
 import { BlockChain } from '../../underpost_modules/underpost.net/underpost-modules-v1/koyn/class/blockChain.js';
 import { getHash } from './util.js';
 import dotenv from 'dotenv';
+import { authValidator } from './auth.js';
 
 dotenv.config();
 
@@ -183,7 +184,7 @@ const getKeys = (req, res) => {
             status: 'success',
             data: getAllFiles(keyFolder).map(key => {
                 return {
-                    'Hash ID': key.split('\\')[3]
+                    'Hash ID': key.split('\\')[4]
                 }
             }).filter((v, i) => i % 2 == 0)
         })
@@ -398,7 +399,7 @@ const apiKeys = app => {
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
 
     app.post(`/api/${uriKeys}/create-key`, createKey);
-    app.get(`/api/${uriKeys}`, getKeys);
+    app.get(`/api/${uriKeys}`, authValidator, getKeys);
     app.get(`/api/${uriKeys}/:hashId`, getKey);
     app.post(`/api/${uriKeys}/copy-cyberia`, postCopyCyberia);
     app.post(`/api/${uriKeys}/transaction/cyberia-link-item`, postEmitLinkItemCyberia);
