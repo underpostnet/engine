@@ -12,7 +12,7 @@ import fileUpload from 'express-fileupload';
 import { buildDev } from './build-dev.js';
 
 // api
-import { apiUtil } from './api/util.js';
+import { newInstance } from './api/util.js';
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
@@ -33,11 +33,9 @@ buildDev(app);
 dotenv.config();
 
 // parse requests of content-type - application/json
-// app.use(bodyParser.json({ limit: '25mb' }));
 app.use(express.json({ limit: '20MB' }));
 
 // parse requests of content-type - application/x-www-form-urlencoded
-// app.use(bodyParser.urlencoded({ limit: '25mb', extended: true }));
 app.use(express.urlencoded({ extended: true, limit: '20MB' }));
 app.use(fileUpload());
 
@@ -49,10 +47,10 @@ apiKeys(app);
 apiAuth(app);
 
 apiUploader(app);
-ssr(app, [engine]);
+ssr(app, [engine, newInstance(authClient)]);
 ssr(app, [underpost]);
 ssr(app, [authClient]);
-ssr(app, [cryptokoyn, authClient]);
+ssr(app, [cryptokoyn]);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);

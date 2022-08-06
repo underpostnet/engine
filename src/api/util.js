@@ -78,6 +78,8 @@ const emailValidator = (str, req) => {
     }
 };
 
+const newInstance = obj => JSON.parse(JSON.stringify(obj));
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -86,6 +88,7 @@ const commonFunctions = () => `
     const randomColor = ${randomColor};
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};
+    const newInstance = ${newInstance};
 `;
 
 export {
@@ -100,5 +103,6 @@ export {
     replaceAll,
     passwordValidator,
     emailValidator,
-    renderLang
+    renderLang,
+    newInstance
 };
