@@ -121,7 +121,7 @@ const renderView = dataView => {
 
 const ssr = (app, renderData) => {
 
-    let { viewPaths, baseHome } = renderData[0];
+    let { viewPaths, baseHome, viewMetaData } = renderData[0];
 
     renderData.map((renderSingle, i) => {
         if (i > 0) {
@@ -132,9 +132,11 @@ const ssr = (app, renderData) => {
                 mergeFix.path = mergeFix.path.replace(renderSingle.baseHome, baseHome);
                 return mergeFix;
             }));
+            viewMetaData.apiURIS = viewMetaData.apiURIS.concat(renderSingle.viewMetaData.apiURIS);
         }
     });
     renderData[0].viewPaths = viewPaths;
+    renderData[0].viewMetaData = viewMetaData;
 
     app.use('/assets', express.static(`./src/client/assets`));
     app.use('/.well-known', express.static(`./src/client/.well-known`));

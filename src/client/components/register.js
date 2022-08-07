@@ -14,6 +14,16 @@ this.register = {
         let labelInputs = [2, 5, 8];
         let inputsData = [
             {
+                model: 'username',
+                matrix: [12, 13, 14],
+                displayName: renderLang({ es: 'Nombre de usuario', en: 'User Name' }),
+                options: {
+                    autocomplete: 'new-password'
+                },
+                validator: () => true,
+                getValue: () => s(`.${this[IDS][13]}`).value
+            },
+            {
                 model: 'email',
                 matrix: [0, 1, 2],
                 displayName: renderLang({ es: 'email', en: 'email' }),
@@ -65,6 +75,9 @@ this.register = {
             switch (options.mode) {
                 case 'login':
                     url = () => `/api/${uriAuth}/login`;
+                    valueInputs.shift();
+                    labelInputs.shift();
+                    inputsData.shift();
                     valueInputs.pop();
                     labelInputs.pop();
                     inputsData.pop();
@@ -78,6 +91,10 @@ this.register = {
         setTimeout(() => {
             s('.' + this[IDS][9]).onclick = e => {
                 e.preventDefault();
+
+                if (s('.' + this[IDS][13]))
+                    s('.' + this[IDS][13]).value =
+                        s('.' + this[IDS][13]).value.replaceAll(' ', '-');
 
                 valueInputs.map(x => s('.' + this[IDS][x]).oninput());
 
@@ -151,7 +168,9 @@ this.register = {
 
         
         <button class='${this[IDS][9]}'>
-            ${renderLang({ es: 'Iniciar Sesion', en: 'Log In' })}
+            ${options && options.mode == 'login' ?
+                renderLang({ es: 'Iniciar Sesión', en: 'Log In' }) :
+                renderLang({ es: 'Registrarse', en: 'Sign In' })}
         </button>                        
                 </form> 
                 ${renderSpinner(this[IDS][10])}

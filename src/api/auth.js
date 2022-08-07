@@ -51,6 +51,13 @@ const register = async (req, res) => {
                 data: renderLang({ en: 'existing email', es: 'email ya existente' }, req)
             });
 
+        req.body.username = req.body.username.toLowerCase();
+        if (users.find(x => x.username == req.body.username))
+            return res.status(400).json({
+                status: 'error',
+                data: renderLang({ en: 'existing username', es: 'usuario ya existente' }, req)
+            });
+
         req.body.pass = await new Promise((resolve, reject) => {
             try {
                 bcrypt.genSalt(saltRounds, (err, salt) => {
@@ -74,7 +81,8 @@ const register = async (req, res) => {
 
         users.push({
             pass: req.body.pass,
-            email: req.body.email
+            email: req.body.email,
+            username: req.body.username
         });
 
         writeUsers(users);

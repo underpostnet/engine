@@ -38,6 +38,10 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         if (customValidator !== undefined && customValidator(inputId, errorsIdInput[i]) == false) {
             return false;
         }
+        if (s('.' + _this[inputId]).value.length > 28) {
+            renderMsgInput(errorsIdInput[i], renderLang({ es: 'Supera los 28 caracteres', en: 'Exceed 28 characters' }));
+            return false;
+        }
         s('.' + _this[errorsIdInput[i]]).style.display = 'none';
         return true;
     };
