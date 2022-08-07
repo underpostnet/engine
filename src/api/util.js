@@ -80,6 +80,12 @@ const emailValidator = (str, req) => {
 
 const newInstance = obj => JSON.parse(JSON.stringify(obj));
 
+const strCap = str => str
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -89,6 +95,7 @@ const commonFunctions = () => `
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};
     const newInstance = ${newInstance};
+    const strCap = ${strCap};
 `;
 
 export {
@@ -104,5 +111,6 @@ export {
     passwordValidator,
     emailValidator,
     renderLang,
-    newInstance
+    newInstance,
+    strCap
 };

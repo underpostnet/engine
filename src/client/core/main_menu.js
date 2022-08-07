@@ -22,6 +22,9 @@ this.main_menu = {
 
         });
         return /*html*/`
+                <session-top-bar>
+                    ${this.renderSessionToBar()}
+                </session-top-bar> 
                 <div class='in container ${this[IDS][viewPaths.length]}'>
 
                     <pre_menu_container></pre_menu_container>
@@ -31,6 +34,14 @@ this.main_menu = {
                 <div class='in container ${this[IDS][viewPaths.length + 1]}' style='display: none'>
                         <button class='${this[IDS][viewPaths.length + 2]}'>${renderLang({ es: 'Menu', en: 'Menu' })}</button> 
                 </div>
+        `
+    },
+    renderSessionToBar: () => {
+        if (!validateSession()) return '';
+        return /*html*/`
+        <div class='in container'>
+            ${renderLang({ es: 'Hola, ', en: 'Hi, ' })} ${strCap(localStorage.getItem('username').replaceAll('-', ' '))}
+        </div>  
         `
     }
 };
