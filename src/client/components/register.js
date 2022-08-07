@@ -145,6 +145,7 @@ this.register = {
                             localStorage.setItem('email', requestResult.data.user.email);
                             htmls('session-top-bar', GLOBAL.main_menu.renderSessionToBar());
                             htmls('main_menu', GLOBAL.main_menu.init());
+                            s('login').style.display = 'none';
                         }
                     } else {
                         append('body', renderFixModal({

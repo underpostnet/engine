@@ -17,7 +17,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '';
+const baseHome = '/underpost';
 
 // module render group
 const viewPaths = [

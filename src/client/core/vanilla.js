@@ -114,9 +114,12 @@ const renderFixModal = options => {
     const timeOut = 2500;
     setTimeout(() => fadeIn(s('.' + options.id)));
     setTimeout(() => fadeOut(s('.' + options.id)), timeOut);
-    setTimeout(() => s('.' + options.id).remove(), (timeOut + 500));
+    setTimeout(() => {
+        s('.' + options.id).remove();
+        s('.style-' + options.id).remove();
+    }, (timeOut + 500));
     return /*html*/`
-    <style>
+    <style class='style-${options.id}'>
         .${options.id} {
             width: 200px;
             height: 120px;
