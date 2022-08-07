@@ -143,6 +143,8 @@ this.register = {
                             localStorage.setItem('_b', requestResult.data.token);
                             localStorage.setItem('username', requestResult.data.user.username);
                             localStorage.setItem('email', requestResult.data.user.email);
+                            htmls('session-top-bar', GLOBAL.main_menu.renderSessionToBar());
+                            htmls('main_menu', GLOBAL.main_menu.init());
                         }
                     } else {
                         append('body', renderFixModal({

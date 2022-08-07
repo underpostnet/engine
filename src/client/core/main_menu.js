@@ -3,6 +3,30 @@ this.main_menu = {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
 
+        const validatorMenuBtn = path => {
+            if ((path.component == 'register' || path.component == 'login') && validateSession()) {
+                if (path.component == 'login') {
+                    return false;
+                }
+                setTimeout(() => {
+                    append('post_menu_container', /*html*/`
+                        <button class='${this[IDS][viewPaths.length + 3]}'>
+                            ${renderLang({ es: 'Cerrar Sessión', en: 'Log Out' })}
+                        </button>
+                    `);
+                    s('.' + this[IDS][viewPaths.length + 3]).onclick = () => {
+                        localStorage.removeItem('username');
+                        localStorage.removeItem('email');
+                        localStorage.removeItem('_b');
+                        htmls('main_menu', this.init());
+                        htmls('session-top-bar', this.renderSessionToBar());
+                    };
+                });
+                return false;
+            }
+            return true;
+        };
+
         const renderMmenubtn = (path, i) => /*html*/`   
         <button class='${this[IDS][i]}'>${renderLang(path.title)}</button>          
         `;
@@ -28,7 +52,7 @@ this.main_menu = {
                 <div class='in container ${this[IDS][viewPaths.length]}'>
 
                     <pre_menu_container></pre_menu_container>
-                    ${viewPaths.map((path, i) => path.menu && i != 0 ?/*html*/renderMmenubtn(path, i) : '').join('')}
+                    ${viewPaths.map((path, i) => path.menu && i != 0 && validatorMenuBtn(path) ?/*html*/renderMmenubtn(path, i) : '').join('')}
                     <post_menu_container></post_menu_container>
                 </div>
                 <div class='in container ${this[IDS][viewPaths.length + 1]}' style='display: none'>
