@@ -140,7 +140,9 @@ this.register = {
                                 renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
                         }));
                         if (options && options.mode == 'login') {
-                            localStorage.setItem('_b', requestResult.data);
+                            localStorage.setItem('_b', requestResult.data.token);
+                            localStorage.setItem('username', requestResult.data.user.username);
+                            localStorage.setItem('email', requestResult.data.user.email);
                         }
                     } else {
                         append('body', renderFixModal({

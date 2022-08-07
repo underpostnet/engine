@@ -149,7 +149,12 @@ const login = async (req, res) => {
 
             return res.status(200).json({
                 status: 'success',
-                data: token
+                data: {
+                    token, user: {
+                        email: user.email,
+                        username: user.username
+                    }
+                }
             });
         }
         return res.status(400).json({
