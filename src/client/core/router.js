@@ -25,7 +25,7 @@ this.router = options => {
             || (path.home && testIncludesHome)
             || (path.nohome && (!testIncludesHome))
         ) {
-            if (path.display) fadeIn(s(path.component));
+            if (path.display && validateSessionDisplayComponent(path)) fadeIn(s(path.component));
         } else {
             s(path.component).style.display = 'none';
         }

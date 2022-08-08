@@ -4,6 +4,9 @@ this.main_menu = {
         this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
 
         const validatorMenuBtn = path => {
+            if (!validateSessionDisplayComponent(path)) {
+                return false;
+            }
             if ((path.component == 'register' || path.component == 'login') && validateSession()) {
                 if (path.component == 'login') {
                     return false;
@@ -20,6 +23,7 @@ this.main_menu = {
                         localStorage.removeItem('_b');
                         htmls('main_menu', this.init());
                         htmls('session-top-bar', this.renderSessionToBar());
+                        closeSessionComponents();
                     };
                 });
                 return false;

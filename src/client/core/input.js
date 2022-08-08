@@ -13,6 +13,11 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         fadeIn(s('.' + _this[ID]));
     };
 
+    const successEndInput = (i, inputId) => {
+        s('.' + _this[errorsIdInput[i]]).style.display = 'none';
+        return true;
+    };
+
     const checkInput = (i, inputId) => {
         if (s('.' + _this[inputId]).value == '') {
             s('.' + _this[labelInputs[i]]).style.top = topLabelInput;
@@ -21,6 +26,8 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         } else {
             s('.' + _this[labelInputs[i]]).style.top = botLabelInput;
         }
+        if (options && options.onlyEmpty)
+            return successEndInput(i, inputId);
         if (options && options.type == 'password') {
             const testPassword = passwordValidator(s('.' + _this[inputId]).value);
             if (!testPassword.validate) {
@@ -42,8 +49,7 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
             renderMsgInput(errorsIdInput[i], renderLang({ es: 'Supera los 28 caracteres', en: 'Exceed 28 characters' }));
             return false;
         }
-        s('.' + _this[errorsIdInput[i]]).style.display = 'none';
-        return true;
+        return successEndInput(i, inputId);
     };
 
     const checkAllInput = (setEvent) => inputValueContent.map((inputId, i) => {

@@ -10,8 +10,9 @@ this.register = {
 
 
         let url = () => `/api/${uriAuth}/register`;
-        let valueInputs = [1, 4, 7];
-        let labelInputs = [2, 5, 8];
+        let labelInputs = [12, 0, 3, 6];
+        let valueInputs = [13, 1, 4, 7];
+        let errorInputs = [14, 2, 5, 8];
         let inputsData = [
             {
                 model: 'username',
@@ -75,12 +76,22 @@ this.register = {
             switch (options.mode) {
                 case 'login':
                     url = () => `/api/${uriAuth}/login`;
+
                     valueInputs.shift();
-                    labelInputs.shift();
+                    errorInputs.shift();
                     inputsData.shift();
+                    labelInputs.shift();
+
                     valueInputs.pop();
-                    labelInputs.pop();
+                    errorInputs.pop();
                     inputsData.pop();
+                    labelInputs.pop();
+
+                    inputsData = inputsData.map(itemInput => {
+                        itemInput.options.onlyEmpty = true;
+                        return itemInput;
+                    });
+
                     break;
 
                 default:
@@ -98,7 +109,7 @@ this.register = {
 
                 valueInputs.map(x => s('.' + this[IDS][x]).oninput());
 
-                if (labelInputs.filter(x => s('.' + this[IDS][x]).style.display == 'block').length > 0) {
+                if (errorInputs.filter(x => s('.' + this[IDS][x]).style.display == 'block').length > 0) {
                     console.error('invalid form');
                     return;
                 };
@@ -147,6 +158,10 @@ this.register = {
                             htmls('main_menu', GLOBAL.main_menu.init());
                             s('login').style.display = 'none';
                         }
+                        valueInputs.map((inputId, i) => {
+                            s('.' + this[IDS][inputId]).value = '';
+                            s('.' + this[IDS][labelInputs[i]]).style.top = topLabelInput;
+                        });
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),

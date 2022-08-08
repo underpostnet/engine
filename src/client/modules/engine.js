@@ -43,7 +43,8 @@ const viewPaths = [
         home: false,
         nohome: false,
         render: true,
-        display: true
+        display: true,
+        session: true
     },
     {
         path: baseHome + '/markdown',
@@ -55,7 +56,8 @@ const viewPaths = [
         home: false,
         nohome: false,
         render: true,
-        display: true
+        display: true,
+        session: true
     },
     {
         path: baseHome + '/js-demo',
@@ -67,7 +69,8 @@ const viewPaths = [
         home: false,
         nohome: false,
         render: true,
-        display: true
+        display: true,
+        session: true
     }
 ];
 
