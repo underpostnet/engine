@@ -5,7 +5,23 @@ import { authValidator } from './auth.js';
 
 const uriUploader = 'uploader';
 
+const filesPathData = './data/uploads/files.json';
+
 const srcFolders = ['./data/uploads/editor', './data/uploads/markdown'];
+
+const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
+
+const writeFiles = files => fs.writeFileSync(filesPathData, JSON.stringify(files, null, 3), 'utf8');
+
+const findIndexUserFile = (req) => {
+    let indFile = 0;
+    for (let userFile of getFiles()) {
+        if (userFile.email == req.user.email)
+            return indFile;
+        indFile++;
+    }
+    return -1;
+};
 
 const onUploadFile = (req, res) => {
     try {
@@ -15,9 +31,30 @@ const onUploadFile = (req, res) => {
         console.log("onUploadFile body:", req.body);
 
         if (req.files) {
+
+            const files = getFiles();
+            const indexUserFile = findIndexUserFile(req);
+            const typeFile = srcFolders[parseInt(req.body.indexFolder)].split('/').pop();
+
             Object.keys(req.files).map(keyFile => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+
+                if (indexUserFile >= 0) {
+                    files[indexUserFile][typeFile].push(req.files[keyFile].name);
+                } else {
+                    let newFileObj = {
+                        email: req.user.email,
+                        editor: [],
+                        markdown: []
+                    };
+                    newFileObj[typeFile].push(req.files[keyFile].name);
+                    files.push(newFileObj);
+                }
+
             });
+
+            writeFiles(files);
+
         }
 
         return res.status(200).json({
@@ -50,6 +87,9 @@ const onUploadFile = (req, res) => {
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
+
+    if (!fs.existsSync(filesPathData))
+        fs.writeFileSync(filesPathData, '[]', 'utf8');
 
     app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
     // app.get(`/api/${uriKeys}`, getKeys);
