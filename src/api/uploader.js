@@ -1,10 +1,11 @@
 
 
 import fs from 'fs';
+import { authValidator } from './auth.js';
 
 const uriUploader = 'uploader';
 
-const srcFolders = ['./data/uploads'];
+const srcFolders = ['./data/uploads/editor', './data/uploads/markdown'];
 
 const onUploadFile = (req, res) => {
     try {
@@ -15,7 +16,7 @@ const onUploadFile = (req, res) => {
 
         if (req.files) {
             Object.keys(req.files).map(keyFile => {
-                fs.writeFileSync(srcFolders[0] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+                fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
             });
         }
 
@@ -50,7 +51,7 @@ const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
 
-    app.post(`/api/${uriUploader}`, onUploadFile);
+    app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
     // app.get(`/api/${uriKeys}`, getKeys);
 
 }

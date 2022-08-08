@@ -16,3 +16,6 @@ const closeSessionComponents = () => {
         }
     })
 };
+
+const renderAuthBearer = () =>
+    `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`;

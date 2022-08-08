@@ -67,13 +67,15 @@ this.editor = {
                 body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], s4() + '.html'));
 
 
-                const url = () => './api/uploader';
+                const url = () => '/api/uploader';
                 const method = 'POST';
                 const headers = {
+                    'Authorization': renderAuthBearer()
                     // 'Content-Type': 'application/json',
                     // 'content-type': 'application/octet-stream'
                     //  'content-length': CHUNK.length,
                 };
+                body.append('indexFolder', '0');
 
                 console.log('init fetch body:', body);
 
@@ -82,7 +84,7 @@ this.editor = {
 
                     const requestResult = await serviceRequest(url, {
                         method,
-                        // headers,
+                        headers,
                         body, // : method == 'GET' ? undefined : JSON.stringify(body)
                     });
 

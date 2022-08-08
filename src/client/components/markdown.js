@@ -13,13 +13,51 @@ this.markdown = {
             this.instance = new SimpleMDE({ element: s('.markdown-editor') });
 
             s('.' + this[IDS][0]).onclick = () => {
+                const markedContent = this.instance.value();
                 append(this[IDS][1], /*html*/`
                     <div class='in container'>
                         <div class='in markdown-css' style='background: #d9d9d9'>
-                            ${marked.parse(this.instance.value())}
+                            ${marked.parse(markedContent)}
                         </div> 
                     </div>               
                 `);
+
+                let body = new FormData();
+
+
+                body.append(s4(), new File([new Blob([markedContent])], s4() + '.md'));
+
+
+                const url = () => '/api/uploader';
+                const method = 'POST';
+                const headers = {
+                    'Authorization': renderAuthBearer()
+                    // 'Content-Type': 'application/json',
+                    // 'content-type': 'application/octet-stream'
+                    //  'content-length': CHUNK.length,
+                };
+
+                body.append('indexFolder', '1');
+
+                console.log('init fetch body:', body);
+
+
+                (async () => {
+
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        headers,
+                        body, // : method == 'GET' ? undefined : JSON.stringify(body)
+                    });
+
+                    console.log('request', requestResult);
+
+                    // tinyMCE.activeEditor.setContent('');
+
+                })();
+
+
+
             };
         });
         return /*html*/`

@@ -186,6 +186,8 @@ const apiAuth = app => {
 
 const authValidator = (req, res, next) => {
     try {
+        logger.info('authValidator');
+        logger.info(req.headers);
         const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
         if (authHeader.startsWith('Bearer ')) {
             const token = authHeader.substring(7, authHeader.length);
@@ -200,9 +202,13 @@ const authValidator = (req, res, next) => {
                         data: 'expire unauthorized'
                     });
 
-                if (getUsers().find(userData =>
-                    userData.email == response.data.email && userData.pass == response.data.pass))
+                const getUser = getUsers().find(userData =>
+                    userData.email == response.data.email && userData.pass == response.data.pass);
+                if (getUser) {
+                    req.user = getUser;
                     return next();
+                }
+
             }
         }
         return res.status(401).json({
