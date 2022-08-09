@@ -7,7 +7,7 @@ const uriUploader = 'uploader';
 
 const filesPathData = './data/uploads/files.json';
 
-const srcFolders = ['./data/uploads/editor', './data/uploads/markdown'];
+const srcFolders = ['./data/uploads/editor', './data/uploads/markdown', './data/uploads/js-demo'];
 
 const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
 
@@ -36,6 +36,10 @@ const onUploadFile = (req, res) => {
             const indexUserFile = findIndexUsernameFile(req);
             const typeFile = srcFolders[parseInt(req.body.indexFolder)].split('/').pop();
 
+            // TODO: add extension validator folder index
+
+            console.log('typeFile', typeFile);
+
             Object.keys(req.files).map(keyFile => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
 
@@ -50,8 +54,9 @@ const onUploadFile = (req, res) => {
                 } else {
                     let newFileObj = {
                         username: req.user.username,
-                        editor: [],
-                        markdown: []
+                        'editor': [],
+                        'markdown': [],
+                        'js-demo': []
                     };
                     newFileObj[typeFile].push(fileObj);
                     files.push(newFileObj);

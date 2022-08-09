@@ -49,6 +49,72 @@ this.js_demo = {
                 liveJS();
 
 
+            s('.' + this[IDS][6]).onclick = () => {
+
+
+                if (validateSubmitInput(this[IDS][4], this[IDS][5])) return;
+                // append(this[IDS][4], /*html*/`
+                // <div class='in container'>
+                //     ${tinymce.activeEditor.getContent()}
+                // </div>
+                // `);
+
+
+
+                let body = new FormData();
+
+
+                body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], s4() + '.js'));
+
+
+                const url = () => '/api/uploader';
+                const method = 'POST';
+                const headers = {
+                    'Authorization': renderAuthBearer()
+                    // 'Content-Type': 'application/json',
+                    // 'content-type': 'application/octet-stream'
+                    //  'content-length': CHUNK.length,
+                };
+                body.append('indexFolder', '2');
+                body.append('title', s('.' + this[IDS][4]).value);
+
+                console.log('init fetch body:', body);
+
+
+                (async () => {
+
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        headers,
+                        body, // : method == 'GET' ? undefined : JSON.stringify(body)
+                    });
+
+                    console.log('request', requestResult);
+
+                    if (requestResult.status == 'success') {
+                        s('.' + this[IDS][0]).value = '';
+                        clearInput(this[IDS], [3, 4, 5]);
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
+
+                })();
+            }
+
+
+
+
         });
         return /*html*/`
         <style>
