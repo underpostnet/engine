@@ -95,6 +95,20 @@ const onUploadFile = (req, res) => {
 
 };
 
+const getContents = (req, res) => {
+    try {
+        return res.status(200).json({
+            status: 'success',
+            data: getFiles().filter(file => file.username == req.user.username)
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+};
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -103,6 +117,9 @@ const apiUploader = app => {
         fs.writeFileSync(filesPathData, '[]', 'utf8');
 
     app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
+    app.get(`/api/${uriUploader}`, authValidator, getContents);
+
+
     // app.get(`/api/${uriKeys}`, getKeys);
 
 }
