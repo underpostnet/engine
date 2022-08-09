@@ -1,12 +1,12 @@
 
-this.vanilla_js_gallery = {
+this.my_content = {
 
     init: function () {
 
         return /*html*/`
             <div class='in container'>
                     
-                    vanilla js gallery
+                    my_content
             
             </div>
         `
