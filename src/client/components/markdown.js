@@ -56,8 +56,24 @@ this.markdown = {
 
                     console.log('request', requestResult);
 
-                    this.instance.value('');
-                    clearInput(this[IDS], [2, 3, 4]);
+                    if (requestResult.status == 'success') {
+                        this.instance.value('');
+                        clearInput(this[IDS], [2, 3, 4]);
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
+
 
                 })();
 

@@ -90,8 +90,23 @@ this.editor = {
 
                     console.log('request', requestResult);
 
-                    tinyMCE.activeEditor.setContent('');
-                    clearInput(this[IDS], [1, 2, 3]);
+                    if (requestResult.status == 'success') {
+                        tinyMCE.activeEditor.setContent('');
+                        clearInput(this[IDS], [1, 2, 3]);
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
 
                 })();
             }
