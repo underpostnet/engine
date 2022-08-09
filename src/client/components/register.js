@@ -100,6 +100,12 @@ this.register = {
         }
 
         setTimeout(() => {
+
+            checkAuthStatus();
+            const idCheckAuthStatus = 'check_auth_status';
+            if (GLOBAL[idCheckAuthStatus]) clearInterval(GLOBAL[idCheckAuthStatus]);
+            GLOBAL[idCheckAuthStatus] = setInterval(async () => checkAuthStatus(), 5000);
+
             s('.' + this[IDS][9]).onclick = e => {
                 e.preventDefault();
 

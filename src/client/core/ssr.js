@@ -82,6 +82,9 @@ const renderView = dataView => {
         ${fs.readFileSync('./src/client/core/router.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/footer.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/keys.js', viewMetaData.charset)}
+        
+        GLOBAL['auth'] = false;
+
     })()`;
     if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
     return /*html*/`

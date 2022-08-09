@@ -171,19 +171,6 @@ const login = async (req, res) => {
 
 };
 
-const apiAuth = app => {
-    srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
-        fs.mkdirSync(srcFolder, { recursive: true }) : null);
-
-    if (!fs.existsSync(usersDataPath))
-        fs.writeFileSync(usersDataPath, '[]', 'utf8');
-
-    app.post(`/api/${uriAuth}/register`, register);
-    app.post(`/api/${uriAuth}/login`, login);
-    // app.get(`/api/${uriKeys}`, getKeys);
-
-}
-
 const authValidator = (req, res, next) => {
     try {
         logger.info('authValidator');
@@ -224,6 +211,30 @@ const authValidator = (req, res, next) => {
         });
     }
 }
+
+
+const getSessionStatus = (req, res) => {
+    return res.status(200).json({
+        status: 'success',
+        data: 'ok'
+    });
+};
+
+const apiAuth = app => {
+    srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
+        fs.mkdirSync(srcFolder, { recursive: true }) : null);
+
+    if (!fs.existsSync(usersDataPath))
+        fs.writeFileSync(usersDataPath, '[]', 'utf8');
+
+    app.post(`/api/${uriAuth}/register`, register);
+    app.post(`/api/${uriAuth}/login`, login);
+    app.get(`/api/${uriAuth}/session`, authValidator, getSessionStatus);
+    // app.get(`/api/${uriKeys}`, getKeys);
+
+};
+
+
 
 export {
     uriAuth,

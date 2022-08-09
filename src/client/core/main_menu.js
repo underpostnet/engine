@@ -17,14 +17,8 @@ this.main_menu = {
                             ${renderLang({ es: 'Cerrar Sessión', en: 'Log Out' })}
                         </button>
                     `);
-                    s('.' + this[IDS][viewPaths.length + 3]).onclick = () => {
-                        localStorage.removeItem('username');
-                        localStorage.removeItem('email');
-                        localStorage.removeItem('_b');
-                        htmls('main_menu', this.init());
-                        htmls('session-top-bar', this.renderSessionToBar());
+                    s('.' + this[IDS][viewPaths.length + 3]).onclick = () =>
                         closeSessionComponents();
-                    };
                 });
                 return false;
             }
