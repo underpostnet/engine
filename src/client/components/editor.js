@@ -49,15 +49,14 @@ this.editor = {
             });
 
             s('.' + this[IDS][0]).onclick = () => {
+                
+
+                if (validateSubmitInput(this[IDS][2], this[IDS][3])) return;
                 append(this[IDS][4], /*html*/`
                 <div class='in container'>
                     ${tinymce.activeEditor.getContent()}
                 </div>
                 `);
-
-
-                // error this[IDS][5]
-
 
 
 
@@ -76,6 +75,7 @@ this.editor = {
                     //  'content-length': CHUNK.length,
                 };
                 body.append('indexFolder', '0');
+                body.append('title', s('.' + this[IDS][2]).value);
 
                 console.log('init fetch body:', body);
 

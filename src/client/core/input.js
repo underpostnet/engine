@@ -82,3 +82,8 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         `
 
 };
+
+const validateSubmitInput = (inputId, errorId) => {
+    s('.' + inputId).oninput();
+    return s('.' + errorId).style.display == 'block';
+};

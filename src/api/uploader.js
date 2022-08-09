@@ -40,14 +40,14 @@ const onUploadFile = (req, res) => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
 
                 if (indexUserFile >= 0) {
-                    files[indexUserFile][typeFile].push(req.files[keyFile].name);
+                    files[indexUserFile][typeFile].push({ static: req.files[keyFile].name, title: req.body.title });
                 } else {
                     let newFileObj = {
                         email: req.user.email,
                         editor: [],
                         markdown: []
                     };
-                    newFileObj[typeFile].push(req.files[keyFile].name);
+                    newFileObj[typeFile].push({ static: req.files[keyFile].name, title: req.body.title });
                     files.push(newFileObj);
                 }
 
