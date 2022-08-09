@@ -87,3 +87,9 @@ const validateSubmitInput = (inputId, errorId) => {
     s('.' + inputId).oninput();
     return s('.' + errorId).style.display == 'block';
 };
+
+const clearInput = (_this, matrix) => {
+    s('.' + _this[matrix[0]]).style.top = topLabelInput;
+    s('.' + _this[matrix[1]]).value = '';
+    s('.' + _this[matrix[2]]).style.display = 'none';
+};

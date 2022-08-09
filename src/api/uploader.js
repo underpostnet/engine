@@ -13,10 +13,10 @@ const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
 
 const writeFiles = files => fs.writeFileSync(filesPathData, JSON.stringify(files, null, 3), 'utf8');
 
-const findIndexUserFile = (req) => {
+const findIndexUsernameFile = (req) => {
     let indFile = 0;
     for (let userFile of getFiles()) {
-        if (userFile.email == req.user.email)
+        if (userFile.username == req.user.username)
             return indFile;
         indFile++;
     }
@@ -33,21 +33,27 @@ const onUploadFile = (req, res) => {
         if (req.files) {
 
             const files = getFiles();
-            const indexUserFile = findIndexUserFile(req);
+            const indexUserFile = findIndexUsernameFile(req);
             const typeFile = srcFolders[parseInt(req.body.indexFolder)].split('/').pop();
 
             Object.keys(req.files).map(keyFile => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
 
+                const fileObj = {
+                    static: req.files[keyFile].name,
+                    title: req.body.title,
+                    date: new Date().toISOString()
+                };
+
                 if (indexUserFile >= 0) {
-                    files[indexUserFile][typeFile].push({ static: req.files[keyFile].name, title: req.body.title });
+                    files[indexUserFile][typeFile].push(fileObj);
                 } else {
                     let newFileObj = {
-                        email: req.user.email,
+                        username: req.user.username,
                         editor: [],
                         markdown: []
                     };
-                    newFileObj[typeFile].push({ static: req.files[keyFile].name, title: req.body.title });
+                    newFileObj[typeFile].push(fileObj);
                     files.push(newFileObj);
                 }
 

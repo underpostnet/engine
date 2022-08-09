@@ -13,17 +13,21 @@ this.markdown = {
             this.instance = new SimpleMDE({ element: s('.markdown-editor') });
 
             s('.' + this[IDS][0]).onclick = () => {
+
+                if (validateSubmitInput(this[IDS][3], this[IDS][4])) return;
+
                 const markedContent = this.instance.value();
-                append(this[IDS][1], /*html*/`
-                    <div class='in container'>
-                        <div class='in markdown-css' style='background: #d9d9d9'>
-                            ${marked.parse(markedContent)}
-                        </div> 
-                    </div>               
-                `);
+                // append(this[IDS][1], /*html*/`
+                //     <div class='in container'>
+                //         <div class='in markdown-css' style='background: #d9d9d9'>
+                //             ${marked.parse(markedContent)}
+                //         </div> 
+                //     </div>               
+                // `);
 
                 let body = new FormData();
-
+                body.append('title', s('.' + this[IDS][3]).value);
+                body.append('indexFolder', '1');
 
                 body.append(s4(), new File([new Blob([markedContent])], s4() + '.md'));
 
@@ -52,7 +56,8 @@ this.markdown = {
 
                     console.log('request', requestResult);
 
-                    // tinyMCE.activeEditor.setContent('');
+                    this.instance.value('');
+                    clearInput(this[IDS], [2, 3, 4]);
 
                 })();
 

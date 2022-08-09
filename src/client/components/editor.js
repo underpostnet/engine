@@ -49,14 +49,14 @@ this.editor = {
             });
 
             s('.' + this[IDS][0]).onclick = () => {
-                
+
 
                 if (validateSubmitInput(this[IDS][2], this[IDS][3])) return;
-                append(this[IDS][4], /*html*/`
-                <div class='in container'>
-                    ${tinymce.activeEditor.getContent()}
-                </div>
-                `);
+                // append(this[IDS][4], /*html*/`
+                // <div class='in container'>
+                //     ${tinymce.activeEditor.getContent()}
+                // </div>
+                // `);
 
 
 
@@ -91,6 +91,7 @@ this.editor = {
                     console.log('request', requestResult);
 
                     tinyMCE.activeEditor.setContent('');
+                    clearInput(this[IDS], [1, 2, 3]);
 
                 })();
             }
