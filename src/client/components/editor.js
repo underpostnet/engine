@@ -134,5 +134,8 @@ this.editor = {
                 <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
            </div>             
         `
+    },
+    renderView: (dataFile, rawContent) => {
+        return rawContent
     }
 };
