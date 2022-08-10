@@ -209,3 +209,12 @@ modal {
 ::-webkit-scrollbar-thumb:hover {
     background: #555;
 }
+
+.fas {
+    cursor: pointer;
+    padding: 3px;
+}
+
+.fas:hover {
+    color: purple;
+}

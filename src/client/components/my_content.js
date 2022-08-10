@@ -23,9 +23,51 @@ this.my_content = {
                 htmls('table-my-content',
                     /*html*/`
                   <div class='in container'> 
-                    ${renderTable(requestResult.data[0].markdown)
-                    + renderTable(requestResult.data[0].editor)
-                    + renderTable(requestResult.data[0]['js-demo'])}
+                    ${renderTable(requestResult.data[0].markdown, {
+                    actions: row => {
+                        const idUpdate = 'x' + s4();
+                        const idDelete = 'x' + s4();
+                        setTimeout(() => {
+                            s('.' + idUpdate).onclick = () => console.log(row);
+                            s('.' + idDelete).onclick = () => console.log(row);
+                        });
+                        return /*html*/`
+                            <td>
+                                    ${renderUpdateDeleteIcons(idUpdate, idDelete)}
+                            </td>
+                            `
+                    }
+                })
+                    + renderTable(requestResult.data[0].editor, {
+                        actions: row => {
+                            const idUpdate = 'x' + s4();
+                            const idDelete = 'x' + s4();
+                            setTimeout(() => {
+                                s('.' + idUpdate).onclick = () => console.log(row);
+                                s('.' + idDelete).onclick = () => console.log(row);
+                            });
+                            return /*html*/`
+                            <td>
+                                    ${renderUpdateDeleteIcons(idUpdate, idDelete)}
+                            </td>
+                            `
+                        }
+                    })
+                    + renderTable(requestResult.data[0]['js-demo'], {
+                        actions: row => {
+                            const idUpdate = 'x' + s4();
+                            const idDelete = 'x' + s4();
+                            setTimeout(() => {
+                                s('.' + idUpdate).onclick = () => console.log(row);
+                                s('.' + idDelete).onclick = () => console.log(row);
+                            });
+                            return /*html*/`
+                            <td>
+                                    ${renderUpdateDeleteIcons(idUpdate, idDelete)}
+                            </td>
+                            `
+                        }
+                    })}
                     </div> `
                 );
             }
