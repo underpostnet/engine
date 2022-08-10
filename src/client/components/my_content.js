@@ -26,7 +26,39 @@ this.my_content = {
                         const idDelete = 'x' + s4();
                         setTimeout(() => {
                             s('.' + idUpdate).onclick = () => console.log(row);
-                            s('.' + idDelete).onclick = () => console.log(row);
+                            s('.' + idDelete).onclick = () => {
+                                console.log(row);
+
+                                const idYes = 'x' + s4();
+                                const idNo = 'x' + s4();
+                                const idMoval = 'mini-modal-' + s4();
+
+                                append('body', renderFixModal({
+                                    id: idMoval,
+                                    icon: '<i class="fas fa-question"></i>',
+                                    color: 'yellow',
+                                    content: () => {
+                                        return /*html*/`
+                                        ${renderLang({ es: 'Estas seguro <br> de eliminar?', en: 'Are you sure <br> to delete?' })}
+                                        <br>
+                                        <button class='${idYes}'>${renderLang({ es: 'Si', en: 'yes' })}</button>
+                                        <button class='${idNo}'>${renderLang({ es: 'No', en: 'No' })}</button>
+                                        `
+                                    },
+                                    time: 60000,
+                                    height: 170
+                                }));
+
+                                s('.' + idYes).onclick = () => {
+                                    fadeOut(s('.' + idMoval));
+                                    setTimeout(() => s('.' + idMoval).remove());
+                                };
+                                s('.' + idNo).onclick = () => {
+                                    fadeOut(s('.' + idMoval));
+                                    setTimeout(() => s('.' + idMoval).remove());
+                                };
+
+                            };
                         });
                         return /*html*/`
                             <td>

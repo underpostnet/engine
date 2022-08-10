@@ -111,7 +111,7 @@ const serviceRequest = (url, options) => new Promise(
 );
 
 const renderFixModal = options => {
-    const timeOut = 2500;
+    const timeOut = options && options.time ? options.time : 2500;
     setTimeout(() => fadeIn(s('.' + options.id)));
     setTimeout(() => fadeOut(s('.' + options.id)), timeOut);
     setTimeout(() => {
@@ -121,8 +121,8 @@ const renderFixModal = options => {
     return /*html*/`
     <style class='style-${options.id}'>
         .${options.id} {
-            width: 200px;
-            height: 120px;
+            width: ${options.width ? options.width : '200'}px;
+            height: ${options.height ? options.height : '120'}px;
             display: none;
             color: ${options.color};
             z-index: 9999;
@@ -133,7 +133,7 @@ const renderFixModal = options => {
         <div class='abs center'>
             <span style='font-size: 35px'> ${options.icon} </span> 
             <br> <br>
-            ${options.content}
+            ${typeof options.content == 'function' ? options.content() : options.content}
         </div>
     </mini-modal>
                     

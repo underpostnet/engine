@@ -27,6 +27,7 @@ const renderAuthBearer = () =>
     `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`;
 
 const checkAuthStatus = async () => {
+    if (dev) return;
 
     const requestResult = await serviceRequest(() => '/api/auth/session', {
         headers: {
