@@ -25,7 +25,10 @@ this.router = options => {
             || (path.home && testIncludesHome)
             || (path.nohome && (!testIncludesHome))
         ) {
-            if (path.display && validateSessionDisplayComponent(path)) fadeIn(s(path.component));
+            if (path.display && validateSessionDisplayComponent(path)) {
+                fadeIn(s(path.component));
+                if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay();
+            };
         } else {
             s(path.component).style.display = 'none';
         }

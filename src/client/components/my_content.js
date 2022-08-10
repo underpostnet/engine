@@ -2,9 +2,6 @@
 this.my_content = {
 
     init: function () {
-
-        setTimeout(() => this.renderMyContentTable());
-
         return /*html*/`
             <table-my-content></table-my-content>
         `
@@ -85,6 +82,9 @@ this.my_content = {
             //     content: requestResult.data
             // }));
         }
+    },
+    routerDisplay: function () {
+        this.renderMyContentTable();
     }
 
 };
