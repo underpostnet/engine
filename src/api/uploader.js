@@ -47,7 +47,7 @@ const onUploadFile = (req, res) => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
 
                 fileObj = {
-                    static: req.files[keyFile].name,
+                    static: typeFile + '/' + req.files[keyFile].name,
                     title: req.body.title,
                     date: new Date().toISOString()
                 };

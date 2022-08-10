@@ -101,7 +101,7 @@ this.js_demo = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL['current-view-content'].type = 'js-demo';
+                        GLOBAL['current-view-content'].component = 'js_demo';
                         GLOBAL.router({ newPath: '/engine/view-content' });
                     } else {
                         append('body', renderFixModal({
