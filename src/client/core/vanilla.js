@@ -112,11 +112,11 @@ const serviceRequest = (url, options) => new Promise(
 
 const renderFixModal = options => {
     const timeOut = options && options.time ? options.time : 2500;
-    setTimeout(() => fadeIn(s('.' + options.id)));
-    setTimeout(() => fadeOut(s('.' + options.id)), timeOut);
+    setTimeout(() => s('.' + options.id) ? fadeIn(s('.' + options.id)) : null);
+    setTimeout(() => s('.' + options.id) ? fadeOut(s('.' + options.id)) : null, timeOut);
     setTimeout(() => {
-        s('.' + options.id).remove();
-        s('.style-' + options.id).remove();
+        if (s('.' + options.id)) s('.' + options.id).remove();
+        if (s('.style-' + options.id)) s('.style-' + options.id).remove();
     }, (timeOut + 500));
     return /*html*/`
     <style class='style-${options.id}'>
