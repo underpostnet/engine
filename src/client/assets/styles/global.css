@@ -63,6 +63,10 @@ button:hover {
     color: white;
 }
 
+.menuBtnActive {
+    border-bottom: 3px solid white;
+}
+
 label {
     transition: .3s;
     z-index: 1;

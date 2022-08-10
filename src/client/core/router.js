@@ -19,6 +19,7 @@ this.router = options => {
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
                     + viewMetaData.mainTitle);
             };
+            GLOBAL['currentComponent'] = path.component;
         };
         // if (validPath && (testEvalPath != view.path)) setURI(testEvalPath);
         if (validPath
