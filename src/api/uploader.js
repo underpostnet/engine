@@ -30,6 +30,8 @@ const onUploadFile = (req, res) => {
         console.log("onUploadFile files:", req.files);
         console.log("onUploadFile body:", req.body);
 
+        let fileObj = {};
+
         if (req.files) {
 
             const files = getFiles();
@@ -43,7 +45,7 @@ const onUploadFile = (req, res) => {
             Object.keys(req.files).map(keyFile => {
                 fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
 
-                const fileObj = {
+                fileObj = {
                     static: req.files[keyFile].name,
                     title: req.body.title,
                     date: new Date().toISOString()
@@ -70,7 +72,7 @@ const onUploadFile = (req, res) => {
 
         return res.status(200).json({
             status: 'success',
-            data: 'ok'
+            data: fileObj
         });
 
     } catch (error) {

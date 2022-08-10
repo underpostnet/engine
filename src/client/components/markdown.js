@@ -65,6 +65,8 @@ this.markdown = {
                             color: 'green',
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
+                        GLOBAL['current-view-content'] = requestResult.data;
+                        GLOBAL.router({ newPath: '/engine/view-content' });
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),
