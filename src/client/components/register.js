@@ -162,7 +162,9 @@ this.register = {
                             localStorage.setItem('email', requestResult.data.user.email);
                             htmls('session-top-bar', GLOBAL.main_menu.renderSessionToBar());
                             htmls('main_menu', GLOBAL.main_menu.init());
+                            if (s('my_content')) GLOBAL.my_content.renderMyContentTable();
                             s('login').style.display = 'none';
+                            GLOBAL.router({ newPath: './my-content' });
                         }
                         valueInputs.map((inputId, i) => {
                             s('.' + this[IDS][inputId]).value = '';
