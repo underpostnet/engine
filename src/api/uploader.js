@@ -2,6 +2,7 @@
 
 import fs from 'fs';
 import { authValidator } from './auth.js';
+import express from 'express';
 
 const uriUploader = 'uploader';
 
@@ -120,6 +121,10 @@ const apiUploader = app => {
 
     app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
     app.get(`/api/${uriUploader}`, authValidator, getContents);
+
+    app.use('/content/js-demo', express.static(`./data/uploads/js-demo`));
+    app.use('/content/editor', express.static(`./data/uploads/editor`));
+    app.use('/content/markdown', express.static(`./data/uploads/markdown`));
 
 
     // app.get(`/api/${uriKeys}`, getKeys);

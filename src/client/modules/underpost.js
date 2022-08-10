@@ -57,7 +57,7 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true,
-        session: false
+        session: true
     }
 ];
 
