@@ -44,13 +44,13 @@ form {
 }
 
 mini-modal {
-    background: rgba(0, 0, 0, 0.5);
+    background: black;
     border: 3px solid #141414;
 }
 
 button {
     cursor: pointer;
-    border: 3px solid magenta;
+    border-bottom: 3px solid magenta;
     background: black;
     color: magenta;
     margin-top: 20px;
@@ -59,7 +59,7 @@ button {
 }
 
 button:hover {
-    border: 3px solid white;
+    border-bottom: 3px solid white;
     color: white;
 }
 

@@ -164,7 +164,7 @@ this.register = {
                             htmls('main_menu', GLOBAL.main_menu.init());
                             if (s('my_content')) GLOBAL.my_content.renderMyContentTable();
                             s('login').style.display = 'none';
-                            GLOBAL.router({ newPath: './my-content' });
+                            GLOBAL.router({ newPath: '/engine/my-content' });
                         }
                         valueInputs.map((inputId, i) => {
                             s('.' + this[IDS][inputId]).value = '';
