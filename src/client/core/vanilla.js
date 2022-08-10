@@ -98,7 +98,13 @@ const serviceRequest = (url, options) => new Promise(
                 let raw = await res.clone();
                 raw = await raw.text();
                 console.log(`${url()} raw: `, raw);
-                return { ...await res.json(), codeStatus: res.status, raw };
+                let returnObj;
+                try {
+                    returnObj = await res.json();
+                } catch (error) {
+                    return raw;
+                }
+                return { ...returnObj, codeStatus: res.status, raw };
             })
             .then((res) => {
                 console.log('fetch success', url(), res);
