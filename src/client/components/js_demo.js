@@ -178,12 +178,15 @@ this.js_demo = {
     routerDisplay: function () {
         if (GLOBAL['current-edit-content']) {
             setValueInput(this[this.IDS], [3, 4, 5], GLOBAL['current-edit-content'].title);
-            // tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+            s('.' + this[this.IDS][0]).value = GLOBAL['current-edit-content'].raw;
+            s('.' + this[this.IDS][0]).oninput();
             this.update = newInstance(GLOBAL['current-edit-content']);
             GLOBAL['current-edit-content'] = undefined;
         } else {
             try {
                 clearInput(this[this.IDS], [3, 4, 5]);
+                s('.' + this[this.IDS][0]).value = '';
+                s('.' + this[this.IDS][0]).oninput();
                 this.update = false;
                 // tinyMCE.activeEditor.setContent('');
             } catch (error) { console.warn(error) }

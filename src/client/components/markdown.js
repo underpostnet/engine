@@ -44,7 +44,7 @@ this.markdown = {
 
                 body.append('indexFolder', '1');
 
-                if (GLOBAL['current-edit-content']) {
+                if (this.update) {
                     body.append('update', JSON.stringify(this.update));
                     this.update = false;
                 }
@@ -110,14 +110,14 @@ this.markdown = {
     routerDisplay: function () {
         if (GLOBAL['current-edit-content']) {
             setValueInput(this[this.IDS], [2, 3, 4], GLOBAL['current-edit-content'].title);
-            // tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+            this.instance.value(GLOBAL['current-edit-content'].raw);
             this.update = newInstance(GLOBAL['current-edit-content']);
             GLOBAL['current-edit-content'] = undefined;
         } else {
             try {
                 clearInput(this[this.IDS], [2, 3, 4]);
                 this.update = false;
-                // tinyMCE.activeEditor.setContent('');
+                this.instance.value('');
             } catch (error) { console.warn(error) }
         }
     }
