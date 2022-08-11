@@ -164,6 +164,7 @@ const renderToggleSwitch = options => {
                     ((factor * wFactor) - (factor * 0.1) - (factor * roundFactor)) + 'px';
                 htmls(`.ts-label-${options.id}`, options.label[1]);
             }
+            if (options && options.onChange) options.onChange(s(`.${options.id}`).checked);
         };
 
         if (options && options.checked == true)

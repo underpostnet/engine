@@ -10,6 +10,7 @@ this.my_content = {
         const idUpdate = 'x' + s4();
         const idDelete = 'x' + s4();
         const idView = 'x' + s4();
+        const idPublic = 'x' + s4();
         setTimeout(() => {
             s('.' + idUpdate).onclick = async () => {
                 const requestResult = await serviceRequest(() => `/uploads${row.static}`);
@@ -95,7 +96,6 @@ this.my_content = {
                 GLOBAL.router({ newPath: '/engine/view-content' });
             };
         });
-        const idPublic = 'x' + s4();
         return /*html*/`
             <th>
                 <i class='fas fa-eye ${idView}'></i>
@@ -107,7 +107,10 @@ this.my_content = {
                 renderLang({ es: `Privado`, en: `Private` }),
                 renderLang({ es: `Publico`, en: `Public` })
             ],
-            checked: row.public
+            checked: row.public,
+            onChange: state => {
+                console.log('onChange', row, state);
+            }
         })}
             </th>
             `
