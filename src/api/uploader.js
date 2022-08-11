@@ -45,17 +45,36 @@ const onUploadFile = (req, res) => {
             console.log('typeFile', typeFile);
 
             Object.keys(req.files).map(keyFile => {
-                fs.writeFileSync(srcFolders[parseInt(req.body.indexFolder)] + '/' + req.files[keyFile].name, req.files[keyFile].data, 'utf8');
+
+                let staticPath = '/' + typeFile + '/' + req.files[keyFile].name;
+                if (req.body.update) {
+                    const dataUpdate = JSON.parse(req.body.update);
+                    fs.unlinkSync(`./data/uploads${dataUpdate.static}`);
+                    staticPath = dataUpdate.static;
+                }
+                fs.writeFileSync(`./data/uploads${staticPath}`, req.files[keyFile].data, 'utf8');
+
 
                 fileObj = {
-                    static: '/' + typeFile + '/' + req.files[keyFile].name,
+                    static: staticPath,
                     title: req.body.title,
                     date: new Date().toISOString(),
                     component: components[parseInt(req.body.indexFolder)]
                 };
 
                 if (indexUserFile >= 0) {
-                    files[indexUserFile][typeFile].push(fileObj);
+                    if (req.body.update) {
+                        let indObjFile = 0;
+                        for (let objFile of files[indexUserFile][typeFile]) {
+                            if (objFile.static == staticPath) {
+                                files[indexUserFile][typeFile][indObjFile] = fileObj;
+                                break;
+                            }
+                            indObjFile++;
+                        }
+                    } else {
+                        files[indexUserFile][typeFile].push(fileObj)
+                    };
                 } else {
                     let newFileObj = {
                         username: req.user.username,

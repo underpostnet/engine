@@ -78,7 +78,10 @@ this.editor = {
                 body.append('indexFolder', '0');
                 body.append('title', s('.' + this[IDS][2]).value);
 
-                console.log('init fetch body:', body);
+                if (GLOBAL['current-edit-content']) {
+                    body.append('update', JSON.stringify(GLOBAL['current-edit-content']));
+                    GLOBAL['current-edit-content'] = undefined;
+                }
 
 
                 (async () => {
