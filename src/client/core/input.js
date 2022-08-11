@@ -93,3 +93,9 @@ const clearInput = (_this, matrix) => {
     s('.' + _this[matrix[1]]).value = '';
     s('.' + _this[matrix[2]]).style.display = 'none';
 };
+
+const setValueInput = (_this, matrix, value) => {
+    s('.' + _this[matrix[0]]).style.top = botLabelInput;
+    s('.' + _this[matrix[1]]).value = value;
+    s('.' + _this[matrix[2]]).style.display = 'none';
+};

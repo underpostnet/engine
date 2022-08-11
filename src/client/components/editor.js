@@ -1,6 +1,7 @@
 this.editor = {
     init: function () {
         const IDS = s4();
+        this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
 
         // let url = () => `/api/${uriApi}/create-key`;
@@ -136,5 +137,11 @@ this.editor = {
     },
     renderView: (dataFile, rawContent) => {
         return rawContent
+    },
+    routerDisplay: function () {
+        if (GLOBAL['current-edit-content']) {
+            setValueInput(this[this.IDS], [1, 2, 3], GLOBAL['current-edit-content'].title);
+            tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+        }
     }
 };
