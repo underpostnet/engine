@@ -44,9 +44,43 @@ this.my_content = {
                     height: 170
                 }));
 
-                s('.' + idYes).onclick = () => {
+                s('.' + idYes).onclick = async () => {
+
+                    const url = () => '/api/uploader';
+                    const method = 'DELETE';
+                    const headers = {
+                        'Authorization': renderAuthBearer(),
+                        'Content-Type': 'application/json',
+                        // 'content-type': 'application/octet-stream'
+                        //  'content-length': CHUNK.length,
+                    };
+
+                    console.log('post delete', row);
+
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        headers,
+                        body: JSON.stringify(row) // : method == 'GET' ? undefined : JSON.stringify(body)
+                    });
+
                     fadeOut(s('.' + idMoval));
                     setTimeout(() => s('.' + idMoval).remove());
+
+                    if (requestResult.status == 'success') {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Contenido Eliminado', en: 'Deleted Content' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
                 };
                 s('.' + idNo).onclick = () => {
                     fadeOut(s('.' + idMoval));

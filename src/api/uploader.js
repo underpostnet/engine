@@ -3,6 +3,7 @@
 import fs from 'fs';
 import { authValidator } from './auth.js';
 import express from 'express';
+import { logger } from '../modules/logger.js';
 
 const uriUploader = 'uploader';
 
@@ -133,6 +134,49 @@ const getContents = (req, res) => {
     }
 };
 
+const deleteContents = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
+
+        logger.info('deleteContents');
+        logger.info(req.body);
+
+        const files = getFiles();
+        const indexUserFile = findIndexUsernameFile(req);
+        const typeFile = srcFolders[components.indexOf(req.body.component)].split('/').pop();
+
+        if (indexUserFile < 0) {
+            return res.status(400).json({
+                status: 'error',
+                data: 'invalid index user'
+            });
+        }
+
+        fs.unlinkSync(`./data/uploads${req.body.static}`);
+
+        let indObjFile = 0;
+        for (let objFile of files[indexUserFile][typeFile]) {
+            if (objFile.static == req.body.static) {
+                files[indexUserFile][typeFile].splice(indObjFile, 1);
+                break;
+            }
+            indObjFile++;
+        }
+
+        writeFiles(files);
+
+        return res.status(200).json({
+            status: 'success',
+            data: 'ok'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+};
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -142,6 +186,7 @@ const apiUploader = app => {
 
     app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
     app.get(`/api/${uriUploader}`, authValidator, getContents);
+    app.delete(`/api/${uriUploader}`, authValidator, deleteContents);
 
     app.use('/uploads/js-demo', express.static(`./data/uploads/js-demo`));
     app.use('/uploads/editor', express.static(`./data/uploads/editor`));
