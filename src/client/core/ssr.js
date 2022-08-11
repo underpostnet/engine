@@ -61,6 +61,8 @@ const renderView = dataView => {
         ${fs.readFileSync('./src/client/core/session.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/render.js', viewMetaData.charset)}
         
+        const GLOBAL = this;
+        
         ${viewMetaData.apiURIS.map(dataApiUri => `
             const ${dataApiUri.name} = '${dataApiUri.path}';
         `).join('')}

@@ -23,7 +23,7 @@ const fadeOut = (el) => {
     el.style.opacity = 1;
     const fade = () => {
         if ((el.style.opacity -= .1) < 0) {
-            el.style.display = "none";
+            el.style.display = 'none';
         } else {
             requestAnimationFrame(fade);
         }
@@ -52,9 +52,10 @@ const renderSpinner = (IDS) => /*html*/`
 
 const renderTable = (data, options) => data[0] ? /*html*/`
         <table>
-            <tr> ${Object.keys(data[0]).map(key =>/*html*/`<th class='header-table'>${key}</th>`).join('')} ${options && options.actions ? '<th></th>' : ''}</tr>
+            <tr> ${Object.keys(data[0]).map(key =>/*html*/`<th class='header-table'>${key}</th>`).join('')} ${options && options.actions ?
+        options.customHeader ? options.customHeader : '<th></th>' : ''}</tr>
             ${data.map(row => '<tr>' + Object.keys(data[0]).map(key =>/*html*/`<th>${row[key]}</th>`).join('')
-    + (options && options.actions ? options.actions(row) : '') + '</tr>').join('')}
+            + (options && options.actions ? options.actions(row) : '') + '</tr>').join('')}
         </table>            
     `: '';
 
@@ -146,4 +147,54 @@ const renderFixModal = options => {
 `
 };
 
-const GLOBAL = this;
+const renderToggleSwitch = options => {
+    const factor = options && options.factor ? options.factor : 25;
+    const wFactor = 2.3;
+    const roundFactor = 0.7;
+    setTimeout(() => {
+        s(`.ts-container-${options.id}`).onclick = () => {
+            if (s(`.${options.id}`).checked) {
+                s(`.${options.id}`).checked = false;
+                s(`.ts-round-${options.id}`).style.left =
+                    (factor * 0.1) + 'px';
+                htmls(`.ts-label-${options.id}`, options.label[0]);
+            } else {
+                s(`.${options.id}`).checked = true;
+                s(`.ts-round-${options.id}`).style.left =
+                    ((factor * wFactor) - (factor * 0.1) - (factor * roundFactor)) + 'px';
+                htmls(`.ts-label-${options.id}`, options.label[1]);
+            }
+        };
+
+        if (options && options.checked == true)
+            s(`.ts-container-${options.id}`).click();
+    });
+    return /*html*/`
+    <style>
+        .ts-container-${options.id} {
+            width: ${factor * wFactor}px;
+            height: ${factor}px;
+            background: #121212;
+            border-radius: ${factor * 0.1}px;
+            cursor: pointer;
+        }
+        .ts-round-${options.id} {
+            border-radius: 50%;
+            height: ${factor * roundFactor}px;
+            width: ${factor * roundFactor}px;
+            background: gray;
+            transition: .3s;
+        }
+        .ts-label-${options.id} {
+            font-size: ${factor * 0.5}px;
+            ${borderChar((factor * 0.5), 'black')};
+        }
+    </style>
+    <input type='checkbox' class='${options.id}' style='display: none'>        
+    <div class='in flr ts-label-${options.id}'></div>
+    <div class='in flr ts-container-${options.id}'>
+        <div class='abs ts-round-${options.id}' style='top: ${factor * 0.2}px; left: ${factor * 0.2}px;'>
+        </div>
+    </div> 
+    `
+};

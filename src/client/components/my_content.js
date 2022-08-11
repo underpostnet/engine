@@ -95,10 +95,20 @@ this.my_content = {
                 GLOBAL.router({ newPath: '/engine/view-content' });
             };
         });
+        const idPublic = 'x' + s4();
         return /*html*/`
             <th>
                 <i class='fas fa-eye ${idView}'></i>
-                ${renderUpdateDeleteIcons(idUpdate, idDelete)}
+                ${renderUpdateDeleteIcons(idUpdate, idDelete)}                
+            </th>
+            <th>
+                ${renderToggleSwitch({
+            id: idPublic, label: [
+                renderLang({ es: `Privado`, en: `Private` }),
+                renderLang({ es: `Publico`, en: `Public` })
+            ],
+            checked: true
+        })}
             </th>
             `
     },
@@ -117,13 +127,16 @@ this.my_content = {
                     /*html*/`
                   <div class='in container'> 
                     ${renderTable(requestResult.data[0].markdown, {
-                    actions: this.actionRow
+                    actions: this.actionRow,
+                    customHeader: '<th></th><th></th>'
                 })
                     + renderTable(requestResult.data[0].editor, {
-                        actions: this.actionRow
+                        actions: this.actionRow,
+                        customHeader: '<th></th><th></th>'
                     })
                     + renderTable(requestResult.data[0]['js-demo'], {
-                        actions: this.actionRow
+                        actions: this.actionRow,
+                        customHeader: '<th></th><th></th>'
                     })}
                     </div> `
                 );
