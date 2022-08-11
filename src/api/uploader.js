@@ -9,6 +9,7 @@ const uriUploader = 'uploader';
 const filesPathData = './data/uploads/files.json';
 
 const srcFolders = ['./data/uploads/editor', './data/uploads/markdown', './data/uploads/js-demo'];
+const components = ['editor', 'markdown', 'js_demo'];
 
 const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
 
@@ -49,7 +50,8 @@ const onUploadFile = (req, res) => {
                 fileObj = {
                     static: '/' + typeFile + '/' + req.files[keyFile].name,
                     title: req.body.title,
-                    date: new Date().toISOString()
+                    date: new Date().toISOString(),
+                    component: components[parseInt(req.body.indexFolder)]
                 };
 
                 if (indexUserFile >= 0) {

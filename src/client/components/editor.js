@@ -100,7 +100,6 @@ this.editor = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL['current-view-content'].component = 'editor';
                         GLOBAL.router({ newPath: '/engine/view-content' });
                     } else {
                         append('body', renderFixModal({

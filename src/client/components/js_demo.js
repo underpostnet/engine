@@ -101,7 +101,6 @@ this.js_demo = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL['current-view-content'].component = 'js_demo';
                         GLOBAL.router({ newPath: '/engine/view-content' });
                     } else {
                         append('body', renderFixModal({
@@ -161,6 +160,16 @@ this.js_demo = {
                 <button class='${this[IDS][6]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
             </div>   
         `
+    },
+    renderView: (dataFile, rawContent) => {
+        const idDemo = `demo-${s4()}`;
+        const contentEval = rawContent.replaceAll(`'body'`, `'${idDemo}'`);
+        const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
+        setTimeout(() => eval(contentEval));
+        return /*html*/`
+            <${idDemo}></${idDemo}>
+            <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>            
+        `;
     }
 };
 

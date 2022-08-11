@@ -66,7 +66,6 @@ this.markdown = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL['current-view-content'].component = 'markdown';
                         GLOBAL.router({ newPath: '/engine/view-content' });
                     } else {
                         append('body', renderFixModal({
@@ -94,6 +93,13 @@ this.markdown = {
         </div>
         <div class='in container'>
             <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+        </div>
+        `
+    },
+    renderView: (dataFile, rawContent) => {
+        return /*html*/`
+        <div class='in markdown-css' style='background: #d9d9d9'>
+            ${marked.parse(rawContent)}
         </div>
         `
     }
