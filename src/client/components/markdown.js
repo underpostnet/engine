@@ -29,6 +29,7 @@ this.markdown = {
                 let body = new FormData();
                 body.append('title', s('.' + this[IDS][3]).value);
                 body.append('indexFolder', '1');
+                body.append('public', s('.' + this[IDS][5]).checked);
 
                 body.append(s4(), new File([new Blob([markedContent])], s4() + '.md'));
 
@@ -97,6 +98,12 @@ this.markdown = {
         </div>
         <div class='in container'>
             <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+            ${renderToggleSwitch({
+            id: this[IDS][5], label: [
+                renderLang({ es: `Privado`, en: `Private` }),
+                renderLang({ es: `Publico`, en: `Public` })
+            ]
+        })}
         </div>
         `
     },
@@ -112,13 +119,18 @@ this.markdown = {
             setValueInput(this[this.IDS], [2, 3, 4], GLOBAL['current-edit-content'].title);
             this.instance.value(GLOBAL['current-edit-content'].raw);
             this.update = newInstance(GLOBAL['current-edit-content']);
-            GLOBAL['current-edit-content'] = undefined;
+            setTimeout(() => GLOBAL['current-edit-content'] = undefined);
         } else {
             try {
                 clearInput(this[this.IDS], [2, 3, 4]);
                 this.update = false;
                 this.instance.value('');
+                if (JSON.parse(s(`.${this[this.IDS][5]}`).checked))
+                    s(`.ts-container-${this[this.IDS][5]}`).click();
             } catch (error) { console.warn(error) }
         }
+        if (GLOBAL['current-edit-content'] &&
+            JSON.parse(s(`.${this[this.IDS][5]}`).checked) != GLOBAL['current-edit-content'].public)
+            s(`.ts-container-${this[this.IDS][5]}`).click();
     }
 };

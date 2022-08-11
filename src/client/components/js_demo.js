@@ -78,6 +78,7 @@ this.js_demo = {
                 };
                 body.append('indexFolder', '2');
                 body.append('title', s('.' + this[IDS][4]).value);
+                body.append('public', s('.' + this[IDS][7]).checked);
 
                 if (this.update) {
                     body.append('update', JSON.stringify(this.update));
@@ -162,6 +163,12 @@ this.js_demo = {
             </div>
             <div class='in container'>
                 <button class='${this[IDS][6]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+                ${renderToggleSwitch({
+            id: this[IDS][7], label: [
+                renderLang({ es: `Privado`, en: `Private` }),
+                renderLang({ es: `Publico`, en: `Public` })
+            ]
+        })}
             </div>   
         `
     },
@@ -181,16 +188,20 @@ this.js_demo = {
             s('.' + this[this.IDS][0]).value = GLOBAL['current-edit-content'].raw;
             s('.' + this[this.IDS][0]).oninput();
             this.update = newInstance(GLOBAL['current-edit-content']);
-            GLOBAL['current-edit-content'] = undefined;
+            setTimeout(() => GLOBAL['current-edit-content'] = undefined);
         } else {
             try {
                 clearInput(this[this.IDS], [3, 4, 5]);
                 s('.' + this[this.IDS][0]).value = '';
                 s('.' + this[this.IDS][0]).oninput();
                 this.update = false;
-                // tinyMCE.activeEditor.setContent('');
+                if (JSON.parse(s(`.${this[this.IDS][7]}`).checked))
+                    s(`.ts-container-${this[this.IDS][7]}`).click();
             } catch (error) { console.warn(error) }
         }
+        if (GLOBAL['current-edit-content'] &&
+            JSON.parse(s(`.${this[this.IDS][7]}`).checked) != GLOBAL['current-edit-content'].public)
+            s(`.ts-container-${this[this.IDS][7]}`).click();
     }
 };
 

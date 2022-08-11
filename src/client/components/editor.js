@@ -77,6 +77,7 @@ this.editor = {
                 };
                 body.append('indexFolder', '0');
                 body.append('title', s('.' + this[IDS][2]).value);
+                body.append('public', s('.' + this[IDS][7]).checked);
 
                 if (this.update) {
                     body.append('update', JSON.stringify(this.update));
@@ -135,6 +136,12 @@ this.editor = {
            </div>
            <div class='in container'>
                 <button class='${this[IDS][0]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
+                ${renderToggleSwitch({
+            id: this[IDS][7], label: [
+                renderLang({ es: `Privado`, en: `Private` }),
+                renderLang({ es: `Publico`, en: `Public` })
+            ]
+        })}
            </div>             
         `
     },
@@ -146,13 +153,18 @@ this.editor = {
             setValueInput(this[this.IDS], [1, 2, 3], GLOBAL['current-edit-content'].title);
             tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
             this.update = newInstance(GLOBAL['current-edit-content']);
-            GLOBAL['current-edit-content'] = undefined;
+            setTimeout(() => GLOBAL['current-edit-content'] = undefined);
         } else {
             try {
                 clearInput(this[this.IDS], [1, 2, 3]);
                 this.update = false;
                 tinyMCE.activeEditor.setContent('');
+                if (JSON.parse(s(`.${this[this.IDS][7]}`).checked))
+                    s(`.ts-container-${this[this.IDS][7]}`).click();
             } catch (error) { console.warn(error) }
         }
+        if (GLOBAL['current-edit-content'] &&
+            JSON.parse(s(`.${this[this.IDS][7]}`).checked) != GLOBAL['current-edit-content'].public)
+            s(`.ts-container-${this[this.IDS][7]}`).click();
     }
 };
