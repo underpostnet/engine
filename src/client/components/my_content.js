@@ -73,6 +73,7 @@ this.my_content = {
                             color: 'green',
                             content: renderLang({ es: 'Contenido Eliminado', en: 'Deleted Content' })
                         }));
+                        GLOBAL['my_content'].renderMyContentTable();
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),
