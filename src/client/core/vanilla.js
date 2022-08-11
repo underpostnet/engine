@@ -45,7 +45,7 @@ const renderLang = langs => {
 // s('html').lang = 'en';
 
 const renderSpinner = (IDS) => /*html*/`
-<div class='in ${IDS}' style='text-align: center; display: none;'>
+<div class='in container ${IDS}' style='text-align: center; display: none;'>
     <div class='lds-ellipsis'><div></div><div></div><div></div><div></div></div>
 </div>
 `;
