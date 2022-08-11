@@ -11,7 +11,16 @@ this.my_content = {
         const idDelete = 'x' + s4();
         const idView = 'x' + s4();
         setTimeout(() => {
-            s('.' + idUpdate).onclick = () => console.log(row);
+            s('.' + idUpdate).onclick = async () => {
+                const requestResult = await serviceRequest(() => `/uploads${row.static}`);
+                GLOBAL['current-edit-content'] = row;
+                GLOBAL['current-edit-content'].raw = requestResult;
+                GLOBAL.router(
+                    {
+                        newPath: viewPaths.find(x => x.component == row.component).path
+                    }
+                );
+            };
             s('.' + idDelete).onclick = () => {
                 console.log(row);
 
