@@ -1,6 +1,7 @@
 this.markdown = {
     init: function () {
         const IDS = s4();
+        this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'markdown-' + s4());
 
         // let labelInputs = [1];
@@ -43,7 +44,10 @@ this.markdown = {
 
                 body.append('indexFolder', '1');
 
-                console.log('init fetch body:', body);
+                if (GLOBAL['current-edit-content']) {
+                    body.append('update', JSON.stringify(this.update));
+                    this.update = false;
+                }
 
 
                 (async () => {
@@ -102,5 +106,19 @@ this.markdown = {
             ${marked.parse(rawContent)}
         </div>
         `
+    },
+    routerDisplay: function () {
+        if (GLOBAL['current-edit-content']) {
+            setValueInput(this[this.IDS], [2, 3, 4], GLOBAL['current-edit-content'].title);
+            // tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+            this.update = newInstance(GLOBAL['current-edit-content']);
+            GLOBAL['current-edit-content'] = undefined;
+        } else {
+            try {
+                clearInput(this[this.IDS], [2, 3, 4]);
+                this.update = false;
+                // tinyMCE.activeEditor.setContent('');
+            } catch (error) { console.warn(error) }
+        }
     }
 };

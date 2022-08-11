@@ -78,9 +78,9 @@ this.editor = {
                 body.append('indexFolder', '0');
                 body.append('title', s('.' + this[IDS][2]).value);
 
-                if (GLOBAL['current-edit-content']) {
-                    body.append('update', JSON.stringify(GLOBAL['current-edit-content']));
-                    GLOBAL['current-edit-content'] = undefined;
+                if (this.update) {
+                    body.append('update', JSON.stringify(this.update));
+                    this.update = false;
                 }
 
 
@@ -145,6 +145,14 @@ this.editor = {
         if (GLOBAL['current-edit-content']) {
             setValueInput(this[this.IDS], [1, 2, 3], GLOBAL['current-edit-content'].title);
             tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+            this.update = newInstance(GLOBAL['current-edit-content']);
+            GLOBAL['current-edit-content'] = undefined;
+        } else {
+            try {
+                clearInput(this[this.IDS], [1, 2, 3]);
+                this.update = false;
+                tinyMCE.activeEditor.setContent('');
+            } catch (error) { console.warn(error) }
         }
     }
 };

@@ -2,6 +2,7 @@ this.js_demo = {
     init: function () {
         // https://prismjs.com/download.html
         const IDS = s4();
+        this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
         setTimeout(() => {
 
@@ -78,7 +79,10 @@ this.js_demo = {
                 body.append('indexFolder', '2');
                 body.append('title', s('.' + this[IDS][4]).value);
 
-                console.log('init fetch body:', body);
+                if (this.update) {
+                    body.append('update', JSON.stringify(this.update));
+                    this.update = false;
+                }
 
 
                 (async () => {
@@ -170,6 +174,20 @@ this.js_demo = {
             <${idDemo}></${idDemo}>
             <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>            
         `;
+    },
+    routerDisplay: function () {
+        if (GLOBAL['current-edit-content']) {
+            setValueInput(this[this.IDS], [3, 4, 5], GLOBAL['current-edit-content'].title);
+            // tinyMCE.activeEditor.setContent(GLOBAL['current-edit-content'].raw);
+            this.update = newInstance(GLOBAL['current-edit-content']);
+            GLOBAL['current-edit-content'] = undefined;
+        } else {
+            try {
+                clearInput(this[this.IDS], [3, 4, 5]);
+                this.update = false;
+                // tinyMCE.activeEditor.setContent('');
+            } catch (error) { console.warn(error) }
+        }
     }
 };
 
