@@ -60,7 +60,8 @@ const onUploadFile = (req, res) => {
                     static: staticPath,
                     title: req.body.title,
                     date: new Date().toISOString(),
-                    component: components[parseInt(req.body.indexFolder)]
+                    component: components[parseInt(req.body.indexFolder)],
+                    public: typeof req.body.public == 'string' ? JSON.parse(req.body.public) : req.body.public
                 };
 
                 if (indexUserFile >= 0) {

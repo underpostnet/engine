@@ -107,7 +107,7 @@ this.my_content = {
                 renderLang({ es: `Privado`, en: `Private` }),
                 renderLang({ es: `Publico`, en: `Public` })
             ],
-            checked: true
+            checked: row.public
         })}
             </th>
             `

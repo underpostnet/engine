@@ -191,7 +191,7 @@ const renderToggleSwitch = options => {
         }
     </style>
     <input type='checkbox' class='${options.id}' style='display: none'>        
-    <div class='in flr ts-label-${options.id}'></div>
+    <div class='in flr ts-label-${options.id}'>${options.label[0]}</div>
     <div class='in flr ts-container-${options.id}'>
         <div class='abs ts-round-${options.id}' style='top: ${factor * 0.2}px; left: ${factor * 0.2}px;'>
         </div>
