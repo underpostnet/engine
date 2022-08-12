@@ -26,7 +26,9 @@ this.main_menu = {
         };
 
         const renderMmenubtn = (path, i) => /*html*/`   
-        <button class='${this[IDS][i]} btn-${path.component}'  >${renderLang(path.title)}</button>          
+        <button class='${this[IDS][i]} btn-${path.component}'  >
+            ${renderLang(path.title) != '' ? renderLang(path.title) : `<i class='fas fa-home'></i>`}
+        </button>          
         `;
 
         setTimeout(() => {

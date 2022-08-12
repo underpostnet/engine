@@ -128,14 +128,15 @@ this.js_demo = {
             (async () => {
                 if (options && options.mode == 'home_example') {
                     GLOBAL['current-edit-content'] = {
-                        'static': '/js-demo/e5cd.js',
-                        'title': 'Padding Color',
-                        'date': '2022-08-12T03:14:14.625Z',
-                        'component': 'js_demo',
-                        'public': true,
-                        'raw': await serviceRequest(() => `/uploads/js-demo/e5cd.js`)
+                        "static": "/js-demo/a154.js",
+                        "title": "Padding Color",
+                        "date": "2022-08-12T15:50:05.928Z",
+                        "component": "js_demo",
+                        "public": false,
+                        'raw': await serviceRequest(() => `/uploads/js-demo/a154.js`)
                     };
                     this.routerDisplay();
+
                 }
             })();
 
@@ -196,7 +197,7 @@ this.js_demo = {
         setTimeout(() => eval(contentEval));
         return /*html*/`
             <${idDemo}></${idDemo}>
-            <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>            
+            <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;
     },
     routerDisplay: function () {

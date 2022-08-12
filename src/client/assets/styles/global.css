@@ -65,6 +65,7 @@ button:hover {
 
 .menuBtnActive {
     border-bottom: 3px solid white;
+    color: white;
 }
 
 label {

@@ -51,11 +51,23 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + '/vanilla-js-library',
+        path: baseHome + '/vanilla-js',
         homePaths: [baseHome],
-        title: { en: 'See Library', es: 'Ver Libreria' },
+        title: { en: 'See JS Library', es: 'Ver Libreria JS' },
         component: 'vanilla_js_doc',
         options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
+    },
+    {
+        path: baseHome + '/base-css',
+        homePaths: [baseHome],
+        title: { en: 'See Css Source', es: 'Ver Fuente Css' },
+        component: 'vanilla_css_doc',
+        options: { origin: 'vanilla_js_doc', mode: 'css' },
         menu: true,
         home: false,
         nohome: false,
