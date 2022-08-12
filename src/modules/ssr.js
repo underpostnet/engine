@@ -154,6 +154,13 @@ const ssr = (app, renderData) => {
     app.use('/marked', express.static('./node_modules/marked'));
     app.use('/spectre-markdown.css', express.static('./node_modules/spectre-markdown.css'));
 
+    app.get('/vanilla.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(fs.readFileSync('./src/client/core/vanilla.js', 'utf-8'));
+    });
+
     const renders = viewPaths.filter(view => view.render).map(view => {
         return {
             path: view.path,
