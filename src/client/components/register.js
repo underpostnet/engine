@@ -163,7 +163,7 @@ this.register = {
                             htmls('session-top-bar', GLOBAL.main_menu.renderSessionToBar());
                             htmls('main_menu', GLOBAL.main_menu.init());
                             s('login').style.display = 'none';
-                            GLOBAL.router({ newPath: '/engine/my-content' });
+                            GLOBAL.router({ newPath: '/' + viewMetaData.clientID + '/my-content' });
                         }
                         valueInputs.map((inputId, i) => {
                             s('.' + this[IDS][inputId]).value = '';

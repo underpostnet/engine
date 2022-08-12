@@ -71,7 +71,7 @@ this.markdown = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL.router({ newPath: '/engine/view-content' });
+                        GLOBAL.router({ newPath: '/' + viewMetaData.clientID + '/view-content' });
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),

@@ -25,6 +25,7 @@ import { engine } from './client/modules/engine.js';
 import { underpost } from './client/modules/underpost.js';
 import { cryptokoyn } from './client/modules/cryptokoyn.js';
 import { authClient } from './client/modules/auth.js';
+import { nexodev } from './client/modules/nexodev.js';
 
 import dotenv from 'dotenv';
 
@@ -51,6 +52,7 @@ ssr(app, [engine, newInstance(authClient)]);
 ssr(app, [underpost]);
 ssr(app, [authClient]);
 ssr(app, [cryptokoyn]);
+ssr(app, [nexodev, newInstance(engine)]);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);
