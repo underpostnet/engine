@@ -1,3 +1,4 @@
+import { getBaseComponent } from '../../modules/ssr.js';
 
 const clientID = 'underpost';
 const viewMetaData = {
@@ -33,6 +34,21 @@ const viewPaths = [
         nohome: true,
         render: true,
         display: false
+    },
+    {
+        ...getBaseComponent(baseHome, 'js_demo')
+    },
+    {
+        path: baseHome + '/js-demo',
+        homePaths: [baseHome],
+        title: { en: 'js demo', es: 'js demo' },
+        component: 'js_demo_home',
+        options: { origin: 'js_demo', mode: 'home_example' },
+        menu: false,
+        home: true,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 

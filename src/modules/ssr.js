@@ -5,7 +5,7 @@ import express from 'express';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions, randomColor, replaceAll } from '../api/util.js';
+import { commonFunctions, getHash, randomColor, replaceAll } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 
@@ -173,8 +173,24 @@ const ssr = (app, renderData) => {
 
 };
 
+const getBaseComponent = (baseHome, component) => {
+    return {
+        path: baseHome + `/${getHash()}`,
+        homePaths: [baseHome],
+        title: { en: '', es: '' },
+        component,
+        options: false,
+        menu: false,
+        home: false,
+        nohome: false,
+        render: true,
+        display: false
+    }
+};
+
 export {
     ssr,
     cssClientCore,
-    renderView
+    renderView,
+    getBaseComponent
 };
