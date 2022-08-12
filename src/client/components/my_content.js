@@ -181,6 +181,8 @@ this.my_content = {
                     })}
                     </div> `
                 );
+            } else {
+                htmls('table-my-content', '');
             }
             // append('body', renderFixModal({
             //     id: 'mini-modal-' + s4(),
