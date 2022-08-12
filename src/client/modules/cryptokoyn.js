@@ -37,7 +37,7 @@ const viewPaths = [
         home: false,
         nohome: true,
         render: true,
-        display: true
+        display: false
     },
     {
         path: baseHome + '/keys/create',
