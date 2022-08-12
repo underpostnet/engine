@@ -47,7 +47,7 @@ apiKeys(app);
 apiAuth(app);
 
 apiUploader(app);
-ssr(app, [engine, newInstance(authClient), newInstance(underpost)]);
+ssr(app, [engine, newInstance(authClient)]);
 ssr(app, [underpost]);
 ssr(app, [authClient]);
 ssr(app, [cryptokoyn]);

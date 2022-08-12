@@ -3,6 +3,7 @@ const clientID = 'underpost';
 const viewMetaData = {
     clientID,
     mainTitle: 'underpost.net',
+    description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
     favicon: {
         type: 'image/png',
         path: '/assets/underpost.png'
@@ -31,7 +32,7 @@ const viewPaths = [
         home: true,
         nohome: true,
         render: true,
-        display: true
+        display: false
     }
 ];
 
