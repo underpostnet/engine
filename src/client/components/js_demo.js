@@ -5,19 +5,11 @@ this.js_demo = {
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
 
-        if (options && options.mode == 'home_example') {
-            // GLOBAL['current-view-content'] = {
-            //     'static': '/js-demo/e5cd.js',
-            //     'title': 'Padding Color',
-            //     'date': '2022-08-12T03:14:14.625Z',
-            //     'component': 'js_demo',
-            //     'public': true
-            // };
-
-
-        }
 
         setTimeout(() => {
+
+
+
 
             const liveJS = () => {
 
@@ -133,7 +125,19 @@ this.js_demo = {
             }
 
 
-
+            (async () => {
+                if (options && options.mode == 'home_example') {
+                    GLOBAL['current-edit-content'] = {
+                        'static': '/js-demo/e5cd.js',
+                        'title': 'Padding Color',
+                        'date': '2022-08-12T03:14:14.625Z',
+                        'component': 'js_demo',
+                        'public': true,
+                        'raw': await serviceRequest(() => `/uploads/js-demo/e5cd.js`)
+                    };
+                    this.routerDisplay();
+                }
+            })();
 
         });
         return /*html*/`
