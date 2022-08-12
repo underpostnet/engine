@@ -23,7 +23,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/wallet';
+const baseHome = '/' + clientID;
 
 // module render group
 const viewPaths = [

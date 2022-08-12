@@ -4,7 +4,7 @@ const clientID = 'nexodev';
 const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
-    // description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
+    description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
         path: '/assets/nexodev.png'
@@ -19,7 +19,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/nexodev';
+const baseHome = '/' + clientID;
 
 // module render group
 const viewPaths = [
@@ -32,6 +32,18 @@ const viewPaths = [
         menu: true,
         home: true,
         nohome: true,
+        render: true,
+        display: true
+    },
+    {
+        path: baseHome + `/landing`,
+        homePaths: [baseHome],
+        title: { en: '', es: '' },
+        component: 'nexodev_landing',
+        options: false,
+        menu: false,
+        home: true,
+        nohome: false,
         render: true,
         display: true
     }

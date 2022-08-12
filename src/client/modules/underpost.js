@@ -19,7 +19,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/underpost';
+const baseHome = '/' + clientID;
 
 // module render group
 const viewPaths = [
@@ -53,7 +53,7 @@ const viewPaths = [
     {
         path: baseHome + '/vanilla-js',
         homePaths: [baseHome],
-        title: { en: 'See JS Library', es: 'Ver Libreria JS' },
+        title: { en: 'JS Library', es: 'Libreria JS' },
         component: 'vanilla_js_doc',
         options: false,
         menu: true,
@@ -65,7 +65,7 @@ const viewPaths = [
     {
         path: baseHome + '/base-css',
         homePaths: [baseHome],
-        title: { en: 'See Css Source', es: 'Ver Fuente Css' },
+        title: { en: 'Css Source', es: 'Fuente Css' },
         component: 'vanilla_css_doc',
         options: { origin: 'vanilla_js_doc', mode: 'css' },
         menu: true,

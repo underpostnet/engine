@@ -22,7 +22,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/auth';
+const baseHome = '/' + clientID;
 
 // module render group
 const viewPaths = [

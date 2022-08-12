@@ -17,7 +17,7 @@ const viewMetaData = {
     ]
 };
 
-const baseHome = '/engine';
+const baseHome = '/' + clientID;
 
 // module render group
 const viewPaths = [
