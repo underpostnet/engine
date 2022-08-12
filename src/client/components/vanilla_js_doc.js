@@ -22,7 +22,11 @@ this.vanilla_js_doc = {
             `
         }
         setTimeout(async () => {
-            htmls('.' + this[IDS][0], Prism.highlight(await serviceRequest(() => '/vanilla.js'), Prism.languages.javascript, 'javascript'));
+            htmls('.' + this[IDS][0], Prism.highlight(
+                await serviceRequest(() => '/vanilla.js') +
+                await serviceRequest(() => '/common-functions.js'),
+                Prism.languages.javascript, 'javascript'
+            ));
         });
         return /*html*/`
         <pre  class='in container'><code class='${this[IDS][0]}'></code></pre>

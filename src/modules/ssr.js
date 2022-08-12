@@ -161,6 +161,13 @@ const ssr = (app, renderData) => {
         return res.end(fs.readFileSync('./src/client/core/vanilla.js', 'utf-8'));
     });
 
+    app.get('/common-functions.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(commonFunctions());
+    });
+
     const renders = viewPaths.filter(view => view.render).map(view => {
         return {
             path: view.path,
