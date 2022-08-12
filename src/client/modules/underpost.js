@@ -33,7 +33,7 @@ const viewPaths = [
         home: true,
         nohome: true,
         render: true,
-        display: false
+        display: true
     },
     {
         ...getBaseComponent(baseHome, 'js_demo')
@@ -46,6 +46,18 @@ const viewPaths = [
         options: { origin: 'js_demo', mode: 'home_example' },
         menu: false,
         home: true,
+        nohome: false,
+        render: true,
+        display: true
+    },
+    {
+        path: baseHome + '/vanilla-js-library',
+        homePaths: [baseHome],
+        title: { en: 'See Library', es: 'Ver Libreria' },
+        component: 'vanilla_js_doc',
+        options: false,
+        menu: true,
+        home: false,
         nohome: false,
         render: true,
         display: true
