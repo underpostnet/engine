@@ -32,32 +32,6 @@ const viewPaths = [
         nohome: true,
         render: true,
         display: true
-    },
-    {
-        path: baseHome + '/my-content',
-        homePaths: [baseHome],
-        title: { en: 'My Content', es: 'Mi contenido' },
-        component: 'my_content',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: true,
-        display: true,
-        session: true
-    },
-    {
-        path: baseHome + '/view-content',
-        homePaths: [baseHome],
-        title: { en: 'View Content', es: 'Ver contenido' },
-        component: 'view_content',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: true,
-        display: true,
-        session: true
     }
 ];
 
