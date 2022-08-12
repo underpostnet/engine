@@ -26,6 +26,7 @@ import { underpost } from './client/modules/underpost.js';
 import { cryptokoyn } from './client/modules/cryptokoyn.js';
 import { authClient } from './client/modules/auth.js';
 import { nexodev } from './client/modules/nexodev.js';
+import { dogmadual } from './client/modules/dogmadual.js';
 
 import dotenv from 'dotenv';
 
@@ -53,6 +54,7 @@ ssr(app, [underpost]);
 ssr(app, [authClient]);
 ssr(app, [cryptokoyn]);
 ssr(app, [nexodev, newInstance(engine)]);
+ssr(app, [dogmadual]);
 
 app.listen(process.env.PORT, () => {
     logger.info(`Server is running on port ${process.env.PORT}`);
