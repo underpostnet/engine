@@ -18,7 +18,7 @@ import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
 
 // server side client render
-import { ssr } from './client/core/ssr.js';
+import { ssr } from './modules/ssr.js';
 
 // views modules
 import { engine } from './client/modules/engine.js';

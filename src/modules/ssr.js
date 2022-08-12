@@ -5,8 +5,8 @@ import express from 'express';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions, randomColor, replaceAll } from '../../api/util.js';
-import { logger } from '../../modules/logger.js';
+import { commonFunctions, randomColor, replaceAll } from '../api/util.js';
+import { logger } from './logger.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
