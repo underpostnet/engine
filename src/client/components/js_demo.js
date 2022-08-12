@@ -128,11 +128,11 @@ this.js_demo = {
             (async () => {
                 if (options && options.mode == 'home_example') {
                     GLOBAL['current-edit-content'] = {
-                        "static": "/js-demo/a154.js",
-                        "title": "Padding Color",
-                        "date": "2022-08-12T15:50:05.928Z",
-                        "component": "js_demo",
-                        "public": false,
+                        'static': '/js-demo/a154.js',
+                        'title': 'Padding Color',
+                        'date': '2022-08-12T15:50:05.928Z',
+                        'component': 'js_demo',
+                        'public': false,
                         'raw': await serviceRequest(() => `/uploads/js-demo/a154.js`)
                     };
                     this.routerDisplay();
