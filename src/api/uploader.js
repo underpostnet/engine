@@ -178,6 +178,54 @@ const deleteContents = (req, res) => {
     }
 };
 
+const changeVisibility = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
+
+        logger.info('changeVisibility');
+        logger.info(req.body);
+
+        const files = getFiles();
+        const indexUserFile = findIndexUsernameFile(req);
+        const typeFile = srcFolders[components.indexOf(req.body.component)].split('/').pop();
+
+        if (indexUserFile < 0) {
+            return res.status(400).json({
+                status: 'error',
+                data: 'invalid index user'
+            });
+        }
+
+        let indObjFile = 0;
+        for (let objFile of files[indexUserFile][typeFile]) {
+            if (objFile.static == req.body.static) {
+                files[indexUserFile][typeFile][indObjFile].public = typeof req.body.public == 'string' ?
+                    JSON.parse(req.body.public) : req.body.public;
+
+                writeFiles(files);
+
+                return res.status(200).json({
+                    status: 'success',
+                    data: 'ok'
+                });
+            }
+            indObjFile++;
+        }
+
+        return res.status(400).json({
+            status: 'error',
+            data: 'file not found'
+        });
+
+
+    } catch (error) {
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+};
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -188,6 +236,7 @@ const apiUploader = app => {
     app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
     app.get(`/api/${uriUploader}`, authValidator, getContents);
     app.delete(`/api/${uriUploader}`, authValidator, deleteContents);
+    app.put(`/api/${uriUploader}/visibility`, authValidator, changeVisibility);
 
     app.use('/uploads/js-demo', express.static(`./data/uploads/js-demo`));
     app.use('/uploads/editor', express.static(`./data/uploads/editor`));

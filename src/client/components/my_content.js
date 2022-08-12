@@ -108,8 +108,46 @@ this.my_content = {
                 renderLang({ es: `Publico`, en: `Public` })
             ],
             checked: row.public,
-            onChange: state => {
+            onChange: async state => {
                 console.log('onChange', row, state);
+                if (state != row.public) {
+
+                    row.public = state;
+
+                    const url = () => '/api/uploader/visibility';
+                    const method = 'PUT';
+                    const headers = {
+                        'Authorization': renderAuthBearer(),
+                        'Content-Type': 'application/json'
+                        // 'content-type': 'application/octet-stream'
+                        //  'content-length': CHUNK.length,
+                    };
+                    const body = JSON.stringify(row);
+                    const requestResult = await serviceRequest(url, {
+                        method,
+                        headers,
+                        body // : method == 'GET' ? undefined : JSON.stringify(body)
+                    });
+
+                    console.log('request', requestResult);
+
+                    if (requestResult.status == 'success') {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Visibilidad Cambiada', en: 'Changed Visibility' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: requestResult.data
+                        }));
+                    }
+
+                }
             }
         })}
             </th>
