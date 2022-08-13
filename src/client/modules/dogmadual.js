@@ -7,7 +7,7 @@ const viewMetaData = {
     // description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
-        path: '/assets/dogmadual.png'
+        path: '/assets/dogmadual/app/android-chrome-192x192.png'
     },
     apiURIS: [],
     lang: 'en',

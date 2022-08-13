@@ -5,7 +5,7 @@ const viewMetaData = {
     mainTitle: 'Auth',
     favicon: {
         type: 'image/png',
-        path: '/assets/underpost.png'
+        path: '/assets-underpost/underpost.png'
     },
     apiURIS: [
         {
@@ -41,7 +41,7 @@ const viewPaths = [
     {
         path: baseHome + '/register',
         homePaths: [baseHome],
-        title: { en: 'Register', es: 'Registrar' },
+        title: { en: 'Sign up', es: 'Crear Cuenta' },
         component: 'register',
         options: false,
         menu: true,

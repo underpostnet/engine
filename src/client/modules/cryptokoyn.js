@@ -6,7 +6,7 @@ const viewMetaData = {
     description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
     favicon: {
         type: 'image/png',
-        path: '/assets/cryptokoyn.png'
+        path: '/assets/cryptokoyn/favicon.png'
     },
     apiURIS: [
         {

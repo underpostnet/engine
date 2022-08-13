@@ -5,7 +5,7 @@ const viewMetaData = {
     mainTitle: 'Engine',
     favicon: {
         type: 'image/png',
-        path: '/assets/underpost.png'
+        path: '/assets-underpost/underpost.png'
     },
     apiURIS: [],
     lang: 'en',
