@@ -23,8 +23,8 @@ this.vanilla_js_doc = {
         }
         setTimeout(async () => {
             htmls('.' + this[IDS][0], Prism.highlight(
-                await serviceRequest(() => '/vanilla.js') +
-                await serviceRequest(() => '/common-functions.js'),
+                await serviceRequest(() => '/common-functions.js') +
+                await serviceRequest(() => '/vanilla.js'),
                 Prism.languages.javascript, 'javascript'
             ));
         });

@@ -14,7 +14,7 @@ this.dogmadual_landing = {
             link: 'https://www.nexodev.org',
             img: '/assets/dogmadual/projects/nexodev_alpha.png',
             description: {
-                en: `Web hosting service for Wordpress, and precision devops multiplatform applications development.`,
+                en: `Web hosting service for Wordpress, and precision devops as multiplatform applications development.`,
                 es: `Servicio de hosting para Wordpress, y desarrollo a precisión de aplicaciones multiplataforma bajo modalidad devops`
             }
         },

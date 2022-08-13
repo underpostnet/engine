@@ -146,7 +146,7 @@ const ssr = (app, renderData) => {
     renderData[0].viewMetaData = viewMetaData;
 
     app.use('/assets', express.static(`./src/client/assets`));
-    app.use('/.well-known', express.static(`./src/client/.well-known`));
+    app.use('/.well-known', express.static(`./src/.well-known`));
     app.use('/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
     app.use('/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
     app.use('/tinymce', express.static('./node_modules/tinymce'));
