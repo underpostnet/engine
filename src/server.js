@@ -49,11 +49,11 @@ apiKeys(app);
 apiAuth(app);
 
 apiUploader(app);
-ssr(app, [engine, newInstance(authClient)]);
+ssr(app, [engine, authClient]);
 ssr(app, [underpost]);
 ssr(app, [authClient]);
 ssr(app, [cryptokoyn]);
-ssr(app, [nexodev, newInstance(engine)]);
+ssr(app, [nexodev, engine, authClient]);
 ssr(app, [dogmadual]);
 
 app.listen(process.env.PORT, () => {

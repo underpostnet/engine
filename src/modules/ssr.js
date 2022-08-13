@@ -5,7 +5,7 @@ import express from 'express';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions, getHash, randomColor, replaceAll } from '../api/util.js';
+import { commonFunctions, getHash, newInstance, randomColor, replaceAll } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 
@@ -127,6 +127,8 @@ const renderView = dataView => {
 };
 
 const ssr = (app, renderData) => {
+
+    renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
 
