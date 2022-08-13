@@ -4,7 +4,7 @@ const clientID = 'dogmadual';
 const viewMetaData = {
     clientID,
     mainTitle: 'DOGMADUAL.com',
-    // description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
+    description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
         type: 'image/png',
         path: '/assets/dogmadual/app/android-chrome-192x192.png'
