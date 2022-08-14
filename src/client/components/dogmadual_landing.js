@@ -5,7 +5,7 @@ this.dogmadual_landing = {
             link: 'https://underpost.net',
             img: '/assets/dogmadual/projects/underpost_alpha.png',
             description: {
-                en: `Virtual laboratory and Vanilla JS thin layer library development as core for web clients`,
+                en: `Virtual laboratory and Vanilla JS thin layer library development as core web client`,
                 es: `Laboratorio virtual y desarrollo de una delgada capa de libreria vanilla-js como nucleo para clientes web`
             }
         },
