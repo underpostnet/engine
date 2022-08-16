@@ -91,7 +91,7 @@ const viewPaths = [
         title: { en: 'View Content', es: 'Ver contenido' },
         component: 'view_content',
         options: false,
-        menu: true,
+        menu: false,
         home: false,
         nohome: false,
         render: true,

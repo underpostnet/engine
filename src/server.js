@@ -28,6 +28,9 @@ import { authClient } from './client/modules/auth.js';
 import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 
+// static
+import { statics } from './modules/statics.js';
+
 import dotenv from 'dotenv';
 
 const app = express();
@@ -47,6 +50,7 @@ app.use(morganMiddleware);
 // apiUtil(app);
 apiKeys(app);
 apiAuth(app);
+statics(app);
 
 apiUploader(app);
 ssr(app, [engine, authClient]);
