@@ -29,6 +29,11 @@ const defaultTheme = [
 ];
 
 const renderStyleView = (dirStyle, viewMetaData) => {
+    if (viewMetaData.theme) {
+        let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
+        defaultTheme.map((color, i) => engineTheme = replaceAll(engineTheme, color, viewMetaData.theme[i]));
+        return engineTheme;
+    }
     if (dirStyle == './src/client/assets/styles/global.css' && false) {
         let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
         defaultTheme.map(color => engineTheme = replaceAll(engineTheme, color, randomColor()));
@@ -55,6 +60,7 @@ const renderView = dataView => {
         const renderComponents = ${renderComponents};
         const topLabelInput = '35px';
         const botLabelInput = '0px';
+        const banner = ${dataView.banner ? dataView.banner : `() => '${viewMetaData.mainTitle}'`};
 
         ${commonFunctions()}
         ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
@@ -128,7 +134,7 @@ const renderView = dataView => {
 };
 
 const ssr = (app, renderData) => {
-
+    const banner = renderData[0].banner;
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
@@ -147,6 +153,7 @@ const ssr = (app, renderData) => {
     });
     renderData[0].viewPaths = viewPaths;
     renderData[0].viewMetaData = viewMetaData;
+    renderData[0].banner = banner;
 
     app.use('/assets', express.static(`./src/client/assets`));
     app.use('/.well-known', express.static(`./src/.well-known`));

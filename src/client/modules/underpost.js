@@ -1,8 +1,28 @@
 import { getBaseComponent } from '../../modules/ssr.js';
 
 const clientID = 'underpost';
+
+const theme = [
+    'black',
+    '#cfcfcf',
+    'red',
+    'white',
+    '#1f1f1f',
+    '#141414',
+    '#800000',
+    'gray',
+    '#f1f1f1',
+    '#888',
+    '#555'
+];
+
+const banner = () =>/*html*/`
+     <img src='/assets-underpost/pwa/android-chrome-256x256.png'> UNDERpost.net
+`;
+
 const viewMetaData = {
     clientID,
+    theme,
     mainTitle: 'underpost.net',
     description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
     favicon: {
@@ -79,7 +99,8 @@ const viewPaths = [
 const underpost = {
     viewMetaData,
     viewPaths,
-    baseHome
+    baseHome,
+    banner
 };
 
 export { underpost };
