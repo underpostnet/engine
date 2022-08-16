@@ -1,8 +1,33 @@
 // import { getBaseComponent } from '../../modules/ssr.js';
 
 const clientID = 'dogmadual';
+
+const theme = [
+    'black',
+    '#cfcfcf',
+    'gray',
+    'white',
+    '#1f1f1f',
+    '#141414',
+    '#999999',
+    'gray',
+    '#f1f1f1',
+    '#888',
+    '#555'
+];
+
+const banner = () =>/*html*/`
+    <img 
+        class='inl' 
+        src='/assets/dogmadual/app/android-chrome-256x256.png' 
+        style='width: 40px; height: 40px; top: 8px'> 
+        DOGMADUAL.com
+`;
+
+
 const viewMetaData = {
     clientID,
+    theme,
     mainTitle: 'DOGMADUAL.com',
     description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
@@ -52,7 +77,8 @@ const viewPaths = [
 const dogmadual = {
     viewMetaData,
     viewPaths,
-    baseHome
+    baseHome,
+    banner
 };
 
 export { dogmadual };

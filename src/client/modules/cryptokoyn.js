@@ -1,7 +1,31 @@
 
 const clientID = 'cryptokoyn';
+
+const banner = () =>/*html*/`
+    <span style='${borderChar(1, 'yellow')}'>
+        KO<span class='inl' style='color: red; font-size: 50px; top: 5px; ${borderChar(1, 'white')}'>λ</span>N
+        <br>
+        Wallet
+    </span>
+`;
+
+const theme = [
+    'black',
+    '#cfcfcf',
+    'yellow',
+    'white',
+    '#1f1f1f',
+    '#141414',
+    'orange',
+    'gray',
+    '#f1f1f1',
+    '#888',
+    '#555'
+];
+
 const viewMetaData = {
     clientID,
+    theme,
     mainTitle: 'Koyn UI',
     description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
     favicon: {
@@ -80,7 +104,8 @@ const viewPaths = [
 const cryptokoyn = {
     viewMetaData,
     viewPaths,
-    baseHome
+    baseHome,
+    banner
 };
 
 export { cryptokoyn };

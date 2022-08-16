@@ -1,6 +1,15 @@
 // import { getBaseComponent } from '../../modules/ssr.js';
 
 const clientID = 'nexodev';
+
+const banner = () =>/*html*/`
+    <img 
+        class='inl' 
+        src='/assets/nexodev/app/android-chrome-256x256.png' 
+        style='width: 40px; height: 40px; top: 8px'> 
+    <span style='color: white; font-size: 40px; ${borderChar(2, 'purple')}'>nexo</span>dev.org
+`;
+
 const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
@@ -52,7 +61,8 @@ const viewPaths = [
 const nexodev = {
     viewMetaData,
     viewPaths,
-    baseHome
+    baseHome,
+    banner
 };
 
 export { nexodev };
