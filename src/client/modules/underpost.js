@@ -17,7 +17,11 @@ const theme = [
 ];
 
 const banner = () =>/*html*/`
-     <img src='/assets-underpost/pwa/android-chrome-256x256.png'> UNDERpost.net
+    <img 
+        class='inl' 
+        src='/assets-underpost/pwa/android-chrome-256x256.png' 
+        style='width: 40px; height: 40px; top: 8px'> 
+    <span style='color: white; ${borderChar(2, '#262626')}'>UNDER</span>post.net
 `;
 
 const viewMetaData = {
