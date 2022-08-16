@@ -59,7 +59,7 @@ const viewPaths = [
         menu: true,
         home: false,
         nohome: false,
-        render: true,
+        render: false,
         display: true
     },
     {
@@ -71,7 +71,7 @@ const viewPaths = [
         menu: true,
         home: false,
         nohome: false,
-        render: true,
+        render: false,
         display: true
     }
 ];

@@ -5,9 +5,7 @@
 //  ${renderLang({ es: 'Desarrollado por', en: 'Developed by' })}
 
 append('body', /*html*/`
-    <footer class='fl container'>
-        
-
+    <footer class='fl container'>      
             <div class='in flr'>
                 <a href='https://www.dogmadual.com/'>DOGMADUAL.com</a>
             </div>
@@ -16,10 +14,7 @@ append('body', /*html*/`
                 <a href='https://github.com/underpostnet/underpost-engine'> 
                     <img src='/assets/github.png' class='inl' style='width: 20px; top: 5px'> 
                      v${version}
-                </a>
-                      
-            </div>
-
-        
+                </a>                      
+            </div>        
     </footer>
 `);

@@ -14,7 +14,7 @@ this.vanilla_js_doc = {
 
                 htmls('.' + this[IDS][0],
                     (titleCss('base.css') + Prism.highlight(baseA, Prism.languages.css, 'css') +
-                        titleCss('global.css') + Prism.highlight(baseB, Prism.languages.css, 'css') +
+                      //   titleCss('global.css') + Prism.highlight(baseB, Prism.languages.css, 'css') +
                         titleCss('spinner-ellipsis.css') + Prism.highlight(baseC, Prism.languages.css, 'css')));
             });
             return /*html*/`
