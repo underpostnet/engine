@@ -7,7 +7,7 @@ this.vanilla_js_doc = {
         if (options && options.mode == 'css') {
             setTimeout(async () => {
                 const baseA = await serviceRequest(() => '/assets/styles/base.css');
-                const baseB = await serviceRequest(() => '/assets/styles/global.css');
+                const baseB = ''; // await serviceRequest(() => '/assets/styles/global.css');
                 const baseC = await serviceRequest(() => '/assets/styles/spinner-ellipsis.css');
 
                 const titleCss = title => /*html*/`<div class='in container title' style='margin: 10px'>${title}</div>`;

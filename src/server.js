@@ -57,5 +57,5 @@ ssr(app, [nexodev, engine, authClient]);
 ssr(app, [dogmadual]);
 
 app.listen(process.env.PORT, () => {
-    logger.info(`Server is running on port ${process.env.PORT}`);
+    logger.info(`Server ${process.env.npm_package_version} is running on port ${process.env.PORT}`);
 });

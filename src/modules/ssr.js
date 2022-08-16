@@ -45,6 +45,7 @@ const renderView = dataView => {
     const { view, viewMetaData, viewPaths } = dataView;
     let jsClientCore = `(function(){
 
+        const version = '${process.env.npm_package_version}';
         const viewPaths = JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}');
         const view = JSON.parse('${JSON.stringify(view)}');
         const viewMetaData = JSON.parse('${JSON.stringify(viewMetaData)}');

@@ -44,11 +44,11 @@ this.dogmadual_landing = {
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'dogmadual_landing-' + s4());
 
-        setTimeout(() => {
-            this.projects.map((dataProject, i) =>
-                s(`.${this[IDS][0]}-${i}`).onclick = () =>
-                    location.href = dataProject.link);
-        });
+        // setTimeout(() => {
+        //     this.projects.map((dataProject, i) =>
+        //         s(`.${this[IDS][0]}-${i}`).onclick = () =>
+        //             location.href = dataProject.link);
+        // });
         return /*html*/`      
          <style>
             .${this[IDS][0]} {
@@ -104,6 +104,7 @@ this.dogmadual_landing = {
                         ${renderLang({ es: 'Nuestros Proyectos', en: 'Our projects' })}
                     </div>
                     ${this.projects.map((dataProject, i) => /*html*/`
+                    <a href='${dataProject.link}'>
                         <div class='in fll ${this[IDS][0]} ${this[IDS][0]}-${i}'>
                             <div class='in'>
                               <!--  <div class='title title-${this[IDS][1]}'>${dataProject.name}</div> -->
@@ -117,7 +118,8 @@ this.dogmadual_landing = {
                             <div class='abs' style='right: 10px; bottom: 10px'>
                                 <i class='fa fa-external-link' aria-hidden='true'></i>
                             </div>
-                        </div>                     
+                        </div>  
+                    </a>                   
                     `).join('')}                 
          </div>
         
