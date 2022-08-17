@@ -5,6 +5,7 @@ import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
 import {
+    buildURL,
     commonFunctions,
     getHash,
     newInstance,
@@ -103,14 +104,33 @@ const renderView = dataView => {
 
     })()`;
     if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
+    const renderTitle = (view.title[viewMetaData.lang] != '' ? view.title[viewMetaData.lang] + ' - ' : '') + viewMetaData.mainTitle;
+    const renderDescription = view.description ? view.description[viewMetaData.lang] :
+        viewMetaData.description ? viewMetaData.description[viewMetaData.lang] : 'underpost.net engine app';
+    const renderSocialImg = view.socialImg ? `<meta property='og:image' content='${view.socialImg}'>` :
+        viewMetaData.socialImg ? `<meta property='og:image' content='${viewMetaData.socialImg}'>` : '';
     return /*html*/`
     <!DOCTYPE html>
     <html dir='${viewMetaData.dir}' lang='${viewMetaData.lang}'>
         <head>
             <meta charset='${viewMetaData.charset}'>
-            <title> ${view.title[viewMetaData.lang] != '' ? view.title[viewMetaData.lang] + ' - ' : ''}${viewMetaData.mainTitle} </title>
+            <title> ${renderTitle} </title>
             <link rel='icon' type='${viewMetaData.favicon.type}' href='${viewMetaData.favicon.path}'>
             <meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=0'>
+
+            <link rel='canonical' href='${buildURL()}${view.path}'>
+          
+            <meta name ='title' content='${renderTitle}'>
+            <meta name ='description' content='${renderDescription}'>
+            <meta name='author' content='${process.env.npm_package_author}'>
+
+            <meta property='og:title' content='${renderTitle}'>
+            <meta property='og:description' content='${renderDescription}'>
+            
+            ${renderSocialImg}
+            <meta property='og:url' content='${buildURL()}${view.path}'>
+            <meta name='twitter:card' content='summary_large_image'>
+
             <style>
                 ${new CleanCSS().minify(cssClientCore
         + viewMetaData.styles.map(dirStyle => renderStyleView(dirStyle, viewMetaData)).join('')

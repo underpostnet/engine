@@ -14,6 +14,7 @@ const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
     host: 'nexodev.org',
+    socialImg: '/assets/nexodev/social.jpg',
     description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
