@@ -29,6 +29,7 @@ const viewMetaData = {
     clientID,
     theme,
     mainTitle: 'DOGMADUAL.com',
+    host: 'dogmadual.com',
     description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
         type: 'image/png',

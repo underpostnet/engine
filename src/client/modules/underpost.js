@@ -28,6 +28,7 @@ const viewMetaData = {
     clientID,
     theme,
     mainTitle: 'underpost.net',
+    host: 'underpost.net',
     description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
     favicon: {
         type: 'image/png',

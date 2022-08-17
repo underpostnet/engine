@@ -10,6 +10,7 @@ const statics = app => {
     app.use('/marked', express.static('./node_modules/marked'));
     app.use('/spectre-markdown.css', express.static('./node_modules/spectre-markdown.css'));
     app.use('/assets-underpost', express.static('./underpost_modules/underpost-library/assets'));
+    app.use('/xml', express.static(`./underpost_modules/underpost-library/xml`));
 
     app.get('/vanilla.js', (req, res) => {
         res.writeHead(200, {

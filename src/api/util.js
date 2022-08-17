@@ -1,4 +1,8 @@
 
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 const uriUtil = 'util';
 
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
@@ -98,6 +102,14 @@ const commonFunctions = () => `
     const strCap = ${strCap};
 `;
 
+const buildURL = (viewMetaData) => {
+    if (process.env.NODE_ENV == 'development')
+        return `http://localhost:${process.env.PORT}`;
+    if (process.env.SSL == 'true')
+        return `https://${viewMetaData.host}`;
+    return `http://${viewMetaData.host}`;
+};
+
 export {
     uriUtil,
     apiUtil,
@@ -112,5 +124,6 @@ export {
     emailValidator,
     renderLang,
     newInstance,
-    strCap
+    strCap,
+    buildURL
 };

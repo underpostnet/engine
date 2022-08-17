@@ -27,6 +27,7 @@ const viewMetaData = {
     clientID,
     theme,
     mainTitle: 'Koyn UI',
+    host: 'cryptokoyn.net',
     description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
     favicon: {
         type: 'image/png',

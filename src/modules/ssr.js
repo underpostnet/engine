@@ -4,9 +4,16 @@ import fs from 'fs';
 import parser from 'ua-parser-js';
 import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
-import { commonFunctions, getHash, newInstance, randomColor, replaceAll } from '../api/util.js';
+import {
+    commonFunctions,
+    getHash,
+    newInstance,
+    randomColor,
+    replaceAll
+} from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
+import { renderSitemap, buildLocSitemap } from './sitemap.js';
 
 dotenv.config();
 
@@ -154,9 +161,13 @@ const ssr = (app, renderData) => {
     renderData[0].viewMetaData = viewMetaData;
     renderData[0].banner = banner;
 
-    
+    let sitemap = '';
+
 
     const renders = viewPaths.filter(view => view.render).map(view => {
+        if (view.sitemap !== false)
+            sitemap += buildLocSitemap(view, viewMetaData);
+
         return {
             path: view.path,
             render: renderView({
@@ -173,6 +184,9 @@ const ssr = (app, renderData) => {
             return res.status(200).end(view.render);
         }));
 
+
+    renderSitemap(app, sitemap, viewMetaData);
+
 };
 
 const getBaseComponent = (baseHome, component) => {
@@ -186,7 +200,8 @@ const getBaseComponent = (baseHome, component) => {
         home: false,
         nohome: false,
         render: true,
-        display: false
+        display: false,
+        sitemap: false
     }
 };
 
