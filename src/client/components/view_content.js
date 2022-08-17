@@ -10,7 +10,7 @@ this.view_content = {
 
             (async () => {
 
-                const requestResult = await serviceRequest(() => `/uploads${GLOBAL['current-view-content'].static}`);
+                const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${GLOBAL['current-view-content'].static}`);
                 console.log('view content file', requestResult);
                 if (GLOBAL[GLOBAL['current-view-content'].component].renderView) {
                     const idEdit = 'x' + s4();

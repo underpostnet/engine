@@ -133,7 +133,7 @@ this.js_demo = {
                         'date': '2022-08-12T15:50:05.928Z',
                         'component': 'js_demo',
                         'public': false,
-                        'raw': await serviceRequest(() => `/uploads/js-demo/a154.js`)
+                        'raw': await serviceRequest(() => `${buildBaseApiUri()}/uploads/js-demo/a154.js`)
                     };
                     this.routerDisplay();
 
