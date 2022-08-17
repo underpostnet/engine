@@ -160,6 +160,7 @@ this.register = {
                             localStorage.setItem('_b', requestResult.data.token);
                             localStorage.setItem('username', requestResult.data.user.username);
                             localStorage.setItem('email', requestResult.data.user.email);
+                            localStorage.setItem('expiresIn', requestResult.data.expiresIn);
                             htmls('session-top-bar', GLOBAL.main_menu.renderSessionToBar());
                             htmls('main_menu', GLOBAL.main_menu.init());
                             s('login').style.display = 'none';

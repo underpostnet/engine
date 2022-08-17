@@ -153,7 +153,8 @@ const login = async (req, res) => {
                     token, user: {
                         email: user.email,
                         username: user.username
-                    }
+                    },
+                    expiresIn: (+ new Date()) + parseInt(process.env.EXPIRE) * (60 * 60 * 1000)
                 }
             });
         }

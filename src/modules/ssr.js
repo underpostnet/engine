@@ -15,6 +15,7 @@ import {
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
+import express from 'express';
 
 dotenv.config();
 
@@ -206,6 +207,32 @@ const ssr = (app, renderData) => {
 
 
     renderSitemap(app, sitemap, viewMetaData);
+
+    const baseStaticUri = process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
+    app.use(baseStaticUri + '/assets', express.static(`./src/client/assets`));
+    app.use(baseStaticUri + '/.well-known', express.static(`./src/.well-known`));
+    app.use(baseStaticUri + '/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
+    app.use(baseStaticUri + '/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
+    app.use(baseStaticUri + '/tinymce', express.static('./node_modules/tinymce'));
+    app.use(baseStaticUri + '/simplemde', express.static('./node_modules/simplemde/dist'));
+    app.use(baseStaticUri + '/marked', express.static('./node_modules/marked'));
+    app.use(baseStaticUri + '/spectre-markdown.css', express.static('./node_modules/spectre-markdown.css'));
+    app.use(baseStaticUri + '/assets-underpost', express.static('./underpost_modules/underpost-library/assets'));
+    app.use(baseStaticUri + '/xml', express.static(`./underpost_modules/underpost-library/xml`));
+
+    app.get(baseStaticUri + '/vanilla.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(fs.readFileSync('./src/client/core/vanilla.js', 'utf-8'));
+    });
+
+    app.get(baseStaticUri + '/common-functions.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(commonFunctions());
+    });
 
 };
 

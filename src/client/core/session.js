@@ -1,6 +1,7 @@
 
 
 const validateSession = () =>
+    localStorage.getItem('expiresIn') &&
     localStorage.getItem('email') &&
     localStorage.getItem('username') &&
     localStorage.getItem('_b');
@@ -27,16 +28,15 @@ const renderAuthBearer = () =>
     `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`;
 
 const checkAuthStatus = async () => {
-    if (dev) return;
 
-    const requestResult = await serviceRequest(() => '/api/auth/session', {
-        headers: {
-            'Authorization': renderAuthBearer()
-        }
-    });
-    console.warn('requestResult', requestResult, GLOBAL['auth']);
-    if (requestResult.status == 'error' && GLOBAL['auth'] == true)
+    if (
+        GLOBAL['auth'] === true &&
+        (
+            (!validateSession()) || ((+ new Date()) > parseInt(localStorage.getItem('expiresIn')))
+        )
+    )
         return closeSessionComponents();
-    if (requestResult.status == 'success')
-        GLOBAL['auth'] = true;
+
+    GLOBAL['auth'] = true;
+    return;
 };
