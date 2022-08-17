@@ -34,7 +34,7 @@ this.markdown = {
                 body.append(s4(), new File([new Blob([markedContent])], s4() + '.md'));
 
 
-                const url = () => '/api/uploader';
+                const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
                 const method = 'POST';
                 const headers = {
                     'Authorization': renderAuthBearer()

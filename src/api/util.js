@@ -18,8 +18,14 @@ const range = (start, end) => {
         .map((element, index) => index + start);
 };
 
+const buildBaseApiUri = () => {
+    if (process.env.NODE_ENV == 'development')
+        return '';
+    return process.env.BASE_API_URI;
+};
+
 const apiUtil = app => {
-    app.get(`/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
 };
 
 const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
@@ -125,5 +131,6 @@ export {
     renderLang,
     newInstance,
     strCap,
-    buildURL
+    buildURL,
+    buildBaseApiUri
 };

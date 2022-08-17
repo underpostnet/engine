@@ -6,7 +6,7 @@ this.form_key = {
         let labelInputs = [8, 9];
         let inputValueContent = [7, 0];
         let errorsIdInput = [6, 5];
-        let url = () => `/api/${uriApi}/create-key`;
+        let url = () => `${buildBaseApiUri()}/api/${uriApi}/create-key`;
         let method = 'POST';
 
         const mode = options && options.mode ? options.mode : 'default';
@@ -109,7 +109,7 @@ this.form_key = {
                     labelInputs = [8];
                     inputValueContent = [7];
                     errorsIdInput = [6];
-                    url = () => `/api/${uriApi}/` + s('.' + this[IDS][7]).value;
+                    url = () => `${buildBaseApiUri()}/api/${uriApi}/` + s('.' + this[IDS][7]).value;
                     method = 'GET';
                     break;
                 case 'copy-cyberia-key':
@@ -123,7 +123,7 @@ this.form_key = {
                     htmls('.' + this[IDS][1], renderLang({ es: 'Generar Copia', en: 'Generate Copy' }));
                     s('.' + this[IDS][7]).value = options.data['Hash ID'];
                     htmls('.' + this[IDS][14], renderLang({ es: 'Copiar Llave Publica para Cyberia Online', en: 'Copy Public Key for Cyberia Online' }));
-                    url = () => `/api/${uriApi}/copy-cyberia`;
+                    url = () => `${buildBaseApiUri()}/api/${uriApi}/copy-cyberia`;
                     break;
                 case 'link-item-cyberia':
                     [13, 16].map(ID => s('.' + this[IDS][ID]).style.display = 'none');
@@ -139,7 +139,7 @@ this.form_key = {
                     htmls('.' + this[IDS][1], renderLang({ es: 'Transferir', en: 'Transfer' }));
                     s('.' + this[IDS][7]).value = options.data['Hash ID'];
                     htmls('.' + this[IDS][14], renderLang({ es: 'Vincular Ítem de Cyberia en LLave Pública', en: 'Link Cyberia Item to Public Key' }));
-                    url = () => `/api/${uriApi}/transaction/cyberia-link-item`;
+                    url = () => `${buildBaseApiUri()}/api/${uriApi}/transaction/cyberia-link-item`;
                     break;
                 case 'copy-cli-key':
                     [1, 16].map(ID => s('.' + this[IDS][ID]).style.display = 'none');
@@ -152,7 +152,7 @@ this.form_key = {
                         s('.' + this[IDS][1]).click();
                         // si ya fue obtenido simplemente copiar
                     };
-                    url = () => `/api/${uriApi}/copy-cli-key`;
+                    url = () => `${buildBaseApiUri()}/api/${uriApi}/copy-cli-key`;
             }
 
             s('.' + this[IDS][10]).onclick = e => setTimeout(() => resetInputs());

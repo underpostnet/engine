@@ -4,9 +4,7 @@ this.editor = {
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
 
-        // let url = () => `/api/${uriApi}/create-key`;
-        // let method = 'POST';
-
+    
         setTimeout(() => {
 
             tinymce.init({
@@ -67,7 +65,7 @@ this.editor = {
                 body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], s4() + '.html'));
 
 
-                const url = () => '/api/uploader';
+                const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
                 const method = 'POST';
                 const headers = {
                     'Authorization': renderAuthBearer()

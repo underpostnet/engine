@@ -2,7 +2,7 @@
 
 this.table_keys = {
     getKeys: () => new Promise((resolve, reject) => {
-        const url = () => `/api/${uriApi}`;
+        const url = () => `${buildBaseApiUri()}/api/${uriApi}`;
         fetch(url(), {
             method: 'GET',
             headers: {

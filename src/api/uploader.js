@@ -4,6 +4,10 @@ import fs from 'fs';
 import { authValidator } from './auth.js';
 import express from 'express';
 import { logger } from '../modules/logger.js';
+import { buildBaseApiUri } from './util.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const uriUploader = 'uploader';
 
@@ -233,17 +237,14 @@ const apiUploader = app => {
     if (!fs.existsSync(filesPathData))
         fs.writeFileSync(filesPathData, '[]', 'utf8');
 
-    app.post(`/api/${uriUploader}`, authValidator, onUploadFile);
-    app.get(`/api/${uriUploader}`, authValidator, getContents);
-    app.delete(`/api/${uriUploader}`, authValidator, deleteContents);
-    app.put(`/api/${uriUploader}/visibility`, authValidator, changeVisibility);
+    app.post(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, onUploadFile);
+    app.get(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, getContents);
+    app.delete(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, deleteContents);
+    app.put(`${buildBaseApiUri()}/api/${uriUploader}/visibility`, authValidator, changeVisibility);
 
-    app.use('/uploads/js-demo', express.static(`./data/uploads/js-demo`));
-    app.use('/uploads/editor', express.static(`./data/uploads/editor`));
-    app.use('/uploads/markdown', express.static(`./data/uploads/markdown`));
-
-
-    // app.get(`/api/${uriKeys}`, getKeys);
+    app.use(`${buildBaseApiUri()}/uploads/js-demo`, express.static(`./data/uploads/js-demo`));
+    app.use(`${buildBaseApiUri()}/uploads/editor`, express.static(`./data/uploads/editor`));
+    app.use(`${buildBaseApiUri()}/uploads/markdown`, express.static(`./data/uploads/markdown`));
 
 }
 

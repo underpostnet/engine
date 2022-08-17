@@ -1,6 +1,6 @@
 
 import fs from 'fs';
-import { emailValidator, passwordValidator, renderLang } from './util.js';
+import { emailValidator, passwordValidator, renderLang, buildBaseApiUri } from './util.js';
 import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
@@ -228,9 +228,9 @@ const apiAuth = app => {
     if (!fs.existsSync(usersDataPath))
         fs.writeFileSync(usersDataPath, '[]', 'utf8');
 
-    app.post(`/api/${uriAuth}/register`, register);
-    app.post(`/api/${uriAuth}/login`, login);
-    app.get(`/api/${uriAuth}/session`, authValidator, getSessionStatus);
+    app.post(`${buildBaseApiUri()}/api/${uriAuth}/register`, register);
+    app.post(`${buildBaseApiUri()}/api/${uriAuth}/login`, login);
+    app.get(`${buildBaseApiUri()}/api/${uriAuth}/session`, authValidator, getSessionStatus);
     // app.get(`/api/${uriKeys}`, getKeys);
 
 };

@@ -73,7 +73,7 @@ this.js_demo = {
                 body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], s4() + '.js'));
 
 
-                const url = () => '/api/uploader';
+                const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
                 const method = 'POST';
                 const headers = {
                     'Authorization': renderAuthBearer()

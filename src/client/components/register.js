@@ -9,7 +9,7 @@ this.register = {
         this[IDS] = range(0, maxIdComponent).map(() => 'register-' + s4());
 
 
-        let url = () => `/api/${uriAuth}/register`;
+        let url = () => `${buildBaseApiUri()}/api/${uriAuth}/register`;
         let labelInputs = [12, 0, 3, 6];
         let valueInputs = [13, 1, 4, 7];
         let errorInputs = [14, 2, 5, 8];
@@ -75,7 +75,7 @@ this.register = {
         if (options) {
             switch (options.mode) {
                 case 'login':
-                    url = () => `/api/${uriAuth}/login`;
+                    url = () => `${buildBaseApiUri()}/api/${uriAuth}/login`;
 
                     valueInputs.shift();
                     errorInputs.shift();

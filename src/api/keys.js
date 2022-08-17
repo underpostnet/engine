@@ -9,7 +9,7 @@ import colors from 'colors';
 import { getAllFiles } from '../modules/files.js';
 import { logger } from '../modules/logger.js';
 import { BlockChain } from '../../underpost_modules/underpost.net/underpost-modules-v1/koyn/class/blockChain.js';
-import { getHash } from './util.js';
+import { getHash, buildBaseApiUri } from './util.js';
 import dotenv from 'dotenv';
 import { authValidator } from './auth.js';
 
@@ -398,12 +398,12 @@ const apiKeys = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
 
-    app.post(`/api/${uriKeys}/create-key`, createKey);
-    app.get(`/api/${uriKeys}`, authValidator, getKeys);
-    app.get(`/api/${uriKeys}/:hashId`, getKey);
-    app.post(`/api/${uriKeys}/copy-cyberia`, postCopyCyberia);
-    app.post(`/api/${uriKeys}/transaction/cyberia-link-item`, postEmitLinkItemCyberia);
-    app.post(`/api/${uriKeys}/copy-cli-key`, copyCliKey);
+    app.post(`${buildBaseApiUri()}/api/${uriKeys}/create-key`, createKey);
+    app.get(`${buildBaseApiUri()}/api/${uriKeys}`, authValidator, getKeys);
+    app.get(`${buildBaseApiUri()}/api/${uriKeys}/:hashId`, getKey);
+    app.post(`${buildBaseApiUri()}/api/${uriKeys}/copy-cyberia`, postCopyCyberia);
+    app.post(`${buildBaseApiUri()}/api/${uriKeys}/transaction/cyberia-link-item`, postEmitLinkItemCyberia);
+    app.post(`${buildBaseApiUri()}/api/${uriKeys}/copy-cli-key`, copyCliKey);
 
 };
 

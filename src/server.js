@@ -12,7 +12,6 @@ import fileUpload from 'express-fileupload';
 import { buildDev } from './build-dev.js';
 
 // api
-import { newInstance } from './api/util.js';
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
@@ -44,7 +43,6 @@ app.use(fileUpload());
 // log events
 app.use(morganMiddleware);
 
-// apiUtil(app);
 apiKeys(app);
 apiAuth(app);
 
@@ -57,5 +55,5 @@ ssr(app, [nexodev, engine, authClient]);
 ssr(app, [dogmadual]);
 
 app.listen(process.env.PORT, () => {
-    logger.info(`Server ${process.env.npm_package_version} is running on port ${process.env.PORT}`);
+    logger.info(`Server is running on port ${process.env.PORT}`);
 });

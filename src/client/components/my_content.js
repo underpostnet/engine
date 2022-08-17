@@ -47,7 +47,7 @@ this.my_content = {
 
                 s('.' + idYes).onclick = async () => {
 
-                    const url = () => '/api/uploader';
+                    const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
                     const method = 'DELETE';
                     const headers = {
                         'Authorization': renderAuthBearer(),
@@ -154,7 +154,7 @@ this.my_content = {
             `
     },
     renderMyContentTable: async function () {
-        const requestResult = await serviceRequest(() => '/api/uploader', {
+        const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
             headers: {
                 'Authorization': renderAuthBearer()
             }

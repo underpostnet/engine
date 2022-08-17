@@ -40,3 +40,8 @@ const checkAuthStatus = async () => {
     GLOBAL['auth'] = true;
     return;
 };
+
+const buildBaseApiUri = () => {
+    if (dev) return '';
+    return 'https://www.nexodev.org'
+};
