@@ -111,7 +111,7 @@ this.js_demo = {
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
                         GLOBAL['current-view-content'] = requestResult.data;
-                        GLOBAL.router({ newPath: '/' + viewMetaData.clientID + '/view-content' });
+                        GLOBAL.router({ newPath: buildBaseUri() + '/view-content' });
                     } else {
                         append('body', renderFixModal({
                             id: 'mini-modal-' + s4(),

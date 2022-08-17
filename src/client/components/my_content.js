@@ -93,7 +93,7 @@ this.my_content = {
             console.log(row);
             s('.' + idView).onclick = () => {
                 GLOBAL['current-view-content'] = row;
-                GLOBAL.router({ newPath: '/' + viewMetaData.clientID + '/view-content' });
+                GLOBAL.router({ newPath: buildBaseUri() + '/view-content' });
             };
         });
         return /*html*/`

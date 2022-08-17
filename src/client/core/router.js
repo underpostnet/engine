@@ -37,7 +37,7 @@ this.router = options => {
     if (!valid) location.href = testEvalPath;
 };
 
-
+const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '/';
 
 this.router();
 
