@@ -1,6 +1,6 @@
 
 
-import { buildURL, newInstance, range } from '../api/util.js';
+import { buildURL, newInstance, range, uniqueArray } from '../api/util.js';
 import { morganMiddleware } from './morgan.js';
 import fileUpload from 'express-fileupload';
 import express from 'express';
@@ -12,9 +12,8 @@ const middlewares = (app, views) => {
 
     views = newInstance(views);
 
-    const origin = views.map(viewObj => `https://${viewObj.viewMetaData.host}`)
-        .concat(views.map(viewObj => `https://www.${viewObj.viewMetaData.host}`))
-        .concat(buildURL());
+    const origin = uniqueArray(views.map(viewObj => buildURL(viewObj.viewMetaData))
+        .concat(views.map(viewObj => buildURL(viewObj.viewMetaData, 'www'))));
 
     app.use(cors({ origin }));
 

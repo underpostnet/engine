@@ -96,6 +96,9 @@ const strCap = str => str
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+const uniqueArray = arr =>
+    arr.filter((item, pos) => arr.indexOf(item) == pos);
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -106,14 +109,15 @@ const commonFunctions = () => `
     const emailValidator = ${emailValidator};
     const newInstance = ${newInstance};
     const strCap = ${strCap};
+    const uniqueArray = ${uniqueArray};
 `;
 
-const buildURL = (viewMetaData) => {
+const buildURL = (viewMetaData, subDomain) => {
     if (process.env.NODE_ENV == 'development')
         return `http://localhost:${process.env.PORT}`;
     if (process.env.SSL == 'true')
-        return `https://${viewMetaData.host}`;
-    return `http://${viewMetaData.host}`;
+        return `https://${subDomain ? subDomain + '.' : ''}${viewMetaData.host}`;
+    return `http://${subDomain ? subDomain + '.' : ''}${viewMetaData.host}`;
 };
 
 const buildBaseUri = view => {
@@ -141,5 +145,6 @@ export {
     strCap,
     buildURL,
     buildBaseApiUri,
-    buildBaseUri
+    buildBaseUri,
+    uniqueArray
 };
