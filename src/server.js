@@ -1,14 +1,9 @@
 'use strict';
 
-// nodejs
 import express from 'express';
 
-// server modules
-import { morganMiddleware } from './modules/morgan.js';
+// dev
 import { logger } from './modules/logger.js';
-import fileUpload from 'express-fileupload';
-
-// buil dev env
 import { buildDev } from './build-dev.js';
 
 // api
@@ -16,7 +11,7 @@ import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
 
-// server side client render
+// ssr
 import { ssr } from './modules/ssr.js';
 
 // views modules
@@ -28,25 +23,17 @@ import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 
 import dotenv from 'dotenv';
+import { middlewares } from './modules/middlewares.js';
 
 const app = express();
 buildDev(app);
 dotenv.config();
 
-// parse requests of content-type - application/json
-app.use(express.json({ limit: '20MB' }));
-
-// parse requests of content-type - application/x-www-form-urlencoded
-app.use(express.urlencoded({ extended: true, limit: '20MB' }));
-app.use(fileUpload());
-
-// log events
-app.use(morganMiddleware);
-
+middlewares(app);
 apiKeys(app);
 apiAuth(app);
-
 apiUploader(app);
+
 ssr(app, [engine, authClient]);
 ssr(app, [underpost]);
 ssr(app, [authClient]);
