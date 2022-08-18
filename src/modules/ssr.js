@@ -259,12 +259,15 @@ const ssr = (app, renderData) => {
         // process.env.NODE_ENV == 'development' ? jsClientCore : UglifyJS.minify(jsClientCore).code
         return res.end(sourceVanillaJs);
     });
-
+    const srcBaseCssLib = cssClientCore + new CleanCSS().minify(
+        fs.readFileSync('./src/client/assets/styles/global.css', 'utf-8')
+        + fs.readFileSync('./src/client/assets/styles/spinner-ellipsis.css', 'utf-8')
+    ).styles;
     app.get(baseStaticUri + '/base.css', (req, res) => {
         res.writeHead(200, {
             'Content-Type': ('text/css; charset= charset=utf-8')
         });
-        return res.end(cssClientCore);
+        return res.end(srcBaseCssLib);
     });
 
     const baseStaticClient = process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
