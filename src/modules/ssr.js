@@ -18,7 +18,7 @@ import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
 import express from 'express';
 import robotstxt from 'generate-robotstxt';
-import { copyDir } from './files.js';
+import { copyDir, deleteFolderRecursive } from './files.js';
 
 dotenv.config();
 
@@ -235,7 +235,7 @@ const ssr = (app, renderData) => {
 
 
     renderSitemap(app, sitemap, viewMetaData);
-    const datStatics = [
+    const dataStatics = [
         ['/assets', `./src/client/assets`],
         ['/.well-known', `./src/.well-known`],
         ['/fontawesome', `./node_modules/@fortawesome/fontawesome-free/css`],
@@ -249,7 +249,7 @@ const ssr = (app, renderData) => {
     ];
 
     const baseStaticUri = process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
-    datStatics.map(itemStatic =>
+    dataStatics.map(itemStatic =>
         app.use(baseStaticUri + itemStatic[0], express.static(itemStatic[1])));
 
 
@@ -317,8 +317,15 @@ const ssr = (app, renderData) => {
 
 
     // generate builds
-    // copyDir
-    fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
+
+    // deleteFolderRecursive(`./builds`);
+    // fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
+    (async () => {
+
+        // await copyDir(dataStatics[0][1], `./builds/${viewMetaData.clientID}/${dataStatics[0][0]}`);
+
+    })();
+
 
 
 };

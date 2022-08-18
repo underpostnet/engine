@@ -21,8 +21,7 @@ const getAllFiles = (dirPath, arrayOfFiles) => {
     return arrayOfFiles
 };
 
-const copyDir = async (src, dest, ignore) => {
-    ignore == undefined ? ignore = [] : null;
+const copyDir = async (src, dest) => {
     await _fs.mkdir(dest, { recursive: true });
     let entries = await _fs.readdir(src, { withFileTypes: true });
 
@@ -30,14 +29,26 @@ const copyDir = async (src, dest, ignore) => {
         let srcPath = path.join(src, entry.name);
         let destPath = path.join(dest, entry.name);
 
-        ignore.filter(x => x == entry.name).length === 0 ?
-            entry.isDirectory() ?
-                await copyDir(srcPath, destPath, ignore)
-                    .catch(err => console.log(colors.red(err))) :
-                await _fs.copyFile(srcPath, destPath)
-                    .catch(err => console.log(colors.red(err))) :
-            null;
+        entry.isDirectory() ?
+            await copyDir(srcPath, destPath)
+                .catch(err => console.log(colors.red(err))) :
+            await _fs.copyFile(srcPath, destPath)
+                .catch(err => console.log(colors.red(err)))
     }
 };
 
-export { getAllFiles, copyDir };
+const deleteFolderRecursive = path => {
+    if (fs.existsSync(path)) {
+        fs.readdirSync(path).forEach(file => {
+            const curPath = path + "/" + file;
+            if (fs.lstatSync(curPath).isDirectory()) { // recurse
+                deleteFolderRecursive(curPath);
+            } else { // delete file
+                fs.unlinkSync(curPath);
+            }
+        });
+        fs.rmdirSync(path);
+    }
+};
+
+export { getAllFiles, copyDir, deleteFolderRecursive };
