@@ -70,7 +70,8 @@ const renderView = dataView => {
         const renderComponents = ${renderComponents};
         const topLabelInput = '35px';
         const botLabelInput = '0px';
-        const banner = ${dataView.banner ? dataView.banner : `() => '${viewMetaData.mainTitle}'`};
+        const banner = ${dataView.banner ? dataView.banner : `() => ''`};
+        const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
 
         ${commonFunctions()}
         ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
@@ -186,6 +187,7 @@ const renderView = dataView => {
 
 const ssr = (app, renderData) => {
     const banner = renderData[0].banner;
+    const botDescription = renderData[0].botDescription;
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
@@ -205,6 +207,7 @@ const ssr = (app, renderData) => {
     renderData[0].viewPaths = viewPaths;
     renderData[0].viewMetaData = viewMetaData;
     renderData[0].banner = banner;
+    renderData[0].botDescription = botDescription;
 
     let sitemap = '';
 
@@ -244,18 +247,24 @@ const ssr = (app, renderData) => {
     app.use(baseStaticUri + '/assets-underpost', express.static('./underpost_modules/underpost-library/assets'));
     app.use(baseStaticUri + '/xml', express.static(`./underpost_modules/underpost-library/xml`));
 
+    const sourceVanillaJs =
+        UglifyJS.minify(
+            commonFunctions() +
+            fs.readFileSync('./src/client/core/vanilla.js', 'utf-8')
+        ).code;
     app.get(baseStaticUri + '/vanilla.js', (req, res) => {
         res.writeHead(200, {
             'Content-Type': ('application/javascript; charset=utf-8')
         });
-        return res.end(fs.readFileSync('./src/client/core/vanilla.js', 'utf-8'));
+        // process.env.NODE_ENV == 'development' ? jsClientCore : UglifyJS.minify(jsClientCore).code
+        return res.end(sourceVanillaJs);
     });
 
-    app.get(baseStaticUri + '/common-functions.js', (req, res) => {
+    app.get(baseStaticUri + '/base.css', (req, res) => {
         res.writeHead(200, {
-            'Content-Type': ('application/javascript; charset=utf-8')
+            'Content-Type': ('text/css; charset= charset=utf-8')
         });
-        return res.end(commonFunctions());
+        return res.end(cssClientCore);
     });
 
     const baseStaticClient = process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';

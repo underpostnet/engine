@@ -2,11 +2,13 @@
 const clientID = 'cryptokoyn';
 
 const banner = () =>/*html*/`
-    <span style='${borderChar(1, 'yellow')}'>
-        KO<span class='inl' style='color: red; font-size: 50px; top: 5px; ${borderChar(1, 'white')}'>λ</span>N
-        <br>
-        Wallet
-    </span>
+    <div class='in container banner' style='${borderChar(1, 'white')}'>
+        <span style='${borderChar(1, 'yellow')}'>
+            KO<span class='inl' style='color: red; font-size: 50px; top: 5px; ${borderChar(1, 'white')}'>λ</span>N
+            <br>
+            Wallet
+        </span>               
+    </div>    
 `;
 
 const theme = [

@@ -17,11 +17,13 @@ const theme = [
 ];
 
 const banner = () =>/*html*/`
-    <img 
+    <div class='in container banner' style='${borderChar(1, 'white')}'>
+        <img 
         class='inl' 
         src='/assets/dogmadual/app/android-chrome-256x256.png' 
         style='width: 40px; height: 40px; top: 8px'> 
         DOGMADUAL.com
+    </div>      
 `;
 
 

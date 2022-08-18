@@ -17,11 +17,23 @@ const theme = [
 ];
 
 const banner = () =>/*html*/`
-    <img 
-        class='inl' 
-        src='/assets-underpost/pwa/android-chrome-256x256.png' 
-        style='width: 40px; height: 40px; top: 8px'> 
-    <span style='color: white; ${borderChar(2, '#262626')}'>UNDER</span>post.net
+    <div class='in container banner' style='${borderChar(1, 'white')}'>
+        <img 
+            class='inl' 
+            src='/assets-underpost/pwa/android-chrome-256x256.png' 
+            style='width: 40px; height: 40px; top: 8px'> 
+        <span style='color: white; ${borderChar(2, '#262626')}'>UNDER</span>post.net
+    </div>
+`;
+
+const botDescription = () => /*html*/`
+    <div class='in container'>
+        <a href='/vanilla.js' download><button><i class='fa fa-download' aria-hidden='true'></i> 
+            ${renderLang({ es: 'Descargar Libreria JS', en: 'Download JS Library' })}</button></a>
+
+        <a href='/base.css' download><button><i class='fa fa-download' aria-hidden='true'></i> 
+            ${renderLang({ es: 'Descargar Base CSS', en: 'Download CSS Base' })}</button></a>
+    </div>
 `;
 
 const viewMetaData = {
@@ -79,30 +91,6 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
-    },
-    {
-        path: baseHome + '/vanilla-js',
-        homePaths: [baseHome],
-        title: { en: 'JS Library', es: 'Libreria JS' },
-        component: 'vanilla_js_doc',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: false,
-        display: true
-    },
-    {
-        path: baseHome + '/base-css',
-        homePaths: [baseHome],
-        title: { en: 'Css Source', es: 'Fuente Css' },
-        component: 'vanilla_css_doc',
-        options: { origin: 'vanilla_js_doc', mode: 'css' },
-        menu: true,
-        home: false,
-        nohome: false,
-        render: false,
-        display: true
     }
 ];
 
@@ -110,7 +98,8 @@ const underpost = {
     viewMetaData,
     viewPaths,
     baseHome,
-    banner
+    banner,
+    botDescription
 };
 
 export { underpost };

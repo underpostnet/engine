@@ -58,6 +58,7 @@ this.main_menu = {
                 <div class='in container ${this[IDS][viewPaths.length + 1]}' style='display: none'>
                         <button class='${this[IDS][viewPaths.length + 2]}'>${renderLang({ es: 'Menu', en: 'Menu' })}</button> 
                 </div>
+                ${botDescription()}
         `
     },
     renderSessionToBar: () => {

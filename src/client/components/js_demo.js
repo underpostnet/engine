@@ -28,13 +28,29 @@ this.js_demo = {
                     }
                 });
 
+                /*
+                   type='application/javascript' src='./vanilla.js'
+                     <pre><code class="language-html">
+                    ${Prism.highlight(`
+                    <link rel='stylesheet' href='./base.css'>
+                    `, 
+                    Prism.languages.html, 'html')}
+                     </code></pre>
+                     `\n    import '/vanilla.js';\n\n`
+                */
                 htmls(this[IDS][1], /*html*/`
                        <div class='fl'>
                             <div class='in fll js_demo_cell'>
                                 <div class='in container title'>
                                     CODE
                                 </div>
-                                <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</pre></code>
+                                <div class='in container'>
+                                    <button class='${this[IDS][8]}'> 
+                                        <i class='fa fa-clone' aria-hidden='true'></i> 
+                                        ${renderLang({ es: 'Copiar', en: 'Copy' })}
+                                    </button>
+                                </div>
+                                <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>
                                 <div class='in error-input ${this[IDS][2]}'></div>
                             </div>
                             <div class='in fll js_demo_cell'>
@@ -47,6 +63,15 @@ this.js_demo = {
                             </div>
                         </div>
                 `);
+                s('.' + this[IDS][8]).onclick = async () => {
+                    await copyData(displayJS);
+                    append('body', renderFixModal({
+                        id: 'mini-modal-' + s4(),
+                        icon: sucessIcon,
+                        color: 'green',
+                        content: renderLang({ es: 'Contenido Copiado al Portapapeles', en: 'Copy to Clipboard' })
+                    }));
+                };
             };
 
             s('.' + this[IDS][0]).onblur = () =>
@@ -190,12 +215,29 @@ this.js_demo = {
             </div>   
         `
     },
-    renderView: (dataFile, rawContent) => {
+    renderView: function (dataFile, rawContent) {
         const idDemo = `demo-${s4()}`;
         const contentEval = rawContent.replaceAll(`'body'`, `'${idDemo}'`);
         const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
-        setTimeout(() => eval(contentEval));
+        setTimeout(() => {
+            eval(contentEval)
+            s('.' + this[this.IDS][9]).onclick = async () => {
+                await copyData(displayJS);
+                append('body', renderFixModal({
+                    id: 'mini-modal-' + s4(),
+                    icon: sucessIcon,
+                    color: 'green',
+                    content: renderLang({ es: 'Contenido Copiado al Portapapeles', en: 'Copy to Clipboard' })
+                }));
+            };
+        });
         return /*html*/`
+            <div class='in container'>
+                <button class='${this[this.IDS][9]}'> 
+                    <i class='fa fa-clone' aria-hidden='true'></i> 
+                    ${renderLang({ es: 'Copiar', en: 'Copy' })}
+                </button>
+            </div>
             <${idDemo}></${idDemo}>
             <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;

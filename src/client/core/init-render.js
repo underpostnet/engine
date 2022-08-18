@@ -2,9 +2,11 @@
 // init render
 
 append('body', /*html*/`
+        ${banner()==''?/*html*/`
         <div class='in container banner' style='${borderChar(1, 'white')}'>
-               ${banner()}
+                ${viewMetaData.mainTitle}
         </div>
+        `:banner()}        
         ${viewMetaData.description ? /*html*/`
         <div class='in container'>
              ${renderLang(viewMetaData.description)}
