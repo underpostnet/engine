@@ -18,6 +18,7 @@ import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
 import express from 'express';
 import robotstxt from 'generate-robotstxt';
+import { copyDir } from './files.js';
 
 dotenv.config();
 
@@ -234,18 +235,23 @@ const ssr = (app, renderData) => {
 
 
     renderSitemap(app, sitemap, viewMetaData);
+    const datStatics = [
+        ['/assets', `./src/client/assets`],
+        ['/.well-known', `./src/.well-known`],
+        ['/fontawesome', `./node_modules/@fortawesome/fontawesome-free/css`],
+        ['/webfonts', `./node_modules/@fortawesome/fontawesome-free/webfonts`],
+        ['/tinymce', './node_modules/tinymce'],
+        ['/simplemde', './node_modules/simplemde/dist'],
+        ['/marked', './node_modules/marked'],
+        ['/spectre-markdown.css', './node_modules/spectre-markdown.css'],
+        ['/assets-underpost', './underpost_modules/underpost-library/assets'],
+        ['/xml', `./underpost_modules/underpost-library/xml`]
+    ];
 
     const baseStaticUri = process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
-    app.use(baseStaticUri + '/assets', express.static(`./src/client/assets`));
-    app.use(baseStaticUri + '/.well-known', express.static(`./src/.well-known`));
-    app.use(baseStaticUri + '/fontawesome', express.static(`./node_modules/@fortawesome/fontawesome-free/css`));
-    app.use(baseStaticUri + '/webfonts', express.static(`./node_modules/@fortawesome/fontawesome-free/webfonts`));
-    app.use(baseStaticUri + '/tinymce', express.static('./node_modules/tinymce'));
-    app.use(baseStaticUri + '/simplemde', express.static('./node_modules/simplemde/dist'));
-    app.use(baseStaticUri + '/marked', express.static('./node_modules/marked'));
-    app.use(baseStaticUri + '/spectre-markdown.css', express.static('./node_modules/spectre-markdown.css'));
-    app.use(baseStaticUri + '/assets-underpost', express.static('./underpost_modules/underpost-library/assets'));
-    app.use(baseStaticUri + '/xml', express.static(`./underpost_modules/underpost-library/xml`));
+    datStatics.map(itemStatic =>
+        app.use(baseStaticUri + itemStatic[0], express.static(itemStatic[1])));
+
 
     const sourceVanillaJs =
         UglifyJS.minify(
@@ -308,6 +314,13 @@ const ssr = (app, renderData) => {
         .catch((error) => {
             throw error;
         });
+
+
+    // generate builds
+    // copyDir
+    fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
+
+
 };
 
 const getBaseComponent = (baseHome, component) => {
