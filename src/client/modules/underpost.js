@@ -30,6 +30,10 @@ const viewMetaData = {
     mainTitle: 'underpost.net',
     host: 'underpost.net',
     socialImg: '/assets-underpost/underpost-social.jpg',
+    themeIcons: {
+        path: '/assets-underpost/pwa',
+        color: 'red'
+    },
     description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
     favicon: {
         type: 'image/png',

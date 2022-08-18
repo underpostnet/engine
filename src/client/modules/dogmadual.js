@@ -31,6 +31,10 @@ const viewMetaData = {
     mainTitle: 'DOGMADUAL.com',
     host: 'dogmadual.com',
     socialImg: '/assets/dogmadual/dogmadual-social.jpg',
+    themeIcons: {
+        path: '/assets/dogmadual/app',
+        color: '#000000'
+    },
     description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
         type: 'image/png',

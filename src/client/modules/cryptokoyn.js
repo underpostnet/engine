@@ -29,6 +29,10 @@ const viewMetaData = {
     mainTitle: 'Koyn UI',
     host: 'cryptokoyn.net',
     socialImg: '/assets/cryptokoyn/koyn-social.png',
+    themeIcons: {
+        path: '/assets/cryptokoyn/app',
+        color: 'yellow'
+    },
     description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
     favicon: {
         type: 'image/png',

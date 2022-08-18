@@ -127,10 +127,32 @@ const renderView = dataView => {
 
             <meta property='og:title' content='${renderTitle}'>
             <meta property='og:description' content='${renderDescription}'>
-            
             ${renderSocialImg}
             <meta property='og:url' content='${buildURL()}${view.path}'>
             <meta name='twitter:card' content='summary_large_image'>
+
+            <meta name='apple-mobile-web-app-title' content='${renderTitle}'>
+            <meta name='application-name' content='${renderTitle}'>   
+            
+            ${viewMetaData.themeIcons ?/*html*/`
+            <link rel='apple-touch-icon' sizes='180x180' href='${viewMetaData.themeIcons.path}/apple-touch-icon.png'>
+            <link rel='icon' type='image/png' sizes='32x32' href='${viewMetaData.themeIcons.path}/favicon-32x32.png'>
+            <link rel='icon' type='image/png' sizes='16x16' href='${viewMetaData.themeIcons.path}/favicon-16x16.png'>
+            <link rel='icon' type='image/png' sizes='36x36' href='${viewMetaData.themeIcons.path}/android-chrome-36x36.png'>
+            <link rel='icon' type='image/png' sizes='48x48' href='${viewMetaData.themeIcons.path}/android-chrome-48x48.png'>
+            <link rel='icon' type='image/png' sizes='72x72' href='${viewMetaData.themeIcons.path}/android-chrome-72x72.png'>
+            <link rel='icon' type='image/png' sizes='96x96' href='${viewMetaData.themeIcons.path}/android-chrome-96x96.png'>
+            <link rel='icon' type='image/png' sizes='144x144' href='${viewMetaData.themeIcons.path}/android-chrome-144x144.png'>
+            <link rel='icon' type='image/png' sizes='192x192' href='${viewMetaData.themeIcons.path}/android-chrome-192x192.png'>
+            <link rel='icon' type='image/png' sizes='256x256' href='${viewMetaData.themeIcons.path}/android-chrome-256x256.png'>
+            <link rel='icon' type='image/png' sizes='512x512' href='${viewMetaData.themeIcons.path}/android-chrome-512x512.png'>
+            <!-- <link rel='icon' type='image/png' sizes='384x384' href='/android-chrome-384x384.png'> -->
+            <link rel='icon' type='image/png' sizes='16x16' href='${viewMetaData.themeIcons.path}/favicon-16x16.png'>           
+            <link rel='mask-icon' href='${viewMetaData.themeIcons.path}/safari-pinned-tab.svg' color='${viewMetaData.themeIcons.color}'>
+            <meta name='msapplication-TileColor' content='${viewMetaData.themeIcons.color}'>
+            <meta name='msapplication-TileImage' content='${viewMetaData.themeIcons.path}/mstile-144x144.png'>
+            <meta name='theme-color' content='${viewMetaData.themeIcons.color}'>
+            `: ''}
 
             <style>
                 ${new CleanCSS().minify(cssClientCore

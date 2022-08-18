@@ -15,6 +15,10 @@ const viewMetaData = {
     mainTitle: 'nexodev.org',
     host: 'nexodev.org',
     socialImg: '/assets/nexodev/social.jpg',
+    themeIcons: {
+        path: '/assets/nexodev/app',
+        color: '#69055F'
+    },
     description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
