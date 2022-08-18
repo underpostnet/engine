@@ -6,7 +6,7 @@
   "main": "./src/server.js",
   "scripts": {
     "start": "node src/server",
-    "dev": "nodemon src/server"
+    "dev": "env-cmd -f .env.dev nodemon src/server"
   },
   "repository": {
     "type": "git",
@@ -30,12 +30,14 @@
     "compression": "^1.7.4",
     "crypto-js": "latest",
     "dotenv": "latest",
+    "env-cmd": "^10.1.0",
     "express": "latest",
     "express-fileupload": "^1.4.0",
     "express-session": "^1.17.3",
     "express-useragent": "^1.0.15",
     "file-get-contents": "^1.0.0",
     "file-sizeof": "^1.1.0",
+    "generate-robotstxt": "^8.0.3",
     "jsonwebtoken": "^8.5.1",
     "marked": "^4.0.18",
     "mime": "^3.0.0",
@@ -56,7 +58,6 @@
     "uglify-js": "^3.16.2",
     "var_dump": "^1.0.5",
     "winston": "latest",
-    "ws": "7.4.6",
-    "generate-robotstxt": "^8.0.3"
+    "ws": "7.4.6"
   }
 }

@@ -1,10 +1,9 @@
 'use strict';
 
 import express from 'express';
-
-// dev
 import { logger } from './modules/logger.js';
-import { buildDev } from './build-dev.js';
+import dotenv from 'dotenv';
+import { middlewares } from './modules/middlewares.js';
 
 // api
 import { apiKeys } from './api/keys.js';
@@ -22,11 +21,8 @@ import { authClient } from './client/modules/auth.js';
 import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 
-import dotenv from 'dotenv';
-import { middlewares } from './modules/middlewares.js';
-
 const app = express();
-buildDev(app);
+
 dotenv.config();
 
 middlewares(app);
