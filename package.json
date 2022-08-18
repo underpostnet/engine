@@ -28,6 +28,7 @@
     "clipboardy": "2.3.0",
     "colors": "1.4.0",
     "compression": "^1.7.4",
+    "cors": "^2.8.5",
     "crypto-js": "latest",
     "dotenv": "latest",
     "env-cmd": "^10.1.0",

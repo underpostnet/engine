@@ -1,13 +1,22 @@
 
 
-import { range } from '../api/util.js';
+import { buildURL, newInstance, range } from '../api/util.js';
 import { morganMiddleware } from './morgan.js';
 import fileUpload from 'express-fileupload';
 import express from 'express';
 import compression from 'compression';
 import fs from 'fs';
+import cors from 'cors';
 
-const middlewares = app => {
+const middlewares = (app, views) => {
+
+    views = newInstance(views);
+
+    const origin = views.map(viewObj => `https://${viewObj.viewMetaData.host}`)
+        .concat(views.map(viewObj => `https://www.${viewObj.viewMetaData.host}`))
+        .concat(buildURL());
+
+    app.use(cors({ origin }));
 
     // parse requests of content-type - application/json
     app.use(express.json({ limit: '20MB' }));

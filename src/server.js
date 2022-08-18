@@ -25,7 +25,13 @@ const app = express();
 
 dotenv.config();
 
-middlewares(app);
+middlewares(app, [
+    underpost,
+    cryptokoyn,
+    nexodev,
+    dogmadual
+]);
+
 apiKeys(app);
 apiAuth(app);
 apiUploader(app);
