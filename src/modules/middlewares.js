@@ -5,6 +5,7 @@ import { morganMiddleware } from './morgan.js';
 import fileUpload from 'express-fileupload';
 import express from 'express';
 import compression from 'compression';
+import fs from 'fs';
 
 const middlewares = app => {
 
@@ -34,7 +35,7 @@ const middlewares = app => {
         app.use((req, res, next) => {
             for (let num_error of range(400, 499)) {
                 num_error == 400 ? num_error = 404 : null;
-                return res.status(num_error).end('Error: ' + num_error);
+                return res.status(num_error).end(fs.readFileSync('./src/client/assets/404/neon'));
             }
             return next();
         });
