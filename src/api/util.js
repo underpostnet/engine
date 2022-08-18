@@ -116,6 +116,14 @@ const buildURL = (viewMetaData) => {
     return `http://${viewMetaData.host}`;
 };
 
+const buildBaseUri = view => {
+    if (process.env.NODE_ENV == 'development')
+        return view.path;
+    let _path = view.path.slice(1).split('/');
+    _path.shift();
+    return `/${_path.join('/')}`
+};
+
 export {
     uriUtil,
     apiUtil,
@@ -132,5 +140,6 @@ export {
     newInstance,
     strCap,
     buildURL,
-    buildBaseApiUri
+    buildBaseApiUri,
+    buildBaseUri
 };

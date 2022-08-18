@@ -10,12 +10,14 @@ import {
     getHash,
     newInstance,
     randomColor,
-    replaceAll
+    replaceAll,
+    buildBaseUri
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
 import express from 'express';
+import robotstxt from 'generate-robotstxt';
 
 dotenv.config();
 
@@ -119,7 +121,7 @@ const renderView = dataView => {
             <link rel='icon' type='${viewMetaData.favicon.type}' href='${viewMetaData.favicon.path}'>
             <meta name='viewport' content='initial-scale=1.0, maximum-scale=1.0, user-scalable=0'>
 
-            <link rel='canonical' href='${buildURL()}${view.path}'>
+            <link rel='canonical' href='${buildURL(viewMetaData)}${buildBaseUri(view)}'>
           
             <meta name ='title' content='${renderTitle}'>
             <meta name ='description' content='${renderDescription}'>
@@ -128,7 +130,7 @@ const renderView = dataView => {
             <meta property='og:title' content='${renderTitle}'>
             <meta property='og:description' content='${renderDescription}'>
             ${renderSocialImg}
-            <meta property='og:url' content='${buildURL()}${view.path}'>
+            <meta property='og:url' content='${buildURL(viewMetaData)}${buildBaseUri(view)}'>
             <meta name='twitter:card' content='summary_large_image'>
 
             <meta name='apple-mobile-web-app-title' content='${renderTitle}'>
@@ -256,6 +258,44 @@ const ssr = (app, renderData) => {
         return res.end(commonFunctions());
     });
 
+    const baseStaticClient = process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
+    robotstxt({
+        policy: [
+            // {
+            //     userAgent: "Googlebot",
+            //     allow: "/",
+            //     disallow: "/search",
+            //     crawlDelay: 2,
+            // },
+            // {
+            //     userAgent: "OtherBot",
+            //     allow: ["/allow-for-all-bots", "/allow-only-for-other-bot"],
+            //     disallow: ["/admin", "/login"],
+            //     crawlDelay: 2,
+            // },
+            // {
+            //     userAgent: "*",
+            //     allow: "/",
+            //     disallow: "/search",
+            //     crawlDelay: 10,
+            //     cleanParam: "ref /articles/",
+            // },
+        ],
+        sitemap: `${buildURL(viewMetaData)}${baseStaticClient}/sitemap.xml`,
+        host: `${buildURL(viewMetaData)}${baseStaticClient}`,
+    })
+        .then((content) => {
+            // console.log(content);
+            app.get(`/${viewMetaData.clientID}/robots.txt`, (req, res) => {
+                res.writeHead(200, {
+                    'Content-Type': ('text/plain; charset=utf-8')
+                });
+                return res.end(content);
+            });
+        })
+        .catch((error) => {
+            throw error;
+        });
 };
 
 const getBaseComponent = (baseHome, component) => {

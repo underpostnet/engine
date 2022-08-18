@@ -1,10 +1,10 @@
 import fs from 'fs';
 
-import { buildURL } from '../api/util.js';
+import { buildURL, buildBaseUri } from '../api/util.js';
 
 const buildLocSitemap = (view, viewMetaData) => `
     <url>
-          <loc>${buildURL(viewMetaData)}${view.path}</loc>
+          <loc>${buildURL(viewMetaData)}${buildBaseUri(view)}</loc>
           <lastmod>${new Date().toISOString()}</lastmod>
           <changefreq>daily</changefreq>
           <priority>1</priority>
@@ -24,7 +24,8 @@ const renderSitemap = (app, sitemap, viewMetaData) => {
 
     const xmlStyleData = fs.readFileSync(
         './underpost_modules/underpost-library/xml/sitemap.xsl', 'utf-8'
-    ).replace('https://www.nexodev.org/api/sitemap', buildURL(viewMetaData) + '/xml');
+    ).replace('https://www.nexodev.org/api/sitemap', buildURL(viewMetaData) + '/xml')
+        .replace('© 2020', `© ${new Date().getFullYear()}`);
 
     app.get(uri.replace('xml', 'xsl'), (req, res) => {
         res.writeHead(200, {

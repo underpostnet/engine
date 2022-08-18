@@ -56,6 +56,7 @@
     "uglify-js": "^3.16.2",
     "var_dump": "^1.0.5",
     "winston": "latest",
-    "ws": "7.4.6"
+    "ws": "7.4.6",
+    "generate-robotstxt": "^8.0.3"
   }
 }
