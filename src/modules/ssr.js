@@ -73,6 +73,7 @@ const renderView = dataView => {
         const botLabelInput = '0px';
         const banner = ${dataView.banner ? dataView.banner : `() => ''`};
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
+        const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
 
         ${commonFunctions()}
         ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
@@ -86,7 +87,7 @@ const renderView = dataView => {
             const ${dataApiUri.name} = '${dataApiUri.path}';
         `).join('')}
         
-        const dev =  ${process.env.NODE_ENV != 'development' ? 'false' : 'true'};
+        const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
         if(!dev){
             console.log = () => null;
             console.error = () => null;
@@ -210,18 +211,31 @@ const ssr = async (app, renderData) => {
     renderData[0].banner = banner;
     renderData[0].botDescription = botDescription;
 
+    if (process.argv[2] == 'build')
+        deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);
+
     let sitemap = '';
 
     const renders = viewPaths.filter(view => view.render).map(view => {
         if (view.sitemap !== false)
             sitemap += buildLocSitemap(view, viewMetaData);
 
+        const buildView = renderView({
+            view,
+            ...renderData[0]
+        });
+
+        if (process.argv[2] == 'build') {
+
+            console.log(view.path, `./builds${view.path}/index.html`);
+            fs.mkdirSync(`./builds${view.path}`, { recursive: true });
+            fs.writeFileSync(`./builds${view.path}/index.html`, buildView, 'utf8');
+
+        }
+
         return {
             path: view.path,
-            render: renderView({
-                view,
-                ...renderData[0]
-            })
+            render: buildView
         };
     });
 
@@ -237,14 +251,24 @@ const ssr = async (app, renderData) => {
     renderStatics(app, viewMetaData);
     await renderRobots(app, viewMetaData);
 
-   
-    // deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);
-    // fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true }); 
+    // deleteFolderRecursive(`./builds/`);
+    // return;
 
-    // dataStatics.map( async dataStatic => {
-    //     await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
+    if (process.argv[2] == 'build') {
+        // deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);
+        fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
 
-    // });
+        dataStatics.map(async dataStatic => {
+            await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
+
+        });
+
+        if (viewMetaData.statics)
+            viewMetaData.statics.map(async dataStatic => {
+                await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
+            });
+    }
+
 
 
 };

@@ -43,5 +43,5 @@ const checkAuthStatus = async () => {
 
 const buildBaseApiUri = () => {
     if (dev) return '';
-    return 'https://www.nexodev.org'
+    return API_URL;
 };

@@ -22,6 +22,8 @@ import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 import { statics } from './modules/statics.js';
 
+logger.info(process.argv);
+
 const app = express();
 
 dotenv.config();
@@ -50,7 +52,8 @@ apiUploader(app);
     statics(app, APPS);
     errors(app);
 
-    app.listen(process.env.PORT, () => {
-        logger.info(`Server is running on port ${process.env.PORT}`);
-    });
+    if (process.argv[2] != 'build')
+        app.listen(process.env.PORT, () => {
+            logger.info(`Server is running on port ${process.env.PORT}`);
+        });
 })();

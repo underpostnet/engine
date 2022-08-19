@@ -6,7 +6,9 @@
   "main": "./src/server.js",
   "scripts": {
     "start": "node src/server",
-    "dev": "env-cmd -f .env.dev nodemon src/server"
+    "dev": "env-cmd -f .env.dev nodemon src/server",
+    "build-prod": "node src/server build",
+    "build-dev": "env-cmd -f .env.dev node src/server build"
   },
   "repository": {
     "type": "git",

@@ -40,6 +40,11 @@ const renderSitemap = (app, sitemap, viewMetaData) => {
         });
         return res.end(sitemap);
     });
+    if (process.argv[2] == 'build') {
+        fs.writeFileSync(`./builds/${uri.replace('xml', 'xsl')}`, xmlStyleData, 'utf8');
+        fs.writeFileSync(`./builds/${uri}`, sitemap, 'utf8');
+    }
+
 }
 
 export { buildLocSitemap, renderSitemap };

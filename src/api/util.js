@@ -113,6 +113,8 @@ const commonFunctions = () => `
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
+    if (process.argv[2] == 'build' && process.env.NODE_ENV == 'development')
+        return `http://localhost:${process.env.BUILD_DEV_PORT}`;
     if (process.env.NODE_ENV == 'development')
         return `http://localhost:${process.env.PORT}`;
     if (process.env.SSL == 'true')
@@ -121,7 +123,7 @@ const buildURL = (viewMetaData, subDomain) => {
 };
 
 const buildBaseUri = view => {
-    if (process.env.NODE_ENV == 'development')
+    if (process.env.NODE_ENV == 'development' && process.argv[2] != 'build')
         return view.path;
     let _path = view.path.slice(1).split('/');
     _path.shift();

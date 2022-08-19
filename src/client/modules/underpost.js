@@ -129,6 +129,11 @@ const statics = app => {
         return res.end(srcBaseCssLib);
     });
 
+    if (process.argv[2] == 'build') {
+        fs.writeFileSync(`./builds/${viewMetaData.clientID}/vanilla.js`, sourceVanillaJs, 'utf8');
+        fs.writeFileSync(`./builds/${viewMetaData.clientID}/base.css`, srcBaseCssLib, 'utf8');
+    }
+
 }
 
 const underpost = {

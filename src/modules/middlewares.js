@@ -7,6 +7,7 @@ import express from 'express';
 import compression from 'compression';
 import fs from 'fs';
 import cors from 'cors';
+import { logger } from './logger.js';
 
 const middlewares = (app, views) => {
 
@@ -14,6 +15,13 @@ const middlewares = (app, views) => {
 
     const origin = uniqueArray(views.map(viewObj => buildURL(viewObj.viewMetaData))
         .concat(views.map(viewObj => buildURL(viewObj.viewMetaData, 'www'))));
+
+
+    if (process.env.NODE_ENV == 'development')
+        origin.push(`http://localhost:${process.env.BUILD_DEV_PORT}`);
+
+    logger.info('origin');
+    console.log(origin);
 
     app.use(cors({ origin }));
 
