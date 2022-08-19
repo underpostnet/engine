@@ -6,7 +6,7 @@ import { logger } from './logger.js';
 
 dotenv.config();
 
-const renderRobots = async (app, viewMetaData) =>
+const renderRobots = (app, viewMetaData) =>
     new Promise((resolve, reject) => {
 
         const BSC = baseStaticClient(viewMetaData);
