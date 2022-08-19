@@ -11,15 +11,14 @@ import {
     newInstance,
     randomColor,
     replaceAll,
-    buildBaseUri,
-    baseStaticUri
+    buildBaseUri
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
-import express from 'express';
-import robotstxt from 'generate-robotstxt';
-import { copyDir, deleteFolderRecursive } from './files.js';
+// import { copyDir, deleteFolderRecursive } from './files.js';
+import { renderStatics } from './statics.js';
+import { renderRobots } from './robots.js';
 
 dotenv.config();
 
@@ -187,7 +186,7 @@ const renderView = dataView => {
 `;
 };
 
-const ssr = (app, renderData) => {
+const ssr = async (app, renderData) => {
     const banner = renderData[0].banner;
     const botDescription = renderData[0].botDescription;
     renderData = newInstance(renderData);
@@ -213,7 +212,6 @@ const ssr = (app, renderData) => {
 
     let sitemap = '';
 
-
     const renders = viewPaths.filter(view => view.render).map(view => {
         if (view.sitemap !== false)
             sitemap += buildLocSitemap(view, viewMetaData);
@@ -236,59 +234,8 @@ const ssr = (app, renderData) => {
 
 
     renderSitemap(app, sitemap, viewMetaData);
-
-    const BSU = baseStaticUri(viewMetaData);
-    if (viewMetaData.statics) viewMetaData.statics.map(itemStatic =>{
-        console.log('-');
-        console.log(BSU + itemStatic[0]);
-        console.log(itemStatic[1]);
-        app.use(BSU + itemStatic[0], express.static(itemStatic[1]))
-    });
-
-    if (BSU != '')
-        app.get(`${BSU}/favicon.ico`, (req, res) =>
-            res.sendFile(viewMetaData.themeIcons.path + '/favicon.ico'));
-
-
-    const baseStaticClient = process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
-    robotstxt({
-        policy: [
-            // {
-            //     userAgent: "Googlebot",
-            //     allow: "/",
-            //     disallow: "/search",
-            //     crawlDelay: 2,
-            // },
-            // {
-            //     userAgent: "OtherBot",
-            //     allow: ["/allow-for-all-bots", "/allow-only-for-other-bot"],
-            //     disallow: ["/admin", "/login"],
-            //     crawlDelay: 2,
-            // },
-            // {
-            //     userAgent: "*",
-            //     allow: "/",
-            //     disallow: "/search",
-            //     crawlDelay: 10,
-            //     cleanParam: "ref /articles/",
-            // },
-        ],
-        sitemap: `${buildURL(viewMetaData)}${baseStaticClient}/sitemap.xml`,
-        host: `${buildURL(viewMetaData)}${baseStaticClient}`,
-    })
-        .then((content) => {
-            // console.log(content);
-            app.get(`/${viewMetaData.clientID}/robots.txt`, (req, res) => {
-                res.writeHead(200, {
-                    'Content-Type': ('text/plain; charset=utf-8')
-                });
-                return res.end(content);
-            });
-        })
-        .catch((error) => {
-            throw error;
-        });
-
+    renderStatics(app, viewMetaData);
+    await renderRobots(app, viewMetaData);
 
     // generate builds
     // deleteFolderRecursive(`./builds`);
@@ -301,8 +248,6 @@ const ssr = (app, renderData) => {
     //     await copyDir(dataStatics[0][1], `./builds/${viewMetaData.clientID}/${dataStatics[0][0]}`);
 
     // })();
-
-
 
 };
 

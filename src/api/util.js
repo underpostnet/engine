@@ -131,6 +131,9 @@ const buildBaseUri = view => {
 const baseStaticUri = viewMetaData =>
     process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
 
+const baseStaticClient = viewMetaData =>
+    process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
+
 export {
     uriUtil,
     apiUtil,
@@ -150,5 +153,6 @@ export {
     buildBaseApiUri,
     buildBaseUri,
     uniqueArray,
-    baseStaticUri
+    baseStaticUri,
+    baseStaticClient
 };

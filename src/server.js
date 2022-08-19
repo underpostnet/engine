@@ -3,7 +3,7 @@
 import express from 'express';
 import { logger } from './modules/logger.js';
 import dotenv from 'dotenv';
-import { middlewares } from './modules/middlewares.js';
+import { errors, middlewares } from './modules/middlewares.js';
 
 // api
 import { apiKeys } from './api/keys.js';
@@ -39,15 +39,18 @@ apiKeys(app);
 apiAuth(app);
 apiUploader(app);
 
-ssr(app, [engine, authClient]);
-ssr(app, [underpost]);
-ssr(app, [authClient]);
-ssr(app, [cryptokoyn]);
-ssr(app, [nexodev, engine, authClient]);
-ssr(app, [dogmadual]);
+(async () => {
+    await ssr(app, [engine, authClient]);
+    await ssr(app, [underpost]);
+    await ssr(app, [authClient]);
+    await ssr(app, [cryptokoyn]);
+    await ssr(app, [nexodev, engine, authClient]);
+    await ssr(app, [dogmadual]);
 
-statics(app, APPS);
+    statics(app, APPS);
+    errors(app);
 
-app.listen(process.env.PORT, () => {
-    logger.info(`Server is running on port ${process.env.PORT}`);
-});
+    app.listen(process.env.PORT, () => {
+        logger.info(`Server is running on port ${process.env.PORT}`);
+    });
+})();

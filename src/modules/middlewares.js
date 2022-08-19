@@ -38,24 +38,24 @@ const middlewares = (app, views) => {
     };
     app.use(compression({ filter: shouldCompress }));
 
-    setTimeout(() => {
-        // errors
-        app.use((req, res, next) => {
-            for (let num_error of range(400, 499)) {
-                num_error == 400 ? num_error = 404 : null;
-                return res.status(num_error).end(fs.readFileSync('./src/client/assets/404/neon'));
-            }
-            return next();
-        });
-
-        app.use((req, res, next) => {
-            for (let num_error of range(500, 599)) {
-                return res.status(num_error).end('Error: ' + num_error);
-            }
-            return next();
-        });
-    });
 
 };
 
-export { middlewares };
+const errors = (app) => {
+    app.use((req, res, next) => {
+        for (let num_error of range(400, 499)) {
+            num_error == 400 ? num_error = 404 : null;
+            return res.status(num_error).end(fs.readFileSync('./src/client/assets/404/neon'));
+        }
+        return next();
+    });
+
+    app.use((req, res, next) => {
+        for (let num_error of range(500, 599)) {
+            return res.status(num_error).end('Error: ' + num_error);
+        }
+        return next();
+    });
+};
+
+export { middlewares, errors };

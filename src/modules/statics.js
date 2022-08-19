@@ -41,8 +41,24 @@ const statics = (app, APPS) => {
     });
 };
 
+const renderStatics = (app, viewMetaData) => {
+
+    const BSU = baseStaticUri(viewMetaData);
+    if (viewMetaData.statics) viewMetaData.statics.map(itemStatic => {
+        // console.log('-');
+        // console.log(BSU + itemStatic[0]);
+        // console.log(itemStatic[1]);
+        app.use(BSU + itemStatic[0], express.static(itemStatic[1]))
+    });
+
+    if (BSU != '')
+        app.get(`${BSU}/favicon.ico`, (req, res) =>
+            res.sendFile(viewMetaData.themeIcons.path + '/favicon.ico'));
+};
+
 export {
     statics,
     renderGlobalStatics,
+    renderStatics,
     dataStatics
 }
