@@ -7,7 +7,8 @@ this.dogmadual_landing = {
             description: {
                 en: `Virtual laboratory and Vanilla JS thin layer library development as core web client`,
                 es: `Laboratorio virtual y desarrollo de una delgada capa de libreria vanilla-js como nucleo para clientes web`
-            }
+            },
+            id: 'underpost'
         },
         {
             name: 'nexdev.org',
@@ -16,7 +17,8 @@ this.dogmadual_landing = {
             description: {
                 en: `Web hosting service for Wordpress, and precision devops as multiplatform applications development.`,
                 es: `Servicio de hosting para Wordpress, y desarrollo a precisión de aplicaciones multiplataforma bajo modalidad devops`
-            }
+            },
+            id: 'nexodev'
         },
         {
             name: 'Cyberia Online',
@@ -27,7 +29,8 @@ this.dogmadual_landing = {
                 (massively multiplayer online role-playing game) Complemented with the characteristics of modern social networks`,
                 es: `Mundo virtual multiplataforma con características de un MMORPG
                 (juego de rol multijugador masivo en línea) Complementado con las características de las redes sociales modernas`
-            }
+            },
+            id: null
         },
         {
             name: 'Crypto Koyn',
@@ -36,7 +39,8 @@ this.dogmadual_landing = {
             description: {
                 en: `Decentralized network transactions for token items and cryptocurrency blockchain economy`,
                 es: `Transacciones de red descentralizadas para item-tokens y economía blockchain de criptomonedas`
-            }
+            },
+            id: 'cryptokoyn'
         },
     ],
     init: function () {
@@ -104,7 +108,7 @@ this.dogmadual_landing = {
                         ${renderLang({ es: 'Nuestros Proyectos', en: 'Our projects' })}
                     </div>
                     ${this.projects.map((dataProject, i) => /*html*/`
-                    <a href='${dataProject.link}'>
+                    <a href='${dev && dataProject.id != null ? `/${dataProject.id}` : dataProject.link}'>
                         <div class='in fll ${this[IDS][0]} ${this[IDS][0]}-${i}'>
                             <div class='in'>
                               <!--  <div class='title title-${this[IDS][1]}'>${dataProject.name}</div> -->
