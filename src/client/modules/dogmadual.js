@@ -20,7 +20,7 @@ const banner = () =>/*html*/`
     <div class='in container banner' style='${borderChar(1, 'white')}'>
         <img 
         class='inl' 
-        src='/assets/dogmadual/app/android-chrome-256x256.png' 
+        src='/assets/apps/dogmadual/app/android-chrome-256x256.png' 
         style='width: 40px; height: 40px; top: 8px'> 
         DOGMADUAL.com
     </div>      
@@ -32,15 +32,15 @@ const viewMetaData = {
     theme,
     mainTitle: 'DOGMADUAL.com',
     host: 'dogmadual.com',
-    socialImg: '/assets/dogmadual/dogmadual-social.jpg',
+    socialImg: '/assets/apps/dogmadual/dogmadual-social.jpg',
     themeIcons: {
-        path: '/assets/dogmadual/app',
+        path: '/assets/apps/dogmadual/app',
         color: '#000000'
     },
     description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
         type: 'image/png',
-        path: '/assets/dogmadual/app/android-chrome-192x192.png'
+        path: '/assets/apps/dogmadual/app/android-chrome-192x192.png'
     },
     apiURIS: [],
     lang: 'en',
@@ -49,6 +49,9 @@ const viewMetaData = {
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
+    ],
+    statics: [
+        ['/assets/apps/dogmadual', `./src/client/assets/apps/dogmadual`]
     ]
 };
 

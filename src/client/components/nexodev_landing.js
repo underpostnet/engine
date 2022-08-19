@@ -60,7 +60,7 @@ this.nexodev_landing = {
                     <div class='in'>
                         <div class='title title-${this[IDS][1]}'>DevOps</div>
                         <div class='in content-${this[IDS][1]}'>    
-                            <img class='in ${this[IDS][1]}' src='/assets/nexodev/icon/dev.png'>
+                            <img class='in ${this[IDS][1]}' src='/assets/apps/nexodev/icon/dev.png'>
                         </div> 
                         <div class='in text-${this[IDS][1]}'>        
                             Desarrollo a precisión de aplicaciones web/móviles combinando la potencia de servidores nodejs/express y php/apache. Incluye SEO (Search Engine Optimization) y Soporte garantizado.
@@ -71,7 +71,7 @@ this.nexodev_landing = {
                     <div class='in'>
                         <div class='title title-${this[IDS][1]}'>WordPress</div>
                         <div class='in content-${this[IDS][1]}'>    
-                            <img class='in ${this[IDS][1]}' src='/assets/nexodev/icon/wp.png'>
+                            <img class='in ${this[IDS][1]}' src='/assets/apps/nexodev/icon/wp.png'>
                          </div>
                          <div class='in text-${this[IDS][1]}'>         
                             Servicio de hosting para WordPress. Autoadministrable. Acceso a plugins, certificado SSL gratuito, integración a correo electrónico, y Soporte. Renovación anual.
@@ -82,7 +82,7 @@ this.nexodev_landing = {
                     <div class='in'>
                         <div class='title title-${this[IDS][1]}'>Newsletter</div>
                         <div class='in content-${this[IDS][1]}'>    
-                            <img class='in ${this[IDS][1]}' src='/assets/nexodev/icon/mailer.png'>
+                            <img class='in ${this[IDS][1]}' src='/assets/apps/nexodev/icon/mailer.png'>
                         </div> 
                         <div class='in text-${this[IDS][1]}'>        
                             Incremente la efectividad de su marca a través del envío automatizado de boletines informativos, y así mantener una comunicación directa y personalizada con sus clientes.
@@ -93,7 +93,7 @@ this.nexodev_landing = {
                     <div class='in'>                          
                         <div class='title title-${this[IDS][1]}'>Data Science</div>
                         <div class='in content-${this[IDS][1]}'>    
-                            <img class='in ${this[IDS][1]}' src='/assets/nexodev/icon/ds.png'>
+                            <img class='in ${this[IDS][1]}' src='/assets/apps/nexodev/icon/ds.png'>
                         </div> 
                         <div class='in text-${this[IDS][1]}'>        
                             Conozca mejor a sus clientes, o desarrolle investigación, a través de nuestro servicio de tratamiento, análisis y visualización de datos. Utilizamos la calidad del entorno de tecnologias basadas en lenguajes Python & R.

@@ -11,7 +11,8 @@ import {
     newInstance,
     randomColor,
     replaceAll,
-    buildBaseUri
+    buildBaseUri,
+    baseStaticUri
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -235,46 +236,19 @@ const ssr = (app, renderData) => {
 
 
     renderSitemap(app, sitemap, viewMetaData);
-    const dataStatics = [
-        ['/assets', `./src/client/assets`],
-        ['/.well-known', `./src/.well-known`],
-        ['/fontawesome', `./node_modules/@fortawesome/fontawesome-free/css`],
-        ['/webfonts', `./node_modules/@fortawesome/fontawesome-free/webfonts`],
-        ['/tinymce', './node_modules/tinymce'],
-        ['/simplemde', './node_modules/simplemde/dist'],
-        ['/marked', './node_modules/marked'],
-        ['/spectre-markdown.css', './node_modules/spectre-markdown.css'],
-        ['/assets-underpost', './underpost_modules/underpost-library/assets'],
-        ['/xml', `./underpost_modules/underpost-library/xml`]
-    ];
 
-    const baseStaticUri = process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
-    dataStatics.map(itemStatic =>
-        app.use(baseStaticUri + itemStatic[0], express.static(itemStatic[1])));
-
-
-    const sourceVanillaJs =
-        UglifyJS.minify(
-            commonFunctions() +
-            fs.readFileSync('./src/client/core/vanilla.js', 'utf-8')
-        ).code;
-    app.get(baseStaticUri + '/vanilla.js', (req, res) => {
-        res.writeHead(200, {
-            'Content-Type': ('application/javascript; charset=utf-8')
-        });
-        // process.env.NODE_ENV == 'development' ? jsClientCore : UglifyJS.minify(jsClientCore).code
-        return res.end(sourceVanillaJs);
+    const BSU = baseStaticUri(viewMetaData);
+    if (viewMetaData.statics) viewMetaData.statics.map(itemStatic =>{
+        console.log('-');
+        console.log(BSU + itemStatic[0]);
+        console.log(itemStatic[1]);
+        app.use(BSU + itemStatic[0], express.static(itemStatic[1]))
     });
-    const srcBaseCssLib = cssClientCore + new CleanCSS().minify(
-        fs.readFileSync('./src/client/assets/styles/global.css', 'utf-8')
-        + fs.readFileSync('./src/client/assets/styles/spinner-ellipsis.css', 'utf-8')
-    ).styles;
-    app.get(baseStaticUri + '/base.css', (req, res) => {
-        res.writeHead(200, {
-            'Content-Type': ('text/css; charset= charset=utf-8')
-        });
-        return res.end(srcBaseCssLib);
-    });
+
+    if (BSU != '')
+        app.get(`${BSU}/favicon.ico`, (req, res) =>
+            res.sendFile(viewMetaData.themeIcons.path + '/favicon.ico'));
+
 
     const baseStaticClient = process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
     robotstxt({
@@ -317,14 +291,16 @@ const ssr = (app, renderData) => {
 
 
     // generate builds
-
     // deleteFolderRecursive(`./builds`);
+
     // fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
-    (async () => {
+    // deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);
 
-        // await copyDir(dataStatics[0][1], `./builds/${viewMetaData.clientID}/${dataStatics[0][0]}`);
+    // (async () => {
 
-    })();
+    //     await copyDir(dataStatics[0][1], `./builds/${viewMetaData.clientID}/${dataStatics[0][0]}`);
+
+    // })();
 
 
 

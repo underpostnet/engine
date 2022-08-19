@@ -1,0 +1,48 @@
+
+import dotenv from 'dotenv';
+import { baseStaticUri, newInstance } from "../api/util.js";
+import express from 'express';
+
+dotenv.config();
+
+const dataStatics = [
+    ['/assets/common', `./src/client/assets/common`],
+    ['/assets/prism', `./src/client/assets/prism`],
+    ['/assets/styles', `./src/client/assets/styles`],
+    ['/.well-known', `./src/.well-known`],
+    ['/fontawesome', `./node_modules/@fortawesome/fontawesome-free/css`],
+    ['/webfonts', `./node_modules/@fortawesome/fontawesome-free/webfonts`],
+    ['/tinymce', './node_modules/tinymce'],
+    ['/simplemde', './node_modules/simplemde/dist'],
+    ['/marked', './node_modules/marked'],
+    ['/spectre-markdown.css', './node_modules/spectre-markdown.css'],
+    ['/xml', `./underpost_modules/underpost-library/xml`]
+];
+
+const renderGlobalStatics = (app, BSU) => {
+    dataStatics.map(itemStatic =>
+        app.use(
+            BSU + itemStatic[0],
+            express.static(itemStatic[1])
+        )
+    );
+};
+
+const statics = (app, APPS) => {
+    // APPS = newInstance(APPS);
+    APPS.map((appData, i) => {
+        const BSU = baseStaticUri(appData.viewMetaData);
+        if (appData.statics)
+            appData.statics(app);
+        if (BSU != '')
+            renderGlobalStatics(app, BSU);
+        if (BSU == '' && i == 0)
+            renderGlobalStatics(app, BSU);
+    });
+};
+
+export {
+    statics,
+    renderGlobalStatics,
+    dataStatics
+}

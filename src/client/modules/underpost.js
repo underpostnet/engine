@@ -1,4 +1,9 @@
 import { getBaseComponent } from '../../modules/ssr.js';
+import { cssClientCore } from '../../modules/ssr.js';
+import UglifyJS from 'uglify-js';
+import CleanCSS from 'clean-css';
+import fs from 'fs';
+import { baseStaticUri, commonFunctions } from '../../api/util.js';
 
 const clientID = 'underpost';
 
@@ -58,6 +63,9 @@ const viewMetaData = {
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
+    ],
+    statics: [
+        ['/assets-underpost', './underpost_modules/underpost-library/assets']
     ]
 };
 
@@ -94,12 +102,42 @@ const viewPaths = [
     }
 ];
 
+const statics = app => {
+
+    const BSU = baseStaticUri(viewMetaData);
+
+    const sourceVanillaJs =
+        UglifyJS.minify(
+            commonFunctions() +
+            fs.readFileSync('./src/client/core/vanilla.js', 'utf-8')
+        ).code;
+    app.get(BSU + '/vanilla.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(sourceVanillaJs);
+    });
+
+    const srcBaseCssLib = cssClientCore + new CleanCSS().minify(
+        fs.readFileSync('./src/client/assets/styles/global.css', 'utf-8')
+        + fs.readFileSync('./src/client/assets/styles/spinner-ellipsis.css', 'utf-8')
+    ).styles;
+    app.get(BSU + '/base.css', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('text/css; charset= charset=utf-8')
+        });
+        return res.end(srcBaseCssLib);
+    });
+
+}
+
 const underpost = {
     viewMetaData,
     viewPaths,
     baseHome,
     banner,
-    botDescription
+    botDescription,
+    statics
 };
 
 export { underpost };

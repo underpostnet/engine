@@ -3,7 +3,7 @@ this.dogmadual_landing = {
         {
             name: 'underpost.net',
             link: 'https://underpost.net',
-            img: '/assets/dogmadual/projects/underpost_alpha.png',
+            img: '/assets/apps/dogmadual/projects/underpost_alpha.png',
             description: {
                 en: `Virtual laboratory and Vanilla JS thin layer library development as core web client`,
                 es: `Laboratorio virtual y desarrollo de una delgada capa de libreria vanilla-js como nucleo para clientes web`
@@ -12,7 +12,7 @@ this.dogmadual_landing = {
         {
             name: 'nexdev.org',
             link: 'https://www.nexodev.org',
-            img: '/assets/dogmadual/projects/nexodev_alpha.png',
+            img: '/assets/apps/dogmadual/projects/nexodev_alpha.png',
             description: {
                 en: `Web hosting service for Wordpress, and precision devops as multiplatform applications development.`,
                 es: `Servicio de hosting para Wordpress, y desarrollo a precisión de aplicaciones multiplataforma bajo modalidad devops`
@@ -21,7 +21,7 @@ this.dogmadual_landing = {
         {
             name: 'Cyberia Online',
             link: 'https://www.cyberiaonline.com',
-            img: '/assets/dogmadual/projects/cyberia_alpha.png',
+            img: '/assets/apps/dogmadual/projects/cyberia_alpha.png',
             description: {
                 en: `Multiplatform virtual world  with characteristics of a MMORPG
                 (massively multiplayer online role-playing game) Complemented with the characteristics of modern social networks`,
@@ -32,7 +32,7 @@ this.dogmadual_landing = {
         {
             name: 'Crypto Koyn',
             link: 'https://www.cryptokoyn.net',
-            img: '/assets/dogmadual/projects/cryptokoyn.png',
+            img: '/assets/apps/dogmadual/projects/cryptokoyn.png',
             description: {
                 en: `Decentralized network transactions for token items and cryptocurrency blockchain economy`,
                 es: `Transacciones de red descentralizadas para item-tokens y economía blockchain de criptomonedas`
@@ -127,7 +127,7 @@ this.dogmadual_landing = {
             <div class='in title' style='text-align: center; padding: 30px'>
                 ${renderLang({ es: 'Red de Tecnologias', en: 'Tech network' })}
             </div>
-            <img src='/assets/dogmadual/tech_network.svg' style='width: 100%'>
+            <img src='/assets/apps/dogmadual/tech_network.svg' style='width: 100%'>
         </div>
      `
     }

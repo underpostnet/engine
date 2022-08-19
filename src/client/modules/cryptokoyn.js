@@ -30,15 +30,15 @@ const viewMetaData = {
     theme,
     mainTitle: 'Koyn UI',
     host: 'cryptokoyn.net',
-    socialImg: '/assets/cryptokoyn/koyn-social.png',
+    socialImg: '/assets/apps/cryptokoyn/koyn-social.png',
     themeIcons: {
-        path: '/assets/cryptokoyn/app',
+        path: '/assets/apps/cryptokoyn/app',
         color: 'yellow'
     },
     description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
     favicon: {
         type: 'image/png',
-        path: '/assets/cryptokoyn/favicon.png'
+        path: '/assets/apps/cryptokoyn/favicon.png'
     },
     apiURIS: [
         {
@@ -52,6 +52,9 @@ const viewMetaData = {
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
+    ],
+    statics: [
+        ['/assets/apps/cryptokoyn', `./src/client/assets/apps/cryptokoyn`]
     ]
 };
 

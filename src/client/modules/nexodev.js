@@ -6,7 +6,7 @@ const banner = () =>/*html*/`
     <div class='in container banner' style='${borderChar(1, 'white')}'>
         <img 
             class='inl' 
-            src='/assets/nexodev/app/android-chrome-256x256.png' 
+            src='/assets/apps/nexodev/app/android-chrome-256x256.png' 
             style='width: 40px; height: 40px; top: 8px'> 
         <span style='color: white; font-size: 40px; ${borderChar(2, 'purple')}'>nexo</span>dev.org
     </div>
@@ -16,15 +16,15 @@ const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
     host: 'nexodev.org',
-    socialImg: '/assets/nexodev/social.jpg',
+    socialImg: '/assets/apps/nexodev/social.jpg',
     themeIcons: {
-        path: '/assets/nexodev/app',
+        path: '/assets/apps/nexodev/app',
         color: '#69055F'
     },
     description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
-        path: '/assets/nexodev/nexodev.png'
+        path: '/assets/apps/nexodev/nexodev.png'
     },
     apiURIS: [],
     lang: 'es',
@@ -33,6 +33,9 @@ const viewMetaData = {
     styles: [
         `./src/client/assets/styles/global.css`,
         `./src/client/assets/styles/spinner-ellipsis.css`
+    ],
+    statics: [
+        ['/assets/apps/nexodev', `./src/client/assets/apps/nexodev`]
     ]
 };
 
