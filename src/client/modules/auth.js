@@ -17,8 +17,8 @@ const viewMetaData = {
     charset: 'utf-8',
     dir: 'ltr',
     styles: [
-        `./src/client/assets/styles/global.css`,
-        `./src/client/assets/styles/spinner-ellipsis.css`
+        `./underpost_modules/underpost-library/engine/global.css`,
+        `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
     ]
 };
 

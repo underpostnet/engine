@@ -16,8 +16,8 @@ import {
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
 import { renderSitemap, buildLocSitemap } from './sitemap.js';
-// import { copyDir, deleteFolderRecursive } from './files.js';
-import { renderStatics } from './statics.js';
+import { copyDir, deleteFolderRecursive } from './files.js';
+import { dataStatics, renderStatics } from './statics.js';
 import { renderRobots } from './robots.js';
 
 dotenv.config();
@@ -45,7 +45,7 @@ const renderStyleView = (dirStyle, viewMetaData) => {
         defaultTheme.map((color, i) => engineTheme = replaceAll(engineTheme, color, viewMetaData.theme[i]));
         return engineTheme;
     }
-    if (dirStyle == './src/client/assets/styles/global.css' && false) {
+    if (dirStyle == './underpost_modules/underpost-library/engine/global.css' && false) {
         let engineTheme = fs.readFileSync(dirStyle, viewMetaData.charset);
         defaultTheme.map(color => engineTheme = replaceAll(engineTheme, color, randomColor()));
         return engineTheme;
@@ -237,17 +237,15 @@ const ssr = async (app, renderData) => {
     renderStatics(app, viewMetaData);
     await renderRobots(app, viewMetaData);
 
-    // generate builds
-    // deleteFolderRecursive(`./builds`);
-
-    // fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
+   
     // deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);
+    // fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true }); 
 
-    // (async () => {
+    // dataStatics.map( async dataStatic => {
+    //     await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
 
-    //     await copyDir(dataStatics[0][1], `./builds/${viewMetaData.clientID}/${dataStatics[0][0]}`);
+    // });
 
-    // })();
 
 };
 

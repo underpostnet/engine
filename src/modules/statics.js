@@ -8,7 +8,7 @@ dotenv.config();
 const dataStatics = [
     ['/assets/common', `./src/client/assets/common`],
     ['/assets/prism', `./src/client/assets/prism`],
-    ['/assets/styles', `./src/client/assets/styles`],
+    ['/assets/styles', `./underpost_modules/underpost-library/engine`],
     ['/.well-known', `./src/.well-known`],
     ['/fontawesome', `./node_modules/@fortawesome/fontawesome-free/css`],
     ['/webfonts', `./node_modules/@fortawesome/fontawesome-free/webfonts`],

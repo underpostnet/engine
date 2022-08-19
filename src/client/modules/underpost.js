@@ -61,8 +61,8 @@ const viewMetaData = {
     charset: 'utf-8',
     dir: 'ltr',
     styles: [
-        `./src/client/assets/styles/global.css`,
-        `./src/client/assets/styles/spinner-ellipsis.css`
+        `./underpost_modules/underpost-library/engine/global.css`,
+        `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
     ],
     statics: [
         ['/assets-underpost', './underpost_modules/underpost-library/assets']
@@ -119,8 +119,8 @@ const statics = app => {
     });
 
     const srcBaseCssLib = cssClientCore + new CleanCSS().minify(
-        fs.readFileSync('./src/client/assets/styles/global.css', 'utf-8')
-        + fs.readFileSync('./src/client/assets/styles/spinner-ellipsis.css', 'utf-8')
+        fs.readFileSync('./underpost_modules/underpost-library/engine/global.css', 'utf-8')
+        + fs.readFileSync('./underpost_modules/underpost-library/engine/spinner-ellipsis.css', 'utf-8')
     ).styles;
     app.get(BSU + '/base.css', (req, res) => {
         res.writeHead(200, {
