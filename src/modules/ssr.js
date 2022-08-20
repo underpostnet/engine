@@ -59,7 +59,7 @@ const renderComponents = () => viewPaths.map(path =>/*html*/`
 `).join('');
 
 const validatePaths = viewPaths =>
-    build ? viewPaths.map(x => {
+    build || (!dev) ? viewPaths.map(x => {
         x.path = clearSubUri(x.path);
         x.homePaths = x.homePaths.map(y => clearSubUri(y));
         return x;
