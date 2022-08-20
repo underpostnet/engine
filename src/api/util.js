@@ -99,6 +99,12 @@ const strCap = str => str
 const uniqueArray = arr =>
     arr.filter((item, pos) => arr.indexOf(item) == pos);
 
+const clearSubUri = path => {
+    let _path = path.slice(1).split('/');
+    _path.shift();
+    return `/${_path.join('/')}`
+};
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -110,6 +116,7 @@ const commonFunctions = () => `
     const newInstance = ${newInstance};
     const strCap = ${strCap};
     const uniqueArray = ${uniqueArray};
+    const clearSubUri = ${clearSubUri};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -125,9 +132,7 @@ const buildURL = (viewMetaData, subDomain) => {
 const buildBaseUri = view => {
     if (process.env.NODE_ENV == 'development' && process.argv[2] != 'build')
         return view.path;
-    let _path = view.path.slice(1).split('/');
-    _path.shift();
-    return `/${_path.join('/')}`
+    return clearSubUri(view.path);
 };
 
 const baseStaticUri = viewMetaData =>
@@ -156,5 +161,6 @@ export {
     buildBaseUri,
     uniqueArray,
     baseStaticUri,
-    baseStaticClient
+    baseStaticClient,
+    clearSubUri
 };

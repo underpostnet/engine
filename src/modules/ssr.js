@@ -11,7 +11,8 @@ import {
     newInstance,
     randomColor,
     replaceAll,
-    buildBaseUri
+    buildBaseUri,
+    clearSubUri
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -57,13 +58,35 @@ const renderComponents = () => viewPaths.map(path =>/*html*/`
 <${path.component}>${this[path.options ? path.options.origin : path.component].init(path.options)}</${path.component}>
 `).join('');
 
+const validatePaths = viewPaths =>
+    build ? viewPaths.map(x => {
+        x.path = clearSubUri(x.path);
+        x.homePaths = x.homePaths.map(y => clearSubUri(y));
+        return x;
+    }) : viewPaths;
+
 const renderView = dataView => {
     const { view, viewMetaData, viewPaths } = dataView;
     let jsClientCore = `(function(){
 
+        const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
+        const build = ${process.argv[2] == 'build'};
+        // if(!dev){
+        //     console.log = () => null;
+        //     console.error = () => null;
+        //     console.warn = () => null;
+        // }
+
+        ${commonFunctions()}
+        ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/input.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/session.js', viewMetaData.charset)}
+        ${fs.readFileSync('./src/client/core/render.js', viewMetaData.charset)}
+
+        const validatePaths = ${validatePaths};
         const version = '${process.env.npm_package_version}';
-        const viewPaths = JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}');
-        const view = JSON.parse('${JSON.stringify(view)}');
+        const viewPaths = validatePaths(JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}'));
+        const view = validatePaths([JSON.parse('${JSON.stringify(view)}')])[0];
         const viewMetaData = JSON.parse('${JSON.stringify(viewMetaData)}');
         const maxIdComponent = 50;
         const errorIcon = ${/*html*/"`<i class='fa fa-exclamation-triangle' aria-hidden='true'></i>`"};
@@ -75,11 +98,7 @@ const renderView = dataView => {
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
         const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
 
-        ${commonFunctions()}
-        ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/core/input.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/core/session.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/core/render.js', viewMetaData.charset)}
+       
         
         const GLOBAL = this;
         
@@ -87,13 +106,7 @@ const renderView = dataView => {
             const ${dataApiUri.name} = '${dataApiUri.path}';
         `).join('')}
         
-        const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
-        const build = ${process.argv[2] == 'build'};
-        if(!dev){
-            console.log = () => null;
-            console.error = () => null;
-            console.warn = () => null;
-        }
+
         
         console.log('dataView', view, viewPaths);
         ${viewPaths.filter(path => path.render).map(path =>

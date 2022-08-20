@@ -11,6 +11,7 @@ const validateSessionDisplayComponent = path =>
     !(path.session && (!validateSession()));
 
 const closeSessionComponents = () => {
+    localStorage.removeItem('expiresIn');
     localStorage.removeItem('username');
     localStorage.removeItem('email');
     localStorage.removeItem('_b');
@@ -36,6 +37,8 @@ const checkAuthStatus = async () => {
         )
     )
         return closeSessionComponents();
+
+    if (!validateSession() && GLOBAL['auth'] === false) return;
 
     GLOBAL['auth'] = true;
     return;

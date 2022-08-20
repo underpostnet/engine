@@ -7,15 +7,17 @@ this.router = options => {
     } catch (error) {
         testEvalPath = view.path;
     }
+    if (testEvalPath == '') testEvalPath = '/';
     viewPaths.map((path, i) => {
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath;
         // console.log('-------------------------------------');
         // console.warn('valid path', validPath);
+        // console.log(testEvalPath, path.path, getURI());
         if (validPath) {
             valid = true;
             if (testEvalPath != getURI()) {
-                setURI(testEvalPath == '' ? '/' : testEvalPath);
+                setURI(testEvalPath);
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
                     + viewMetaData.mainTitle);
             };
@@ -34,10 +36,10 @@ this.router = options => {
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) location.href = testEvalPath;
+    if (!valid) location.href = testEvalPath; // console.error('redirect', testEvalPath)
 };
 
-const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '/';
+const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';
 
 this.router();
 
