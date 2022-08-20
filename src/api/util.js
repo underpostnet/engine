@@ -134,7 +134,7 @@ const baseStaticUri = viewMetaData =>
     process.env.NODE_ENV != 'development' ? '/' + viewMetaData.clientID : '';
 
 const baseStaticClient = viewMetaData =>
-    process.env.NODE_ENV == 'development' ? '/' + viewMetaData.clientID : '';
+    process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? '/' + viewMetaData.clientID : '';
 
 export {
     uriUtil,

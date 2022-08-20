@@ -40,7 +40,8 @@ const viewMetaData = {
     description: { en: 'Virtual machine development', es: 'Virtual machine development' },
     favicon: {
         type: 'image/png',
-        path: '/assets/apps/dogmadual/app/android-chrome-192x192.png'
+        path: '/assets/apps/dogmadual/app/android-chrome-192x192.png',
+        ico: './src/client/assets/apps/dogmadual/favicon.ico'
     },
     apiURIS: [],
     lang: 'en',

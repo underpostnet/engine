@@ -2,6 +2,7 @@
 import dotenv from 'dotenv';
 import { baseStaticUri, newInstance } from "../api/util.js";
 import express from 'express';
+import fs from 'fs';
 
 dotenv.config();
 
@@ -54,6 +55,10 @@ const renderStatics = (app, viewMetaData) => {
     if (BSU != '')
         app.get(`${BSU}/favicon.ico`, (req, res) =>
             res.sendFile(viewMetaData.themeIcons.path + '/favicon.ico'));
+
+    if (process.argv[2] == 'build' && viewMetaData.favicon.ico)
+        fs.copyFileSync(viewMetaData.favicon.ico, `./builds/${viewMetaData.clientID}/favicon.ico`);
+
 };
 
 export {

@@ -54,7 +54,8 @@ const viewMetaData = {
     description: { en: 'Vanilla JS web Components Gallery, Vanilla JS thin layer library', es: 'Galería de componentes web de Vanilla JS, biblioteca de capa fina de Vanilla JS' },
     favicon: {
         type: 'image/png',
-        path: '/assets-underpost/underpost.png'
+        path: '/assets-underpost/underpost.png',
+        ico: './underpost_modules/underpost-library/favicon.ico'
     },
     apiURIS: [],
     lang: 'en',

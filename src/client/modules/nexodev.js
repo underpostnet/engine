@@ -24,7 +24,8 @@ const viewMetaData = {
     description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos.' },
     favicon: {
         type: 'image/png',
-        path: '/assets/apps/nexodev/nexodev.png'
+        path: '/assets/apps/nexodev/nexodev.png',
+        ico: './src/client/assets/apps/nexodev/favicon.ico'
     },
     apiURIS: [],
     lang: 'es',

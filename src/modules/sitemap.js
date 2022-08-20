@@ -20,7 +20,8 @@ const renderSitemap = (app, sitemap, viewMetaData) => {
         .split('</urlset>');
     sitemap = baseSitemap[0].replace(
         '{sitemap-xsl-url}',
-        buildURL(viewMetaData) + uri.replace('xml', 'xsl')) + sitemap + '</urlset>';
+        buildURL(viewMetaData) + (process.argv[2] == 'build' ? '/sitemap.xsl' : uri.replace('xml', 'xsl'))
+    ) + sitemap + '</urlset>';
 
     const xmlStyleData = fs.readFileSync(
         './underpost_modules/underpost-library/xml/sitemap.xsl', 'utf-8'

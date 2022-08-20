@@ -88,6 +88,7 @@ const renderView = dataView => {
         `).join('')}
         
         const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
+        const build = ${process.argv[2] == 'build'};
         if(!dev){
             console.log = () => null;
             console.error = () => null;
