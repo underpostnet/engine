@@ -125,8 +125,8 @@ const buildURL = (viewMetaData, subDomain) => {
     if (process.env.NODE_ENV == 'development')
         return `http://localhost:${process.env.PORT}`;
     if (process.env.SSL == 'true')
-        return `https://${subDomain ? subDomain + '.' : ''}${viewMetaData.host}`;
-    return `http://${subDomain ? subDomain + '.' : ''}${viewMetaData.host}`;
+        return `https://${subDomain ? subDomain + '.' : viewMetaData.subDomain ? viewMetaData.subDomain + '.' : ''}${viewMetaData.host}`;
+    return `http://${subDomain ? subDomain + '.' : viewMetaData.subDomain ? viewMetaData.subDomain + '.' : ''}${viewMetaData.host}`;
 };
 
 const buildBaseUri = view => {

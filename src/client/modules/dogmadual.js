@@ -30,6 +30,7 @@ const banner = () =>/*html*/`
 const viewMetaData = {
     clientID,
     theme,
+    subDomain: 'www',
     mainTitle: 'DOGMADUAL.com',
     host: 'dogmadual.com',
     socialImg: '/assets/apps/dogmadual/dogmadual-social.jpg',

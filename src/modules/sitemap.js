@@ -20,7 +20,9 @@ const renderSitemap = (app, sitemap, viewMetaData) => {
         .split('</urlset>');
     sitemap = baseSitemap[0].replace(
         '{sitemap-xsl-url}',
-        buildURL(viewMetaData) + (process.argv[2] == 'build' ? '/sitemap.xsl' : uri.replace('xml', 'xsl'))
+        buildURL(viewMetaData) +
+        (process.argv[2] == 'build' || (process.env.NODE_ENV != 'development') ?
+            '/sitemap.xsl' : uri.replace('xml', 'xsl'))
     ) + sitemap + '</urlset>';
 
     const xmlStyleData = fs.readFileSync(

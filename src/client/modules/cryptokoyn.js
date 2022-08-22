@@ -28,6 +28,7 @@ const theme = [
 const viewMetaData = {
     clientID,
     theme,
+    subDomain: 'www',
     mainTitle: 'Koyn UI',
     host: 'cryptokoyn.net',
     socialImg: '/assets/apps/cryptokoyn/koyn-social.png',
