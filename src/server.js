@@ -56,4 +56,9 @@ apiUploader(app);
         app.listen(process.env.PORT, () => {
             logger.info(`Server is running on port ${process.env.PORT}`);
         });
+    if (process.env.NODE_ENV != 'development') {
+        console.log = () => null;
+        console.warn = () => null;
+        console.error = () => null;
+    }
 })();

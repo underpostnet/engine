@@ -52,9 +52,9 @@ const renderStatics = (app, viewMetaData) => {
         app.use(BSU + itemStatic[0], express.static(itemStatic[1]))
     });
 
-    if (BSU != '')
+    if (BSU != '' && viewMetaData.favicon.ico)
         app.get(`${BSU}/favicon.ico`, (req, res) =>
-            res.sendFile(viewMetaData.themeIcons.path + '/favicon.ico'));
+            res.sendFile(viewMetaData.favicon.ico + '/favicon.ico'));
 
     if (process.argv[2] == 'build' && viewMetaData.favicon.ico)
         fs.copyFileSync(viewMetaData.favicon.ico, `./builds/${viewMetaData.clientID}/favicon.ico`);
