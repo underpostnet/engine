@@ -131,7 +131,14 @@ this.dogmadual_landing = {
             <div class='in title' style='text-align: center; padding: 30px'>
                 ${renderLang({ es: 'Red de Tecnologias', en: 'Tech network' })}
             </div>
-            <img src='/assets/apps/dogmadual/tech_network.svg' style='width: 100%'>
+            <style>
+                .tech-network {
+                    width: 100%;
+                    min-width:  800px;
+                    margin: auto;
+                }
+            </style>
+            <img class='in tech-network'src='/assets/apps/dogmadual/tech_network.svg'>
         </div>
      `
     }
