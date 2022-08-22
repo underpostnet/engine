@@ -33,6 +33,7 @@ const viewMetaData = {
     subDomain: 'www',
     mainTitle: 'DOGMADUAL.com',
     host: 'dogmadual.com',
+    googleTag: 'G-K6HWCT31E3',
     socialImg: '/assets/apps/dogmadual/dogmadual-social.jpg',
     themeIcons: {
         path: '/assets/apps/dogmadual/app',

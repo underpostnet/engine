@@ -190,6 +190,18 @@ const renderView = dataView => {
             <script type='application/javascript' src='/assets/prism/prism.js'></script>
 
             <link rel='stylesheet' href='/spectre-markdown.css/dist/markdown.min.css'>
+
+            ${viewMetaData.googleTag ?/*html*/`
+            <!-- https://www.npmjs.com/package/universal-analytics -->
+            <!-- Google tag (gtag.js) -->
+            <script async src='https://www.googletagmanager.com/gtag/js?id=${viewMetaData.googleTag}'></script>
+            <script>
+                window.dataLayer = window.dataLayer || [];
+                function gtag(){dataLayer.push(arguments);}
+                gtag('js', new Date());
+                gtag('config', '${viewMetaData.googleTag}');
+            </script>
+            `: ''}
         </head>
         <body>                  
             <script>

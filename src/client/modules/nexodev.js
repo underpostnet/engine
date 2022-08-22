@@ -16,6 +16,7 @@ const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
     host: 'nexodev.org',
+    googleTag: 'G-D6Q3K5EJH8',
     subDomain: 'www',
     socialImg: '/assets/apps/nexodev/social.jpg',
     themeIcons: {

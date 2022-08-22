@@ -31,6 +31,7 @@ const viewMetaData = {
     subDomain: 'www',
     mainTitle: 'Koyn UI',
     host: 'cryptokoyn.net',
+    googleTag: 'G-K7B242FMF2',
     socialImg: '/assets/apps/cryptokoyn/koyn-social.png',
     themeIcons: {
         path: '/assets/apps/cryptokoyn/app',

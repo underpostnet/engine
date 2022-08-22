@@ -46,6 +46,7 @@ const viewMetaData = {
     theme,
     mainTitle: 'underpost.net',
     host: 'underpost.net',
+    googleTag: 'G-937YXKTP88',
     socialImg: '/assets-underpost/underpost-social.jpg',
     themeIcons: {
         path: '/assets-underpost/pwa',
