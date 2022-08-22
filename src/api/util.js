@@ -21,7 +21,7 @@ const range = (start, end) => {
 const buildBaseApiUri = () => {
     if (process.env.NODE_ENV == 'development')
         return '';
-    return process.env.BASE_API_URI;
+    return '/' + process.env.BASE_API_URI;
 };
 
 const apiUtil = app => {
