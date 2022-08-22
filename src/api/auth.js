@@ -133,7 +133,8 @@ const login = async (req, res) => {
                     resolve(result);
                 });
             } catch (error) {
-                reject(false);
+                // reject(false);
+                resolve(false);
             }
         });
 
