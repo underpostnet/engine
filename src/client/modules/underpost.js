@@ -55,7 +55,7 @@ const viewMetaData = {
     favicon: {
         type: 'image/png',
         path: '/assets-underpost/underpost.png',
-        ico: './underpost_modules/underpost-library/favicon.ico'
+        ico: '/underpost_modules/underpost-library/favicon.ico'
     },
     apiURIS: [],
     lang: 'en',

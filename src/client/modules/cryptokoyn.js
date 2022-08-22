@@ -40,7 +40,7 @@ const viewMetaData = {
     favicon: {
         type: 'image/png',
         path: '/assets/apps/cryptokoyn/favicon.png',
-        ico: './src/client/assets/apps/cryptokoyn/app/favicon.ico'
+        ico: '/src/client/assets/apps/cryptokoyn/app/favicon.ico'
     },
     apiURIS: [
         {

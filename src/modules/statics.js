@@ -54,7 +54,7 @@ const renderStatics = (app, viewMetaData) => {
 
     if (BSU != '' && viewMetaData.favicon.ico)
         app.get(`${BSU}/favicon.ico`, (req, res) =>
-            res.sendFile(viewMetaData.favicon.ico + '/favicon.ico'));
+            res.sendFile(process.env.APP_PATH + viewMetaData.favicon.ico));
 
     if (process.argv[2] == 'build' && viewMetaData.favicon.ico)
         fs.copyFileSync(viewMetaData.favicon.ico, `./builds/${viewMetaData.clientID}/favicon.ico`);

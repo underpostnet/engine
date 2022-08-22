@@ -42,7 +42,7 @@ const viewMetaData = {
     favicon: {
         type: 'image/png',
         path: '/assets/apps/dogmadual/app/android-chrome-192x192.png',
-        ico: './src/client/assets/apps/dogmadual/favicon.ico'
+        ico: '/src/client/assets/apps/dogmadual/favicon.ico'
     },
     apiURIS: [],
     lang: 'en',

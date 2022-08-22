@@ -26,7 +26,7 @@ const viewMetaData = {
     favicon: {
         type: 'image/png',
         path: '/assets/apps/nexodev/nexodev.png',
-        ico: './src/client/assets/apps/nexodev/favicon.ico'
+        ico: '/src/client/assets/apps/nexodev/favicon.ico'
     },
     apiURIS: [],
     lang: 'es',
