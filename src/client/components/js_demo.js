@@ -160,6 +160,15 @@ this.js_demo = {
                         'public': false,
                         'raw': await serviceRequest(() => `${buildBaseApiUri()}/uploads/js-demo/a154.js`)
                     };
+                    if (!dev)
+                        GLOBAL['current-edit-content'] = {
+                            "static": "/js-demo/c9ef.js",
+                            "title": "Padding Color",
+                            "date": "2022-08-22T01:16:35.123Z",
+                            "component": "js_demo",
+                            "public": false,
+                            'raw': await serviceRequest(() => `${buildBaseApiUri()}/uploads/js-demo/c9ef.js`)
+                        };
                     this.routerDisplay();
 
                 }
