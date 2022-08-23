@@ -1,6 +1,6 @@
 ### underpost.net meta engine
 
-Software development kit (SDK) and engine for developing web client interfaces and APIs
+Software development kit (SDK) and engine for developing web client graphical user interface and APIs
 
 #### Usage
 
