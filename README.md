@@ -26,7 +26,7 @@ Software development kit (SDK) and engine for developing web client graphical us
 
 - javascript live demo
 
-- CLIP for keys management, wallet, and blockchain miner
+- CLI for keys management, wallet, and blockchain miner
 
 #### Current productions projects
 
