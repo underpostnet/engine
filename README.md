@@ -12,6 +12,8 @@ Software development kit (SDK) and engine for developing web client graphical us
 
 - generate www client build prod `npm run build-prod`
 
+- run network CLI `node src/cli`
+
 #### Features
 
 - jwt auth
@@ -23,6 +25,8 @@ Software development kit (SDK) and engine for developing web client graphical us
 - wysiwyg editor
 
 - javascript live demo
+
+- CLIP for keys management, wallet, and blockchain miner
 
 #### Current productions projects
 
