@@ -26,7 +26,7 @@ Software development kit (SDK) and engine for developing web client interfaces a
 
 #### Current productions projects
 
-- [dogmadual.com](https://www.dogmadual.net)
+- [dogmadual.com](https://www.dogmadual.com)
 
 - [underpost.net](https://underpost.net)
 
