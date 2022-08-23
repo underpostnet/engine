@@ -2,6 +2,12 @@
 
 Software development kit (SDK) and engine for developing web client graphical user interface and APIs
 
+#### Install
+
+- `npm install`
+
+- `node underpost`
+
 #### Usage
 
 - run server dev `npm run dev`
