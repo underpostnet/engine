@@ -13,6 +13,7 @@ append('body', /*html*/`
                 </a>                      
             </div>   
             <div class='in fll'>
+                <img class='inl' style='width: 20px; top: 3px' src='https://www.dogmadual.com/favicon.ico' alt='DOGMADUAL'>
                 <a href='https://www.dogmadual.com/'>DOGMADUAL.com</a>
             </div>     
     </footer>
