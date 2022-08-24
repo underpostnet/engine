@@ -108,7 +108,7 @@ const renderView = dataView => {
         
 
         
-        console.log('dataView', view, viewPaths);
+        console.log('dataView', JSON.stringify(view, null, 4), viewPaths);
         ${viewPaths.filter(path => path.render).map(path =>
         path.options && path.options.origin ? '' :
             fs.existsSync(`./src/client/core/${path.component}.js`) ?

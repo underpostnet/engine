@@ -102,6 +102,19 @@ const viewPaths = [
         render: true,
         display: true,
         session: true
+    },
+    {
+        path: baseHome + '/:username',
+        homePaths: [baseHome],
+        title: { en: 'Dashboard User', es: 'Dashboard User' },
+        component: 'user',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
     }
 ];
 

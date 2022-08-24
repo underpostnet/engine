@@ -42,12 +42,11 @@ apiAuth(app);
 apiUploader(app);
 
 (async () => {
-    await ssr(app, [engine, authClient]);
+  
     await ssr(app, [underpost]);
-    await ssr(app, [authClient]);
     await ssr(app, [cryptokoyn]);
-    await ssr(app, [nexodev, engine, authClient]);
     await ssr(app, [dogmadual]);
+    await ssr(app, [nexodev, authClient, engine]);
 
     statics(app, APPS);
     errors(app);
