@@ -15,13 +15,15 @@ const closeSessionComponents = () => {
     localStorage.removeItem('username');
     localStorage.removeItem('email');
     localStorage.removeItem('_b');
+    GLOBAL['auth'] = false;
     htmls('main_menu', this.main_menu.init());
     viewPaths.map(pathData => {
         if (s(pathData.component) && pathData.session) {
             s(pathData.component).style.display = 'none';
         }
+        if (this[pathData.component] && this[pathData.component].closeSession)
+            this[pathData.component].closeSession();
     });
-    GLOBAL['auth'] = false;
 };
 
 const renderAuthBearer = () =>

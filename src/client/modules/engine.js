@@ -106,7 +106,7 @@ const viewPaths = [
     {
         path: baseHome + '/:username',
         homePaths: [baseHome],
-        title: { en: 'Dashboard User', es: 'Dashboard User' },
+        title: { en: 'Boards', es: 'Boards' },
         component: 'user',
         options: false,
         menu: true,
@@ -114,7 +114,7 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true,
-        session: true
+        session: false
     }
 ];
 
