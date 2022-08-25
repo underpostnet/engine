@@ -15,22 +15,34 @@ this.user = {
     },
     routerDisplay: async function () {
 
+        // console.error('routerDisplay lastUri', GLOBAL['lastUri']);
+
         const idRender = '.' + this[this.IDS][0];
 
-        if (!validateSession() || getURI().split('/').pop() != localStorage.getItem('username'))
-            return htmls(idRender, /*html*/`
-            public user dashboard
-        `);
 
-        const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
-            headers: {
-                'Authorization': renderAuthBearer()
-            }
-        });
+        if (validateSession() &&
+            (
+                (GLOBAL['lastUri'].split('/').pop() == localStorage.getItem('username'))
+                ||
+                (getURI().split('/').pop() == localStorage.getItem('username'))
+            )
+        ) {
+            const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
+                headers: {
+                    'Authorization': renderAuthBearer()
+                }
+            });
 
-        htmls(idRender, /*html*/`
+            htmls(idRender, /*html*/`
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         `);
+        } else {
+            return htmls(idRender, /*html*/`
+                public user(s) dashboard
+                replace :username validate 
+                param with api service
+            `);
+        }
     },
     closeSession: function () {
         this.routerDisplay();

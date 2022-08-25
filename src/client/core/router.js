@@ -23,7 +23,10 @@ this.router = options => {
         // console.log(testEvalPath, path.path, getURI());
         if (validPath) {
             valid = true;
-            if (testEvalPath != getURI()) {
+
+            GLOBAL['lastUri'] = newInstance(clearURI(getURI()));
+
+            if (testEvalPath != clearURI(getURI())) {
                 // console.warn('set uri', testEvalPath);
                 setURI(testEvalPath);
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
@@ -70,7 +73,7 @@ const validateUriParams = (path, testEvalPath) => {
             localStorage.getItem(uriParam)
             &&
             (
-                getURI().split('?')[0].split('#')[0].split('/').pop() == localStorage.getItem(uriParam)
+                clearURI(getURI()).split('/').pop() == localStorage.getItem(uriParam)
                 ||
                 testEvalPath.split('/').pop() == localStorage.getItem(uriParam)
             )

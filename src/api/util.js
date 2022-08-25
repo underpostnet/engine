@@ -105,6 +105,8 @@ const clearSubUri = path => {
     return `/${_path.join('/')}`
 };
 
+const clearURI = uri => uri.split('#')[0].split('?')[0];
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -117,6 +119,7 @@ const commonFunctions = () => `
     const strCap = ${strCap};
     const uniqueArray = ${uniqueArray};
     const clearSubUri = ${clearSubUri};
+    const clearURI = ${clearURI};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
