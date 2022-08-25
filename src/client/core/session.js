@@ -16,7 +16,6 @@ const closeSessionComponents = () => {
     localStorage.removeItem('email');
     localStorage.removeItem('_b');
     htmls('main_menu', this.main_menu.init());
-    htmls('session-top-bar', this.main_menu.renderSessionToBar());
     viewPaths.map(pathData => {
         if (s(pathData.component) && pathData.session) {
             s(pathData.component).style.display = 'none';
