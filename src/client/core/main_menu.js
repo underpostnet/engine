@@ -36,9 +36,9 @@ this.main_menu = {
             if (viewPaths[0].menu) prepend('.' + this[IDS][viewPaths.length], renderMmenubtn(viewPaths[0], 0));
 
             viewPaths.map((path, i) => {
-
-                if (s('.' + this[IDS][i])) s('.' + this[IDS][i]).onclick = () => {
-                    console.log('main_menu onclick', path);
+                // warn: verify this[IDS][i]
+                if (s('.' + this[IDS][i]) && path.menu === true) s('.' + this[IDS][i]).onclick = () => {
+                    console.log('main_menu onclick', path, '.' + this[IDS][i]);
                     return GLOBAL.router({ newPath: path.path });
                 }
 

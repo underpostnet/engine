@@ -19,6 +19,7 @@ this.user = {
         const idRender = '.' + this[this.IDS][0];
 
         const saveInstanceUri = () => {
+            // que exista la ruta con el parametro y que no exista el nuevo
             let viewTemplate = viewPaths.find(x => x.path.split('/').pop() == ':username');
             if (viewTemplate && !viewPaths.find(x => x.path.split('/').pop() == getURI().split('/').pop())) {
                 viewTemplate = newInstance(viewTemplate);
@@ -29,10 +30,41 @@ this.user = {
         };
 
 
-        const uriParam = clearUri(GLOBAL['lastTestEvalPath']).split('/').pop().split(':')[1];
-        const valueParam = localStorage.getItem(uriParam);
+        const valueParam = localStorage.getItem('username');
 
-        if (validateSession() && uriParam == 'username' && valueParam) {
+
+        const publicDataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            // options && options.newPath ? [options.newPath] :  para reset volver click boards
+            body: JSON.stringify([getURI().split('/').pop()])
+        });
+
+        // console.log(valueParam == localStorage.getItem(GLOBAL['lastTestEvalPath'].split('/').pop().split(':')[1]));
+        // console.log(valueParam != clearURI(getURI()).split('/').pop());
+        // console.log(publicDataRequest.data.validateUser === false);
+        // options
+
+        if (
+            validateSession()
+            &&
+            // valueParam == clearURI(getURI()).split('/').pop()
+            (
+                (
+                    valueParam == localStorage.getItem(GLOBAL['lastTestEvalPath'].split('/').pop().split(':')[1])
+                    &&
+                    options
+                    // valueParam != clearURI(getURI()).split('/').pop()
+                    // &&
+                    // publicDataRequest.data.validateUser
+                )
+                ||
+                valueParam == clearURI(getURI()).split('/').pop()
+            )
+        ) {
+            const displayParam = cap(valueParam.replaceAll('-', ' '));
             const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
                 headers: {
                     'Authorization': renderAuthBearer()
@@ -40,41 +72,27 @@ this.user = {
             });
 
             //  agregar opcion ver todos
+            if (clearURI(getURI()).split('/').pop() != valueParam)
+                setURI(`${buildBaseUri()}/${valueParam}`);
 
-            setURI(`${buildBaseUri()}/${valueParam}`);
-            htmls('title', renderLang({ es: `${cap(valueParam)} - Board`, en: `${cap(valueParam)} - Board` }));
+            htmls('title', renderLang({ es: `${displayParam} - Board`, en: `${displayParam} - Board` }));
 
             htmls(idRender, /*html*/`
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         `);
+        } else {
+            if (clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
+                setURI(`${buildBaseUri()}/boards`);
+
+            htmls('title', renderLang({ es: `Boards`, en: `Boards` }));
+            htmls(idRender, /*html*/`
+        <pre><code> public board(s) 
+        ${JSON.stringify(publicDataRequest.data.result, null, 4)}</code></pre>
+        `);
         }
-        // setURI(`${buildBaseUri()}/boards`);
-        // else {
-
-        //     const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
-        //         method: 'POST',
-        //         headers: {
-        //             'Content-Type': 'application/json'
-        //         },
-        //         // options && options.newPath ? [options.newPath] :  para reset volver click boards
-        //         body: JSON.stringify([getURI().split('/').pop()])
-        //     });
-
-        //     if (requestResult.data.validateUser === false) {
-        //         saveInstanceUri();
-        //         setURI(`${buildBaseUri()}/boards`);
-        //     } else {
-        //         //  agregar opcion ver todos
-        //     }
-
-
-        //     htmls(idRender, /*html*/`
-        //  <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
-        // `);
-        // }
-
-        // saveInstanceUri();
+        saveInstanceUri();
         fadeIn(s('user'));
+        // setTimeout(() => fadeIn(s('user')));
 
     },
     closeSession: function () {
