@@ -24,9 +24,9 @@ this.router = options => {
         if (validPath) {
             valid = true;
 
-            GLOBAL['lastUri'] = newInstance(clearURI(getURI()));
+            GLOBAL['lastTestEvalPath'] = newInstance(testEvalPath);
 
-            if (testEvalPath != clearURI(getURI())) {
+            if (testEvalPath != clearURI(getURI()) && testEvalPath.split('/').pop()[0] != ':') {
                 // console.warn('set uri', testEvalPath);
                 setURI(testEvalPath);
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
@@ -44,10 +44,12 @@ this.router = options => {
                 if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay();
             };
         } else {
+            console.error('none', path.component, testEvalPath, newInstance(getURI()));
+            // que no tenga el 2 puntos
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) location.href = testEvalPath; // console.error('redirect', testEvalPath)
+    if (!valid) alert('redirect ' + testEvalPath) // location.href = testEvalPath; // console.error('redirect', testEvalPath)
 };
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';

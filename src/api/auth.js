@@ -241,5 +241,7 @@ const apiAuth = app => {
 export {
     uriAuth,
     apiAuth,
-    authValidator
+    authValidator,
+    getUsers,
+    writeUsers
 };

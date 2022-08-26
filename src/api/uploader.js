@@ -1,7 +1,7 @@
 
 
 import fs from 'fs';
-import { authValidator } from './auth.js';
+import { authValidator, getUsers } from './auth.js';
 import express from 'express';
 import { logger } from '../modules/logger.js';
 import { buildBaseApiUri } from './util.js';
@@ -14,6 +14,9 @@ const uriUploader = 'uploader';
 const filesPathData = './data/uploads/files.json';
 
 const srcFolders = ['./data/uploads/editor', './data/uploads/markdown', './data/uploads/js-demo'];
+
+const attrFiles = srcFolders.map(x => x.split('/').pop());
+
 const components = ['editor', 'markdown', 'js_demo'];
 
 const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
@@ -230,6 +233,49 @@ const changeVisibility = (req, res) => {
     }
 };
 
+const getPublicContent = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
+
+        console.log('getPublicContent', req.body);
+
+        const validateUser = getUsers().filter(x => req.body.includes(x.username)).length >= 1;
+
+        const result = getFiles().map(
+            fileMetaObj => {
+                if (validateUser) {
+                    if (req.body.includes(fileMetaObj.username)) {
+                        attrFiles.map(attrFile =>
+                            fileMetaObj[attrFile] = fileMetaObj[attrFile].filter(x => x.public === true));
+                        return fileMetaObj;
+                    } else {
+                        return null;
+                    }
+                } else {
+                    attrFiles.map(attrFile =>
+                        fileMetaObj[attrFile] = fileMetaObj[attrFile].filter(x => x.public === true));
+                    return fileMetaObj;
+                }
+
+            }
+        ).filter(x => x != null);
+
+        return res.status(200).json({
+            status: 'success',
+            data: {
+                validateUser,
+                result
+            }
+        });
+    } catch (error) {
+        logger.error(error);
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+};
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -241,6 +287,7 @@ const apiUploader = app => {
     app.get(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, getContents);
     app.delete(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, deleteContents);
     app.put(`${buildBaseApiUri()}/api/${uriUploader}/visibility`, authValidator, changeVisibility);
+    app.post(`${buildBaseApiUri()}/api/${uriUploader}/public`, getPublicContent);
 
     app.use(`${buildBaseApiUri()}/uploads/js-demo`, express.static(`./data/uploads/js-demo`));
     app.use(`${buildBaseApiUri()}/uploads/editor`, express.static(`./data/uploads/editor`));

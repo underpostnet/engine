@@ -265,6 +265,11 @@ const ssr = async (app, renderData) => {
         };
     });
 
+    
+    renderSitemap(app, sitemap, viewMetaData);
+    renderStatics(app, viewMetaData);
+    await renderRobots(app, viewMetaData);
+
     renders.map(view => app.get(view.path,
         (req, res) => {
             res.setHeader('Content-Type', 'text/html');
@@ -272,10 +277,6 @@ const ssr = async (app, renderData) => {
             return res.status(200).end(view.render);
         }));
 
-
-    renderSitemap(app, sitemap, viewMetaData);
-    renderStatics(app, viewMetaData);
-    await renderRobots(app, viewMetaData);
 
     // deleteFolderRecursive(`./builds/`);
     // return;

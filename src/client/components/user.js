@@ -20,13 +20,8 @@ this.user = {
         const idRender = '.' + this[this.IDS][0];
 
 
-        if (validateSession() &&
-            (
-                (GLOBAL['lastUri'].split('/').pop() == localStorage.getItem('username'))
-                ||
-                (getURI().split('/').pop() == localStorage.getItem('username'))
-            )
-        ) {
+
+        if (validateSession() && getURI().split('/').pop() == localStorage.getItem('username')) {
             const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
                 headers: {
                     'Authorization': renderAuthBearer()
@@ -37,12 +32,35 @@ this.user = {
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         `);
         } else {
-            return htmls(idRender, /*html*/`
-                public user(s) dashboard
-                replace :username validate 
-                param with api service
-            `);
+
+            const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify([getURI().split('/').pop()])
+            });
+
+            if (requestResult.data.validateUser === false && GLOBAL['lastTestEvalPath'] == `${buildBaseUri()}/:username`)
+                setURI(`${buildBaseUri()}/boards`);
+
+            htmls(idRender, /*html*/`
+         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
+        `);
         }
+
+
+
+        let viewTemplate = viewPaths.find(x => x.path.split('/').pop() == ':username');
+        if (viewTemplate && !viewPaths.find(x => x.path.split('/').pop() == getURI().split('/').pop())) {
+            viewTemplate = newInstance(viewTemplate);
+            viewTemplate.menu = false;
+            viewTemplate.path = viewTemplate.path.replace(':username', getURI().split('/').pop());
+            viewPaths.push(viewTemplate);
+        }
+
+        fadeIn(s('user'));
+
     },
     closeSession: function () {
         this.routerDisplay();
