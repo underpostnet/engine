@@ -90,7 +90,7 @@ const emailValidator = (str, req) => {
 
 const newInstance = obj => JSON.parse(JSON.stringify(obj));
 
-const strCap = str => str
+const cap = str => str
     .toLowerCase()
     .split(' ')
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
@@ -116,7 +116,7 @@ const commonFunctions = () => `
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};
     const newInstance = ${newInstance};
-    const strCap = ${strCap};
+    const cap = ${cap};
     const uniqueArray = ${uniqueArray};
     const clearSubUri = ${clearSubUri};
     const clearURI = ${clearURI};
@@ -158,7 +158,7 @@ export {
     emailValidator,
     renderLang,
     newInstance,
-    strCap,
+    cap,
     buildURL,
     buildBaseApiUri,
     buildBaseUri,

@@ -65,7 +65,7 @@ this.main_menu = {
         if (!validateSession()) return '';
         return /*html*/`
         <div class='in container'>
-            ${renderLang({ es: 'Hola, ', en: 'Hi, ' })} ${strCap(localStorage.getItem('username').replaceAll('-', ' '))}
+            ${renderLang({ es: 'Hola, ', en: 'Hi, ' })} ${cap(localStorage.getItem('username').replaceAll('-', ' '))}
         </div>  
         `
     },

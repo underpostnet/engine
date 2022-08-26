@@ -15,7 +15,6 @@ this.user = {
     },
     routerDisplay: async function (options) {
 
-        // console.error('routerDisplay lastUri', GLOBAL['lastUri']);
 
         const idRender = '.' + this[this.IDS][0];
 
@@ -30,44 +29,51 @@ this.user = {
         };
 
 
+        const uriParam = clearUri(GLOBAL['lastTestEvalPath']).split('/').pop().split(':')[1];
+        const valueParam = localStorage.getItem(uriParam);
 
-        if (validateSession() && getURI().split('/').pop() == localStorage.getItem('username')) {
+        if (validateSession() && uriParam == 'username' && valueParam) {
             const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
                 headers: {
                     'Authorization': renderAuthBearer()
                 }
             });
 
-            // agregar opcion ver todos
+            //  agregar opcion ver todos
+
+            setURI(`${buildBaseUri()}/${valueParam}`);
+            htmls('title', renderLang({ es: `${cap(valueParam)} - Board`, en: `${cap(valueParam)} - Board` }));
 
             htmls(idRender, /*html*/`
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         `);
-        } else {
-
-            const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                // options && options.newPath ? [options.newPath] :  para reset volver click boards
-                body: JSON.stringify([getURI().split('/').pop()])
-            });
-
-            if (requestResult.data.validateUser === false) {
-                saveInstanceUri();
-                setURI(`${buildBaseUri()}/boards`);
-            }else {
-                // agregar opcion ver todos
-            }
-
-
-            htmls(idRender, /*html*/`
-         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
-        `);
         }
+        // setURI(`${buildBaseUri()}/boards`);
+        // else {
 
-        saveInstanceUri();
+        //     const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
+        //         method: 'POST',
+        //         headers: {
+        //             'Content-Type': 'application/json'
+        //         },
+        //         // options && options.newPath ? [options.newPath] :  para reset volver click boards
+        //         body: JSON.stringify([getURI().split('/').pop()])
+        //     });
+
+        //     if (requestResult.data.validateUser === false) {
+        //         saveInstanceUri();
+        //         setURI(`${buildBaseUri()}/boards`);
+        //     } else {
+        //         //  agregar opcion ver todos
+        //     }
+
+
+        //     htmls(idRender, /*html*/`
+        //  <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
+        // `);
+        // }
+
+        // saveInstanceUri();
         fadeIn(s('user'));
 
     },

@@ -4,7 +4,7 @@ this.router = options => {
     let testEvalPath;
     try {
         // params uri validator
-        testEvalPath = validatePreUriParams(options.newPath);
+        testEvalPath = options.newPath;
     } catch (error) {
         testEvalPath = view.path;
     }
@@ -12,9 +12,6 @@ this.router = options => {
     viewPaths.map((path, i) => {
 
         // params uri validator
-        const VUP = validateUriParams(path, testEvalPath);
-        testEvalPath = VUP.testEvalPath;
-        path = VUP.path;
 
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath;
@@ -23,10 +20,9 @@ this.router = options => {
         // console.log(testEvalPath, path.path, getURI());
         if (validPath) {
             valid = true;
-
             GLOBAL['lastTestEvalPath'] = newInstance(testEvalPath);
-
-            if (testEvalPath != clearURI(getURI()) && testEvalPath.split('/').pop()[0] != ':') {
+            if (testEvalPath != clearURI(getURI()) &&
+                testEvalPath.split('/').filter(x => x[0] == ':').length === 0) {
                 // console.warn('set uri', testEvalPath);
                 setURI(testEvalPath);
                 htmls('title', (renderLang(path.title) == '' ? '' : renderLang(path.title) + ' - ')
@@ -52,44 +48,7 @@ this.router = options => {
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';
 
-const validatePreUriParams = testEvalPath => {
-    const uriParam = testEvalPath.split('/').pop().split(':').pop();
-    if (localStorage.getItem(uriParam)) {
-        testEvalPath = testEvalPath.replace(`:${uriParam}`, localStorage.getItem(uriParam));
-    }
-    return testEvalPath;
-};
 
-const validateUriParams = (path, testEvalPath) => {
-    if (path.path.split('/').pop()[0] == ':') {
-        const uriParam = path.path.split('/').pop().split(':').pop();
-
-        // console.log(uriParam == testEvalPath.split('/').pop().split(':').pop());
-        // console.log(testEvalPath.split('/').pop() == localStorage.getItem(uriParam));
-        // console.log(uriParam == getURI().split('/').pop().split(':').pop());
-        // console.log(getURI().split('/').pop() == localStorage.getItem(uriParam));
-
-        if (
-            localStorage.getItem(uriParam)
-            &&
-            (
-                clearURI(getURI()).split('/').pop() == localStorage.getItem(uriParam)
-                ||
-                testEvalPath.split('/').pop() == localStorage.getItem(uriParam)
-            )
-        ) {
-            console.warn('ROUTER: set localstorage param');
-            const paramPath = path.path.replace(`:${uriParam}`, localStorage.getItem(uriParam));
-            testEvalPath = paramPath;
-            path.path = paramPath;
-        } else {
-            console.warn('ROUTER: will be routerDisplay set param');
-        }
-    }
-    return {
-        testEvalPath, path
-    }
-};
 
 this.router();
 

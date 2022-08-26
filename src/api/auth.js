@@ -16,6 +16,13 @@ const srcFolders = ['./data/users'];
 
 const usersDataPath = srcFolders[0] + '/users.json';
 
+const banUserNames = ['boards'];
+
+// https://stackoverflow.com/questions/10378690/remove-route-mappings-in-nodejs-express
+
+// porque el paramtro es mejor que crear un ruta directamente ?
+// si el usuario se elminina la ruta debe queda inavilidata?
+
 const getUsers = () => JSON.parse(fs.readFileSync(usersDataPath, 'utf8'));
 
 const writeUsers = users => fs.writeFileSync(usersDataPath, JSON.stringify(users, null, 4), 'utf8');
