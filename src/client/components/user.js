@@ -13,11 +13,21 @@ this.user = {
         
         `
     },
-    routerDisplay: async function () {
+    routerDisplay: async function (options) {
 
         // console.error('routerDisplay lastUri', GLOBAL['lastUri']);
 
         const idRender = '.' + this[this.IDS][0];
+
+        const saveInstanceUri = () => {
+            let viewTemplate = viewPaths.find(x => x.path.split('/').pop() == ':username');
+            if (viewTemplate && !viewPaths.find(x => x.path.split('/').pop() == getURI().split('/').pop())) {
+                viewTemplate = newInstance(viewTemplate);
+                viewTemplate.menu = false;
+                viewTemplate.path = viewTemplate.path.replace(':username', getURI().split('/').pop());
+                viewPaths.push(viewTemplate);
+            }
+        };
 
 
 
@@ -27,6 +37,8 @@ this.user = {
                     'Authorization': renderAuthBearer()
                 }
             });
+
+            // agregar opcion ver todos
 
             htmls(idRender, /*html*/`
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
@@ -38,27 +50,24 @@ this.user = {
                 headers: {
                     'Content-Type': 'application/json'
                 },
+                // options && options.newPath ? [options.newPath] :  para reset volver click boards
                 body: JSON.stringify([getURI().split('/').pop()])
             });
 
-            if (requestResult.data.validateUser === false && GLOBAL['lastTestEvalPath'] == `${buildBaseUri()}/:username`)
+            if (requestResult.data.validateUser === false) {
+                saveInstanceUri();
                 setURI(`${buildBaseUri()}/boards`);
+            }else {
+                // agregar opcion ver todos
+            }
+
 
             htmls(idRender, /*html*/`
          <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         `);
         }
 
-
-
-        let viewTemplate = viewPaths.find(x => x.path.split('/').pop() == ':username');
-        if (viewTemplate && !viewPaths.find(x => x.path.split('/').pop() == getURI().split('/').pop())) {
-            viewTemplate = newInstance(viewTemplate);
-            viewTemplate.menu = false;
-            viewTemplate.path = viewTemplate.path.replace(':username', getURI().split('/').pop());
-            viewPaths.push(viewTemplate);
-        }
-
+        saveInstanceUri();
         fadeIn(s('user'));
 
     },

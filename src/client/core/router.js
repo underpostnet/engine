@@ -41,15 +41,13 @@ this.router = options => {
         ) {
             if (path.display && validateSessionDisplayComponent(path)) {
                 fadeIn(s(path.component));
-                if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay();
+                if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay(options);
             };
         } else {
-            console.error('none', path.component, testEvalPath, newInstance(getURI()));
-            // que no tenga el 2 puntos
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) alert('redirect ' + testEvalPath) // location.href = testEvalPath; // console.error('redirect', testEvalPath)
+    if (!valid) location.href = testEvalPath; // console.error('redirect', testEvalPath) // alert('redirect ' + testEvalPath) 
 };
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';
@@ -80,14 +78,12 @@ const validateUriParams = (path, testEvalPath) => {
                 testEvalPath.split('/').pop() == localStorage.getItem(uriParam)
             )
         ) {
-            console.error('ROUTER: fix param path');
+            console.warn('ROUTER: set localstorage param');
             const paramPath = path.path.replace(`:${uriParam}`, localStorage.getItem(uriParam));
             testEvalPath = paramPath;
             path.path = paramPath;
         } else {
-            // se esta buscando un usuario publico verificar contenido publico
-            // de lo contrario dedirect to 404
-            console.error('ROUTER: public user dashboard?');
+            console.warn('ROUTER: will be routerDisplay set param');
         }
     }
     return {
