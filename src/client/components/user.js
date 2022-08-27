@@ -86,7 +86,12 @@ this.user = {
             if (clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
                 setURI(`${buildBaseUri()}/boards`);
 
-            htmls('title', renderLang({ es: `Boards`, en: `Boards` }));
+            htmls('title', publicDataRequest.data.result.length != 1 ?
+                renderLang({ es: `Boards - ${viewMetaData.host}`, en: `Boards - ${viewMetaData.host}` }) :
+                renderLang({
+                    es: `${cap(publicDataRequest.data.result[0].username.replaceAll('-', ' '))} - Board`,
+                    en: `${cap(publicDataRequest.data.result[0].username.replaceAll('-', ' '))} - Board`
+                }));
             htmls(idRender, /*html*/`
         <pre><code> public board(s) 
         ${JSON.stringify(publicDataRequest.data.result, null, 4)}</code></pre>
