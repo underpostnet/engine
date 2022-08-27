@@ -33,7 +33,7 @@ this.user = {
         const valueParam = localStorage.getItem('username');
 
 
-        const publicDataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
+        let publicDataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -72,6 +72,8 @@ this.user = {
             });
 
             //  agregar opcion ver todos
+            publicDataRequest.data.validateUser = true;
+
             if (clearURI(getURI()).split('/').pop() != valueParam)
                 setURI(`${buildBaseUri()}/${valueParam}`);
 
@@ -92,6 +94,20 @@ this.user = {
         }
         saveInstanceUri();
         fadeIn(s('user'));
+        if (publicDataRequest.data.validateUser === true) {
+            prepend(idRender, /*html*/`
+
+            <button class='${this[this.IDS][1]}'>
+                ${renderLang({ es: `Ver Últimos tableros Públicos`, en: `View Latest Public Boards` })}
+            </button>
+            
+            `);
+            s('.' + this[this.IDS][1]).onclick = () => {
+                setURI(`${buildBaseUri()}/boards`);
+                GLOBAL.router();
+            };
+        }
+
         // setTimeout(() => fadeIn(s('user')));
 
     },

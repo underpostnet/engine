@@ -40,6 +40,7 @@ this.router = options => {
                 if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay(options);
             };
         } else {
+             // console.error('none uri:', testEvalPath, 'none comp:', path.component);
             s(path.component).style.display = 'none';
         }
     });
