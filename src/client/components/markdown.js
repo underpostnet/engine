@@ -31,7 +31,7 @@ this.markdown = {
                 body.append('indexFolder', '1');
                 body.append('public', s('.' + this[IDS][5]).checked);
 
-                body.append(s4(), new File([new Blob([markedContent])], s4() + '.md'));
+                body.append(s4(), new File([new Blob([markedContent])], 'f' + s4() + '.md'));
 
 
                 const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;

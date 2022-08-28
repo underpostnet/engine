@@ -4,7 +4,7 @@ this.editor = {
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'editor-' + s4());
 
-    
+
         setTimeout(() => {
 
             tinymce.init({
@@ -62,7 +62,7 @@ this.editor = {
                 let body = new FormData();
 
 
-                body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], s4() + '.html'));
+                body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], 'f' + s4() + '.html'));
 
 
                 const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;

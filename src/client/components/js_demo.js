@@ -95,7 +95,7 @@ this.js_demo = {
                 let body = new FormData();
 
 
-                body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], s4() + '.js'));
+                body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], 'f' + s4() + '.js'));
 
 
                 const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
@@ -224,13 +224,14 @@ this.js_demo = {
             </div>   
         `
     },
-    renderView: function (dataFile, rawContent) {
+    renderView: function (dataFile, rawContent, timeOutDelay) {
         const idDemo = `demo-${s4()}`;
         const contentEval = rawContent.replaceAll(`'body'`, `'${idDemo}'`);
         const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
+        const idCopy = 'x' + s4();
         setTimeout(() => {
             eval(contentEval)
-            s('.' + this[this.IDS][9]).onclick = async () => {
+            s('.' + idCopy).onclick = async () => {
                 await copyData(displayJS);
                 append('body', renderFixModal({
                     id: 'mini-modal-' + s4(),
@@ -239,16 +240,16 @@ this.js_demo = {
                     content: renderLang({ es: 'Contenido Copiado al Portapapeles', en: 'Copy to Clipboard' })
                 }));
             };
-        });
+        }, timeOutDelay);
         return /*html*/`
-            <div class='in container'>
-                <button class='${this[this.IDS][9]}'> 
+            <div class='in'>
+                <button class='${idCopy}'> 
                     <i class='fa fa-clone' aria-hidden='true'></i> 
                     ${renderLang({ es: 'Copiar', en: 'Copy' })}
                 </button>
             </div>
             <${idDemo}></${idDemo}>
-            <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
+            <pre  class='in'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;
     },
     routerDisplay: function () {

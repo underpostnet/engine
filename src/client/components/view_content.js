@@ -4,53 +4,61 @@ this.view_content = {
     init: function (options) {
         return /*html*/``
     },
-    routerDisplay: () => {
+    routerDisplay: async function () {
         console.warn('init view content', GLOBAL['current-view-content']);
-        if (GLOBAL['current-view-content']) {
+        if (GLOBAL['current-view-content'])
+            htmls('view_content', await this.renderViewContent(GLOBAL['current-view-content']));
+    },
+    renderViewContent: async (dataCurrentViewContent, timeOutDelay) => {
 
-            (async () => {
+        const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${dataCurrentViewContent.static}`);
+        console.log('view content file', requestResult);
+        if (GLOBAL[dataCurrentViewContent.component].renderView) {
+            const idEdit = 'x' + s4();
 
-                const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${GLOBAL['current-view-content'].static}`);
-                console.log('view content file', requestResult);
-                if (GLOBAL[GLOBAL['current-view-content'].component].renderView) {
-                    const idEdit = 'x' + s4();
-                    htmls('render-view-content',
-                        /*html*/`
-                        <div class='in container title'>
-                            ${GLOBAL['current-view-content'].title}
-                        </div>
-                        <div class='in container'>
-                            ${GLOBAL['current-view-content'].date.replace('T', ' ').slice(0, -8)}
-                            <br>
-                            <button class='${idEdit}'> ${renderLang({ es: 'Editar', en: 'Edit' })} </button>
-                        </div>
-                        <div class='in container'>
-                            ${GLOBAL[GLOBAL['current-view-content'].component].renderView(GLOBAL['current-view-content'], requestResult)}
-                        </div>                            
-                        `
+            setTimeout(() => {
+                s('.' + idEdit).onclick = () => {
+                    GLOBAL['current-edit-content'] = newInstance(dataCurrentViewContent);
+                    GLOBAL['current-edit-content'].raw = requestResult;
+                    GLOBAL.router(
+                        {
+                            newPath: viewPaths.find(x => x.component == GLOBAL['current-edit-content'].component).path
+                        }
                     );
-                    s('.' + idEdit).onclick = () => {
-                        GLOBAL['current-edit-content'] = newInstance(GLOBAL['current-view-content']);
-                        GLOBAL['current-edit-content'].raw = requestResult;
-                        GLOBAL.router(
-                            {
-                                newPath: viewPaths.find(x => x.component == GLOBAL['current-edit-content'].component).path
-                            }
-                        );
-                    };
+                };
+            }, timeOutDelay);
 
-                }
 
-            })();
+            return /*html*/`
 
-            htmls('view_content',  /*html*/`
-            <div class='in container'>
+                <!--
                 <pre>
-                    ${JSON.stringify(GLOBAL['current-view-content'], null, 4)}
+                    ${JSON.stringify(dataCurrentViewContent, null, 4)}
                 </pre>
-                <render-view-content></render-view-content>
+                -->
+            <div class='in container'>
+                <div class='in' style='
+                border: 4px solid purple;
+                overflow: hidden;
+                '>
+                    <div class='in container title'>
+                        ${dataCurrentViewContent.title}
+                    </div>
+                    <div class='in container'>
+                        ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
+                    </div>
+                    <div class='in container'>
+                        <button class='${idEdit}'> ${renderLang({ es: 'Editar', en: 'Edit' })} </button>
+                    </div>
+                    <div class='in container'>
+                        ${GLOBAL[dataCurrentViewContent.component].renderView(dataCurrentViewContent, requestResult, timeOutDelay)}
+                    </div>
+                </div>
             </div>
-            `);
+            `
+
         }
+
+        return '';
     }
 };

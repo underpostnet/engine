@@ -7,7 +7,7 @@ this.user = {
 
         return /*html*/`
 
-        <div class='in container ${this[IDS][0]}'>
+        <div class='${this[IDS][0]}'>
 
         </div>
         
@@ -80,7 +80,10 @@ this.user = {
             htmls('title', renderLang({ es: `${displayParam} - Board`, en: `${displayParam} - Board` }));
 
             htmls(idRender, /*html*/`
+            ${await this.renderBoards(requestResult.data)}
+            <!--
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
+        -->
         `);
         } else {
             if (clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
@@ -93,8 +96,11 @@ this.user = {
                     en: `${cap(publicDataRequest.data.result[0].username.replaceAll('-', ' '))} - Board`
                 }));
             htmls(idRender, /*html*/`
+            ${await this.renderBoards(publicDataRequest.data.result)}
+            <!--
         <pre><code> public board(s) 
         ${JSON.stringify(publicDataRequest.data.result, null, 4)}</code></pre>
+        -->
         `);
         }
         saveInstanceUri();
@@ -102,9 +108,11 @@ this.user = {
         if (publicDataRequest.data.validateUser === true) {
             prepend(idRender, /*html*/`
 
-            <button class='${this[this.IDS][1]}'>
+            <div class='in container'>
+                <button class='${this[this.IDS][1]}'>
                 ${renderLang({ es: `Ver Últimos tableros Públicos`, en: `View Latest Public Boards` })}
-            </button>
+                </button>
+            </div>
             
             `);
             s('.' + this[this.IDS][1]).onclick = () => {
@@ -113,10 +121,32 @@ this.user = {
             };
         }
 
-        // setTimeout(() => fadeIn(s('user')));
 
     },
     closeSession: function () {
-        this.routerDisplay();
+        // this.routerDisplay();
+    },
+    renderBoards: async dataBoards => {
+        let render = '';
+        for (let dataBoard of dataBoards) {
+            render += /*html*/`
+        <div class='in container'>                
+            <div class='in title' style='
+            padding: 20px; 
+            text-align: center;
+            background: purple; 
+            color: white;
+            border: 2px solid purple;
+            '>
+                    <i class='fas fa-board'></i>${cap(dataBoard.username.replaceAll('-', ' '))}
+            </div>`;
+            for (let contentDataRender of dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo'])) {
+                const renderSingleContent = await GLOBAL.view_content.renderViewContent(contentDataRender, 1000);
+                render += renderSingleContent;
+            }
+            render += /*html*/
+        `</div>`;
+        }
+        return render;
     }
 };
