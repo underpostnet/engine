@@ -91,6 +91,10 @@ this.js_demo = {
                 // `);
 
 
+                if (s('.' + this[IDS][2]).style.display != 'none')
+                    return fadeIn(s('.' + this[IDS][2]));
+
+
 
                 let body = new FormData();
 

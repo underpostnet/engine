@@ -16,6 +16,7 @@ const srcFolders = ['./data/users'];
 
 const usersDataPath = srcFolders[0] + '/users.json';
 
+const banUserNames = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
 
 const getUsers = () => JSON.parse(fs.readFileSync(usersDataPath, 'utf8'));
 
@@ -50,6 +51,12 @@ const register = async (req, res) => {
             return res.status(400).json({
                 status: 'error',
                 data: renderLang({ en: 'existing email', es: 'email ya existente' }, req)
+            });
+
+        if (banUserNames.includes(req.body.username.toLowerCase()))
+            return res.status(400).json({
+                status: 'error',
+                data: renderLang({ en: 'invalid username', es: 'nombre de usuario no valido' }, req)
             });
 
         req.body.username = req.body.username.toLowerCase();
