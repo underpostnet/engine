@@ -116,7 +116,6 @@ this.js_demo = {
 
                 if (this.update) {
                     body.append('update', JSON.stringify(this.update));
-                    this.update = false;
                 }
 
 
@@ -139,6 +138,7 @@ this.js_demo = {
                             color: 'green',
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
+                        this.update = false;
                         GLOBAL['current-view-content'] = requestResult.data;
                         GLOBAL.router({ newPath: buildBaseUri() + '/view-content' });
                     } else {

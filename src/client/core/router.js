@@ -14,7 +14,7 @@ this.router = options => {
         // params uri validator
 
         const testIncludesHome = path.homePaths.includes(testEvalPath);
-        const validPath = path.path == testEvalPath;
+        const validPath = path.path == testEvalPath || (path.paths && path.paths.includes(testEvalPath));
         // console.log('-------------------------------------');
         // console.warn('valid path', validPath);
         // console.log(testEvalPath, path.path, getURI());
@@ -40,11 +40,11 @@ this.router = options => {
                 if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay(options);
             };
         } else {
-             // console.error('none uri:', testEvalPath, 'none comp:', path.component);
+            // console.error('none uri:', testEvalPath, 'none comp:', path.component);
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) location.href = testEvalPath; // console.error('redirect', testEvalPath) // alert('redirect ' + testEvalPath) 
+    if (!valid) console.error('redirect', testEvalPath) // location.href = testEvalPath; // console.error('redirect', testEvalPath) // alert('redirect ' + testEvalPath) 
 };
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';

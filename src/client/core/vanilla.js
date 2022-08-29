@@ -99,6 +99,7 @@ const serviceRequest = (url, options) => new Promise(
                 let raw = await res.clone();
                 raw = await raw.text();
                 console.log(`${url()} raw: `, raw);
+                if (options && options.raw === true) return raw;
                 let returnObj;
                 try {
                     returnObj = await res.json();

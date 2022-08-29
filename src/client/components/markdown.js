@@ -43,11 +43,8 @@ this.markdown = {
                     //  'content-length': CHUNK.length,
                 };
 
-                body.append('indexFolder', '1');
-
                 if (this.update) {
                     body.append('update', JSON.stringify(this.update));
-                    this.update = false;
                 }
 
 
@@ -70,6 +67,7 @@ this.markdown = {
                             color: 'green',
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
+                        this.update = false;
                         GLOBAL['current-view-content'] = requestResult.data;
                         GLOBAL.router({ newPath: buildBaseUri() + '/view-content' });
                     } else {

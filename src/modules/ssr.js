@@ -61,6 +61,7 @@ const renderComponents = () => viewPaths.map(path =>/*html*/`
 const validatePaths = viewPaths =>
     build || (!dev) ? viewPaths.map(x => {
         x.path = clearSubUri(x.path);
+        if (x.paths) x.paths = x.paths.map(x => clearSubUri(x));
         x.homePaths = x.homePaths.map(y => clearSubUri(y));
         return x;
     }) : viewPaths;
@@ -227,6 +228,7 @@ const ssr = async (app, renderData) => {
             viewPaths = viewPaths.concat(mergeModule.map(mergeFix => {
                 mergeFix.homePaths.push(viewPaths[0].path);
                 mergeFix.path = mergeFix.path.replace(renderSingle.baseHome, baseHome);
+                if (mergeFix.paths) mergeFix.paths = mergeFix.paths.map(x => x.replace(renderSingle.baseHome, baseHome));
                 return mergeFix;
             }));
             viewMetaData.apiURIS = viewMetaData.apiURIS.concat(renderSingle.viewMetaData.apiURIS);
@@ -265,7 +267,7 @@ const ssr = async (app, renderData) => {
         };
     });
 
-    
+
     renderSitemap(app, sitemap, viewMetaData);
     renderStatics(app, viewMetaData);
     await renderRobots(app, viewMetaData);

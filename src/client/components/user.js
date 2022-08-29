@@ -116,8 +116,7 @@ this.user = {
             
             `);
             s('.' + this[this.IDS][1]).onclick = () => {
-                setURI(`${buildBaseUri()}/boards`);
-                GLOBAL.router();
+                GLOBAL.router({ newPath: `${buildBaseUri()}/boards`});
             };
         }
 

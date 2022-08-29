@@ -11,7 +11,7 @@ this.view_content = {
     },
     renderViewContent: async (dataCurrentViewContent, timeOutDelay) => {
 
-        const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${dataCurrentViewContent.static}`);
+        const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${dataCurrentViewContent.static}`, { raw: true });
         console.log('view content file', requestResult);
         if (GLOBAL[dataCurrentViewContent.component].renderView) {
             const idEdit = 'x' + s4();
@@ -47,9 +47,16 @@ this.view_content = {
                     <div class='in container'>
                         ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
                     </div>
+                    ${validateSession() &&
+                    (
+                        localStorage.getItem('username') == clearURI(getURI()).split('/').pop()
+                        ||
+                        'view-content' == clearURI(getURI()).split('/').pop()
+                    ) ?/*html*/`
                     <div class='in container'>
                         <button class='${idEdit}'> ${renderLang({ es: 'Editar', en: 'Edit' })} </button>
                     </div>
+                    `: ''}
                     <div class='in container'>
                         ${GLOBAL[dataCurrentViewContent.component].renderView(dataCurrentViewContent, requestResult, timeOutDelay)}
                     </div>

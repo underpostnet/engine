@@ -54,14 +54,11 @@ const onUploadFile = (req, res) => {
 
             Object.keys(req.files).map(keyFile => {
 
-                let staticPath = '/' + typeFile + '/' + req.files[keyFile].name;
-                if (req.body.update) {
-                    const dataUpdate = JSON.parse(req.body.update);
-                    fs.unlinkSync(`./data/uploads${dataUpdate.static}`);
-                    staticPath = dataUpdate.static;
-                }
-                fs.writeFileSync(`./data/uploads${staticPath}`, req.files[keyFile].data, 'utf8');
+                let successProcess = false;
 
+                let staticPath = req.body.update ?
+                    JSON.parse(req.body.update).static :
+                    '/' + typeFile + '/' + req.files[keyFile].name;
 
                 fileObj = {
                     static: staticPath,
@@ -77,14 +74,21 @@ const onUploadFile = (req, res) => {
                         for (let objFile of files[indexUserFile][typeFile]) {
                             if (objFile.static == staticPath) {
                                 files[indexUserFile][typeFile][indObjFile] = fileObj;
+                                successProcess = true;
                                 break;
                             }
                             indObjFile++;
                         }
+                        if (successProcess) {
+                            const dataUpdate = JSON.parse(req.body.update);
+                            fs.unlinkSync(`./data/uploads${dataUpdate.static}`);
+                            staticPath = dataUpdate.static;
+                        }
                     } else {
-                        files[indexUserFile][typeFile].push(fileObj)
+                        files[indexUserFile][typeFile].push(fileObj);
+                        successProcess = true;
                     };
-                } else {
+                } else if (!req.body.update) {
                     let newFileObj = {
                         username: req.user.username,
                         'editor': [],
@@ -93,6 +97,13 @@ const onUploadFile = (req, res) => {
                     };
                     newFileObj[typeFile].push(fileObj);
                     files.push(newFileObj);
+                    successProcess = true;
+                }
+
+                if (successProcess) {
+                    fs.writeFileSync(`./data/uploads${staticPath}`, req.files[keyFile].data, 'utf8');
+                } else {
+                    throw { message: 'invalid user data' };
                 }
 
             });
@@ -107,6 +118,7 @@ const onUploadFile = (req, res) => {
         });
 
     } catch (error) {
+        console.log(error);
         return res.status(500).json({
             status: 'error',
             data: error.message,

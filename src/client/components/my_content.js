@@ -13,7 +13,7 @@ this.my_content = {
         const idPublic = 'x' + s4();
         setTimeout(() => {
             s('.' + idUpdate).onclick = async () => {
-                const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${row.static}`);
+                const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/uploads${row.static}`, { raw: true });
                 GLOBAL['current-edit-content'] = row;
                 GLOBAL['current-edit-content'].raw = requestResult;
                 GLOBAL.router(

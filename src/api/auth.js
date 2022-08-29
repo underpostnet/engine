@@ -1,6 +1,6 @@
 
 import fs from 'fs';
-import { emailValidator, passwordValidator, renderLang, buildBaseApiUri } from './util.js';
+import { emailValidator, passwordValidator, renderLang, buildBaseApiUri, range } from './util.js';
 import { logger } from '../modules/logger.js';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
@@ -18,6 +18,8 @@ const usersDataPath = srcFolders[0] + '/users.json';
 
 const banUserNames = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
 
+const banUserNameChars = ['/', '\\'];
+
 const getUsers = () => JSON.parse(fs.readFileSync(usersDataPath, 'utf8'));
 
 const writeUsers = users => fs.writeFileSync(usersDataPath, JSON.stringify(users, null, 4), 'utf8');
@@ -29,7 +31,8 @@ const register = async (req, res) => {
         logger.info("register body:");
         logger.info(req.body);
 
-        if (req.body.email) req.body.email = req.body.email.toLowerCase();
+        if (req.body.email) req.body.email = req.body.email.toLowerCase().trim();
+        if (req.body.username) req.body.username = req.body.username.toLowerCase().trim();
 
         const testEmail = emailValidator(req.body.email, req);
         if (!testEmail.validate)
@@ -53,7 +56,12 @@ const register = async (req, res) => {
                 data: renderLang({ en: 'existing email', es: 'email ya existente' }, req)
             });
 
-        if (banUserNames.includes(req.body.username.toLowerCase()))
+        if (
+            banUserNames.includes(req.body.username.toLowerCase())
+            ||
+            range(0, req.body.username.length - 1)
+                .filter(x => banUserNameChars.includes(req.body.username[x])).length > 0
+        )
             return res.status(400).json({
                 status: 'error',
                 data: renderLang({ en: 'invalid username', es: 'nombre de usuario no valido' }, req)
