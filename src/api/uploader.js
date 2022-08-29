@@ -172,23 +172,26 @@ const deleteContents = (req, res) => {
             });
         }
 
-        fs.unlinkSync(`./data/uploads${req.body.static}`);
-
         let indObjFile = 0;
         for (let objFile of files[indexUserFile][typeFile]) {
             if (objFile.static == req.body.static) {
                 files[indexUserFile][typeFile].splice(indObjFile, 1);
-                break;
+                fs.unlinkSync(`./data/uploads${req.body.static}`);
+                writeFiles(files);
+                return res.status(200).json({
+                    status: 'success',
+                    data: 'ok'
+                });
             }
             indObjFile++;
         }
 
-        writeFiles(files);
-
-        return res.status(200).json({
-            status: 'success',
-            data: 'ok'
+        return res.status(400).json({
+            status: 'error',
+            data: 'invalid request data'
         });
+
+
     } catch (error) {
         return res.status(500).json({
             status: 'error',
