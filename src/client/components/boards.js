@@ -1,8 +1,8 @@
-this.user = {
+this.boards = {
     init: function () {
         const IDS = s4();
         this.IDS = IDS;
-        this[IDS] = range(0, maxIdComponent).map(() => 'user-' + s4());
+        this[IDS] = range(0, maxIdComponent).map(() => 'boards-' + s4());
 
 
         return /*html*/`
@@ -104,7 +104,7 @@ this.user = {
         `);
         }
         saveInstanceUri();
-        fadeIn(s('user'));
+        fadeIn(s('boards'));
         if (publicDataRequest.data.validateUser === true) {
             prepend(idRender, /*html*/`
 

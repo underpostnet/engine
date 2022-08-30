@@ -17,7 +17,7 @@ this.view_content = {
             const idEdit = 'x' + s4();
 
             setTimeout(() => {
-                s('.' + idEdit).onclick = () => {
+                if (s('.' + idEdit)) s('.' + idEdit).onclick = () => {
                     GLOBAL['current-edit-content'] = newInstance(dataCurrentViewContent);
                     GLOBAL['current-edit-content'].raw = requestResult;
                     GLOBAL.router(

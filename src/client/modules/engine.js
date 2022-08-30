@@ -108,7 +108,7 @@ const viewPaths = [
         paths: [baseHome + '/boards'],
         homePaths: [baseHome],
         title: { en: 'Boards', es: 'Boards' },
-        component: 'user',
+        component: 'boards',
         options: false,
         menu: true,
         home: false,

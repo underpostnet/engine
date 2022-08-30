@@ -235,7 +235,7 @@ this.js_demo = {
         const idCopy = 'x' + s4();
         setTimeout(() => {
             eval(contentEval)
-            s('.' + idCopy).onclick = async () => {
+            if (s('.' + idCopy)) s('.' + idCopy).onclick = async () => {
                 await copyData(displayJS);
                 append('body', renderFixModal({
                     id: 'mini-modal-' + s4(),
