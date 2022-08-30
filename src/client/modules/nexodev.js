@@ -12,6 +12,12 @@ const banner = () =>/*html*/`
     </div>
 `;
 
+const botDescription = () => /*html*/`
+    <div class='in container'>
+        ${renderLangBtns()}    
+    </div>
+`;
+
 const viewMetaData = {
     clientID,
     mainTitle: 'nexodev.org',
@@ -76,7 +82,8 @@ const nexodev = {
     viewMetaData,
     viewPaths,
     baseHome,
-    banner
+    banner,
+    botDescription
 };
 
 export { nexodev };

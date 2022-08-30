@@ -49,10 +49,6 @@ this.router = options => {
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';
 
-
-
-this.router();
-
 // Browser and App
 // navigator button controller
 window.onpopstate = e =>
