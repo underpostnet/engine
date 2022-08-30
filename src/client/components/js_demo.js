@@ -234,7 +234,11 @@ this.js_demo = {
         const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
         const idCopy = 'x' + s4();
         setTimeout(() => {
-            eval(contentEval)
+            try {
+                eval(contentEval);
+            } catch (error) {
+                console.warn('eval js renderView', error);
+            }
             if (s('.' + idCopy)) s('.' + idCopy).onclick = async () => {
                 await copyData(displayJS);
                 append('body', renderFixModal({

@@ -7,7 +7,10 @@ this.view_content = {
     routerDisplay: async function () {
         console.warn('init view content', GLOBAL['current-view-content']);
         if (GLOBAL['current-view-content'])
-            htmls('view_content', await this.renderViewContent(GLOBAL['current-view-content']));
+            if (localStorage.getItem('username')) htmls('view_content', await this.renderViewContent({
+                ...GLOBAL['current-view-content'],
+                username: localStorage.getItem('username')
+            }));
     },
     renderViewContent: async (dataCurrentViewContent, timeOutDelay) => {
 
@@ -45,7 +48,8 @@ this.view_content = {
                         ${dataCurrentViewContent.title}
                     </div>
                     <div class='in container'>
-                        ${renderLang({ es: 'Por', en: 'By' })} ${cap(dataCurrentViewContent.username.replaceAll('-', ' '))}, ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
+                        ${renderLang({ es: 'Por', en: 'By' })} ${renderUserLink(dataCurrentViewContent.username,
+                GLOBAL['boards'] && GLOBAL['boards'].timeOutDelay ? GLOBAL['boards'].timeOutDelay : undefined)}, ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
                     </div>
                     ${validateSession() &&
                     (

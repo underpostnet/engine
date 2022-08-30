@@ -50,3 +50,21 @@ const buildBaseApiUri = () => {
     if (dev) return '';
     return API_URL;
 };
+
+const formatUserName = username => cap(username.trim().replaceAll('-', ' '));
+
+const renderUserLink = (username, timeOutDelay) => {
+    const idProfile = 'x' + s4();
+    setTimeout(() => {
+        if (s('.' + idProfile)) s('.' + idProfile).onclick = () => {
+            // GLOBAL.router({ newPath: buildBaseUri() + '/:username' });
+            setURI(`${buildBaseUri()}/${username}`);
+            GLOBAL.router();
+        };
+    }, timeOutDelay);
+    return /*html*/`
+        <a class='${idProfile}' href='javascript:void(0)'>
+            ${formatUserName(username)}
+        </a>
+    `
+};

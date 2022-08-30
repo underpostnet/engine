@@ -3,6 +3,7 @@ this.boards = {
         const IDS = s4();
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'boards-' + s4());
+        this.timeOutDelay = 1000;
 
 
         return /*html*/`
@@ -65,7 +66,7 @@ this.boards = {
                 valueParam == clearURI(getURI()).split('/').pop()
             )
         ) {
-            const displayParam = cap(valueParam.replaceAll('-', ' '));
+            const displayParam = formatUserName(valueParam);
             const requestResult = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}`, {
                 headers: {
                     'Authorization': renderAuthBearer()
@@ -93,8 +94,8 @@ this.boards = {
             htmls('title', publicDataRequest.data.result.length != 1 ?
                 renderLang({ es: `Boards - ${viewMetaData.host}`, en: `Boards - ${viewMetaData.host}` }) :
                 renderLang({
-                    es: `${cap(publicDataRequest.data.result[0].username.replaceAll('-', ' '))} - Board`,
-                    en: `${cap(publicDataRequest.data.result[0].username.replaceAll('-', ' '))} - Board`
+                    es: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`,
+                    en: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`
                 }));
             htmls(idRender, /*html*/`
             ${await this.renderBoards(publicDataRequest.data.result)}
@@ -126,14 +127,14 @@ this.boards = {
     closeSession: function () {
         // this.routerDisplay();
     },
-    renderBoards: async dataBoards => {
+    renderBoards: async function (dataBoards) {
         let render = '';
         for (let dataBoard of dataBoards) {
             for (let contentDataRender of dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo'])) {
                 const renderSingleContent = await GLOBAL.view_content.renderViewContent({
                     ...contentDataRender,
                     username: dataBoard.username
-                }, 1000);
+                }, this.timeOutDelay);
                 render += renderSingleContent;
             }
         }
