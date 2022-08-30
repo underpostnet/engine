@@ -25,7 +25,8 @@ this.boards = {
                 viewTemplate = newInstance(viewTemplate);
                 viewTemplate.menu = false;
                 viewTemplate.path = viewTemplate.path.replace(':username', getURI().split('/').pop());
-                if (viewTemplate.path.split('/').pop() != 'boards') viewPaths.push(viewTemplate);
+                viewTemplate.clone = true;
+                viewPaths.push(viewTemplate);
             }
         };
 

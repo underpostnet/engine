@@ -54,9 +54,9 @@ const renderStyleView = (dirStyle, viewMetaData) => {
     return fs.readFileSync(dirStyle, viewMetaData.charset);
 };
 
-const renderComponents = () => viewPaths.map(path =>/*html*/`
+const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
 <${path.component}>${this[path.options ? path.options.origin : path.component].init(path.options)}</${path.component}>
-`).join('');
+`: '').join('');
 
 const validatePaths = viewPaths =>
     build || (!dev) ? viewPaths.map(x => {
