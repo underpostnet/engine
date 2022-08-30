@@ -117,7 +117,6 @@ const renderView = dataView => {
                 fs.readFileSync(`./src/client/components/${path.component}.js`)
     ).join('')}
         ${fs.readFileSync('./src/client/core/router.js', viewMetaData.charset)}
-        ${fs.readFileSync('./src/client/core/footer.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/keys.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/init-render.js', viewMetaData.charset)}
         
