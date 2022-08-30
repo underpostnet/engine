@@ -57,8 +57,18 @@ const renderUserLink = (username, timeOutDelay) => {
     const idProfile = 'x' + s4();
     setTimeout(() => {
         if (s('.' + idProfile)) s('.' + idProfile).onclick = () => {
-            // GLOBAL.router({ newPath: buildBaseUri() + '/:username' });
-            setURI(`${buildBaseUri()}/${username}`);
+
+            // GLOBAL.router({ newPath: `${buildBaseUri()}/boards` });
+            // GLOBAL.router({ newPath: `${buildBaseUri()}/${username}` });
+            // GLOBAL.router({ newPath: `${buildBaseUri()}/:username` });
+            // GLOBAL.router();
+
+            if (getURI() != `${buildBaseUri()}/${username}`) setURI(`${buildBaseUri()}/${username}`);
+            view = newInstance(viewPaths.find(path => path.path == `${buildBaseUri()}/:username`));
+
+            // view.path = newInstance(viewPaths.find(path => path.path == `${buildBaseUri()}/${username}`));
+            // add view.paths ? 
+
             GLOBAL.router();
         };
     }, timeOutDelay);

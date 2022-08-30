@@ -87,7 +87,7 @@ const renderView = dataView => {
         const validatePaths = ${validatePaths};
         const version = '${process.env.npm_package_version}';
         const viewPaths = validatePaths(JSON.parse('${JSON.stringify(viewPaths.filter(path => path.render))}'));
-        const view = validatePaths([JSON.parse('${JSON.stringify(view)}')])[0];
+        let view = validatePaths([JSON.parse('${JSON.stringify(view)}')])[0];
         const viewMetaData = JSON.parse('${JSON.stringify(viewMetaData)}');
         const maxIdComponent = 50;
         const errorIcon = ${/*html*/"`<i class='fa fa-exclamation-triangle' aria-hidden='true'></i>`"};
@@ -127,8 +127,8 @@ const renderView = dataView => {
     const renderTitle = (view.title[viewMetaData.lang] != '' ? view.title[viewMetaData.lang] + ' - ' : '') + viewMetaData.mainTitle;
     const renderDescription = view.description ? view.description[viewMetaData.lang] :
         viewMetaData.description ? viewMetaData.description[viewMetaData.lang] : 'underpost.net engine app';
-    const renderSocialImg = view.socialImg ? `<meta property='og:image' content='${view.socialImg}'>` :
-        viewMetaData.socialImg ? `<meta property='og:image' content='${viewMetaData.socialImg}'>` : '';
+    const renderSocialImg = view.socialImg ? `<meta property='og:image' content='${buildURL(viewMetaData)}${view.socialImg}'>` :
+        viewMetaData.socialImg ? `<meta property='og:image' content='${buildURL(viewMetaData)}${viewMetaData.socialImg}'>` : '';
     return /*html*/`
     <!DOCTYPE html>
     <html dir='${viewMetaData.dir}' lang='${viewMetaData.lang}'>
@@ -169,7 +169,7 @@ const renderView = dataView => {
             <link rel='icon' type='image/png' sizes='16x16' href='${viewMetaData.themeIcons.path}/favicon-16x16.png'>           
             <link rel='mask-icon' href='${viewMetaData.themeIcons.path}/safari-pinned-tab.svg' color='${viewMetaData.themeIcons.color}'>
             <meta name='msapplication-TileColor' content='${viewMetaData.themeIcons.color}'>
-            <meta name='msapplication-TileImage' content='${viewMetaData.themeIcons.path}/mstile-144x144.png'>
+            <meta name='msapplication-TileImage' content='${buildURL(viewMetaData)}${viewMetaData.themeIcons.path}/mstile-144x144.png'>
             <meta name='theme-color' content='${viewMetaData.themeIcons.color}'>
             `: ''}
 

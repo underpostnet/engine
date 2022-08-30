@@ -58,6 +58,8 @@ this.boards = {
                     valueParam == localStorage.getItem(GLOBAL['lastTestEvalPath'].split('/').pop().split(':')[1])
                     &&
                     options
+                    // &&
+                    // options.newPath == `${buildBaseUri()}/:username`
                     // valueParam != clearURI(getURI()).split('/').pop()
                     // &&
                     // publicDataRequest.data.validateUser
