@@ -116,7 +116,7 @@ this.boards = {
             
             `);
             s('.' + this[this.IDS][1]).onclick = () => {
-                GLOBAL.router({ newPath: `${buildBaseUri()}/boards`});
+                GLOBAL.router({ newPath: `${buildBaseUri()}/boards` });
             };
         }
 
@@ -128,23 +128,13 @@ this.boards = {
     renderBoards: async dataBoards => {
         let render = '';
         for (let dataBoard of dataBoards) {
-            render += /*html*/`
-        <div class='in container'>                
-            <div class='in title' style='
-            padding: 20px; 
-            text-align: center;
-            background: purple; 
-            color: white;
-            border: 2px solid purple;
-            '>
-                    <i class='fas fa-board'></i>${cap(dataBoard.username.replaceAll('-', ' '))}
-            </div>`;
             for (let contentDataRender of dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo'])) {
-                const renderSingleContent = await GLOBAL.view_content.renderViewContent(contentDataRender, 1000);
+                const renderSingleContent = await GLOBAL.view_content.renderViewContent({
+                    ...contentDataRender,
+                    username: dataBoard.username
+                }, 1000);
                 render += renderSingleContent;
             }
-            render += /*html*/
-        `</div>`;
         }
         return render;
     }

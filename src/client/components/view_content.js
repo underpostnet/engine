@@ -45,7 +45,7 @@ this.view_content = {
                         ${dataCurrentViewContent.title}
                     </div>
                     <div class='in container'>
-                        ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
+                        ${renderLang({ es: 'Por', en: 'By' })} ${cap(dataCurrentViewContent.username.replaceAll('-', ' '))}, ${dataCurrentViewContent.date.replace('T', ' ').slice(0, -8)}
                     </div>
                     ${validateSession() &&
                     (
