@@ -151,6 +151,25 @@ this.my_content = {
             }
         })}
             </th>
+            ${row.username ? (() => {
+                const idToggleModerator = 'x' + s4();
+                return /*html*/`
+                <th>
+                    ${renderToggleSwitch({
+                    id: idToggleModerator, label: [
+                        renderLang({ es: `Pendiente`, en: `Pending` }),
+                        renderLang({ es: `Aprobado`, en: `Approved` })
+                    ],
+                    checked: row.approved,
+                    onChange: async state => {
+                        console.log('onChange', row, state);
+
+
+                    }
+                })}
+                </th>                
+                `
+            })() : ''}
             `
     },
     renderMyContentTable: async function () {
@@ -188,16 +207,16 @@ this.my_content = {
                         </div>
                         `+
                         renderTable(requestResult.data[0]['global-markdown'], {
-                            // actions: this.actionRow,
-                            customHeader: '<th></th><th></th>'
+                            actions: this.actionRow,
+                            customHeader: '<th></th><th></th><th></th>'
                         })
                         + renderTable(requestResult.data[0]['global-editor'], {
-                            // actions: this.actionRow,
-                            customHeader: '<th></th><th></th>'
+                            actions: this.actionRow,
+                            customHeader: '<th></th><th></th><th></th>'
                         })
                         + renderTable(requestResult.data[0]['global-js-demo'], {
-                            // actions: this.actionRow,
-                            customHeader: '<th></th><th></th>'
+                            actions: this.actionRow,
+                            customHeader: '<th></th><th></th><th></th>'
                         }) : '')}
                     </div> `
                 );

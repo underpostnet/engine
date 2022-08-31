@@ -9,7 +9,7 @@ this.view_content = {
         if (GLOBAL['current-view-content'])
             if (localStorage.getItem('username')) htmls('view_content', await this.renderViewContent({
                 ...GLOBAL['current-view-content'],
-                username: localStorage.getItem('username')
+                username: GLOBAL['current-view-content'].username || localStorage.getItem('username')
             }));
     },
     renderViewContent: async (dataCurrentViewContent, timeOutDelay) => {

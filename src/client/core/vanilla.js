@@ -159,11 +159,13 @@ const renderToggleSwitch = options => {
                 s(`.ts-round-${options.id}`).style.left =
                     (factor * 0.1) + 'px';
                 htmls(`.ts-label-${options.id}`, options.label[0]);
+                s('.ts-round-' + options.id).style.background = 'gray';
             } else {
                 s(`.${options.id}`).checked = true;
                 s(`.ts-round-${options.id}`).style.left =
                     ((factor * wFactor) - (factor * 0.1) - (factor * roundFactor)) + 'px';
                 htmls(`.ts-label-${options.id}`, options.label[1]);
+                s('.ts-round-' + options.id).style.background = 'green';
             }
             if (options && options.onChange) options.onChange(s(`.${options.id}`).checked);
         };
