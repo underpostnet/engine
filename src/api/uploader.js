@@ -4,7 +4,7 @@ import fs from 'fs';
 import { authValidator, getUsers } from './auth.js';
 import express from 'express';
 import { logger } from '../modules/logger.js';
-import { buildBaseApiUri } from './util.js';
+import { buildBaseApiUri, newInstance } from './util.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -47,6 +47,14 @@ const onUploadFile = (req, res) => {
         if (req.files) {
 
             const files = getFiles();
+
+            if (mods.includes(req.user.username) && JSON.parse(req.body.update).username) {
+                let fixUpdate = JSON.parse(req.body.update);
+                req.user.username = newInstance(fixUpdate.username);
+                delete fixUpdate.username;
+                req.body.update = JSON.stringify(fixUpdate);
+            }
+
             const indexUserFile = findIndexUsernameFile(req);
             const typeFile = srcFolders[parseInt(req.body.indexFolder)].split('/').pop();
 
@@ -76,6 +84,7 @@ const onUploadFile = (req, res) => {
                         let indObjFile = 0;
                         for (let objFile of files[indexUserFile][typeFile]) {
                             if (objFile.static == staticPath) {
+                                fileObj.approved = JSON.parse(req.body.update).approved;
                                 files[indexUserFile][typeFile][indObjFile] = fileObj;
                                 successProcess = true;
                                 break;
@@ -176,6 +185,9 @@ const deleteContents = (req, res) => {
 
         logger.info('deleteContents');
         logger.info(req.body);
+
+        if (mods.includes(req.user.username))
+            req.user.username = req.body.username;
 
         const files = getFiles();
         const indexUserFile = findIndexUsernameFile(req);

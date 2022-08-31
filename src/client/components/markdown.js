@@ -67,8 +67,9 @@ this.markdown = {
                             color: 'green',
                             content: renderLang({ es: 'Contenido Enviado', en: 'Saved Content' })
                         }));
-                        this.update = false;
                         GLOBAL['current-view-content'] = requestResult.data;
+                        if (this.update.username) GLOBAL['current-view-content'].username = newInstance(this.update.username);
+                        this.update = false;
                         GLOBAL.router({ newPath: buildBaseUri() + '/view-content' });
                     } else {
                         append('body', renderFixModal({
