@@ -111,42 +111,8 @@ this.my_content = {
             onChange: async state => {
                 console.log('onChange', row, state);
                 if (state != row.public) {
-
                     row.public = state;
-
-                    const url = () => '/api/uploader/visibility';
-                    const method = 'PUT';
-                    const headers = {
-                        'Authorization': renderAuthBearer(),
-                        'Content-Type': 'application/json'
-                        // 'content-type': 'application/octet-stream'
-                        //  'content-length': CHUNK.length,
-                    };
-                    const body = JSON.stringify(row);
-                    const requestResult = await serviceRequest(url, {
-                        method,
-                        headers,
-                        body // : method == 'GET' ? undefined : JSON.stringify(body)
-                    });
-
-                    console.log('request', requestResult);
-
-                    if (requestResult.status == 'success') {
-                        append('body', renderFixModal({
-                            id: 'mini-modal-' + s4(),
-                            icon: sucessIcon,
-                            color: 'green',
-                            content: renderLang({ es: 'Visibilidad Cambiada', en: 'Changed Visibility' })
-                        }));
-                    } else {
-                        append('body', renderFixModal({
-                            id: 'mini-modal-' + s4(),
-                            icon: errorIcon,
-                            color: 'red',
-                            content: requestResult.data
-                        }));
-                    }
-
+                    await GLOBAL.my_content.changeVisibilityService(row);
                 }
             }
         })}
@@ -163,8 +129,10 @@ this.my_content = {
                     checked: row.approved,
                     onChange: async state => {
                         console.log('onChange', row, state);
-
-
+                        if (state != row.approved) {
+                            row.approved = state;
+                            await GLOBAL.my_content.changeVisibilityService(row);
+                        }
                     }
                 })}
                 </th>                
@@ -240,6 +208,40 @@ this.my_content = {
     },
     routerDisplay: function () {
         this.renderMyContentTable();
+    },
+    changeVisibilityService: async (row) => {
+        const url = () => '/api/uploader/visibility';
+        const method = 'PUT';
+        const headers = {
+            'Authorization': renderAuthBearer(),
+            'Content-Type': 'application/json'
+            // 'content-type': 'application/octet-stream'
+            //  'content-length': CHUNK.length,
+        };
+        const body = JSON.stringify(row);
+        const requestResult = await serviceRequest(url, {
+            method,
+            headers,
+            body // : method == 'GET' ? undefined : JSON.stringify(body)
+        });
+
+        console.log('request', requestResult);
+
+        if (requestResult.status == 'success') {
+            append('body', renderFixModal({
+                id: 'mini-modal-' + s4(),
+                icon: sucessIcon,
+                color: 'green',
+                content: renderLang({ es: 'Visibilidad Cambiada', en: 'Changed Visibility' })
+            }));
+        } else {
+            append('body', renderFixModal({
+                id: 'mini-modal-' + s4(),
+                icon: errorIcon,
+                color: 'red',
+                content: requestResult.data
+            }));
+        }
     }
 
 };

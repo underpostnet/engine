@@ -48,7 +48,7 @@ const onUploadFile = (req, res) => {
 
             const files = getFiles();
 
-            if (mods.includes(req.user.username) && JSON.parse(req.body.update).username) {
+            if (mods.includes(req.user.username) && req.body.update && JSON.parse(req.body.update).username) {
                 let fixUpdate = JSON.parse(req.body.update);
                 req.user.username = newInstance(fixUpdate.username);
                 delete fixUpdate.username;
@@ -186,7 +186,7 @@ const deleteContents = (req, res) => {
         logger.info('deleteContents');
         logger.info(req.body);
 
-        if (mods.includes(req.user.username))
+        if (mods.includes(req.user.username) && req.body.username)
             req.user.username = req.body.username;
 
         const files = getFiles();
@@ -236,6 +236,10 @@ const changeVisibility = (req, res) => {
         logger.info(req.body);
 
         const files = getFiles();
+
+        if (mods.includes(req.user.username) && req.body.username)
+            req.user.username = req.body.username;
+
         const indexUserFile = findIndexUsernameFile(req);
         const typeFile = srcFolders[components.indexOf(req.body.component)].split('/').pop();
 
@@ -251,7 +255,8 @@ const changeVisibility = (req, res) => {
             if (objFile.static == req.body.static) {
                 files[indexUserFile][typeFile][indObjFile].public = typeof req.body.public == 'string' ?
                     JSON.parse(req.body.public) : req.body.public;
-
+                files[indexUserFile][typeFile][indObjFile].approved = typeof req.body.approved == 'string' ?
+                    JSON.parse(req.body.public) : req.body.approved;
                 writeFiles(files);
 
                 return res.status(200).json({
