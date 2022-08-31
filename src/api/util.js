@@ -119,7 +119,10 @@ const commonFunctions = () => `
     const cap = ${cap};
     const uniqueArray = ${uniqueArray};
     const clearSubUri = ${clearSubUri};
-    const clearURI = ${clearURI};
+    const _clearURI = ${clearURI};
+    // encodeURIComponent
+    // decodeURIComponent
+    const clearURI = uri => decodeURIComponent(_clearURI(uri));
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
