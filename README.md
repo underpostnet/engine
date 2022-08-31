@@ -12,13 +12,13 @@ Modular and stand-alone components client architecture.
 
 #### Usage
 
-- run server dev `npm run dev`
+- run gui/api dev server `npm run dev`
 
-- run server prod `npm start`
+- run gui/api prod server `npm start`
 
-- generate www client build dev `npm run build-dev`
+- generate www dev client build `npm run build-dev`
 
-- generate www client build prod `npm run build-prod`
+- generate www prod client build `npm run build-prod`
 
 - run network CLI `node src/cli`
 
