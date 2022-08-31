@@ -8,7 +8,7 @@ this.editor = {
         setTimeout(() => {
 
             tinymce.init({
-                selector: 'textarea#my-expressjs-tinymce-app',
+                selector: `#${this[IDS][8]}`,
                 min_height: 400,
                 menubar: true,
                 plugins: [
@@ -126,7 +126,7 @@ this.editor = {
                 ${renderInput(this[IDS], renderLang({ es: 'Titulo', en: 'Title' }), [1, 2, 3])}
            </div>
            <div class='in container'>
-                <textarea id='my-expressjs-tinymce-app'></textarea>
+                <textarea id='${this[IDS][8]}'></textarea>
            </div>
            <div class='in container'>
                 <div class='in error-input ${this[IDS][5]}'></div>

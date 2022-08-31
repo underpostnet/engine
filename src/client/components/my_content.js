@@ -178,7 +178,27 @@ this.my_content = {
                     + renderTable(requestResult.data[0]['js-demo'], {
                         actions: this.actionRow,
                         customHeader: '<th></th><th></th>'
-                    })}
+                    })
+                    + (requestResult.data[0]['global-markdown'] &&
+                        requestResult.data[0]['global-editor'] &&
+                        requestResult.data[0]['global-js-demo'] ?
+                        /*html*/`
+                        <div class='in container title'>
+                            ${renderLang({ es: 'Área de Moderación', en: 'Moderation Area' })}
+                        </div>
+                        `+
+                        renderTable(requestResult.data[0]['global-markdown'], {
+                            // actions: this.actionRow,
+                            customHeader: '<th></th><th></th>'
+                        })
+                        + renderTable(requestResult.data[0]['global-editor'], {
+                            // actions: this.actionRow,
+                            customHeader: '<th></th><th></th>'
+                        })
+                        + renderTable(requestResult.data[0]['global-js-demo'], {
+                            // actions: this.actionRow,
+                            customHeader: '<th></th><th></th>'
+                        }) : '')}
                     </div> `
                 );
             } else {

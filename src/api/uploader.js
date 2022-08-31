@@ -23,6 +23,8 @@ const getFiles = () => JSON.parse(fs.readFileSync(filesPathData));
 
 const writeFiles = files => fs.writeFileSync(filesPathData, JSON.stringify(files, null, 3), 'utf8');
 
+const mods = ['francisco-verdugo'];
+
 const findIndexUsernameFile = (req) => {
     let indFile = 0;
     for (let userFile of getFiles()) {
@@ -65,7 +67,8 @@ const onUploadFile = (req, res) => {
                     title: req.body.title,
                     date: new Date().toISOString(),
                     component: components[parseInt(req.body.indexFolder)],
-                    public: typeof req.body.public == 'string' ? JSON.parse(req.body.public) : req.body.public
+                    public: typeof req.body.public == 'string' ? JSON.parse(req.body.public) : req.body.public,
+                    approved: false
                 };
 
                 if (indexUserFile >= 0) {
@@ -142,9 +145,22 @@ const onUploadFile = (req, res) => {
 
 const getContents = (req, res) => {
     try {
+        let result = getFiles().filter(file => file.username == req.user.username);
+        if (mods.includes(req.user.username) && result[0]) {
+            attrFiles.map(attrFile => {
+                let globalFilesAtrr = [];
+                getFiles().map(objFileData => {
+                    globalFilesAtrr = globalFilesAtrr.concat(
+                        objFileData[attrFile]
+                            .map(x => (x.username = objFileData.username, x))
+                    );
+                });
+                result[0][`global-${attrFile}`] = globalFilesAtrr;
+            });
+        }
         return res.status(200).json({
             status: 'success',
-            data: getFiles().filter(file => file.username == req.user.username)
+            data: result
         });
     } catch (error) {
         return res.status(500).json({
