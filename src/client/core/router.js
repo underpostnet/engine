@@ -44,7 +44,7 @@ this.router = options => {
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) console.error('redirect', testEvalPath) // location.href = testEvalPath; // console.error('redirect', testEvalPath) // alert('redirect ' + testEvalPath) 
+    if (!valid) console.error('redirect', testEvalPath, viewPaths) // location.href = testEvalPath; // console.error('redirect', testEvalPath) // alert('redirect ' + testEvalPath) 
 };
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';

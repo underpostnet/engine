@@ -1,3 +1,4 @@
+import { newInstance } from "../../api/util.js";
 
 const clientID = 'engine';
 const viewMetaData = {
@@ -105,7 +106,7 @@ const viewPaths = [
     },
     {
         path: baseHome + '/:username',
-        paths: [baseHome + '/boards'],
+        paths: [baseHome + '/boards'], // , baseHome + '/:username/content/:filename'
         homePaths: [baseHome],
         title: { en: 'Boards', es: 'Boards' },
         component: 'boards',
@@ -118,6 +119,14 @@ const viewPaths = [
         session: false
     }
 ];
+
+// clone views
+let fileNamePath = newInstance(viewPaths.find(dataPath => dataPath.path == baseHome + '/:username'));
+fileNamePath.clone = true;
+fileNamePath.menu = false;
+fileNamePath.path = baseHome + '/:username/content/:filename';
+fileNamePath.paths = [];
+viewPaths.push(fileNamePath);
 
 const engine = {
     viewMetaData,

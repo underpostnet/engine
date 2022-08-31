@@ -18,21 +18,26 @@ this.boards = {
 
 
         const idRender = '.' + this[this.IDS][0];
+        const valueParam = localStorage.getItem('username');
+        const arrayParamsUri = clearURI(getURI()).split('/');
+        const indexConten = arrayParamsUri.indexOf('content');
+        const userNameUriValue = indexConten > -1 ? arrayParamsUri[indexConten - 1] : arrayParamsUri.pop();
+        const contentNameUriValue = indexConten > -1 ? arrayParamsUri[indexConten + 1] : undefined;
 
         const saveInstanceUri = () => {
             // que exista la ruta con el parametro y que no exista el nuevo
             let viewTemplate = viewPaths.find(x => x.path.split('/').pop() == ':username');
-            if (viewTemplate && !viewPaths.find(x => x.path.split('/').pop() == getURI().split('/').pop())) {
+            const newRenderPath = viewTemplate.path.replace(':username', userNameUriValue)
+                + (contentNameUriValue != undefined ? `/content/${contentNameUriValue}` : '');
+            if (viewTemplate && !viewPaths.find(x => x.path == newRenderPath || (x.paths && x.paths.includes(newRenderPath)))) {
                 viewTemplate = newInstance(viewTemplate);
                 viewTemplate.menu = false;
-                viewTemplate.path = viewTemplate.path.replace(':username', getURI().split('/').pop());
+                viewTemplate.paths = [];
+                viewTemplate.path = newRenderPath;
                 viewTemplate.clone = true;
                 viewPaths.push(viewTemplate);
             }
         };
-
-
-        const valueParam = localStorage.getItem('username');
 
 
         let publicDataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/public`, {
@@ -41,7 +46,7 @@ this.boards = {
                 'Content-Type': 'application/json'
             },
             // options && options.newPath ? [options.newPath] :  para reset volver click boards
-            body: JSON.stringify([getURI().split('/').pop()])
+            body: JSON.stringify([userNameUriValue])
         });
 
         // console.log(valueParam == localStorage.getItem(GLOBAL['lastTestEvalPath'].split('/').pop().split(':')[1]));
@@ -55,7 +60,7 @@ this.boards = {
             // valueParam == clearURI(getURI()).split('/').pop()
             (
                 (
-                    valueParam == localStorage.getItem(GLOBAL['lastTestEvalPath'].split('/').pop().split(':')[1])
+                    valueParam == localStorage.getItem(userNameUriValue.split(':')[1])
                     &&
                     options
                     // &&
@@ -65,7 +70,7 @@ this.boards = {
                     // publicDataRequest.data.validateUser
                 )
                 ||
-                valueParam == clearURI(getURI()).split('/').pop()
+                valueParam == userNameUriValue
             )
         ) {
             const displayParam = formatUserName(valueParam);
@@ -78,19 +83,20 @@ this.boards = {
             //  agregar opcion ver todos
             publicDataRequest.data.validateUser = true;
 
-            if (clearURI(getURI()).split('/').pop() != valueParam)
-                setURI(`${buildBaseUri()}/${valueParam}`);
+            if (userNameUriValue != valueParam)
+                setURI(`${buildBaseUri()}/${valueParam}`
+                    + (contentNameUriValue != undefined ? `/content/${userNameUriValue}` : ''));
 
             htmls('title', renderLang({ es: `${displayParam} - Board`, en: `${displayParam} - Board` }));
 
             htmls(idRender, /*html*/`
-            ${await this.renderBoards(requestResult.data)}
+            ${await this.renderBoards(requestResult.data, userNameUriValue, contentNameUriValue)}
             <!--
         <pre><code>${JSON.stringify(requestResult.data, null, 4)}</code></pre>
         -->
         `);
         } else {
-            if (clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
+            if (userNameUriValue != 'boards' && clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
                 setURI(`${buildBaseUri()}/boards`);
 
             htmls('title', publicDataRequest.data.result.length != 1 ?
@@ -100,7 +106,7 @@ this.boards = {
                     en: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`
                 }));
             htmls(idRender, /*html*/`
-            ${await this.renderBoards(publicDataRequest.data.result)}
+            ${await this.renderBoards(publicDataRequest.data.result, userNameUriValue, contentNameUriValue)}
             <!--
         <pre><code> public board(s) 
         ${JSON.stringify(publicDataRequest.data.result, null, 4)}</code></pre>
@@ -129,15 +135,31 @@ this.boards = {
     closeSession: function () {
         // this.routerDisplay();
     },
-    renderBoards: async function (dataBoards) {
+    renderBoards: async function (dataBoards, userNameUriValue, contentNameUriValue) {
+
         let render = '';
+
+        const generateRenderBoard = async (contentDataRender, dataBoard) => {
+            
+            const renderSingleContent = await GLOBAL.view_content.renderViewContent({
+                ...contentDataRender,
+                username: dataBoard.username,
+                userNameUriValue,
+                contentNameUriValue
+            }, this.timeOutDelay);
+            render += renderSingleContent;
+        };
+
         for (let dataBoard of dataBoards) {
             for (let contentDataRender of dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo'])) {
-                const renderSingleContent = await GLOBAL.view_content.renderViewContent({
-                    ...contentDataRender,
-                    username: dataBoard.username
-                }, this.timeOutDelay);
-                render += renderSingleContent;
+                if (contentNameUriValue != undefined
+                    &&
+                    contentDataRender.title.replaceAll(' ', '-') == contentNameUriValue) {
+                    await generateRenderBoard(contentDataRender, dataBoard);
+                }
+                else if (contentNameUriValue == undefined) {
+                    await generateRenderBoard(contentDataRender, dataBoard);
+                }
             }
         }
         return render;

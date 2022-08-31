@@ -73,7 +73,7 @@ const renderUserLink = (username, timeOutDelay) => {
         };
     }, timeOutDelay);
     return /*html*/`
-        <a class='${idProfile}' href='javascript:void(0)'>
+        <a class='${idProfile}' href='javascript:null'>
             ${formatUserName(username)}
         </a>
     `

@@ -18,6 +18,7 @@ this.view_content = {
         console.log('view content file', requestResult);
         if (GLOBAL[dataCurrentViewContent.component].renderView) {
             const idEdit = 'x' + s4();
+            const idLinkContent = 'x' + s4();
 
             setTimeout(() => {
                 if (s('.' + idEdit)) s('.' + idEdit).onclick = () => {
@@ -28,6 +29,15 @@ this.view_content = {
                             newPath: viewPaths.find(x => x.component == GLOBAL['current-edit-content'].component).path
                         }
                     );
+                };
+                if (s('.' + idLinkContent)) s('.' + idLinkContent).onclick = () => {
+
+                    if (getURI() != `${buildBaseUri()}/${dataCurrentViewContent.username}/content/${dataCurrentViewContent.title.replaceAll(' ', '-')}`)
+                        setURI(`${buildBaseUri()}/${dataCurrentViewContent.username}/content/${dataCurrentViewContent.title.replaceAll(' ', '-')}`);
+
+                    view = newInstance(viewPaths.find(path => path.path == `${buildBaseUri()}/:username`));
+
+                    GLOBAL.router();
                 };
             }, timeOutDelay);
 
@@ -44,8 +54,8 @@ this.view_content = {
                 border: 4px solid purple;
                 overflow: hidden;
                 '>
-                    <div class='in container title'>
-                        ${dataCurrentViewContent.title}
+                    <div class='in container title ${idLinkContent}'>
+                        <a href='javascript:null'>${dataCurrentViewContent.title}</a>
                     </div>
                     <div class='in container'>
                         ${renderLang({ es: 'Por', en: 'By' })} ${renderUserLink(dataCurrentViewContent.username,
@@ -53,7 +63,7 @@ this.view_content = {
                     </div>
                     ${validateSession() &&
                     (
-                        localStorage.getItem('username') == clearURI(getURI()).split('/').pop()
+                        localStorage.getItem('username') == dataCurrentViewContent.userNameUriValue
                         ||
                         'view-content' == clearURI(getURI()).split('/').pop()
                     ) ?/*html*/`
