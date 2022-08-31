@@ -3,15 +3,12 @@ this.router = options => {
     let valid = false;
     let testEvalPath;
     try {
-        // params uri validator
         testEvalPath = options.newPath;
     } catch (error) {
         testEvalPath = view.path;
     }
     if (testEvalPath == '') testEvalPath = '/';
     viewPaths.map((path, i) => {
-
-        // params uri validator
 
         const testIncludesHome = path.homePaths.includes(testEvalPath);
         const validPath = path.path == testEvalPath || (path.paths && path.paths.includes(testEvalPath));
