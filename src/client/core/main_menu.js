@@ -2,6 +2,7 @@ this.main_menu = {
     init: function () {
         const IDS = s4();
         this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
+        const heightTopBarMenu = 60;
 
         const validatorMenuBtn = path => {
             if (!validateSessionDisplayComponent(path)) {
@@ -33,7 +34,11 @@ this.main_menu = {
 
         setTimeout(() => {
 
-            if (viewPaths[0].menu) prepend('.' + this[IDS][viewPaths.length], renderMmenubtn(viewPaths[0], 0));
+            prepend('body', /*html*/`
+                <div class='in ${this[IDS][viewPaths.length + 1]}'></div>            
+            `);
+
+            if (viewPaths[0].menu) prepend('home_menu_container', renderMmenubtn(viewPaths[0], 0));
 
             viewPaths.map((path, i) => {
                 // warn: verify this[IDS][i]
@@ -46,17 +51,78 @@ this.main_menu = {
 
         });
         return /*html*/`
+
+        ${renderMediaQuery([
+            {
+                limit: 0,
+                css: /*css*/`
+                 .${this[IDS][viewPaths.length]} {
+                    display: block;
+                    position: fixed;
+                    top: 0px;
+                    left: 0px;
+                    width: 100%;
+                 }
+                 .${this[IDS][viewPaths.length + 1]} {
+                    display: block;
+                 }
+                 .${this[IDS][viewPaths.length + 4]} {
+                    display: none;
+                 }
+                 .${this[IDS][viewPaths.length + 5]} {
+                    display: block;
+                 }
+             `},
+            {
+                limit: 600,
+                css: /*css*/`
+                 .${this[IDS][viewPaths.length]} {
+                    display: block;
+                    position: relative;
+                    top: auto;
+                    left: auto;
+                    width: auto;
+                 }
+                 .${this[IDS][viewPaths.length + 1]} {
+                    display: none;
+                 }
+                 .${this[IDS][viewPaths.length + 4]} {
+                    display: block;
+                 }
+                 .${this[IDS][viewPaths.length + 5]} {
+                    display: none;
+                 }
+             `}
+        ])}
+
+        <style>
+            .${this[IDS][viewPaths.length + 1]} {
+                height: ${heightTopBarMenu}px;
+                border: 2px solid red;
+            }
+            .${this[IDS][viewPaths.length + 5]} {
+                background: green;
+            }
+        </style>
+
                 <session-top-bar>
                     ${this.renderSessionToBar()}
                 </session-top-bar> 
-                <div class='in container ${this[IDS][viewPaths.length]}'>
+                <div class='${this[IDS][viewPaths.length]}'>
 
-                    <pre_menu_container></pre_menu_container>
-                    ${viewPaths.map((path, i) => path.menu && i != 0 && validatorMenuBtn(path) ?/*html*/renderMmenubtn(path, i) : '').join('')}
-                    <post_menu_container></post_menu_container>
-                </div>
-                <div class='in container ${this[IDS][viewPaths.length + 1]}' style='display: none'>
-                        <button class='${this[IDS][viewPaths.length + 2]}'>${renderLang({ es: 'Menu', en: 'Menu' })}</button> 
+                    <div class='in container ${this[IDS][viewPaths.length + 5]}'>
+                        <button class='${this[IDS][viewPaths.length + 2]}'>
+                            <!-- ${renderLang({ es: 'Menu', en: 'Menu' })} -->
+                            <i class='fa fa-bars'></i>
+                        </button>
+                    </div>
+
+                    <div class='in container ${this[IDS][viewPaths.length + 4]}'>
+                        <home_menu_container></home_menu_container>
+                        <pre_menu_container></pre_menu_container>
+                        ${viewPaths.map((path, i) => path.menu && i != 0 && validatorMenuBtn(path) ?/*html*/renderMmenubtn(path, i) : '').join('')}
+                        <post_menu_container></post_menu_container>
+                    </div>
                 </div>
                 ${botDescription()}
         `
