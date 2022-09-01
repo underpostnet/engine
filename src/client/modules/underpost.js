@@ -144,7 +144,8 @@ const underpost = {
     baseHome,
     banner,
     botDescription,
-    statics
+    statics,
+    theme
 };
 
 export { underpost };

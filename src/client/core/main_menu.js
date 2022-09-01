@@ -64,7 +64,7 @@ this.main_menu = {
                     width: 100%;
                  }
                  .${this[IDS][viewPaths.length + 1]} {
-                    display: block;
+                    display: ${viewPaths[0].menu === true ? 'block' : 'none'};
                  }
                  .${this[IDS][viewPaths.length + 4]} {
                     display: none;
@@ -96,12 +96,14 @@ this.main_menu = {
         ])}
 
         <style>
+            .${this[IDS][viewPaths.length]} {
+                z-index: 1;
+            }
             .${this[IDS][viewPaths.length + 1]} {
                 height: ${heightTopBarMenu}px;
-                border: 2px solid red;
             }
             .${this[IDS][viewPaths.length + 5]} {
-                background: green;
+                background: ${mainColor};
             }
         </style>
 

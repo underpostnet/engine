@@ -98,7 +98,7 @@ const renderView = dataView => {
         const banner = ${dataView.banner ? dataView.banner : `() => ''`};
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
         const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
-
+        let mainColor = '${dataView.theme ? dataView.theme[2] : 'purple'}';
        
         
         const GLOBAL = this;
@@ -109,7 +109,7 @@ const renderView = dataView => {
         
 
         
-        console.log('dataView', JSON.stringify(view, null, 4), viewPaths);
+        console.log('dataView', JSON.stringify(view, null, 4), viewPaths, mainColor);
         ${viewPaths.filter(path => path.render).map(path =>
         path.options && path.options.origin ? '' :
             fs.existsSync(`./src/client/core/${path.component}.js`) ?

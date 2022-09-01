@@ -51,7 +51,7 @@ this.view_content = {
                 -->
             <div class='in container'>
                 <div class='in' style='
-                border: 4px solid purple;
+                border: 4px solid ${mainColor};
                 overflow: hidden;
                 '>
                     <div class='in container title ${idLinkContent}'>

@@ -92,7 +92,8 @@ const dogmadual = {
     viewMetaData,
     viewPaths,
     baseHome,
-    banner
+    banner,
+    theme
 };
 
 export { dogmadual };

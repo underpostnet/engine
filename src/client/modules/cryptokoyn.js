@@ -119,7 +119,8 @@ const cryptokoyn = {
     viewMetaData,
     viewPaths,
     baseHome,
-    banner
+    banner,
+    theme
 };
 
 export { cryptokoyn };
