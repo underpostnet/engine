@@ -88,7 +88,7 @@ const viewPaths = [
         display: true
     },
     {
-        ...getBaseComponent(baseHome, 'js_demo')
+        ...getBaseComponent(baseHome, 'js_demo', 'js_demo_base')
     },
     {
         path: baseHome + '/js-demo',

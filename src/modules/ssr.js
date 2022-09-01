@@ -303,9 +303,9 @@ const ssr = async (app, renderData) => {
 
 };
 
-const getBaseComponent = (baseHome, component) => {
+const getBaseComponent = (baseHome, component, namePath) => {
     return {
-        path: baseHome + `/${getHash()}`,
+        path: baseHome + `/${namePath}`,
         homePaths: [baseHome],
         title: { en: '', es: '' },
         component,
