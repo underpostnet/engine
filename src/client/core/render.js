@@ -32,3 +32,25 @@ const renderLangBtns = () => {
     </div>
     `
 };
+
+const checkWindowDimension = () => {
+    let w = null;
+    let h = null;
+    const checkMobile = () => {
+        if (window.innerHeight != h || window.innerWidth != w) {
+            w = newInstance(window.innerWidth);
+            h = newInstance(window.innerHeight);
+            viewPaths.map(pathData => {
+                if (this[pathData.component] && this[pathData.component].changeWindowDimension) {
+                    GLOBAL['dimensionData'] = newInstance({
+                        w, h, mobile: window.innerWidth <= mobileLimit
+                    });
+                    this[pathData.component].changeWindowDimension(GLOBAL['dimensionData']);
+                }
+            });
+        }
+    };
+    checkMobile();
+    if (GLOBAL['checkMobileStatus']) clearInterval(GLOBAL['checkMobileStatus']);
+    GLOBAL['checkMobileStatus'] = setInterval(() => checkMobile(), 500);
+};

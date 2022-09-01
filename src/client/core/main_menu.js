@@ -56,7 +56,7 @@ this.main_menu = {
                 // warn: verify this[IDS][i]
                 if (s('.' + this[IDS][i]) && path.menu === true) s('.' + this[IDS][i]).onclick = () => {
                     console.log('main_menu onclick', path, '.' + this[IDS][i]);
-                    if (window.innerWidth <= mobileLimit)
+                    if (GLOBAL['dimensionData'].mobile)
                         s('.' + idC).click();
                     return GLOBAL.router({ newPath: path.path });
                 }
@@ -186,5 +186,12 @@ this.main_menu = {
                 }
             });
         });
+    },
+    changeWindowDimension: dimensionData => {
+
+        console.log('main_menu changeWindowDimension', dimensionData);
+
+
+
     }
 };

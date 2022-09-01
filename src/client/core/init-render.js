@@ -36,6 +36,7 @@ this.init_render = (options) => {
         </footer>      
 `);
         this.router(options);
+        setTimeout(() => checkWindowDimension());
 
 };
 
