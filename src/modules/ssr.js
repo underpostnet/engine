@@ -55,7 +55,11 @@ const renderStyleView = (dirStyle, viewMetaData) => {
 };
 
 const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
-<${path.component}>${this[path.options ? path.options.origin : path.component].init(path.options)}</${path.component}>
+    <top-${path.component}></top-${path.component}>
+    <${path.component}>
+        ${this[path.options ? path.options.origin : path.component].init(path.options)}
+    </${path.component}>
+    <bot-${path.component}></bot-${path.component}>
 `: '').join('');
 
 const validatePaths = viewPaths =>
@@ -143,7 +147,7 @@ const renderView = dataView => {
           
             <meta name ='title' content='${renderTitle}'>
             <meta name ='description' content='${renderDescription}'>
-            <meta name='author' content='${process.env.npm_package_author}'>
+            <meta name='author' content='${process.env.AUTHOR}'>
 
             <meta property='og:title' content='${renderTitle}'>
             <meta property='og:description' content='${renderDescription}'>

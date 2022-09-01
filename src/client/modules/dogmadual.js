@@ -26,6 +26,11 @@ const banner = () =>/*html*/`
     </div>      
 `;
 
+const botDescription = () => /*html*/`
+    <div class='in container'>
+        ${renderLangBtns()}    
+    </div>
+`;
 
 const viewMetaData = {
     clientID,
@@ -93,7 +98,8 @@ const dogmadual = {
     viewPaths,
     baseHome,
     banner,
-    theme
+    theme,
+    botDescription
 };
 
 export { dogmadual };

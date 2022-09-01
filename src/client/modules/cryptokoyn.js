@@ -25,6 +25,12 @@ const theme = [
     '#555'
 ];
 
+const botDescription = () => /*html*/`
+    <div class='in container'>
+        ${renderLangBtns()}    
+    </div>
+`;
+
 const viewMetaData = {
     clientID,
     theme,
@@ -120,7 +126,8 @@ const cryptokoyn = {
     viewPaths,
     baseHome,
     banner,
-    theme
+    theme,
+    botDescription
 };
 
 export { cryptokoyn };

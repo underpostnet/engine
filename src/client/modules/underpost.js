@@ -33,6 +33,7 @@ const banner = () =>/*html*/`
 
 const botDescription = () => /*html*/`
     <div class='in container'>
+        ${renderLangBtns()}
         <a href='/vanilla.js' download><button><i class='fa fa-download' aria-hidden='true'></i> 
             ${renderLang({ es: 'Descargar Libreria JS', en: 'Download JS Library' })}</button></a>
 

@@ -43,6 +43,9 @@ this.main_menu = {
 
         setTimeout(() => {
 
+            htmls('top-main_menu', this.renderSessionToBar());
+            htmls('bot-main_menu', botDescription());
+
             prepend('body', /*html*/`
                 <div class='in ${idB}'></div>            
             `);
@@ -143,10 +146,6 @@ this.main_menu = {
                 background: ${mainColor};
             }
         </style>
-
-                <session-top-bar>
-                    ${this.renderSessionToBar()}
-                </session-top-bar> 
                 <div class='${idA}'>
 
                     <div class='in container ${idF}'>
@@ -164,7 +163,6 @@ this.main_menu = {
                         <post_menu_container></post_menu_container>
                     </div>
                 </div>
-                ${botDescription()}
         `
     },
     renderSessionToBar: () => {
