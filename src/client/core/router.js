@@ -33,7 +33,8 @@ this.router = options => {
             || (path.nohome && (!testIncludesHome))
         ) {
             if (path.display && validateSessionDisplayComponent(path)) {
-                fadeIn(s(path.component));
+                // fadeIn(s(path.component));
+                s(path.component).style.display = 'block';
                 if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay(options);
             };
         } else {
@@ -41,7 +42,7 @@ this.router = options => {
             s(path.component).style.display = 'none';
         }
     });
-    if (!valid) location.href = testEvalPath; 
+    if (!valid) location.href = testEvalPath;
     // console.error('redirect', testEvalPath, viewPaths) 
     // location.href = testEvalPath; 
     // console.error('redirect', testEvalPath) 

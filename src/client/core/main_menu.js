@@ -4,6 +4,9 @@ this.main_menu = {
         this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
         const heightTopBarMenu = 60;
 
+        const idMenuBars = 'x' + s4();
+        const idMenuClose = 'x' + s4();
+
         const validatorMenuBtn = path => {
             if (!validateSessionDisplayComponent(path)) {
                 return false;
@@ -48,6 +51,17 @@ this.main_menu = {
                 }
 
             });
+
+            s('.' + this[IDS][viewPaths.length + 2]).onclick = () => {
+                if (s('.' + idMenuBars).style.display != 'none') {
+                    s('.' + idMenuBars).style.display = 'none';
+                    fadeIn(s('.' + idMenuClose));
+                    return;
+                }
+                s('.' + idMenuClose).style.display = 'none';
+                fadeIn(s('.' + idMenuBars));
+            };
+
 
         });
         return /*html*/`
@@ -115,7 +129,8 @@ this.main_menu = {
                     <div class='in container ${this[IDS][viewPaths.length + 5]}'>
                         <button class='${this[IDS][viewPaths.length + 2]}'>
                             <!-- ${renderLang({ es: 'Menu', en: 'Menu' })} -->
-                            <i class='fa fa-bars'></i>
+                            <i class='fa fa-bars ${idMenuBars}'></i>
+                            <i class='fa fa-times ${idMenuClose}' style='display: none;'></i>
                         </button>
                     </div>
 
