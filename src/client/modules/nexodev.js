@@ -36,7 +36,7 @@ const viewMetaData = {
         ico: '/src/client/assets/apps/nexodev/favicon.ico'
     },
     apiURIS: [],
-    lang: 'en',
+    lang: 'es',
     charset: 'utf-8',
     dir: 'ltr',
     styles: [
