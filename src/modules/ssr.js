@@ -72,11 +72,11 @@ const renderView = dataView => {
 
         const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
         const build = ${process.argv[2] == 'build'};
-        // if(!dev){
-        //     console.log = () => null;
-        //     console.error = () => null;
-        //     console.warn = () => null;
-        // }
+        if(!dev){
+            console.log = () => null;
+            console.error = () => null;
+            console.warn = () => null;
+        }
 
         ${commonFunctions()}
         ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
