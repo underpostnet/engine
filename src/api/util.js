@@ -102,7 +102,7 @@ const uniqueArray = arr =>
 
 const orderArrayFromAttrInt = (arr, attr, type) =>
     // type -> true asc
-    // type-> false desc
+    // type -> false desc
     type === 'asc' ?
         arr.sort((a, b) => a[attr] - b[attr]) :
         arr.sort((a, b) => b[attr] - a[attr]);
