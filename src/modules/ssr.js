@@ -99,6 +99,7 @@ const renderView = dataView => {
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
         const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
         let mainColor = '${dataView.theme ? dataView.theme[2] : 'purple'}';
+        const mobileLimit = 700;
        
         
         const GLOBAL = this;

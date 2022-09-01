@@ -6,6 +6,12 @@ this.main_menu = {
 
         const idMenuBars = 'x' + s4();
         const idMenuClose = 'x' + s4();
+        const idA = 'x' + s4();
+        const idB = 'x' + s4();
+        const idC = 'x' + s4();
+        const idE = 'x' + s4();
+        const idD = 'x' + s4();
+        const idF = 'x' + s4();
 
         const validatorMenuBtn = path => {
             if (!validateSessionDisplayComponent(path)) {
@@ -17,11 +23,11 @@ this.main_menu = {
                 }
                 setTimeout(() => {
                     append('post_menu_container', /*html*/`
-                        <button class='${this[IDS][viewPaths.length + 3]}'>
+                        <button class='${idD}'>
                             ${renderLang({ es: 'Cerrar Sessión', en: 'Log Out' })}
                         </button>
                     `);
-                    s('.' + this[IDS][viewPaths.length + 3]).onclick = () =>
+                    s('.' + idD).onclick = () =>
                         closeSessionComponents();
                 });
                 return false;
@@ -30,7 +36,7 @@ this.main_menu = {
         };
 
         const renderMmenubtn = (path, i) => /*html*/`   
-        <button class='${this[IDS][i]} btn-${path.component}'  >
+        <button class='${this[IDS][i]} btn-${path.component} btn-main-menu'  >
             ${renderLang(path.title) != '' ? renderLang(path.title) : `<i class='fas fa-home'></i>`}
         </button>          
         `;
@@ -38,7 +44,7 @@ this.main_menu = {
         setTimeout(() => {
 
             prepend('body', /*html*/`
-                <div class='in ${this[IDS][viewPaths.length + 1]}'></div>            
+                <div class='in ${idB}'></div>            
             `);
 
             if (viewPaths[0].menu) prepend('home_menu_container', renderMmenubtn(viewPaths[0], 0));
@@ -47,19 +53,23 @@ this.main_menu = {
                 // warn: verify this[IDS][i]
                 if (s('.' + this[IDS][i]) && path.menu === true) s('.' + this[IDS][i]).onclick = () => {
                     console.log('main_menu onclick', path, '.' + this[IDS][i]);
+                    if (window.innerWidth <= mobileLimit)
+                        s('.' + idC).click();
                     return GLOBAL.router({ newPath: path.path });
                 }
 
             });
 
-            s('.' + this[IDS][viewPaths.length + 2]).onclick = () => {
+            s('.' + idC).onclick = () => {
                 if (s('.' + idMenuBars).style.display != 'none') {
                     s('.' + idMenuBars).style.display = 'none';
                     fadeIn(s('.' + idMenuClose));
+                    fadeIn(s('.' + idE));
                     return;
                 }
                 s('.' + idMenuClose).style.display = 'none';
                 fadeIn(s('.' + idMenuBars));
+                fadeOut(s('.' + idE));
             };
 
 
@@ -70,53 +80,66 @@ this.main_menu = {
             {
                 limit: 0,
                 css: /*css*/`
-                 .${this[IDS][viewPaths.length]} {
+                 .${idA} {
                     display: block;
                     position: fixed;
                     top: 0px;
                     left: 0px;
                     width: 100%;
                  }
-                 .${this[IDS][viewPaths.length + 1]} {
+                 .${idB} {
                     display: ${viewPaths[0].menu === true ? 'block' : 'none'};
                  }
-                 .${this[IDS][viewPaths.length + 4]} {
+                 .${idE} {
                     display: none;
                  }
-                 .${this[IDS][viewPaths.length + 5]} {
+                 .${idF} {
                     display: block;
                  }
+                 .btn-main-menu {
+                    display: block;
+                    width: 100%;
+                    text-align: center;
+                  }
              `},
             {
-                limit: 600,
+                limit: mobileLimit,
                 css: /*css*/`
-                 .${this[IDS][viewPaths.length]} {
+                 .${idA} {
                     display: block;
                     position: relative;
                     top: auto;
                     left: auto;
                     width: auto;
                  }
-                 .${this[IDS][viewPaths.length + 1]} {
+                 .${idB} {
                     display: none;
                  }
-                 .${this[IDS][viewPaths.length + 4]} {
+                 .${idE} {
                     display: block;
                  }
-                 .${this[IDS][viewPaths.length + 5]} {
+                 .${idF} {
                     display: none;
+                 }
+                 .btn-main-menu { 
+                    display: inline-table;
+                    width: auto;
+                    text-align: center;
                  }
              `}
         ])}
 
         <style>
-            .${this[IDS][viewPaths.length]} {
+            .${idA} {
                 z-index: 1;
             }
-            .${this[IDS][viewPaths.length + 1]} {
+            .${idB} {
                 height: ${heightTopBarMenu}px;
             }
-            .${this[IDS][viewPaths.length + 5]} {
+            .${idE} {
+                 background: black;
+            }
+            .${idF} {
                 background: ${mainColor};
             }
         </style>
@@ -124,17 +147,17 @@ this.main_menu = {
                 <session-top-bar>
                     ${this.renderSessionToBar()}
                 </session-top-bar> 
-                <div class='${this[IDS][viewPaths.length]}'>
+                <div class='${idA}'>
 
-                    <div class='in container ${this[IDS][viewPaths.length + 5]}'>
-                        <button class='${this[IDS][viewPaths.length + 2]}'>
+                    <div class='in container ${idF}'>
+                        <button class='${idC}'>
                             <!-- ${renderLang({ es: 'Menu', en: 'Menu' })} -->
                             <i class='fa fa-bars ${idMenuBars}'></i>
                             <i class='fa fa-times ${idMenuClose}' style='display: none;'></i>
                         </button>
                     </div>
 
-                    <div class='in container ${this[IDS][viewPaths.length + 4]}'>
+                    <div class='in container ${idE}'>
                         <home_menu_container></home_menu_container>
                         <pre_menu_container></pre_menu_container>
                         ${viewPaths.map((path, i) => path.menu && i != 0 && validatorMenuBtn(path) ?/*html*/renderMmenubtn(path, i) : '').join('')}
