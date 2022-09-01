@@ -4,11 +4,11 @@ this.main_menu = {
         this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
         const heightTopBarMenu = 60;
 
-        const idMenuBars = 'x' + s4();
+        this.idMenuBars = 'x' + s4();
         const idMenuClose = 'x' + s4();
         const idA = 'x' + s4();
         const idB = 'x' + s4();
-        const idC = 'x' + s4();
+        this.idC = 'x' + s4();
         const idE = 'x' + s4();
         const idD = 'x' + s4();
         const idF = 'x' + s4();
@@ -57,21 +57,21 @@ this.main_menu = {
                 if (s('.' + this[IDS][i]) && path.menu === true) s('.' + this[IDS][i]).onclick = () => {
                     console.log('main_menu onclick', path, '.' + this[IDS][i]);
                     if (GLOBAL['dimensionData'].mobile)
-                        s('.' + idC).click();
+                        s('.' + this.idC).click();
                     return GLOBAL.router({ newPath: path.path });
                 }
 
             });
 
-            s('.' + idC).onclick = () => {
-                if (s('.' + idMenuBars).style.display != 'none') {
-                    s('.' + idMenuBars).style.display = 'none';
+            s('.' + this.idC).onclick = () => {
+                if (s('.' + this.idMenuBars).style.display != 'none') {
+                    s('.' + this.idMenuBars).style.display = 'none';
                     fadeIn(s('.' + idMenuClose));
                     fadeIn(s('.' + idE));
                     return;
                 }
                 s('.' + idMenuClose).style.display = 'none';
-                fadeIn(s('.' + idMenuBars));
+                fadeIn(s('.' + this.idMenuBars));
                 fadeOut(s('.' + idE));
             };
 
@@ -149,9 +149,9 @@ this.main_menu = {
                 <div class='${idA}'>
 
                     <div class='in container ${idF}'>
-                        <button class='${idC}'>
+                        <button class='${this.idC}'>
                             <!-- ${renderLang({ es: 'Menu', en: 'Menu' })} -->
-                            <i class='fa fa-bars ${idMenuBars}'></i>
+                            <i class='fa fa-bars ${this.idMenuBars}'></i>
                             <i class='fa fa-times ${idMenuClose}' style='display: none;'></i>
                         </button>
                     </div>
@@ -187,10 +187,11 @@ this.main_menu = {
             });
         });
     },
-    changeWindowDimension: dimensionData => {
+    changeWindowDimension: function (dimensionData) {
 
         console.log('main_menu changeWindowDimension', dimensionData);
-
+        if (!dimensionData.mobile && s('.' + this.idMenuBars).style.display != 'none')
+            s('.' + this.idC).click();
 
 
     }
