@@ -301,7 +301,7 @@ const getPublicContent = (req, res) => {
                     }
                 } else {
                     attrFiles.map(attrFile =>
-                        fileMetaObj[attrFile] = fileMetaObj[attrFile].filter(x => x.public === true));
+                        fileMetaObj[attrFile] = fileMetaObj[attrFile].filter(x => x.public === true && x.approved === true));
                     return fileMetaObj;
                 }
 
@@ -330,6 +330,23 @@ const apiUploader = app => {
 
     if (!fs.existsSync(filesPathData))
         fs.writeFileSync(filesPathData, '[]', 'utf8');
+
+    const attrValidators = [
+        ['approved', false],
+        ['public', false]
+    ];
+
+    writeFiles(getFiles().map(x => {
+        attrFiles.map(attrFile => {
+            x[attrFile] = x[attrFile].map(xObjFile => {
+                attrValidators.map(attr => {
+                    if (!xObjFile[attr[0]]) xObjFile[attr[0]] = attr[1];
+                });
+                return xObjFile;
+            });
+        });
+        return x;
+    }));
 
     app.post(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, onUploadFile);
     app.get(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, getContents);

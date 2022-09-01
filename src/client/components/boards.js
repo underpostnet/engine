@@ -140,7 +140,7 @@ this.boards = {
         let render = '';
 
         const generateRenderBoard = async (contentDataRender, dataBoard) => {
-            
+
             const renderSingleContent = await GLOBAL.view_content.renderViewContent({
                 ...contentDataRender,
                 username: dataBoard.username,
@@ -151,7 +151,13 @@ this.boards = {
         };
 
         for (let dataBoard of dataBoards) {
-            for (let contentDataRender of dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo'])) {
+            for (let contentDataRender of
+                // por ahora ordena cronologicamente solo por usuario
+                orderArrayFromAttrInt(
+                    dataBoard.markdown.concat(dataBoard.editor).concat(dataBoard['js-demo']).map(x =>
+                        (x.date = new Date(x.date).getTime(), x)), 'date', 'desc')
+                    .map(x => (x.date = new Date(x.date).toISOString(), x))
+            ) {
                 if (contentNameUriValue != undefined
                     &&
                     contentDataRender.title.replaceAll(' ', '-') == contentNameUriValue) {

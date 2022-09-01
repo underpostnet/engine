@@ -99,6 +99,15 @@ const cap = str => str
 const uniqueArray = arr =>
     arr.filter((item, pos) => arr.indexOf(item) == pos);
 
+
+const orderArrayFromAttrInt = (arr, attr, type) =>
+    // type -> true asc
+    // type-> false desc
+    type === 'asc' ?
+        arr.sort((a, b) => a[attr] - b[attr]) :
+        arr.sort((a, b) => b[attr] - a[attr]);
+
+
 const clearSubUri = path => {
     let _path = path.slice(1).split('/');
     _path.shift();
@@ -120,6 +129,7 @@ const commonFunctions = () => `
     const uniqueArray = ${uniqueArray};
     const clearSubUri = ${clearSubUri};
     const _clearURI = ${clearURI};
+    const orderArrayFromAttrInt = ${orderArrayFromAttrInt};
     // encodeURIComponent
     // decodeURIComponent
     const clearURI = uri => decodeURIComponent(_clearURI(uri));
@@ -168,5 +178,6 @@ export {
     uniqueArray,
     baseStaticUri,
     baseStaticClient,
-    clearSubUri
+    clearSubUri,
+    orderArrayFromAttrInt
 };
