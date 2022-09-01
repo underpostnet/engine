@@ -252,7 +252,9 @@ const ssr = async (app, renderData) => {
             ...renderData[0]
         });
 
-        if (process.argv[2] == 'build') {
+        if (process.argv[2] == 'build' && !view.path.split('/').find(x => x[0] == ':')) {
+
+            // TODO: crear config htacces para parametros redirigir a ruta raiz
 
             console.log(view.path, `./builds${view.path}/index.html`);
             fs.mkdirSync(`./builds${view.path}`, { recursive: true });
