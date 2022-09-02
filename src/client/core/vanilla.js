@@ -202,3 +202,5 @@ const renderToggleSwitch = options => {
     </div> 
     `
 };
+
+const rrb = () => !dev ? '' : `background: ${randomColor()} !important`;
