@@ -12,7 +12,8 @@ const viewMetaData = {
     mainBackground: '#ED5C6B',
     favicon: {
         type: 'image/png',
-        path: '/assets/apps/femmenutrition/favicon.png'
+        path: '/assets/apps/femmenutrition/favicon.png',
+        ico: '/src/client/assets/apps/femmenutrition/favicon.ico'
     },
     apiURIS: [],
     lang: 'es',
