@@ -100,9 +100,11 @@ const renderView = dataView => {
         const topLabelInput = '35px';
         const botLabelInput = '0px';
         const banner = ${dataView.banner ? dataView.banner : `() => ''`};
+        const footer = ${dataView.footer ? dataView.footer : `() => ''`};
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
         const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
-        let mainColor = '${dataView.theme ? dataView.theme[2] : 'purple'}';
+        let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
+        let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
        
         
@@ -221,6 +223,7 @@ const renderView = dataView => {
 const ssr = async (app, renderData) => {
     const banner = renderData[0].banner;
     const botDescription = renderData[0].botDescription;
+    const footer = renderData[0].footer;
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
@@ -242,6 +245,7 @@ const ssr = async (app, renderData) => {
     renderData[0].viewMetaData = viewMetaData;
     renderData[0].banner = banner;
     renderData[0].botDescription = botDescription;
+    renderData[0].footer = footer;
 
     if (process.argv[2] == 'build')
         deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);

@@ -9,7 +9,7 @@ this.init_render = (options) => {
                 ${viewMetaData.mainTitle}
         </div>
         `: banner()}        
-        ${viewMetaData.description ? /*html*/`
+        ${viewMetaData.description && !viewMetaData.description.hide ? /*html*/`
         <div class='in container'>
                 ${renderLang(viewMetaData.description)}
         </div>        
@@ -22,6 +22,7 @@ this.init_render = (options) => {
           ${renderLang({ es: 'Codigo Fuente', en: 'Source Code' })}
           ${renderLang({ es: 'Desarrollado por', en: 'Developed by' })}
         -->
+        ${footer() == '' ?/*html*/`
         <footer class='fl container'>
                 <div class='in flr'>
                         <a href='https://github.com/underpostnet/underpost-engine'> 
@@ -33,7 +34,8 @@ this.init_render = (options) => {
                         <img class='inl' style='width: 20px; top: 3px' src='https://www.dogmadual.com/favicon.ico' alt='DOGMADUAL'>
                         <a href='https://www.dogmadual.com/'>DOGMADUAL.com</a>
                 </div>     
-        </footer>      
+        </footer>     
+        `: footer()}   
 `);
         this.router(options);
         setTimeout(() => checkWindowDimension());

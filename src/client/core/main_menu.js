@@ -140,10 +140,10 @@ this.main_menu = {
                 height: ${heightTopBarMenu}px;
             }
             .${idE} {
-                 background: black;
+                 background: ${mainBackground};
             }
             .${idF} {
-                background: ${mainColor};
+                background: ${mainBackground};
             }
         </style>
                 <div class='${idA}'>
