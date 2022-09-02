@@ -151,7 +151,7 @@ this.main_menu = {
                     <div class='in container ${idF}'>
                         <button class='${this.idC}'>
                             <!-- ${renderLang({ es: 'Menu', en: 'Menu' })} -->
-                            <i class='fa fa-bars ${this.idMenuBars}'></i>
+                            <i class='fa fa-bars ${this.idMenuBars}' style='display: block;'></i>
                             <i class='fa fa-times ${idMenuClose}' style='display: none;'></i>
                         </button>
                     </div>
@@ -191,6 +191,8 @@ this.main_menu = {
 
         console.log('main_menu changeWindowDimension', dimensionData);
         if (!dimensionData.mobile && s('.' + this.idMenuBars).style.display != 'none')
+            s('.' + this.idC).click();
+        if (dimensionData.mobile && s('.' + this.idMenuBars).style.display == 'none')
             s('.' + this.idC).click();
 
 
