@@ -1,5 +1,6 @@
 this.router = options => {
-    console.log('INIT ROUTER', options);
+    console.log('INIT ROUTER', options, getQueryParams());
+    validateQueryParams(options);
     let valid = false;
     let testEvalPath;
     try {
@@ -50,6 +51,23 @@ this.router = options => {
 };
 
 const buildBaseUri = () => dev ? `/${viewMetaData.clientID}` : '';
+
+const validateQueryParams = (options) => {
+    if (!options && getQueryParams().uri) {
+        let newParamPath = viewPaths.find(
+            path => path.path == buildBaseUri() + getQueryParams().uri
+        );
+        if (!newParamPath) {
+            newParamPath = viewPaths.find(
+                path => path.path[1] == ':'
+            );
+        }
+        if (newParamPath) {
+            setURI(buildBaseUri() + getQueryParams().uri);
+            view = newInstance(newParamPath);
+        }
+    }
+};
 
 // Browser and App
 // navigator button controller

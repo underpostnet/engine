@@ -46,7 +46,7 @@ apiUploader(app);
 
 (async () => {
 
-    await ssr(app, [underpost]);
+    await ssr(app, [underpost, authClient, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
     await ssr(app, [nexodev, authClient, engine]);

@@ -203,4 +203,13 @@ const renderToggleSwitch = options => {
     `
 };
 
+const getQueryParams = () => {
+    const params = new URLSearchParams(window.location.search);
+    let querys_ = {};
+    for (const param of params) {
+        querys_[param[0]] = param[1];
+    }
+    return querys_;
+};
+
 const rrb = () => !dev ? '' : `background: ${randomColor()} !important`;
