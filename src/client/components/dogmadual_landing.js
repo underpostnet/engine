@@ -38,7 +38,7 @@ this.dogmadual_landing = {
             img: '/assets/apps/dogmadual/projects/cryptokoyn.png',
             description: {
                 en: `Decentralized network transactions for token items and cryptocurrency blockchain economy`,
-                es: `Transacciones de red descentralizadas para item-tokens y economía blockchain de criptomonedas`
+                es: `Transacciones de item-tokens bajo red descentralizada, y criptoeconomía basada en blockchain`
             },
             id: 'cryptokoyn'
         },
