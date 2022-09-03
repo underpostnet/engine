@@ -43,7 +43,7 @@ const viewMetaData = {
         path: '/assets/apps/cryptokoyn/app',
         color: 'yellow'
     },
-    description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asymetricias de CyberiaOnline' },
+    description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asimetrícas de CyberiaOnline' },
     favicon: {
         type: 'image/png',
         path: '/assets/apps/cryptokoyn/favicon.png',

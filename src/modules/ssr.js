@@ -277,6 +277,11 @@ const ssr = async (app, renderData) => {
         };
     });
 
+    if (viewMetaData.staticSitemap)
+        viewMetaData.staticSitemap.map(pathSitemap => {
+            if (fs.existsSync(pathSitemap))
+                sitemap += fs.readFileSync(pathSitemap, 'utf8');
+        });
 
     renderSitemap(app, sitemap, viewMetaData);
     renderStatics(app, viewMetaData);

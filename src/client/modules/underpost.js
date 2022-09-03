@@ -69,7 +69,8 @@ const viewMetaData = {
     ],
     statics: [
         ['/assets-underpost', './underpost_modules/underpost-library/assets']
-    ]
+    ],
+    staticSitemap: ['./private-engine/underpost-sitemap']
 };
 
 const baseHome = '/' + clientID;
