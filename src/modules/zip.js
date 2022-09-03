@@ -39,6 +39,32 @@ const deployFilesFromZipUrl = options => {
     }
 };
 
+const generateZipFromFolder = options => {
+    // EXAMPLE
+    // generateZipFromFolder({
+    //     pathFolderToZip: './builds/underpost',
+    //     writeZipPath: './underpost.zip'
+    // })
+
+    // creating archives
+    const zip = new admZip();
+
+    // add file directly
+    // zip.addFile('test.txt', Buffer.from('inner content of the file', 'utf8'), 'entry comment goes here');
+
+    // add local file
+    // getAllFiles(options.pathFolderToZip).map(pathFile => {
+    //     zip.addLocalFile(`.\\${pathFile}`);
+    // });
+    zip.addLocalFolder(options.pathFolderToZip);
+
+    // or write everything to disk
+    if (options.writeZipPath) zip.writeZip(/*target file name*/ options.writeZipPath);
+
+    return zip.toBuffer();
+};
+
 export {
-    deployFilesFromZipUrl
+    deployFilesFromZipUrl,
+    generateZipFromFolder
 }

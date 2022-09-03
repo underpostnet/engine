@@ -9,6 +9,7 @@ import { errors, middlewares } from './modules/middlewares.js';
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
+import { generateZipFromFolder } from './modules/zip.js';
 
 // ssr
 import { ssr } from './modules/ssr.js';
@@ -44,7 +45,7 @@ apiAuth(app);
 apiUploader(app);
 
 (async () => {
-  
+
     await ssr(app, [underpost]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
@@ -58,6 +59,11 @@ apiUploader(app);
         app.listen(process.env.PORT, () => {
             logger.info(`Server is running on port ${process.env.PORT}`);
         });
+    else APPS.map(dataRender => dataRender.viewMetaData.generateZipBuild ? generateZipFromFolder({
+        pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
+        writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
+    }) : '');
+
     if (process.env.NODE_ENV != 'development') {
         console.log = () => null;
         console.warn = () => null;

@@ -70,7 +70,8 @@ const viewMetaData = {
     statics: [
         ['/assets-underpost', './underpost_modules/underpost-library/assets']
     ],
-    staticSitemap: ['./private-engine/underpost-sitemap']
+    staticSitemap: ['./private-engine/underpost-sitemap'],
+    generateZipBuild: true
 };
 
 const baseHome = '/' + clientID;
