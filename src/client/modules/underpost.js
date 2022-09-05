@@ -89,6 +89,18 @@ const viewPaths = [
         nohome: true,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/underpost-boards',
+        homePaths: [baseHome],
+        title: { en: '', es: '' },
+        component: 'underpost_board',
+        options: { origin: 'boards', board_username: 'francisco-verdugo' },
+        menu: false,
+        home: true,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 

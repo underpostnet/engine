@@ -36,7 +36,9 @@ this.router = options => {
             if (path.display && validateSessionDisplayComponent(path)) {
                 // fadeIn(s(path.component));
                 s(path.component).style.display = 'block';
-                if (GLOBAL[path.component] && GLOBAL[path.component].routerDisplay) GLOBAL[path.component].routerDisplay(options);
+                const componentDisplay = path.options && path.options.origin ? path.options.origin : path.component;
+                if (GLOBAL[componentDisplay] && GLOBAL[componentDisplay].routerDisplay) GLOBAL[componentDisplay].routerDisplay(options, path);
+
             };
         } else {
             // console.error('none uri:', testEvalPath, 'none comp:', path.component);

@@ -14,14 +14,17 @@ this.boards = {
         
         `
     },
-    routerDisplay: async function (options) {
+    routerDisplay: async function (options, path) {
 
 
         const idRender = '.' + this[this.IDS][0];
         const valueParam = localStorage.getItem('username');
         const arrayParamsUri = clearURI(getURI()).split('/');
         const indexConten = arrayParamsUri.indexOf('content');
-        const userNameUriValue = indexConten > -1 ? arrayParamsUri[indexConten - 1] : arrayParamsUri.pop();
+        const pathUsername = path && path.options && path.options.board_username;
+        const userNameUriValue = pathUsername ?
+            path.options.board_username
+            : indexConten > -1 ? arrayParamsUri[indexConten - 1] : arrayParamsUri.pop();
         const contentNameUriValue = indexConten > -1 ? arrayParamsUri[indexConten + 1] : undefined;
 
         const saveInstanceUri = () => {
@@ -96,15 +99,15 @@ this.boards = {
         -->
         `);
         } else {
-            if (userNameUriValue != 'boards' && clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
+            if (!pathUsername && userNameUriValue != 'boards' && clearURI(getURI()).split('/').pop() != 'boards' && publicDataRequest.data.validateUser === false)
                 setURI(`${buildBaseUri()}/boards`);
-
-            htmls('title', publicDataRequest.data.result.length != 1 ?
-                renderLang({ es: `Boards - ${viewMetaData.host}`, en: `Boards - ${viewMetaData.host}` }) :
-                renderLang({
-                    es: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`,
-                    en: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`
-                }));
+            if (!pathUsername)
+                htmls('title', publicDataRequest.data.result.length != 1 ?
+                    renderLang({ es: `Boards - ${viewMetaData.host}`, en: `Boards - ${viewMetaData.host}` }) :
+                    renderLang({
+                        es: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`,
+                        en: `${formatUserName(publicDataRequest.data.result[0].username)} - Board`
+                    }));
             htmls(idRender, /*html*/`
             ${await this.renderBoards(publicDataRequest.data.result, userNameUriValue, contentNameUriValue)}
             <!--
