@@ -49,6 +49,7 @@ const middlewares = (app, views) => {
 const errors = (app) => {
     app.use((req, res, next) => {
         for (let num_error of range(400, 499)) {
+            // console.log(req.protocol + '://' + req.get('host') + req.originalUrl);
             num_error == 400 ? num_error = 404 : null;
             return res.status(num_error).end(fs.readFileSync('./src/client/assets/404/neon'));
         }
