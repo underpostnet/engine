@@ -16,9 +16,9 @@ Modular and stand-alone components client architecture.
 
 - run gui/api prod server `npm start`
 
-- generate www dev client build `npm run build-dev`
+- generate www dev client build `npm run build-dev <optional-single-client-id-module>`
 
-- generate www prod client build `npm run build-prod`
+- generate www prod client build `npm run build-prod <optional-single-client-id-module>`
 
 - run network CLI `node src/cli`
 
