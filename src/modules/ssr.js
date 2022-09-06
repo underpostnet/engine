@@ -228,6 +228,9 @@ const ssr = async (app, renderData) => {
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
 
+    // build validator
+    if (process.argv[3] && process.argv[3] != viewMetaData.clientID) return;
+
     renderData.map((renderSingle, i) => {
         if (i > 0) {
             const mergeModule = renderSingle.viewPaths;
@@ -268,6 +271,15 @@ const ssr = async (app, renderData) => {
             console.log(view.path, `./builds${view.path}/index.html`);
             fs.mkdirSync(`./builds${view.path}`, { recursive: true });
             fs.writeFileSync(`./builds${view.path}/index.html`, buildView, 'utf8');
+
+            if (view.component == 'main_menu' && viewMetaData.htaccess)
+                fs.writeFileSync(`./builds${view.path}/.htaccess`, `
+            # RewriteEngine On
+            # RewriteCond %{HTTPS} off
+            # RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+            
+            ErrorDocument 404 ${buildURL(viewMetaData)}${buildBaseUri(view)}?uri=%{REQUEST_URI}
+                `);
 
         }
 

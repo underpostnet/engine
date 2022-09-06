@@ -59,10 +59,13 @@ apiUploader(app);
         app.listen(process.env.PORT, () => {
             logger.info(`Server is running on port ${process.env.PORT}`);
         });
-    else APPS.map(dataRender => dataRender.viewMetaData.generateZipBuild ? generateZipFromFolder({
-        pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
-        writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
-    }) : '');
+    else APPS.map(dataRender =>
+        dataRender.viewMetaData.generateZipBuild
+            && (!process.argv[3] || process.argv[3] == dataRender.viewMetaData.clientID) ?
+            generateZipFromFolder({
+                pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
+                writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
+            }) : '');
 
     if (process.env.NODE_ENV != 'development') {
         console.log = () => null;
