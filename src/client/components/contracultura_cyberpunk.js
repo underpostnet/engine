@@ -1,4 +1,4 @@
-
+// TODO: SITEMAP STATIC SETS LINKS
 
 this.contracultura_cyberpunk = {
     init: function () {
@@ -10,6 +10,7 @@ this.contracultura_cyberpunk = {
         this.searchOpen = 'x' + s4();
         this.searchClose = 'x' + s4();
         this.containerBtnsSearch = 'x' * s4();
+        this.searchBoxResultContainer = 'x' + s4();
 
         this.mainListContainer = 'x' + s4();
 
@@ -25,22 +26,57 @@ this.contracultura_cyberpunk = {
                 
                 `+ initRenderCC), s('.simple-desc').style.display = 'none', s('main').style.display = 'none');
 
-            // sa('a').forEach((currentValue, currentIndex, listObj) => {
-            //     console.log(currentValue.innerHTML);
-            //     console.log(currentValue.href);
-            // });
+
 
             s('.' + this.containerBtnsSearch).onclick = () => {
                 if (s('.' + this.searchOpen).style.display != 'none') {
                     s('.' + this.searchOpen).style.display = 'none';
                     fadeIn(s('.' + this.searchClose));
-                    // fadeIn(s('.' + idE));
+                    s('.cc-search-container').style.width = '90%';
+                    s('.cc-search-container').style.height = '200px';
+                    fadeIn(s('.' + this[IDS][0]));
                     return;
                 }
                 s('.' + this.searchClose).style.display = 'none';
+                s('.cc-search-container').style.width = '80px';
+                s('.cc-search-container').style.height = '70px';
                 fadeIn(s('.' + this.searchOpen));
-                // fadeOut(s('.' + idE));
+                fadeOut(s('.' + this[IDS][0]));
             };
+
+            s('.' + this[IDS][4]).onclick = e => {
+
+                e.preventDefault();
+                console.log('cc search box submit');
+
+                if (s('.' + this[IDS][2]).value != '') {
+                    s('.' + this.mainListContainer).style.display = 'none';
+
+                    let resultSearch = [];
+
+                    sa('a').forEach((currentValue, currentIndex, listObj) => {
+                        console.log(currentValue.innerHTML);
+                        console.log(currentValue.href);
+
+                        s('.' + this[IDS][2]).value.split(' ').map(x => x.trim().toLowerCase()).map(x => {
+                            if (currentValue.innerHTML.split(' ')
+                                .map(y => y
+                                    .trim().toLowerCase()
+                                ).includes(x)) {
+                                resultSearch.push({
+                                    name: currentValue.innerHTML,
+                                    link: currentValue.href
+                                });
+                            };
+                        });
+                        console.log('result', resultSearch);
+
+
+                    });
+
+                }
+
+            }
         });
 
 
@@ -48,7 +84,8 @@ this.contracultura_cyberpunk = {
 
         <style>
             .cc-search-container {          
-                background: green;
+                background: black;
+                border-bottom: 3px solid ${mainColor};
                 top: 10px;
                 right: 10px;
                 z-index: 2;
@@ -56,15 +93,19 @@ this.contracultura_cyberpunk = {
             }
         </style>
 
-        <div class='fix cc-search-container' style='width: 300px; height: 70px; display: none'>
+        <div class='fix container cc-search-container' style='width: 80px; height: 70px;'>
             <div class='in'>
                 <div class='in flr ${this.containerBtnsSearch}'>
                     <button style='display: block' class='${this.searchOpen}'><i class='fas fa-search'></i></button>
                     <button style='display: none' class='${this.searchClose}'><i class='fas fa-times'></i></button>
                 </div>
             </div>
-            <form class='${this[IDS][0]}' style='display: none'>
-                ${renderInput(this[IDS], renderLang({ es: `Buscar en Blog`, en: `Blog Search` }), [1, 2, 3])}                
+            <form class='${this[IDS][0]}' style='display: none;  overflow: hidden'>
+                ${renderInput(this[IDS], renderLang({ es: `Buscar en Blog`, en: `Blog Search` }), [1, 2, 3])}        
+                <button type='submit' class='${this[IDS][4]}'>${renderLang({
+            es: 'Buscar',
+            en: 'Search'
+        })}<i class='fas fa-search'></i></button>        
             </form>
         </div>
         
@@ -76,6 +117,8 @@ this.contracultura_cyberpunk = {
                     Contracultura Cyberpunk
                 </div>
                 <br /><br /><br />
+                <div class='in ${this.searchBoxResultContainer}' style='display: none'>
+                </div>
         <div class='in ${this.mainListContainer}' style='max-width: 500px; margin: auto;'>
 
                 <b>Metacultural</b><br /><br />

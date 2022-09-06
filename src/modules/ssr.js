@@ -315,13 +315,15 @@ const ssr = async (app, renderData) => {
         fs.mkdirSync(`./builds/${viewMetaData.clientID}`, { recursive: true });
 
         dataStatics.map(async dataStatic => {
-            await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
+            console.log('build statics -> ', `./builds/${viewMetaData.clientID}${dataStatic[0]}`);
+            await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}${dataStatic[0]}`);
 
         });
 
         if (viewMetaData.statics)
             viewMetaData.statics.map(async dataStatic => {
-                await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}/${dataStatic[0]}`);
+                console.log('build statics -> ', `./builds/${viewMetaData.clientID}${dataStatic[0]}`);
+                await copyDir(dataStatic[1], `./builds/${viewMetaData.clientID}${dataStatic[0]}`);
             });
     }
 

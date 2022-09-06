@@ -62,10 +62,10 @@ apiUploader(app);
     else APPS.map(dataRender =>
         dataRender.viewMetaData.generateZipBuild
             && (!process.argv[3] || process.argv[3] == dataRender.viewMetaData.clientID) ?
-            generateZipFromFolder({
+            (console.log('generate build zip -> ' + dataRender.viewMetaData.clientID), generateZipFromFolder({
                 pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
                 writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
-            }) : '');
+            })) : '');
 
     if (process.env.NODE_ENV != 'development') {
         console.log = () => null;
