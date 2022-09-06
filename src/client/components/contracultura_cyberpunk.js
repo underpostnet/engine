@@ -85,7 +85,8 @@ this.contracultura_cyberpunk = {
                         setTimeout(() => {
                             s('.' + listAllId).onclick = () => {
 
-                                alert();
+                                s('.' + this.searchBoxResultContainer).style.display = 'none';
+                                fadeIn(s('.' + this.mainListContainer));
                             };
                         });
 
