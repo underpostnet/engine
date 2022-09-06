@@ -101,6 +101,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/contracultura-cyberpunk',
+        homePaths: [baseHome],
+        title: { en: 'Contracultura Cyberpunk', es: 'Contracultura Cyberpunk' },
+        component: 'contracultura_cyberpunk',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 
