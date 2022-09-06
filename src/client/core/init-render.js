@@ -26,14 +26,14 @@ this.init_render = (options) => {
         ${footer() == '' ?/*html*/`
         <footer class='fl container'>
                 <div class='in flr'>
-                        <a href='https://github.com/underpostnet/underpost-engine'> 
+                        <a target='_blank' href='https://github.com/underpostnet/underpost-engine'> 
                         <img src='/assets/common/github.png' class='inl' style='width: 20px; top: 5px'> 
                         <!-- v${version} -->
                         </a>                      
                 </div>   
                 <div class='in fll'>
                         <img class='inl' style='width: 20px; top: 3px' src='https://www.dogmadual.com/favicon.ico' alt='DOGMADUAL'>
-                        <a href='https://www.dogmadual.com/'>DOGMADUAL.com</a>
+                        <a target='_blank' href='https://www.dogmadual.com/'>DOGMADUAL.com</a>
                 </div>     
         </footer>     
         `: footer()}   
