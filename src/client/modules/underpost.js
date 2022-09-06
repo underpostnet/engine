@@ -114,6 +114,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/legacy-gallery',
+        homePaths: [baseHome],
+        title: { en: 'Legacy Gallery', es: 'Primera Galeria' },
+        component: 'legacy_gallery',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 
