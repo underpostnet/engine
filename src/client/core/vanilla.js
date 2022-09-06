@@ -6,6 +6,7 @@ const s = el => document.querySelector(el);
 const htmls = (el, html) => s(el).innerHTML = html;
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const prepend = (el, html) => s(el).insertAdjacentHTML('afterbegin', html);
+const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, currentIndex, listObj) 
 
 const fadeIn = (el, display) => {
     el.style.opacity = 0;

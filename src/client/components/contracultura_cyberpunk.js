@@ -3,11 +3,64 @@
 this.contracultura_cyberpunk = {
     init: function () {
 
+        const IDS = s4();
+        this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
 
 
+        this.searchOpen = 'x' + s4();
+        this.searchClose = 'x' + s4();
+        this.containerBtnsSearch = 'x' * s4();
+
+        this.mainListContainer = 'x' + s4();
+
+        setTimeout(() => {
+            // console.log(document.querySelectorAll('a'));
+            // .map(x => {
+            //     console.log(x);
+            // });
+            sa('a').forEach((currentValue, currentIndex, listObj) => {
+                console.log(currentValue.innerHTML);
+                console.log(currentValue.href);
+            });
+
+            s('.' + this.containerBtnsSearch).onclick = () => {
+                if (s('.' + this.searchOpen).style.display != 'none') {
+                    s('.' + this.searchOpen).style.display = 'none';
+                    fadeIn(s('.' + this.searchClose));
+                    // fadeIn(s('.' + idE));
+                    return;
+                }
+                s('.' + this.searchClose).style.display = 'none';
+                fadeIn(s('.' + this.searchOpen));
+                // fadeOut(s('.' + idE));
+            };
+        });
 
 
-        return /*html*/`   
+        return /*html*/`  
+
+        <style>
+            .cc-search-container {          
+                background: green;
+                top: 10px;
+                right: 10px;
+                z-index: 1;
+                transition: .3s;
+            }
+        </style>
+
+        <div class='fix cc-search-container' style='width: 300px; height: 70px;'>
+            <div class='in'>
+                <div class='in flr ${this.containerBtnsSearch}'>
+                    <button style='display: block' class='${this.searchOpen}'><i class='fas fa-search'></i></button>
+                    <button style='display: none' class='${this.searchClose}'><i class='fas fa-times'></i></button>
+                </div>
+            </div>
+            <form class='${this[IDS][0]}' style='display: none'>
+                ${renderInput(this[IDS], renderLang({ es: `Buscar en Blog`, en: `Blog Search` }), [1, 2, 3])}                
+            </form>
+        </div>
+        
         <div class='container'>
                 <br /><br /><br /><img class='in' style="width: 330px; height: 115px; margin: auto;" src="https://underpost.net/img/alert.jpg" />
                 <br /><br /><br />
@@ -16,7 +69,7 @@ this.contracultura_cyberpunk = {
                     Contracultura Cyberpunk
                 </div>
                 <br /><br /><br />
-        <div class='in' style='max-width: 600px; margin: auto;'>
+        <div class='in ${this.mainListContainer}' style='max-width: 600px; margin: auto; display: none'>
 
                 <b>Metacultural</b><br /><br />
 
@@ -770,6 +823,8 @@ this.contracultura_cyberpunk = {
                 <b> > Guías&nbsp;</b><a target="_blank" href='https://desarrolloweb.com/'/>desarrolloweb.com</a><br />
 
                 <b> > Guías&nbsp;</b><a target="_blank" href='https://www.geeksforgeeks.org/'/>geeksforgeeks.org</a><br />
+
+                <b> > Guías&nbsp;</b><a target="_blank" href='https://web.dev/'/>web.dev</a><br />
 
                 <b> > Consultas&nbsp;</b><a target="_blank" href='https://stackoverflow.com/'/>stackoverflow.com</a><br />
 
