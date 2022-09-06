@@ -14,6 +14,10 @@ this.contracultura_cyberpunk = {
         this.mainListContainer = 'x' + s4();
 
         setTimeout(() => {
+
+            if (getQueryParams().type == 'blog')
+                (htmls('top-banner', initRenderCC), s('.simple-desc').style.display = 'none', s('main').style.display = 'none');
+
             // console.log(document.querySelectorAll('a'));
             // .map(x => {
             //     console.log(x);
@@ -37,19 +41,19 @@ this.contracultura_cyberpunk = {
         });
 
 
-        return /*html*/`  
+        const initRenderCC =  /*html*/`  
 
         <style>
             .cc-search-container {          
                 background: green;
                 top: 10px;
                 right: 10px;
-                z-index: 1;
+                z-index: 2;
                 transition: .3s;
             }
         </style>
 
-        <div class='fix cc-search-container' style='width: 300px; height: 70px;'>
+        <div class='fix cc-search-container' style='width: 300px; height: 70px; display: none'>
             <div class='in'>
                 <div class='in flr ${this.containerBtnsSearch}'>
                     <button style='display: block' class='${this.searchOpen}'><i class='fas fa-search'></i></button>
@@ -69,7 +73,7 @@ this.contracultura_cyberpunk = {
                     Contracultura Cyberpunk
                 </div>
                 <br /><br /><br />
-        <div class='in ${this.mainListContainer}' style='max-width: 600px; margin: auto; display: none'>
+        <div class='in ${this.mainListContainer}' style='max-width: 600px; margin: auto;'>
 
                 <b>Metacultural</b><br /><br />
 
@@ -903,6 +907,9 @@ this.contracultura_cyberpunk = {
         
         </div>
         
-        `
+        `;
+
+        if (getQueryParams().type == 'blog') return '';
+        return initRenderCC;
     }
 };
