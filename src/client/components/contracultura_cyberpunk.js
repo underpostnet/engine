@@ -50,29 +50,72 @@ this.contracultura_cyberpunk = {
                 console.log('cc search box submit');
 
                 if (s('.' + this[IDS][2]).value != '') {
-                    s('.' + this.mainListContainer).style.display = 'none';
+
+                    s('.' + this.containerBtnsSearch).click();
 
                     let resultSearch = [];
 
                     sa('a').forEach((currentValue, currentIndex, listObj) => {
-                        console.log(currentValue.innerHTML);
-                        console.log(currentValue.href);
+                        // console.log(currentValue.innerHTML);
+                        // console.log(currentValue.href);
 
                         s('.' + this[IDS][2]).value.split(' ').map(x => x.trim().toLowerCase()).map(x => {
                             if (currentValue.innerHTML.split(' ')
                                 .map(y => y
                                     .trim().toLowerCase()
                                 ).includes(x)) {
-                                resultSearch.push({
-                                    name: currentValue.innerHTML,
-                                    link: currentValue.href
-                                });
+                                if (!resultSearch.find(x => x.name == currentValue.innerHTML))
+                                    resultSearch.push({
+                                        name: currentValue.innerHTML,
+                                        link: currentValue.href
+                                    });
                             };
                         });
-                        console.log('result', resultSearch);
+
 
 
                     });
+
+                    console.log('result', resultSearch);
+
+                    if (resultSearch.length > 0) {
+
+                        const listAllId = 'x' + s4();
+
+                        setTimeout(() => {
+                            s('.' + listAllId).onclick = () => {
+
+                                alert();
+                            };
+                        });
+
+                        s('.' + this.mainListContainer).style.display = 'none';
+
+                        htmls('.' + this.searchBoxResultContainer,
+                       /*html*/`
+                        <div class='in container title'>
+                        ${resultSearch.length} ${renderLang({ es: 'Resultados de Busqueda', en: 'Searchs Result' })}
+                        </div>
+                        <br><br>
+                       `+ resultSearch.map((resultData, i, a) => {
+                            return /*html*/`
+                            <b> ></b> <a href='${resultData.link}'>${resultData.name}</a>
+                            <br><br>
+                            `;
+                        }).join('') + /*html*/`
+                        <button class='${listAllId}'>${renderLang({ es: 'Listar Todos', en: 'List all' })}</button>
+                        <br><br>                        
+                        `);
+
+                        fadeIn(s('.' + this.searchBoxResultContainer));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: renderLang({ es: 'No Existen Resultados para la busqueda', en: 'There are no results for the search' })
+                        }));
+                    }
 
                 }
 
