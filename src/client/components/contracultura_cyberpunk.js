@@ -16,16 +16,19 @@ this.contracultura_cyberpunk = {
         setTimeout(() => {
 
             if (getQueryParams().type == 'blog')
-                (htmls('top-banner', initRenderCC), s('.simple-desc').style.display = 'none', s('main').style.display = 'none');
+                (htmls('top-banner', /*html*/`
+                <style>
+                a, .title {
+                    color: #ff00ff;
+                }
+                </style>
+                
+                `+ initRenderCC), s('.simple-desc').style.display = 'none', s('main').style.display = 'none');
 
-            // console.log(document.querySelectorAll('a'));
-            // .map(x => {
-            //     console.log(x);
+            // sa('a').forEach((currentValue, currentIndex, listObj) => {
+            //     console.log(currentValue.innerHTML);
+            //     console.log(currentValue.href);
             // });
-            sa('a').forEach((currentValue, currentIndex, listObj) => {
-                console.log(currentValue.innerHTML);
-                console.log(currentValue.href);
-            });
 
             s('.' + this.containerBtnsSearch).onclick = () => {
                 if (s('.' + this.searchOpen).style.display != 'none') {
@@ -69,11 +72,11 @@ this.contracultura_cyberpunk = {
                 <br /><br /><br /><img class='in' style="width: 330px; height: 115px; margin: auto;" src="https://underpost.net/img/alert.jpg" />
                 <br /><br /><br />
 
-                <div class='in title' style='text-align: center; color: red;'>
+                <div class='in title' style='text-align: center;'>
                     Contracultura Cyberpunk
                 </div>
                 <br /><br /><br />
-        <div class='in ${this.mainListContainer}' style='max-width: 600px; margin: auto;'>
+        <div class='in ${this.mainListContainer}' style='max-width: 500px; margin: auto;'>
 
                 <b>Metacultural</b><br /><br />
 
@@ -472,7 +475,17 @@ this.contracultura_cyberpunk = {
                 href='https://underpost.net/ir/pdf/02-11-2021/El_retorno_del_amo_en_tiempos_de_la_pospolítica.pdf'>
                 El retorno del amo en tiempos de la pospolítica </a><br />
 
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/pospolitica/El_Estado_Post_Democratico_Extrapolitica_y_transhumanismo.pdf'>
+                    Extrapolítica y Transhumanismo - El estado postdemocrático
+                </a><br />
 
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/pospolitica/hiperinformacion-y-miedo-en-la-sociedad-del-conocimiento.pdf'>
+                    Miedo he hiperinformación en la sociedad del conocimiento
+                </a><br />
+
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/pospolitica/Teoria_Extrapolitica_y_Postpoliticismo.pdf'>
+                    Teoría Extrapolítica y Postpoliticismo
+                </a><br />
 
                 <br /> Cibernética <br /><br />
 
@@ -535,6 +548,10 @@ this.contracultura_cyberpunk = {
 
 
                 <br />Filosofía <br /><br />
+
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/filosofia/Tres-Iniciados-El-Kybalion.pdf'>
+                    Tres Iniciados - El Kybalion
+                </a><br />
 
                 <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/interes/El_Manifiesto_Nihilista.pdf'/>El Manifiesto Nihilista</a><br />
 
@@ -640,6 +657,9 @@ this.contracultura_cyberpunk = {
                 Último suspiro de Dios Filosofia Posthumanista Posmoderna
                 </a><br />
 
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/filosofia/sintomas-del-giro-martirial-del-sacrificio.pdf'>
+                    Síntomas del giro martirial del sacrificio
+                </a><br />
 
                 <br />Economía <br /><br />
 
@@ -710,6 +730,8 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/cyberpunk/liber-null-Peter-J-Carroll.pdf'/>Liber Null Peter J. Carroll</a><br />
 
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/literatura/zona-de-caos-compilado-de-textos.pdf'/>Zona de Caos Compilado de Textos</a><br />
+
                 <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/posmodernidad/vigilar-y-castigar-michel-focault.pdf'/>Vigilar y Castigar Michel Foucault</a><br />
 
                 <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/anarquismo/necromicon-ilustrado.pdf'/>Necromicon Ilustrado</a><br />
@@ -720,6 +742,11 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/11-09-21/literatura/quemando-cromo-william-gibson.pdf'/>Quemando Cromo William Gibson</a><br />
 
+                <b> > </b><a target="_blank" href='https://underpost.net/ir/pdf/06-09-2022/literatura/politica-en-el-infierno-Dante-Alighieri-interpretacion-de-la-commedia.pdf'>
+                    Política en el Infierno : Dante Alighieri y el develamiento de una interpretación de la Commedia
+                </a><br />
+            
+               
                 <br />
 
 
