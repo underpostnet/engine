@@ -8,7 +8,11 @@ const banner = () =>/*html*/`
             <br>
             Wallet
         </span>               
-    </div>    
+    </div>
+    <div class='in container'>
+            ${renderLang(viewMetaData.description).replace('CyberiaOnline',
+            /*html*/`<a href='https://www.cyberiaonline.com'>Cyberia On-Line</a>`)}
+    </div>
 `;
 
 const theme = [
@@ -43,7 +47,7 @@ const viewMetaData = {
         path: '/assets/apps/cryptokoyn/app',
         color: 'yellow'
     },
-    description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asimetrícas de CyberiaOnline' },
+    description: { en: 'CyberiaOnline Asymmetric Key Manager', es: 'Gestor de Llaves asimetrícas de CyberiaOnline', hide: true },
     favicon: {
         type: 'image/png',
         path: '/assets/apps/cryptokoyn/favicon.png',

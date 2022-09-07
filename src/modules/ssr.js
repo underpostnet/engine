@@ -278,7 +278,7 @@ const ssr = async (app, renderData) => {
     let sitemap = '';
 
     const renders = viewPaths.filter(view => view.render).map(view => {
-        if (view.sitemap !== false)
+        if (view.sitemap !== false && !view.path.split('/').find(x => x[0] == ':'))
             sitemap += buildLocSitemap(view, viewMetaData);
 
         const buildView = renderView({
