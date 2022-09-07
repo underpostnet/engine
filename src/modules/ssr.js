@@ -54,6 +54,7 @@ const renderStyleView = (dirStyle, viewMetaData) => {
     return fs.readFileSync(dirStyle, viewMetaData.charset);
 };
 
+const rrb = () => !dev ? '' : `background: ${randomColor()} !important`;
 
 const renderCursors = viewMetaData => viewMetaData.cursors ? viewMetaData.cursors.map(x =>/*css*/`
  ${x.activesClass.map(y =>/*css*/`
@@ -160,6 +161,7 @@ const renderView = dataView => {
         let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
         let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
+        const rrb = ${rrb};
        
         
         const GLOBAL = this;

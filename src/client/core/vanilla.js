@@ -90,7 +90,7 @@ const setURI = (uri, objData, title) =>
 const getURI = () => {
     const uri = location.pathname.slice(-1) == '/' ?
         location.pathname.slice(0, -1) : location.pathname;
-    return uri;
+    return uri == '' ? '/' : uri;
 };
 
 const serviceRequest = (url, options) => new Promise(
@@ -212,5 +212,3 @@ const getQueryParams = () => {
     }
     return querys_;
 };
-
-const rrb = () => !dev ? '' : `background: ${randomColor()} !important`;

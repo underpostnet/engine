@@ -67,7 +67,7 @@ this.contracultura_cyberpunk = {
                     <br><br>
                     `;
                 }).join('') + /*html*/`
-                <button class='${listAllId}'>${renderLang({ es: 'Listar Todos', en: 'List all' })}</button>
+                <button class='${listAllId}'><i class='fas fa-bars'></i> ${renderLang({ es: 'Listar Todos', en: 'List all' })}</button>
                 <br><br>                        
                 `);
 
@@ -122,6 +122,9 @@ this.contracultura_cyberpunk = {
                 console.log('cc search box submit');
 
                 if (s('.' + this[IDS][2]).value != '') {
+                    const querySearchUri = location.pathname + '?s=' + s('.' + this[IDS][2]).value;
+                    if ((getURI() + location.search) != querySearchUri)
+                        setURI(querySearchUri);
 
                     s('.' + this.containerBtnsSearch).click();
                     execSearchBox(s('.' + this[IDS][2]).value);
