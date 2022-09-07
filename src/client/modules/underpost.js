@@ -136,14 +136,16 @@ const viewPaths = [
     {
         path: baseHome + '/contracultura-cyberpunk',
         homePaths: [baseHome],
-        title: { en: 'Contracultura Cyberpunk', es: 'Contracultura Cyberpunk' },
+        title: { en: 'Blog Contracultura Cyberpunk', es: 'Blog Contracultura Cyberpunk' },
         component: 'contracultura_cyberpunk',
         options: false,
         menu: true,
         home: false,
         nohome: false,
         render: true,
-        display: true
+        display: true,
+        microdata: ['WebSite'],
+        lang: 'es'
     },
     {
         path: baseHome + '/legacy-gallery',

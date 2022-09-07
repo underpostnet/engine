@@ -71,6 +71,43 @@ const renderFonts = viewMetaData => viewMetaData.fonts ? viewMetaData.fonts.map(
   `).join('')}  
 `).join('') : '';
 
+const renderMicrodata = (viewMetaData, view, typeMicrodata) => {
+
+    const _url = buildURL(viewMetaData) + buildBaseUri(view);
+    const _lang = view.lang ? view.lang : viewMetaData.lang;
+    const _desc = view.title[_lang] + ' ' + viewMetaData.mainTitle;
+    let render = '';
+    let JSONLD = {};
+    switch (typeMicrodata) {
+        case 'WebSite':
+
+            JSONLD["@type"] = typeMicrodata;
+            JSONLD["@id"] = _url;
+            JSONLD["url"] = _url;
+            JSONLD["name"] = _desc;
+            JSONLD["description"] = _desc;
+            JSONLD["inLanguage"] = _lang;
+
+            JSONLD["potentialAction"] = [JSON.parse(`{
+                "@type":"SearchAction",
+                "target":"`+ _url + `?s={search_term_string}",
+                "query-input":"required name=search_term_string"
+            }`)];
+
+            render += `
+                <script type="application/ld+json">
+                    ${JSON.stringify(JSONLD, null, 4)}
+                </script>
+            `;
+
+            break;
+
+        default:
+            break;
+    }
+    return render;
+}
+
 const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
     <top-${path.component}></top-${path.component}>
     <${path.component}>
@@ -168,6 +205,11 @@ const renderView = dataView => {
             <meta name ='description' content='${renderDescription}'>
             <meta name='author' content='${process.env.AUTHOR}'>
 
+            ${view.microdata ? view.microdata.map(
+        typeMicrodata =>
+            renderMicrodata(viewMetaData, view, typeMicrodata)).join('')
+            : ''}
+
             <meta property='og:title' content='${renderTitle}'>
             <meta property='og:description' content='${renderDescription}'>
             ${renderSocialImg}
@@ -199,9 +241,9 @@ const renderView = dataView => {
 
             <style>
                 ${new CleanCSS().minify(cssClientCore
-        + viewMetaData.styles.map(dirStyle => renderStyleView(dirStyle, viewMetaData)).join('')
-        + viewPaths.filter(path => path.render).map(path => path.component + `{ display: none; }`).join('')
-    ).styles}
+                + viewMetaData.styles.map(dirStyle => renderStyleView(dirStyle, viewMetaData)).join('')
+                + viewPaths.filter(path => path.render).map(path => path.component + `{ display: none; }`).join('')
+            ).styles}
             </style>
             <link rel='stylesheet' href='/fontawesome/all.min.css'>
             <!-- Script element sourcing TinyMCE -->
