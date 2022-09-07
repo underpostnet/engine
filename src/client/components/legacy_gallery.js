@@ -23,15 +23,49 @@ this.legacy_gallery = {
 
     ],
     init: function () {
-        return this.dataGallery.map(dataItem => {
+
+        this.contentMenuLegacy = 'x' + s4();
+        this.contentIframeDisplay = 'x' + s4();
+
+        return /*html*/`
+        <style>
+        .iframe-legacy-gallery {
+            border: none;
+            width: 98%;
+            margin: auto;
+            height: 500px;
+        }    
+        </style>
+        <${this.contentIframeDisplay}></${this.contentIframeDisplay}>
+        <${this.contentMenuLegacy}>
+                    `+ this.dataGallery.map(dataItem => {
             const id = 'x' + s4();
-            setTimeout(() => s('.' + id).onclick = () => location.href = 'https://' + dataItem.link);
+            const idBackGallery = 'x' + s4();
+            setTimeout(() => s('.' + id).onclick = () => {
+
+                s(this.contentMenuLegacy).style.display = 'none';
+                htmls(this.contentIframeDisplay, /*html*/`
+                   <div class='in container'>
+                        <button class='${idBackGallery}'>${renderLang({ es: 'Volver a la galeria', en: 'Back to gallery' })}</button>
+                        <br><br>
+                        <iframe class='in iframe-legacy-gallery' src='https://${dataItem.link}'></iframe>
+                   </div>
+                `);
+                fadeIn(s(this.contentIframeDisplay));
+                s('.' + idBackGallery).onclick = () => {
+                    s(this.contentIframeDisplay).style.display = 'none';
+                    fadeIn(s(this.contentMenuLegacy));
+                };
+
+            });
             return /*html*/`
-            <div class='in container'>
-                <button class='${id}'>${dataItem.name}</button>
-            </div>
-            `;
-        }).join('')
+                        <div class='in container'>
+                            <button class='${id}'>${dataItem.name}</button>
+                        </div>
+                        `;
+        }).join('') + /*html*/`
+        </${this.contentMenuLegacy}>
+        `
 
     }
 };
