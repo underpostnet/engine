@@ -418,8 +418,7 @@ this.contracultura_cyberpunk = {
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/nuevas-narrativas-virtuales.pdf'/>Nuevas Narrativas Virtuales</a><br />
 
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/
-                WIRED-WEIRD-La-volatilización-del-cuerpo.pdf'/>
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/WIRED-WEIRD-La-volatilización-del-cuerpo.pdf'/>
                 WIRED WEIRD La volatilización del cuerpo</a><br />
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/11-09-21/cyberpunk/cyberpunk-carne-y-maquina.pdf'/>
@@ -430,13 +429,11 @@ this.contracultura_cyberpunk = {
                 Diseño Grafico y Cyberpunk
                 </a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/11-09-21/cyberpunk/
-                drogas-y-cyberpunk-latinoamericano.pdf'/>
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/11-09-21/cyberpunk/drogas-y-cyberpunk-latinoamericano.pdf'/>
                 Drogas y Cyberpunk Latinoamericano
                 </a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/11-09-21/cyberpunk/
-                Mirrorshades-Una-antologia-ciberpunk.pdf'/>
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/11-09-21/cyberpunk/Mirrorshades-Una-antologia-ciberpunk.pdf'/>
                 Mirrorshades Una antologia Cyberpunk
                 </a><br />
 
@@ -514,20 +511,15 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/mili/inteligencia-artificial-y-poder.pdf'/>Inteligencia Artificial y Poder</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/anarquismo/
-                PosAnarquismo-Anarquismo-en-movimiento.pdf'/>PosAnarquismo Anarquismo en movimiento</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/anarquismo/PosAnarquismo-Anarquismo-en-movimiento.pdf'/>PosAnarquismo Anarquismo en movimiento</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/
-                necropolitica-gobierno-privado-indirecto.pdf'/>Necropolítica Gobierno Privado Indirecto</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/necropolitica-gobierno-privado-indirecto.pdf'/>Necropolítica Gobierno Privado Indirecto</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/
-                Armas-de-destruccion-matematica.pdf'/>Armas de destrucción matemática Cathy O'Neil</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/Armas-de-destruccion-matematica.pdf'/>Armas de destrucción matemática Cathy O'Neil</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/
-                La-algoritmificacion-de-nuestra-convivencia.pdf'/>La algoritmificación de nuestra convivencia</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/La-algoritmificacion-de-nuestra-convivencia.pdf'/>La algoritmificación de nuestra convivencia</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/
-                despotismo-tecnificado.pdf'/>El Despotismo Tecnificado</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/despotismo-tecnificado.pdf'/>El Despotismo Tecnificado</a><br />
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/assange-criptopunks.pdf'/>Assange Criptopunks</a><br />
 
@@ -606,8 +598,7 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/interes/27_Personajes_en_busca_del_ser.pdf'/>27 Personajes en busca del ser</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/psicologia-oscura-s-l-moore.pdf
-                '/>Psicologia Oscura S.L. Moore</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/psicologia-oscura-s-l-moore.pdf'/>Psicologia Oscura S.L. Moore</a><br />
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cyberpunk/la-llave-maestra.pdf'/>La Llave Maestra Autoconocimiento</a><br />
 
@@ -644,7 +635,7 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/interes/Manifiesto_Anticivilizacion.pdf'/>El Manifiesto Anticivilizacion</a><br />
 
-                <!-- <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy3/manifiesto-aceleracionista.pdf'/>El Manifiesto Aceleracionista</a><br />-->
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy3/manifiesto-aceleracionista.pdf'/>El Manifiesto Aceleracionista</a><br />
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/posmodernidad/el-fin-de-la-modernidad-nihilismo-y-hermeneutica.pdf'/>Fin de la Modernidad Nihilismo y Hermenéutica</a><br />
 
@@ -682,8 +673,7 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/transhumanismo/trnshumanismo-libertad-he-identidad-humana.pdf'/>Transhumanismo Libertad e Identidad Humana</a><br />
 
-                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/
-                tecno-biopoder.pdf'/>Tecno BioPoder</a><br />
+                <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/tecno-biopoder.pdf'/>Tecno BioPoder</a><br />
 
                 <b> > </b><a target='_blank'   href='https://underpost.net/ir/pdf/cy2/Biopunk-y-etica-DIYBio.pdf'/>BioPunk y Ética DIYBio</a><br />
 
@@ -1012,8 +1002,7 @@ this.contracultura_cyberpunk = {
         </div>
 
                 <br />
-                <img class='in' style="width: 280px; height: auto; margin: auto;" src="
-                https://underpost.net/img/gbe.png" /><br /><br /><br /><br /><br />
+                <img class='in' style="width: 280px; height: auto; margin: auto;" src="https://underpost.net/img/gbe.png" /><br /><br /><br /><br /><br />
                 <br />
                 <br /><br />
 
