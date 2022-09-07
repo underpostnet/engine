@@ -35,6 +35,8 @@ this.contracultura_cyberpunk = {
                     s('.cc-search-container').style.width = '90%';
                     s('.cc-search-container').style.height = '200px';
                     fadeIn(s('.' + this[IDS][0]));
+                    setTimeout(() => s('.' + this[IDS][2]).focus());
+                    setTimeout(() => s('.' + this[IDS][2]).focus(), 500);
                     return;
                 }
                 s('.' + this.searchClose).style.display = 'none';
