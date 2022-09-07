@@ -134,7 +134,7 @@ this.main_menu = {
 
         <style>
             .${idA} {
-                z-index: 1;
+                z-index: 2;
             }
             .${idB} {
                 height: ${heightTopBarMenu}px;

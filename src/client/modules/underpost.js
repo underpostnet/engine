@@ -59,6 +59,34 @@ const viewMetaData = {
         path: '/assets-underpost/underpost.png',
         ico: '/underpost_modules/underpost-library/favicon.ico'
     },
+    fonts: [
+        {
+            name: 'retro',
+            src: '/fonts-underpost/retro/PressStart2P.ttf',
+            format: 'truetype', // opentype
+            activesClass: []
+        },
+        {
+            name: 'gothic',
+            src: '/fonts-underpost/gothic/GOTHIC.ttf',
+            format: 'truetype', // opentype
+            activesClass: ['body', 'button']
+        }
+    ],
+    cursors: [
+        {
+            src: '/cursors-underpost/black-default.png',
+            x: -30,
+            y: -30,
+            activesClass: ['body']
+        },
+        {
+            src: '/cursors-underpost/black-pointer.png',
+            x: -30,
+            y: -30,
+            activesClass: []
+        }
+    ],
     apiURIS: [],
     lang: 'en',
     charset: 'utf-8',
@@ -68,7 +96,9 @@ const viewMetaData = {
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
     ],
     statics: [
-        ['/assets-underpost', './underpost_modules/underpost-library/assets']
+        ['/assets-underpost', './underpost_modules/underpost-library/assets'],
+        ['/fonts-underpost', './underpost_modules/underpost-library/fonts'],
+        ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
     ],
     staticSitemap: ['./private-engine/underpost-sitemap'],
     generateZipBuild: true,

@@ -5,6 +5,7 @@ const viewMetaData = {
     clientID,
     mainTitle: 'Femme Nutrition',
     host: 'femmenutrition.cl',
+    googleTag: 'G-B26K8P2KGL',
     subDomain: 'www',
     description: { es: 'femmenutrition', en: 'femmenutrition', hide: true },
     socialImg: '/assets/apps/femmenutrition/social.jpg',

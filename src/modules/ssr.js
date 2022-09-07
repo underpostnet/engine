@@ -54,6 +54,23 @@ const renderStyleView = (dirStyle, viewMetaData) => {
     return fs.readFileSync(dirStyle, viewMetaData.charset);
 };
 
+
+const renderCursors = viewMetaData => viewMetaData.cursors ? viewMetaData.cursors.map(x =>/*css*/`
+ ${x.activesClass.map(y =>/*css*/`
+    ${y} { cursor: url('${x.src}') ${x.x} ${x.y}, auto; }
+ `).join('')}
+`).join('') : '';
+
+const renderFonts = viewMetaData => viewMetaData.fonts ? viewMetaData.fonts.map(x =>/*css*/`
+  @font-face {
+    font-family: ${x.name};
+    src: URL('${x.src}') format('${x.format}');
+  }
+  ${x.activesClass.map(y => /*css*/`
+  ${y} { font-family: '${x.name}'; }
+  `).join('')}  
+`).join('') : '';
+
 const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
     <top-${path.component}></top-${path.component}>
     <${path.component}>
@@ -197,6 +214,11 @@ const renderView = dataView => {
             <script type='application/javascript' src='/assets/prism/prism.js'></script>
 
             <link rel='stylesheet' href='/spectre-markdown.css/dist/markdown.min.css'>
+
+            <style>
+                 ${renderFonts(viewMetaData)}
+                ${renderCursors(viewMetaData)}
+            </style>
 
             ${viewMetaData.googleTag ?/*html*/`
             <!-- https://www.npmjs.com/package/universal-analytics -->
