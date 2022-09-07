@@ -196,5 +196,10 @@ this.main_menu = {
             s('.' + this.idC).click();
 
 
+    },
+    onScroll: function (dataScroll) {
+
+        console.log('main_menu onScroll', dataScroll, GLOBAL['dimensionData']);
+
     }
 };

@@ -57,7 +57,7 @@ this.js_demo = {
                                 <div class='in container title'>
                                     DEMO
                                 </div>
-                                <div class='in container'>
+                                <div class='in container container-demo'>
                                     <${idDemo}></${idDemo}>
                                 </div>
                             </div>
@@ -164,6 +164,9 @@ this.js_demo = {
             .js_demo_cell {
                 overflow: auto;
             }
+            .container-demo {
+                min-height: 200px;
+            }
         </style>
         ${renderMediaQuery([
             {
@@ -232,7 +235,9 @@ this.js_demo = {
                     ${renderLang({ es: 'Copiar', en: 'Copy' })}
                 </button>
             </div>
-            <${idDemo}></${idDemo}>
+            <div class='in container container-demo'>
+                <${idDemo}></${idDemo}>
+            </div>
             <pre  class='in'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;
     },
