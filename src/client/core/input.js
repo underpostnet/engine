@@ -42,11 +42,12 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
                 return false;
             }
         }
-        if (customValidator !== undefined && customValidator(inputId, errorsIdInput[i]) == false) {
+        if (customValidator && customValidator(inputId, errorsIdInput[i]) == false) {
             return false;
         }
-        if (s('.' + _this[inputId]).value.length > 28) {
-            renderMsgInput(errorsIdInput[i], renderLang({ es: 'Supera los 28 caracteres', en: 'Exceed 28 characters' }));
+        const maxChars = (options && options.valueLength ? options.valueLength : 28);
+        if (s('.' + _this[inputId]).value.length > maxChars) {
+            renderMsgInput(errorsIdInput[i], renderLang({ es: `Supera los ${maxChars} caracteres`, en: `Exceed ${maxChars} characters` }));
             return false;
         }
         return successEndInput(i, inputId);

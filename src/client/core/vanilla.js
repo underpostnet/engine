@@ -45,8 +45,9 @@ const renderLang = langs => {
 };
 // s('html').lang = 'en';
 
-const renderSpinner = (IDS) => /*html*/`
-<div class='in container ${IDS}' style='text-align: center; display: none;'>
+const renderSpinner = (IDS, options) => /*html*/`
+<div class='${options && options.class ? options.class : 'in container'} ${IDS ? IDS : ''}' 
+     style='${options && options.style ? options.style : 'text-align: center; display: none;'}'>
     <div class='lds-ellipsis'><div></div><div></div><div></div><div></div></div>
 </div>
 `;

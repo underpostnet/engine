@@ -22,6 +22,7 @@ import { authClient } from './client/modules/auth.js';
 import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 import { femmenutrition } from './client/modules/femmenutrition.js';
+import { media } from './client/modules/media.js';
 import { statics } from './modules/statics.js';
 
 logger.info(process.argv);
@@ -35,7 +36,8 @@ const APPS = [
     cryptokoyn,
     nexodev,
     dogmadual,
-    femmenutrition
+    femmenutrition,
+    media
 ];
 
 middlewares(app, APPS);
@@ -51,6 +53,7 @@ apiUploader(app);
     await ssr(app, [dogmadual]);
     await ssr(app, [nexodev, authClient, engine]);
     await ssr(app, [femmenutrition]);
+    await ssr(app, [media]);
 
     statics(app, APPS);
     errors(app);
