@@ -149,7 +149,7 @@ this.main_menu = {
             }
         </style>
         <style class='${this.buttonMenuStyleContent}'></style>
-        <${this.idScrollDesktopFix} class='container' style='padding: 0px; border: none'>
+        <${this.idScrollDesktopFix} style='max-width: 1224px'>
                 <div class='${idA}'>
 
                     <div class='in container ${idF}'>

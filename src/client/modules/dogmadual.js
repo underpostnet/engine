@@ -44,7 +44,7 @@ const viewMetaData = {
         path: '/assets/apps/dogmadual/app',
         color: '#000000'
     },
-    description: { en: 'Virtual machine development', es: 'Virtual machine development' },
+    description: { en: 'Virtual Machine Development', es: 'Virtual Machine Development' },
     favicon: {
         type: 'image/png',
         path: '/assets/apps/dogmadual/app/android-chrome-192x192.png',
