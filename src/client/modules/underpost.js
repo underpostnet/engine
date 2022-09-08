@@ -100,6 +100,8 @@ const viewMetaData = {
         ['/fonts-underpost', './underpost_modules/underpost-library/fonts'],
         ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
     ],
+    srcJS: ['/github.js'],
+    srcCSS: [],
     staticSitemap: ['./private-engine/underpost-sitemap'],
     generateZipBuild: true,
     htaccess: true
@@ -158,6 +160,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/underpost_pre_footer',
+        homePaths: [baseHome],
+        title: { en: '', es: '' },
+        component: 'underpost_pre_footer',
+        options: false,
+        menu: false,
+        home: false,
+        nohome: false,
+        render: true,
+        display: false
     }
 ];
 
@@ -188,9 +202,19 @@ const statics = app => {
         return res.end(srcBaseCssLib);
     });
 
+    const srcGitHubWidget = fs.readFileSync('./underpost_modules/underpost-library/lib/github-widget.min.js', 'utf8');
+    app.get(BSU + '/github.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(srcGitHubWidget);
+    });
+
+
     if (process.argv[2] == 'build') {
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/vanilla.js`, sourceVanillaJs, 'utf8');
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/base.css`, srcBaseCssLib, 'utf8');
+        fs.writeFileSync(`./builds/${viewMetaData.clientID}/github.js`, srcGitHubWidget, 'utf8');
     }
 
 }

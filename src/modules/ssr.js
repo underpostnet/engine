@@ -260,6 +260,13 @@ const renderView = dataView => {
 
             <link rel='stylesheet' href='/spectre-markdown.css/dist/markdown.min.css'>
 
+            ${viewMetaData.srcJS ? viewMetaData.srcJS.map(srcUrl => `
+            <script type='application/javascript' src='${srcUrl}'></script>
+            `).join('') : ''}
+            ${viewMetaData.srcCSS ? viewMetaData.srcCSS.map(srcUrl => `            
+            <link rel='stylesheet' href='${srcUrl}'>
+            `).join('') : ''}
+
             <style>
                  ${renderFonts(viewMetaData)}
                 ${renderCursors(viewMetaData)}
