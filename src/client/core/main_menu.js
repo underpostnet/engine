@@ -13,6 +13,7 @@ this.main_menu = {
         const idD = 'x' + s4();
         const idF = 'x' + s4();
         this.idScrollDesktopFix = 'x' + s4();
+        this.buttonMenuStyleContent = 'x' + s4();
 
         const validatorMenuBtn = path => {
             if (!validateSessionDisplayComponent(path)) {
@@ -147,6 +148,7 @@ this.main_menu = {
                 background: ${mainBackground};
             }
         </style>
+        <style class='${this.buttonMenuStyleContent}'></style>
         <${this.idScrollDesktopFix} class='container' style='padding: 0px; border: none'>
                 <div class='${idA}'>
 
@@ -217,6 +219,12 @@ this.main_menu = {
             s(this.idScrollDesktopFix).style.width = '100%';
             fadeIn(s(this.idScrollDesktopFix));
 
+            htmls('.' + this.buttonMenuStyleContent, /*css*/`
+                .btn-main-menu {
+                    font-size: 12px !important;
+                }
+            `);
+
         } else if (dataScroll.scroll + 100 < 315) {
 
             s(this.idScrollDesktopFix).style.position = null;
@@ -228,6 +236,8 @@ this.main_menu = {
             s(this.idScrollDesktopFix).style.left = null;
             s(this.idScrollDesktopFix).style.width = null;
             s(this.idScrollDesktopFix).style.opacity = null;
+
+            htmls('.' + this.buttonMenuStyleContent, '');
         }
     }
 };
