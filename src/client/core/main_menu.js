@@ -12,6 +12,7 @@ this.main_menu = {
         const idE = 'x' + s4();
         const idD = 'x' + s4();
         const idF = 'x' + s4();
+        this.idScrollDesktopFix = 'x' + s4();
 
         const validatorMenuBtn = path => {
             if (!validateSessionDisplayComponent(path)) {
@@ -146,6 +147,7 @@ this.main_menu = {
                 background: ${mainBackground};
             }
         </style>
+        <${this.idScrollDesktopFix} class='container' style='padding: 0px; border: none'>
                 <div class='${idA}'>
 
                     <div class='in container ${idF}'>
@@ -163,6 +165,7 @@ this.main_menu = {
                         <post_menu_container></post_menu_container>
                     </div>
                 </div>
+        </${this.idScrollDesktopFix}>
         `
     },
     renderSessionToBar: () => {
@@ -201,5 +204,30 @@ this.main_menu = {
 
         console.log('main_menu onScroll', dataScroll, GLOBAL['dimensionData']);
 
+        if (GLOBAL['dimensionData'].mobile === false && dataScroll.scroll >= 315) {
+            if (s(this.idScrollDesktopFix).style.position == 'fixed') return;
+
+            s(this.idScrollDesktopFix).style.position = 'fixed';
+            s(this.idScrollDesktopFix).style.display = 'block';
+            s(this.idScrollDesktopFix).style.zIndex = '2';
+            s(this.idScrollDesktopFix).style.background = 'black';
+            s(this.idScrollDesktopFix).style.transform = 'translate(-50%, 0)';
+            s(this.idScrollDesktopFix).style.top = '0px';
+            s(this.idScrollDesktopFix).style.left = '50%';
+            s(this.idScrollDesktopFix).style.width = '100%';
+            fadeIn(s(this.idScrollDesktopFix));
+
+        } else if (dataScroll.scroll + 100 < 315) {
+
+            s(this.idScrollDesktopFix).style.position = null;
+            s(this.idScrollDesktopFix).style.display = null;
+            s(this.idScrollDesktopFix).style.zIndex = null;
+            s(this.idScrollDesktopFix).style.background = null;
+            s(this.idScrollDesktopFix).style.transform = null;
+            s(this.idScrollDesktopFix).style.top = null;
+            s(this.idScrollDesktopFix).style.left = null;
+            s(this.idScrollDesktopFix).style.width = null;
+            s(this.idScrollDesktopFix).style.opacity = null;
+        }
     }
 };
