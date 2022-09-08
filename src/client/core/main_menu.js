@@ -202,7 +202,7 @@ this.main_menu = {
     },
     onScroll: function (dataScroll) {
 
-        console.log('main_menu onScroll', dataScroll, GLOBAL['dimensionData']);
+        // console.log('main_menu onScroll', dataScroll, GLOBAL['dimensionData']);
 
         if (GLOBAL['dimensionData'].mobile === false && dataScroll.scroll >= 315) {
             if (s(this.idScrollDesktopFix).style.position == 'fixed') return;
