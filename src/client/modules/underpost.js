@@ -170,7 +170,7 @@ const viewPaths = [
         menu: false,
         home: false,
         nohome: false,
-        render: true,
+        render: false,
         display: false
     }
 ];

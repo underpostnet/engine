@@ -7,13 +7,14 @@ this.underpost_pre_footer = {
         .iframe-cube-underpost {
             margin: auto;
             background: none;
-            width: 300px;
-            height: 300px;
+            width: 100%;
+            height: 500px;
             border: none;
         }
         .github-widget {
             margin: auto;
             border: none !important;
+            background: #e6e6e6;
         }
         </style>
            ${renderMediaQuery([
@@ -33,10 +34,10 @@ this.underpost_pre_footer = {
              `}
         ])}
         <div class='container fl'>
-            <div class='in fll cell-upf' style='${rrb()}'>
+            <div class='in fll cell-upf'>
                       <iframe class='in iframe-cube-underpost' src='https://underpost.net/cube.php'></iframe>
             </div>
-            <div class='in fll cell-upf' style='${rrb()}'>
+            <div class='in fll cell-upf'>
                       <div class='in github-widget' data-username='underpostnet'></div>
             </div>
         </div>
