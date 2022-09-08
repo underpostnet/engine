@@ -6,7 +6,7 @@ this.init_render = (options) => {
         if (getQueryParams().lang) s('html').lang = getQueryParams().lang;
         htmls('body', /*html*/`
         <top-banner></top-banner>
-        <a target='_blank' alt='${viewMetaData.mainTitle}' href='${buildBaseUri()}/' style='text-decoration: none'>
+        <a ${getQueryParams().target == '_blank' ? `target='_blank'` : ''} alt='${viewMetaData.mainTitle}' href='${buildBaseUri()}/' style='text-decoration: none'>
                 ${banner() == '' ?/*html*/`
                 <div class='in container banner' style='${borderChar(1, 'white')}'>
                         ${viewMetaData.mainTitle}

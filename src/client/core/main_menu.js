@@ -25,7 +25,7 @@ this.main_menu = {
                 }
                 setTimeout(() => {
                     append('post_menu_container', /*html*/`
-                        <button class='${idD}'>
+                        <button class='${idD} btn-main-menu'>
                             ${renderLang({ es: 'Cerrar Sessión', en: 'Log Out' })}
                         </button>
                     `);

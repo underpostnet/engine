@@ -73,12 +73,14 @@ this.contracultura_cyberpunk = {
 
                 fadeIn(s('.' + this.searchBoxResultContainer));
             } else {
+                const idErrorModal = 'mini-modal-' + s4();
                 append('body', renderFixModal({
-                    id: 'mini-modal-' + s4(),
+                    id: idErrorModal,
                     icon: errorIcon,
                     color: 'red',
                     content: renderLang({ es: 'No Existen Resultados para la busqueda', en: 'There are no results for the search' })
                 }));
+                s('.' + idErrorModal).style.top = '150px';
             }
         };
 
