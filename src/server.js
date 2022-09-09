@@ -36,8 +36,7 @@ const APPS = [
     cryptokoyn,
     nexodev,
     dogmadual,
-    femmenutrition,
-    media
+    femmenutrition
 ];
 
 middlewares(app, APPS);
