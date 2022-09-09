@@ -24,7 +24,17 @@ const closeSessionComponents = () => {
         if (this[pathData.component] && this[pathData.component].closeSession)
             this[pathData.component].closeSession();
     });
-    // GLOBAL.router({ newPath: buildBaseUri() })
+    GLOBAL.router({ newPath: buildBaseUri() })
+};
+
+const execLogIng = (logInData) => {
+    localStorage.setItem('_b', logInData.token);
+    localStorage.setItem('username', logInData.user.username);
+    localStorage.setItem('email', logInData.user.email);
+    localStorage.setItem('expiresIn', logInData.expiresIn);
+    htmls('main_menu', GLOBAL.main_menu.init());
+    s('login').style.display = 'none';
+    GLOBAL.router({ newPath: buildBaseUri() });
 };
 
 const renderAuthBearer = () =>
@@ -63,8 +73,11 @@ const renderUserLink = (username, timeOutDelay) => {
             // GLOBAL.router({ newPath: `${buildBaseUri()}/:username` });
             // GLOBAL.router();
 
+            const checkProfileComponent = viewPaths.find(path => path.path == `${buildBaseUri()}/:username`);
+            if (!checkProfileComponent) return console.warn('no profile component load');
+
             if (getURI() != `${buildBaseUri()}/${username}`) setURI(`${buildBaseUri()}/${username}`);
-            view = newInstance(viewPaths.find(path => path.path == `${buildBaseUri()}/:username`));
+            view = newInstance(checkProfileComponent);
 
             // view.path = newInstance(viewPaths.find(path => path.path == `${buildBaseUri()}/${username}`));
             // add view.paths ? 

@@ -156,15 +156,7 @@ this.register = {
                                 renderLang({ es: 'Ingreso exitoso', en: 'Success login' }) :
                                 renderLang({ es: 'Usuario creado con exito', en: 'Success user created' })
                         }));
-                        if (options && options.mode == 'login') {
-                            localStorage.setItem('_b', requestResult.data.token);
-                            localStorage.setItem('username', requestResult.data.user.username);
-                            localStorage.setItem('email', requestResult.data.user.email);
-                            localStorage.setItem('expiresIn', requestResult.data.expiresIn);
-                            htmls('main_menu', GLOBAL.main_menu.init());
-                            s('login').style.display = 'none';
-                            GLOBAL.router({ newPath: buildBaseUri() + '/my-content' });
-                        }
+                        if (options && options.mode == 'login') execLogIng(requestResult.data);
                         valueInputs.map((inputId, i) => {
                             s('.' + this[IDS][inputId]).value = '';
                             s('.' + this[IDS][labelInputs[i]]).style.top = topLabelInput;
