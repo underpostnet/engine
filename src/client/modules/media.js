@@ -36,7 +36,7 @@ const viewPaths = [
     {
         path: baseHome + '/yt_download',
         homePaths: [baseHome],
-        title: { en: '', es: '' },
+        title: { en: 'YouTube Mp3 Dowloader', es: 'YouTube Mp3 Dowloader' },
         component: 'yt_download',
         options: false,
         menu: false,
