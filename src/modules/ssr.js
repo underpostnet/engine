@@ -126,7 +126,7 @@ const validatePaths = viewPaths =>
     }) : viewPaths;
 
 const renderView = dataView => {
-    const { view, viewMetaData, viewPaths } = dataView;
+    const { view, viewMetaData, viewPaths, APPS } = dataView;
     let jsClientCore = `(function(){
 
         const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
@@ -162,6 +162,10 @@ const renderView = dataView => {
         let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
         const rrb = ${rrb};
+        ${viewMetaData.clientID == 'dev' ? `
+            const APPS = JSON.parse('${JSON.stringify(APPS)}');
+            console.warn('DEVELOPMENT MODULE', APPS);
+        ` : ''}
        
         
         const GLOBAL = this;
@@ -305,19 +309,20 @@ const ssr = async (app, renderData) => {
     // build validator
     if (process.argv[3] && process.argv[3] != viewMetaData.clientID) return;
 
-    renderData.map((renderSingle, i) => {
-        if (i > 0) {
-            const mergeModule = renderSingle.viewPaths;
-            mergeModule.shift();
-            viewPaths = viewPaths.concat(mergeModule.map(mergeFix => {
-                mergeFix.homePaths.push(viewPaths[0].path);
-                mergeFix.path = mergeFix.path.replace(renderSingle.baseHome, baseHome);
-                if (mergeFix.paths) mergeFix.paths = mergeFix.paths.map(x => x.replace(renderSingle.baseHome, baseHome));
-                return mergeFix;
-            }));
-            viewMetaData.apiURIS = viewMetaData.apiURIS.concat(renderSingle.viewMetaData.apiURIS);
-        }
-    });
+    if (viewMetaData.clientID != 'dev')
+        renderData.map((renderSingle, i) => {
+            if (i > 0) {
+                const mergeModule = renderSingle.viewPaths;
+                mergeModule.shift();
+                viewPaths = viewPaths.concat(mergeModule.map(mergeFix => {
+                    mergeFix.homePaths.push(viewPaths[0].path);
+                    mergeFix.path = mergeFix.path.replace(renderSingle.baseHome, baseHome);
+                    if (mergeFix.paths) mergeFix.paths = mergeFix.paths.map(x => x.replace(renderSingle.baseHome, baseHome));
+                    return mergeFix;
+                }));
+                viewMetaData.apiURIS = viewMetaData.apiURIS.concat(renderSingle.viewMetaData.apiURIS);
+            }
+        });
     renderData[0].viewPaths = viewPaths;
     renderData[0].viewMetaData = viewMetaData;
     renderData[0].banner = banner;
@@ -335,7 +340,8 @@ const ssr = async (app, renderData) => {
 
         const buildView = renderView({
             view,
-            ...renderData[0]
+            ...renderData[0],
+            APPS: renderData
         });
 
         if (process.argv[2] == 'build' && !view.path.split('/').find(x => x[0] == ':')) {

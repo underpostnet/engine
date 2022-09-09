@@ -53,7 +53,8 @@ apiUploader(app);
 
 (async () => {
 
-    await ssr(app, [dev]);
+    await ssr(app, APPS);
+
     await ssr(app, [underpost, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
@@ -61,7 +62,6 @@ apiUploader(app);
     await ssr(app, [femmenutrition]);
 
     statics(app, APPS);
-    errors(app);
 
     if (process.argv[2] != 'build')
         app.listen(process.env.PORT, () => {
@@ -79,5 +79,9 @@ apiUploader(app);
         console.log = () => null;
         console.warn = () => null;
         console.error = () => null;
-    }
+    } else
+        app.get('/', (req, res) => res.redirect('/dev'));
+
+    errors(app);
+    
 })();
