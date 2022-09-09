@@ -9,6 +9,9 @@ const banner = () =>/*html*/`
             Wallet
         </span>               
     </div>
+`;
+
+const description = () => /*html*/`
     <div class='in container'>
             ${renderLang(viewMetaData.description).replace('CyberiaOnline',
             /*html*/`<a href='https://www.cyberiaonline.com'>Cyberia On-Line</a>`)}
@@ -81,8 +84,8 @@ const viewPaths = [
         title: { en: '', es: '' },
         component: 'main_menu',
         options: false,
-        menu: false,
-        home: false,
+        menu: true,
+        home: true,
         nohome: true,
         render: true,
         display: false
@@ -130,6 +133,7 @@ const cryptokoyn = {
     viewPaths,
     baseHome,
     banner,
+    description,
     theme,
     botDescription
 };

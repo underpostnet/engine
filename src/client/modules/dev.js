@@ -14,6 +14,14 @@ const viewMetaData = {
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
+    ],
+    fonts: [
+        {
+            name: 'gothic',
+            src: '/fonts-underpost/gothic/GOTHIC.ttf',
+            format: 'truetype', // opentype
+            activesClass: ['body', 'button']
+        }
     ]
 };
 

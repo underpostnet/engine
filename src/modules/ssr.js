@@ -156,6 +156,7 @@ const renderView = dataView => {
         const botLabelInput = '0px';
         const banner = ${dataView.banner ? dataView.banner : `() => ''`};
         const footer = ${dataView.footer ? dataView.footer : `() => ''`};
+        const description = ${dataView.description ? dataView.description : `() => ''`};
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
         const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
         let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
@@ -302,6 +303,7 @@ const ssr = async (app, renderData) => {
     const banner = renderData[0].banner;
     const botDescription = renderData[0].botDescription;
     const footer = renderData[0].footer;
+    const description = renderData[0].description;
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
@@ -328,6 +330,7 @@ const ssr = async (app, renderData) => {
     renderData[0].banner = banner;
     renderData[0].botDescription = botDescription;
     renderData[0].footer = footer;
+    renderData[0].description = description;
 
     if (process.argv[2] == 'build')
         deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);

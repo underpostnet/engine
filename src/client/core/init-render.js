@@ -13,7 +13,7 @@ this.init_render = (options) => {
                 </div>
                 `: banner()}
         </a>
-        ${viewMetaData.description && !viewMetaData.description.hide ? /*html*/`
+        ${description() != '' ? description() : viewMetaData.description && !viewMetaData.description.hide ? /*html*/`
         <div class='in container simple-desc'>
                 ${renderLang(viewMetaData.description)}
         </div>        

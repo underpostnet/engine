@@ -45,6 +45,14 @@ const viewMetaData = {
     ],
     statics: [
         ['/assets/apps/nexodev', `./src/client/assets/apps/nexodev`]
+    ],
+    fonts: [
+        {
+            name: 'gothic',
+            src: '/fonts-underpost/gothic/GOTHIC.ttf',
+            format: 'truetype', // opentype
+            activesClass: ['body', 'button']
+        }
     ]
 };
 
