@@ -57,6 +57,17 @@ this.cloud = {
 
             dropzoneInput.onchange = e => {
                 console.log('input file onchange', e.target.files);
+
+                Object.keys(e.target.files).forEach((fileAttr, currentIndex) => {
+                    const read = new FileReader();
+                    const currentFile = e.target.files[fileAttr];
+                    read.readAsBinaryString(currentFile);
+                    read.onloadend = () => {
+                        // console.log(currentFile, currentIndex, read.result);
+                        // console.log('-----');
+                    };
+                });
+
             };
 
 
