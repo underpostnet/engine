@@ -105,6 +105,19 @@ const viewPaths = [
         session: true
     },
     {
+        path: baseHome + '/cloud',
+        homePaths: [baseHome],
+        title: { en: 'Cloud', es: 'Cloud' },
+        component: 'cloud',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
+    },
+    {
         path: baseHome + '/:username',
         paths: [baseHome + '/boards'], // , baseHome + '/:username/content/:filename'
         homePaths: [baseHome],
