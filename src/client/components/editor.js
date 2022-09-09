@@ -61,8 +61,11 @@ this.editor = {
 
                 let body = new FormData();
 
-
-                body.append(s4(), new File([new Blob([tinymce.activeEditor.getContent()])], 'f' + s4() + '.html'));
+                // TODO: checkbox habilitar todas la imagenes responsivas
+                body.append(s4(), new File([new Blob([
+                    tinymce.activeEditor.getContent()
+                        .replaceAll('<img ', '<img style="width: 100% !important; height: auto !important; max-width: 600px !important"')
+                ])], 'f' + s4() + '.html'));
 
 
                 const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;

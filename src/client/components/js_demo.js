@@ -50,7 +50,7 @@ this.js_demo = {
                                         ${renderLang({ es: 'Copiar', en: 'Copy' })}
                                     </button>
                                 </div>
-                                <pre  class='in container'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>
+                                <pre  class='in container code-display'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>
                                 <div class='in error-input ${this[IDS][2]}'></div>
                             </div>
                             <div class='in fll js_demo_cell'>
@@ -166,6 +166,10 @@ this.js_demo = {
             }
             .container-demo {
                 min-height: 200px;
+                overflow: auto;
+            }
+            .code-display {
+                overflow: auto;
             }
         </style>
         ${renderMediaQuery([
@@ -238,7 +242,7 @@ this.js_demo = {
             <div class='in container container-demo'>
                 <${idDemo}></${idDemo}>
             </div>
-            <pre  class='in'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
+            <pre  class='in code-display'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;
     },
     routerDisplay: function () {
