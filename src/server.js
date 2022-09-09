@@ -52,8 +52,8 @@ apiAuth(app);
 apiUploader(app);
 
 (async () => {
-
-    await ssr(app, APPS);
+    if (process.env.NODE_ENV == 'development')
+        await ssr(app, APPS);
 
     await ssr(app, [underpost, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
@@ -83,5 +83,5 @@ apiUploader(app);
         app.get('/', (req, res) => res.redirect('/dev'));
 
     errors(app);
-    
+
 })();

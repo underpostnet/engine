@@ -656,6 +656,10 @@ this.contracultura_cyberpunk = {
 
                 <b> > </b><a target='_top'   href='https://underpost.net/ir/pdf/dualismo/Manifiesto-del-Unabomber.pdf'/>Manifiesto Unabomber Sociedad Industrial y su Futuro</a><br />
 
+                <b> > </b><a target='_top'   href='https://underpost.net/ir/pdf/06-09-2022/filosofia/McLuhan_Marshall_Fiore_Quentin_El_medio_es_el_masaje_Un_inventario_de_efectos.pdf'>
+                    McLuhan Marshall Fiore Quentin - El medio es el masaje
+                </a><br />
+
                 <b> > </b><a target='_top'   href='https://underpost.net/ir/pdf/cyberpunk/la-zona-temporalmente-autonoma-hakim-bey.pdf'/>Zona Temporalmente Autónoma Hakim Bey</a><br />
 
                 <b> > </b><a target='_top'   href='https://underpost.net/ir/pdf/cyberpunk/caos.pdf'/>Caos Hakim Bey</a><br />
