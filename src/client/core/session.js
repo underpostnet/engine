@@ -24,7 +24,7 @@ const closeSessionComponents = () => {
         if (this[pathData.component] && this[pathData.component].closeSession)
             this[pathData.component].closeSession();
     });
-    GLOBAL.router({ newPath: buildBaseUri() })
+    // GLOBAL.router({ newPath: buildBaseUri() })
 };
 
 const renderAuthBearer = () =>

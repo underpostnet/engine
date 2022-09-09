@@ -3,6 +3,8 @@
 this.legacy_gallery = {
     dataGallery: [
 
+        { name: 'UNDERPOST CUBE', link: 'underpost.net/cube.php' },
+
         { name: '3D PLOT DEMO', link: 'underpost.net/3dplotdemo' },
 
         { name: 'PATH FINDING', link: 'underpost.net/pathfinding' },
@@ -15,7 +17,7 @@ this.legacy_gallery = {
 
         { name: 'VIRTUAL ROLL DICE', link: 'underpost.net/dice' },
 
-        { name: 'FRIENDLY BACKLINK GENERATOR', link: 'underpost.net/back' },
+        // { name: 'FRIENDLY BACKLINK GENERATOR', link: 'underpost.net/back' },
 
         { name: 'BOT VIRTUAL WORLD', link: 'underpost.net/bots' },
 

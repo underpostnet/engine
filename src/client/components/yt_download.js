@@ -94,7 +94,7 @@ this.yt_download = {
             ${renderInput(this[IDS], renderLang({ es: `YouTube Url`, en: `YouTube Url` }), [1, 2, 3], null, {
             valueLength: 999
         })}  
-            <button type='submit' class='${this[IDS][0]}'> ${renderLang({ es: 'Decargar Mp3', en: 'Download Mp3' })} </button>
+            <button type='submit' class='${this[IDS][0]}'> ${renderLang({ es: 'Descargar Mp3', en: 'Download Mp3' })} </button>
 
        </form>
         
