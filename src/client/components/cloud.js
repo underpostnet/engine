@@ -34,15 +34,11 @@ this.cloud = {
                 let files = e.dataTransfer.files;
                 let dataTransfer = new DataTransfer();
 
-                let for_alert = "";
+                let contFiles = 0;
                 Array.prototype.forEach.call(files, file => {
-                    for_alert += "# " + file.name +
-                        " (" + file.type + " | " + file.size +
-                        " bytes)\r\n";
+                    if (!multiple && contFiles == 1) return;
                     dataTransfer.items.add(file);
-                    if (!multiple) {
-                        return false;
-                    }
+                    contFiles++;
                 });
 
                 const filesToBeAdded = dataTransfer.files;
@@ -63,10 +59,29 @@ this.cloud = {
                     const currentFile = e.target.files[fileAttr];
                     read.readAsBinaryString(currentFile);
                     read.onloadend = () => {
-                        // console.log(currentFile, currentIndex, read.result);
-                        // console.log('-----');
+                        console.log(currentFile, currentIndex, read.result);
+                        console.log('-----');
                     };
                 });
+
+                // let body = new FormData();
+                // body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], 'f' + s4() + '.js'));
+                // const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
+                // const method = 'POST';
+                // const headers = {
+                //     'Authorization': renderAuthBearer()
+                //     // 'Content-Type': 'application/json',
+                //     // 'content-type': 'application/octet-stream'
+                //     //  'content-length': CHUNK.length,
+                // };
+                // body.append('indexFolder', '2');
+                // body.append('title', s('.' + this[IDS][4]).value);
+                // body.append('public', s('.' + this[IDS][7]).checked);
+                // const requestResult = await serviceRequest(url, {
+                //     method,
+                //     headers,
+                //     body, // : method == 'GET' ? undefined : JSON.stringify(body)
+                // });
 
             };
 
