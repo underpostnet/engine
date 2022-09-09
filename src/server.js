@@ -14,16 +14,21 @@ import { generateZipFromFolder } from './modules/zip.js';
 // ssr
 import { ssr } from './modules/ssr.js';
 
-// views modules
+// complements modules
 import { engine } from './client/modules/engine.js';
+import { authClient } from './client/modules/auth.js';
+import { media } from './client/modules/media.js';
+import { statics } from './modules/statics.js';
+
+// main modules
+import { dev } from './client/modules/dev.js';
 import { underpost } from './client/modules/underpost.js';
 import { cryptokoyn } from './client/modules/cryptokoyn.js';
-import { authClient } from './client/modules/auth.js';
 import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 import { femmenutrition } from './client/modules/femmenutrition.js';
-import { media } from './client/modules/media.js';
-import { statics } from './modules/statics.js';
+
+
 
 logger.info(process.argv);
 
@@ -32,6 +37,7 @@ const app = express();
 dotenv.config();
 
 const APPS = [
+    dev,
     underpost,
     cryptokoyn,
     nexodev,
@@ -47,6 +53,7 @@ apiUploader(app);
 
 (async () => {
 
+    await ssr(app, [dev]);
     await ssr(app, [underpost, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
