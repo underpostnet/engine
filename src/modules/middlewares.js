@@ -13,7 +13,9 @@ const middlewares = (app, views) => {
 
     views = newInstance(views);
 
-    const origin = uniqueArray(views.map(viewObj => buildURL(viewObj.viewMetaData))
+    const origin = uniqueArray(views.map(viewObj => viewObj.viewMetaData.clientID != 'dev' ?
+        buildURL(viewObj.viewMetaData) : null)
+        .filter(x => x != null)
         .concat(process.env.NODE_ENV == 'development' ? [`http://localhost:${process.env.BUILD_DEV_PORT}`] : [])
     );
 
