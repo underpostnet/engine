@@ -27,6 +27,7 @@ this.yt_download = {
 
                 htmls(this[IDS][4], `
                     <div class='in container title' style='text-align: center'>
+                         <br>
                          ${renderLang({ en: 'Processing', es: 'Procesando' })}
                          <br>
                          <br>
@@ -46,7 +47,7 @@ this.yt_download = {
                                 method: 'GET',
                                 headers: {
                                     // 'Content-Type': 'application/json'
-                                    'X-RapidAPI-Key': '',
+                                    'X-RapidAPI-Key': '25b3afc506mshfa5e24eafc7228cp1b1218jsn486af35e48f6',
                                     'X-RapidAPI-Host': 'youtube-mp3-download1.p.rapidapi.com',
                                 },
                                 // body: JSON.stringify([userNameUriValue])
@@ -57,18 +58,33 @@ this.yt_download = {
                         setTimeout(async () => await execDowload(), 3000);
                     else {
 
-                        s(this[IDS][4]).style.display = 'none';
                         fadeIn(s('.' + this[IDS][5]));
 
-                        if (publicDataRequest.codeStatus == 401)
+                        if (publicDataRequest.codeStatus == 401 || publicDataRequest.status == 'fail') {
+                            s(this[IDS][4]).style.display = 'none';
                             return append('body', renderFixModal({
                                 id: 'mini-modal-' + s4(),
                                 icon: errorIcon,
                                 color: 'red',
-                                content: publicDataRequest.message
+                                content: publicDataRequest.message || publicDataRequest.msg
                             }));
+                        }
 
-                        window.open(publicDataRequest.link, '_blank');
+
+                        // window.open(publicDataRequest.link, '_blank');
+                        htmls(this[IDS][4], /*html*/`
+                            <div class='in container title' style='text-align: center; padding: 30px'>                        
+                                ${renderLang({ en: 'Proceso Finalizado', en: 'Completed Processes' })}
+                                <br><br>
+                                <span style='font-size: 30px; color: green;'>${sucessIcon}</span>
+                                <br><br>
+                                <a target='_blank' href='${publicDataRequest.link}'>                        
+                                    <span style='font-size: 10px'>[${publicDataRequest.title}]</span>
+                                    <br>
+                                    ${renderLang({ es: 'Iniciar Descarga', en: 'Start Download' })}
+                                </a> 
+                            </div>
+                    `);
 
 
                     }

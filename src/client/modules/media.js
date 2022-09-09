@@ -31,7 +31,7 @@ const viewPaths = [
         home: true,
         nohome: true,
         render: true,
-        display: false
+        display: true
     },
     {
         path: baseHome + '/yt_download',
@@ -39,11 +39,12 @@ const viewPaths = [
         title: { en: 'YouTube Mp3 Dowloader', es: 'YouTube Mp3 Dowloader' },
         component: 'yt_download',
         options: false,
-        menu: false,
-        home: true,
+        menu: true,
+        home: false,
         nohome: false,
         render: true,
-        display: true
+        display: true,
+        session: true
     },
 ];
 

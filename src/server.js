@@ -48,12 +48,11 @@ apiUploader(app);
 
 (async () => {
 
-    await ssr(app, [underpost, authClient, engine]);
+    await ssr(app, [underpost, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
     await ssr(app, [nexodev, authClient, engine]);
     await ssr(app, [femmenutrition]);
-    await ssr(app, [media]);
 
     statics(app, APPS);
     errors(app);
