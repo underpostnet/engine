@@ -100,7 +100,7 @@ this.yt_download = {
         return /*html*/`
 
        <div class='in container title' style='text-align: center'>
-            YouTube MP3 dowloader
+            YouTube MP3 downloader
        </div>
        
        <${this[IDS][4]}></${this[IDS][4]}>
