@@ -23,8 +23,7 @@ import { renderRobots } from './robots.js';
 
 dotenv.config();
 
-const cssClientCore = `html{scroll-behavior:smooth}.fl{position:relative;display:flow-root}.abs,.in{display:block}.fll{float:left}.flr{float:right}.abs{position:absolute}.in,.inl{position:relative}.inl{display:inline-table}.fix{position:fixed;display:block}.center{transform:translate(-50%,-50%);top:50%;left:50%;width:100%;text-align:center}`;
-
+const cssClientCore = fs.readFileSync('./underpost_modules/underpost-library/engine/base.css', 'utf8');
 
 const defaultTheme = [
     'black',

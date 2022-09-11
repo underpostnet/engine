@@ -5,11 +5,12 @@ this.directory_builder = {
 
         const IDS = s4();
         this.IDS = IDS;
-        this[IDS] = range(0, maxIdComponent).map(() => 'markdown-' + s4());
+        this[IDS] = range(0, maxIdComponent).map(() => 'directory_builder-' + s4());
 
         this.data = [
             {
-                name: s4()
+                name: 'MAIN DIRECTORY',
+                data: []
             }
         ];
         this.idForm = 'x' + s4();
@@ -21,6 +22,22 @@ this.directory_builder = {
         setTimeout(() => {
             s('.' + this.idAddElement).onclick = e => {
                 e.preventDefault();
+
+                const value = s('.' + this[IDS][1]).value;
+
+                if (value == '') return;
+
+                console.log(value, this.currenIdSquence);
+                this.currenIdSquence.data.push({ name: value, data: [] });
+
+                console.log(this.data);
+
+                htmls('navi', this.renderDirectory(this.data));
+
+                s('.' + this.idForm).style.display = 'none';
+                fadeIn(s('.' + this.idContentNavi));
+                clearInput(this[IDS], [0, 1, 2]);
+
             };
             s('.' + this.backNaviForm).onclick = e => {
                 e.preventDefault();
@@ -45,31 +62,37 @@ this.directory_builder = {
                 </button>     
         </form> 
 
-        <navi class='${this.idContentNavi}'> ${this.renderDirectory()} <navi>
+        <navi class='${this.idContentNavi}'> 
+            ${this.renderDirectory(this.data)} 
+        <navi>
 
         `
     },
-    renderDirectory: function () {
-        return this.data.map(dataDir => {
+    renderDirectory: function (dataDir) {
+        return dataDir.map((dataDir) => {
 
-            const idDirectory = s4();
+            const idRow = 'x' + s4();
 
             setTimeout(() => {
-                s('.new-' + idDirectory).onclick = () => {
+                s('.new-' + idRow).onclick = () => {
                     s('.' + this.idContentNavi).style.display = 'none';
                     fadeIn(s('.' + this.idForm));
+                    this.currenIdSquence = dataDir;
                 };
             });
 
             return /*html*/`
-                    <row class='container title ${idDirectory}'>
+                    <row class='container title container-${idRow}'>
                         <div class='g-sa' style='width: 80%; ${rrb()}'>
                             ${dataDir.name}
                         </div>
                         <div class='g-sa' style='width: 100px; ${rrb()}'>
-                            <i class='fas fa-plus new-${idDirectory}'></i>
+                            <i class='fas fa-plus new-${idRow}'></i>
                         </div>
-                    </row>            
+                    </row>
+                    <sub-folder-${idRow} class='in' style='padding-left: 20px'> 
+                        ${this.renderDirectory(dataDir.data)}
+                    </sub-folder-${idRow}>
                 `
         }).join('');
     }
