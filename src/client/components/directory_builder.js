@@ -31,27 +31,6 @@ this.directory_builder = {
 
         return /*html*/`
 
-        <style>
-                row {
-                display: flex;
-                }
-                .g-center {
-                justify-content: center;
-                }
-                .g-end {
-                justify-content: flex-end;
-                }
-                .g-start {
-                justify-content: flex-start;
-                }
-                .g-sa {
-                justify-content: space-around;
-                }
-                .g-sb {
-                justify-content: space-between;
-                }
-        </style>
-
         <form class='in container ${this.idForm}' style='display: none'>
                 ${renderInput(this[IDS], renderLang({ es: `Nombre de Carpeta`, en: `Folder Name` }), [0, 1, 2])}        
                 <button type='submit' class='${this.idAddElement}'>
