@@ -51,7 +51,7 @@ this.cloud = {
                 });
 
                 if (dataRequest.status == 'error') return append('body', renderFixModal({
-                    id: idErrorModal,
+                    id: 'x' + s4(),
                     icon: errorIcon,
                     color: 'red',
                     content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
@@ -108,8 +108,9 @@ this.cloud = {
         `
     },
     renderDirectory: function (dataDir, path) {
+        let parentDir = dataDir;
         console.warn('renderDirectory', path);
-        return dataDir.map((dataDir) => {
+        return dataDir.map((dataDir, indexDir) => {
 
             const idRow = 'x' + s4();
 
@@ -125,9 +126,41 @@ this.cloud = {
                     fadeIn(s('.' + this.idFormFiles));
 
                 };
-                if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = () => {
+                if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = async () => {
                     const pathDelete = path + '/' + dataDir.name;
                     console.log('delete folder', pathDelete);
+
+                    parentDir.splice(indexDir, 1);
+                    console.log(this.data);
+
+                    const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': renderAuthBearer()
+                        },
+                        body: JSON.stringify({
+                            deletePath: pathDelete,
+                            data: this.data
+                        })
+                    });
+
+                    if (dataRequest.status == 'error') return append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: errorIcon,
+                        color: 'red',
+                        content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                    }))
+                    else append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: sucessIcon,
+                        color: 'green',
+                        content: renderLang({ es: 'Carpeta Eliminada', en: 'Deleted Forlder' })
+                    }));
+
+                    // this.data = dataRequest.data;
+
+                    htmls('navi', this.renderDirectory(this.data));
 
                 };
             });

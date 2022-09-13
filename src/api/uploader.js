@@ -6,6 +6,7 @@ import express from 'express';
 import { logger } from '../modules/logger.js';
 import { buildBaseApiUri, isInvalidChar, newInstance } from './util.js';
 import dotenv from 'dotenv';
+import { deleteFolderRecursive } from '../modules/files.js';
 
 dotenv.config();
 
@@ -339,13 +340,20 @@ const postPath = (req, res) => {
                 data: 'invalid name path',
             });
 
-        if (validateAddPath) {
+        if (validateAddPath)
             fs.mkdirSync('./data/uploads/cloud' + req.body.path, { recursive: true });
+
+
+
+        if (!validateAddPath && req.body.data && req.body.deletePath)
+            deleteFolderRecursive('./data/uploads/cloud' + req.body.deletePath);
+
+
+        if (req.body.data)
             fs.writeFileSync(
                 `./data/uploads/cloud/${req.user.username}/data.json`,
                 JSON.stringify(req.body.data, null, 4),
                 'utf8');
-        }
 
         return res.status(200).json({
             status: 'success',
