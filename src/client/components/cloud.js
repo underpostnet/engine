@@ -7,12 +7,14 @@ this.cloud = {
 
         const idDropArea = 'x' + s4();
         const clearInput = 'x' + s4();
+        const idDropZoneInput = 'x' + s4();
+        const idStyleOnDragZone = 'x' + s4();
 
         setTimeout(() => {
 
 
             const dropzone = s('.' + idDropArea);
-            const dropzoneInput = s('.dropzone-input');
+            const dropzoneInput = s('.' + idDropZoneInput);
             const multiple = dropzoneInput.getAttribute('multiple') ? true : false;
 
             s('.' + clearInput).onclick = () => {
@@ -27,15 +29,15 @@ this.cloud = {
             });
 
             dropzone.addEventListener('dragover', function (e) {
-                this.classList.add('dropzone-dragging');
+                this.classList.add(idStyleOnDragZone);
             }, false);
 
             dropzone.addEventListener('dragleave', function (e) {
-                this.classList.remove('dropzone-dragging');
+                this.classList.remove(idStyleOnDragZone);
             }, false);
 
             dropzone.addEventListener('drop', function (e) {
-                this.classList.remove('dropzone-dragging');
+                this.classList.remove(idStyleOnDragZone);
                 let files = e.dataTransfer.files;
                 let dataTransfer = new DataTransfer();
 
@@ -106,10 +108,14 @@ this.cloud = {
                         background: #404040;
                         color: white !important;
                     }
+                    .${idStyleOnDragZone} {
+                        background: black;
+                        transition: .3s;
+                    }
                 </style>
 
                 <div class='in container'>
-                    <input class='dropzone-input' type='file' multiple='multiple'>
+                    <input class='${idDropZoneInput}' type='file' multiple='multiple'>
                     <button class='${clearInput}'>${renderLang({ es: 'Limpiar', en: 'Clear' })}</button>
                 </div>
 

@@ -165,7 +165,7 @@ const baseStaticClient = viewMetaData =>
     process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? '/' + viewMetaData.clientID : '';
 
 // const banWords = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
-const banChars = ['/', '\\'];
+const banChars = ['/', '\\', '.'];
 const isInvalidChar = (str) =>
     // banWords.includes(str.toLowerCase())
     // ||
