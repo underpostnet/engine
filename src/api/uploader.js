@@ -324,6 +324,12 @@ const getPublicContent = (req, res) => {
     }
 };
 
+const globalFiles = (req, res) => {
+
+
+    
+};
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
