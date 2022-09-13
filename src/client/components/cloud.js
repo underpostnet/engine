@@ -26,7 +26,7 @@ this.cloud = {
             s('.' + this.idAddElement).onclick = async e => {
                 e.preventDefault();
 
-                const value = s('.' + this[IDS][1]).value;
+                const value = s('.' + this[IDS][1]).value.replaceAll(' ', '-');
 
                 if (value == '') return;
 
