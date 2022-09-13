@@ -7,12 +7,9 @@ this.directory_builder = {
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'directory_builder-' + s4());
 
-        this.data = [
-            {
-                name: 'PATH:/' + (localStorage.getItem('username') ? localStorage.getItem('username') : `ANON${s4()}`),
-                data: []
-            }
-        ];
+        this.updateDirectory();
+
+        this.setDefaultData();
         this.idForm = 'x' + s4();
         this.idContentNavi = 'x' + s4();
 
@@ -20,17 +17,39 @@ this.directory_builder = {
         this.backNaviForm = 'x' + s4();
 
         setTimeout(() => {
-            s('.' + this.idAddElement).onclick = e => {
+            s('.' + this.idAddElement).onclick = async e => {
                 e.preventDefault();
 
                 const value = s('.' + this[IDS][1]).value;
 
                 if (value == '') return;
 
+                const path = this.currentPathSquence + '/' + value;
+
                 console.log(value, this.currenIdSquence);
                 this.currenIdSquence.data.push({ name: value, data: [] });
 
-                console.log(this.data, this.currentPathSquence + '/' + value);
+                console.log('new path', this.data, path);
+
+                const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': renderAuthBearer()
+                    },
+                    body: JSON.stringify({
+                        newNamePath: value,
+                        path,
+                        data: this.data
+                    })
+                });
+
+                if (dataRequest.status == 'error') return append('body', renderFixModal({
+                    id: idErrorModal,
+                    icon: errorIcon,
+                    color: 'red',
+                    content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                }));
 
                 htmls('navi', this.renderDirectory(this.data));
 
@@ -75,20 +94,20 @@ this.directory_builder = {
             const idRow = 'x' + s4();
 
             setTimeout(() => {
-                s('.new-' + idRow).onclick = () => {
+                if (s('.new-' + idRow)) s('.new-' + idRow).onclick = () => {
                     s('.' + this.idContentNavi).style.display = 'none';
                     fadeIn(s('.' + this.idForm));
                     this.currenIdSquence = dataDir;
-                    this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path));
+                    this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
                 };
             });
 
             return /*html*/`
                     <row class='container title container-${idRow}'>
-                        <div class='g-sa' style='width: 80%; ${rrb()}'>
+                        <div class='g-sa' style='width: 80%;'>
                             ${dataDir.name}
                         </div>
-                        <div class='g-sa' style='width: 100px; ${rrb()}'>
+                        <div class='g-sa' style='width: 100px;'>
                             <i class='fas fa-plus new-${idRow}'></i>
                         </div>
                     </row>
@@ -97,5 +116,34 @@ this.directory_builder = {
                     </sub-folder-${idRow}>
                 `
         }).join('');
+    },
+    updateDirectory: async function () {
+        const getDataDirectoryUser = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': renderAuthBearer()
+            },
+            // body: JSON.stringify({
+            //     newNamePath: value,
+            //     path,
+            //     data: this.data
+            // })
+        });
+        if (getDataDirectoryUser.status != 'error')
+            this.data = getDataDirectoryUser.data;
+        else this.setDefaultData();
+        htmls('navi', this.renderDirectory(this.data));
+    },
+    setDefaultData: function () {
+        this.data = [
+            {
+                name: '/' + (localStorage.getItem('username') ? localStorage.getItem('username') : `ANON${s4()}`),
+                data: []
+            }
+        ];
+    },
+    routerDisplay: function () {
+        this.updateDirectory();
     }
 };

@@ -164,11 +164,11 @@ const baseStaticUri = viewMetaData =>
 const baseStaticClient = viewMetaData =>
     process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? '/' + viewMetaData.clientID : '';
 
-const banWords = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
+// const banWords = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
 const banChars = ['/', '\\'];
 const isInvalidChar = (str) =>
-    banWords.includes(str.toLowerCase())
-    ||
+    // banWords.includes(str.toLowerCase())
+    // ||
     range(0, str.length - 1)
         .filter(x => banChars.includes(str[x])).length > 0;
 

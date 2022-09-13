@@ -4,7 +4,7 @@ import fs from 'fs';
 import { authValidator, getUsers } from './auth.js';
 import express from 'express';
 import { logger } from '../modules/logger.js';
-import { buildBaseApiUri, newInstance } from './util.js';
+import { buildBaseApiUri, isInvalidChar, newInstance } from './util.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -324,10 +324,41 @@ const getPublicContent = (req, res) => {
     }
 };
 
-const globalFiles = (req, res) => {
+const postPath = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
+
+        console.log('postPath', req.body);
+
+        const validateAddPath = req.body.path && req.body.newNamePath && req.body.data;
 
 
-    
+        if (validateAddPath && isInvalidChar(req.body.newNamePath))
+            return res.status(400).json({
+                status: 'error',
+                data: 'invalid name path',
+            });
+
+        if (validateAddPath) {
+            fs.mkdirSync('./data/uploads/cloud' + req.body.path, { recursive: true });
+            fs.writeFileSync(
+                `./data/uploads/cloud/${req.user.username}/data.json`,
+                JSON.stringify(req.body.data, null, 4),
+                'utf8');
+        }
+
+        return res.status(200).json({
+            status: 'success',
+            data: JSON.parse(fs.readFileSync(`./data/uploads/cloud/${req.user.username}/data.json`, 'utf8'))
+        });
+    } catch (error) {
+        logger.error(error);
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+
 };
 
 const apiUploader = app => {
@@ -359,6 +390,7 @@ const apiUploader = app => {
     app.delete(`${buildBaseApiUri()}/api/${uriUploader}`, authValidator, deleteContents);
     app.put(`${buildBaseApiUri()}/api/${uriUploader}/visibility`, authValidator, changeVisibility);
     app.post(`${buildBaseApiUri()}/api/${uriUploader}/public`, getPublicContent);
+    app.post(`${buildBaseApiUri()}/api/${uriUploader}/path`, authValidator, postPath);
 
     app.use(`${buildBaseApiUri()}/uploads/js-demo`, express.static(`./data/uploads/js-demo`));
     app.use(`${buildBaseApiUri()}/uploads/editor`, express.static(`./data/uploads/editor`));
