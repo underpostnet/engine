@@ -11,10 +11,16 @@ this.cloud = {
 
         this.setDefaultData();
         this.idForm = 'x' + s4();
+        this.idFormFiles = 'x' * s4();
         this.idContentNavi = 'x' + s4();
 
         this.idAddElement = 'x' + s4();
         this.backNaviForm = 'x' + s4();
+        this.backNaviFormFiles = 'x' + s4();
+
+        const onFiles = files => {
+            console.log('onFiles', files);
+        };
 
         setTimeout(() => {
             s('.' + this.idAddElement).onclick = async e => {
@@ -63,6 +69,11 @@ this.cloud = {
                 s('.' + this.idForm).style.display = 'none';
                 fadeIn(s('.' + this.idContentNavi));
             };
+            s('.' + this.backNaviFormFiles).onclick = e => {
+                e.preventDefault();
+                s('.' + this.idFormFiles).style.display = 'none';
+                fadeIn(s('.' + this.idContentNavi));
+            };
         });
 
         return /*html*/`
@@ -80,6 +91,15 @@ this.cloud = {
                     <i class='fas fa-times'></i>
                 </button>     
         </form> 
+
+        <form class='in container ${this.idFormFiles}' style='display: none'>
+                ${renderFilesInput({
+                    onchange: onFiles
+                })}
+                <button class='${this.backNaviFormFiles}'>
+                    <i class='fas fa-times'></i>
+                </button>    
+        </form>
 
         <navi class='${this.idContentNavi}'> 
             ${this.renderDirectory(this.data)} 
@@ -100,6 +120,11 @@ this.cloud = {
                     this.currenIdSquence = dataDir;
                     this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
                 };
+                if (s('.files-' + idRow)) s('.files-' + idRow).onclick = () => {
+                    s('.' + this.idContentNavi).style.display = 'none';
+                    fadeIn(s('.' + this.idFormFiles));
+
+                };
             });
 
             return /*html*/`
@@ -109,6 +134,7 @@ this.cloud = {
                         </div>
                         <div class='g-sa' style='width: 100px;'>
                             <i class='fas fa-plus new-${idRow}'></i>
+                            <i class='fas fa-file files-${idRow}'></i>
                         </div>
                     </row>
                     <sub-folder-${idRow} class='in' style='padding-left: 20px'> 
