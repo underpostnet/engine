@@ -11,7 +11,7 @@ this.cloud = {
 
         this.setDefaultData();
         this.idForm = 'x' + s4();
-        this.idFormFiles = 'x' * s4();
+        this.idFormFiles = 'x' + s4();
         this.idContentNavi = 'x' + s4();
 
         this.idAddElement = 'x' + s4();
