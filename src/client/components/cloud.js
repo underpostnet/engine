@@ -32,6 +32,14 @@ this.cloud = {
 
                 const path = this.currentPathSquence + '/' + value;
 
+                if (this.currenIdSquence.data.find(x => x.name == value))
+                    return append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: errorIcon,
+                        color: 'red',
+                        content: renderLang({ es: 'Folder name already Exists', en: 'El nombre de la Carpeta ya existe' })
+                    }));
+
                 console.log(value, this.currenIdSquence);
                 this.currenIdSquence.data.push({ name: value, data: [] });
 
