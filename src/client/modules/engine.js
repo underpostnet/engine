@@ -118,19 +118,6 @@ const viewPaths = [
         session: true
     },
     {
-        path: baseHome + '/navi',
-        homePaths: [baseHome],
-        title: { en: 'Navi', es: 'Navi' },
-        component: 'directory_builder',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: true,
-        display: true,
-        session: true
-    },
-    {
         path: baseHome + '/:username',
         paths: [baseHome + '/boards'], // , baseHome + '/:username/content/:filename'
         homePaths: [baseHome],

@@ -1,132 +1,149 @@
 
-this.cloud = {
 
+this.cloud = {
     init: function () {
 
+        const IDS = s4();
+        this.IDS = IDS;
+        this[IDS] = range(0, maxIdComponent).map(() => 'cloud-' + s4());
 
+        this.updateDirectory();
 
-        const idDropArea = 'x' + s4();
-        const clearInput = 'x' + s4();
-        const idDropZoneInput = 'x' + s4();
-        const idStyleOnDragZone = 'x' + s4();
+        this.setDefaultData();
+        this.idForm = 'x' + s4();
+        this.idContentNavi = 'x' + s4();
+
+        this.idAddElement = 'x' + s4();
+        this.backNaviForm = 'x' + s4();
 
         setTimeout(() => {
+            s('.' + this.idAddElement).onclick = async e => {
+                e.preventDefault();
 
+                const value = s('.' + this[IDS][1]).value;
 
-            const dropzone = s('.' + idDropArea);
-            const dropzoneInput = s('.' + idDropZoneInput);
-            const multiple = dropzoneInput.getAttribute('multiple') ? true : false;
+                if (value == '') return;
 
-            s('.' + clearInput).onclick = () => {
-                dropzoneInput.value = null;
-            };
+                const path = this.currentPathSquence + '/' + value;
 
-            ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
-                dropzone.addEventListener(event, function (e) {
-                    e.preventDefault();
-                    e.stopPropagation();
-                });
-            });
+                console.log(value, this.currenIdSquence);
+                this.currenIdSquence.data.push({ name: value, data: [] });
 
-            dropzone.addEventListener('dragover', function (e) {
-                this.classList.add(idStyleOnDragZone);
-            }, false);
+                console.log('new path', this.data, path);
 
-            dropzone.addEventListener('dragleave', function (e) {
-                this.classList.remove(idStyleOnDragZone);
-            }, false);
-
-            dropzone.addEventListener('drop', function (e) {
-                this.classList.remove(idStyleOnDragZone);
-                let files = e.dataTransfer.files;
-                let dataTransfer = new DataTransfer();
-
-                let contFiles = 0;
-                Array.prototype.forEach.call(files, file => {
-                    if (!multiple && contFiles == 1) return;
-                    dataTransfer.items.add(file);
-                    contFiles++;
+                const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': renderAuthBearer()
+                    },
+                    body: JSON.stringify({
+                        newNamePath: value,
+                        path,
+                        data: this.data
+                    })
                 });
 
-                const filesToBeAdded = dataTransfer.files;
-                dropzoneInput.files = filesToBeAdded;
-                dropzoneInput.onchange({ target: dropzoneInput });
+                if (dataRequest.status == 'error') return append('body', renderFixModal({
+                    id: idErrorModal,
+                    icon: errorIcon,
+                    color: 'red',
+                    content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                }));
 
-            }, false);
+                htmls('navi', this.renderDirectory(this.data));
 
-            dropzone.addEventListener('click', function (e) {
-                dropzoneInput.click();
-            });
-
-            dropzoneInput.onchange = e => {
-                console.log('input file onchange', e.target.files);
-
-                Object.keys(e.target.files).forEach((fileAttr, currentIndex) => {
-                    const read = new FileReader();
-                    const currentFile = e.target.files[fileAttr];
-                    read.readAsBinaryString(currentFile);
-                    read.onloadend = () => {
-                        console.log(currentFile, currentIndex, read.result);
-                        console.log('-----');
-                    };
-                });
-
-                // let body = new FormData();
-                // body.append(s4(), new File([new Blob([s('.' + this[IDS][0]).value])], 'f' + s4() + '.js'));
-                // const url = () => `${buildBaseApiUri()}/api/${apiUploader}`;
-                // const method = 'POST';
-                // const headers = {
-                //     'Authorization': renderAuthBearer()
-                //     // 'Content-Type': 'application/json',
-                //     // 'content-type': 'application/octet-stream'
-                //     //  'content-length': CHUNK.length,
-                // };
-                // body.append('indexFolder', '2');
-                // body.append('title', s('.' + this[IDS][4]).value);
-                // body.append('public', s('.' + this[IDS][7]).checked);
-                // const requestResult = await serviceRequest(url, {
-                //     method,
-                //     headers,
-                //     body, // : method == 'GET' ? undefined : JSON.stringify(body)
-                // });
+                s('.' + this.idForm).style.display = 'none';
+                fadeIn(s('.' + this.idContentNavi));
+                clearInput(this[IDS], [0, 1, 2]);
 
             };
-
-
-
-
-
+            s('.' + this.backNaviForm).onclick = e => {
+                e.preventDefault();
+                s('.' + this.idForm).style.display = 'none';
+                fadeIn(s('.' + this.idContentNavi));
+            };
         });
 
         return /*html*/`
 
-                <div class='in container title'> cloud </div>    
-                
-                <style>
-                    .drop-area {
-                        height: 200px;
-                        background: #404040;
-                        color: white !important;
-                    }
-                    .${idStyleOnDragZone} {
-                        background: black;
-                        transition: .3s;
-                    }
-                </style>
+        <form class='in container ${this.idForm}' style='display: none'>
+                ${renderInput(this[IDS], renderLang({ es: `Nombre de Carpeta`, en: `Folder Name` }), [0, 1, 2])}        
+                <button type='submit' class='${this.idAddElement}'>
+                    ${renderLang({
+            es: 'Crear',
+            en: 'Crear'
+        })}        
+                    <i class='fas fa-plus'></i>
+                </button>      
+                <button class='${this.backNaviForm}'>
+                    <i class='fas fa-times'></i>
+                </button>     
+        </form> 
 
-                <div class='in container'>
-                    <input class='${idDropZoneInput}' type='file' multiple='multiple'>
-                    <button class='${clearInput}'>${renderLang({ es: 'Limpiar', en: 'Clear' })}</button>
-                </div>
+        <navi class='${this.idContentNavi}'> 
+            ${this.renderDirectory(this.data)} 
+        <navi>
 
-                <div class='in container drop-area ${idDropArea}'>
-                    <div class='abs center'>
-                            <i class='fas fa-cloud' style='font-size: 40px; color: white !important; cursor: default'></i>
-                            <br>
-                            ${renderLang({ en: 'Drop File', es: 'Soltar archivo' })}
-                    </div>
-                </div>
-        
         `
+    },
+    renderDirectory: function (dataDir, path) {
+        console.warn('renderDirectory', path);
+        return dataDir.map((dataDir) => {
+
+            const idRow = 'x' + s4();
+
+            setTimeout(() => {
+                if (s('.new-' + idRow)) s('.new-' + idRow).onclick = () => {
+                    s('.' + this.idContentNavi).style.display = 'none';
+                    fadeIn(s('.' + this.idForm));
+                    this.currenIdSquence = dataDir;
+                    this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
+                };
+            });
+
+            return /*html*/`
+                    <row class='container title container-${idRow}'>
+                        <div class='g-sa' style='width: 80%;'>
+                            ${dataDir.name}
+                        </div>
+                        <div class='g-sa' style='width: 100px;'>
+                            <i class='fas fa-plus new-${idRow}'></i>
+                        </div>
+                    </row>
+                    <sub-folder-${idRow} class='in' style='padding-left: 20px'> 
+                        ${this.renderDirectory(dataDir.data, (path == undefined ? dataDir.name : path + '/' + dataDir.name))}
+                    </sub-folder-${idRow}>
+                `
+        }).join('');
+    },
+    updateDirectory: async function () {
+        const getDataDirectoryUser = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': renderAuthBearer()
+            },
+            // body: JSON.stringify({
+            //     newNamePath: value,
+            //     path,
+            //     data: this.data
+            // })
+        });
+        if (getDataDirectoryUser.status != 'error')
+            this.data = getDataDirectoryUser.data;
+        else this.setDefaultData();
+        htmls('navi', this.renderDirectory(this.data));
+    },
+    setDefaultData: function () {
+        this.data = [
+            {
+                name: '/' + (localStorage.getItem('username') ? localStorage.getItem('username') : `ANON${s4()}`),
+                data: []
+            }
+        ];
+    },
+    routerDisplay: function () {
+        this.updateDirectory();
     }
 };
