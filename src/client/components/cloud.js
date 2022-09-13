@@ -94,8 +94,8 @@ this.cloud = {
 
         <form class='in container ${this.idFormFiles}' style='display: none'>
                 ${renderFilesInput({
-                    onchange: onFiles
-                })}
+            onchange: onFiles
+        })}
                 <button class='${this.backNaviFormFiles}'>
                     <i class='fas fa-times'></i>
                 </button>    
@@ -125,6 +125,11 @@ this.cloud = {
                     fadeIn(s('.' + this.idFormFiles));
 
                 };
+                if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = () => {
+                    const pathDelete = path + '/' + dataDir.name;
+                    console.log('delete folder', pathDelete);
+
+                };
             });
 
             return /*html*/`
@@ -135,6 +140,7 @@ this.cloud = {
                         <div class='g-sa' style='width: 100px;'>
                             <i class='fas fa-plus new-${idRow}'></i>
                             <i class='fas fa-file files-${idRow}'></i>
+                            ${path != undefined ?/*html*/ `<i class='fas fa-trash delete-${idRow}'></i> ` : ''}
                         </div>
                     </row>
                     <sub-folder-${idRow} class='in' style='padding-left: 20px'> 
