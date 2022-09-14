@@ -18,8 +18,30 @@ this.cloud = {
         this.backNaviForm = 'x' + s4();
         this.backNaviFormFiles = 'x' + s4();
 
+        this.sendFilesBtn = 'x' + s4();
+        this.previewFiles = 'x' + s4();
+
+        const onClearFiles = () => {
+            htmls(this.previewFiles, '');
+        };
+
         const onFiles = files => {
-            console.log('onFiles', files);
+
+            this.files = files;
+
+
+            const dataFiles = [];
+
+            Object.keys(this.files).forEach((fileAttr, currentIndex) => {
+                dataFiles.push({
+                    name: this.files[fileAttr].name
+                });
+            });
+
+            console.log('onFiles', files, dataFiles);
+
+            htmls(this.previewFiles, renderTable(dataFiles));
+
         };
 
         setTimeout(() => {
@@ -82,6 +104,14 @@ this.cloud = {
                 s('.' + this.idFormFiles).style.display = 'none';
                 fadeIn(s('.' + this.idContentNavi));
             };
+            s('.' + this.sendFilesBtn).onclick = e => {
+                e.preventDefault();
+
+
+                console.log('sendFilesBtn', this.files);
+
+
+            };
         });
 
         return /*html*/`
@@ -101,9 +131,15 @@ this.cloud = {
         </form> 
 
         <form class='in container ${this.idFormFiles}' style='display: none'>
+        <${this.previewFiles}></${this.previewFiles}>
                 ${renderFilesInput({
-            onchange: onFiles
+            onchange: onFiles,
+            clear: onClearFiles
         })}
+               
+                <button class='${this.sendFilesBtn}'>
+                    ${renderLang({ es: 'Subir Archivos', en: 'Send Files' })}
+                </button> 
                 <button class='${this.backNaviFormFiles}'>
                     <i class='fas fa-times'></i>
                 </button>    

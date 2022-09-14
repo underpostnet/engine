@@ -119,6 +119,7 @@ const renderFilesInput = (options) => {
         s('.' + clearInput).onclick = (e) => {
             e.preventDefault();
             dropzoneInput.value = null;
+            if (options && options.clear) options.clear();
         };
 
         ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
