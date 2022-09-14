@@ -369,6 +369,47 @@ const postPath = (req, res) => {
 
 };
 
+const postGlobalFiles = (req, res) => {
+    try {
+        res.setHeader('Content-Type', 'application/json');
+
+        console.log('postGlobalFiles', req.body);
+
+        if (!req.body.path || !req.body.data)
+            return res.status(400).json({
+                status: 'error',
+                data: 'invalid request data'
+            });
+
+        req.body.data = JSON.parse(req.body.data);
+
+        Object.keys(req.files).map(keyFile => {
+
+            // console.log(req.files[keyFile]);
+            req.files[keyFile].mv(`./data/uploads/cloud${req.body.path}/${keyFile}`);
+
+        });
+
+        fs.writeFileSync(
+            `./data/uploads/cloud/${req.user.username}/data.json`,
+            JSON.stringify(req.body.data, null, 4),
+            'utf8');
+
+        return res.status(200).json({
+            status: 'success',
+            data: 'ok'
+        });
+    } catch (error) {
+        logger.error(error);
+        return res.status(500).json({
+            status: 'error',
+            data: error.message,
+        });
+    }
+
+};
+
+
 const apiUploader = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -399,6 +440,7 @@ const apiUploader = app => {
     app.put(`${buildBaseApiUri()}/api/${uriUploader}/visibility`, authValidator, changeVisibility);
     app.post(`${buildBaseApiUri()}/api/${uriUploader}/public`, getPublicContent);
     app.post(`${buildBaseApiUri()}/api/${uriUploader}/path`, authValidator, postPath);
+    app.post(`${buildBaseApiUri()}/api/${uriUploader}/files`, authValidator, postGlobalFiles);
 
     app.use(`${buildBaseApiUri()}/uploads/js-demo`, express.static(`./data/uploads/js-demo`));
     app.use(`${buildBaseApiUri()}/uploads/editor`, express.static(`./data/uploads/editor`));

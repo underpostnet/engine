@@ -21,6 +21,9 @@ this.cloud = {
         this.sendFilesBtn = 'x' + s4();
         this.previewFiles = 'x' + s4();
 
+        // files clear
+        this.clearInputSelector = 'x' + s4();
+
         const onClearFiles = () => {
             htmls(this.previewFiles, '');
         };
@@ -104,11 +107,66 @@ this.cloud = {
                 s('.' + this.idFormFiles).style.display = 'none';
                 fadeIn(s('.' + this.idContentNavi));
             };
-            s('.' + this.sendFilesBtn).onclick = e => {
+            s('.' + this.sendFilesBtn).onclick = async e => {
                 e.preventDefault();
 
+                let body = new FormData();
 
-                console.log('sendFilesBtn', this.files);
+                Object.keys(this.files).forEach((fileAttr, currentIndex) => {
+
+                    const currentFile = this.files[fileAttr];
+                    const fileObj = {
+                        name: currentFile.name,
+                        static: 'f' + s4() + '.' + currentFile.name.split('.').pop()
+                    };
+                    this.currenIdSquence.files ?
+                        this.currenIdSquence.files.push(fileObj) :
+                        this.currenIdSquence.files = [fileObj];
+                    body.append(fileObj.static, this.files[fileAttr]);
+                });
+
+                console.log('this.files', this.files);
+                console.log('this.data', this.data);
+                console.log('this.currentPathSquence', this.currentPathSquence);
+                console.log('body', body);
+
+
+                const url = () => `${buildBaseApiUri()}/api/${apiUploader}/files`;
+                const method = 'POST';
+                const headers = {
+                    'Authorization': renderAuthBearer()
+                    // 'Content-Type': 'application/json',
+                    // 'content-type': 'application/octet-stream'
+                    //  'content-length': CHUNK.length,
+                };
+                body.append('path', this.currentPathSquence);
+                body.append('data', JSON.stringify(this.data));
+
+                const requestResult = await serviceRequest(url, {
+                    method,
+                    headers,
+                    body, // : method == 'GET' ? undefined : JSON.stringify(body)
+                });
+
+                if (requestResult.status == 'error') {
+                    append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: errorIcon,
+                        color: 'red',
+                        content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                    }));
+                } else {
+                    append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: sucessIcon,
+                        color: 'green',
+                        content: renderLang({ es: 'Archivos subidos con éxito', en: 'Files uploaded successfully' })
+                    }))
+                };
+
+                s('.' + this.backNaviFormFiles).click();
+                s('.' + this.clearInputSelector).click();
+                this.updateDirectory();
 
 
             };
@@ -134,7 +192,8 @@ this.cloud = {
         <${this.previewFiles}></${this.previewFiles}>
                 ${renderFilesInput({
             onchange: onFiles,
-            clear: onClearFiles
+            clear: onClearFiles,
+            clearInputSelector: this.clearInputSelector
         })}
                
                 <button class='${this.sendFilesBtn}'>
@@ -157,17 +216,21 @@ this.cloud = {
         return dataDir.map((dataDir, indexDir) => {
 
             const idRow = 'x' + s4();
+            const setCurrentDataPathFiles = () => {
+                this.currenIdSquence = dataDir;
+                this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
+            };
 
             setTimeout(() => {
                 if (s('.new-' + idRow)) s('.new-' + idRow).onclick = () => {
                     s('.' + this.idContentNavi).style.display = 'none';
                     fadeIn(s('.' + this.idForm));
-                    this.currenIdSquence = dataDir;
-                    this.currentPathSquence = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
+                    setCurrentDataPathFiles();
                 };
                 if (s('.files-' + idRow)) s('.files-' + idRow).onclick = () => {
                     s('.' + this.idContentNavi).style.display = 'none';
                     fadeIn(s('.' + this.idFormFiles));
+                    setCurrentDataPathFiles();
 
                 };
                 if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = async () => {

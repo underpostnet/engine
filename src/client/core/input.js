@@ -104,7 +104,7 @@ const setValueInput = (_this, matrix, value) => {
 const renderFilesInput = (options) => {
 
     const idDropArea = 'x' + s4();
-    const clearInput = 'x' + s4();
+    const clearInput = options.clearInputSelector ? options.clearInputSelector : 'x' + s4();
     const idDropZoneInput = 'x' + s4();
     const idStyleOnDragZone = 'x' + s4();
     const dropAreaStyle = 'x' + s4();
