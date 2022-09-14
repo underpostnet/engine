@@ -275,7 +275,7 @@ this.cloud = {
             return /*html*/`
                     <row class='container title container-${idRow}'>
                         <div class='g-sa' style='width: 80%;'>
-                            ${dataDir.name}
+                            <i class='fas fa-folder'></i> ${dataDir.name}
                         </div>
                         <div class='g-sa' style='width: 100px;'>
                             <i class='fas fa-plus new-${idRow}'></i>
@@ -283,6 +283,13 @@ this.cloud = {
                             ${path != undefined ?/*html*/ `<i class='fas fa-trash delete-${idRow}'></i> ` : ''}
                         </div>
                     </row>
+                    ${dataDir.files ?/*html*/`
+                    <div class='in container'>
+                        <files-${idRow} class='in' style='padding-left: 20px'> 
+                            ${renderTable(dataDir.files)}
+                        </files-${idRow}>
+                    </div>
+                    ` : ''}
                     <sub-folder-${idRow} class='in' style='padding-left: 20px'> 
                         ${this.renderDirectory(dataDir.data, (path == undefined ? dataDir.name : path + '/' + dataDir.name))}
                     </sub-folder-${idRow}>
