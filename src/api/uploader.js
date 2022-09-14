@@ -445,6 +445,7 @@ const apiUploader = app => {
     app.use(`${buildBaseApiUri()}/uploads/js-demo`, express.static(`./data/uploads/js-demo`));
     app.use(`${buildBaseApiUri()}/uploads/editor`, express.static(`./data/uploads/editor`));
     app.use(`${buildBaseApiUri()}/uploads/markdown`, express.static(`./data/uploads/markdown`));
+    app.use(`${buildBaseApiUri()}/uploads/cloud`, express.static(`./data/uploads/cloud`));
 
 }
 

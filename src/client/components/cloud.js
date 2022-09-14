@@ -286,7 +286,13 @@ this.cloud = {
                     ${dataDir.files ?/*html*/`
                     <div class='in container'>
                         <files-${idRow} class='in' style='padding-left: 20px'> 
-                            ${renderTable(dataDir.files)}
+                            ${renderTable(dataDir.files.map(x => {
+                x.path = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
+                return x;
+            }), {
+                actions: this.actionRowFile,
+                customHeader: '<th></th>'
+            })}
                         </files-${idRow}>
                     </div>
                     ` : ''}
@@ -324,5 +330,37 @@ this.cloud = {
     },
     routerDisplay: function () {
         this.updateDirectory();
+    },
+    actionRowFile: function (row) {
+
+        const idView = 'x' + s4();
+        const idDelete = 'x' + s4();
+        setTimeout(() => {
+
+            if (s('.' + idView)) s('.' + idView).onclick = () => {
+                console.log('idView', row);
+                const pathDownload = buildBaseApiUri() + '/uploads/cloud' + row.path + '/' + row.static;
+                console.warn(pathDownload);
+                const idDownload = 'x' + s4();
+                append('body', `<a class='` + idDownload + `' style='display: none'></a>`);
+                // blob case .href = window.URL.createObjectURL(blob);
+                s('.' + idDownload).href = pathDownload;
+                s('.' + idDownload).download = row.name;
+                s('.' + idDownload).click();
+                s('.' + idDownload).remove();
+            };
+            if (s('.' + idDelete)) s('.' + idDelete).onclick = () => {
+                console.log('idDelete', row);
+            };
+
+        });
+        return /*html*/`
+        <th>
+            <i class='fas fa-download ${idView}'></i>
+            <i class='fas fa-trash ${idDelete}'></i>              
+        </th>
+        `
+
+
     }
 };
