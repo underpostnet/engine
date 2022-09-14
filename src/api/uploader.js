@@ -375,6 +375,21 @@ const postGlobalFiles = (req, res) => {
 
         console.log('postGlobalFiles', req.body);
 
+        if (req.body.deletePath && req.body.data && !req.body.path) {
+
+            fs.unlinkSync('./data/uploads/cloud' + req.body.deletePath);
+
+            fs.writeFileSync(
+                `./data/uploads/cloud/${req.user.username}/data.json`,
+                JSON.stringify(req.body.data, null, 4),
+                'utf8');
+
+            return res.status(200).json({
+                status: 'success',
+                data: 'ok'
+            });
+        }
+
         if (!req.body.path || !req.body.data)
             return res.status(400).json({
                 status: 'error',

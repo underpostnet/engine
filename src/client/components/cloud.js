@@ -288,6 +288,7 @@ this.cloud = {
                         <files-${idRow} class='in' style='padding-left: 20px'> 
                             ${renderTable(dataDir.files.map(x => {
                 x.path = newInstance((path == undefined ? dataDir.name : path + '/' + dataDir.name));
+                x.dataDir = () => dataDir;
                 return x;
             }), {
                 actions: this.actionRowFile,
@@ -349,8 +350,41 @@ this.cloud = {
                 s('.' + idDownload).click();
                 s('.' + idDownload).remove();
             };
-            if (s('.' + idDelete)) s('.' + idDelete).onclick = () => {
-                console.log('idDelete', row);
+            if (s('.' + idDelete)) s('.' + idDelete).onclick = async () => {
+
+                row.dataDir().files.splice(row.dataDir().files.findIndex(x => x.static == row.static), 1);
+
+                console.log('idDelete', row, GLOBAL.cloud.data);
+
+                const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/files`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': renderAuthBearer()
+                    },
+                    body: JSON.stringify({
+                        deletePath: row.path + '/' + row.static,
+                        data: GLOBAL.cloud.data
+                    })
+                });
+
+                if (dataRequest.status == 'error') {
+                    append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: errorIcon,
+                        color: 'red',
+                        content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                    }));
+                } else {
+                    append('body', renderFixModal({
+                        id: 'x' + s4(),
+                        icon: sucessIcon,
+                        color: 'green',
+                        content: renderLang({ es: 'Archivo eliminado con éxito', en: 'Files delete successfully' })
+                    }))
+                };
+
+                GLOBAL.cloud.updateDirectory();
             };
 
         });
