@@ -12,7 +12,8 @@ import {
     randomColor,
     replaceAll,
     buildBaseUri,
-    clearSubUri
+    clearSubUri,
+    uniqueArray
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -322,6 +323,12 @@ const ssr = async (app, renderData) => {
                     return mergeFix;
                 }));
                 viewMetaData.apiURIS = viewMetaData.apiURIS.concat(renderSingle.viewMetaData.apiURIS);
+                if (renderSingle.viewMetaData.srcJS) viewMetaData.srcJS ?
+                    viewMetaData.srcJS = uniqueArray(viewMetaData.srcJS.concat(renderSingle.viewMetaData.srcJS)) :
+                    viewMetaData.srcJS = newInstance(renderSingle.viewMetaData.srcJS);
+                if (renderSingle.viewMetaData.srcCSS) viewMetaData.srcCSS ?
+                    viewMetaData.srcCSS = uniqueArray(viewMetaData.srcCSS.concat(renderSingle.viewMetaData.srcCSS)) :
+                    viewMetaData.srcCSS = newInstance(renderSingle.viewMetaData.srcCSS);
             }
         });
     renderData[0].viewPaths = viewPaths;
