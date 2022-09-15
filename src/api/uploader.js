@@ -375,6 +375,9 @@ const postGlobalFiles = (req, res) => {
 
         console.log('postGlobalFiles', req.body);
 
+        if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}`))
+            fs.mkdirSync(`./data/uploads/cloud/${req.user.username}`, { recursive: true });
+
         if (req.body.deletePath && req.body.data && !req.body.path) {
 
             fs.unlinkSync('./data/uploads/cloud' + req.body.deletePath);
@@ -428,6 +431,9 @@ const postGlobalFiles = (req, res) => {
 const getFilesByFormat = (req, res) => {
     try {
         res.setHeader('Content-Type', 'application/json');
+
+        if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}`))
+            fs.mkdirSync(`./data/uploads/cloud/${req.user.username}`, { recursive: true });
 
         const result = getAllFiles(`./data/uploads/cloud/${req.user.username}`);
 
