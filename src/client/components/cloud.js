@@ -117,7 +117,7 @@ this.cloud = {
                     const currentFile = this.files[fileAttr];
                     const fileObj = {
                         name: currentFile.name,
-                        static: 'f' + s4() + '.' + currentFile.name.split('.').pop()
+                        static: 'f' + s4() + '-' + currentFile.name
                     };
                     this.currenIdSquence.files ?
                         this.currenIdSquence.files.push(fileObj) :

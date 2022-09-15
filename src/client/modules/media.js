@@ -1,5 +1,8 @@
-import { baseStaticUri } from '../../api/util.js';
+import { commonFunctions, newInstance } from '../../api/util.js';
 import fs from 'fs';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const clientID = 'media';
 const viewMetaData = {
@@ -22,8 +25,8 @@ const viewMetaData = {
 const baseHome = '/' + clientID;
 
 const statics = app => {
-
-    const BSU = baseStaticUri(viewMetaData);
+    const deployModuleId = 'underpost';
+    const BSU = process.env.NODE_ENV == 'development' ? '' : '/' + deployModuleId;
 
     const cssAudioPlayer = fs.readFileSync('./underpost_modules/underpost-library/audioplayer/AudioPlayer.css', 'utf-8');
     app.get(BSU + '/audioplayer/AudioPlayer.css', (req, res) => {
@@ -41,6 +44,45 @@ const statics = app => {
         return res.end(jsAudioPlayer);
     });
 
+    const mainJsAudioPlayer = async () => {
+
+        const dataRequest = await serviceRequest(() => `${baseApiUri}/api/uploader/files/mp3`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`
+            }
+            // body: JSON.stringify({
+            //     newNamePath: value,
+            //     path,
+            //     data: this.data
+            // })
+        });
+
+        if (dataRequest.status == 'error' || dataRequest.data.length == 0) return;
+
+        // test image for web notifications
+        window.iconAudioPlayerImage = '/assets-underpost/underpost-social.jpg';
+
+        AP.init({
+            container: '#player',//a string containing one CSS selector
+            volume: 0.7,
+            autoPlay: false,
+            notification: false,
+            playList: [
+                // { 'icon': iconAudioPlayerImage, 'title': 'imecop1983-Reflections-Album-Bonus-OST', 'file': '/uploads/cloud/francisco-verdugo/f7ec1.mp3' },
+                // { 'icon': iconAudioPlayerImage, 'title': 'imecop1983-Reflections-Album-Bonus-OST', 'file': '/uploads/cloud/francisco-verdugo/f7ec1.mp3' }
+            ].concat(dataRequest.data.map(x => {
+                return {
+                    icon: iconAudioPlayerImage,
+                    file: newInstance(x),
+                    title: x.split('/').pop().slice(6)
+                }
+            }))
+        });
+    };
+
+    const baseApiUri = process.env.NODE_ENV == 'development' ? '' : process.env.API_URL;
     const srcAudioPlayer = /*html*/`
     <!DOCTYPE html>
     <html >
@@ -55,9 +97,8 @@ const statics = app => {
 
         #player{
             position: relative;
-            max-width: 700px;
             height: 500px;
-            border: solid 1px gray;
+            overflow: auto !important;
         }
         </style>
     </head>
@@ -70,19 +111,19 @@ const statics = app => {
         <script src="/audioplayer/AudioPlayer.js"></script>
 
         <script>
-            // test image for web notifications
-            const iconImage = null;
-
-            AP.init({
-                container:'#player',//a string containing one CSS selector
-                volume   : 0.7,
-                autoPlay : true,
-                notification: false,
-                playList: [
-                    { 'icon': iconImage, 'title': 'imecop1983-Reflections-Album-Bonus-OST', 'file': '/uploads/cloud/francisco-verdugo/f7ec1.mp3' },
-                    { 'icon': iconImage, 'title': 'imecop1983-Reflections-Album-Bonus-OST', 'file': '/uploads/cloud/francisco-verdugo/f7ec1.mp3' }
-            ]
-            });
+        (function(){
+            const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
+            const build = ${process.argv[2] == 'build'};
+            if(!dev){
+                console.log = () => null;
+                console.error = () => null;
+                console.warn = () => null;
+            }
+            const baseApiUri = '${baseApiUri}';
+            ${commonFunctions()}
+            ${fs.readFileSync('./src/client/core/vanilla.js', 'utf8')}
+            (${mainJsAudioPlayer})();
+        })()
         </script>
         <!-- Audio player js end-->
 
@@ -97,11 +138,11 @@ const statics = app => {
         return res.end(srcAudioPlayer);
     });
 
-    if (process.argv[2] == 'build') {        
-        fs.mkdirSync(`./builds/${viewMetaData.clientID}/audioplayer`);
-        fs.writeFileSync(`./builds/${viewMetaData.clientID}/audioplayer/AudioPlayer.js`, jsAudioPlayer, 'utf8');
-        fs.writeFileSync(`./builds/${viewMetaData.clientID}/audioplayer/AudioPlayer.css`, cssAudioPlayer, 'utf8');
-        fs.writeFileSync(`./builds/${viewMetaData.clientID}/audioplayer/index.html`, srcAudioPlayer, 'utf8');
+    if (process.argv[2] == 'build') {
+        if (!fs.existsSync(`./builds/${deployModuleId}/audioplayer`)) fs.mkdirSync(`./builds/${deployModuleId}/audioplayer`);
+        fs.writeFileSync(`./builds/${deployModuleId}/audioplayer/AudioPlayer.js`, jsAudioPlayer, 'utf8');
+        fs.writeFileSync(`./builds/${deployModuleId}/audioplayer/AudioPlayer.css`, cssAudioPlayer, 'utf8');
+        fs.writeFileSync(`./builds/${deployModuleId}/audioplayer/index.html`, srcAudioPlayer, 'utf8');
     }
 
 }
