@@ -20,6 +20,17 @@ const viewMetaData = {
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
+    ],
+    srcCSS: [
+        '/simplemde/simplemde.min.css',
+        '/assets/prism/prism.css',
+        '/spectre-markdown.css/dist/markdown.min.css'
+    ],
+    srcJS: [
+        '/tinymce/tinymce.min.js',
+        '/simplemde/simplemde.min.js',
+        '/assets/prism/prism.js',
+        '/marked/marked.min.js'
     ]
 };
 
