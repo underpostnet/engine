@@ -233,41 +233,73 @@ this.cloud = {
                     setCurrentDataPathFiles();
 
                 };
-                if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = async () => {
-                    const pathDelete = path + '/' + dataDir.name;
-                    console.log('delete folder', pathDelete);
+                if (s('.delete-' + idRow)) s('.delete-' + idRow).onclick = () => {
 
-                    parentDir.splice(indexDir, 1);
-                    console.log(this.data);
+                    const idYes = 'x' + s4();
+                    const idNo = 'x' + s4();
+                    const idMoval = 'mini-modal-' + s4();
 
-                    const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                            'Authorization': renderAuthBearer()
+                    append('body', renderFixModal({
+                        id: idMoval,
+                        icon: '<i class="fas fa-question"></i>',
+                        color: 'yellow',
+                        content: () => {
+                            return /*html*/`
+                        ${renderLang({ es: 'Estas seguro <br> de eliminar <br> ' + path + '/' + dataDir.name + '?', en: 'Are you sure <br> to delete <br> ' + path + '/' + dataDir.name + '?' })}
+                        <br>
+                        <button class='${idYes}'>${renderLang({ es: 'Si', en: 'yes' })}</button>
+                        <button class='${idNo}'>${renderLang({ es: 'No', en: 'No' })}</button>
+                        `
                         },
-                        body: JSON.stringify({
-                            deletePath: pathDelete,
-                            data: this.data
-                        })
-                    });
-
-                    if (dataRequest.status == 'error') return append('body', renderFixModal({
-                        id: 'x' + s4(),
-                        icon: errorIcon,
-                        color: 'red',
-                        content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
-                    }))
-                    else append('body', renderFixModal({
-                        id: 'x' + s4(),
-                        icon: sucessIcon,
-                        color: 'green',
-                        content: renderLang({ es: 'Carpeta Eliminada', en: 'Deleted Forlder' })
+                        time: 60000,
+                        height: 200
                     }));
 
-                    // this.data = dataRequest.data;
+                    s('.' + idYes).onclick = async () => {
+                        const pathDelete = path + '/' + dataDir.name;
+                        console.log('delete folder', pathDelete);
 
-                    htmls('navi', this.renderDirectory(this.data));
+                        parentDir.splice(indexDir, 1);
+                        console.log(this.data);
+
+                        const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': renderAuthBearer()
+                            },
+                            body: JSON.stringify({
+                                deletePath: pathDelete,
+                                data: this.data
+                            })
+                        });
+
+                        if (dataRequest.status == 'error') return append('body', renderFixModal({
+                            id: 'x' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                        }))
+                        else append('body', renderFixModal({
+                            id: 'x' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Carpeta Eliminada', en: 'Deleted Forlder' })
+                        }));
+
+                        // this.data = dataRequest.data;
+
+                        htmls('navi', this.renderDirectory(this.data));
+
+                        fadeOut(s('.' + idMoval));
+                        setTimeout(() => s('.' + idMoval).remove());
+
+                    };
+
+                    s('.' + idNo).onclick = () => {
+                        fadeOut(s('.' + idMoval));
+                        setTimeout(() => s('.' + idMoval).remove());
+                    };
 
                 };
             });
@@ -352,39 +384,75 @@ this.cloud = {
             };
             if (s('.' + idDelete)) s('.' + idDelete).onclick = async () => {
 
-                row.dataDir().files.splice(row.dataDir().files.findIndex(x => x.static == row.static), 1);
+                const idYes = 'x' + s4();
+                const idNo = 'x' + s4();
+                const idMoval = 'mini-modal-' + s4();
 
-                console.log('idDelete', row, GLOBAL.cloud.data);
-
-                const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/files`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': renderAuthBearer()
+                append('body', renderFixModal({
+                    id: idMoval,
+                    icon: '<i class="fas fa-question"></i>',
+                    color: 'yellow',
+                    content: () => {
+                        return /*html*/`
+                    ${renderLang({
+                            es: 'Estas seguro <br> de eliminar <br> ' + row.name + '?',
+                            en: 'Are you sure <br> to delete <br> ' + row.name + '?'
+                        })}
+                    <br>
+                    <button class='${idYes}'>${renderLang({ es: 'Si', en: 'yes' })}</button>
+                    <button class='${idNo}'>${renderLang({ es: 'No', en: 'No' })}</button>
+                    `
                     },
-                    body: JSON.stringify({
-                        deletePath: row.path + '/' + row.static,
-                        data: GLOBAL.cloud.data
-                    })
-                });
+                    time: 60000,
+                    height: 200
+                }));
 
-                if (dataRequest.status == 'error') {
-                    append('body', renderFixModal({
-                        id: 'x' + s4(),
-                        icon: errorIcon,
-                        color: 'red',
-                        content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
-                    }));
-                } else {
-                    append('body', renderFixModal({
-                        id: 'x' + s4(),
-                        icon: sucessIcon,
-                        color: 'green',
-                        content: renderLang({ es: 'Archivo eliminado con éxito', en: 'Files delete successfully' })
-                    }))
+                s('.' + idYes).onclick = async () => {
+
+                    row.dataDir().files.splice(row.dataDir().files.findIndex(x => x.static == row.static), 1);
+
+                    console.log('idDelete', row, GLOBAL.cloud.data);
+
+                    const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/files`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': renderAuthBearer()
+                        },
+                        body: JSON.stringify({
+                            deletePath: row.path + '/' + row.static,
+                            data: GLOBAL.cloud.data
+                        })
+                    });
+
+                    if (dataRequest.status == 'error') {
+                        append('body', renderFixModal({
+                            id: 'x' + s4(),
+                            icon: errorIcon,
+                            color: 'red',
+                            content: renderLang({ es: 'Error service', en: 'Error en el Servicio' })
+                        }));
+                    } else {
+                        append('body', renderFixModal({
+                            id: 'x' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Archivo eliminado con éxito', en: 'Files delete successfully' })
+                        }))
+                    };
+
+                    GLOBAL.cloud.updateDirectory();
+
+                    fadeOut(s('.' + idMoval));
+                    setTimeout(() => s('.' + idMoval).remove());
+
                 };
 
-                GLOBAL.cloud.updateDirectory();
+                s('.' + idNo).onclick = () => {
+                    fadeOut(s('.' + idMoval));
+                    setTimeout(() => s('.' + idMoval).remove());
+                };
+
             };
 
         });
