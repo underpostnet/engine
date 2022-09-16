@@ -74,7 +74,7 @@ const statics = app => {
                 // { 'icon': iconAudioPlayerImage, 'title': 'imecop1983-Reflections-Album-Bonus-OST', 'file': '/uploads/cloud/francisco-verdugo/f7ec1.mp3' }
             ].concat(dataRequest.data.map(x => {
                 return {
-                    icon: iconAudioPlayerImage,
+                    icon: baseApiUri + iconAudioPlayerImage,
                     file: newInstance(x),
                     title: x.split('/').pop().slice(6)
                 }
