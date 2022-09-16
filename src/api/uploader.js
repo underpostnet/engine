@@ -331,6 +331,10 @@ const postPath = (req, res) => {
 
         console.log('postPath', req.body);
 
+        
+        if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}`))
+            fs.mkdirSync(`./data/uploads/cloud/${req.user.username}`, { recursive: true });
+
         const validateAddPath = req.body.path && req.body.newNamePath && req.body.data;
 
 
@@ -354,6 +358,15 @@ const postPath = (req, res) => {
                 `./data/uploads/cloud/${req.user.username}/data.json`,
                 JSON.stringify(req.body.data, null, 4),
                 'utf8');
+
+
+        if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}/data.json`))
+            fs.writeFileSync(`./data/uploads/cloud/${req.user.username}/data.json`, JSON.stringify([
+                {
+                    "name": "/" + req.user.username,
+                    "data": []
+                }
+            ], null, 4), 'utf8');
 
         return res.status(200).json({
             status: 'success',
