@@ -21,6 +21,9 @@ this.cloud = {
         this.sendFilesBtn = 'x' + s4();
         this.previewFiles = 'x' + s4();
 
+        this.contentFormFilesInput = 'x' + s4();
+        this.contentSpinnerFileInput = 'x' + s4();
+
         // files clear
         this.clearInputSelector = 'x' + s4();
 
@@ -110,6 +113,9 @@ this.cloud = {
             s('.' + this.sendFilesBtn).onclick = async e => {
                 e.preventDefault();
 
+                s(this.contentFormFilesInput).style.display = 'none';
+                fadeIn(s(this.contentSpinnerFileInput));
+
                 let body = new FormData();
 
                 Object.keys(this.files).forEach((fileAttr, currentIndex) => {
@@ -147,6 +153,9 @@ this.cloud = {
                     headers,
                     body, // : method == 'GET' ? undefined : JSON.stringify(body)
                 });
+
+                s(this.contentSpinnerFileInput).style.display = 'none';
+                s(this.contentFormFilesInput).style.display = 'block';
 
                 if (requestResult.status == 'error') {
                     append('body', renderFixModal({
@@ -190,11 +199,24 @@ this.cloud = {
 
         <form class='in container ${this.idFormFiles}' style='display: none'>
         <${this.previewFiles}></${this.previewFiles}>
-                ${renderFilesInput({
+       
+        <${this.contentFormFilesInput} class='in'>
+            ${renderFilesInput({
             onchange: onFiles,
             clear: onClearFiles,
             clearInputSelector: this.clearInputSelector
         })}
+        </${this.contentFormFilesInput}>
+
+        <${this.contentSpinnerFileInput}  class='in' style='display: none'>
+            <div class='in container title' style='text-align: center'>
+                <br>
+                ${renderLang({ en: 'Uploading file', es: 'Subiendo Archivo' })}
+                <br>
+                <br>
+            </div>
+            ${renderSpinner(`x${s4()}`, { style: 'display: block; text-align: center' })}
+        </${this.contentSpinnerFileInput}>
                
                 <button class='${this.sendFilesBtn}'>
                     ${renderLang({ es: 'Subir Archivos', en: 'Send Files' })}

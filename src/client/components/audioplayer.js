@@ -4,10 +4,19 @@ this.audioplayer = {
     init: function () {
 
         this.audioPlayerContainer = 'x' + s4();
+        this.idBtnSync = 'x' + s4();
+
+        setTimeout(() => s('.' + this.idBtnSync).onclick = e => {
+            e.preventDefault();
+            htmls('.' + this.audioPlayerContainer, this.renderAudioPlayer());
+        });
 
         // https://github.com/likev/html5-audio-player
 
         return /*html*/`
+        <div class='in container'>
+            <button class='${this.idBtnSync}'>${renderLang({ es: 'Sincronizar Lista', en: 'Sync List' })}</button>
+        </div>
         <style>
             .iframe-audio-player {
                 height: 550px; 
@@ -24,7 +33,7 @@ this.audioplayer = {
         `
     },
     routerDisplay: function () {
-        htmls('.' + this.audioPlayerContainer, this.renderAudioPlayer());
+        //  htmls('.' + this.audioPlayerContainer, this.renderAudioPlayer());
     },
     renderAudioPlayer: () => /*html*/`
     <iframe class='in iframe-audio-player' src='/audioplayer'></iframe>

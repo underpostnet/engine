@@ -175,7 +175,7 @@ const viewPaths = [
         session: true
     },
     {
-        path: baseHome + '/audioplayer',
+        path: baseHome + '/media-player',
         homePaths: [baseHome],
         title: { en: 'Audio Player', es: 'Audio Player' },
         component: 'audioplayer',
