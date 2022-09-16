@@ -203,6 +203,7 @@ this.main_menu = {
 
     },
     onScroll: function (dataScroll) {
+        return;
 
         // console.log('main_menu onScroll', dataScroll, GLOBAL['dimensionData']);
 

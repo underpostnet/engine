@@ -210,7 +210,7 @@ this.my_content = {
         this.renderMyContentTable();
     },
     changeVisibilityService: async (row) => {
-        const url = () => '/api/uploader/visibility';
+        const url = () => buildBaseApiUri() + '/api/uploader/visibility';
         const method = 'PUT';
         const headers = {
             'Authorization': renderAuthBearer(),
