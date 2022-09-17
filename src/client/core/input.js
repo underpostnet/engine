@@ -45,7 +45,7 @@ const renderInput = (_this, name, matrix, customValidator, options) => {
         if (customValidator && customValidator(inputId, errorsIdInput[i]) == false) {
             return false;
         }
-        const maxChars = (options && options.valueLength ? options.valueLength : 28);
+        const maxChars = (options && options.valueLength ? options.valueLength : 28 * 2);
         if (s('.' + _this[inputId]).value.length > maxChars) {
             renderMsgInput(errorsIdInput[i], renderLang({ es: `Supera los ${maxChars} caracteres`, en: `Exceed ${maxChars} characters` }));
             return false;
