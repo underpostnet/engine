@@ -19,7 +19,8 @@ const viewMetaData = {
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
-    ]
+    ],
+    srcJS: ['/socket.io/socket.io.js', '/peer/peer.min.js']
 };
 
 const baseHome = '/' + clientID;
@@ -35,6 +36,24 @@ const statics = app => {
         });
         return res.end(cssAudioPlayer);
     });
+
+
+    const srcSocketIo = fs.readFileSync('./underpost_modules/underpost-library/lib/socket.io.js', 'utf8');
+    app.get(BSU + '/socket.io/socket.io.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(srcSocketIo);
+    });
+
+    const srcPeerClient = fs.readFileSync('./underpost_modules/underpost-library/lib/peer.min.js', 'utf8');
+    app.get(BSU + '/peer/peer.min.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(srcPeerClient);
+    });
+
 
     const jsAudioPlayer = fs.readFileSync('./underpost_modules/underpost-library/audioplayer/AudioPlayer.js', 'utf8');
     app.get(BSU + '/audioplayer/AudioPlayer.js', (req, res) => {

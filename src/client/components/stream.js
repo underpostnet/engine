@@ -9,6 +9,11 @@ this.stream = {
 
 
 
+        // const ioSocket = io('/');
+        // const peerInstance = new Peer(undefined, {
+        //     host: '/',
+        //     port: 5501
+        // });
 
 
 
