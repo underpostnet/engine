@@ -26,17 +26,18 @@ const writeFiles = files => fs.writeFileSync(filesPathData, JSON.stringify(files
 
 const mods = ['francisco-verdugo'];
 
-const findIndexUsernameFile = (req) => {
-    let indFile = 0;
-    for (let userFile of getFiles()) {
-        if (userFile.username == req.user.username)
-            return indFile;
-        indFile++;
-    }
-    return -1;
-};
+const findIndexUsernameFile = (req) =>
+    getFiles()
+        .findIndex(fileObj => fileObj.username == req.user.username);
 
-const onUploadFile = (req, res) => {
+const scanFile = filePath =>
+    new Promise(resolve => {
+        const isInfected = false;
+        // fs.unlinkSync(filePath);
+        return resolve(isInfected);
+    });
+
+const onUploadFile = async (req, res) => {
     try {
         res.setHeader('Content-Type', 'application/json');
 
@@ -63,7 +64,7 @@ const onUploadFile = (req, res) => {
 
             console.log('typeFile', typeFile);
 
-            Object.keys(req.files).map(keyFile => {
+            for (let keyFile of Object.keys(req.files)) {
 
                 let successProcess = false;
 
@@ -115,11 +116,16 @@ const onUploadFile = (req, res) => {
 
                 if (successProcess) {
                     fs.writeFileSync(`./data/uploads${staticPath}`, req.files[keyFile].data, 'utf8');
+
+                    const isInfected = await scanFile(`./data/uploads${staticPath}`);
+                    console.log('isInfected', isInfected);
+                    if (isInfected) throw { message: 'Infected file' };
+
                 } else {
                     throw { message: 'invalid user data' };
                 }
 
-            });
+            };
 
             writeFiles(files);
 
@@ -331,7 +337,7 @@ const postPath = (req, res) => {
 
         console.log('postPath', req.body);
 
-        
+
         if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}`))
             fs.mkdirSync(`./data/uploads/cloud/${req.user.username}`, { recursive: true });
 
@@ -382,7 +388,7 @@ const postPath = (req, res) => {
 
 };
 
-const postGlobalFiles = (req, res) => {
+const postGlobalFiles = async (req, res) => {
     try {
         res.setHeader('Content-Type', 'application/json');
 
@@ -414,12 +420,14 @@ const postGlobalFiles = (req, res) => {
 
         req.body.data = JSON.parse(req.body.data);
 
-        Object.keys(req.files).map(keyFile => {
-
+        for (let keyFile of Object.keys(req.files)) {
             // console.log(req.files[keyFile]);
             req.files[keyFile].mv(`./data/uploads/cloud${req.body.path}/${keyFile}`);
 
-        });
+            const isInfected = await scanFile(`./data/uploads/cloud${req.body.path}/${keyFile}`);
+            console.log('isInfected', isInfected);
+            if (isInfected) throw { message: 'Infected file' };
+        }
 
         fs.writeFileSync(
             `./data/uploads/cloud/${req.user.username}/data.json`,
