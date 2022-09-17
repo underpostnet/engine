@@ -19,6 +19,7 @@ import { engine } from './client/modules/engine.js';
 import { authClient } from './client/modules/auth.js';
 import { media } from './client/modules/media.js';
 import { statics } from './modules/statics.js';
+import { ioModule } from './modules/socket.io.js';
 
 // main modules
 import { dev } from './client/modules/dev.js';
@@ -75,6 +76,8 @@ apiUploader(app);
                 pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
                 writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
             })) : '');
+
+    ioModule(app);
 
     if (process.env.NODE_ENV != 'development') {
         console.log = () => null;

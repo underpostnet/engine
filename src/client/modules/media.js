@@ -186,6 +186,19 @@ const viewPaths = [
         render: true,
         display: true,
         session: true
+    },
+    {
+        path: baseHome + '/stream',
+        homePaths: [baseHome],
+        title: { en: 'Stream', es: 'Stream' },
+        component: 'stream',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
     }
 ];
 
