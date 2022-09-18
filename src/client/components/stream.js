@@ -8,6 +8,8 @@ this.stream = {
 
 
         this.audioElementId = 'x' + s4();
+        this.audioReceptorElement = 'x' + s4();
+        this.streamEmiter = false;
 
         const ioSocket = io('/');
         const peerInstance = new Peer(undefined, {
@@ -21,7 +23,10 @@ this.stream = {
 
             ioSocket.emit('join-room', 0, id, 1); // id room , id peer, id type
 
-            // peerInstance.call(id, s('.'+this.audioElementId).captureStream());
+            s('.' + this.audioElementId).onplay = () => {
+                this.streamEmiter = true;
+                peerInstance.call(id, s('.' + this.audioElementId).captureStream());
+            };
 
         });
 
@@ -31,8 +36,10 @@ this.stream = {
 
             call.on('stream', stream => {
 
-                // .srcObject = stream;
-                // .play();
+                if (!this.streamEmiter) {
+                    s('.' + this.audioReceptorElement).srcObject = stream;
+                    s('.' + this.audioReceptorElement).play();
+                }
 
 
             });
@@ -64,7 +71,15 @@ this.stream = {
 
         return /*html*/`
             <div class='in container'>
-                Stream module
+                <audio controls class='${this.audioElementId}'>
+                    <source 
+                        src="/uploads/cloud/francisco-verdugo/f955e-Carpenter-Brut-Leather-Teeth-Accelerated_pFGI5UMlIRQ.mp3" 
+                        type="audio/mpeg">
+                </audio>
+            </div>
+            
+            <div class='in container'>
+                <audio controls class='${this.audioReceptorElement}'></audio>
             </div>
         
         `
