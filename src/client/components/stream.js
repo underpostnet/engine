@@ -7,7 +7,7 @@ this.stream = {
 
 
 
-
+        this.audioElementId = 'x' + s4();
 
         const ioSocket = io('/');
         const peerInstance = new Peer(undefined, {
@@ -21,8 +21,21 @@ this.stream = {
 
             ioSocket.emit('join-room', 0, id, 1); // id room , id peer, id type
 
-            // s('.'+mp3_actual).captureStream();
-            // peerInstance.call(id, stream_radio);
+            // peerInstance.call(id, s('.'+this.audioElementId).captureStream());
+
+        });
+
+
+        peerInstance.on('call', call => {
+            call.answer(new MediaStream());
+
+            call.on('stream', stream => {
+
+                // .srcObject = stream;
+                // .play();
+
+
+            });
 
         });
 
