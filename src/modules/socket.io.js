@@ -5,6 +5,13 @@ import { Server, Socket } from 'socket.io';
 import dotenv from 'dotenv';
 import httpServer from 'http';
 
+// import { Server } from 'socket.io-p2p-server';
+// https://dev.to/codesphere/building-a-video-chat-app-with-socket-io-peerjs-codesphere-5a63
+// https://stackoverflow.com/questions/21629752/using-node-http-proxy-to-proxy-websocket-connections
+// expressjs websocket proxy
+
+// const proxy = httpProxy.createProxyServer({ ws: true });
+
 // import httpProxy from 'http-proxy';
 // httpProxy
 // .createProxyServer({
@@ -24,6 +31,7 @@ dotenv.config();
 const ioModule = app => {
 
     const io = new Server(httpServer.Server(app));
+    // io.use(Server);
 
     io.on('connection', socket => {
         socket.on('join-room', (roomid, peerid, type) => {
@@ -48,11 +56,21 @@ const ioModule = app => {
     });
 
 
-    app.get('/socket.io', (req, res) => {
+    // // proxy HTTP GET / POST
+    // app.get('/socket.io/*', function (req, res) {
+    //     // console.log("proxying GET request", req.url);
+    //     proxy.web(req, res, { target: 'http://localhost:5500' });
+    // });
+    // app.post('/socket.io/*', function (req, res) {
+    //     // console.log("proxying POST request", req.url);
+    //     proxy.web(req, res, { target: 'http://localhost:5500' });
+    // });
 
-
-        return res.end('');
-    });
+    // // Proxy websockets
+    // app.on('upgrade', function (req, socket, head) {
+    //     console.log("proxying upgrade request", req.url);
+    //     proxy.ws(req, socket, head);
+    // });
 
     return { io, peerServer };
 
