@@ -34,6 +34,14 @@ Modular and stand-alone components client architecture.
 
 - javascript live demo
 
+- socket.io/peer audio-video media stream
+
+- cloud folder/files manager
+
+- audio player
+
+- youtube mp3 downloader
+
 - CLI for keys management, wallet, and blockchain miner
 
 #### Current productions projects
