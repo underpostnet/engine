@@ -26,7 +26,9 @@ Modular and stand-alone components client architecture.
 
 - jwt auth
 
-- asymmetric keys manager
+- asymmetric keys management
+
+- session management
 
 - markdown editor
 
@@ -36,7 +38,7 @@ Modular and stand-alone components client architecture.
 
 - socket.io/peer audio-video media stream
 
-- cloud folder/files manager
+- cloud folder/files management
 
 - audio player
 
