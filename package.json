@@ -41,6 +41,7 @@
     "express-useragent": "^1.0.15",
     "file-get-contents": "^1.0.0",
     "file-sizeof": "^1.1.0",
+    "file-type": "^18.0.0",
     "generate-robotstxt": "^8.0.3",
     "http-proxy": "^1.18.1",
     "jsonwebtoken": "^8.5.1",

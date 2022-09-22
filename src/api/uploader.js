@@ -7,6 +7,7 @@ import { logger } from '../modules/logger.js';
 import { buildBaseApiUri, isInvalidChar, newInstance } from './util.js';
 import dotenv from 'dotenv';
 import { deleteFolderRecursive, getAllFiles } from '../modules/files.js';
+import { fileTypeFromStream } from 'file-type';
 
 dotenv.config();
 
@@ -31,10 +32,16 @@ const findIndexUsernameFile = (req) =>
         .findIndex(fileObj => fileObj.username == req.user.username);
 
 const scanFile = filePath =>
-    new Promise(resolve => {
-        const isInfected = false;
-        // fs.unlinkSync(filePath);
-        return resolve(isInfected);
+    new Promise(async resolve => {
+        const extFileTest = await fileTypeFromStream(
+            fs.createReadStream(filePath)
+        );
+        //=> {ext: 'mp4', mime: 'video/mp4'}
+        if (extFileTest.mime == 'audio/mp3' || extFileTest.mime == 'application/pdf') {
+            return resolve(false);
+        }
+        fs.unlinkSync(filePath);
+        return resolve(true);
     });
 
 const onUploadFile = async (req, res) => {
@@ -117,9 +124,9 @@ const onUploadFile = async (req, res) => {
                 if (successProcess) {
                     fs.writeFileSync(`./data/uploads${staticPath}`, req.files[keyFile].data, 'utf8');
 
-                    const isInfected = await scanFile(`./data/uploads${staticPath}`);
-                    console.log('isInfected', isInfected);
-                    if (isInfected) throw { message: 'Infected file' };
+                    // const isInfected = await scanFile(`./data/uploads${staticPath}`);
+                    // console.log('isInfected', isInfected);
+                    // if (isInfected) throw { message: 'Corrupt Extension File' };
 
                 } else {
                     throw { message: 'invalid user data' };
@@ -426,7 +433,7 @@ const postGlobalFiles = async (req, res) => {
 
             const isInfected = await scanFile(`./data/uploads/cloud${req.body.path}/${keyFile}`);
             console.log('isInfected', isInfected);
-            if (isInfected) throw { message: 'Infected file' };
+            if (isInfected) throw { message: 'Corrupt Extension File' };
         }
 
         fs.writeFileSync(
@@ -439,6 +446,11 @@ const postGlobalFiles = async (req, res) => {
             data: 'ok'
         });
     } catch (error) {
+        if (error.message == 'Corrupt Extension File')
+            return res.status(400).json({
+                status: 'error',
+                data: error.message
+            });
         logger.error(error);
         return res.status(500).json({
             status: 'error',
