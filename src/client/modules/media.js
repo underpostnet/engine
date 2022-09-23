@@ -218,6 +218,19 @@ const viewPaths = [
         render: true,
         display: true,
         session: true
+    },
+    {
+        path: baseHome + '/yt_player',
+        homePaths: [baseHome],
+        title: { en: 'YouTube Player', es: 'YouTube Player' },
+        component: 'yt_player',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
     }
 ];
 

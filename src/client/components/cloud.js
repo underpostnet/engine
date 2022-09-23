@@ -481,7 +481,10 @@ this.cloud = {
         return /*html*/`
         <th>
             <i class='fas fa-download ${idView}'></i>
-            <i class='fas fa-trash ${idDelete}'></i>              
+            <i class='fas fa-trash ${idDelete}'></i>      
+            ${row.static.split('.').pop()=='mp3'?/*html*/`
+            <i class='fa-brands fa-youtube'></i>
+            `:''}      
         </th>
         `
 

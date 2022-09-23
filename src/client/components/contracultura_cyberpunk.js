@@ -97,7 +97,7 @@ this.contracultura_cyberpunk = {
                 `+ initRenderCC), s('.simple-desc').style.display = 'none', s('main').style.display = 'none');
 
 
-            if (getQueryParams().s)
+            if (getQueryParams().s && GLOBAL['currentComponent'] == 'contracultura_cyberpunk')
                 execSearchBox(getQueryParams().s);
 
             s('.' + this.containerBtnsSearch).onclick = () => {
