@@ -34,7 +34,16 @@ this.yt_player = {
                 const idCopyYtLink = 'x' + s4();
 
                 setTimeout(() => {
-                    s('.' + idClickCard).onclick = () => alert();
+                    s('.' + idClickCard).onclick = () => htmls('player-yt-content', /*html*/`
+                    <iframe 
+                        width='100%'
+                        height='415'
+                        src='https://www.youtube.com/embed/${dataMedia.video.videoId}'
+                        frameborder='0' 
+                        allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture' 
+                        allowfullscreen='true'>
+                    </iframe>
+                    `);
                     s('.' + idCopyYtLink).onclick = () => alert();
                 });
 
@@ -100,6 +109,7 @@ this.yt_player = {
                         <i class='fas fa-search'></i>
                     </button>
         </form> 
+        <player-yt-content></player-yt-content>
         <search-yt-content></search-yt-content>
         `
     }
