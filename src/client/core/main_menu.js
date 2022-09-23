@@ -70,11 +70,17 @@ this.main_menu = {
                     s('.' + this.idMenuBars).style.display = 'none';
                     fadeIn(s('.' + idMenuClose));
                     fadeIn(s('.' + idE));
+                    s('.' + idA).style.width = '100%'
+                    s('.' + idA).style.height = '100%'
+                    s('.' + idA).style.overflow = 'auto'
                     return;
                 }
                 s('.' + idMenuClose).style.display = 'none';
                 fadeIn(s('.' + this.idMenuBars));
                 fadeOut(s('.' + idE));
+                s('.' + idA).style.width = null;
+                s('.' + idA).style.height = null;
+                s('.' + idA).style.overflow = null;
             };
 
 
