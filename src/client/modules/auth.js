@@ -53,7 +53,7 @@ const viewPaths = [
     {
         path: baseHome + '/login',
         homePaths: [baseHome],
-        title: { en: 'Log In', es: 'Iniciar Session' },
+        title: { en: 'Log In', es: 'Inicia sesión' },
         component: 'login',
         options: { origin: 'register', mode: 'login' },
         menu: true,
