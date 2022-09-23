@@ -94,6 +94,13 @@ this.yt_player = {
                 && getQueryParams().s
                 && getQueryParams().s != '') {
                 ytSearch(getQueryParams().s);
+            } else if (GLOBAL['yt-search']) {
+                ytSearch(newInstance(GLOBAL['yt-search']));
+                const querySearchUri = location.pathname + '?s=' + GLOBAL['yt-search'];
+                if ((getURI() + location.search) != querySearchUri)
+                    setURI(querySearchUri);
+                GLOBAL['yt-search'] = undefined;
+
             }
 
             s('.' + this[IDS][3]).onclick = e => {
@@ -136,7 +143,18 @@ this.yt_player = {
                         <i class='fas fa-search'></i>
                     </button>
         </form> 
-        <search-yt-content></search-yt-content>
-        `
+        <search-yt-content>
+             ${(getQueryParams().s && getQueryParams().s != '') ||
+                GLOBAL['yt-search'] ?
+                renderSpinner(`x${s4()}`, { style: 'display: block; text-align: center' }) :
+                ''
+            }
+        </search-yt-content>
+    `
+    },
+    routerDisplay: function (options) {
+        if (GLOBAL['yt-search']) {
+            htmls('yt_player', this.init())
+        }
     }
 };

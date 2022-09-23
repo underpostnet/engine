@@ -390,8 +390,16 @@ this.cloud = {
 
         const idView = 'x' + s4();
         const idDelete = 'x' + s4();
-        setTimeout(() => {
+        const idYt = 'x' + s4();
 
+        setTimeout(() => {
+            if (s('.' + idYt)) s('.' + idYt).onclick = () => {
+                const searchValue =
+                    row.name.split('.')[0].split('_')[0].replaceAll('-', ' ').replaceAll('_', ' ');
+                console.log('searchValue', searchValue);
+                GLOBAL['yt-search'] = searchValue;
+                GLOBAL.router({ newPath: `${buildBaseUri()}/yt_player` });
+            };
             if (s('.' + idView)) s('.' + idView).onclick = () => {
                 console.log('idView', row);
                 const pathDownload = buildBaseApiUri() + '/uploads/cloud' + row.path + '/' + row.static;
@@ -482,9 +490,9 @@ this.cloud = {
         <th>
             <i class='fas fa-download ${idView}'></i>
             <i class='fas fa-trash ${idDelete}'></i>      
-            ${row.static.split('.').pop()=='mp3'?/*html*/`
-            <i class='fa-brands fa-youtube'></i>
-            `:''}      
+            ${row.static.split('.').pop() == 'mp3' ?/*html*/`
+            <i class='fa-brands fa-youtube ${idYt}'></i>
+            `: ''}      
         </th>
         `
 
