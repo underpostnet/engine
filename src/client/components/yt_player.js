@@ -2,6 +2,11 @@
 this.yt_player = {
     init: function () {
 
+
+        const IDS = s4();
+        this.IDS = IDS;
+        this[IDS] = range(0, maxIdComponent).map(() => 'yt_player-' + s4());
+
         // https://rapidapi.com/Glavier/api/youtube138/
 
         const ytSearch = async searchTerm => {
@@ -18,25 +23,42 @@ this.yt_player = {
 
             console.warn('ytSearch publicDataRequest', publicDataRequest);
 
-            htmls('yt_player', /*html*/`
+            htmls('search-yt-content', /*html*/`
             <div class='in container title'>
                 ${renderLang({ es: `Resultados para: <i>${searchTerm}</i>`, en: `Results for: <i>${searchTerm}</i>` })}
             </div>
             <div class='in container'>
                     ${publicDataRequest.contents.map(dataMedia => {
+                const ytUrl = `https://www.youtube.com/watch?v=${dataMedia.video.videoId}`;
+                const idClickCard = 'x' + s4();
+                const idCopyYtLink = 'x' + s4();
+
+                setTimeout(() => {
+                    s('.' + idClickCard).onclick = () => alert();
+                    s('.' + idCopyYtLink).onclick = () => alert();
+                });
+
                 return /*html*/`                        
-                <a target='_blank' href='https://www.youtube.com/watch?v=${dataMedia.video.videoId}'>
-                    <div class='in' style='
-                    margin: auto; 
-                    padding: 10px; 
-                    border-bottom: 2px solid ${mainColor};
-                    font-size: 20px;
-                    '>
-                            ${dataMedia.video.title}
-                            <br>
-                            <img src='${dataMedia.video.thumbnails[0].url}' style='width: 300px'>
+                    <div class='in yt-card'>
+                        <div class='in ${idClickCard}' style='
+                        margin: auto; 
+                        padding: 10px; 
+                        font-size: 20px;
+                        cursor: pointer;
+                        '>
+                                ${dataMedia.video.title}
+                                <br><br>
+                                <img src='${dataMedia.video.thumbnails[0].url}' style='width: 300px'>
+                        </div>
+                        <!--
+                        <i class='fas fa-link'></i>
+                        <i class='fa-brands fa-youtube'></i>
+                        -->
+                        <button class='${idCopyYtLink}'> 
+                            <i class='fas fa-copy'></i>
+                            <span style='font-size: 10px'>${ytUrl}</span> 
+                        </button>
                     </div>
-                </a>                       
                         `
             }).join('')}
             </div>
@@ -49,9 +71,36 @@ this.yt_player = {
                 && getQueryParams().s != '') {
                 ytSearch(getQueryParams().s);
             }
+
+            s('.' + this[IDS][3]).onclick = e => {
+                e.preventDefault();
+                const valueSearchYt = s('.' + this[IDS][1]).value;
+                console.log('valueSearchYt', valueSearchYt);
+                if (valueSearchYt == '') return;
+            };
+
         });
 
 
-        return /*html*/``
+        return /*html*/`
+        <style>
+            .yt-card {
+                padding: 5px;
+                margin: 5px;
+                transition: .3s;
+                background: #0d0d0d;
+            }
+            .yt-card:hover {
+                background: #1a1a1a;
+            }
+        </style>
+        <form class='in container'>
+                    ${renderInput(this[IDS], renderLang({ es: `Buscar`, en: `Search` }), [0, 1, 2])}        
+                    <button type='submit' class='${this[IDS][3]}'>
+                        <i class='fas fa-search'></i>
+                    </button>
+        </form> 
+        <search-yt-content></search-yt-content>
+        `
     }
 };
