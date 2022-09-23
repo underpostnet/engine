@@ -23,18 +23,24 @@ this.yt_player = {
 
             console.warn('ytSearch publicDataRequest', publicDataRequest);
 
+            s('.' + this[IDS][4]).style.display = 'none';
+            fadeIn(s('.' + this[IDS][5]));
+
             htmls('search-yt-content', /*html*/`
             <div class='in container title'>
                 ${renderLang({ es: `Resultados para: <i>${searchTerm}</i>`, en: `Results for: <i>${searchTerm}</i>` })}
             </div>
             <div class='in container'>
                     ${publicDataRequest.contents.map(dataMedia => {
+                console.log('dataMedia', dataMedia);
+                if (dataMedia.type != 'video') return '';
                 const ytUrl = `https://www.youtube.com/watch?v=${dataMedia.video.videoId}`;
                 const idClickCard = 'x' + s4();
                 const idCopyYtLink = 'x' + s4();
 
                 setTimeout(() => {
                     s('.' + idClickCard).onclick = () => htmls('player-yt-content', /*html*/`
+                  <div class='in container'>
                     <iframe 
                         width='100%'
                         height='415'
@@ -43,8 +49,17 @@ this.yt_player = {
                         allow='accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture' 
                         allowfullscreen='true'>
                     </iframe>
+                  </div>
                     `);
-                    s('.' + idCopyYtLink).onclick = () => alert();
+                    s('.' + idCopyYtLink).onclick = async () => {
+                        await copyData(ytUrl);
+                        append('body', renderFixModal({
+                            id: 'mini-modal-' + s4(),
+                            icon: sucessIcon,
+                            color: 'green',
+                            content: renderLang({ es: 'Contenido Copiado al Portapapeles', en: 'Copy to Clipboard' })
+                        }));
+                    };
                 });
 
                 return /*html*/`                        
@@ -86,6 +101,16 @@ this.yt_player = {
                 const valueSearchYt = s('.' + this[IDS][1]).value;
                 console.log('valueSearchYt', valueSearchYt);
                 if (valueSearchYt == '') return;
+
+                s('.' + this[IDS][5]).style.display = 'none';
+                fadeIn(s('.' + this[IDS][4]));
+
+                const querySearchUri = location.pathname + '?s=' + valueSearchYt;
+                if ((getURI() + location.search) != querySearchUri)
+                    setURI(querySearchUri);
+
+                ytSearch(valueSearchYt);
+
             };
 
         });
@@ -103,13 +128,14 @@ this.yt_player = {
                 background: #1a1a1a;
             }
         </style>
-        <form class='in container'>
+        <player-yt-content></player-yt-content>
+        ${renderSpinner(this[IDS][4])}
+        <form class='in container ${this[IDS][5]}'>
                     ${renderInput(this[IDS], renderLang({ es: `Buscar`, en: `Search` }), [0, 1, 2])}        
                     <button type='submit' class='${this[IDS][3]}'>
                         <i class='fas fa-search'></i>
                     </button>
         </form> 
-        <player-yt-content></player-yt-content>
         <search-yt-content></search-yt-content>
         `
     }
