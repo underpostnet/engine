@@ -63,7 +63,7 @@ this.yt_player = {
                 });
 
                 return /*html*/`                        
-                    <div class='in yt-card'>
+                    <div class='in main-card'>
                         <div class='in ${idClickCard}' style='
                         margin: auto; 
                         padding: 10px; 
@@ -124,17 +124,6 @@ this.yt_player = {
 
 
         return /*html*/`
-        <style>
-            .yt-card {
-                padding: 5px;
-                margin: 5px;
-                transition: .3s;
-                background: #0d0d0d;
-            }
-            .yt-card:hover {
-                background: #1a1a1a;
-            }
-        </style>
         <player-yt-content></player-yt-content>
         ${renderSpinner(this[IDS][4])}
         <form class='in container ${this[IDS][5]}'>

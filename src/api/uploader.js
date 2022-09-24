@@ -31,13 +31,20 @@ const findIndexUsernameFile = (req) =>
     getFiles()
         .findIndex(fileObj => fileObj.username == req.user.username);
 
+const allowMimes = [
+    'audio/mp3',
+    'audio/mpeg',
+    'application/pdf'
+];
+
 const scanFile = filePath =>
     new Promise(async resolve => {
         const extFileTest = await fileTypeFromStream(
             fs.createReadStream(filePath)
         );
+        console.log('scanFile', extFileTest);
         //=> {ext: 'mp4', mime: 'video/mp4'}
-        if (extFileTest.mime == 'audio/mp3' || extFileTest.mime == 'application/pdf') {
+        if (allowMimes.includes(extFileTest.mime)) {
             return resolve(false);
         }
         fs.unlinkSync(filePath);
