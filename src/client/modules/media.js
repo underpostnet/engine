@@ -231,9 +231,21 @@ const viewPaths = [
         render: true,
         display: true,
         session: true
+    },
+    {
+        path: baseHome + '/audio_stream',
+        homePaths: [baseHome],
+        title: { en: 'Audio Stream', es: 'Audio Stream' },
+        component: 'audio_stream',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
     }
 ];
-
 
 const media = {
     viewMetaData,
