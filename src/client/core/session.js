@@ -32,7 +32,12 @@ const execLogIng = (logInData) => {
     localStorage.setItem('username', logInData.user.username);
     localStorage.setItem('email', logInData.user.email);
     localStorage.setItem('expiresIn', logInData.expiresIn);
+    GLOBAL['auth'] = true;
     htmls('main_menu', GLOBAL.main_menu.init());
+    viewPaths.map(pathData => {
+        if (this[pathData.component] && this[pathData.component].startSession)
+            this[pathData.component].startSession();
+    });
     s('login').style.display = 'none';
     GLOBAL.router({ newPath: buildBaseUri() });
 };
