@@ -8,7 +8,8 @@
     "start": "node src/server",
     "dev": "env-cmd -f .env.dev nodemon src/server",
     "build-prod": "node src/server build",
-    "build-dev": "env-cmd -f .env.dev node src/server build"
+    "build-dev": "env-cmd -f .env.dev node src/server build",
+    "test": "mocha"
   },
   "repository": {
     "type": "git",
@@ -47,6 +48,7 @@
     "jsonwebtoken": "^8.5.1",
     "marked": "^4.0.18",
     "mime": "^3.0.0",
+    "mocha": "^10.0.0",
     "morgan": "latest",
     "mp3-duration": "^1.1.0",
     "node-fetch": "^3.2.8",

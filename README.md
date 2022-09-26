@@ -10,6 +10,8 @@ Modular and stand-alone components client architecture.
 
 - `node underpost`
 
+- for unit test: `npm install --global mocha`
+
 #### Usage
 
 - run gui/api dev server `npm run dev`
@@ -21,6 +23,8 @@ Modular and stand-alone components client architecture.
 - generate www prod client build `npm run build-prod <optional-single-client-id-module>`
 
 - run network CLI `node src/cli`
+
+- run unit test `mocha`
 
 #### Features
 
