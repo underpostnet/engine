@@ -9,7 +9,8 @@ const ioModule = app => {
 
     const io = new Server(process.env.IO_PORT, {
         cors: {
-            origin: `http://localhost:${process.env.PORT}`,
+            // origin: `http://localhost:${process.env.PORT}`,
+            origins: [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'],
             methods: ['GET', 'POST'],
             //   allowedHeaders: ['my-custom-header'],
             //   credentials: true
@@ -18,7 +19,7 @@ const ioModule = app => {
 
     // When someone connects to the server
     io.on('connection', socket => {
-        console.log('io connection', socket);
+        // console.log('io connection', socket);
         // When someone attempts to join the room
         socket.on('join-room', (roomId, userId) => {
             socket.join(roomId)  // Join the room

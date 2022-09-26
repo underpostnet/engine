@@ -8,10 +8,18 @@ this.audio_stream = {
 
         setTimeout(async () => {
 
-            if (!GLOBAL['auth']) {
+            if (!GLOBAL['auth'] || localStorage.getItem('username') != 'francisco-verdugo') {
                 htmls('.' + this.mainContainer, '');
                 return;
             }
+
+            const ROOM_ID = 'test-room';
+            GLOBAL.audio_stream.socket = io('http://localhost:5501'); // Create our socket
+            GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
+
+            GLOBAL.audio_stream.myPeer.on('open', id => { // When we first open the app, have us join a room
+                GLOBAL.audio_stream.socket.emit('join-room', ROOM_ID, id);
+            });
 
             const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/uploader/files/mp3`, {
                 method: 'POST',
@@ -52,8 +60,13 @@ this.audio_stream = {
                         </audio>
                         `);
                         s('.' + audioPlayerId).play();
-                        // .srcObject = stream
-                        // s('.' + this.audioEmiter).captureStream();
+
+                        GLOBAL.audio_stream.socket
+                            .on('user-connected', userId => { // If a new user connect
+                                GLOBAL.audio_stream.myPeer
+                                    .call(userId, s('.' + audioPlayerId).captureStream()); // Call the user who just joined
+                            });
+
 
                     };
                 });
