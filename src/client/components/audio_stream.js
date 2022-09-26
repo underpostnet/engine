@@ -62,6 +62,10 @@ this.audio_stream = {
                         this.currentIdAudio = audioPlayerId;
                         s('.' + audioPlayerId).play();
 
+                        // s('.' + this.audioSrc).src = dataAudio.url;
+                        // s('.' + this.audioEmiter).load(); //call this to just preload the audio without playing
+                        // s('.' + this.audioEmiter).play(); //call this to play the song right away
+
                         GLOBAL.audio_stream.socket
                             .on('user-connected', userId => { // If a new user connect
                                 if (this.currentIdAudio != audioPlayerId) return;
