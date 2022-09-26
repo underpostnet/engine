@@ -24,10 +24,6 @@ const buildBaseApiUri = () => {
     return '/' + process.env.BASE_API_URI;
 };
 
-const apiUtil = app => {
-    app.get(`${buildBaseApiUri()}/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
-};
-
 const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
 
 const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
@@ -171,6 +167,10 @@ const isInvalidChar = (str) =>
     // ||
     range(0, str.length - 1)
         .filter(x => banChars.includes(str[x])).length > 0;
+
+const apiUtil = app => {
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
+};
 
 export {
     uriUtil,
