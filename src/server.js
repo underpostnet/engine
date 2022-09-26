@@ -10,6 +10,7 @@ import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
 import { generateZipFromFolder } from './modules/zip.js';
+import { apiUtil } from './api/util.js';
 
 // ssr
 import { ssr } from './modules/ssr.js';
@@ -48,6 +49,7 @@ const APPS = [
 
 middlewares(app, APPS);
 
+apiUtil(app);
 apiKeys(app);
 apiAuth(app);
 apiUploader(app);
