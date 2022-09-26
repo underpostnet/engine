@@ -169,7 +169,16 @@ const isInvalidChar = (str) =>
         .filter(x => banChars.includes(str[x])).length > 0;
 
 const apiUtil = app => {
-    app.get(`${buildBaseApiUri()}/api/${uriUtil}/hash`, (req, res) => res.status(200).end(getHash()));
+
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/getHash`, (req, res) =>
+        res.status(200).json(getHash()));
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/randomColor`, (req, res) =>
+        res.status(200).json(randomColor()));
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/emailValidator`, (req, res) =>
+        res.status(200).json(emailValidator(req.query.email)));
+    app.get(`${buildBaseApiUri()}/api/${uriUtil}/getYouTubeID`, (req, res) =>
+        res.status(200).end(getYouTubeID(req.query.url)));
+
 };
 
 export {
