@@ -59,10 +59,12 @@ this.audio_stream = {
                              <source src='${dataAudio.url}' type='audio/mpeg'>
                         </audio>
                         `);
+                        this.currentIdAudio = audioPlayerId;
                         s('.' + audioPlayerId).play();
 
                         GLOBAL.audio_stream.socket
                             .on('user-connected', userId => { // If a new user connect
+                                if (this.currentIdAudio != audioPlayerId) return;
                                 GLOBAL.audio_stream.myPeer
                                     .call(userId, s('.' + audioPlayerId).captureStream()); // Call the user who just joined
                             });
