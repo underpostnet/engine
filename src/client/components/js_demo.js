@@ -233,14 +233,14 @@ this.js_demo = {
             };
         }, timeOutDelay);
         return /*html*/`
+            <div class='in container container-demo'>
+                <${idDemo}></${idDemo}>
+            </div>
             <div class='in'>
                 <button class='${idCopy}'> 
                     <i class='fa fa-clone' aria-hidden='true'></i> 
                     ${renderLang({ es: 'Copiar', en: 'Copy' })}
                 </button>
-            </div>
-            <div class='in container container-demo'>
-                <${idDemo}></${idDemo}>
             </div>
             <pre  class='in code-display'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>            
         `;
