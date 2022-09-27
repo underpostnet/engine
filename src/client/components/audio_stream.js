@@ -2,11 +2,15 @@
 
 this.audio_stream = {
     users: [],
+    idAudios: [],
     init: function () {
 
         this.mainContainer = 'x' + s4();
         this.audioEmiter = 'x' + s4();
         this.audioSrc = 'x' + s4();
+        this.titleContainer = 'x' + s4();
+        this.users = [];
+        this.idAudios = [];
 
         setTimeout(async () => {
 
@@ -61,6 +65,7 @@ this.audio_stream = {
             htmls(`.${this.mainContainer}`, audioList.map(dataAudio => {
 
                 const idAudio = 'x' + s4();
+                this.idAudios.push(idAudio);
                 setTimeout(() => {
                     s('.' + idAudio).onclick = () => {
 
@@ -74,6 +79,16 @@ this.audio_stream = {
                                 .call(userId, s('.' + this.audioEmiter).captureStream()))
                         };
 
+                        htmls('.' + this.titleContainer, dataAudio.title);
+
+                        // if (this.checkTimeAudio) clearInterval(this.checkTimeAudio);
+                        // this.checkTimeAudio = setInterval(() => {
+                        //     console.log(s('.' + this.audioEmiter).currentTime / s('.' + this.audioEmiter).duration);
+                        // }, 1000);
+
+                        s('.' + this.audioEmiter).onended = () => {
+                            s('.' + this.idAudios[random(0, (this.idAudios.length - 1))]).click();
+                        };
 
 
                     };
@@ -88,6 +103,9 @@ this.audio_stream = {
         });
 
         return /*html*/`
+            <div class='in container title ${this.titleContainer}'>
+                audio player
+            </div>
             <div class='in container'>
                 <audio controls class='${this.audioEmiter}'>
                     <source type='audio/mpeg' class='${this.audioSrc}'>
