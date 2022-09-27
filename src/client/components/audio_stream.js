@@ -20,7 +20,10 @@ this.audio_stream = {
             }
 
             const ROOM_ID = 'test-room';
-            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com/stream'); // Create our socket
+            GLOBAL.audio_stream.socket = io(
+                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com/stream',
+                { transports: ['websocket', 'polling', 'flashsocket'] }
+            ); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
 
             GLOBAL.audio_stream.myPeer.on('open', id => { // When we first open the app, have us join a room

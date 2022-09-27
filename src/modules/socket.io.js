@@ -14,8 +14,8 @@ const ioModule = app => {
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
                 [`https://www.cyberiaonline.com`, 'https://underpost.net', `http://www.cyberiaonlibe.com:${process.env.IO_PORT}`],
             methods: ['GET', 'POST'],
-            allowedHeaders: ['Access-Control-Allow-Origin'],
-            //   credentials: true
+            // allowedHeaders: ['Access-Control-Allow-Origin'],
+            credentials: true
         }
     });
 
