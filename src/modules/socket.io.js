@@ -12,7 +12,7 @@ const ioModule = app => {
             // origin: `http://localhost:${process.env.PORT}`,
             origins: process.env.NODE_ENV == 'development' ?
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
-                [`http://www.cyberiaonline.com:${process.env.IO_PORT}`],
+                [`https://www.cyberiaonline.com`, 'https://underpost.net'],
             methods: ['GET', 'POST'],
             //   allowedHeaders: ['my-custom-header'],
             //   credentials: true
