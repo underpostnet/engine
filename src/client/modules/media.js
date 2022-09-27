@@ -55,6 +55,13 @@ const statics = app => {
     });
 
 
+    if (process.argv[2] == 'build') {
+        fs.mkdirSync(`./builds/${deployModuleId}/socket.io`);
+        fs.writeFileSync(`./builds/${deployModuleId}/socket.io/socket.io.js`, srcSocketIo, 'utf8');
+        fs.mkdirSync(`./builds/${deployModuleId}/peer`);
+        fs.writeFileSync(`./builds/${deployModuleId}/peer/peer.min.js`, srcPeerClient, 'utf8');
+    }
+
     const jsAudioPlayer = fs.readFileSync('./underpost_modules/underpost-library/audioplayer/AudioPlayer.js', 'utf8');
     app.get(BSU + '/audioplayer/AudioPlayer.js', (req, res) => {
         res.writeHead(200, {
