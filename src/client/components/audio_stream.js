@@ -70,7 +70,6 @@ this.audio_stream = {
                         s('.' + this.audioEmiter).play(); //call this to play the song right away
 
                         s('.' + this.audioEmiter).oncanplay = () => {
-                            console.error('s(this.audioEmiter).oncanplay');
                             this.users.map(userId => GLOBAL.audio_stream.myPeer
                                 .call(userId, s('.' + this.audioEmiter).captureStream()))
                         };
