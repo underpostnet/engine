@@ -10,7 +10,7 @@ Modular and stand-alone components client architecture.
 
 - `node underpost`
 
-- for unit test: `npm install --global mocha`
+- unit test `npm install --global mocha`
 
 #### Usage
 
