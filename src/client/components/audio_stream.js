@@ -40,12 +40,10 @@ this.audio_stream = {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('_b') ? localStorage.getItem('_b') : ''}`
-                }
-                // body: JSON.stringify({
-                //     newNamePath: value,
-                //     path,
-                //     data: this.data
-                // })
+                },
+                body: JSON.stringify({
+                    path: '/cyberia'
+                })
             });
 
             const audioList = dataRequest.data.map(x => {

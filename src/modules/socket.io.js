@@ -10,7 +10,9 @@ const ioModule = app => {
     const io = new Server(process.env.IO_PORT, {
         cors: {
             // origin: `http://localhost:${process.env.PORT}`,
-            origins: [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'],
+            origins: process.env.NODE_ENV == 'development' ?
+                [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
+                [`http://www.cyberiaonline.com:${process.env.IO_PORT}`],
             methods: ['GET', 'POST'],
             //   allowedHeaders: ['my-custom-header'],
             //   credentials: true

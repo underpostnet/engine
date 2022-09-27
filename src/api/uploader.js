@@ -475,7 +475,7 @@ const getFilesByFormat = (req, res) => {
         if (!fs.existsSync(`./data/uploads/cloud/${req.user.username}`))
             fs.mkdirSync(`./data/uploads/cloud/${req.user.username}`, { recursive: true });
 
-        const result = getAllFiles(`./data/uploads/cloud/${req.user.username}`);
+        const result = getAllFiles(`./data/uploads/cloud/${req.user.username}${req.body.path ? req.body.path : ''}`);
 
         console.log('result', result);
         console.log('ext', req.params.ext);
