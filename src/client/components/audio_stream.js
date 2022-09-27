@@ -1,10 +1,12 @@
 
 
 this.audio_stream = {
+    users: [],
     init: function () {
 
         this.mainContainer = 'x' + s4();
         this.audioEmiter = 'x' + s4();
+        this.audioSrc = 'x' + s4();
 
         setTimeout(async () => {
 
@@ -20,6 +22,14 @@ this.audio_stream = {
             GLOBAL.audio_stream.myPeer.on('open', id => { // When we first open the app, have us join a room
                 GLOBAL.audio_stream.socket.emit('join-room', ROOM_ID, id);
             });
+
+            GLOBAL.audio_stream.socket
+                .on('user-connected', userId => { // If a new user connect
+                    if (!this.users.includes(userId)) this.users.push(userId);
+                    GLOBAL.audio_stream.myPeer
+                        .call(userId, s('.' + this.audioEmiter).captureStream()); // Call the user who just joined
+                });
+
 
             const dataRequest = await serviceRequest(() => `${buildBaseApiUri()}/api/uploader/files/mp3`, {
                 method: 'POST',
@@ -53,25 +63,18 @@ this.audio_stream = {
                 const idAudio = 'x' + s4();
                 setTimeout(() => {
                     s('.' + idAudio).onclick = () => {
-                        const audioPlayerId = 'x' + s4();
-                        htmls('.' + this.audioEmiter, /*html*/`
-                        <audio class='${audioPlayerId}' controls>
-                             <source src='${dataAudio.url}' type='audio/mpeg'>
-                        </audio>
-                        `);
-                        this.currentIdAudio = audioPlayerId;
-                        s('.' + audioPlayerId).play();
 
-                        // s('.' + this.audioSrc).src = dataAudio.url;
-                        // s('.' + this.audioEmiter).load(); //call this to just preload the audio without playing
-                        // s('.' + this.audioEmiter).play(); //call this to play the song right away
 
-                        GLOBAL.audio_stream.socket
-                            .on('user-connected', userId => { // If a new user connect
-                                if (this.currentIdAudio != audioPlayerId) return;
-                                GLOBAL.audio_stream.myPeer
-                                    .call(userId, s('.' + audioPlayerId).captureStream()); // Call the user who just joined
-                            });
+                        s('.' + this.audioSrc).src = dataAudio.url;
+                        s('.' + this.audioEmiter).load(); //call this to just preload the audio without playing
+                        s('.' + this.audioEmiter).play(); //call this to play the song right away
+
+                        s('.' + this.audioEmiter).oncanplay = () => {
+                            console.error('s(this.audioEmiter).oncanplay');
+                            this.users.map(userId => GLOBAL.audio_stream.myPeer
+                                .call(userId, s('.' + this.audioEmiter).captureStream()))
+                        };
+
 
 
                     };
@@ -86,8 +89,10 @@ this.audio_stream = {
         });
 
         return /*html*/`
-            <div class='in container ${this.audioEmiter}'>
-                <audio controls></audio>
+            <div class='in container'>
+                <audio controls class='${this.audioEmiter}'>
+                    <source type='audio/mpeg' class='${this.audioSrc}'>
+                </audio>
             </div>
             <div class='in container ${this.mainContainer}'>
                     ${renderSpinner(`x${s4()}`, { style: 'display: block; text-align: center' })}
