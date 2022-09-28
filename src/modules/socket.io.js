@@ -78,9 +78,15 @@ const ioModule = app => {
 
     // httpServer.listen(process.env.IO_PORT);
 
-    const peerOptions = { 
+    const peerOptions = {
         port: process.env.PEER_PORT,
-        proxied: true
+        proxied: true,
+        cors: {
+            origins: process.env.NODE_ENV == 'development' ?
+                [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
+                [`https://www.cyberiaonline.com`, 'https://underpost.net', `http://www.cyberiaonlibe.com:${process.env.IO_PORT}`],
+            methods: ['GET', 'POST']
+        }
     };
     if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
         key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/key.key'),
