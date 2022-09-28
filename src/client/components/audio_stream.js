@@ -27,7 +27,7 @@ this.audio_stream = {
                 "transports": ["websocket"] // 'polling', 'flashsocket'
             };
             GLOBAL.audio_stream.socket = io(
-                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com:3003',
+                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com',
                 connectionOptions
             ); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
