@@ -41,7 +41,19 @@ const ioModule = app => {
             credentials: true
         } : {
             origin: '*',
-            methods: ['GET', 'POST', 'DELETE', 'PUT']
+            methods: ['GET', 'POST', 'DELETE', 'PUT'],
+            allowedHeaders: [
+                'Access-Control-Allow-Headers',
+                'Access-Control-Allow-Origin',
+                'X-Requested-With',
+                'X-Access-Token',
+                'Content-Type',
+                'Host',
+                'Accept',
+                'Connection',
+                'Cache-Control',
+            ],
+            credentials: true
         }
     });
 
