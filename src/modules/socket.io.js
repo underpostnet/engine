@@ -77,14 +77,14 @@ const ioModule = app => {
     });
 
     // httpServer.listen(process.env.IO_PORT);
-    const peerServer = PeerServer({
-        port: process.env.PEER_PORT
-        // ssl: {
-        //   key: fs.readFileSync((data.sslKeyPath)),
-        //   cert: fs.readFileSync((data.sslCertPath)),
-        //   ca: fs.readFileSync((data.sslCaPath))
-        // }
-    }, () => {
+
+    const peerOptions = { port: process.env.PEER_PORT };
+    if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
+        key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-key.pem'),
+        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-crt.pem'),
+        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-chain.pem')
+    };
+    const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
 
