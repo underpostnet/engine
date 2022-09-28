@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const httpServer = createServer(process.env.NODE_ENV == 'development' ? undefined : {
+const httpServer = createServer(process.env.NODE_ENV == 'development' || process.argv[2] == 'build' ? undefined : {
     key: fs.readFileSync("C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-key.pem"),
     cert: fs.readFileSync("C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-crt.pem"),
     requestCert: true,
