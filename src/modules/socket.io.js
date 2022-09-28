@@ -78,7 +78,10 @@ const ioModule = app => {
 
     // httpServer.listen(process.env.IO_PORT);
 
-    const peerOptions = { port: process.env.PEER_PORT };
+    const peerOptions = { 
+        port: process.env.PEER_PORT,
+        proxied: true
+    };
     if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
         key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-key.pem'),
         cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-crt.pem'),
@@ -88,7 +91,7 @@ const ioModule = app => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
 
-    return { io, httpServer };
+    return { io, httpServer, peerServer };
 
 };
 
