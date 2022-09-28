@@ -1,13 +1,25 @@
 
 
 import { Server } from 'socket.io';
+import { createServer } from "http";
+import fs from 'fs';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
+const httpServer = createServer(process.env.NODE_ENV == 'development' ? undefined : {
+    key: fs.readFileSync("C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-key.pem"),
+    cert: fs.readFileSync("C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-crt.pem"),
+    requestCert: true,
+    ca: [
+        fs.readFileSync("C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-chain.pem")
+    ]
+});
+
+
 const ioModule = app => {
 
-    const io = new Server(process.env.IO_PORT, {
+    const io = new Server(httpServer, {
         cors: {
             // origin: `http://localhost:${process.env.PORT}`,
             origins: process.env.NODE_ENV == 'development' ?
@@ -34,7 +46,9 @@ const ioModule = app => {
         })
     });
 
-    return { io };
+    httpServer.listen(process.env.IO_PORT);
+
+    return { io, httpServer };
 
 };
 

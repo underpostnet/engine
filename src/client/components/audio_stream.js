@@ -20,14 +20,14 @@ this.audio_stream = {
             }
 
             const ROOM_ID = 'test-room';
-            const connectionOptions =  {
-                "force new connection" : true,
-                "reconnectionAttempts": "Infinity", 
-                "timeout" : 10000,                  
-                "transports" : ["websocket"] // 'polling', 'flashsocket'
-              };
+            const connectionOptions = {
+                "force new connection": true,
+                "reconnectionAttempts": "Infinity",
+                "timeout": 10000,
+                "transports": ["websocket"] // 'polling', 'flashsocket'
+            };
             GLOBAL.audio_stream.socket = io(
-                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com/stream',
+                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com:3003',
                 connectionOptions
             ); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
