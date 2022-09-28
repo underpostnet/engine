@@ -67,13 +67,13 @@ apiUploader(app);
     statics(app, APPS);
     statics(app, [media]);
 
-    if (process.argv[2] != 'build'){
-        ioModule(app);
-        app.listen(process.env.PORT, () => {
-            logger.info(`Server is running on port ${process.env.PORT}`);
+    if (process.argv[2] != 'build') {
+        const { httpServer, io } = ioModule(app);
+        httpServer.listen(process.env.PORT, () => {
+            logger.info(`Http Server is running on port ${process.env.PORT}`);
         });
     }
-        
+
     else APPS.map(dataRender =>
         dataRender.viewMetaData.generateZipBuild
             && (!process.argv[3] || process.argv[3] == dataRender.viewMetaData.clientID) ?

@@ -2,8 +2,10 @@
 
 import { Server } from 'socket.io';
 import { createServer } from 'http';
+import { PeerServer } from 'peer';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import { logger } from './logger.js';
 
 dotenv.config();
 /*
@@ -16,30 +18,32 @@ const httpServer = createServer(process.env.NODE_ENV == 'development' || process
     ]
 });
 */
-const httpServer = createServer();
+
 
 const ioModule = app => {
 
+    const httpServer = createServer({}, app);
+    /**/
     const io = new Server(httpServer, {
-        cors: process.env.NODE_ENV == 'development' ? {
+        cors: {
             // origin: `http://localhost:${process.env.PORT}`,
             origins: process.env.NODE_ENV == 'development' ?
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
                 [`https://www.cyberiaonline.com`, 'https://underpost.net', `http://www.cyberiaonlibe.com:${process.env.IO_PORT}`],
-            methods: ['GET', 'POST', 'DELETE', 'PUT'],
-            allowedHeaders: [
-                'Access-Control-Allow-Headers',
-                'Access-Control-Allow-Origin',
-                'X-Requested-With',
-                'X-Access-Token',
-                'Content-Type',
-                'Host',
-                'Accept',
-                'Connection',
-                'Cache-Control',
-            ],
-            credentials: true
-        } : {
+            methods: ['GET', 'POST']
+            // allowedHeaders: [
+            //     'Access-Control-Allow-Headers',
+            //     'Access-Control-Allow-Origin',
+            //     'X-Requested-With',
+            //     'X-Access-Token',
+            //     'Content-Type',
+            //     'Host',
+            //     'Accept',
+            //     'Connection',
+            //     'Cache-Control',
+            // ],
+            // credentials: true
+        } /*process.env.NODE_ENV == 'development' ? : {
             origin: '*',
             methods: ['GET', 'POST', 'DELETE', 'PUT'],
             allowedHeaders: [
@@ -54,7 +58,7 @@ const ioModule = app => {
                 'Cache-Control',
             ],
             credentials: true
-        }
+        }*/
     });
 
     // When someone connects to the server
@@ -72,7 +76,17 @@ const ioModule = app => {
         })
     });
 
-    httpServer.listen(process.env.IO_PORT);
+    // httpServer.listen(process.env.IO_PORT);
+    const peerServer = PeerServer({
+        port: process.env.PEER_PORT
+        // ssl: {
+        //   key: fs.readFileSync((data.sslKeyPath)),
+        //   cert: fs.readFileSync((data.sslCertPath)),
+        //   ca: fs.readFileSync((data.sslCaPath))
+        // }
+    }, () => {
+        logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
+    });
 
     return { io, httpServer };
 

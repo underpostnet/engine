@@ -26,11 +26,11 @@ this.audio_stream = {
                 "timeout": 10000,
                 "transports": ["websocket", 'polling', 'flashsocket'] // 'polling', 'flashsocket'
             };
-            GLOBAL.audio_stream.socket = io(
-                dev ? 'http://localhost:5501' : 'https://www.cyberiaonline.com',
-                connectionOptions
-            ); // Create our socket
-            GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
+            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : 'https://www.nexodev.org'); // Create our socket
+            GLOBAL.audio_stream.myPeer = new Peer(undefined, {
+                host: dev ? 'localhost' : 'www.nexodev.org',
+                port: dev ? 5501 : 3003
+            }); // Creating a peer element which represents the current user
 
             GLOBAL.audio_stream.myPeer.on('open', id => { // When we first open the app, have us join a room
                 GLOBAL.audio_stream.socket.emit('join-room', ROOM_ID, id);
