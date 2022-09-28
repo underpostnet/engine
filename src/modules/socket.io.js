@@ -6,7 +6,7 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 
 dotenv.config();
-/**/
+/*
 const httpServer = createServer(process.env.NODE_ENV == 'development' || process.argv[2] == 'build' ? undefined : {
     key: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-key.pem'),
     cert: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-crt.pem'),
@@ -15,13 +15,13 @@ const httpServer = createServer(process.env.NODE_ENV == 'development' || process
         fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/cyberiaonline.com-chain.pem')
     ]
 });
-
-// const httpServer = createServer();
+*/
+const httpServer = createServer();
 
 const ioModule = app => {
 
     const io = new Server(httpServer, {
-        cors: {
+        cors: process.env.NODE_ENV == 'development' ? {
             // origin: `http://localhost:${process.env.PORT}`,
             origins: process.env.NODE_ENV == 'development' ?
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
@@ -39,6 +39,9 @@ const ioModule = app => {
                 'Cache-Control',
             ],
             credentials: true
+        } : {
+            origin: '*',
+            methods: ['GET', 'POST', 'DELETE', 'PUT']
         }
     });
 
