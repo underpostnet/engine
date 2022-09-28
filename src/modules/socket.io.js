@@ -83,9 +83,9 @@ const ioModule = app => {
         proxied: true
     };
     if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
-        key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-key.pem'),
-        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-crt.pem'),
-        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/nexodev.org-chain.pem')
+        key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/key.key'),
+        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/crt.crt'),
+        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/ca_bundle.crt')
     };
     const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
