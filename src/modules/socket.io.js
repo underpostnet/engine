@@ -90,12 +90,13 @@ const ioModule = (app, options) => {
         ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/ca_bundle.crt')
     };
 
-    if (options && options.origin)
-        peerServer.use(cors({ origin: options.origin }));
 
     const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
+
+    if (options && options.origin)
+        peerServer.use(cors({ origin: options.origin }));
 
     // peerServer.use(function (req, res, next) {
     //     res.header("Access-Control-Allow-Origin", "*");
