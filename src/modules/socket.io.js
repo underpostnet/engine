@@ -95,14 +95,16 @@ const ioModule = (app, options) => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
 
-    if (options && options.origin)
-        peerServer.use(cors({ origin: options.origin }));
+    // if (options && options.origin)
+    //     peerServer.use(cors({ origin: options.origin }));
 
-    // peerServer.use(function (req, res, next) {
-    //     res.header("Access-Control-Allow-Origin", "*");
-    //     // res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-    //     next();
-    // });
+    peerServer.use(function (req, res, next) {
+        res.header("Access-Control-Allow-Origin", "*");
+        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+        res.header('Access-Control-Allow-Credentials', true);
+        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+        next();
+    });
 
     // const peerApp = express();
 
