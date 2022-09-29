@@ -79,7 +79,7 @@ const ioModule = (app, options) => {
     });
 
     // httpServer.listen(process.env.IO_PORT);
-    /*
+    /**/
     const peerOptions = {
         port: process.env.PEER_PORT,
         proxied: true
@@ -92,21 +92,21 @@ const ioModule = (app, options) => {
     const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
-    */
-    const peerApp = express();
 
-    if (options && options.origin)
-        peerApp.use(cors({ origin: options.origin }));
+    // const peerApp = express();
 
-    const httpPeerServer = createServer(peerApp);
-    const peerServer = ExpressPeerServer(httpPeerServer, {
-        debug: true
-    });
-    peerApp.use('/peerjs', peerServer);
+    // if (options && options.origin)
+    //     peerApp.use(cors({ origin: options.origin }));
 
-    httpPeerServer.listen(process.env.PEER_PORT);
+    // const httpPeerServer = createServer(peerApp);
+    // const peerServer = ExpressPeerServer(httpPeerServer, {
+    //     debug: true
+    // });
+    // peerApp.use('/peerjs', peerServer);
 
-    return { io, httpServer, peerServer, httpPeerServer };
+    // httpPeerServer.listen(process.env.PEER_PORT);
+
+    return { io, httpServer, peerServer };
 
 };
 
