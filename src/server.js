@@ -47,7 +47,7 @@ const APPS = [
     femmenutrition
 ];
 
-middlewares(app, APPS);
+const { origin } = middlewares(app, APPS);
 
 apiUtil(app);
 apiKeys(app);
@@ -68,7 +68,7 @@ apiUploader(app);
     statics(app, [media]);
 
     if (process.argv[2] != 'build') {
-        const { httpServer, io } = ioModule(app);
+        const { httpServer, io } = ioModule(app, { origin });
         httpServer.listen(process.env.PORT, () => {
             logger.info(`Http Server is running on port ${process.env.PORT}`);
         });

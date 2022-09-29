@@ -16,7 +16,10 @@ const middlewares = (app, views) => {
     const origin = uniqueArray(views.map(viewObj => viewObj.viewMetaData.clientID != 'dev' ?
         buildURL(viewObj.viewMetaData) : null)
         .filter(x => x != null)
-        .concat(process.env.NODE_ENV == 'development' ? [`http://localhost:${process.env.BUILD_DEV_PORT}`] : [])
+        .concat(process.env.NODE_ENV == 'development' ?
+            [`http://localhost:${process.env.BUILD_DEV_PORT}`, `http://localhost:3001`] :
+            [`https://www.cyberiaonline.com`]
+        )
     );
 
     logger.info('origin');
@@ -45,6 +48,7 @@ const middlewares = (app, views) => {
     };
     app.use(compression({ filter: shouldCompress }));
 
+    return { origin };
 
 };
 

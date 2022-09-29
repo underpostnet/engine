@@ -2,10 +2,12 @@
 
 import { Server } from 'socket.io';
 import { createServer } from 'http';
-import { PeerServer } from 'peer';
+import { PeerServer, ExpressPeerServer } from 'peer';
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { logger } from './logger.js';
+import express from 'express';
+import cors from 'cors';
 
 dotenv.config();
 /*
@@ -20,7 +22,7 @@ const httpServer = createServer(process.env.NODE_ENV == 'development' || process
 */
 
 
-const ioModule = app => {
+const ioModule = (app, options) => {
 
     const httpServer = createServer({}, app);
     /**/
@@ -77,7 +79,7 @@ const ioModule = app => {
     });
 
     // httpServer.listen(process.env.IO_PORT);
-
+    /*
     const peerOptions = {
         port: process.env.PEER_PORT,
         proxied: true
@@ -90,8 +92,21 @@ const ioModule = app => {
     const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
+    */
+    const peerApp = express();
 
-    return { io, httpServer, peerServer };
+    if (options && options.origin)
+        peerApp.use(cors({ origin: options.origin }));
+
+    const httpPeerServer = createServer(peerApp);
+    const peerServer = ExpressPeerServer(httpPeerServer, {
+        debug: true
+    });
+    peerApp.use('/peerjs', peerServer);
+
+    httpPeerServer.listen(process.env.PEER_PORT);
+
+    return { io, httpServer, peerServer, httpPeerServer };
 
 };
 

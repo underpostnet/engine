@@ -30,6 +30,7 @@ this.audio_stream = {
             GLOBAL.audio_stream.myPeer = new Peer(undefined, {
                 host: dev ? 'localhost' : 'www.nexodev.org',
                 port: dev ? 5501 : 443,
+                path: '/peerjs',
                 secure: (!dev)
             }); // Creating a peer element which represents the current user
             // GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
