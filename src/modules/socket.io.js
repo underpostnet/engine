@@ -89,6 +89,10 @@ const ioModule = (app, options) => {
         cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/crt.crt'),
         ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/ca_bundle.crt')
     };
+
+    if (options && options.origin)
+        peerServer.use(cors({ origin: options.origin }));
+
     const peerServer = PeerServer(peerOptions, () => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
