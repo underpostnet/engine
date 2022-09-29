@@ -29,8 +29,10 @@ this.audio_stream = {
             GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : 'https://www.nexodev.org'); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(undefined, {
                 host: dev ? 'localhost' : 'www.nexodev.org',
-                port: dev ? 5501 : 443
+                port: dev ? 5501 : 443,
+                secure: (!dev)
             }); // Creating a peer element which represents the current user
+            // GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
 
             GLOBAL.audio_stream.myPeer.on('open', id => { // When we first open the app, have us join a room
                 GLOBAL.audio_stream.socket.emit('join-room', ROOM_ID, id);
