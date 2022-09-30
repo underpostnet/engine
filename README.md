@@ -48,6 +48,8 @@ Modular and stand-alone components client architecture.
 
 - youtube mp3 downloader
 
+- youtube api integration (video management and player)
+
 - CLI for keys management, wallet, and blockchain miner
 
 #### Current productions projects
