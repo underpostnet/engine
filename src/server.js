@@ -29,6 +29,7 @@ import { cryptokoyn } from './client/modules/cryptokoyn.js';
 import { nexodev } from './client/modules/nexodev.js';
 import { dogmadual } from './client/modules/dogmadual.js';
 import { femmenutrition } from './client/modules/femmenutrition.js';
+import { cyberiaonline } from './client/modules/cyberiaonline.js';
 
 
 
@@ -44,7 +45,8 @@ const APPS = [
     cryptokoyn,
     nexodev,
     dogmadual,
-    femmenutrition
+    femmenutrition,
+    cyberiaonline
 ];
 
 const { origin } = middlewares(app, APPS);
@@ -59,6 +61,7 @@ apiUploader(app);
         await ssr(app, APPS);
 
     await ssr(app, [underpost, authClient, media, engine]);
+    await ssr(app, [cyberiaonline, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
     await ssr(app, [nexodev, authClient, engine]);

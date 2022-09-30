@@ -18,7 +18,7 @@ this.home_dev = {
                     </style>
                     ${APPS.map((dataApp, i) => /*html*/ i != 0 ? `                    
                         <a href='${dataApp.baseHome}' style='text-decoration: none; font-size: 30px'>
-                                <div class='in container'>
+                                <div class='in container main-card'>
                                     <img class='inl icon-app' src='${dataApp.viewMetaData.favicon.path}'>
                                     ${dataApp.viewMetaData.mainTitle}
                                 </div>
