@@ -4,6 +4,7 @@ this.audio_stream = {
     users: [],
     idAudios: [],
     init: function () {
+        return;
 
         this.mainContainer = 'x' + s4();
         this.audioEmiter = 'x' + s4();
