@@ -6,7 +6,7 @@ const viewMetaData = {
     mainTitle: 'Cyberia Online',
     host: 'cyberiaonline.com',
     // googleTag: 'G-B26K8P2KGL',
-    subDomain: 'www',
+    subDomain: 'services',
     description: { es: '', en: '', hide: true },
     socialImg: '/assets/apps/cyberiaonline/CYBERIA.jpg',
     mainColor: 'blue',
