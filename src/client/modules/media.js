@@ -50,8 +50,8 @@ const singleStatics = (app, deployModuleId) => {
         return res.end(srcSocketIo);
     });
 
-    const srcMapSocketio = fs.readFileSync('./node_modules/socket.io/client-dist/socket.io.js.map', 'utf8');
-    app.get(BSU + '/socket.io/socket.io.js.map', (req, res) => {
+    const srcMapSocketio = fs.readFileSync('./node_modules/socket.io/client-dist/socket.io.min.js.map', 'utf8');
+    app.get(BSU + '/socket.io/socket.io.min.js.map', (req, res) => {
         res.writeHead(200, {
             'Content-Type': ('application/json; charset=utf-8')
         });
