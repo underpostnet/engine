@@ -93,6 +93,6 @@ apiUploader(app);
     } else
         app.get('/', (req, res) => res.redirect('/dev'));
 
-    // errors(app);
+    errors(app);
 
 })();

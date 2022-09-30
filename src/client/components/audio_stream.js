@@ -26,12 +26,12 @@ this.audio_stream = {
                 "timeout": 10000,
                 "transports": ["websocket", 'polling', 'flashsocket'] // 'polling', 'flashsocket'
             };
-            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : 'https://services.cyberiaonline.com'); // Create our socket
+            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : '/'/*  'https://services.cyberiaonline.com' */); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(undefined, {
-                host: dev ? 'localhost' : 'services.cyberiaonline.com',
-                port: dev ? 5501 : 443,
+                host: dev ? 'localhost' : '/' /* 'services.cyberiaonline.com' */,
+                // port: dev ? 5501 : 443,
                 // path: '/peerjs',
-                secure: (!dev)
+                // secure: (!dev)
             }); // Creating a peer element which represents the current user
             // GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
             // GLOBAL.audio_stream.myPeer = new Peer(undefined, { secure: (!dev) });
