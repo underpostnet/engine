@@ -60,9 +60,9 @@ const singleStatics = (app, deployModuleId) => {
 
 
     if (process.argv[2] == 'build') {
-        fs.mkdirSync(`./builds/${deployModuleId}/socket.io`);
+        fs.mkdirSync(`./builds/${deployModuleId}/socket.io`, { recursive: true });
         fs.writeFileSync(`./builds/${deployModuleId}/socket.io/socket.io.js`, srcSocketIo, 'utf8');
-        fs.mkdirSync(`./builds/${deployModuleId}/peer`);
+        fs.mkdirSync(`./builds/${deployModuleId}/peer`, { recursive: true });
         fs.writeFileSync(`./builds/${deployModuleId}/peer/peer.min.js`, srcPeerClient, 'utf8');
     }
 
