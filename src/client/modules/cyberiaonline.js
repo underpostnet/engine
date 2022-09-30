@@ -3,7 +3,6 @@
 const clientID = 'cyberiaonline';
 const viewMetaData = {
     clientID,
-    proxyPath: '/engine',
     mainTitle: 'Cyberia Online',
     host: 'cyberiaonline.com',
     // googleTag: 'G-B26K8P2KGL',
