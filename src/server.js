@@ -61,7 +61,7 @@ apiUploader(app);
         await ssr(app, APPS);
 
     await ssr(app, [underpost, authClient, engine]);
-    await ssr(app, [cyberiaonline, authClient, media, engine]);
+    await ssr(app, [cyberiaonline, authClient, media]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);
     await ssr(app, [nexodev, authClient, engine]);
