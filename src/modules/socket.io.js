@@ -29,7 +29,7 @@ const ioModule = (app, options) => {
     const io = new Server(httpServer, {
         cors: {
             // origin: `http://localhost:${process.env.PORT}`,
-            origins: process.env.NODE_ENV == 'development' ?
+            origins: options && options.origin ? options.origin : process.env.NODE_ENV == 'development' ?
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
                 [`https://www.cyberiaonline.com`, 'https://underpost.net'],
             methods: ['GET', 'POST']

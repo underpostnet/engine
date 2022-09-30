@@ -358,6 +358,7 @@ this.cloud = {
         }).join('');
     },
     updateDirectory: async function () {
+        if (!GLOBAL['auth']) return this.setDefaultData();
         const getDataDirectoryUser = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
             method: 'POST',
             headers: {
