@@ -29,7 +29,7 @@ this.audio_stream = {
             GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : '/'/*  'https://services.cyberiaonline.com' */); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(undefined, {
                 host: dev ? 'localhost' : '/' /* 'services.cyberiaonline.com' */,
-                // port: dev ? 5501 : 443,
+                port: dev ? 5501 : 3003,
                 // path: '/peerjs',
                 // secure: (!dev)
             }); // Creating a peer element which represents the current user
