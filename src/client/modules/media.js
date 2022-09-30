@@ -42,12 +42,20 @@ const singleStatics = (app, deployModuleId) => {
     });
 
 
-    const srcSocketIo = fs.readFileSync('./underpost_modules/underpost-library/lib/socket.io.js', 'utf8');
+    const srcSocketIo = fs.readFileSync('./node_modules/socket.io/client-dist/socket.io.min.js', 'utf8');
     app.get(BSU + '/socket.io/socket.io.js', (req, res) => {
         res.writeHead(200, {
             'Content-Type': ('application/javascript; charset=utf-8')
         });
         return res.end(srcSocketIo);
+    });
+
+    const srcMapSocketio = fs.readFileSync('./node_modules/socket.io/client-dist/socket.io.js.map', 'utf8');
+    app.get(BSU + '/socket.io/socket.io.js.map', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/json; charset=utf-8')
+        });
+        return res.end(srcMapSocketio);
     });
 
     const srcPeerClient = fs.readFileSync('./underpost_modules/underpost-library/lib/peer.min.js', 'utf8');
