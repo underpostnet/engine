@@ -32,19 +32,19 @@ const ioModule = (app, options) => {
             origins: options && options.origin ? options.origin : process.env.NODE_ENV == 'development' ?
                 [`http://localhost:${process.env.PORT}`, 'http://localhost:3001'] :
                 [`https://www.cyberiaonline.com`, 'https://underpost.net'],
-            methods: ['GET', 'POST']
-            // allowedHeaders: [
-            //     'Access-Control-Allow-Headers',
-            //     'Access-Control-Allow-Origin',
-            //     'X-Requested-With',
-            //     'X-Access-Token',
-            //     'Content-Type',
-            //     'Host',
-            //     'Accept',
-            //     'Connection',
-            //     'Cache-Control',
-            // ],
-            // credentials: true
+            methods: ['GET', 'POST', 'DELETE', 'PUT'],
+            allowedHeaders: [
+                'Access-Control-Allow-Headers',
+                'Access-Control-Allow-Origin',
+                'X-Requested-With',
+                'X-Access-Token',
+                'Content-Type',
+                'Host',
+                'Accept',
+                'Connection',
+                'Cache-Control',
+            ],
+            credentials: true
         } /*process.env.NODE_ENV == 'development' ? : {
             origin: '*',
             methods: ['GET', 'POST', 'DELETE', 'PUT'],
