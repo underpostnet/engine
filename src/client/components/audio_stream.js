@@ -21,12 +21,13 @@ this.audio_stream = {
 
             const ROOM_ID = 'test-room';
             const connectionOptions = {
-                "force new connection": true,
+                "forceNew": true,
                 "reconnectionAttempts": "Infinity",
                 "timeout": 10000,
                 "transports": ["websocket", 'polling', 'flashsocket'] // 'polling', 'flashsocket'
             };
-            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : '/'/*  'https://services.cyberiaonline.com' */); // Create our socket
+            GLOBAL.audio_stream.socket = io(dev ? 'http://localhost:5500' : '/'/*  'https://services.cyberiaonline.com' */, 
+            connectionOptions); // Create our socket
             GLOBAL.audio_stream.myPeer = new Peer(undefined, {
                 host: dev ? 'localhost' : '/' /* 'services.cyberiaonline.com' */,
                 port: dev ? 5501 : 3003,
