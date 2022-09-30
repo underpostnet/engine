@@ -16,6 +16,7 @@ this.home_dev = {
                             top: 7px;
                         }
                     </style>
+                    <div class='in container'>
                     ${APPS.map((dataApp, i) => /*html*/ i != 0 ? `                    
                         <a href='${dataApp.baseHome}' style='text-decoration: none; font-size: 30px'>
                                 <div class='in container main-card'>
@@ -24,6 +25,7 @@ this.home_dev = {
                                 </div>
                         </a>                    
                     `: '').join('')}
+                    </div>
         
         `
     }
