@@ -60,7 +60,7 @@ apiUploader(app);
     if (process.env.NODE_ENV == 'development')
         await ssr(app, APPS);
 
-    await ssr(app, [underpost, authClient, media, engine]);
+    await ssr(app, [underpost, authClient, engine]);
     await ssr(app, [cyberiaonline, authClient, media, engine]);
     await ssr(app, [cryptokoyn]);
     await ssr(app, [dogmadual]);

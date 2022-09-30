@@ -58,14 +58,14 @@ const rrb = () => !dev ? '' : `background: ${randomColor()} !important`;
 
 const renderCursors = viewMetaData => viewMetaData.cursors ? viewMetaData.cursors.map(x =>/*css*/`
  ${x.activesClass.map(y =>/*css*/`
-    ${y} { cursor: url('${x.src}') ${x.x} ${x.y}, auto; }
+    ${y} { cursor: url('${viewMetaData.proxyPath ? viewMetaData.proxyPath : ''}${x.src}') ${x.x} ${x.y}, auto; }
  `).join('')}
 `).join('') : '';
 
 const renderFonts = viewMetaData => viewMetaData.fonts ? viewMetaData.fonts.map(x =>/*css*/`
   @font-face {
     font-family: ${x.name};
-    src: URL('${x.src}') format('${x.format}');
+    src: URL('${viewMetaData.proxyPath ? viewMetaData.proxyPath : ''}${x.src}') format('${x.format}');
   }
   ${x.activesClass.map(y => /*css*/`
   ${y} { font-family: '${x.name}'; }
@@ -253,13 +253,13 @@ const renderView = dataView => {
                 + viewPaths.filter(path => path.render).map(path => path.component + `{ display: none; }`).join('')
             ).styles}
             </style>
-            <link rel='stylesheet' href='/fontawesome/all.min.css'>
+            <link rel='stylesheet' href='${viewMetaData.proxyPath ? viewMetaData.proxyPath : ''}/fontawesome/all.min.css'>
 
             ${viewMetaData.srcJS ? viewMetaData.srcJS.map(srcUrl => `
-            <script type='application/javascript' src='${srcUrl}'></script>
+            <script type='application/javascript' src='${viewMetaData.proxyPath ? viewMetaData.proxyPath : ''}${srcUrl}'></script>
             `).join('') : ''}
             ${viewMetaData.srcCSS ? viewMetaData.srcCSS.map(srcUrl => `            
-            <link rel='stylesheet' href='${srcUrl}'>
+            <link rel='stylesheet' href='${viewMetaData.proxyPath ? viewMetaData.proxyPath : ''}${srcUrl}'>
             `).join('') : ''}
 
             <style>
