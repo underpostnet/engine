@@ -85,9 +85,9 @@ const ioModule = (app, options) => {
         proxied: true
     };
     if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
-        key: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/key.key'),
-        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/crt.crt'),
-        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/nexodev/ssl/ca_bundle.crt')
+        key: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/key.key'),
+        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/crt.crt'),
+        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/ca_bundle.crt')
     };
 
 
@@ -95,16 +95,16 @@ const ioModule = (app, options) => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
 
-    // if (options && options.origin)
-    //     peerServer.use(cors({ origin: options.origin }));
+    if (options && options.origin)
+        peerServer.use(cors({ origin: options.origin }));
 
-    peerServer.use(function (req, res, next) {
-        res.header("Access-Control-Allow-Origin", "*");
-        res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-        res.header('Access-Control-Allow-Credentials', true);
-        res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
-        next();
-    });
+    // peerServer.use(function (req, res, next) {
+    //     res.header("Access-Control-Allow-Origin", "*");
+    //     res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    //     res.header('Access-Control-Allow-Credentials', true);
+    //     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    //     next();
+    // });
 
     // const peerApp = express();
 
