@@ -172,6 +172,45 @@ const viewPaths = [
         nohome: false,
         render: false,
         display: false
+    },
+    {
+        path: baseHome + '/yt_download',
+        homePaths: [baseHome],
+        title: { en: 'YouTube Mp3 downloader', es: 'YouTube Mp3 downloader' },
+        component: 'yt_download',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
+    },
+    {
+        path: baseHome + '/media-player',
+        homePaths: [baseHome],
+        title: { en: 'Audio Player', es: 'Audio Player' },
+        component: 'audioplayer',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
+    },
+    {
+        path: baseHome + '/yt_player',
+        homePaths: [baseHome],
+        title: { en: 'YouTube Player', es: 'YouTube Player' },
+        component: 'yt_player',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: true
     }
 ];
 

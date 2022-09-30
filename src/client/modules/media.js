@@ -26,7 +26,11 @@ const viewMetaData = {
 const baseHome = '/' + clientID;
 
 const statics = app => {
-    const deployModuleId = 'cyberiaonline';
+    ['cyberiaonline', 'underpost'].map(deployModuleId => singleStatics(app, deployModuleId));
+};
+
+const singleStatics = (app, deployModuleId) => {
+
     const BSU = process.env.NODE_ENV == 'development' ? '' : '/' + deployModuleId;
 
     const cssAudioPlayer = fs.readFileSync('./underpost_modules/underpost-library/audioplayer/AudioPlayer.css', 'utf-8');
