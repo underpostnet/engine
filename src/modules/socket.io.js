@@ -79,7 +79,7 @@ const ioModule = (app, options) => {
     });
 
     // httpServer.listen(process.env.IO_PORT);
-    /**/
+    /*
     const peerOptions = {
         port: process.env.PEER_PORT,
         proxied: true
@@ -97,6 +97,7 @@ const ioModule = (app, options) => {
 
     if (options && options.origin)
         peerServer.use(cors({ origin: options.origin }));
+    */
 
     // peerServer.use(function (req, res, next) {
     //     res.header("Access-Control-Allow-Origin", "*");
@@ -106,18 +107,18 @@ const ioModule = (app, options) => {
     //     next();
     // });
 
-    // const peerApp = express();
+    const peerApp = express();
 
-    // if (options && options.origin)
-    //     peerApp.use(cors({ origin: options.origin }));
+    if (options && options.origin)
+        peerApp.use(cors({ origin: options.origin }));
 
-    // const httpPeerServer = createServer(peerApp);
-    // const peerServer = ExpressPeerServer(httpPeerServer, {
-    //     debug: true
-    // });
-    // peerApp.use('/peerjs', peerServer);
+    const httpPeerServer = createServer(peerApp);
+    const peerServer = ExpressPeerServer(httpPeerServer, {
+        debug: true
+    });
+    peerApp.use('/peerjs', peerServer);
 
-    // httpPeerServer.listen(process.env.PEER_PORT);
+    httpPeerServer.listen(process.env.PEER_PORT);
 
     return { io, httpServer, peerServer };
 
