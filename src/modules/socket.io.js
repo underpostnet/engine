@@ -85,9 +85,9 @@ const ioModule = (app, options) => {
         proxied: true
     };
     if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
-        key: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/key.key'),
-        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/crt.crt'),
-        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/cyberiaonline/ssl/ca_bundle.crt')
+        key: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/key.key'),
+        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/crt.crt'),
+        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/ca_bundle.crt')
     };
 
 
