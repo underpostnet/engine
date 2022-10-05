@@ -95,8 +95,8 @@ const ioModule = (app, options) => {
         logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
     });
 
-    if (options && options.origin)
-        peerServer.use(cors({ origin: options.origin }));
+    // if (options && options.origin)
+    //     peerServer.use(cors({ origin: options.origin }));
 
     // peerServer.use(function (req, res, next) {
     //     res.header("Access-Control-Allow-Origin", "*");
