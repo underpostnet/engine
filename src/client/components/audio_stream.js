@@ -32,6 +32,7 @@ this.audio_stream = {
                 host: dev ? 'localhost' : '/' /* 'services.cyberiaonline.com' */,
                 port: dev ? 5501 : 3003,
                 // path: '/peerjs',
+                path: '/'
                 // secure: (!dev)
             }); // Creating a peer element which represents the current user
             // GLOBAL.audio_stream.myPeer = new Peer(); // Creating a peer element which represents the current user
