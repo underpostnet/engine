@@ -80,20 +80,20 @@ const ioModule = (app, options) => {
 
     // httpServer.listen(process.env.IO_PORT);
     /**/
-    const peerOptions = {
-        port: process.env.PEER_PORT
-        /* proxied: true */
-    };
-    if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
-        key: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/key.key'),
-        cert: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/crt.crt'),
-        ca: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/ca_bundle.crt')
-    };
+    // const peerOptions = {
+    //     port: process.env.PEER_PORT
+    //     /* proxied: true */
+    // };
+    // if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
+    //     key: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/key.key'),
+    //     cert: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/crt.crt'),
+    //     ca: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/ca_bundle.crt')
+    // };
 
 
-    const peerServer = PeerServer(peerOptions, () => {
-        logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
-    });
+    // const peerServer = PeerServer(peerOptions, () => {
+    //     logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
+    // });
 
     // if (options && options.origin)
     //     peerServer.use(cors({ origin: options.origin }));
@@ -117,9 +117,11 @@ const ioModule = (app, options) => {
     // });
     // peerApp.use('/peerjs', peerServer);
 
-    // httpPeerServer.listen(process.env.PEER_PORT);
+    // httpPeerServer.listen(process.env.PEER_PORT, () => {
+    //     logger.info(`Peer Server is running on port ${process.env.PEER_PORT}`);
+    // });
 
-    return { io, httpServer, peerServer };
+    return { io, httpServer, /* peerServer */ };
 
 };
 
