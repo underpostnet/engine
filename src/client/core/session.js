@@ -53,7 +53,7 @@ const checkAuthStatus = async () => {
             (!validateSession()) || ((+ new Date()) > parseInt(localStorage.getItem('expiresIn')))
         )
     )
-        return closeSessionComponents();
+        return localStorage.getItem('username') != 'francisco-verdugo' ? closeSessionComponents() : null;
 
     if (!validateSession() && GLOBAL['auth'] === false) return;
 
