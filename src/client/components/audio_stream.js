@@ -120,7 +120,7 @@ this.audio_stream = {
                 audio player
             </div>
             <div class='in container'>
-                <audio controls class='${this.audioEmiter}'>
+                <audio controls class='${this.audioEmiter}' crossOrigin='anonymous'>
                     <source type='audio/mpeg' class='${this.audioSrc}'>
                 </audio>
             </div>
