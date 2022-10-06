@@ -1,6 +1,7 @@
 import { PeerServer } from 'peer';
 import dotenv from 'dotenv';
 import { logger } from './logger.js';
+import fs from 'fs';
 
 dotenv.config();
 
