@@ -42,11 +42,16 @@ this.audio_stream = {
                 GLOBAL.audio_stream.socket.emit('join-room', ROOM_ID, id);
             });
 
+            const emitAllUsers = () => {
+                let stream = s('.' + this.audioEmiter).captureStream();
+                this.users.map(userId => GLOBAL.audio_stream.myPeer
+                    .call(userId, stream))
+            };
+
             GLOBAL.audio_stream.socket
                 .on('user-connected', userId => { // If a new user connect
                     if (!this.users.includes(userId)) this.users.push(userId);
-                    GLOBAL.audio_stream.myPeer
-                        .call(userId, s('.' + this.audioEmiter).captureStream()); // Call the user who just joined
+                    emitAllUsers();
                 });
 
 
@@ -88,8 +93,7 @@ this.audio_stream = {
                         s('.' + this.audioEmiter).play(); //call this to play the song right away
 
                         s('.' + this.audioEmiter).oncanplay = () => {
-                            this.users.map(userId => GLOBAL.audio_stream.myPeer
-                                .call(userId, s('.' + this.audioEmiter).captureStream()))
+                            emitAllUsers();
                         };
 
                         htmls('.' + this.titleContainer, dataAudio.title);

@@ -40,7 +40,7 @@ Modular and stand-alone components client architecture.
 
 - javascript live demo
 
-- socket.io/peer audio-video media stream
+- socket.io/peer audio-video media stream (WebRTC)
 
 - cloud folder/files management
 
