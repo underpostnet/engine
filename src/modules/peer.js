@@ -7,7 +7,7 @@ dotenv.config();
 
 const peerOptions = {
     port: process.env.PEER_PORT,
-    /* proxied: true */
+    proxied: true
 };
 
 if (process.env.NODE_ENV != 'development') peerOptions.ssl = {
