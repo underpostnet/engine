@@ -26,6 +26,10 @@ Modular and stand-alone components client architecture.
 
 - run unit test `mocha`
 
+#### Docker Usage
+
+build docker image `docker build . -t <your username>/underpost-engine`
+
 #### Features
 
 - jwt auth
