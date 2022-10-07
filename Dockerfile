@@ -53,7 +53,7 @@ WORKDIR /usr/src/app
 # Install app dependencies
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
-COPY package*.json ./
+COPY ./package*.json ./
 
 RUN npm install
 # If you are building your code for production
@@ -65,10 +65,10 @@ COPY . .
 # underpost dependency
 RUN node underpost.js
 
-VOLUME [ "/usr/src/app" ]
+# VOLUME [ "/usr/src/app" ]
 
 EXPOSE 5500
 EXPOSE 5501
 EXPOSE 22
 
-CMD [ "npm", "run", "dev" ]
+CMD ["sh", "/startup.sh"]
