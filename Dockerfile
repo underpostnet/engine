@@ -54,6 +54,9 @@ WORKDIR /usr/src/app
 # A wildcard is used to ensure both package.json AND package-lock.json are copied
 # where available (npm@5+)
 COPY ./package*.json ./
+COPY ./.env.dev ./
+COPY ./nodemon.json ./
+COPY ./underpost.js ./
 
 RUN npm install
 # If you are building your code for production
@@ -62,10 +65,7 @@ RUN npm install
 # Bundle app source
 COPY . .
 
-# underpost dependency
-RUN node underpost.js
-
-# VOLUME [ "/usr/src/app" ]
+VOLUME [ "/usr/src/app/data" ]
 
 EXPOSE 5500
 EXPOSE 5501
