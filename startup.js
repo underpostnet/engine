@@ -21,25 +21,7 @@ console.log('---------------------------------');
 console.log('> UNDERPOST MODULES');
 console.log('---------------------------------');
 
-const nameFolderModules = 'underpost_modules';
-
-if (!fs.existsSync(`./${nameFolderModules}`)) fs.mkdirSync(`./${nameFolderModules}`);
-shell.cd(nameFolderModules);
-
-[
-    'underpost-library',
-    'underpost.net',
-    'underpost-data-template'
-].map(underpostModule => {
-    if (fs.existsSync(`./${underpostModule}`)) {
-        shell.cd(underpostModule);
-        shell.exec(`git pull origin master`);
-        shell.cd('..');
-        return;
-    }
-    shell.exec(`git clone https://github.com/underpostnet/${underpostModule}`);
-    return;
-});
+shell.exec(`node underpost.js`);
 
 setTimeout(async () => {
     // const timer = ms => new Promise(res => setTimeout(res, ms));
@@ -55,12 +37,12 @@ setTimeout(async () => {
 
     // /usr/bin/supervisord -n
     // /usr/sbin/sshd -D
-    shell.exec(`/usr/bin/supervisord -n`);
+    shell.exec(`/usr/bin/supervisord -n`, { async: true });
 
     console.log('---------------------------------');
     console.log('> INIT APPS SERVICES');
     console.log('---------------------------------');
-
+    shell.exec(`ls -a`);
     shell.exec(`npm run dev`);
 
 }, 1000);
