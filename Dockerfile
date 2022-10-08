@@ -66,21 +66,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
 # Create app directory
 # WORKDIR /usr/src/app
 
-COPY startup.js /startup.js
 
-COPY package.json /package.json
-
-COPY .env.dev /.env.dev
-
-COPY nodemon.json /nodemon.json
-
-RUN npm install
 
 # If you are building your code for production
 # RUN npm ci --only=production
 
 # Bundle app source
 COPY . .
+
+RUN npm install
 
 RUN service ssh start
 

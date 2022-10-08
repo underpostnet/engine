@@ -37,6 +37,7 @@ setTimeout(async () => {
 
     // /usr/bin/supervisord -n
     // /usr/sbin/sshd -D
+    // hard delete -> rm -rf node_modules
     shell.exec(`/usr/bin/supervisord -n`, { async: true });
 
     console.log('---------------------------------');
