@@ -118,6 +118,8 @@ const getYouTubeID = url => {
     return false;
 };
 
+const timer = ms => new Promise(res => setTimeout(res, ms));
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -136,6 +138,7 @@ const commonFunctions = () => `
     // decodeURIComponent
     const clearURI = uri => decodeURIComponent(_clearURI(uri));
     const getYouTubeID = ${getYouTubeID};
+    const timer = ${timer};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -205,5 +208,6 @@ export {
     clearSubUri,
     orderArrayFromAttrInt,
     getYouTubeID,
-    isInvalidChar
+    isInvalidChar,
+    timer
 };

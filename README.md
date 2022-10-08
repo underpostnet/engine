@@ -32,7 +32,8 @@ build dev docker image `docker build . -t underpost-engine`
 
 create volume `docker volume create underpost-engine-vol`
 
-run dev image `docker run --name live-underpost-engine -p 41061:22 -p 41062:5500 -p 41063:5501 -d -v underpost-engine-vol:/usr/src/app/data underpost-engine`
+run dev image `docker run --name live-underpost-engine -p 41061:22 -p 41062:80 -p 41063:5501 -d -v underpost-engine-vol:/www underpost-engine` (-v :/opt/lampp/htdocs :/usr/src/app/data)
+
 
 ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`
 
