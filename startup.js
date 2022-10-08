@@ -49,6 +49,13 @@ setTimeout(async () => {
     //         await timer(1000);
     //     }
     // })()
+    console.log('---------------------------------');
+    console.log('> INIT SSH SERVER');
+    console.log('---------------------------------');
+
+    // /usr/bin/supervisord -n
+    // /usr/sbin/sshd -D
+    shell.exec(`/usr/bin/supervisord -n`);
 
     console.log('---------------------------------');
     console.log('> INIT APPS SERVICES');

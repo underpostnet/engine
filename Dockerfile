@@ -48,9 +48,6 @@ RUN curl -Lo xampp-linux-installer.run $XAMPP_URL && \
 # copy supervisor config file to start openssh-server
 COPY supervisord-openssh-server.conf /etc/supervisor/conf.d/supervisord-openssh-server.conf
 
-# copy a startup script
-COPY startup.sh /startup.sh
-
 # install open ssl git and others tools
 RUN apt-get install -yq --no-install-recommends \
     libssl-dev \
@@ -78,26 +75,21 @@ COPY .env.dev /.env.dev
 COPY nodemon.json /nodemon.json
 
 RUN npm install
-# # If you are building your code for production
-# # RUN npm ci --only=production
 
-# # Bundle app source
-# COPY . .
+# If you are building your code for production
+# RUN npm ci --only=production
 
-# VOLUME [ "/usr/src/app/data" ]
+# Bundle app source
+COPY . .
 
 RUN service ssh start
 
 VOLUME [ "/var/log/mysql/", "/var/log/apache2/", "/www", "/opt/lampp/apache2/conf.d/", "/data" ]
 
-# EXPOSE 5500
-# EXPOSE 5501
-
+EXPOSE 5500
+EXPOSE 5501
 EXPOSE 22
-
 EXPOSE 3306
 EXPOSE 80
 
 CMD ["node", "startup.js"]
-
-# CMD ["sh", "/startup.sh"]
