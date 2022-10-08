@@ -1,6 +1,6 @@
 
 import shell from 'shelljs';
-import fs from 'fs';
+// import fs from 'fs';
 
 console.log('---------------------------------');
 console.log('> LIST WORK DIRECTORY');
@@ -23,28 +23,20 @@ console.log('---------------------------------');
 
 shell.exec(`node underpost.js`);
 
-setTimeout(async () => {
-    // const timer = ms => new Promise(res => setTimeout(res, ms));
+console.log('---------------------------------');
+console.log('> INIT SSH SERVER');
+console.log('---------------------------------');
 
-    // (async () => {
-    //     while (true) {
-    //         await timer(1000);
-    //     }
-    // })()
-    console.log('---------------------------------');
-    console.log('> INIT SSH SERVER');
-    console.log('---------------------------------');
+// /usr/bin/supervisord -n
+// /usr/sbin/sshd -D
+// hard delete -> rm -rf node_modules
 
-    // /usr/bin/supervisord -n
-    // /usr/sbin/sshd -D
-    // hard delete -> rm -rf node_modules
-    shell.exec(`/usr/bin/supervisord -n`, { async: true });
+shell.exec(`/usr/bin/supervisord -n`, { async: true });
 
-    console.log('---------------------------------');
-    console.log('> INIT APPS SERVICES');
-    console.log('---------------------------------');
-    shell.exec(`ls -a`);
-    shell.exec(`npm run dev`);
+console.log('---------------------------------');
+console.log('> INIT APPS SERVICES');
+console.log('---------------------------------');
 
-}, 1000);
+shell.exec(`ls -a`);
+shell.exec(`npm run dev`);
 
