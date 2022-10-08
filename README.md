@@ -28,16 +28,16 @@ Modular and stand-alone components client architecture.
 
 #### Docker Usage
 
-build dev docker image `docker build . -t underpost-engine`
+- build dev docker image `docker build . -t underpost-engine`
 
-create volume `docker volume create underpost-engine-vol`
+- create volume `docker volume create underpost-engine-vol`
 
-run dev image `docker run --name live-underpost-engine -p 41061:22 -p 41062:80 -p 41063:5501 -d -v underpost-engine-vol:/www underpost-engine` (-v :/opt/lampp/htdocs :/usr/src/app/data)
+- run dev image `docker run --name live-underpost-engine -p 41061:22 -p 41062:80 -p 41063:5501 -d -v underpost-engine-vol:/www underpost-engine` (-v :/opt/lampp/htdocs :/usr/src/app/data)
 
 
-ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`
+- ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`
 
-get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
+- get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
 
 #### Features
 
