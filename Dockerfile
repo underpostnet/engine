@@ -57,14 +57,12 @@ RUN apt-get install -yq --no-install-recommends \
     gnupg
 
 # install nodejs 14 https://github.com/nodesource/distributions/blob/master/README.md#deb
-RUN curl -fsSL https://deb.nodesource.com/setup_14.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_16.x | bash - && \
     apt-get install -y nodejs \
     build-essential && \
     node --version && \ 
     npm --version
 
-# Create app directory
-# WORKDIR /usr/src/app
 
 
 
@@ -76,7 +74,17 @@ COPY . .
 
 RUN npm install
 
-RUN service ssh start
+RUN mkdir -p /underpost_modules
+
+WORKDIR /underpost_modules
+
+RUN git clone https://github.com/underpostnet/underpost-library && \
+    git clone https://github.com/underpostnet/underpost.net && \
+    git clone https://github.com/underpostnet/underpost-data-template
+
+WORKDIR /
+
+# RUN service ssh start
 
 VOLUME [ "/var/log/mysql/", "/var/log/apache2/", "/www", "/opt/lampp/apache2/conf.d/", "/data" ]
 

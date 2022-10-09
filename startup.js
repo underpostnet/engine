@@ -17,11 +17,11 @@ console.log('> INIT LAMPP/XAMPP');
 console.log('---------------------------------');
 shell.exec(`sudo /opt/lampp/lampp start`);
 
-console.log('---------------------------------');
-console.log('> UNDERPOST MODULES');
-console.log('---------------------------------');
+// console.log('---------------------------------');
+// console.log('> UNDERPOST MODULES');
+// console.log('---------------------------------');
 
-shell.exec(`node underpost.js`);
+// shell.exec(`node underpost.js`);
 
 console.log('---------------------------------');
 console.log('> INIT SSH SERVER');

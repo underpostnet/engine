@@ -34,7 +34,9 @@ Modular and stand-alone components client architecture.
 
 - run dev image `docker run --name live-underpost-engine -p 41061:22 -p 41062:80 -p 41063:5500 -p 41064:5501 -d -v underpost-engine-vol:/www -v underpost-engine-vol0:/data underpost-engine` (-v :/opt/lampp/htdocs :/usr/src/app/data)
 
-- ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`
+- ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`, verify /.ssh/known_hosts
+
+- close ssh `exit`
 
 - get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
 
