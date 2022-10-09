@@ -36,8 +36,6 @@ Modular and stand-alone components client architecture.
 
 - ssh connection (default SSH password is 'root') `ssh root@localhost -p 41061`, verify /.ssh/known_hosts
 
-- close ssh `exit`
-
 - get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
 
 #### Features
