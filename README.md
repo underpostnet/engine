@@ -64,6 +64,8 @@ Modular and stand-alone components client architecture.
 
 - CLI for keys management, wallet, and blockchain miner
 
+- Debian/nodejs/xampp runtime environment docker image 
+
 #### Current productions projects
 
 - [dogmadual.com](https://www.dogmadual.com)
