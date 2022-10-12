@@ -16,10 +16,15 @@ spec:
       imagePullPolicy: Never
       ports:
         - containerPort: 80
+          hostPort: 80
         - containerPort: 443
+          hostPort: 443
         - containerPort: 22
+          hostPort: 22
         - containerPort: 5500
+          hostPort: 5500
         - containerPort: 5501
+          hostPort: 5501
   tolerations:
     - key: "type"
       operator: "Equal"

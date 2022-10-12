@@ -40,15 +40,15 @@ Modular and stand-alone components client architecture.
 
 #### K8s Usage
 
-- create cluster `kind create cluster`
+- create cluster `kind create cluster` or `kind create cluster --config=.\cluster.yaml`
 
-- view clusters `kind get clusters`
+- view clusters `kind get clusters` or `kubectl get all`
 
 - load docker image `kind load docker-image underpost-engine:latest`
 
 - get docker-images that are loaded `docker exec -it kind-control-plane crictl images`
 
-- run pod `kubectl apply -f k8s.yaml`
+- run pod `kubectl apply -f pod.yaml`
 
 - status pod `kubectl describe pod underpost-engine` or `kubectl get pod underpost-engine`
 
@@ -59,6 +59,8 @@ Modular and stand-alone components client architecture.
 #### Features
 
 - jwt auth
+
+- Ajv JSON schema validator
 
 - asymmetric keys management
 
