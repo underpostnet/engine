@@ -38,6 +38,24 @@ Modular and stand-alone components client architecture.
 
 - get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
 
+#### K8s Usage
+
+- create cluster `kind create cluster`
+
+- view clusters `kind get clusters`
+
+- load docker image `kind load docker-image underpost-engine:latest`
+
+- get docker-images that are loaded `docker exec -it kind-control-plane crictl images`
+
+- run pod `kubectl apply -f k8s.yaml`
+
+- status pod `kubectl describe pod underpost-engine` or `kubectl get pod underpost-engine`
+
+- view logs `kubectl logs underpost-engine`
+
+- get a shell terminal inside k8s container `kubectl exec --stdin --tty underpost-engine -- /bin/bash`
+
 #### Features
 
 - jwt auth
