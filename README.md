@@ -64,6 +64,8 @@ Modular and stand-alone components client architecture.
 
 - Verify the Contour pods are ready by running the following `kubectl get pods -n projectcontour -o wide` or `kubectl get po,svc,deploy,daemonset -n projectcontour`
 
+- Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
+
 #### Features
 
 - jwt auth
@@ -92,7 +94,7 @@ Modular and stand-alone components client architecture.
 
 - CLI for keys management, wallet, and blockchain miner
 
-- Debian/nodejs/xampp runtime environment docker image 
+- Debian/nodejs/xampp runtime environment docker image
 
 #### Current productions projects
 
