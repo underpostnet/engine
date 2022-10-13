@@ -8,6 +8,7 @@ import { buildBaseApiUri, isInvalidChar, newInstance } from './util.js';
 import dotenv from 'dotenv';
 import { deleteFolderRecursive, getAllFiles } from '../modules/files.js';
 import { fileTypeFromStream } from 'file-type';
+import { ipfsMod } from '../modules/ipfs.js';
 
 dotenv.config();
 
@@ -86,13 +87,17 @@ const onUploadFile = async (req, res) => {
                     JSON.parse(req.body.update).static :
                     '/' + typeFile + '/' + req.files[keyFile].name;
 
+                const ipfsObj = await ipfsMod.add(req.files[keyFile].data);
+                console.log('ipfsObj', ipfsObj);
+
                 fileObj = {
                     static: staticPath,
                     title: req.body.title,
                     date: new Date().toISOString(),
                     component: components[parseInt(req.body.indexFolder)],
                     public: typeof req.body.public == 'string' ? JSON.parse(req.body.public) : req.body.public,
-                    approved: false
+                    approved: false,
+                    ipfs: ipfsObj.path
                 };
 
                 if (indexUserFile >= 0) {
@@ -506,7 +511,8 @@ const apiUploader = app => {
 
     const attrValidators = [
         ['approved', false],
-        ['public', false]
+        ['public', false],
+        ['ipfs', '']
     ];
 
     writeFiles(getFiles().map(x => {
