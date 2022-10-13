@@ -8,7 +8,7 @@ import { buildBaseApiUri, isInvalidChar, newInstance } from './util.js';
 import dotenv from 'dotenv';
 import { deleteFolderRecursive, getAllFiles } from '../modules/files.js';
 import { fileTypeFromStream } from 'file-type';
-import { ipfsMod } from '../modules/ipfs.js';
+import { ipfsAdd } from '../modules/ipfs.js';
 
 dotenv.config();
 
@@ -87,8 +87,7 @@ const onUploadFile = async (req, res) => {
                     JSON.parse(req.body.update).static :
                     '/' + typeFile + '/' + req.files[keyFile].name;
 
-                const ipfsObj = await ipfsMod.add(req.files[keyFile].data);
-                console.log('ipfsObj', ipfsObj);
+                const ipfsObj = await ipfsAdd(req.files[keyFile].data);
 
                 fileObj = {
                     static: staticPath,
