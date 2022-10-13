@@ -40,7 +40,7 @@ Modular and stand-alone components client architecture.
 
 #### K8s Usage
 
-- create cluster `kind create cluster` or `kind create cluster --config=.\cluster.yaml`
+- create cluster `kind create cluster` or `kind create cluster --config=.\k8s.yaml`
 
 - view clusters `kind get clusters` or `kubectl get all`
 
@@ -55,6 +55,14 @@ Modular and stand-alone components client architecture.
 - view logs `kubectl logs underpost-engine`
 
 - get a shell terminal inside k8s container `kubectl exec --stdin --tty underpost-engine -- /bin/bash`
+
+#### k8s Contour Ingress Usage
+
+- create cluster `kind create cluster --config=.\k8s.yaml`
+
+- Deploy Contour components `kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`
+
+- Verify the Contour pods are ready by running the following `kubectl get pods -n projectcontour -o wide` or `kubectl get po,svc,deploy,daemonset -n projectcontour`
 
 #### Features
 
