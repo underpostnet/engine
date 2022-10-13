@@ -66,7 +66,7 @@ Modular and stand-alone components client architecture.
 
 - Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
 
-### IPFS Usage (kubo)
+#### IPFS Usage (kubo)
 
 - install ipfs cli `npm install -g ipfs`
 
