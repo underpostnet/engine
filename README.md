@@ -66,6 +66,14 @@ Modular and stand-alone components client architecture.
 
 - Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
 
+### IPFS Usage (kubo)
+
+- install ipfs cli `npm install -g ipfs`
+
+- start jsipfs daemon `jsipfs daemon` or `ipfs daemon`
+
+- Set enable ipfs filestore `ipfs config --json Experimental.FilestoreEnabled true`
+
 #### Features
 
 - jwt auth

@@ -12,7 +12,7 @@ const ipfsAdd = async file => {
         logger.error('ipfs not running');
         logger.error(error);
         ipfsObj = {
-            paht: ''
+            path: ''
         };
     }
     return ipfsObj;
