@@ -6,11 +6,17 @@ Modular and stand-alone components client architecture.
 
 #### Install
 
+Run terminal with administrator privileges.
+
+- `npm install -g npm@latest`
+
+- `npm install -g ipfs`
+
 - `npm install`
 
 - `node underpost`
 
-- unit test `npm install --global mocha`
+- unit test `npm install -g mocha`
 
 #### Usage
 
@@ -66,14 +72,6 @@ Modular and stand-alone components client architecture.
 
 - Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
 
-#### IPFS Usage (kubo)
-
-- install ipfs cli `npm install -g ipfs`
-
-- start jsipfs daemon `jsipfs daemon` or `ipfs daemon`
-
-- Set enable ipfs filestore `ipfs config --json Experimental.FilestoreEnabled true`
-
 #### Features
 
 - jwt auth
@@ -91,6 +89,8 @@ Modular and stand-alone components client architecture.
 - javascript live demo
 
 - socket.io/peer audio-video media stream (WebRTC)
+
+- IPFS integration
 
 - cloud folder/files management
 

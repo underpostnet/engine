@@ -22,6 +22,7 @@ import { media } from './client/modules/media.js';
 import { statics } from './modules/statics.js';
 import { ioModule } from './modules/socket.io.js';
 import { peerServer } from './modules/peer.js';
+import { ipfsDaemon } from './modules/ipfs.js';
 
 // main modules
 import { dev } from './client/modules/dev.js';
@@ -76,6 +77,7 @@ apiUploader(app);
         httpServer.listen(process.env.PORT, () => {
             logger.info(`Http Server is running on port ${process.env.PORT}`);
             peerServer();
+            ipfsDaemon();
         });
     }
 
