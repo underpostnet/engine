@@ -223,14 +223,6 @@ const authValidator = (req, res, next) => {
     }
 }
 
-
-const getSessionStatus = (req, res) => {
-    return res.status(200).json({
-        status: 'success',
-        data: 'ok'
-    });
-};
-
 const apiAuth = app => {
     srcFolders.map(srcFolder => !fs.existsSync(srcFolder) ?
         fs.mkdirSync(srcFolder, { recursive: true }) : null);
@@ -240,7 +232,6 @@ const apiAuth = app => {
 
     app.post(`${buildBaseApiUri()}/api/${uriAuth}/register`, register);
     app.post(`${buildBaseApiUri()}/api/${uriAuth}/login`, login);
-    app.get(`${buildBaseApiUri()}/api/${uriAuth}/session`, authValidator, getSessionStatus);
     // app.get(`/api/${uriKeys}`, getKeys);
 
 };
