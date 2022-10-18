@@ -13,7 +13,8 @@ import {
     replaceAll,
     buildBaseUri,
     clearSubUri,
-    uniqueArray
+    uniqueArray,
+    loadModule
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -182,7 +183,9 @@ const renderView = dataView => {
         path.options && path.options.origin ? '' :
             fs.existsSync(`./src/client/core/${path.component}.js`) ?
                 fs.readFileSync(`./src/client/core/${path.component}.js`) :
-                fs.readFileSync(`./src/client/components/${path.component}.js`)
+                fs.existsSync(`./private-engine/engine/src/client/components/${path.component}.js`) ?
+                    fs.readFileSync(`./private-engine/engine/src/client/components/${path.component}.js`) :
+                    fs.readFileSync(`./src/client/components/${path.component}.js`)
     ).join('')}
         ${fs.readFileSync('./src/client/core/router.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/keys.js', viewMetaData.charset)}
@@ -297,6 +300,16 @@ const ssr = async (app, renderData) => {
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
+
+    // TODO: pasar como metodo en el modulo de forma generica
+    if (viewMetaData.clientID == 'nexodev') {
+        try {
+            const { cv } = await loadModule('../../private-engine/meta-components/cv.js');
+            viewPaths.push(cv);
+        } catch (error) {
+            // console.log(error);
+        }
+    }
 
     // build validator
     if (process.argv[3] && process.argv[3] != viewMetaData.clientID) return;

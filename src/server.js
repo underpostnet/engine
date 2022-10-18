@@ -77,7 +77,7 @@ apiUploader(app);
         httpServer.listen(process.env.PORT, () => {
             logger.info(`Http Server is running on port ${process.env.PORT}`);
             peerServer();
-            ipfsDaemon();
+            // ipfsDaemon();
         });
     }
 
