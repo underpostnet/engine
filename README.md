@@ -2,7 +2,7 @@
 
 Software development kit (SDK) and engine for developing web client graphical user interface and APIs.
 
-Modular and stand-alone components client architecture with virtual URL navigation and reload consistency
+Modular and stand-alone components client architecture with virtual URL navigation and reload consistency.
 
 #### Install
 
