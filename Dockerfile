@@ -2,7 +2,8 @@ ARG BASE_DEBIAN=buster
 
 FROM debian:${BASE_DEBIAN}
 
-ARG XAMPP_URL=https://downloadsapachefriends.global.ssl.fastly.net/7.4.29/xampp-linux-x64-7.4.29-1-installer.run?from_af=true
+# https://downloadsapachefriends.global.ssl.fastly.net/7.4.29/xampp-linux-x64-7.4.29-1-installer.run?from_af=true
+ARG XAMPP_URL=https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.30/xampp-linux-x64-7.4.30-1-installer.run?from_af=true
 
 LABEL maintainer="Francisco Verdugo<fcoverdugoa (at) underpost (dot) net>"
 
