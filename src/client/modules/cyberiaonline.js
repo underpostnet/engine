@@ -55,6 +55,18 @@ const viewPaths = [
         menu: true,
         home: false,
         nohome: false,
+        render: false,
+        display: true
+    },
+    {
+        path: baseHome + '/test',
+        homePaths: [baseHome],
+        title: { en: 'test', es: 'test' },
+        component: 'test',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
         render: true,
         display: true
     }

@@ -1,6 +1,6 @@
 ### underpost.net meta engine
 
-Software development kit (SDK) and engine for developing web client graphical user interface and APIs.
+Software development kit (SDK) and engine for developing web clients graphical user interface and APIs.
 
 Modular and stand-alone components client architecture with virtual URL navigation and reload consistency.
 
@@ -81,6 +81,8 @@ Run terminal with administrator privileges.
 - asymmetric keys management
 
 - session management
+
+- cors management
 
 - markdown editor
 

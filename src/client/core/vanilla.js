@@ -100,7 +100,7 @@ const serviceRequest = (url, options) => new Promise(
             .then(async (res) => {
                 let raw = await res.clone();
                 raw = await raw.text();
-                console.log(`${url()} raw: `, raw);
+                if (options && options.log) console.log(`${url()} raw: `, raw);
                 if (options && options.raw === true) return raw;
                 let returnObj;
                 try {
@@ -111,10 +111,10 @@ const serviceRequest = (url, options) => new Promise(
                 return { ...returnObj, codeStatus: res.status, raw };
             })
             .then((res) => {
-                console.log('fetch success', url(), res);
+                if (options && options.log) console.log('fetch success', url(), res);
                 resolve(res);
             }).catch(error => {
-                console.error('fetch error ', url(), error);
+                if (options && options.log) console.error('fetch error ', url(), error);
                 reject(error);
             });
     }

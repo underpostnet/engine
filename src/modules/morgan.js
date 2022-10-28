@@ -11,9 +11,9 @@ const stream = {
     write: (message) => logger.http(message),
 };
 
-const skip = () => {
+const skip = (req, res) => {
     const env = process.env.NODE_ENV || 'development';
-    return env !== 'development';
+    return env !== 'development' || req.url === '/online';
 };
 
 const morganMiddleware = morgan(

@@ -173,6 +173,8 @@ const isInvalidChar = (str) =>
 
 const apiUtil = app => {
 
+    app.get('/online', (req, res) => res.status(200).send('online'));
+
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/getHash`, (req, res) =>
         res.status(200).json(getHash()));
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/randomColor`, (req, res) =>
