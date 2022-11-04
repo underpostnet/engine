@@ -6,7 +6,7 @@ Modular and stand-alone components client architecture with virtual URL navigati
 
 #### Install
 
-Run terminal with administrator privileges.
+Run terminal with administrator privileges and use the latest nodejs versión.
 
 - `npm install -g npm@latest`
 
@@ -72,17 +72,17 @@ Run terminal with administrator privileges.
 
 - Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
 
-#### Features
+
+
+ #### Web Client/GUI Features
+
 
 - jwt auth
 
-- Ajv JSON schema validator
 
 - asymmetric keys management
 
 - session management
-
-- cors management
 
 - markdown editor
 
@@ -92,8 +92,6 @@ Run terminal with administrator privileges.
 
 - socket.io/peer audio-video media stream (WebRTC)
 
-- IPFS integration
-
 - cloud folder/files management
 
 - audio player
@@ -101,6 +99,28 @@ Run terminal with administrator privileges.
 - youtube mp3 downloader
 
 - youtube api integration (video management and player)
+
+- SEO
+
+- Microdata
+
+#### Virtual Machine HTTP/WS API Server Features
+
+- jwt auth API
+
+- asymmetric keys API
+
+- cloud folder/files API
+
+- Ajv JSON schema validator
+
+- cors validators
+
+- socket.io/peer server audio-video media stream (WebRTC)
+
+- Server Side Rendering (SSR)
+
+- IPFS integration
 
 - CLI for keys management, wallet, and blockchain miner
 
@@ -115,6 +135,5 @@ Run terminal with administrator privileges.
 - [cryptokoyn.net](https://www.cryptokoyn.net)
 
 - [nexodev.org](https://www.nexodev.org)
-
 
 ![underpost.net](https://underpost.net/underpost-social.jpg)

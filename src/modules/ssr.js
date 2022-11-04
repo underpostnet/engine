@@ -302,7 +302,7 @@ const ssr = async (app, renderData) => {
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
 
     // TODO: pasar como metodo en el modulo de forma generica
-    if (viewMetaData.clientID == 'nexodev') {
+    if (viewMetaData.clientID == 'dogmadual') {
         try {
             const { cv } = await loadModule('../../private-engine/meta-components/cv.js');
             const { en } = await loadModule('../../private-engine/meta-components/en.js');
