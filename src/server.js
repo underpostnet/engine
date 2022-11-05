@@ -22,7 +22,7 @@ import { media } from './client/modules/media.js';
 import { statics } from './modules/statics.js';
 import { ioModule } from './modules/socket.io.js';
 import { peerServer } from './modules/peer.js';
-import { ipfsDaemon } from './modules/ipfs.js';
+// import { ipfsDaemon } from './modules/ipfs.js';
 
 // main modules
 import { dev } from './client/modules/dev.js';
