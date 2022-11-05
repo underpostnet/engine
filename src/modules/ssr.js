@@ -305,9 +305,9 @@ const ssr = async (app, renderData) => {
     if (viewMetaData.clientID == 'dogmadual') {
         try {
             const { cv } = await loadModule('../../private-engine/meta-components/cv.js');
-            const { en } = await loadModule('../../private-engine/meta-components/en.js');
+            // const { en } = await loadModule('../../private-engine/meta-components/en.js');
             viewPaths.push(cv);
-            viewPaths.push(en);
+            // viewPaths.push(en);
         } catch (error) {
             // console.log(error);
         }
