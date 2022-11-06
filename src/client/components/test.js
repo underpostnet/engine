@@ -206,6 +206,40 @@ this.test = {
 
         };
 
+        const HEAD = constructor => {
+
+
+            if (!constructor) constructor = {
+                id: `x${s4()}`
+            };
+
+
+
+
+            return /*html*/`
+            
+            
+            <head-${constructor.id}>
+        
+                <style>
+                    .head-${constructor.id}  {
+                        width: 25%;
+                        height: 25%;
+                        background: ${randomColor()};
+                        border-radius: 45%;
+                        z-index: ${zIndexBase + 2};
+                        top: 20%;
+                    }
+                </style>
+                <div class='abs center head-${constructor.id}'>
+        
+                </div>
+            </head-${constructor.id}> 
+            
+            `
+
+        };
+
 
         const AVATAR = constructor => {
 
@@ -230,6 +264,7 @@ this.test = {
                         left: ${constructor.left};
                     }
                 </style>
+                ${HEAD()}
                 ${LEGS()}
                 ${BODY()}
                 ${ARMS()}
@@ -251,14 +286,14 @@ this.test = {
          } 
        </style>
        <div class='in container matrix'>
-            ${range(0, 0).map(x => AVATAR({
+            ${range(0, 4).map(x => AVATAR({
             id: `x${s4()}`,
             width: 100,
             height: 100,
             background: randomColor(),
             margin: 5,
             top: `10px`,
-            left: `10px`
+            left: `${random(10, 500)}px`
         })).join('')}
        </div>
         
