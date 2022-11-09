@@ -253,15 +253,16 @@ this.test = {
 
             return /*html*/`
             
-            <avatar-${constructor.id} class='abs'>
+            <avatar-${constructor.id} class='abs' style='
+            top: ${constructor.top};
+            left: ${constructor.left};
+            '>
                 <style>
                     avatar-${constructor.id} {
                         width: ${constructor.width}px;
                         height: ${constructor.height}px;
                         background: ${constructor.background};
                         margin: ${constructor.margin}px;
-                        top: ${constructor.top};
-                        left: ${constructor.left};
                     }
                 </style>
                 ${HEAD()}
@@ -276,6 +277,33 @@ this.test = {
 
 
 
+        const maxIds = 4;
+        const velMov = 3;
+        const movAvatar = (id, diffValue) =>
+            s(id).style.left =
+            `${(parseFloat(s(id).style.left.slice(0, -1)) + diffValue)}%`;
+
+        const keyLeft = startListenKey({
+            key: 'ArrowLeft',
+            vel: velMov,
+            onKey: () => {
+                range(0, maxIds).map(x => {
+                    movAvatar(`avatar-${x}`, -0.4);
+                });
+            }
+        });
+
+        const keyRight = startListenKey({
+            key: 'ArrowRight',
+            vel: velMov,
+            onKey: () => {
+                range(0, maxIds).map(x => {
+                    movAvatar(`avatar-${x}`, 0.4);
+                });
+            }
+        });
+
+
 
         return /*html*/`
         
@@ -283,17 +311,18 @@ this.test = {
        <style>
          .matrix {
             min-height: 400px;
+            overflow: hidden;
          } 
        </style>
        <div class='in container matrix'>
-            ${range(0, 4).map(x => AVATAR({
-            id: `x${s4()}`,
+            ${range(0, maxIds).map(x => AVATAR({
+            id: `${x}`,
             width: 100,
             height: 100,
             background: randomColor(),
             margin: 5,
             top: `10px`,
-            left: `${random(10, 500)}px`
+            left: `${random(10, 100)}%`
         })).join('')}
        </div>
         
