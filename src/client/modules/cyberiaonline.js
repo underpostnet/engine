@@ -59,6 +59,18 @@ const viewPaths = [
         display: true
     },
     {
+        path: baseHome + '/bodys_gfx',
+        homePaths: [baseHome],
+        title: { en: 'bodys_gfx', es: 'bodys_gfx' },
+        component: 'bodys_gfx',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
+    },
+    {
         path: baseHome + '/test',
         homePaths: [baseHome],
         title: { en: 'test', es: 'test' },
