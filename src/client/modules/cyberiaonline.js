@@ -20,7 +20,8 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    srcJS: ['https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js'],
+    // srcJS: ['https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js'],
+    srcJS: ['https://pixijs.download/release/pixi.js'],
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
@@ -63,6 +64,18 @@ const viewPaths = [
         homePaths: [baseHome],
         title: { en: 'bodys_gfx', es: 'bodys_gfx' },
         component: 'bodys_gfx',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
+    },
+    {
+        path: baseHome + '/pixi',
+        homePaths: [baseHome],
+        title: { en: 'pixi', es: 'pixi' },
+        component: 'pixi',
         options: false,
         menu: true,
         home: false,

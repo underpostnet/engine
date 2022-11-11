@@ -29,7 +29,7 @@ const viewMetaData = {
         path: '/assets/apps/nexodev/app',
         color: '#69055F'
     },
-    description: { en: 'High Technology within reach of your Projects.', es: 'Alta Tecnología al alcance de tus Proyectos. Hosting WordPress, Desarrollo Web, Desarrollo de Aplicaciones Multiplataforma, Servicio de Email Newsletter, Servicio de Analítica de Datos y Aplicaciones Matemáticas.' },
+    description: { en: 'nexodev.org - High Technology within reach of your Projects.', es: 'nexodev.org - Alta Tecnología al alcance de tus Proyectos. Hosting WordPress, Desarrollo Web, Desarrollo de Aplicaciones Multiplataforma, Servicio de Email Newsletter, Servicio de Analítica de Datos y Aplicaciones Matemáticas.' },
     favicon: {
         type: 'image/png',
         path: '/assets/apps/nexodev/nexodev.png',
