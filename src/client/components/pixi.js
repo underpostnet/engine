@@ -6,6 +6,7 @@ this.pixi = {
 
         // https://pixijs.io/examples
         // https://pixijs.download/release/docs/index.html
+        // https://www.w3schools.com/colors/colors_picker.asp
 
         this.pixiContainerId = `pixijs-${s4()}`;
 
