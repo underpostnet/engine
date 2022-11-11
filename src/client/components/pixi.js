@@ -44,6 +44,18 @@ this.pixi = {
             bodySprite.height = backgroundSprite.width * 0.5;
             container.addChild(bodySprite);
 
+            const bodyCircle = new PIXI.Graphics();
+            bodyCircle.beginFill(0x3333ff);
+            bodyCircle.lineStyle(0);
+            const circleXY = backgroundSprite.width / 2 - ((backgroundSprite.width * 0.5) / 2);
+            bodyCircle.drawCircle(circleXY, circleXY, (backgroundSprite.width * 0.5) / 2);
+            bodyCircle.endFill();
+            bodyCircle.x = backgroundSprite.width / 2 - ((backgroundSprite.width * 0.5) / 2);
+            bodyCircle.y = backgroundSprite.width / 2 - ((backgroundSprite.width * 0.5) / 2) - (backgroundSprite.width * 0.3 / 2);
+            bodyCircle.width = backgroundSprite.width * 0.5;
+            bodyCircle.height = backgroundSprite.width * 0.8;
+            container.addChild(bodyCircle);
+
 
 
 
