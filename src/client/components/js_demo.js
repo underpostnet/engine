@@ -54,6 +54,22 @@ this.js_demo = {
             s('.' + this[IDS][0]).oninput = () =>
                 liveJS();
 
+            s('.' + this[IDS][0]).addEventListener('keydown', function (e) {
+                if (e.key == 'Tab') {
+                    e.preventDefault();
+                    const start = this.selectionStart;
+                    const end = this.selectionEnd;
+
+                    // set textarea value to: text before caret + tab + text after caret
+                    this.value = this.value.substring(0, start) +
+                        "\t" + this.value.substring(end);
+
+                    // put caret at right position again
+                    this.selectionStart =
+                        this.selectionEnd = start + 1;
+                }
+            });
+
 
             s('.' + this[IDS][6]).onclick = () => {
 
@@ -132,9 +148,20 @@ this.js_demo = {
         });
         return /*html*/`
         <style>
+            .js_demo_code_content {
+                min-height: 200px;
+            }
             .js_demo_textarea {
                 min-height: 200px;
-                width: 95%;
+                width: 100%;
+                top: 0%;
+                left: 0%;
+                background: none;
+                font-size: 18px;
+                color: transparent;
+                caret-color: ${mainColor};
+                height: 100%;
+                overflow: hidden !important;
             }
             .js_demo_cell {
                 overflow: auto;
@@ -145,6 +172,8 @@ this.js_demo = {
             }
             .code-display {
                 overflow: auto;
+                margin: 0;
+                background: none;
             }
         </style>
         ${renderMediaQuery([
@@ -168,7 +197,7 @@ this.js_demo = {
             </div>
             <div class='in container'>    
                 <div class='fl'>
-                    <div class='in fll js_demo_cell'>
+                    <div class='in fll js_demo_cell' style='overflow: hidden !important'>
                         <div class='in container title'>
                             CODE
                         </div>
@@ -178,7 +207,10 @@ this.js_demo = {
                                 ${renderLang({ es: 'Copiar', en: 'Copy' })}
                             </button>
                         </div>
-                        <pre  class='in container code-display ${this[IDS][1]}'></pre>
+                        <div class='in container js_demo_code_content'>
+                            <pre  class='code-display ${this[IDS][1]}'></pre>
+                            <textarea class='abs js_demo_textarea ${this[IDS][0]}' spellcheck='false'></textarea>
+                        </div>
                         <div class='in error-input ${this[IDS][2]}'></div>
                     </div>
                     <div class='in fll js_demo_cell'>
@@ -191,12 +223,14 @@ this.js_demo = {
                     </div>
                 </div>
             </div>
+            <!--
             <div class='in container title'>
                 LIVE CODE
             </div>
             <div class='in container'>
                 <textarea class='in js_demo_textarea ${this[IDS][0]}' placeholder='Code...'></textarea>
             </div>
+            -->
             <div class='in container' style='${options && options.mode == 'home_example' ? 'display: none' : ''}'>
                 <button class='${this[IDS][6]}'>${renderLang({ es: 'Enviar', en: 'Send' })}</button>
                 ${renderToggleSwitch({

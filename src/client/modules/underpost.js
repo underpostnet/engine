@@ -100,7 +100,7 @@ const viewMetaData = {
         ['/fonts-underpost', './underpost_modules/underpost-library/fonts'],
         ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
     ],
-    srcJS: ['/github.js', 'https://pixijs.download/release/pixi.js'],
+    srcJS: ['/github.js', 'https://pixijs.download/release/pixi.js', 'https://beautifier.io/js/lib/beautify.js'],
     srcCSS: [],
     staticSitemap: ['./private-engine/underpost-sitemap'],
     generateZipBuild: true,
