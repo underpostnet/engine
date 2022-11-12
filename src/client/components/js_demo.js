@@ -4,6 +4,7 @@ this.js_demo = {
         const IDS = s4();
         this.IDS = IDS;
         this[IDS] = range(0, maxIdComponent).map(() => 'js_demo-' + s4());
+        this.idDemo = `demo-${s4()}`;
 
 
         setTimeout(() => {
@@ -12,11 +13,8 @@ this.js_demo = {
 
 
             const liveJS = () => {
-
-
-                const idDemo = `demo-${s4()}`;
-                const contentEval = s('.' + this[IDS][0]).value.replaceAll(`'body'`, `'${idDemo}'`);
-                const displayJS = contentEval.replaceAll(`'${idDemo}'`, `'body'`);
+                const contentEval = s('.' + this[IDS][0]).value.replaceAll(`'body'`, `'${this.idDemo}'`);
+                const displayJS = contentEval.replaceAll(`'${this.idDemo}'`, `'body'`);
 
                 setTimeout(() => {
                     try {
@@ -38,31 +36,8 @@ this.js_demo = {
                      </code></pre>
                      `\n    import '/vanilla.js';\n\n`
                 */
-                htmls(this[IDS][1], /*html*/`
-                       <div class='fl'>
-                            <div class='in fll js_demo_cell'>
-                                <div class='in container title'>
-                                    CODE
-                                </div>
-                                <div class='in container'>
-                                    <button class='${this[IDS][8]}'> 
-                                        <i class='fa fa-clone' aria-hidden='true'></i> 
-                                        ${renderLang({ es: 'Copiar', en: 'Copy' })}
-                                    </button>
-                                </div>
-                                <pre  class='in container code-display'><code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code></pre>
-                                <div class='in error-input ${this[IDS][2]}'></div>
-                            </div>
-                            <div class='in fll js_demo_cell'>
-                                <div class='in container title'>
-                                    DEMO
-                                </div>
-                                <div class='in container container-demo'>
-                                    <${idDemo}></${idDemo}>
-                                </div>
-                            </div>
-                        </div>
-                `);
+                htmls(this.idDemo, '');
+                htmls('.' + this[IDS][1], /*html*/`<code>${Prism.highlight(displayJS, Prism.languages.javascript, 'javascript')}</code>`);
                 s('.' + this[IDS][8]).onclick = async () => {
                     await copyData(displayJS);
                     append('body', renderFixModal({
@@ -192,7 +167,29 @@ this.js_demo = {
                 ${renderInput(this[IDS], renderLang({ es: 'Titulo', en: 'Title' }), [3, 4, 5])}
             </div>
             <div class='in container'>    
-                <${this[IDS][1]}></${this[IDS][1]}>
+                <div class='fl'>
+                    <div class='in fll js_demo_cell'>
+                        <div class='in container title'>
+                            CODE
+                        </div>
+                        <div class='in container'>
+                            <button class='${this[IDS][8]}'> 
+                                <i class='fa fa-clone' aria-hidden='true'></i> 
+                                ${renderLang({ es: 'Copiar', en: 'Copy' })}
+                            </button>
+                        </div>
+                        <pre  class='in container code-display ${this[IDS][1]}'></pre>
+                        <div class='in error-input ${this[IDS][2]}'></div>
+                    </div>
+                    <div class='in fll js_demo_cell'>
+                        <div class='in container title'>
+                            DEMO
+                        </div>
+                        <div class='in container container-demo'>
+                            <${this.idDemo}></${this.idDemo}>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class='in container title'>
                 LIVE CODE
