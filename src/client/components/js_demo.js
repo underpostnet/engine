@@ -67,6 +67,7 @@ this.js_demo = {
                     // put caret at right position again
                     this.selectionStart =
                         this.selectionEnd = start + 1;
+                    liveJS();
                 }
             });
 
@@ -171,9 +172,10 @@ this.js_demo = {
                 overflow: auto;
             }
             .code-display {
-                overflow: auto;
+                overflow: hidden;
                 margin: 0;
                 background: none;
+                max-width: 100%;
             }
         </style>
         ${renderMediaQuery([
@@ -208,7 +210,7 @@ this.js_demo = {
                             </button>
                         </div>
                         <div class='in container js_demo_code_content'>
-                            <pre  class='code-display ${this[IDS][1]}'></pre>
+                            <pre  class='in code-display ${this[IDS][1]}'></pre>
                             <textarea class='abs js_demo_textarea ${this[IDS][0]}' spellcheck='false'></textarea>
                         </div>
                         <div class='in error-input ${this[IDS][2]}'></div>
