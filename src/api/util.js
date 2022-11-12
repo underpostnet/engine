@@ -26,7 +26,15 @@ const buildBaseApiUri = () => {
 
 const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
 
+/*
+            
+            hexString = yourNumber.toString(16);
+            yourNumber = parseInt(hexString, 16);
+            
+            */
 const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+const randomNumberColor = () => randomColor().split('#')[1];
 
 const replaceAll = (str, replaceWhat, replaceTo) => {
     replaceWhat = replaceWhat.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -126,6 +134,7 @@ const commonFunctions = () => `
     const range = ${range};
     const random = ${random};
     const randomColor = ${randomColor};
+    const randomNumberColor = ${randomNumberColor};
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};
     const newInstance = ${newInstance};
@@ -213,6 +222,7 @@ export {
     range,
     random,
     randomColor,
+    randomNumberColor,
     replaceAll,
     passwordValidator,
     emailValidator,

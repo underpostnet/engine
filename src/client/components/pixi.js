@@ -38,7 +38,7 @@ this.pixi = {
             container.addChild(backgroundSprite);
 
             const bodySprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-            bodySprite.tint = 0xff0000; //Change with the solid color
+            bodySprite.tint = parseInt(randomNumberColor(), 16); //Change with the solid color
             bodySprite.x = backgroundSprite.width / 2 - ((backgroundSprite.width * 0.5) / 2);
             bodySprite.y = backgroundSprite.width / 2 - ((backgroundSprite.width * 0.5) / 2);
             bodySprite.width = backgroundSprite.width * 0.5;
