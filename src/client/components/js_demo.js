@@ -153,8 +153,8 @@ this.js_demo = {
                 min-height: 200px;
             }
             .js_demo_textarea {
-                min-height: 200px;
-                width: 100%;
+                min-width: 100%;
+                max-width: 100%;
                 top: 0%;
                 left: 0%;
                 background: none;
@@ -162,7 +162,7 @@ this.js_demo = {
                 color: transparent;
                 caret-color: ${mainColor};
                 height: 100%;
-                overflow: hidden !important;
+                overflow: hidden;
             }
             .js_demo_cell {
                 overflow: auto;
@@ -172,7 +172,7 @@ this.js_demo = {
                 overflow: auto;
             }
             .code-display {
-                overflow: hidden;
+                overflow: auto;
                 margin: 0;
                 background: none;
                 max-width: 100%;
@@ -199,7 +199,7 @@ this.js_demo = {
             </div>
             <div class='in container'>    
                 <div class='fl'>
-                    <div class='in fll js_demo_cell' style='overflow: hidden !important'>
+                    <div class='in' style='overflow: hidden !important'>
                         <div class='in container title'>
                             CODE
                         </div>
@@ -210,12 +210,12 @@ this.js_demo = {
                             </button>
                         </div>
                         <div class='in container js_demo_code_content'>
-                            <pre  class='in code-display ${this[IDS][1]}'></pre>
+                            <pre  class='in code-display ${this[IDS][1]}' style='overflow: hidden'></pre>
                             <textarea class='abs js_demo_textarea ${this[IDS][0]}' spellcheck='false'></textarea>
                         </div>
                         <div class='in error-input ${this[IDS][2]}'></div>
                     </div>
-                    <div class='in fll js_demo_cell'>
+                    <div class='in'>
                         <div class='in container title'>
                             DEMO
                         </div>

@@ -65,7 +65,7 @@ this.cloud = {
                         id: 'x' + s4(),
                         icon: errorIcon,
                         color: 'red',
-                        content: renderLang({ es: 'Folder name already Exists', en: 'El nombre de la Carpeta ya existe' })
+                        content: renderLang({ en: 'Folder name already Exists', es: 'El nombre de la Carpeta ya existe' })
                     }));
 
                 console.log(value, this.currenIdSquence);
