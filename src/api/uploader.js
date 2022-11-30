@@ -42,25 +42,25 @@ const allowMimes = [
     'image/jpeg'
 ];
 
-const scanFile = filePath => true;
-    // new Promise(async resolve => {
-    //     try {
-    //         const extFileTest = await fileTypeFromStream(
-    //             fs.createReadStream(filePath)
-    //         );
-    //         console.log('scanFile', extFileTest);
-    //         //=> {ext: 'mp4', mime: 'video/mp4'}
-    //         if (allowMimes.includes(extFileTest.mime)) {
-    //             return resolve(false);
-    //         }
-    //         fs.unlinkSync(filePath);
-    //         return resolve(true);
-    //     } catch (error) {
-    //         logger.error(error);
-    //         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
-    //         return resolve(false);
-    //     }
-    // });
+const scanFile = filePath => false;
+// new Promise(async resolve => {
+//     try {
+//         const extFileTest = await fileTypeFromStream(
+//             fs.createReadStream(filePath)
+//         );
+//         console.log('scanFile', extFileTest);
+//         //=> {ext: 'mp4', mime: 'video/mp4'}
+//         if (allowMimes.includes(extFileTest.mime)) {
+//             return resolve(false);
+//         }
+//         fs.unlinkSync(filePath);
+//         return resolve(true);
+//     } catch (error) {
+//         logger.error(error);
+//         if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+//         return resolve(false);
+//     }
+// });
 
 const onUploadFile = async (req, res) => {
     try {
