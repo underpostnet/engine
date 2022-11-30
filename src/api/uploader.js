@@ -44,16 +44,21 @@ const allowMimes = [
 
 const scanFile = filePath =>
     new Promise(async resolve => {
-        const extFileTest = await fileTypeFromStream(
-            fs.createReadStream(filePath)
-        );
-        console.log('scanFile', extFileTest);
-        //=> {ext: 'mp4', mime: 'video/mp4'}
-        if (allowMimes.includes(extFileTest.mime)) {
+        try {
+            const extFileTest = await fileTypeFromStream(
+                fs.createReadStream(filePath)
+            );
+            console.log('scanFile', extFileTest);
+            //=> {ext: 'mp4', mime: 'video/mp4'}
+            if (allowMimes.includes(extFileTest.mime)) {
+                return resolve(false);
+            }
+            fs.unlinkSync(filePath);
+            return resolve(true);
+        } catch (error) {
+            logger.error(error);
             return resolve(false);
         }
-        fs.unlinkSync(filePath);
-        return resolve(true);
     });
 
 const onUploadFile = async (req, res) => {
