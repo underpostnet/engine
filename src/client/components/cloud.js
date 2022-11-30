@@ -357,24 +357,26 @@ this.cloud = {
                 `
         }).join('');
     },
-    updateDirectory: async function () {
-        if (!GLOBAL['auth']) return this.setDefaultData();
-        const getDataDirectoryUser = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': renderAuthBearer()
-            },
-            // body: JSON.stringify({
-            //     newNamePath: value,
-            //     path,
-            //     data: this.data
-            // })
+    updateDirectory: function () {
+        setTimeout(async () => {
+            if (!GLOBAL['auth']) return this.setDefaultData();
+            const getDataDirectoryUser = await serviceRequest(() => `${buildBaseApiUri()}/api/${apiUploader}/path`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': renderAuthBearer()
+                },
+                // body: JSON.stringify({
+                //     newNamePath: value,
+                //     path,
+                //     data: this.data
+                // })
+            });
+            if (getDataDirectoryUser.status != 'error')
+                this.data = getDataDirectoryUser.data;
+            else this.setDefaultData();
+            htmls('navi', this.renderDirectory(this.data));
         });
-        if (getDataDirectoryUser.status != 'error')
-            this.data = getDataDirectoryUser.data;
-        else this.setDefaultData();
-        htmls('navi', this.renderDirectory(this.data));
     },
     setDefaultData: function () {
         this.data = [
@@ -392,8 +394,21 @@ this.cloud = {
         const idView = 'x' + s4();
         const idDelete = 'x' + s4();
         const idYt = 'x' + s4();
+        const copyStatic = 'x' + s4();
 
         setTimeout(() => {
+
+            const pathDownload = buildBaseApiUri() + '/uploads/cloud' + row.path + '/' + row.static;
+
+            if (s('.' + copyStatic)) s('.' + copyStatic).onclick = async () => {
+                await copyData(window.location.host + pathDownload);
+                append('body', renderFixModal({
+                    id: 'mini-modal-' + s4(),
+                    icon: sucessIcon,
+                    color: 'green',
+                    content: renderLang({ es: 'Contenido Copiado al Portapapeles', en: 'Copy to Clipboard' })
+                }));
+            };
             if (s('.' + idYt)) s('.' + idYt).onclick = () => {
                 const searchValue =
                     row.name.split('.')[0].split('_')[0].replaceAll('-', ' ').replaceAll('_', ' ');
@@ -403,7 +418,6 @@ this.cloud = {
             };
             if (s('.' + idView)) s('.' + idView).onclick = () => {
                 console.log('idView', row);
-                const pathDownload = buildBaseApiUri() + '/uploads/cloud' + row.path + '/' + row.static;
                 console.warn(pathDownload);
                 const idDownload = 'x' + s4();
                 append('body', `<a class='` + idDownload + `' style='display: none'></a>`);
@@ -493,7 +507,8 @@ this.cloud = {
             <i class='fas fa-trash ${idDelete}'></i>      
             ${row.static.split('.').pop() == 'mp3' ?/*html*/`
             <i class='fa-brands fa-youtube ${idYt}'></i>
-            `: ''}      
+            `: ''} 
+            <i class='fas fa-copy ${copyStatic}'></i>     
         </th>
         `
 
