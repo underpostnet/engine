@@ -35,7 +35,11 @@ const findIndexUsernameFile = (req) =>
 const allowMimes = [
     'audio/mp3',
     'audio/mpeg',
-    'application/pdf'
+    'application/pdf',
+    'image/png',
+    'image/webp',
+    'image/jpg',
+    'image/jpeg'
 ];
 
 const scanFile = filePath =>
