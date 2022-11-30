@@ -57,6 +57,7 @@ const scanFile = filePath =>
             return resolve(true);
         } catch (error) {
             logger.error(error);
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
             return resolve(false);
         }
     });
