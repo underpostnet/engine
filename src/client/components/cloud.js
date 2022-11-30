@@ -401,7 +401,7 @@ this.cloud = {
             const pathDownload = buildBaseApiUri() + '/uploads/cloud' + row.path + '/' + row.static;
 
             if (s('.' + copyStatic)) s('.' + copyStatic).onclick = async () => {
-                await copyData(window.location.host + pathDownload);
+                await copyData(dev ? window.location.host + pathDownload : pathDownload);
                 append('body', renderFixModal({
                     id: 'mini-modal-' + s4(),
                     icon: sucessIcon,
