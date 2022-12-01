@@ -5,26 +5,27 @@ import { logger } from './modules/logger.js';
 import dotenv from 'dotenv';
 import { errors, middlewares } from './modules/middlewares.js';
 
+// server
+import { ssr } from './modules/ssr.js';
+import { statics } from './modules/statics.js';
+import { ioModule } from './modules/socket.io.js';
+import { peerServer } from './modules/peer.js';
+import { generateZipFromFolder } from './modules/zip.js';
+import { swaggerMod } from './modules/swagger.js';
+// import { ipfsDaemon } from './modules/ipfs.js';
+
 // api
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
-import { generateZipFromFolder } from './modules/zip.js';
 import { apiUtil } from './api/util.js';
 
-// ssr
-import { ssr } from './modules/ssr.js';
-
-// complements modules
+// client complements
 import { engine } from './client/modules/engine.js';
 import { authClient } from './client/modules/auth.js';
 import { media } from './client/modules/media.js';
-import { statics } from './modules/statics.js';
-import { ioModule } from './modules/socket.io.js';
-import { peerServer } from './modules/peer.js';
-// import { ipfsDaemon } from './modules/ipfs.js';
 
-// main modules
+// client
 import { dev } from './client/modules/dev.js';
 import { underpost } from './client/modules/underpost.js';
 import { cryptokoyn } from './client/modules/cryptokoyn.js';
@@ -59,8 +60,10 @@ apiAuth(app);
 apiUploader(app);
 
 (async () => {
-    if (process.env.NODE_ENV == 'development')
+    if (process.env.NODE_ENV == 'development') {
         await ssr(app, APPS);
+        swaggerMod(app);
+    }
 
     await ssr(app, [underpost, authClient, engine]);
     await ssr(app, [cyberiaonline, authClient, media]);

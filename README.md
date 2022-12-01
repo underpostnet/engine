@@ -98,9 +98,11 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - cloud folder/files API
 
+- Rich-Content/Markdown API CRUD RESTful
+
 - Ajv JSON schema validator
 
-- cors validators
+- CORS validators
 
 - socket.io/peer server audio-video media stream (WebRTC)
 
@@ -113,6 +115,8 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 - Debian/nodejs/xampp runtime environment docker image
 
 - SSH container server
+
+- Swagger API RESTful docs module
 
 #### Current productions projects
 
