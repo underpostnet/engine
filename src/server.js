@@ -60,10 +60,6 @@ apiAuth(app);
 apiUploader(app);
 
 (async () => {
-    if (process.env.NODE_ENV == 'development') {
-        await ssr(app, APPS);
-        swaggerMod(app);
-    }
 
     await ssr(app, [underpost, authClient, engine]);
     await ssr(app, [cyberiaonline, authClient, media]);
@@ -97,8 +93,11 @@ apiUploader(app);
         console.log = () => null;
         console.warn = () => null;
         console.error = () => null;
-    } else
+    } else {
+        await ssr(app, APPS);
         app.get('/', (req, res) => res.redirect('/dev'));
+        swaggerMod(app);
+    }
 
     errors(app);
 

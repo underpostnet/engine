@@ -3,7 +3,7 @@
 import * as swaggerUi from 'swagger-ui-express';
 
 const swaggerMod = (app) => {
-    const swaggerDocument = {
+    const _swaggerDocument = {
         "swagger": "2.0",
         "info": {
             "title": "Blah",
@@ -43,6 +43,46 @@ const swaggerMod = (app) => {
                 }
             }
         }
+    };
+
+    const uniquePaths = [];
+    const formatRoutes = app._router.stack
+        .map((v, i, a) => {
+            if (v.route && v.route.path && !uniquePaths.includes(v.route.path)) {
+                uniquePaths.push(v.route.path);
+            }
+            const dataRoute = {
+                index: i,
+                path: v.route ? v.route.path : undefined,
+                methods: v.route ? Object.keys(v.route.methods).join('|') : undefined
+            };
+            if (dataRoute.path) return dataRoute;
+            return null;
+        }).filter(x => x != null);
+
+    const paths = {};
+
+    uniquePaths.map(uniquePath => {
+        paths[uniquePath] = {};
+        formatRoutes.map(x => {
+            if (x.path == uniquePath) {
+                paths[uniquePath][x.methods] = {
+                    description: `Path index: ${x.index}`
+                }
+            }
+        });
+    });
+    // console.log('paths', paths);
+
+    const swaggerDocument = {
+        "swagger": "2.0",
+        "info": {
+            "title": "underpost.net engine",
+            "description": "underpost.net api docs",
+            "version": "1.0.1"
+        },
+        "produces": ["application/json"],
+        paths
     };
 
     app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
