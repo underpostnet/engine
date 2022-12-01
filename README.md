@@ -1,6 +1,6 @@
-### underpost.net meta engine
+## NodeJS/VanillaJS CLI/API/GUI Engine
 
-Engine for developing web clients graphical user interface and APIs.
+Engine for developing and deployment web clients graphical user interface and APIs RESTful.
 
 Modular and stand-alone components client architecture with virtual URL navigation and reload consistency.
 
