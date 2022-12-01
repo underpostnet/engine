@@ -123,5 +123,3 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 - [cryptokoyn.net](https://www.cryptokoyn.net)
 
 - [nexodev.org](https://www.nexodev.org)
-
-![underpost.net](https://underpost.net/underpost-social.jpg)
