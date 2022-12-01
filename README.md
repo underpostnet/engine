@@ -6,9 +6,7 @@ Modular and stand-alone components client architecture with virtual URL navigati
 
 #### Install
 
-Run terminal with administrator privileges and use the latest nodejs versión.
-
-// explicar como en spring boot
+Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - `npm install -g npm@latest`
 
