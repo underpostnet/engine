@@ -8,6 +8,8 @@ Modular and stand-alone components client architecture with virtual URL navigati
 
 Run terminal with administrator privileges and use the latest nodejs versión.
 
+// explicar como en spring boot
+
 - `npm install -g npm@latest`
 
 - `npm install -g ipfs`
@@ -62,23 +64,9 @@ Run terminal with administrator privileges and use the latest nodejs versión.
 
 - get a shell terminal inside k8s container `kubectl exec --stdin --tty underpost-engine -- /bin/bash`
 
-#### k8s Contour Ingress Usage
-
-- create cluster `kind create cluster --config=.\k8s.yaml`
-
-- Deploy Contour components `kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`
-
-- Verify the Contour pods are ready by running the following `kubectl get pods -n projectcontour -o wide` or `kubectl get po,svc,deploy,daemonset -n projectcontour`
-
-- Verify services `kubectl -n projectcontour describe svc envoy` and `kubectl -n projectcontour describe svc contour`
-
-
-
- #### Web Client/GUI Features
-
+#### Web Client/GUI Features
 
 - jwt auth
-
 
 - asymmetric keys management
 
