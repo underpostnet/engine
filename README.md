@@ -1,6 +1,6 @@
 ### underpost.net meta engine
 
-Software development kit (SDK) and engine for developing web clients graphical user interface and APIs.
+Engine for developing web clients graphical user interface and APIs.
 
 Modular and stand-alone components client architecture with virtual URL navigation and reload consistency.
 
