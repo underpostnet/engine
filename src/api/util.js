@@ -34,7 +34,7 @@ const random = (max, min) => Math.floor(Math.random() * (max - min + 1)) + min;
             */
 const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
 
-const randomNumberColor = () => randomColor().split('#')[1];
+const randomNumberColor = () => parseInt(randomColor().split('#')[1], 16);
 
 const replaceAll = (str, replaceWhat, replaceTo) => {
     replaceWhat = replaceWhat.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
