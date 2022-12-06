@@ -47,6 +47,17 @@ const renderLang = (langs, req) => {
     return langs['en'];
 };
 
+const getRawCsvFromArray = array =>
+    array[0] ? Object.keys(array[0]).join(';') +
+        '\r\n' + array
+            .map((x) => {
+                return (
+                    Object.keys(x)
+                        .map((attr) => x[attr])
+                        .join(';') + '\r\n'
+                );
+            }).join('') : '';
+
 const passwordValidator = (str, req) => {
 
     let msg = '';
@@ -142,6 +153,7 @@ const commonFunctions = () => `
     const uniqueArray = ${uniqueArray};
     const clearSubUri = ${clearSubUri};
     const _clearURI = ${clearURI};
+    const getRawCsvFromArray = ${getRawCsvFromArray};
     const orderArrayFromAttrInt = ${orderArrayFromAttrInt};
     // encodeURIComponent
     // decodeURIComponent
@@ -239,5 +251,6 @@ export {
     orderArrayFromAttrInt,
     getYouTubeID,
     isInvalidChar,
-    timer
+    timer,
+    getRawCsvFromArray
 };
