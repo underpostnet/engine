@@ -213,3 +213,6 @@ const getQueryParams = () => {
     }
     return querys_;
 };
+
+const generateBlobSrc = (rawContent, mimeType) =>
+    window.URL.createObjectURL(new Blob([rawContent], { type: mimeType }));
