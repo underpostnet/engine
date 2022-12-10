@@ -1,4 +1,5 @@
 ## NodeJS/VanillaJS CLI/API/GUI Engine
+[![Build Status](https://app.travis-ci.com/underpostnet/underpost-engine.svg?branch=master)](https://app.travis-ci.com/underpostnet/underpost-engine)
 
 Engine for developing and deployment web clients graphical user interface and APIs RESTful.
 
