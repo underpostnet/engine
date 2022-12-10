@@ -61,12 +61,12 @@ apiUploader(app);
 
 (async () => {
 
-    await ssr(app, [underpost, authClient, engine]);
-    await ssr(app, [cyberiaonline, authClient, media]);
-    await ssr(app, [cryptokoyn]);
-    await ssr(app, [dogmadual]);
-    await ssr(app, [nexodev, authClient, engine]);
-    await ssr(app, [femmenutrition]);
+    // await ssr(app, [underpost, authClient, engine]);
+    await ssr(app, [cyberiaonline, engine, authClient, media]);
+    // await ssr(app, [cryptokoyn]);
+    // await ssr(app, [dogmadual]);
+    // await ssr(app, [nexodev, authClient, engine]);
+    // await ssr(app, [femmenutrition]);
 
     statics(app, APPS);
     statics(app, [media]);
@@ -75,7 +75,7 @@ apiUploader(app);
         const { httpServer, io } = ioModule(app, { origin });
         httpServer.listen(process.env.PORT, () => {
             logger.info(`Http Server is running on port ${process.env.PORT}`);
-            peerServer();
+            // peerServer();
             // ipfsDaemon();
         });
     }
@@ -94,11 +94,11 @@ apiUploader(app);
         console.warn = () => null;
         console.error = () => null;
     } else {
-        await ssr(app, APPS);
-        app.get('/', (req, res) => res.redirect('/dev'));
-        swaggerMod(app);
+        // await ssr(app, APPS);
+        // app.get('/', (req, res) => res.redirect('/dev'));
+        // swaggerMod(app);
     }
 
-    errors(app);
+    // errors(app);
 
 })();

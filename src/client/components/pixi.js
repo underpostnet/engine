@@ -27,9 +27,32 @@ this.pixi = {
 
             container.x = 0;
             container.y = 0;
-            container.width = app.screen.width * 0.3;
-            container.height = app.screen.width * 0.3;
+            // container.width = app.screen.width * 0.3;
+            // container.height = app.screen.width * 0.3;
+            container.width = 200;
+            container.height = 200;
 
+            const backgroundSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+            backgroundSprite.x = 0;
+            backgroundSprite.y = 0;
+            backgroundSprite.width = 200;
+            backgroundSprite.height = 200;
+            container.addChild(backgroundSprite);
+
+            const headCircle = new PIXI.Graphics();
+            headCircle.beginFill(0x3333ff);
+            headCircle.lineStyle(0);
+            headCircle.drawCircle(100, 30, 25); // x,y,radio
+            headCircle.endFill();
+            headCircle.width = 50;
+            headCircle.height = 50;
+            container.addChild(headCircle);
+
+
+
+
+            (()=>{
+                return;
             const backgroundSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
             backgroundSprite.x = 0;
             backgroundSprite.y = 0;
@@ -56,6 +79,7 @@ this.pixi = {
             bodyCircle.width = backgroundSprite.width * 0.5;
             bodyCircle.height = backgroundSprite.width * 0.8;
             container.addChild(bodyCircle);
+            })()
 
 
 
