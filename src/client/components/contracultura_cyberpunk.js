@@ -957,6 +957,8 @@ this.contracultura_cyberpunk = {
 
                 <b> > Patrones de Diseño&nbsp;</b><a target='_top'   href="https://refactoring.guru/">refactoring.guru</a><br />
 
+                <b> > Patrones de Diseño&nbsp;</b><a target='_top'   href=" https://www.patterns.dev/posts/ssr/">patterns.dev</a><br />
+
                 <b> > Utilidades&nbsp;</b><a target='_top'   href="https://tutorialspoint.com/">tutorialspoint.com</a><br />
 
                 <b> > Utilidades&nbsp;</b><a target='_top'   href='https://manytools.org/'/>manytools.org</a><br />

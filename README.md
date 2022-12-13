@@ -1,4 +1,5 @@
 ## NodeJS/VanillaJS CLI/API/GUI Engine
+[![Node.js CI](https://github.com/underpostnet/underpost-engine/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/underpostnet/underpost-engine/actions/workflows/docker-image.yml)
 
 Engine for developing and deployment web clients graphical user interface and APIs RESTful.
 
