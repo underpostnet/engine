@@ -5,3 +5,5 @@
 /underpost_modules
 /private-engine
 /builds
+/.nyc_output
+/coverage

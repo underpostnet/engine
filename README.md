@@ -17,7 +17,7 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - `node underpost`
 
-- unit test `npm install -g mocha`
+- unit test `npm install -g nyc` and `npm install -g mocha`
 
 #### Usage
 
