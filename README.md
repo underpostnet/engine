@@ -1,4 +1,5 @@
 ## NodeJS/VanillaJS CLI/API/GUI Engine
+
 [![Node.js CI](https://github.com/underpostnet/underpost-engine/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/underpostnet/underpost-engine/actions/workflows/docker-image.yml)
 
 Engine for developing and deployment web clients graphical user interface and APIs RESTful.
@@ -29,9 +30,9 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - generate www prod client build `npm run build-prod <optional-single-client-id-module>`
 
-- run network CLI `node src/cli`
+- run network CLI `npm run cli`
 
-- run unit test `mocha`
+- run unit test `npm test`
 
 #### Docker Usage
 
@@ -47,7 +48,7 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 #### K8s Usage
 
-- create cluster `kind create cluster` or `kind create cluster --config=.\k8s.yaml`
+- create cluster `kind create cluster` or `kind create cluster --config=<cluster-config-file>.yaml`
 
 - view clusters `kind get clusters` or `kubectl get all`
 
