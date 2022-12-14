@@ -81,5 +81,44 @@
     "var_dump": "^1.0.5",
     "winston": "latest",
     "ws": "7.4.6"
+  },
+  "nyc": {
+    "reporter": [
+      "lcov",
+      "text-summary"
+    ]
+  },
+  "xo": {
+    "space": true,
+    "ignores": [],
+    "rules": {
+      "camelcase": "off",
+      "capitalized-comments": "off",
+      "handle-callback-err": "error",
+      "import/order": "off",
+      "no-negated-condition": "off",
+      "object-curly-spacing": [
+        "error",
+        "always"
+      ],
+      "quote-props": [
+        "error",
+        "consistent"
+      ],
+      "space-before-function-paren": [
+        "error",
+        "never"
+      ],
+      "spaced-comment": "off",
+      "unicorn/filename-case": "off"
+    },
+    "overrides": [
+      {
+        "files": "test/*.js",
+        "envs": [
+          "mocha"
+        ]
+      }
+    ]
   }
 }
