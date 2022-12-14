@@ -6,4 +6,4 @@
 /private-engine
 /builds
 /.nyc_output
-/coverage/lcov-report
+/coverage
