@@ -34,13 +34,13 @@ jobs:
       #     flag-name: ${{matrix.os}}-node-${{ matrix.node }}
       #     parallel: true
 
-      - name: Coveralls
-        uses: coverallsapp/github-action@master
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_GIT_BRANCH: "${{ github.ref }}"
+      # - name: Coveralls
+      #   uses: coverallsapp/github-action@master
+      #   with:
+      #     github-token: ${{ secrets.GITHUB_TOKEN }}
+      #   env:
+      #     COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      #     COVERALLS_GIT_BRANCH: "${{ github.ref }}"
 
       # - name: Coveralls
       #   run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
