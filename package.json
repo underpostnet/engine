@@ -9,7 +9,7 @@
     "dev": "env-cmd -f .env.dev nodemon src/server",
     "build-prod": "node src/server build",
     "build-dev": "env-cmd -f .env.dev node src/server build",
-    "test": "nyc npm run mocha",
+    "test": "nyc npm run mocha --reporter=text-lcov | coveralls -v",
     "mocha": "_mocha -b -R spec",
     "cli": "node src/cli"
   },
