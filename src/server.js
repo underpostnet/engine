@@ -102,3 +102,6 @@ apiUploader(app);
     errors(app);
 
 })();
+
+
+export { app };

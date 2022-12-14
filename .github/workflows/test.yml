@@ -27,6 +27,13 @@ jobs:
       - name: Test token
         run: echo "${{ secrets.COVERALLS_REPO_TOKEN }}"
 
+      - name: Coveralls
+        uses: coverallsapp/github-action@master
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          flag-name: ${{matrix.os}}-node-${{ matrix.node }}
+          parallel: true
+
       # - name: Coveralls
       #   run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
       #   env:
