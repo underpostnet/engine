@@ -9,8 +9,8 @@
     "dev": "env-cmd -f .env.dev nodemon src/server",
     "build-prod": "node src/server build",
     "build-dev": "env-cmd -f .env.dev node src/server build",
-    "test": "nyc --reporter=lcov --reporter=text mocha",
-    "coverage": "nyc npm run test && nyc report --reporter=text-lcov --reporter=lcov | node ./node_modules/coveralls/bin/coveralls.js --verbose",
+    "test": "nyc npm run mocha",
+    "mocha": "_mocha -b -R spec",
     "cli": "node src/cli"
   },
   "repository": {
@@ -35,7 +35,7 @@
     "colors": "1.4.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "coveralls": "^3.1.1",
+    "coveralls-next": "^4.2.0",
     "crypto-js": "latest",
     "dotenv": "latest",
     "env-cmd": "^10.1.0",
