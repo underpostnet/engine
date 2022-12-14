@@ -27,16 +27,16 @@ jobs:
       - name: Test token
         run: echo "${{ secrets.COVERALLS_REPO_TOKEN }}"
 
-      - name: Coveralls
-        run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
-        env:
-          COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
-          COVERALLS_SERVICE_NAME: CI-pipeline
-          COVERALLS_SERVICE_JOB_ID: ${{github.run_id}}
-          COVERALLS_SERVICE_JOB_NUMBER: ${{github.run_number}}
-          COVERALLS_FLAG_NAME: ${{matrix.os}}-node-${{ matrix.node }}
-          COVERALLS_PARALLEL: true
-          NODE_COVERALLS_DEBUG: 1
+      # - name: Coveralls
+      #   run: node ./node_modules/coveralls-next/bin/coveralls.js # cat ./coverage/lcov.info |
+      #   env:
+      #     COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
+      #     COVERALLS_SERVICE_NAME: CI-pipeline
+      #     COVERALLS_SERVICE_JOB_ID: ${{github.run_id}}
+      #     COVERALLS_SERVICE_JOB_NUMBER: ${{github.run_number}}
+      #     COVERALLS_FLAG_NAME: ${{matrix.os}}-node-${{ matrix.node }}
+      #     COVERALLS_PARALLEL: true
+      #     NODE_COVERALLS_DEBUG: 1
   finish:
     needs: test
     runs-on: ubuntu-latest
