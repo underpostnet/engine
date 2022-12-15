@@ -1,0 +1,14 @@
+{
+    "all": false,
+    "exclude": [],
+    "include": [
+        "test"
+    ],
+    "output": "reports",
+    "reporter": [
+        "html",
+        "text",
+        "text-lcov",
+        "cobertura"
+    ]
+}

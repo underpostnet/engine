@@ -18,7 +18,18 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - `node underpost`
 
-- unit test `npm install -g nyc` and `npm install -g mocha`
+- unit test `npm install -g c8` and `npm install -g mocha`
+<!--
+
+--reporter=cobertura --reporter=text-lcov --reporter=text --reporter=html
+
+"mocha": "_mocha -b -R spec",
+"coverage": "nyc npm run test && nyc report --reporter=text-lcov --reporter=lcov | node ./node_modules/coveralls/bin/coveralls.js --verbose",
+
+`npm install -g yarn`
+`npm install -g nyc`
+
+ -->
 
 #### Usage
 
