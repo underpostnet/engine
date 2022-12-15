@@ -8,6 +8,7 @@
     "reporter": [
         "html",
         "text",
+        "lcov",
         "text-lcov",
         "cobertura"
     ]
