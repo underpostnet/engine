@@ -1,4 +1,5 @@
 // import { getBaseComponent } from '../../modules/ssr.js';
+import { media } from './media.js';
 
 const clientID = 'nexodev';
 
@@ -79,12 +80,17 @@ const viewPaths = [
     }
 ];
 
+const statics = app => {
+    media.statics(app, viewMetaData.clientID);
+};
+
 const nexodev = {
     viewMetaData,
     viewPaths,
     baseHome,
     banner,
-    botDescription
+    botDescription,
+    statics
 };
 
 export { nexodev };

@@ -1,4 +1,5 @@
 
+import { media } from './media.js';
 
 const clientID = 'cyberiaonline';
 const viewMetaData = {
@@ -97,11 +98,15 @@ const viewPaths = [
     }
 ];
 
+const statics = app => {
+    media.statics(app, viewMetaData.clientID);
+};
 
 const cyberiaonline = {
     viewMetaData,
     viewPaths,
-    baseHome
+    baseHome,
+    statics
 };
 
 export { cyberiaonline };
