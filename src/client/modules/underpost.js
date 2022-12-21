@@ -4,6 +4,7 @@ import UglifyJS from 'uglify-js';
 import CleanCSS from 'clean-css';
 import fs from 'fs';
 import { baseStaticUri, commonFunctions } from '../../api/util.js';
+import { media } from './media.js';
 
 const clientID = 'underpost';
 
@@ -254,6 +255,7 @@ const statics = app => {
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/vanilla.js`, sourceVanillaJs, 'utf8');
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/base.css`, srcBaseCssLib, 'utf8');
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/github.js`, srcGitHubWidget, 'utf8');
+        media.statics(app, viewMetaData.clientID);
     }
 
 }

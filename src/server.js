@@ -63,7 +63,6 @@ apiUploader(app);
     await ssr(app, [femmenutrition]);
 
     statics(app, APPS);
-    statics(app, [media]);
 
     if (process.argv[2] != 'build') {
         const { httpServer, io } = ioModule(app, { origin });

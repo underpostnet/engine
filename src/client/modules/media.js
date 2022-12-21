@@ -25,8 +25,9 @@ const viewMetaData = {
 
 const baseHome = '/' + clientID;
 
-const statics = app => {
-    ['cyberiaonline', 'underpost'].map(deployModuleId => singleStatics(app, deployModuleId));
+const statics = (app, mergeStaticsId) => {
+    mergeStaticsId ?
+        singleStatics(app, mergeStaticsId) : singleStatics(app, clientID);
 };
 
 const singleStatics = (app, deployModuleId) => {
