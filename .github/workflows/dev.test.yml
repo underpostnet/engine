@@ -22,10 +22,10 @@ jobs:
         run: npm install # switch to `npm ci` when Node.js 6 support is dropped
 
       - name: Install underpost dependencies
-        run: node bin/install.underpost.js
+        run: npm run install-underpost
 
       - name: Install test dependencies
-        run: node bin/install.test.js
+        run: npm run install-test
 
       - name: Run tests dev
         run: npm run test-dev # nyc npm run mocha --reporter=text-lcov | coveralls -v
