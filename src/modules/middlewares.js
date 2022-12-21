@@ -16,7 +16,7 @@ const middlewares = (app, views) => {
     const origin = uniqueArray(views.map(viewObj => viewObj.viewMetaData.clientID != 'dev' ?
         buildURL(viewObj.viewMetaData) : null)
         .filter(x => x != null)
-        .concat(process.env.NODE_ENV == 'development' ?
+        .concat(process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ?
             [`http://localhost:${process.env.BUILD_DEV_PORT}`, `http://localhost:3001`] :
             [`https://www.cyberiaonline.com`]
         )

@@ -14,7 +14,7 @@ this.audio_stream = {
 
         setTimeout(async () => {
 
-            if (!GLOBAL['auth'] || localStorage.getItem('username') != 'francisco-verdugo') {
+            if (!GLOBAL['auth']) {
                 htmls('.' + this.mainContainer, '');
                 return;
             }

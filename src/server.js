@@ -10,15 +10,12 @@ import { ssr } from './modules/ssr.js';
 import { statics } from './modules/statics.js';
 import { ioModule } from './modules/socket.io.js';
 import { peerServer } from './modules/peer.js';
-import { generateZipFromFolder } from './modules/zip.js';
-import { swaggerMod } from './modules/swagger.js';
-// import { ipfsDaemon } from './modules/ipfs.js';
 
 // api
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
-import { apiUtil } from './api/util.js';
+import { apiUtil, loadModule } from './api/util.js';
 
 // client complements
 import { engine } from './client/modules/engine.js';
@@ -34,13 +31,10 @@ import { dogmadual } from './client/modules/dogmadual.js';
 import { femmenutrition } from './client/modules/femmenutrition.js';
 import { cyberiaonline } from './client/modules/cyberiaonline.js';
 
-
-
-logger.info(process.argv);
-
-const app = express();
-
 dotenv.config();
+logger.info(process.argv);
+logger.info(`version ${process.env.npm_package_version}`);
+const app = express();
 
 const APPS = [
     dev,
@@ -73,27 +67,34 @@ apiUploader(app);
 
     if (process.argv[2] != 'build') {
         const { httpServer, io } = ioModule(app, { origin });
-        httpServer.listen(process.env.PORT, () => {
+        httpServer.listen(process.env.PORT, async () => {
             logger.info(`Http Server is running on port ${process.env.PORT}`);
             peerServer();
-            // ipfsDaemon();
+            if (process.env.NODE_ENV == 'ipfs-dev') {
+                const { ipfsDaemon } = await loadModule('../modules/ipfs.js');
+                ipfsDaemon();
+            }
         });
     }
 
-    else APPS.map(dataRender =>
-        dataRender.viewMetaData.generateZipBuild
-            && (!process.argv[3] || process.argv[3] == dataRender.viewMetaData.clientID) ?
-            (console.log('generate build zip -> ' + dataRender.viewMetaData.clientID), generateZipFromFolder({
-                pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
-                writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
-            })) : '');
+    else {
+        const { generateZipFromFolder } = await loadModule('../modules/zip.js');
+        APPS.map(dataRender =>
+            dataRender.viewMetaData.generateZipBuild
+                && (!process.argv[3] || process.argv[3] == dataRender.viewMetaData.clientID) ?
+                (console.log('generate build zip -> ' + dataRender.viewMetaData.clientID), generateZipFromFolder({
+                    pathFolderToZip: `./builds/${dataRender.viewMetaData.clientID}`,
+                    writeZipPath: `./builds/${dataRender.viewMetaData.clientID}.zip`
+                })) : '');
+    }
 
 
-    if (process.env.NODE_ENV != 'development') {
+    if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev') {
         console.log = () => null;
         console.warn = () => null;
         console.error = () => null;
     } else {
+        const { swaggerMod } = await loadModule('../modules/swagger.js');
         await ssr(app, APPS);
         app.get('/', (req, res) => res.redirect('/dev'));
         swaggerMod(app);

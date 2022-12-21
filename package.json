@@ -1,7 +1,7 @@
 {
   "name": "underpost.net",
   "description": "underpost.net",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "main": "./src/server.js",
   "scripts": {
@@ -9,8 +9,12 @@
     "dev": "env-cmd -f .env.dev nodemon src/server",
     "build-prod": "node src/server build",
     "build-dev": "env-cmd -f .env.dev node src/server build",
-    "test": "c8 mocha",
-    "cli": "node src/cli"
+    "test-dev": "env-cmd -f .env.test.dev c8 mocha",
+    "ipfs-dev": "env-cmd -f .env.ipfs.dev nodemon src/server",
+    "cli": "node src/cli",
+    "install-underpost": "node bin/install.underpost && npm install --only=dev",
+    "install-test": "node bin/install.test",
+    "install-ipfs": "node bin/install.ipfs"
   },
   "repository": {
     "type": "git",
@@ -24,7 +28,6 @@
   "homepage": "https://underpost.net",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.1.1",
-    "adm-zip": "^0.5.9",
     "ajv": "^8.11.0",
     "axios": "^0.27.2",
     "bcrypt": "^5.0.1",
@@ -34,8 +37,6 @@
     "colors": "1.4.0",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
-    "coveralls": "^3.1.1",
-    "coveralls-next": "^4.2.0",
     "crypto-js": "latest",
     "dotenv": "latest",
     "env-cmd": "^10.1.0",
@@ -47,23 +48,14 @@
     "file-sizeof": "^1.1.0",
     "file-type": "^18.0.0",
     "generate-robotstxt": "^8.0.3",
-    "go-ipfs": "^0.16.0",
     "http-proxy": "^1.18.1",
-    "ipfs": "^0.64.2",
-    "ipfs-core": "^0.16.1",
-    "ipfs-http-client": "^58.0.1",
-    "ipfsd-ctl": "^12.2.1",
     "jsonwebtoken": "^8.5.1",
     "marked": "^4.0.18",
     "mime": "^3.0.0",
-    "mocha": "^10.2.0",
-    "mocha-lcov-reporter": "^1.3.0",
     "morgan": "latest",
     "mp3-duration": "^1.1.0",
     "node-fetch": "^3.2.8",
     "nodemailer": "^6.7.7",
-    "nodemon": "latest",
-    "nyc": "^15.1.0",
     "peer": "^0.6.1",
     "read": "^1.0.7",
     "response-time": "^2.3.2",
@@ -72,12 +64,17 @@
     "socket.io": "^4.5.1",
     "spectre-markdown.css": "^0.1.2",
     "superagent": "^8.0.0",
-    "swagger-ui-express": "^4.6.0",
     "tinymce": "^6.1.0",
     "ua-parser-js": "^1.0.2",
     "uglify-js": "^3.16.2",
     "var_dump": "^1.0.5",
     "winston": "latest",
     "ws": "7.4.6"
+  },
+  "devDependencies": {
+    "mocha": "^10.2.0",
+    "adm-zip": "latest",
+    "nodemon": "latest",
+    "swagger-ui-express": "^4.6.0"
   }
 }

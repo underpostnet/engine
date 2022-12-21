@@ -8,17 +8,16 @@ Modular and stand-alone components client architecture with virtual URL navigati
 
 #### Install
 
-Run terminal with administrator privileges and use the latest nodejs versión.x
-
-- `npm install -g npm@latest`
-
-- `npm install -g ipfs`
+Run terminal with administrator privileges
 
 - `npm install`
 
-- `node underpost`
+- `npm run install-underpost`
 
-- unit test `npm install -g c8` and `npm install -g mocha`
+- `npm run install-test` (optional for test)
+
+- `npm run install-ipfs` (optional for ipfs)
+
 <!--
 
 --reporter=cobertura --reporter=text-lcov --reporter=text --reporter=html
@@ -43,11 +42,11 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - run network CLI `npm run cli`
 
-- run unit test `npm test`
+- run unit test `npm run test-dev`
 
 #### Docker Usage
 
-- build dev docker image `docker build . -t underpost-engine`
+- build dev docker image `docker build . -t underpost-engine` or production `docker build -t underpost-engine -f Dockerfile.production`
 
 - create volume `docker volume create underpost-engine-vol` and `docker volume create underpost-engine-vol0`
 
@@ -57,7 +56,7 @@ Run terminal with administrator privileges and use the latest nodejs versión.x
 
 - get a shell terminal inside your container `docker exec -ti live-underpost-engine bash`
 
-#### K8s Usage
+#### Development K8s Usage
 
 - create cluster `kind create cluster` or `kind create cluster --config=<cluster-config-file>.yaml`
 

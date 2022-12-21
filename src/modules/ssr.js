@@ -130,7 +130,7 @@ const renderView = dataView => {
     const { view, viewMetaData, viewPaths, APPS } = dataView;
     let jsClientCore = `(function(){
 
-        const dev =  ${process.env.NODE_ENV == 'development' && process.argv[2] != 'build' ? 'true' : 'false'};
+        const dev =  ${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' && process.argv[2] != 'build' ? 'true' : 'false'};
         const build = ${process.argv[2] == 'build'};
         if(!dev){
             console.log = () => null;
@@ -159,7 +159,7 @@ const renderView = dataView => {
         const footer = ${dataView.footer ? dataView.footer : `() => ''`};
         const description = ${dataView.description ? dataView.description : `() => ''`};
         const botDescription = ${dataView.botDescription ? dataView.botDescription : `() => ''`};
-        const API_URL = '${process.env.NODE_ENV == 'development' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
+        const API_URL = '${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ? process.env.API_URL + ':' + process.env.PORT : process.env.API_URL}';
         let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
         let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
@@ -195,7 +195,7 @@ const renderView = dataView => {
         GLOBAL['auth'] = false;
 
     })()`;
-    if (process.env.NODE_ENV != 'development') jsClientCore = UglifyJS.minify(jsClientCore).code;
+    if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev') jsClientCore = UglifyJS.minify(jsClientCore).code;
     const renderTitle = (view.title[viewMetaData.lang] != '' ? view.title[viewMetaData.lang] + ' - ' : '') + viewMetaData.mainTitle;
     const renderDescription = view.description ? view.description[viewMetaData.lang] :
         viewMetaData.description ? viewMetaData.description[viewMetaData.lang] : 'underpost.net engine app';
@@ -284,7 +284,7 @@ const renderView = dataView => {
         </head>
         <body>                  
             <script>
-                ${process.env.NODE_ENV == 'development' ? jsClientCore : UglifyJS.minify(jsClientCore).code}
+                ${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ? jsClientCore : UglifyJS.minify(jsClientCore).code}
             </script>
         </body>
     </html>

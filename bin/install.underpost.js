@@ -4,6 +4,8 @@
 import shell from 'shelljs';
 import fs from 'fs';
 
+shell.exec(`npm install -g npm@latest`);
+
 const nameFolderModules = 'underpost_modules';
 
 if (!fs.existsSync(`./${nameFolderModules}`)) fs.mkdirSync(`./${nameFolderModules}`);

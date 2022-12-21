@@ -21,11 +21,14 @@ jobs:
       - name: Install npm dependencies
         run: npm install # switch to `npm ci` when Node.js 6 support is dropped
 
-      - name: Install c8
-        run: npm install -g c8
+      - name: Install underpost dependencies
+        run: node bin/install.underpost.js
 
-      - name: Run unit tests
-        run: npm run test # nyc npm run mocha --reporter=text-lcov | coveralls -v
+      - name: Install test dependencies
+        run: node bin/install.test.js
+
+      - name: Run tests dev
+        run: npm run test-dev # nyc npm run mocha --reporter=text-lcov | coveralls -v
 
       - name: Test token
         run: echo "${{ secrets.COVERALLS_REPO_TOKEN }}"

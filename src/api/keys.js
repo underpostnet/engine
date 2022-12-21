@@ -45,7 +45,7 @@ const srcFolders = [
 ];
 
 const blockChainConfig = JSON.parse(fs.readFileSync(
-    `./underpost_modules/underpost-data-template/network/blockchain-config${process.env.NODE_ENV == 'development' ? '.dev' : ''}.json`,
+    `./underpost_modules/underpost-data-template/network/blockchain-config${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ? '.dev' : ''}.json`,
     'utf8'
 ));
 
@@ -173,7 +173,7 @@ const createKey = (req, res) => {
 const getKeys = (req, res) => {
     res.setHeader('Content-Type', 'application/json');
     try {
-        if (process.env.NODE_ENV != 'development') {
+        if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev') {
             return res.status(200).json({
                 status: 'success',
                 data: []

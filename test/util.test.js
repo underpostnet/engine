@@ -11,7 +11,6 @@ describe(' Main Test: ', () => {
     describe('Test 1', () => {
         it('getHash', async () => {
             axios.get(`http://localhos:${process.env.PORT}/api/util/getHash`).then(resp => {
-                // actual, expected
                 assert.strictEqual(resp.data.split('-').length, 5);
             });
         });
@@ -20,7 +19,6 @@ describe(' Main Test: ', () => {
     describe('Test 2', () => {
         it('randomColor', async () => {
             axios.get(`http://localhos:${process.env.PORT}/api/util/randomColor`).then(resp => {
-                // actual, expected
                 assert.strictEqual(resp[0], '#');
             });
         });
@@ -30,7 +28,6 @@ describe(' Main Test: ', () => {
         it('emailValidator', async () => {
             const emailTest = 'test@gmail.com';
             axios.get(`http://localhos:${process.env.PORT}/api/util/emailValidator/?email=${emailTest}`).then(resp => {
-                // actual, expected
                 assert.strictEqual(JSON.parse(resp).validate, true);
             });
         });
@@ -39,7 +36,6 @@ describe(' Main Test: ', () => {
     describe('Test 4', () => {
         it('getYouTubeID', async () => {
             axios.get(`http://localhos:${process.env.PORT}/api/util/getYouTubeID?url=https://www.youtube.com/watch?v=o4f42SbyDMk`).then(resp => {
-                // actual, expected
                 assert.strictEqual(resp, 'o4f42SbyDMk');
             });
         });

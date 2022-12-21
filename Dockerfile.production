@@ -97,4 +97,4 @@ EXPOSE 22
 EXPOSE 3306
 EXPOSE 80
 
-CMD ["node", "bin/startup.container.js"]
+CMD ["node", "bin/startup.container.production.js"]
