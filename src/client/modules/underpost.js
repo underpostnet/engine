@@ -212,6 +212,19 @@ const viewPaths = [
         render: true,
         display: true,
         session: true
+    },
+    {
+        path: baseHome + '/clasic_card_game',
+        homePaths: [baseHome],
+        title: { en: 'clasic_card_game', es: 'clasic_card_game' },
+        component: 'clasic_card_game',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true,
+        session: false
     }
 ];
 
