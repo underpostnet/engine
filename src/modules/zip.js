@@ -1,6 +1,7 @@
 import request from 'superagent';
 import fs from 'fs';
 import admZip from 'adm-zip';
+import archiver from 'archiver';
 
 const deployFilesFromZipUrl = options => {
     // EXAMPLE
@@ -39,30 +40,34 @@ const deployFilesFromZipUrl = options => {
     }
 };
 
-const generateZipFromFolder = options => {
-    // EXAMPLE
-    // generateZipFromFolder({
-    //     pathFolderToZip: './builds/underpost',
-    //     writeZipPath: './underpost.zip'
-    // })
+const generateZipFromFolder = async clientId => {
 
-    // creating archives
-    const zip = new admZip();
 
-    // add file directly
-    // zip.addFile('test.txt', Buffer.from('inner content of the file', 'utf8'), 'entry comment goes here');
+    const output = fs.createWriteStream(`${clientId}.zip`, 'utf8');
+    const archive = archiver('zip');
 
-    // add local file
-    // getAllFiles(options.pathFolderToZip).map(pathFile => {
-    //     zip.addLocalFile(`.\\${pathFile}`);
-    // });
-    zip.addLocalFolder(options.pathFolderToZip);
+    output.on('close', function () {
+        console.log(archive.pointer() + ' total bytes');
+        console.log('archiver has been finalized and the output file descriptor has closed.');
+    });
 
-    // or write everything to disk
-    if (options.writeZipPath) zip.writeZip(/*target file name*/ options.writeZipPath);
+    archive.on('error', function (err) {
+        throw err;
+    });
 
-    return zip.toBuffer();
+    archive.pipe(output);
+
+
+    await archive.directory(
+        process.env.APP_PATH + `/builds/${clientId}`,
+        false/*option subdir*/).finalize();
+
+    fs.renameSync(
+        `${process.env.APP_PATH}/${clientId}.zip`,
+        `${process.env.APP_PATH}/builds/${clientId}.zip`);
+
 };
+
 
 export {
     deployFilesFromZipUrl,

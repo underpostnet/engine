@@ -181,6 +181,8 @@ const buildURL = (viewMetaData, subDomain) => {
     return `http://${subDomain ? subDomain + '.' : viewMetaData.subDomain ? viewMetaData.subDomain + '.' : ''}${viewMetaData.host}`;
 };
 
+const validateGenerateBuild = clientID => (!process.argv[3] || process.argv[3] == clientID);
+
 const buildBaseUri = view => {
     if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' && process.argv[2] != 'build')
         return view.path;
@@ -262,5 +264,6 @@ export {
     isInvalidChar,
     timer,
     getRawCsvFromArray,
-    logDataManage
+    logDataManage,
+    validateGenerateBuild
 };

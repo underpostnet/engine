@@ -1,4 +1,4 @@
-import { commonFunctions, newInstance } from '../../api/util.js';
+import { commonFunctions, newInstance, validateGenerateBuild } from '../../api/util.js';
 import fs from 'fs';
 import dotenv from 'dotenv';
 
@@ -68,7 +68,7 @@ const singleStatics = (app, deployModuleId) => {
     });
 
 
-    if (process.argv[2] == 'build') {
+    if (process.argv[2] == 'build' && validateGenerateBuild(deployModuleId)) {
         fs.mkdirSync(`./builds/${deployModuleId}/socket.io`, { recursive: true });
         fs.writeFileSync(`./builds/${deployModuleId}/socket.io/socket.io.js`, srcSocketIo, 'utf8');
         fs.mkdirSync(`./builds/${deployModuleId}/peer`, { recursive: true });
@@ -177,7 +177,7 @@ const singleStatics = (app, deployModuleId) => {
         return res.end(srcAudioPlayer);
     });
 
-    if (process.argv[2] == 'build') {
+    if (process.argv[2] == 'build' && validateGenerateBuild(deployModuleId)) {
         if (!fs.existsSync(`./builds/${deployModuleId}/audioplayer`)) fs.mkdirSync(`./builds/${deployModuleId}/audioplayer`);
         fs.writeFileSync(`./builds/${deployModuleId}/audioplayer/AudioPlayer.js`, jsAudioPlayer, 'utf8');
         fs.writeFileSync(`./builds/${deployModuleId}/audioplayer/AudioPlayer.css`, cssAudioPlayer, 'utf8');

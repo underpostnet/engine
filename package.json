@@ -72,9 +72,10 @@
     "ws": "7.4.6"
   },
   "devDependencies": {
-    "mocha": "^10.2.0",
     "adm-zip": "latest",
+    "mocha": "^10.2.0",
     "nodemon": "latest",
-    "swagger-ui-express": "^4.6.0"
+    "swagger-ui-express": "^4.6.0",
+    "archiver": "^5.3.1"
   }
 }
