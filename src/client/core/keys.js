@@ -17,7 +17,7 @@ window.addEventListener('keyup', e => {
 }, true);
 
 document.onkeydown = () => {
-    // console.log('onkeydown', window.event.keyCode, window.event.key);
+    console.log('onkeydown', window.event.keyCode, window.event.key);
     // switch (window.event.keyCode) {
     //     case 13:
     //         // alert();
