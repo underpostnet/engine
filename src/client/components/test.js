@@ -6,6 +6,7 @@ this.test = {
 
         const id = () => 'x' + s4();
         const containerID = id();
+        let elements = [];
 
 
         // ----------------------------------------------------------------
@@ -128,6 +129,8 @@ this.test = {
                             random(0, 1) === 0 ? this.y++ : this.y--;
                             this.x = validatePosition(this.x);
                             this.y = validatePosition(this.y);
+
+                            break;
                         default:
                             break;
                     }
@@ -135,8 +138,24 @@ this.test = {
                         ${this.id} {
                             top: ${this.x - (this.dim / 2)}%;
                             left: ${this.y - (this.dim / 2)}%;
-                        }
-                    `);
+                            ${(this.type == 'user-main' || this.type == 'bot-bug') &&
+
+                            elements.filter(x => (
+
+                                (
+                                    (x.y - (x.dim / 2)) <= (this.y + (this.dim / 2))
+                                    &&
+                                    (x.x + (x.dim / 2)) >= (this.x - (this.dim / 2))
+                                    &&
+                                    (x.y + (x.dim / 2)) >= (this.y - (this.dim / 2))
+                                    &&
+                                    (x.x - (x.dim / 2)) <= (this.x + (this.dim / 2))
+                                )
+                                &&
+                                this.id != x.id
+                            )).length > 0 ? 'background: magenta !important;' : ''}
+            }
+                `);
                 }
             };
         };
@@ -146,7 +165,7 @@ this.test = {
 
         setTimeout(() => {
 
-            this.elements = [
+            elements = [
                 gen().init({
                     container: containerID,
                     type: 'user-main'
@@ -165,10 +184,10 @@ this.test = {
                     type: 'building'
                 })));
 
-            console.log('thia.elements', this.elements);
+            console.log('elements', elements);
 
             if (this.loopGame) clearInterval(this.loopGame);
-            const renderGame = () => this.elements.map(x => x.loop());
+            const renderGame = () => elements.map(x => x.loop());
             renderGame();
             this.loopGame = setInterval(() => renderGame());
 
