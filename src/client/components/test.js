@@ -30,12 +30,23 @@ this.test = {
                     this.type = options.type;
                     this.vel = 10;
                     this.dim = 5;
+                    this.color = 'red';
+                    switch (this.type) {
+                        case 'building':
+                            this.color = 'black';
+                            break;
+                        case 'main-user':
+                            this.color = 'yellow';
+                            break;
+                        default:
+                            break;
+                    }
                     append(this.container, /*html*/`
                             <style class='${this.id}'></style>
                             <style>
                                 ${this.id} {
                                     border-radius: 100%;
-                                    background: red;
+                                    background: ${this.color};
                                     width: ${this.dim}%;
                                     height: ${this.dim}%;
                                 }
@@ -126,7 +137,11 @@ this.test = {
                     container: containerID,
                     type: 'bot'
                 })
-            ];
+            ].concat(range(0, 30)
+                .map(() => gen().init({
+                    container: containerID,
+                    type: 'building'
+                })));
 
             console.log('thia.elements', this.elements);
 
