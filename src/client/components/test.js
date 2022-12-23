@@ -18,6 +18,18 @@ this.test = {
             return pos;
         };
 
+        const validateCollision = (A, B) => {
+            return (
+                (A.y - (A.dim / 2)) <= (B.y + (B.dim / 2))
+                &&
+                (A.x + (A.dim / 2)) >= (B.x - (B.dim / 2))
+                &&
+                (A.y + (A.dim / 2)) >= (B.y - (B.dim / 2))
+                &&
+                (A.x - (A.dim / 2)) <= (B.x + (B.dim / 2))
+            )
+        };
+
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
@@ -142,15 +154,7 @@ this.test = {
 
                             elements.filter(x => (
 
-                                (
-                                    (x.y - (x.dim / 2)) <= (this.y + (this.dim / 2))
-                                    &&
-                                    (x.x + (x.dim / 2)) >= (this.x - (this.dim / 2))
-                                    &&
-                                    (x.y + (x.dim / 2)) >= (this.y - (this.dim / 2))
-                                    &&
-                                    (x.x - (x.dim / 2)) <= (this.x + (this.dim / 2))
-                                )
+                                validateCollision(x, this)
                                 &&
                                 this.id != x.id
                             )).length > 0 ? 'background: magenta !important;' : ''}
@@ -173,6 +177,14 @@ this.test = {
                 gen().init({
                     container: containerID,
                     type: 'bot'
+                }),
+                gen().init({
+                    container: containerID,
+                    type: 'bot-bug'
+                }),
+                gen().init({
+                    container: containerID,
+                    type: 'bot-bug'
                 }),
                 gen().init({
                     container: containerID,
