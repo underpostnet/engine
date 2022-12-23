@@ -27,6 +27,7 @@ this.test = {
                     this.x = random(0, 100);
                     this.y = random(0, 100);
                     this.container = options.container;
+                    this.type = options.type;
                     this.vel = 10;
                     this.dim = 5;
                     append(this.container, /*html*/`
@@ -41,45 +42,62 @@ this.test = {
                             </style>
                             <${this.id} class='abs'></${this.id}>
                     `);
-                    if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
-                    this.ArrowLeft = startListenKey({
-                        key: 'ArrowLeft',
-                        vel: this.vel,
-                        onKey: () => {
-                            this.y--;
-                            this.y = validatePosition(this.y);
-                        }
-                    });
-                    if (this.ArrowRight) stopListenKey(this.ArrowRight);
-                    this.ArrowRight = startListenKey({
-                        key: 'ArrowRight',
-                        vel: this.vel,
-                        onKey: () => {
-                            this.y++;
-                            this.y = validatePosition(this.y);
-                        }
-                    });
-                    if (this.ArrowUp) stopListenKey(this.ArrowUp);
-                    this.ArrowUp = startListenKey({
-                        key: 'ArrowUp',
-                        vel: this.vel,
-                        onKey: () => {
-                            this.x--;
-                            this.x = validatePosition(this.x);
-                        }
-                    });
-                    if (this.ArrowDown) stopListenKey(this.ArrowDown);
-                    this.ArrowDown = startListenKey({
-                        key: 'ArrowDown',
-                        vel: this.vel,
-                        onKey: () => {
-                            this.x++;
-                            this.x = validatePosition(this.x);
-                        }
-                    });
+                    switch (this.type) {
+                        case 'main-user':
+                            if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
+                            this.ArrowLeft = startListenKey({
+                                key: 'ArrowLeft',
+                                vel: this.vel,
+                                onKey: () => {
+                                    this.y--;
+                                    this.y = validatePosition(this.y);
+                                }
+                            });
+                            if (this.ArrowRight) stopListenKey(this.ArrowRight);
+                            this.ArrowRight = startListenKey({
+                                key: 'ArrowRight',
+                                vel: this.vel,
+                                onKey: () => {
+                                    this.y++;
+                                    this.y = validatePosition(this.y);
+                                }
+                            });
+                            if (this.ArrowUp) stopListenKey(this.ArrowUp);
+                            this.ArrowUp = startListenKey({
+                                key: 'ArrowUp',
+                                vel: this.vel,
+                                onKey: () => {
+                                    this.x--;
+                                    this.x = validatePosition(this.x);
+                                }
+                            });
+                            if (this.ArrowDown) stopListenKey(this.ArrowDown);
+                            this.ArrowDown = startListenKey({
+                                key: 'ArrowDown',
+                                vel: this.vel,
+                                onKey: () => {
+                                    this.x++;
+                                    this.x = validatePosition(this.x);
+                                }
+                            });
+                            break;
+
+                        default:
+                            break;
+                    }
                     return this;
                 },
                 loop: function () {
+                    switch (this.type) {
+                        case 'bot':
+                            random(0, 1) === 0 ? this.x++ : this.x--;
+                            random(0, 1) === 0 ? this.y++ : this.y--;
+                            this.x = validatePosition(this.x);
+                            this.y = validatePosition(this.y);
+                            break;
+                        default:
+                            break;
+                    }
                     htmls(`.${this.id}`,/*css*/`
                         ${this.id} {
                             top: ${this.x - (this.dim / 2)}%;
@@ -98,7 +116,7 @@ this.test = {
             this.elements = [
                 gen().init({
                     container: containerID,
-                    type: 'user'
+                    type: 'main-user'
                 }),
                 gen().init({
                     container: containerID,
