@@ -7,10 +7,20 @@ this.test = {
         const id = () => 'x' + s4();
         const containerID = id();
 
+
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
-        const user = () => {
+        const validatePosition = (pos) => {
+            if (pos < 0) return 0;
+            if (pos > 100) return 100;
+            return pos;
+        };
+
+        // ----------------------------------------------------------------
+        // ----------------------------------------------------------------
+
+        const gen = () => {
             return {
                 init: function (options) {
                     this.id = id();
@@ -18,14 +28,15 @@ this.test = {
                     this.y = random(0, 100);
                     this.container = options.container;
                     this.vel = 10;
+                    this.dim = 5;
                     append(this.container, /*html*/`
                             <style class='${this.id}'></style>
                             <style>
                                 ${this.id} {
                                     border-radius: 100%;
                                     background: red;
-                                    width: 40px;
-                                    height: 40px;
+                                    width: ${this.dim}%;
+                                    height: ${this.dim}%;
                                 }
                             </style>
                             <${this.id} class='abs'></${this.id}>
@@ -36,6 +47,7 @@ this.test = {
                         vel: this.vel,
                         onKey: () => {
                             this.y--;
+                            this.y = validatePosition(this.y);
                         }
                     });
                     if (this.ArrowRight) stopListenKey(this.ArrowRight);
@@ -44,6 +56,7 @@ this.test = {
                         vel: this.vel,
                         onKey: () => {
                             this.y++;
+                            this.y = validatePosition(this.y);
                         }
                     });
                     if (this.ArrowUp) stopListenKey(this.ArrowUp);
@@ -52,6 +65,7 @@ this.test = {
                         vel: this.vel,
                         onKey: () => {
                             this.x--;
+                            this.x = validatePosition(this.x);
                         }
                     });
                     if (this.ArrowDown) stopListenKey(this.ArrowDown);
@@ -60,6 +74,7 @@ this.test = {
                         vel: this.vel,
                         onKey: () => {
                             this.x++;
+                            this.x = validatePosition(this.x);
                         }
                     });
                     return this;
@@ -67,8 +82,8 @@ this.test = {
                 loop: function () {
                     htmls(`.${this.id}`,/*css*/`
                         ${this.id} {
-                            top: ${this.x}%;
-                            left: ${this.y}%;
+                            top: ${this.x - (this.dim / 2)}%;
+                            left: ${this.y - (this.dim / 2)}%;
                         }
                     `);
                 }
@@ -81,11 +96,17 @@ this.test = {
         setTimeout(() => {
 
             this.elements = [
-                user().init({
-                    container: containerID
+                gen().init({
+                    container: containerID,
+                    type: 'user'
                 }),
-                user().init({
-                    container: containerID
+                gen().init({
+                    container: containerID,
+                    type: 'bot'
+                }),
+                gen().init({
+                    container: containerID,
+                    type: 'bot'
                 })
             ];
 
@@ -107,8 +128,8 @@ this.test = {
             <div class='in container'>
                 <style>
                     ${containerID} {
-                        height: 350px;
-                        width: 350px;
+                        height: 450px;
+                        width: 450px;
                         background: gray;
                     }
                 </style>
