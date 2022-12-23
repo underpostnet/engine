@@ -97,6 +97,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/cyberiaonline',
+        homePaths: [baseHome],
+        title: { en: 'cyberiaonline', es: 'cyberiaonline' },
+        component: 'cyberiaonline',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 
