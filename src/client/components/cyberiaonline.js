@@ -45,9 +45,11 @@ this.cyberiaonline = {
                     this.dim = 5;
                     this.color = 'red';
                     this.path = [];
+                    this.borderRadius = 100;
                     switch (this.type) {
                         case 'building':
                             this.color = 'black';
+                            this.borderRadius = 0;
                             break;
                         case 'user-main':
                             this.color = 'yellow';
@@ -62,7 +64,7 @@ this.cyberiaonline = {
                             <style class='${this.id}'></style>
                             <style>
                                 ${this.id} {
-                                    border-radius: 100%;
+                                    border-radius: ${this.borderRadius}%;
                                     background: ${this.color};
                                     width: ${this.dim}%;
                                     height: ${this.dim}%;
@@ -167,8 +169,8 @@ this.cyberiaonline = {
                             break;
                         case 'bot-bug':
 
-                            random(0, 1) === 0 ? this.x++ : this.x--;
-                            random(0, 1) === 0 ? this.y++ : this.y--;
+                            random(0, 1) === 0 ? this.x = this.x + 0.2 : this.x = this.x - 0.2;
+                            random(0, 1) === 0 ? this.y = this.y + 0.2 : this.y = this.y - 0.2;
                             this.x = validatePosition(this.x);
                             this.y = validatePosition(this.y);
 
@@ -208,18 +210,10 @@ this.cyberiaonline = {
                     container: containerID,
                     type: 'bot'
                 }),
-                gen().init({
-                    container: containerID,
-                    type: 'bot-bug'
-                }),
-                gen().init({
-                    container: containerID,
-                    type: 'bot-bug'
-                }),
-                gen().init({
-                    container: containerID,
-                    type: 'bot-bug'
-                })
+                // gen().init({
+                //     container: containerID,
+                //     type: 'bot-bug'
+                // }),
             ].concat(range(0, 20)
                 .map(() => gen().init({
                     container: containerID,
