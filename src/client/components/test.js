@@ -31,12 +31,16 @@ this.test = {
                     this.vel = 10;
                     this.dim = 5;
                     this.color = 'red';
+                    this.path = [];
                     switch (this.type) {
                         case 'building':
                             this.color = 'black';
                             break;
-                        case 'main-user':
+                        case 'user-main':
                             this.color = 'yellow';
+                            break;
+                        case 'bot':
+                            this.color = 'green';
                             break;
                         default:
                             break;
@@ -54,7 +58,7 @@ this.test = {
                             <${this.id} class='abs'></${this.id}>
                     `);
                     switch (this.type) {
-                        case 'main-user':
+                        case 'user-main':
                             if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
                             this.ArrowLeft = startListenKey({
                                 key: 'ArrowLeft',
@@ -101,11 +105,29 @@ this.test = {
                 loop: function () {
                     switch (this.type) {
                         case 'bot':
+                            if (this.path.length === 0) {
+
+
+                                // const matrix = range(0, 100).map(x => {
+                                //     return range(0, 100).map(y => {
+                                //         return 0;
+                                //     });
+                                // });
+
+                                // console.log('matrix', matrix.length, matrix[0].length);
+
+                                // const grid = new PF.Grid(101, 101, [0, 0, 1, 1]);
+                                // let finder = new PF.AStarFinder(data.map.pf_options_user);
+                                // let path = finder.findPath(data.users.var[0].x, data.users.var[0].y, xs, ys, grid);
+
+                            }
+                            break;
+                        case 'bot-bug':
+
                             random(0, 1) === 0 ? this.x++ : this.x--;
                             random(0, 1) === 0 ? this.y++ : this.y--;
                             this.x = validatePosition(this.x);
                             this.y = validatePosition(this.y);
-                            break;
                         default:
                             break;
                     }
@@ -127,7 +149,7 @@ this.test = {
             this.elements = [
                 gen().init({
                     container: containerID,
-                    type: 'main-user'
+                    type: 'user-main'
                 }),
                 gen().init({
                     container: containerID,
@@ -135,9 +157,9 @@ this.test = {
                 }),
                 gen().init({
                     container: containerID,
-                    type: 'bot'
+                    type: 'bot-bug'
                 })
-            ].concat(range(0, 30)
+            ].concat(range(0, 50)
                 .map(() => gen().init({
                     container: containerID,
                     type: 'building'
