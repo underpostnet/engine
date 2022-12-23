@@ -1,5 +1,7 @@
 
 import { media } from './media.js';
+import fs from 'fs';
+import { baseStaticUri } from '../../api/util.js';
 
 const clientID = 'cyberiaonline';
 const viewMetaData = {
@@ -22,7 +24,7 @@ const viewMetaData = {
     charset: 'utf-8',
     dir: 'ltr',
     // srcJS: ['https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js'],
-    srcJS: ['https://pixijs.download/release/pixi.js'],
+    srcJS: ['https://pixijs.download/release/pixi.js', '/pathfinding-browser.min.js'],
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
@@ -99,7 +101,23 @@ const viewPaths = [
 ];
 
 const statics = app => {
+
+    const BSU = baseStaticUri(viewMetaData);
+
     media.statics(app, viewMetaData.clientID);
+
+    const pathfinding = fs.readFileSync('./underpost_modules/underpost-library/lib/pathfinding-browser.min.js', 'utf8');
+    app.get(BSU + '/pathfinding-browser.min.js', (req, res) => {
+        res.writeHead(200, {
+            'Content-Type': ('application/javascript; charset=utf-8')
+        });
+        return res.end(pathfinding);
+    });
+
+    if (process.argv[2] == 'build') {
+        fs.writeFileSync(`./builds/${viewMetaData.clientID}/pathfinding-browser.min.js`, pathfinding, 'utf8');
+
+    }
 };
 
 const cyberiaonline = {
