@@ -121,19 +121,49 @@ this.cyberiaonline = {
                             if (this.path.length === 0) {
 
 
-                                // const matrix = range(0, 100).map(x => {
-                                //     return range(0, 100).map(y => {
-                                //         return 0;
-                                //     });
-                                // });
+                                const matrix = range(0, 100).map(x => {
+                                    return range(0, 100).map(y => {
+                                        return elements.filter(element =>
+                                            element.type == 'building'
+                                            &&
+                                            validateCollision(
+                                                { x: element.x, y: element.y, dim: element.dim },
+                                                { x, y, dim: this.dim }
+                                            )).length > 0 ? 1 : 0;
+                                    });
+                                });
 
-                                // console.log('matrix', matrix.length, matrix[0].length);
 
-                                // const grid = new PF.Grid(101, 101, [0, 0, 1, 1]);
-                                // let finder = new PF.AStarFinder(data.map.pf_options_user);
-                                // let path = finder.findPath(data.users.var[0].x, data.users.var[0].y, xs, ys, grid);
+                                // console.table(matrix);
+                                // this.path.push({});
+
+                                let desX = random(0, 100);
+                                let desY = random(0, 100);
+
+                                while (matrix[desX][desY] == 1) {
+                                    desX = random(0, 100);
+                                    desY = random(0, 100);
+                                }
+
+                                const grid = new PF.Grid(matrix.length, matrix.length, matrix);
+                                const finder = new PF.AStarFinder({
+                                    allowDiagonal: false,
+                                    dontCrossCorners: false,
+                                    heuristic: PF.Heuristic.chebyshev
+                                });
+                                this.path = finder.findPath(this.y, this.x, desY, desX, grid);
+
+
+                                // console.log('this.path', this.path);
+                                // this.path.push({});
 
                             }
+                            if (this.path[0]) {
+                                this.x = parseInt(this.path[0][1]);
+                                this.y = parseInt(this.path[0][0]);
+                                this.path.shift();
+                            }
+
                             break;
                         case 'bot-bug':
 
@@ -150,7 +180,7 @@ this.cyberiaonline = {
                         ${this.id} {
                             top: ${this.x - (this.dim / 2)}%;
                             left: ${this.y - (this.dim / 2)}%;
-                            ${(this.type == 'user-main' || this.type == 'bot-bug') &&
+                            ${(this.type != 'building') &&
 
                             elements.filter(x => (
 
@@ -190,7 +220,7 @@ this.cyberiaonline = {
                     container: containerID,
                     type: 'bot-bug'
                 })
-            ].concat(range(0, 50)
+            ].concat(range(0, 20)
                 .map(() => gen().init({
                     container: containerID,
                     type: 'building'
