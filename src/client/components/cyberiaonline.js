@@ -72,14 +72,20 @@ this.cyberiaonline = {
                     this.path = [];
                     this.borderRadius = 100;
                     switch (this.type) {
-                        case 'building':
+                        case 'BUILDING':
                             this.color = 'black';
                             this.borderRadius = 0;
                             break;
-                        case 'user-main':
+                        case 'USER_MAIN':
+                            const USER_MAIN_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
+                            this.x = USER_MAIN_getAvailablePosition.x;
+                            this.y = USER_MAIN_getAvailablePosition.y;
                             this.color = 'yellow';
                             break;
-                        case 'bot':
+                        case 'BOT':
+                            const BOT_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
+                            this.x = BOT_getAvailablePosition.x;
+                            this.y = BOT_getAvailablePosition.y;
                             this.color = 'green';
                             break;
                         default:
@@ -98,7 +104,7 @@ this.cyberiaonline = {
                             <${this.id} class='abs'></${this.id}>
                     `);
                     switch (this.type) {
-                        case 'user-main':
+                        case 'USER_MAIN':
                             if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
                             this.ArrowLeft = startListenKey({
                                 key: 'ArrowLeft',
@@ -144,7 +150,7 @@ this.cyberiaonline = {
                 },
                 loop: function () {
                     switch (this.type) {
-                        case 'bot':
+                        case 'BOT':
                             if (this.path.length === 0) {
 
 
@@ -154,7 +160,7 @@ this.cyberiaonline = {
                                 // console.table(matrix);
                                 // this.path.push({});
 
-                                const { x, y, matrix } = getAvailablePosition(this, ['building']);
+                                const { x, y, matrix } = getAvailablePosition(this, ['BUILDING']);
 
                                 const grid = new PF.Grid(matrix.length, matrix.length, matrix);
                                 const finder = new PF.AStarFinder({
@@ -176,7 +182,7 @@ this.cyberiaonline = {
                             }
 
                             break;
-                        case 'bot-bug':
+                        case 'BOT_BUG':
 
                             random(0, 1) === 0 ? this.x = this.x + 0.2 : this.x = this.x - 0.2;
                             random(0, 1) === 0 ? this.y = this.y + 0.2 : this.y = this.y - 0.2;
@@ -191,7 +197,7 @@ this.cyberiaonline = {
                         ${this.id} {
                             top: ${this.x - (this.dim / 2)}%;
                             left: ${this.y - (this.dim / 2)}%;
-                            ${(this.type != 'building') &&
+                            ${(this.type != 'BUILDING') &&
 
                             elements.filter(x => (
 
@@ -210,24 +216,29 @@ this.cyberiaonline = {
 
         setTimeout(() => {
 
-            elements = [
-                gen().init({
-                    container: containerID,
-                    type: 'user-main'
-                }),
-                gen().init({
-                    container: containerID,
-                    type: 'bot'
-                }),
-                // gen().init({
-                //     container: containerID,
-                //     type: 'bot-bug'
-                // }),
-            ].concat(range(0, 20)
-                .map(() => gen().init({
-                    container: containerID,
-                    type: 'building'
-                })));
+            elements = elements.concat(
+                range(0, 20)
+                    .map(() => gen().init({
+                        container: containerID,
+                        type: 'BUILDING'
+                    }))
+            );
+            elements = elements.concat(
+                [
+                    gen().init({
+                        container: containerID,
+                        type: 'USER_MAIN'
+                    }),
+                    gen().init({
+                        container: containerID,
+                        type: 'BOT'
+                    }),
+                    gen().init({
+                        container: containerID,
+                        type: 'BOT_BUG'
+                    }),
+                ]
+            );
 
             console.log('elements', elements);
 
