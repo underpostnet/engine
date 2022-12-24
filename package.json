@@ -11,7 +11,7 @@
     "build-dev": "env-cmd -f .env.dev node src/server build",
     "test-dev": "env-cmd -f .env.test.dev c8 mocha",
     "ipfs-dev": "env-cmd -f .env.ipfs.dev nodemon src/server",
-    "cli": "node src/cli",
+    "cli": "node cli",
     "install-underpost": "node bin/install.underpost && npm install --only=dev",
     "install-test": "node bin/install.test",
     "install-ipfs": "node bin/install.ipfs"
