@@ -64,8 +64,8 @@ this.cyberiaonline = {
             return {
                 init: function (options) {
                     this.id = id();
-                    this.x = random(minRangeMap, maxRangeMap);
-                    this.y = random(minRangeMap, maxRangeMap);
+                    this.x = options.x ? options.x : random(minRangeMap, maxRangeMap);
+                    this.y = options.y ? options.y : random(minRangeMap, maxRangeMap);
                     this.container = options.container;
                     this.type = options.type;
                     this.vel = 10;
@@ -148,6 +148,25 @@ this.cyberiaonline = {
                         default:
                             break;
                     }
+                    if (options.matrix)
+                        range(0, options.matrix.y - 1)
+                            .map(x =>
+                                range(0, options.matrix.x - 1)
+                                    .map(y => {
+                                        if (!(x == 0 && y == 0)) {
+                                            const replicaOtions = newInstance(options);
+                                            delete replicaOtions.matrix;
+                                            elements.push(
+                                                gen().init({
+                                                    ...replicaOtions,
+                                                    x: this.x + (this.dim * x),
+                                                    y: this.y + (this.dim * y)
+                                                })
+                                            );
+                                        }
+
+                                    })
+                            );
                     return this;
                 },
                 loop: function () {
@@ -219,10 +238,11 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             elements = elements.concat(
-                range(0, 10)
+                range(0, 5)
                     .map(() => gen().init({
                         container: containerID,
-                        type: 'BUILDING'
+                        type: 'BUILDING',
+                        matrix: { x: 3, y: 4 }
                     }))
             );
             elements = elements.concat(
