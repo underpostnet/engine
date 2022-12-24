@@ -30,6 +30,31 @@ this.cyberiaonline = {
             )
         };
 
+        const getAvailablePosition = (elementClient, elementTypes) => {
+
+            const matrix = range(0, 100).map(x => {
+                return range(0, 100).map(y => {
+                    return elements.filter(element =>
+                        elementTypes.includes(element.type)
+                        &&
+                        validateCollision(
+                            { x: element.x, y: element.y, dim: element.dim },
+                            { x, y, dim: elementClient.dim }
+                        )).length > 0 ? 1 : 0;
+                });
+            });
+
+            let x = random(0, 100);
+            let y = random(0, 100);
+
+            while (matrix[x][y] == 1) {
+                x = random(0, 100);
+                y = random(0, 100);
+            }
+
+            return { x, y, matrix };
+        };
+
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
@@ -123,29 +148,13 @@ this.cyberiaonline = {
                             if (this.path.length === 0) {
 
 
-                                const matrix = range(0, 100).map(x => {
-                                    return range(0, 100).map(y => {
-                                        return elements.filter(element =>
-                                            element.type == 'building'
-                                            &&
-                                            validateCollision(
-                                                { x: element.x, y: element.y, dim: element.dim },
-                                                { x, y, dim: this.dim }
-                                            )).length > 0 ? 1 : 0;
-                                    });
-                                });
+
 
 
                                 // console.table(matrix);
                                 // this.path.push({});
 
-                                let desX = random(0, 100);
-                                let desY = random(0, 100);
-
-                                while (matrix[desX][desY] == 1) {
-                                    desX = random(0, 100);
-                                    desY = random(0, 100);
-                                }
+                                const { x, y, matrix } = getAvailablePosition(this, ['building']);
 
                                 const grid = new PF.Grid(matrix.length, matrix.length, matrix);
                                 const finder = new PF.AStarFinder({
@@ -153,7 +162,7 @@ this.cyberiaonline = {
                                     dontCrossCorners: false,
                                     heuristic: PF.Heuristic.chebyshev
                                 });
-                                this.path = finder.findPath(this.y, this.x, desY, desX, grid);
+                                this.path = finder.findPath(this.y, this.x, x, y, grid);
 
 
                                 // console.log('this.path', this.path);
