@@ -36,7 +36,7 @@ const keyConfig = passphrase => {
     };
 };
 
-const baseDataFolder = './data/cryptokoyn';
+const baseDataFolder = './data/cryptokoyn/data';
 const keyFolder = baseDataFolder + '/keys/' + keyType + '-' + SHA256(JSON.stringify(keyConfig()));
 const srcFolders = [
     keyFolder,
