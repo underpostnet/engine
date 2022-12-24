@@ -79,9 +79,11 @@ this.cyberiaonline = {
                             this.borderRadius = 0;
                             break;
                         case 'USER_MAIN':
-                            const USER_MAIN_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
-                            this.x = USER_MAIN_getAvailablePosition.x;
-                            this.y = USER_MAIN_getAvailablePosition.y;
+                            if (!(options.x && options.y)) {
+                                const USER_MAIN_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
+                                this.x = USER_MAIN_getAvailablePosition.x;
+                                this.y = USER_MAIN_getAvailablePosition.y;
+                            }
                             this.color = 'yellow';
                             break;
                         case 'BOT':
@@ -238,7 +240,7 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             elements = elements.concat(
-                range(0, 5)
+                range(0, 2)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING',
@@ -249,7 +251,8 @@ this.cyberiaonline = {
                 [
                     gen().init({
                         container: containerID,
-                        type: 'USER_MAIN'
+                        type: 'USER_MAIN',
+                        matrix: { x: 2, y: 2 }
                     }),
                     gen().init({
                         container: containerID,
