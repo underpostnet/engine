@@ -7,14 +7,16 @@ this.cyberiaonline = {
         const id = () => 'x' + s4();
         const containerID = id();
         let elements = [];
+        const minRangeMap = 0;
+        const maxRangeMap = 100;
 
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
         const validatePosition = (pos) => {
-            if (pos < 0) return 0;
-            if (pos > 100) return 100;
+            if (pos < minRangeMap) return minRangeMap;
+            if (pos > maxRangeMap) return maxRangeMap;
             return pos;
         };
 
@@ -32,8 +34,8 @@ this.cyberiaonline = {
 
         const getAvailablePosition = (elementClient, elementTypes) => {
 
-            const matrix = range(0, 100).map(x => {
-                return range(0, 100).map(y => {
+            const matrix = range(minRangeMap, maxRangeMap).map(x => {
+                return range(minRangeMap, maxRangeMap).map(y => {
                     return elements.filter(element =>
                         elementTypes.includes(element.type)
                         &&
@@ -44,12 +46,12 @@ this.cyberiaonline = {
                 });
             });
 
-            let x = random(0, 100);
-            let y = random(0, 100);
+            let x = random(minRangeMap, maxRangeMap);
+            let y = random(minRangeMap, maxRangeMap);
 
             while (matrix[x][y] == 1) {
-                x = random(0, 100);
-                y = random(0, 100);
+                x = random(minRangeMap, maxRangeMap);
+                y = random(minRangeMap, maxRangeMap);
             }
 
             return { x, y, matrix };
@@ -62,8 +64,8 @@ this.cyberiaonline = {
             return {
                 init: function (options) {
                     this.id = id();
-                    this.x = random(0, 100);
-                    this.y = random(0, 100);
+                    this.x = random(minRangeMap, maxRangeMap);
+                    this.y = random(minRangeMap, maxRangeMap);
                     this.container = options.container;
                     this.type = options.type;
                     this.vel = 10;
@@ -217,7 +219,7 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             elements = elements.concat(
-                range(0, 20)
+                range(0, 10)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING'
