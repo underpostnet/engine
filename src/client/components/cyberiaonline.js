@@ -14,30 +14,49 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
-        const validatePosition = (pos) => {
-            if (pos < minRangeMap) return minRangeMap;
-            if (pos > maxRangeMap) return maxRangeMap;
-            return pos;
+        const validatePosition = (elementClient, attr, fn, elementsCollisions) => {
+
+            const originElementClient = newInstance(elementClient);
+            elementClient[attr] = fn(elementClient[attr]);
+
+            if (elementsCollisions) {
+                for (element of elements) {
+                    if (
+                        elementsCollisions.includes(element.type)
+                        &&
+                        element.id != elementClient.id
+                        &&
+                        validateCollision(element, elementClient)
+                    ) {
+                        return originElementClient[attr];
+                    }
+                }
+            }
+
+            if (elementClient[attr] < minRangeMap) return originElementClient[attr];
+            if (elementClient[attr] > maxRangeMap) return originElementClient[attr];
+
+            return elementClient[attr];
         };
 
         const validateCollision = (A, B) => {
             return (
-                (A.y - (A.dim / 2)) <= (B.y + (B.dim / 2))
+                (A.y - (A.dim / 2)) < (B.y + (B.dim / 2))
                 &&
-                (A.x + (A.dim / 2)) >= (B.x - (B.dim / 2))
+                (A.x + (A.dim / 2)) > (B.x - (B.dim / 2))
                 &&
-                (A.y + (A.dim / 2)) >= (B.y - (B.dim / 2))
+                (A.y + (A.dim / 2)) > (B.y - (B.dim / 2))
                 &&
-                (A.x - (A.dim / 2)) <= (B.x + (B.dim / 2))
+                (A.x - (A.dim / 2)) < (B.x + (B.dim / 2))
             )
         };
 
-        const getAvailablePosition = (elementClient, elementTypes) => {
+        const getAvailablePosition = (elementClient, elementsCollisions) => {
 
             const matrix = range(minRangeMap, maxRangeMap).map(x => {
                 return range(minRangeMap, maxRangeMap).map(y => {
                     return elements.filter(element =>
-                        elementTypes.includes(element.type)
+                        elementsCollisions.includes(element.type)
                         &&
                         validateCollision(
                             { x: element.x, y: element.y, dim: element.dim },
@@ -87,9 +106,11 @@ this.cyberiaonline = {
                             this.color = 'yellow';
                             break;
                         case 'BOT':
-                            const BOT_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
-                            this.x = BOT_getAvailablePosition.x;
-                            this.y = BOT_getAvailablePosition.y;
+                            if (!(options.x && options.y)) {
+                                const BOT_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
+                                this.x = BOT_getAvailablePosition.x;
+                                this.y = BOT_getAvailablePosition.y;
+                            }
                             this.color = 'green';
                             break;
                         default:
@@ -114,8 +135,7 @@ this.cyberiaonline = {
                                 key: 'ArrowLeft',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.y--;
-                                    this.y = validatePosition(this.y);
+                                    this.y = validatePosition(this, 'y', pos => pos - 1, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowRight) stopListenKey(this.ArrowRight);
@@ -123,8 +143,7 @@ this.cyberiaonline = {
                                 key: 'ArrowRight',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.y++;
-                                    this.y = validatePosition(this.y);
+                                    this.y = validatePosition(this, 'y', pos => pos + 1, ['BUILDING']);;
                                 }
                             });
                             if (this.ArrowUp) stopListenKey(this.ArrowUp);
@@ -132,8 +151,7 @@ this.cyberiaonline = {
                                 key: 'ArrowUp',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.x--;
-                                    this.x = validatePosition(this.x);
+                                    this.x = validatePosition(this, 'x', pos => pos - 1, ['BUILDING']);;
                                 }
                             });
                             if (this.ArrowDown) stopListenKey(this.ArrowDown);
@@ -141,8 +159,7 @@ this.cyberiaonline = {
                                 key: 'ArrowDown',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.x++;
-                                    this.x = validatePosition(this.x);
+                                    this.x = validatePosition(this, 'x', pos => pos + 1, ['BUILDING']);
                                 }
                             });
                             break;
@@ -206,11 +223,10 @@ this.cyberiaonline = {
 
                             break;
                         case 'BOT_BUG':
-
-                            random(0, 1) === 0 ? this.x = this.x + 0.2 : this.x = this.x - 0.2;
-                            random(0, 1) === 0 ? this.y = this.y + 0.2 : this.y = this.y - 0.2;
-                            this.x = validatePosition(this.x);
-                            this.y = validatePosition(this.y);
+                            this.x = validatePosition(this, 'x',
+                                pos => random(0, 1) === 0 ? pos + 0.2 : pos - 0.2);
+                            this.y = validatePosition(this, 'y',
+                                pos => random(0, 1) === 0 ? pos + 0.2 : pos - 0.2);
 
                             break;
                         default:
@@ -240,11 +256,11 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             elements = elements.concat(
-                range(0, 2)
+                range(0, 5)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING',
-                        matrix: { x: 3, y: 4 }
+                        matrix: { x: 2, y: 3 }
                     }))
             );
             elements = elements.concat(
