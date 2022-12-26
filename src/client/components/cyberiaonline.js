@@ -12,6 +12,7 @@ this.cyberiaonline = {
         const maxRangeMap = 100;
 
         const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
+        const container = new PIXI.Container(); // create container
 
         const colors = {
             'red': numberHexColor('#ff0000'),
@@ -20,24 +21,32 @@ this.cyberiaonline = {
             'black': numberHexColor('#000000')
         };
 
-        const pixiApppend = element => {
+        const PIXI_INIT = () => {
 
-            const container = new PIXI.Container(); // create container
+            s(pixiContainerId).appendChild(app.view);
             app.stage.addChild(container); // container to pixi app
-            container.x = element.x - (element.dim / 2);
-            container.y = element.y - (element.dim / 2);
-            container.width = element.dim;
-            container.height = element.dim;
+            container.x = 0;
+            container.y = 0;
+            container.width = maxRangeMap;
+            container.height = maxRangeMap;
+
+        };
+
+        const PIXI_INIT_ELEMENT = element => {
 
             const backgroundSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-            backgroundSprite.x = 0;
-            backgroundSprite.y = 0;
+            backgroundSprite.x = element.x - (element.dim / 2);
+            backgroundSprite.y = element.y - (element.dim / 2);
             backgroundSprite.width = element.dim;
             backgroundSprite.height = element.dim;
             backgroundSprite.tint = colors[element.color];
             container.addChild(backgroundSprite); // sprite to containers
 
         }
+
+        const PIXI_LOOP = () => {
+
+        };
 
 
         // ----------------------------------------------------------------
@@ -145,7 +154,7 @@ this.cyberiaonline = {
                         default:
                             break;
                     }
-                    pixiApppend(this);
+                    PIXI_INIT_ELEMENT(this);
                     append(this.container, /*html*/`
                             <style class='${this.id}'></style>
                             <style>
@@ -285,7 +294,7 @@ this.cyberiaonline = {
 
         setTimeout(() => {
 
-            s(pixiContainerId).appendChild(app.view);
+            PIXI_INIT();
 
             elements = elements.concat(
                 range(0, 10)
