@@ -38,7 +38,9 @@ const random = (min, max) => {
             */
 const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
 
-const randomNumberColor = () => parseInt(randomColor().split('#')[1], 16);
+const numberHexColor = hex => parseInt(hex.split('#')[1], 16);
+
+const randomNumberColor = () => numberHexColor(randomColor());
 
 const replaceAll = (str, replaceWhat, replaceTo) => {
     replaceWhat = replaceWhat.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -175,6 +177,7 @@ const commonFunctions = () => `
     const range = ${range};
     const random = ${random};
     const randomColor = ${randomColor};
+    const numberHexColor = ${numberHexColor};
     const randomNumberColor = ${randomNumberColor};
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};

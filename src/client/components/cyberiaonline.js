@@ -13,9 +13,14 @@ this.cyberiaonline = {
 
         const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
 
-        const pixiApppend = element => {
+        const colors = {
+            'red': numberHexColor('#ff0000'),
+            'green': numberHexColor('#33cc33'),
+            'yellow': numberHexColor('#ffff00'),
+            'black': numberHexColor('#000000')
+        };
 
-            if (element.type != 'BUILDING') return;
+        const pixiApppend = element => {
 
             const container = new PIXI.Container(); // create container
             app.stage.addChild(container); // container to pixi app
@@ -29,6 +34,7 @@ this.cyberiaonline = {
             backgroundSprite.y = 0;
             backgroundSprite.width = element.dim;
             backgroundSprite.height = element.dim;
+            backgroundSprite.tint = colors[element.color];
             container.addChild(backgroundSprite); // sprite to containers
 
         }
