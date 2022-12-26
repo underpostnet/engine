@@ -83,8 +83,8 @@ this.cyberiaonline = {
             return {
                 init: function (options) {
                     this.id = id();
-                    this.x = options.x ? options.x : random(minRangeMap, maxRangeMap);
-                    this.y = options.y ? options.y : random(minRangeMap, maxRangeMap);
+                    this.x = options.x !== undefined ? options.x : random(minRangeMap, maxRangeMap);
+                    this.y = options.y !== undefined ? options.y : random(minRangeMap, maxRangeMap);
                     this.container = options.container;
                     this.type = options.type;
                     this.vel = 10;
@@ -143,7 +143,7 @@ this.cyberiaonline = {
                                 key: 'ArrowRight',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.y = validatePosition(this, 'y', pos => pos + 1, ['BUILDING']);;
+                                    this.y = validatePosition(this, 'y', pos => pos + 1, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowUp) stopListenKey(this.ArrowUp);
@@ -151,7 +151,7 @@ this.cyberiaonline = {
                                 key: 'ArrowUp',
                                 vel: this.vel,
                                 onKey: () => {
-                                    this.x = validatePosition(this, 'x', pos => pos - 1, ['BUILDING']);;
+                                    this.x = validatePosition(this, 'x', pos => pos - 1, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowDown) stopListenKey(this.ArrowDown);
@@ -256,7 +256,7 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             elements = elements.concat(
-                range(0, 5)
+                range(0, 10)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING',
