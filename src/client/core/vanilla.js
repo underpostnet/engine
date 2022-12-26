@@ -216,3 +216,8 @@ const getQueryParams = () => {
 
 const generateBlobSrc = (rawContent, mimeType) =>
     window.URL.createObjectURL(new Blob([rawContent], { type: mimeType }));
+
+const preHTML = raw => raw
+    .replaceAll('&', '&amp')
+    .replaceAll('<', '&lt')
+    .replaceAll('>', '&gt');
