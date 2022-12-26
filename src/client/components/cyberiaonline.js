@@ -6,9 +6,32 @@ this.cyberiaonline = {
 
         const id = () => 'x' + s4();
         const containerID = id();
+        const pixiContainerId = id();
         let elements = [];
         const minRangeMap = 0;
         const maxRangeMap = 100;
+
+        const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
+
+        const pixiApppend = element => {
+
+            if (element.type != 'BUILDING') return;
+
+            const container = new PIXI.Container(); // create container
+            app.stage.addChild(container); // container to pixi app
+            container.x = element.x - (element.dim / 2);
+            container.y = element.y - (element.dim / 2);
+            container.width = element.dim;
+            container.height = element.dim;
+
+            const backgroundSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
+            backgroundSprite.x = 0;
+            backgroundSprite.y = 0;
+            backgroundSprite.width = element.dim;
+            backgroundSprite.height = element.dim;
+            container.addChild(backgroundSprite); // sprite to containers
+
+        }
 
 
         // ----------------------------------------------------------------
@@ -116,6 +139,7 @@ this.cyberiaonline = {
                         default:
                             break;
                     }
+                    pixiApppend(this);
                     append(this.container, /*html*/`
                             <style class='${this.id}'></style>
                             <style>
@@ -255,6 +279,8 @@ this.cyberiaonline = {
 
         setTimeout(() => {
 
+            s(pixiContainerId).appendChild(app.view);
+
             elements = elements.concat(
                 range(0, 10)
                     .map(() => gen().init({
@@ -303,8 +329,18 @@ this.cyberiaonline = {
                         width: 450px;
                         background: gray;
                     }
+
+                    ${pixiContainerId} {
+                        padding: 10px;
+                     }
+
+                    canvas {
+                        transform: scale(-1, 1) rotate(90deg);
+                    }
+
                 </style>
                 <${containerID} class='in'></${containerID}>
+                <${pixiContainerId} class='in'></${pixiContainerId}>
             </div>
         
         `
