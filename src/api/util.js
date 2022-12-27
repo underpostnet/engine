@@ -117,6 +117,9 @@ const cap = str => str
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+const capFirst = str =>
+    str.charAt(0).toUpperCase() + str.slice(1);
+
 const uniqueArray = arr =>
     arr.filter((item, pos) => arr.indexOf(item) == pos);
 
@@ -195,6 +198,7 @@ const commonFunctions = () => `
     const getYouTubeID = ${getYouTubeID};
     const timer = ${timer};
     const logDataManage = ${logDataManage};
+    const capFirst = ${capFirst};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -292,5 +296,6 @@ export {
     getRawCsvFromArray,
     logDataManage,
     validateGenerateBuild,
-    reOrderIntArray
+    reOrderIntArray,
+    capFirst
 };
