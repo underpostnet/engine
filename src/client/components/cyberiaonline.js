@@ -94,7 +94,7 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
 
         const pixiContainerId = id();
-        const pixiAmplitudeFactor = 3;
+        const pixiAmplitudeFactor = 5.6;
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
 
@@ -300,13 +300,13 @@ this.cyberiaonline = {
                             break;
                     }
                     PIXI_LOOP_ELEMENT(this);
-            //         htmls(`.${this.id}`,/*css*/`
-            //             ${this.id} {
-            //                 top: ${this.x - (this.dim / 2)}%;
-            //                 left: ${this.y - (this.dim / 2)}%;
-            //                 ${alertCollision(this) ? 'background: magenta !important;' : ''}
-            // }
-            //     `);
+                    //         htmls(`.${this.id}`,/*css*/`
+                    //             ${this.id} {
+                    //                 top: ${this.x - (this.dim / 2)}%;
+                    //                 left: ${this.y - (this.dim / 2)}%;
+                    //                 ${alertCollision(this) ? 'background: magenta !important;' : ''}
+                    // }
+                    //     `);
                 }
             };
         };
@@ -327,16 +327,23 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
+                range(0, 10)
+                    .map(() => gen().init({
+                        container: containerID,
+                        type: 'BOT'
+                    }))
+            );
+            elements = elements.concat(
                 [
                     gen().init({
                         container: containerID,
                         type: 'USER_MAIN',
                         matrix: { x: 2, y: 2 }
                     }),
-                    gen().init({
-                        container: containerID,
-                        type: 'BOT'
-                    }),
+                    // gen().init({
+                    //     container: containerID,
+                    //     type: 'BOT'
+                    // }),
                     gen().init({
                         container: containerID,
                         type: 'BOT_BUG'
@@ -376,7 +383,9 @@ this.cyberiaonline = {
                     }
 
                 </style>
+                <!--
                 <${containerID} class='in'></${containerID}>
+                -->
                 <${pixiContainerId} class='in'></${pixiContainerId}>
             </div>
         
