@@ -174,6 +174,17 @@ const reOrderIntArray = (array) => { /* shuffle */
     return array;
 };
 
+const orderAbc = (arr, attr) => arr.sort((a, b) => {
+    if (attr) {
+        if (a[attr] < b[attr]) { return -1; }
+        if (a[attr] > b[attr]) { return 1; }
+    } else {
+        if (a < b) { return -1; }
+        if (a > b) { return 1; }
+    }
+    return 0;
+});
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -199,6 +210,7 @@ const commonFunctions = () => `
     const timer = ${timer};
     const logDataManage = ${logDataManage};
     const capFirst = ${capFirst};
+    const orderAbc = ${orderAbc};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -297,5 +309,6 @@ export {
     logDataManage,
     validateGenerateBuild,
     reOrderIntArray,
-    capFirst
+    capFirst,
+    orderAbc
 };
