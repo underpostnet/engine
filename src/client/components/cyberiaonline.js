@@ -6,47 +6,11 @@ this.cyberiaonline = {
 
         const id = () => 'x' + s4();
         const containerID = id();
-        const pixiContainerId = id();
         let elements = [];
         const minRangeMap = 0;
         const maxRangeMap = 100;
 
-        const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
-        const container = new PIXI.Container(); // create container
 
-        const colors = {
-            'red': numberHexColor('#ff0000'),
-            'green': numberHexColor('#33cc33'),
-            'yellow': numberHexColor('#ffff00'),
-            'black': numberHexColor('#000000')
-        };
-
-        const PIXI_INIT = () => {
-
-            s(pixiContainerId).appendChild(app.view);
-            app.stage.addChild(container); // container to pixi app
-            container.x = 0;
-            container.y = 0;
-            container.width = maxRangeMap;
-            container.height = maxRangeMap;
-
-        };
-
-        const PIXI_INIT_ELEMENT = element => {
-
-            const backgroundSprite = new PIXI.Sprite(PIXI.Texture.WHITE);
-            backgroundSprite.x = element.x - (element.dim / 2);
-            backgroundSprite.y = element.y - (element.dim / 2);
-            backgroundSprite.width = element.dim;
-            backgroundSprite.height = element.dim;
-            backgroundSprite.tint = colors[element.color];
-            container.addChild(backgroundSprite); // sprite to containers
-
-        }
-
-        const PIXI_LOOP = () => {
-
-        };
 
 
         // ----------------------------------------------------------------
@@ -89,6 +53,17 @@ this.cyberiaonline = {
             )
         };
 
+        const alertCollision = element => {
+            return (element.type != 'BUILDING') &&
+
+                elements.filter(x => (
+
+                    validateCollision(x, element)
+                    &&
+                    element.id != x.id
+                )).length > 0;
+        }
+
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
             const matrix = range(minRangeMap, maxRangeMap).map(x => {
@@ -112,6 +87,58 @@ this.cyberiaonline = {
             }
 
             return { x, y, matrix };
+        };
+
+
+        // ----------------------------------------------------------------
+        // ----------------------------------------------------------------
+
+        const pixiContainerId = id();
+        const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
+        const container = new PIXI.Container(); // create container
+
+        const colors = {
+            'red': numberHexColor('#ff0000'),
+            'green': numberHexColor('#33cc33'),
+            'yellow': numberHexColor('#ffff00'),
+            'black': numberHexColor('#000000'),
+            'magenta': numberHexColor('#ff33cc')
+        };
+
+        const PIXI_INIT = () => {
+
+            s(pixiContainerId).appendChild(app.view);
+            app.stage.addChild(container); // container to pixi app
+            container.x = 0;
+            container.y = 0;
+            container.width = maxRangeMap;
+            container.height = maxRangeMap;
+
+        };
+
+        const backgroundSprites = {};
+        const PIXI_INIT_ELEMENT = element => {
+
+            backgroundSprites[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+            backgroundSprites[element.id].x = element.x - (element.dim / 2);
+            backgroundSprites[element.id].y = element.y - (element.dim / 2);
+            backgroundSprites[element.id].width = element.dim;
+            backgroundSprites[element.id].height = element.dim;
+            backgroundSprites[element.id].tint = colors[element.color];
+            container.addChild(backgroundSprites[element.id]); // sprite to containers
+
+        }
+
+        const PIXI_LOOP_ELEMENT = element => {
+
+            if (alertCollision(element)) {
+                backgroundSprites[element.id].tint = colors["magenta"];
+            } else if (backgroundSprites[element.id].tint != colors[element.color]) {
+                backgroundSprites[element.id].tint = colors[element.color];
+            }
+
+            backgroundSprites[element.id].x = element.x - (element.dim / 2);
+            backgroundSprites[element.id].y = element.y - (element.dim / 2);
         };
 
         // ----------------------------------------------------------------
@@ -271,18 +298,12 @@ this.cyberiaonline = {
                         default:
                             break;
                     }
+                    PIXI_LOOP_ELEMENT(this);
                     htmls(`.${this.id}`,/*css*/`
                         ${this.id} {
                             top: ${this.x - (this.dim / 2)}%;
                             left: ${this.y - (this.dim / 2)}%;
-                            ${(this.type != 'BUILDING') &&
-
-                            elements.filter(x => (
-
-                                validateCollision(x, this)
-                                &&
-                                this.id != x.id
-                            )).length > 0 ? 'background: magenta !important;' : ''}
+                            ${alertCollision(this) ? 'background: magenta !important;' : ''}
             }
                 `);
                 }
