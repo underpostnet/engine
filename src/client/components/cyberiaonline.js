@@ -94,7 +94,8 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
 
         const pixiContainerId = id();
-        const app = new PIXI.Application({ width: maxRangeMap, height: maxRangeMap, background: 'gray' });
+        const pixiAmplitudeFactor = 3;
+        const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
 
         const colors = {
@@ -111,8 +112,8 @@ this.cyberiaonline = {
             app.stage.addChild(container); // container to pixi app
             container.x = 0;
             container.y = 0;
-            container.width = maxRangeMap;
-            container.height = maxRangeMap;
+            container.width = maxRangeMap * pixiAmplitudeFactor;
+            container.height = maxRangeMap * pixiAmplitudeFactor;
 
         };
 
@@ -120,10 +121,10 @@ this.cyberiaonline = {
         const PIXI_INIT_ELEMENT = element => {
 
             backgroundSprites[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-            backgroundSprites[element.id].x = element.x - (element.dim / 2);
-            backgroundSprites[element.id].y = element.y - (element.dim / 2);
-            backgroundSprites[element.id].width = element.dim;
-            backgroundSprites[element.id].height = element.dim;
+            backgroundSprites[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            backgroundSprites[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            backgroundSprites[element.id].width = (element.dim) * pixiAmplitudeFactor;
+            backgroundSprites[element.id].height = (element.dim) * pixiAmplitudeFactor;
             backgroundSprites[element.id].tint = colors[element.color];
             container.addChild(backgroundSprites[element.id]); // sprite to containers
 
@@ -137,8 +138,8 @@ this.cyberiaonline = {
                 backgroundSprites[element.id].tint = colors[element.color];
             }
 
-            backgroundSprites[element.id].x = element.x - (element.dim / 2);
-            backgroundSprites[element.id].y = element.y - (element.dim / 2);
+            backgroundSprites[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            backgroundSprites[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
         };
 
         // ----------------------------------------------------------------
