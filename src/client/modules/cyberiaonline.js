@@ -75,18 +75,6 @@ const viewPaths = [
         display: true
     },
     {
-        path: baseHome + '/pixi',
-        homePaths: [baseHome],
-        title: { en: 'pixi', es: 'pixi' },
-        component: 'pixi',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: true,
-        display: true
-    },
-    {
         path: baseHome + '/test',
         homePaths: [baseHome],
         title: { en: 'test', es: 'test' },

@@ -93,6 +93,10 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
+        // https://pixijs.io/examples
+        // https://pixijs.download/release/docs/index.html
+        // https://www.w3schools.com/colors/colors_picker.asp
+
         const pixiContainerId = id();
         const pixiAmplitudeFactor = 5.6;
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
@@ -127,6 +131,15 @@ this.cyberiaonline = {
             backgroundSprites[element.id].height = (element.dim) * pixiAmplitudeFactor;
             backgroundSprites[element.id].tint = colors[element.color];
             container.addChild(backgroundSprites[element.id]); // sprite to containers
+
+            // const headCircle = new PIXI.Graphics();
+            // headCircle.beginFill(0x3333ff);
+            // headCircle.lineStyle(0);
+            // headCircle.drawCircle(100, 30, 25); // x,y,radio
+            // headCircle.endFill();
+            // headCircle.width = 50;
+            // headCircle.height = 50;
+            // container.addChild(headCircle);
 
         }
 
