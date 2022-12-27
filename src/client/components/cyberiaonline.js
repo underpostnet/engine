@@ -183,18 +183,18 @@ this.cyberiaonline = {
                             break;
                     }
                     PIXI_INIT_ELEMENT(this);
-                    append(this.container, /*html*/`
-                            <style class='${this.id}'></style>
-                            <style>
-                                ${this.id} {
-                                    border-radius: ${this.borderRadius}%;
-                                    background: ${this.color};
-                                    width: ${this.dim}%;
-                                    height: ${this.dim}%;
-                                }
-                            </style>
-                            <${this.id} class='abs'></${this.id}>
-                    `);
+                    // append(this.container, /*html*/`
+                    //         <style class='${this.id}'></style>
+                    //         <style>
+                    //             ${this.id} {
+                    //                 border-radius: ${this.borderRadius}%;
+                    //                 background: ${this.color};
+                    //                 width: ${this.dim}%;
+                    //                 height: ${this.dim}%;
+                    //             }
+                    //         </style>
+                    //         <${this.id} class='abs'></${this.id}>
+                    // `);
                     switch (this.type) {
                         case 'USER_MAIN':
                             if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
@@ -300,13 +300,13 @@ this.cyberiaonline = {
                             break;
                     }
                     PIXI_LOOP_ELEMENT(this);
-                    htmls(`.${this.id}`,/*css*/`
-                        ${this.id} {
-                            top: ${this.x - (this.dim / 2)}%;
-                            left: ${this.y - (this.dim / 2)}%;
-                            ${alertCollision(this) ? 'background: magenta !important;' : ''}
-            }
-                `);
+            //         htmls(`.${this.id}`,/*css*/`
+            //             ${this.id} {
+            //                 top: ${this.x - (this.dim / 2)}%;
+            //                 left: ${this.y - (this.dim / 2)}%;
+            //                 ${alertCollision(this) ? 'background: magenta !important;' : ''}
+            // }
+            //     `);
                 }
             };
         };
