@@ -89,6 +89,27 @@ this.cyberiaonline = {
             return { x, y, matrix };
         };
 
+        const generatePath = (element, newX, newY) => {
+            const { x, y, matrix } = getAvailablePosition(element, ['BUILDING']);
+
+            const grid = new PF.Grid(matrix.length, matrix.length, matrix);
+            const finder = new PF.AStarFinder({
+                allowDiagonal: false,
+                dontCrossCorners: false,
+                heuristic: PF.Heuristic.chebyshev
+            });
+            return finder.findPath(element.y, element.x, newX ? newX : x, newY ? newY : y, grid);
+        };
+
+        const validatePathLoop = element => {
+            if (element.path[0]) {
+                element.x = parseInt(element.path[0][1]);
+                element.y = parseInt(element.path[0][0]);
+                element.path.shift();
+            }
+            return element;
+        };
+
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
@@ -140,7 +161,12 @@ this.cyberiaonline = {
                     v3.0.0
                 </${htmlPixiLayerTouch}>
             
-                `)
+                `);
+
+            s(htmlPixiLayerTouch).onclick = event =>
+                elements.map(x =>
+                    x.onCanvasClick ? x.onCanvasClick(event)
+                        : null);
 
         };
 
@@ -265,6 +291,12 @@ this.cyberiaonline = {
                                     this.x = validatePosition(this, 'x', pos => pos + 1, ['BUILDING']);
                                 }
                             });
+                            this.onCanvasClick = event => {
+                                const offsetX = parseInt(((event.offsetX * 100) / (maxRangeMap * pixiAmplitudeFactor)));
+                                const offsetY = parseInt(((event.offsetY * 100) / (maxRangeMap * pixiAmplitudeFactor)));
+                                console.log('onCanvasClick', offsetX, offsetY);
+                                this.path = generatePath(this, offsetX, offsetY);
+                            };
                             break;
 
                         default:
@@ -292,37 +324,24 @@ this.cyberiaonline = {
                     return this;
                 },
                 loop: function () {
+                    let element;
                     switch (this.type) {
                         case 'BOT':
-                            if (this.path.length === 0) {
+                            if (this.path.length === 0)
+                                this.path = generatePath(this);
 
 
+                            element = validatePathLoop(this);
+                            this.path = element.path;
+                            this.x = element.x;
+                            this.y = element.y;
 
-
-
-                                // console.table(matrix);
-                                // this.path.push({});
-
-                                const { x, y, matrix } = getAvailablePosition(this, ['BUILDING']);
-
-                                const grid = new PF.Grid(matrix.length, matrix.length, matrix);
-                                const finder = new PF.AStarFinder({
-                                    allowDiagonal: false,
-                                    dontCrossCorners: false,
-                                    heuristic: PF.Heuristic.chebyshev
-                                });
-                                this.path = finder.findPath(this.y, this.x, x, y, grid);
-
-
-                                // console.log('this.path', this.path);
-                                // this.path.push({});
-
-                            }
-                            if (this.path[0]) {
-                                this.x = parseInt(this.path[0][1]);
-                                this.y = parseInt(this.path[0][0]);
-                                this.path.shift();
-                            }
+                            break;
+                        case 'USER_MAIN':
+                            element = validatePathLoop(this);
+                            this.path = element.path;
+                            this.x = element.x;
+                            this.y = element.y;
 
                             break;
                         case 'BOT_BUG':
