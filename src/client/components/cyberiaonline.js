@@ -101,6 +101,7 @@ this.cyberiaonline = {
         const pixiAmplitudeFactor = 5.6;
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
+        const htmlPixiLayerTouch = id();
 
         const colors = {
             'red': numberHexColor('#ff0000'),
@@ -118,6 +119,28 @@ this.cyberiaonline = {
             container.y = 0;
             container.width = maxRangeMap * pixiAmplitudeFactor;
             container.height = maxRangeMap * pixiAmplitudeFactor;
+            const canvasDim = s('canvas').clientHeight;
+
+            append(pixiContainerId, /*html*/`
+
+                <style>
+                    ${htmlPixiLayerTouch} {
+                        height: ${canvasDim}px;
+                        width: ${canvasDim}px;
+                        transform: translate(-50%, 0%);
+                        top: 0%;
+                        left: 50%;
+                        background: rgb(0,0,0,0);
+                        color: yellow;
+                        ${borderChar(2, 'black')}
+                    }
+                </style>
+
+                <${htmlPixiLayerTouch} class='abs'>
+                    v3.0.0
+                </${htmlPixiLayerTouch}>
+            
+                `)
 
         };
 
@@ -387,12 +410,12 @@ this.cyberiaonline = {
                         background: gray;
                     }
 
-                    ${pixiContainerId} {
-                        padding: 10px;
-                     }
+                    ${pixiContainerId} { }
 
                     canvas {
                         transform: scale(-1, 1) rotate(90deg);
+                        display: block;
+                        margin: auto;
                     }
 
                 </style>
