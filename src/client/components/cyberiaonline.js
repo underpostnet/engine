@@ -11,6 +11,7 @@ this.cyberiaonline = {
         const maxRangeMap = 50;
         const pixiAmplitudeFactor = 10;
         let canvasDim;
+        const timeIntervalGame = 1;
 
 
 
@@ -100,7 +101,7 @@ this.cyberiaonline = {
                 dontCrossCorners: false,
                 heuristic: PF.Heuristic.chebyshev
             });
-            return finder.findPath(element.y, element.x, newX ? newX : x, newY ? newY : y, grid);
+            return finder.findPath(parseInt(element.y), parseInt(element.x), newX ? newX : x, newY ? newY : y, grid);
         };
 
         const validatePathLoop = element => {
@@ -216,7 +217,7 @@ this.cyberiaonline = {
                     this.y = options.y !== undefined ? options.y : random(minRangeMap, maxRangeMap);
                     this.container = options.container;
                     this.type = options.type;
-                    this.vel = 10;
+                    this.vel = 0.2;
                     this.dim = 3;
                     this.color = 'red';
                     this.path = [];
@@ -263,33 +264,33 @@ this.cyberiaonline = {
                             if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
                             this.ArrowLeft = startListenKey({
                                 key: 'ArrowLeft',
-                                vel: this.vel,
+                                vel: timeIntervalGame,
                                 onKey: () => {
-                                    this.y = validatePosition(this, 'y', pos => pos - 1, ['BUILDING']);
+                                    this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowRight) stopListenKey(this.ArrowRight);
                             this.ArrowRight = startListenKey({
                                 key: 'ArrowRight',
-                                vel: this.vel,
+                                vel: timeIntervalGame,
                                 onKey: () => {
-                                    this.y = validatePosition(this, 'y', pos => pos + 1, ['BUILDING']);
+                                    this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowUp) stopListenKey(this.ArrowUp);
                             this.ArrowUp = startListenKey({
                                 key: 'ArrowUp',
-                                vel: this.vel,
+                                vel: timeIntervalGame,
                                 onKey: () => {
-                                    this.x = validatePosition(this, 'x', pos => pos - 1, ['BUILDING']);
+                                    this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowDown) stopListenKey(this.ArrowDown);
                             this.ArrowDown = startListenKey({
                                 key: 'ArrowDown',
-                                vel: this.vel,
+                                vel: timeIntervalGame,
                                 onKey: () => {
-                                    this.x = validatePosition(this, 'x', pos => pos + 1, ['BUILDING']);
+                                    this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
                             this.onCanvasClick = event => {
@@ -414,7 +415,7 @@ this.cyberiaonline = {
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
             renderGame();
-            this.loopGame = setInterval(() => renderGame(), 1);
+            this.loopGame = setInterval(() => renderGame(), timeIntervalGame);
 
         });
 
