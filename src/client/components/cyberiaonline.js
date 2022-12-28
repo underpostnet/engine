@@ -9,7 +9,7 @@ this.cyberiaonline = {
         let elements = [];
         const minRangeMap = 0;
         const maxRangeMap = 32;
-        const pixiAmplitudeFactor = 20;
+        const pixiAmplitudeFactor = window.innerWidth < (maxRangeMap * 20) ? 10 : 20;
         let canvasDim;
         const timeIntervalGame = 1;
 
@@ -157,9 +157,10 @@ this.cyberiaonline = {
             container.y = 0;
             container.width = maxRangeMap * pixiAmplitudeFactor;
             container.height = maxRangeMap * pixiAmplitudeFactor;
-            canvasDim = s('canvas').clientHeight;
+            setTimeout(() => {
+                canvasDim = s('canvas').clientHeight;
 
-            append(pixiContainerId, /*html*/`
+                append(pixiContainerId, /*html*/`
 
                 <style>
                     ${htmlPixiLayerTouch} {
@@ -180,15 +181,18 @@ this.cyberiaonline = {
             
                 `);
 
-            s(htmlPixiLayerTouch).onclick = event =>
-                elements.map(x =>
-                    x.onCanvasClick ? x.onCanvasClick(event)
-                        : null);
+                s(htmlPixiLayerTouch).onclick = event =>
+                    elements.map(x =>
+                        x.onCanvasClick ? x.onCanvasClick(event)
+                            : null);
 
+            }, 100);
         };
 
         const backgroundSprites = {};
         const PIXI_INIT_ELEMENT = element => {
+
+            // /assets/apps/cyberiaonline
 
             backgroundSprites[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
             backgroundSprites[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
