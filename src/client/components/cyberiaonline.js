@@ -105,7 +105,9 @@ this.cyberiaonline = {
         };
 
         const validatePathLoop = element => {
-            if (element.path[0]) {
+            element.delayVelPath = element.delayVelPath + element.vel;
+            if (element.path[0] && element.delayVelPath > 1) {
+                element.delayVelPath = 0;
                 element.x = parseInt(element.path[0][1]);
                 element.y = parseInt(element.path[0][0]);
                 element.path.shift();
@@ -217,6 +219,7 @@ this.cyberiaonline = {
                     this.y = options.y !== undefined ? options.y : random(minRangeMap, maxRangeMap);
                     this.container = options.container;
                     this.type = options.type;
+                    this.delayVelPath = 0;
                     this.vel = 0.2;
                     this.dim = 3;
                     this.color = 'red';
