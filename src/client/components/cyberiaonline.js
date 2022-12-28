@@ -8,7 +8,9 @@ this.cyberiaonline = {
         const containerID = id();
         let elements = [];
         const minRangeMap = 0;
-        const maxRangeMap = 100;
+        const maxRangeMap = 50;
+        const pixiAmplitudeFactor = 10;
+        let canvasDim;
 
 
 
@@ -119,7 +121,6 @@ this.cyberiaonline = {
         // https://www.w3schools.com/colors/colors_picker.asp
 
         const pixiContainerId = id();
-        const pixiAmplitudeFactor = 5.6;
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
         const htmlPixiLayerTouch = id();
@@ -140,7 +141,7 @@ this.cyberiaonline = {
             container.y = 0;
             container.width = maxRangeMap * pixiAmplitudeFactor;
             container.height = maxRangeMap * pixiAmplitudeFactor;
-            const canvasDim = s('canvas').clientHeight;
+            canvasDim = s('canvas').clientHeight;
 
             append(pixiContainerId, /*html*/`
 
@@ -216,7 +217,7 @@ this.cyberiaonline = {
                     this.container = options.container;
                     this.type = options.type;
                     this.vel = 10;
-                    this.dim = 5;
+                    this.dim = 3;
                     this.color = 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -292,8 +293,10 @@ this.cyberiaonline = {
                                 }
                             });
                             this.onCanvasClick = event => {
-                                const offsetX = parseInt(((event.offsetX * 100) / (maxRangeMap * pixiAmplitudeFactor)));
-                                const offsetY = parseInt(((event.offsetY * 100) / (maxRangeMap * pixiAmplitudeFactor)));
+                                // off -> canvasDim
+                                // x -> 50
+                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / canvasDim));
+                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / canvasDim));
                                 console.log('onCanvasClick', offsetX, offsetY);
                                 this.path = generatePath(this, offsetX, offsetY);
                             };
@@ -411,7 +414,7 @@ this.cyberiaonline = {
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
             renderGame();
-            this.loopGame = setInterval(() => renderGame());
+            this.loopGame = setInterval(() => renderGame(), 1);
 
         });
 
