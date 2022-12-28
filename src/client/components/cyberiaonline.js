@@ -8,8 +8,8 @@ this.cyberiaonline = {
         const containerID = id();
         let elements = [];
         const minRangeMap = 0;
-        const maxRangeMap = 50;
-        const pixiAmplitudeFactor = 10;
+        const maxRangeMap = 32;
+        const pixiAmplitudeFactor = 20;
         let canvasDim;
         const timeIntervalGame = 1;
 
@@ -105,12 +105,25 @@ this.cyberiaonline = {
         };
 
         const validatePathLoop = element => {
-            element.delayVelPath = element.delayVelPath + element.vel;
-            if (element.path[0] && element.delayVelPath > 1) {
-                element.delayVelPath = 0;
-                element.x = parseInt(element.path[0][1]);
-                element.y = parseInt(element.path[0][0]);
-                element.path.shift();
+            if (element.path[0]) {
+                element.delayVelPath = element.delayVelPath + element.vel;
+
+                if (element.path[0][1] - element.x > 0)
+                    element.x = element.x + element.vel;
+                if (element.path[0][1] - element.x < 0)
+                    element.x = element.x - element.vel;
+
+                if (element.path[0][0] - element.y > 0)
+                    element.y = element.y + element.vel;
+                if (element.path[0][0] - element.y < 0)
+                    element.y = element.y - element.vel;
+
+                if (element.delayVelPath > 1) {
+                    element.delayVelPath = 0;
+                    element.x = parseInt(element.path[0][1]);
+                    element.y = parseInt(element.path[0][0]);
+                    element.path.shift();
+                }
             }
             return element;
         };
@@ -220,8 +233,8 @@ this.cyberiaonline = {
                     this.container = options.container;
                     this.type = options.type;
                     this.delayVelPath = 0;
-                    this.vel = 0.2;
-                    this.dim = 3;
+                    this.vel = 0.1;
+                    this.dim = 1.5;
                     this.color = 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -269,6 +282,7 @@ this.cyberiaonline = {
                                 key: 'ArrowLeft',
                                 vel: timeIntervalGame,
                                 onKey: () => {
+                                    this.path = [];
                                     this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
@@ -277,6 +291,7 @@ this.cyberiaonline = {
                                 key: 'ArrowRight',
                                 vel: timeIntervalGame,
                                 onKey: () => {
+                                    this.path = [];
                                     this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
@@ -285,6 +300,7 @@ this.cyberiaonline = {
                                 key: 'ArrowUp',
                                 vel: timeIntervalGame,
                                 onKey: () => {
+                                    this.path = [];
                                     this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
@@ -293,6 +309,7 @@ this.cyberiaonline = {
                                 key: 'ArrowDown',
                                 vel: timeIntervalGame,
                                 onKey: () => {
+                                    this.path = [];
                                     this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
