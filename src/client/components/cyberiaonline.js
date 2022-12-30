@@ -10,7 +10,7 @@ this.cyberiaonline = {
         const minRangeMap = 0;
         const maxRangeMap = 32;
         const pixiAmplitudeFactor = window.innerWidth < (maxRangeMap * 20) ? 10 : 20;
-        let canvasDim;
+        this.canvasDim = maxRangeMap * pixiAmplitudeFactor;
         const timeIntervalGame = 1;
 
 
@@ -139,7 +139,7 @@ this.cyberiaonline = {
         const pixiContainerId = id();
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
-        const htmlPixiLayerTouch = id();
+        this.htmlPixiLayer = id();
 
         const colors = {
             'red': numberHexColor('#ff0000'),
@@ -158,35 +158,24 @@ this.cyberiaonline = {
             container.width = maxRangeMap * pixiAmplitudeFactor;
             container.height = maxRangeMap * pixiAmplitudeFactor;
             setTimeout(() => {
-                canvasDim = s('canvas').clientHeight;
 
                 append(pixiContainerId, /*html*/`
+                <style class='${this.htmlPixiLayer}'></style>
 
-                <style>
-                    ${htmlPixiLayerTouch} {
-                        height: ${canvasDim}px;
-                        width: ${canvasDim}px;
-                        transform: translate(-50%, 0%);
-                        top: 0%;
-                        left: 50%;
-                        background: rgb(0,0,0,0);
-                        color: yellow;
-                        ${borderChar(2, 'black')}
-                    }
-                </style>
-
-                <${htmlPixiLayerTouch} class='abs'>
+                <${this.htmlPixiLayer} class='abs'>
                     v3.0.0
-                </${htmlPixiLayerTouch}>
+                </${this.htmlPixiLayer}>
             
                 `);
 
-                s(htmlPixiLayerTouch).onclick = event =>
+                this.renderHtmlPixiLayer();
+
+                s(this.htmlPixiLayer).onclick = event =>
                     elements.map(x =>
                         x.onCanvasClick ? x.onCanvasClick(event)
                             : null);
 
-            }, 100);
+            });
         };
 
         const backgroundSprites = {};
@@ -318,11 +307,11 @@ this.cyberiaonline = {
                                 }
                             });
                             this.onCanvasClick = event => {
-                                // off -> canvasDim
+                                // off -> this.canvasDim
                                 // x -> 50
-                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / canvasDim));
-                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / canvasDim));
-                                console.log('onCanvasClick', offsetX, offsetY);
+                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim));
+                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim));
+                                console.log('onCanvasClick', event, offsetX, offsetY);
                                 this.path = generatePath(this, offsetX, offsetY);
                             };
                             break;
@@ -473,6 +462,25 @@ this.cyberiaonline = {
             </div>
         
         `
+    },
+    renderHtmlPixiLayer: function () {
+        setTimeout(() => {
+            if (!s('.' + this.htmlPixiLayer)) return;
+            htmls('.' + this.htmlPixiLayer, /*css*/`
+                ${this.htmlPixiLayer} {
+                    height: ${this.canvasDim}px;
+                    width: ${this.canvasDim}px;
+                    transform: translate(-50%, 0%);
+                    top: 0%;
+                    left: 50%;
+                    background: rgb(0,0,0,0);
+                    color: yellow;
+                    ${borderChar(2, 'black')}
+                }
+            `);
+        });
+    },
+    routerDisplay: function (options) {
+        this.renderHtmlPixiLayer();
     }
-
 };
