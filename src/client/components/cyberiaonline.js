@@ -180,6 +180,7 @@ this.cyberiaonline = {
 
         const elementsContainer = {};
         const elementsBackground = {};
+        const elementsHead = {};
         const PIXI_INIT_ELEMENT = element => {
 
             // /assets/apps/cyberiaonline
@@ -190,6 +191,7 @@ this.cyberiaonline = {
             elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
             elementsContainer[element.id].width = (element.dim) * pixiAmplitudeFactor;
             elementsContainer[element.id].height = (element.dim) * pixiAmplitudeFactor;
+            elementsContainer[element.id].rotation = -(Math.PI / 2);
             container.addChild(elementsContainer[element.id]); // sprite to containers
 
             elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -199,6 +201,21 @@ this.cyberiaonline = {
             elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
             elementsBackground[element.id].tint = colors[element.color];
             elementsContainer[element.id].addChild(elementsBackground[element.id]);
+
+            switch (element.type) {
+                case 'USER_MAIN':
+                    elementsHead[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    elementsHead[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    elementsHead[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    elementsHead[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    elementsHead[element.id].y = 0;
+                    elementsContainer[element.id].addChild(elementsHead[element.id]);
+
+                    break;
+
+                default:
+                    break;
+            }
 
             // const headCircle = new PIXI.Graphics();
             // headCircle.beginFill(0x3333ff);
@@ -408,7 +425,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(0, 10)
+                range(0, 20)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
@@ -418,8 +435,8 @@ this.cyberiaonline = {
                 [
                     gen().init({
                         container: containerID,
-                        type: 'USER_MAIN',
-                        matrix: { x: 2, y: 2 }
+                        type: 'USER_MAIN'
+                        // matrix: { x: 2, y: 2 }
                     }),
                     // gen().init({
                     //     container: containerID,
