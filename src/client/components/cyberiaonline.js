@@ -178,18 +178,27 @@ this.cyberiaonline = {
             });
         };
 
-        const backgroundSprites = {};
+        const elementsContainer = {};
+        const elementsBackground = {};
         const PIXI_INIT_ELEMENT = element => {
 
             // /assets/apps/cyberiaonline
 
-            backgroundSprites[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-            backgroundSprites[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
-            backgroundSprites[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
-            backgroundSprites[element.id].width = (element.dim) * pixiAmplitudeFactor;
-            backgroundSprites[element.id].height = (element.dim) * pixiAmplitudeFactor;
-            backgroundSprites[element.id].tint = colors[element.color];
-            container.addChild(backgroundSprites[element.id]); // sprite to containers
+            // elementsContainer[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+            elementsContainer[element.id] = new PIXI.Container();
+            elementsContainer[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            elementsContainer[element.id].width = (element.dim) * pixiAmplitudeFactor;
+            elementsContainer[element.id].height = (element.dim) * pixiAmplitudeFactor;
+            container.addChild(elementsContainer[element.id]); // sprite to containers
+
+            elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+            elementsBackground[element.id].x = 0;
+            elementsBackground[element.id].y = 0;
+            elementsBackground[element.id].width = (element.dim) * pixiAmplitudeFactor;
+            elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
+            elementsBackground[element.id].tint = colors[element.color];
+            elementsContainer[element.id].addChild(elementsBackground[element.id]);
 
             // const headCircle = new PIXI.Graphics();
             // headCircle.beginFill(0x3333ff);
@@ -205,13 +214,13 @@ this.cyberiaonline = {
         const PIXI_LOOP_ELEMENT = element => {
 
             if (alertCollision(element)) {
-                backgroundSprites[element.id].tint = colors["magenta"];
-            } else if (backgroundSprites[element.id].tint != colors[element.color]) {
-                backgroundSprites[element.id].tint = colors[element.color];
+                elementsBackground[element.id].tint = colors["magenta"];
+            } else if (elementsBackground[element.id].tint != colors[element.color]) {
+                elementsBackground[element.id].tint = colors[element.color];
             }
 
-            backgroundSprites[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
-            backgroundSprites[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            elementsContainer[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
         };
 
         // ----------------------------------------------------------------
