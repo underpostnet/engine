@@ -91,10 +91,10 @@ this.cyberiaonline = {
                             { x: element.x, y: element.y, dim: element.dim },
                             { x, y, dim: elementClient.dim }
                         )).length > 0
-                        || x == maxRangeMap
-                        || x == minRangeMap
-                        || y == maxRangeMap
-                        || y == minRangeMap ? 1 : 0;
+                        || x === maxRangeMap
+                        || x === minRangeMap
+                        || y === maxRangeMap
+                        || y === minRangeMap ? 1 : 0;
                 });
             });
 
@@ -102,37 +102,37 @@ this.cyberiaonline = {
             switch (type) {
                 case 'random':
 
-                    while (matrix[y][x] == 1) {
+                    while (matrix[y][x] === 1) {
                         x = random(minRangeMap, maxRangeMap);
                         y = random(minRangeMap, maxRangeMap);
                     }
                     break;
                 case 'single':
                     let contTest = 1;
-                    while (matrix[y][x] == 1) {
+                    while (matrix[y][x] === 1) {
                         const validPoints = [];
-                        if (matrix[y + contTest] && matrix[y + contTest][x] == 0) {
+                        if (matrix[y + contTest] && matrix[y + contTest][x] === 0) {
                             validPoints.push([y + contTest, x]);
                         }
-                        if (matrix[y - contTest] && matrix[y - contTest][x] == 0) {
+                        if (matrix[y - contTest] && matrix[y - contTest][x] === 0) {
                             validPoints.push([y - contTest, x]);
                         }
-                        if (matrix[y + contTest] && matrix[y + contTest][x + contTest] == 0) {
+                        if (matrix[y + contTest] && matrix[y + contTest][x + contTest] === 0) {
                             validPoints.push([y + contTest, x + contTest]);
                         }
-                        if (matrix[y + contTest] && matrix[y + contTest][x - contTest] == 0) {
+                        if (matrix[y + contTest] && matrix[y + contTest][x - contTest] === 0) {
                             validPoints.push([y + contTest, x - contTest]);
                         }
-                        if (matrix[y - contTest] && matrix[y - contTest][x + contTest] == 0) {
+                        if (matrix[y - contTest] && matrix[y - contTest][x + contTest] === 0) {
                             validPoints.push([y - contTest, x + contTest]);
                         }
-                        if (matrix[y - contTest] && matrix[y - contTest][x - contTest] == 0) {
+                        if (matrix[y - contTest] && matrix[y - contTest][x - contTest] === 0) {
                             validPoints.push([y - contTest, x - contTest]);
                         }
-                        if (matrix[y] && matrix[y][x + contTest] == 0) {
+                        if (matrix[y] && matrix[y][x + contTest] === 0) {
                             validPoints.push([y, x + contTest]);
                         }
-                        if (matrix[y] && matrix[y][x - contTest] == 0) {
+                        if (matrix[y] && matrix[y][x - contTest] === 0) {
                             validPoints.push([y, x - contTest]);
                         }
                         if (validPoints.length > 0) {
@@ -406,7 +406,7 @@ this.cyberiaonline = {
                                 offsetX = x;
                                 offsetY = y;
                                 console.log('onCanvasClick', event, offsetX, offsetY);
-                                this.path = generatePath(this, offsetX == maxRangeMap ? offsetX - 1 : offsetX, offsetY == maxRangeMap ? offsetY - 1 : offsetY);
+                                this.path = generatePath(this, offsetX === maxRangeMap ? offsetX - 1 : offsetX, offsetY === maxRangeMap ? offsetY - 1 : offsetY);
                             };
                             break;
 
@@ -418,7 +418,7 @@ this.cyberiaonline = {
                             .map(x =>
                                 range(0, options.matrix.y - 1)
                                     .map(y => {
-                                        if (!(x == 0 && y == 0)) {
+                                        if (!(x === 0 && y === 0)) {
                                             const replicaOtions = newInstance(options);
                                             delete replicaOtions.matrix;
                                             elements.push(
