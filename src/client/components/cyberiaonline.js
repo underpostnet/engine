@@ -38,8 +38,8 @@ this.cyberiaonline = {
                 }
             }
 
-            if (elementClient[attr] < minRangeMap) return originElementClient[attr];
-            if (elementClient[attr] > maxRangeMap) return originElementClient[attr];
+            if (elementClient[attr] < (minRangeMap + ((elementClient.dim) / 2))) return originElementClient[attr];
+            if (elementClient[attr] > (maxRangeMap - ((elementClient.dim) / 2))) return originElementClient[attr];
 
             return elementClient[attr];
         };
@@ -69,22 +69,26 @@ this.cyberiaonline = {
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
-            const matrix = range(minRangeMap, maxRangeMap).map(x => {
-                return range(minRangeMap, maxRangeMap).map(y => {
+            const matrix = range(minRangeMap, maxRangeMap).map(y => {
+                return range(minRangeMap, maxRangeMap).map(x => {
                     return elements.filter(element =>
                         elementsCollisions.includes(element.type)
                         &&
                         validateCollision(
                             { x: element.x, y: element.y, dim: element.dim },
                             { x, y, dim: elementClient.dim }
-                        )).length > 0 ? 1 : 0;
+                        )).length > 0
+                        || x == maxRangeMap
+                        || x == minRangeMap
+                        || y == maxRangeMap
+                        || y == minRangeMap ? 1 : 0;
                 });
             });
 
             let x = random(minRangeMap, maxRangeMap);
             let y = random(minRangeMap, maxRangeMap);
 
-            while (matrix[x][y] == 1) {
+            while (matrix[y][x] == 1) {
                 x = random(minRangeMap, maxRangeMap);
                 y = random(minRangeMap, maxRangeMap);
             }
@@ -101,27 +105,27 @@ this.cyberiaonline = {
                 dontCrossCorners: false,
                 heuristic: PF.Heuristic.chebyshev
             });
-            return finder.findPath(parseInt(element.y), parseInt(element.x), newX ? newX : x, newY ? newY : y, grid);
+            return finder.findPath(parseInt(element.x), parseInt(element.y), newX ? newX : x, newY ? newY : y, grid);
         };
 
         const validatePathLoop = element => {
             if (element.path[0]) {
                 element.delayVelPath = element.delayVelPath + element.vel;
 
-                if (element.path[0][1] - element.x > 0)
+                if (element.path[0][0] - element.x > 0)
                     element.x = element.x + element.vel;
-                if (element.path[0][1] - element.x < 0)
+                if (element.path[0][0] - element.x < 0)
                     element.x = element.x - element.vel;
 
-                if (element.path[0][0] - element.y > 0)
+                if (element.path[0][1] - element.y > 0)
                     element.y = element.y + element.vel;
-                if (element.path[0][0] - element.y < 0)
+                if (element.path[0][1] - element.y < 0)
                     element.y = element.y - element.vel;
 
                 if (element.delayVelPath > 1) {
                     element.delayVelPath = 0;
-                    element.x = parseInt(element.path[0][1]);
-                    element.y = parseInt(element.path[0][0]);
+                    element.x = parseInt(element.path[0][0]);
+                    element.y = parseInt(element.path[0][1]);
                     element.path.shift();
                 }
             }
@@ -191,7 +195,7 @@ this.cyberiaonline = {
             elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
             elementsContainer[element.id].width = (element.dim) * pixiAmplitudeFactor;
             elementsContainer[element.id].height = (element.dim) * pixiAmplitudeFactor;
-            elementsContainer[element.id].rotation = -(Math.PI / 2);
+            // elementsContainer[element.id].rotation = -(Math.PI / 2);
             container.addChild(elementsContainer[element.id]); // sprite to containers
 
             elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -302,7 +306,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
-                                    this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
+                                    this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowRight) stopListenKey(this.ArrowRight);
@@ -311,7 +315,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
-                                    this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
+                                    this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowUp) stopListenKey(this.ArrowUp);
@@ -320,7 +324,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
-                                    this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
+                                    this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
                             if (this.ArrowDown) stopListenKey(this.ArrowDown);
@@ -329,16 +333,16 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
-                                    this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
+                                    this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
                             this.onCanvasClick = event => {
                                 // off -> this.canvasDim
                                 // x -> 50
-                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim));
-                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim));
+                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
                                 console.log('onCanvasClick', event, offsetX, offsetY);
-                                this.path = generatePath(this, offsetX, offsetY);
+                                this.path = generatePath(this, offsetX == maxRangeMap ? offsetX - 1 : offsetX, offsetY == maxRangeMap ? offsetY - 1 : offsetY);
                             };
                             break;
 
@@ -346,9 +350,9 @@ this.cyberiaonline = {
                             break;
                     }
                     if (options.matrix)
-                        range(0, options.matrix.y - 1)
+                        range(0, options.matrix.x - 1)
                             .map(x =>
-                                range(0, options.matrix.x - 1)
+                                range(0, options.matrix.y - 1)
                                     .map(y => {
                                         if (!(x == 0 && y == 0)) {
                                             const replicaOtions = newInstance(options);
@@ -425,7 +429,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(0, 20)
+                range(1, 5)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
@@ -475,7 +479,7 @@ this.cyberiaonline = {
                     ${pixiContainerId} { }
 
                     canvas {
-                        transform: scale(-1, 1) rotate(90deg);
+                       /* transform: scale(-1, 1) rotate(90deg); */
                         display: block;
                         margin: auto;
                     }
