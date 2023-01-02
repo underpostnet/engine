@@ -21,8 +21,18 @@ this.cyberiaonline = {
 
         const validatePosition = (elementClient, attr, fn, elementsCollisions) => {
 
-            const originElementClient = newInstance(elementClient);
+            let originElementClient = newInstance(elementClient);
             elementClient[attr] = fn(elementClient[attr]);
+
+            if (elementClient[attr] === minRangeMap)
+                elementClient[attr]++;
+            if (elementClient[attr] === maxRangeMap)
+                elementClient[attr]--;
+
+            if (originElementClient[attr] === minRangeMap)
+                originElementClient[attr]++;
+            if (originElementClient[attr] === maxRangeMap)
+                originElementClient[attr]--;
 
             if (elementsCollisions) {
                 for (element of elements) {
@@ -72,7 +82,7 @@ this.cyberiaonline = {
             let x, y, type;
 
             if (elementsCollisions.x && elementsCollisions.y) {
-                type = 'single';
+                type = 'snail';
                 x = parseInt(`${elementsCollisions.x}`);
                 y = parseInt(`${elementsCollisions.y}`);
                 elementsCollisions = [].concat(elementsCollisions.elementsCollisions);
@@ -107,7 +117,50 @@ this.cyberiaonline = {
                         y = random(minRangeMap, maxRangeMap);
                     }
                     break;
-                case 'single':
+                case 'snail':
+                    const matrixAux = newInstance(matrix);
+                    let sum = true;
+                    let xTarget = true;
+                    let contBreak = 0;
+                    let valueChange = 1;
+                    let currentChange = 0;
+                    let listFindPoint = [];
+                    while (matrixAux[y][x] !== 0) {
+                        currentChange++;
+                        if (sum) {
+                            console.log('snail', `${xTarget ? 'x' : 'y'}`, `+`, `${currentChange}/${valueChange}`);
+                            if (xTarget) x = x + 1;
+                            else y = y + 1;
+                        } else {
+                            console.log('snail', `${xTarget ? 'x' : 'y'}`, `-`, `${currentChange}/${valueChange}`);
+                            if (xTarget) x = x - 1;
+                            else y = y - 1;
+                        }
+                        if (currentChange === valueChange) {
+                            currentChange = 0;
+                            if (xTarget) xTarget = false;
+                            else xTarget = true;
+                            contBreak++;
+                            if (contBreak === 2) {
+                                contBreak = 0;
+                                valueChange++;
+                                if (sum) sum = false;
+                                else sum = true;
+                            }
+                        }
+                        if (!matrixAux[y]) {
+                            matrixAux[y] = [];
+                        }
+                        if (matrixAux[y][x] === 0
+                            &&
+                            generatePath(elementClient, x === maxRangeMap ? x - 1 : x, y === maxRangeMap ? y - 1 : y).length === 0) {
+                            matrixAux[y][x] = 1;
+                        }
+                        listFindPoint.push({ x, y });
+                        // console.log('listFindPoint', listFindPoint, matrixAux[y][x]);
+                    }
+                    break
+                case '*':
                     let contTest = 1;
                     while (matrix[y][x] === 1) {
                         const validPoints = [];
@@ -336,6 +389,9 @@ this.cyberiaonline = {
                             }
                             this.color = 'green';
                             break;
+                        case 'BOT_BUG':
+                            this.x = maxRangeMap;
+                            this.y = minRangeMap;
                         default:
                             break;
                     }
