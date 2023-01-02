@@ -69,6 +69,19 @@ this.cyberiaonline = {
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
+            let x, y, type;
+
+            if (elementsCollisions.x && elementsCollisions.y) {
+                type = 'single';
+                x = parseInt(`${elementsCollisions.x}`);
+                y = parseInt(`${elementsCollisions.y}`);
+                elementsCollisions = [].concat(elementsCollisions.elementsCollisions);
+            } else {
+                type = 'random';
+                x = random(minRangeMap, maxRangeMap);
+                y = random(minRangeMap, maxRangeMap);
+            }
+
             const matrix = range(minRangeMap, maxRangeMap).map(y => {
                 return range(minRangeMap, maxRangeMap).map(x => {
                     return elements.filter(element =>
@@ -85,14 +98,55 @@ this.cyberiaonline = {
                 });
             });
 
-            let x = random(minRangeMap, maxRangeMap);
-            let y = random(minRangeMap, maxRangeMap);
 
-            while (matrix[y][x] == 1) {
-                x = random(minRangeMap, maxRangeMap);
-                y = random(minRangeMap, maxRangeMap);
+            switch (type) {
+                case 'random':
+
+                    while (matrix[y][x] == 1) {
+                        x = random(minRangeMap, maxRangeMap);
+                        y = random(minRangeMap, maxRangeMap);
+                    }
+                    break;
+                case 'single':
+                    let contTest = 1;
+                    while (matrix[y][x] == 1) {
+                        const validPoints = [];
+                        if (matrix[y + contTest] && matrix[y + contTest][x] == 0) {
+                            validPoints.push([y + contTest, x]);
+                        }
+                        if (matrix[y - contTest] && matrix[y - contTest][x] == 0) {
+                            validPoints.push([y - contTest, x]);
+                        }
+                        if (matrix[y + contTest] && matrix[y + contTest][x + contTest] == 0) {
+                            validPoints.push([y + contTest, x + contTest]);
+                        }
+                        if (matrix[y + contTest] && matrix[y + contTest][x - contTest] == 0) {
+                            validPoints.push([y + contTest, x - contTest]);
+                        }
+                        if (matrix[y - contTest] && matrix[y - contTest][x + contTest] == 0) {
+                            validPoints.push([y - contTest, x + contTest]);
+                        }
+                        if (matrix[y - contTest] && matrix[y - contTest][x - contTest] == 0) {
+                            validPoints.push([y - contTest, x - contTest]);
+                        }
+                        if (matrix[y] && matrix[y][x + contTest] == 0) {
+                            validPoints.push([y, x + contTest]);
+                        }
+                        if (matrix[y] && matrix[y][x - contTest] == 0) {
+                            validPoints.push([y, x - contTest]);
+                        }
+                        if (validPoints.length > 0) {
+                            const newPoint = validPoints[random(0, validPoints.length - 1)];
+                            x = newPoint[1];
+                            y = newPoint[0];
+                        }
+                        contTest++;
+                    }
+                    break;
+
+                default:
+                    break;
             }
-
             return { x, y, matrix };
         };
 
@@ -339,8 +393,18 @@ this.cyberiaonline = {
                             this.onCanvasClick = event => {
                                 // off -> this.canvasDim
                                 // x -> 50
-                                const offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
-                                const offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+                                let offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+                                let offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+
+                                const { x, y, matrix } = getAvailablePosition(this,
+                                    {
+                                        x: offsetX,
+                                        y: offsetY,
+                                        elementsCollisions: ['BUILDING']
+                                    }
+                                );
+                                offsetX = x;
+                                offsetY = y;
                                 console.log('onCanvasClick', event, offsetX, offsetY);
                                 this.path = generatePath(this, offsetX == maxRangeMap ? offsetX - 1 : offsetX, offsetY == maxRangeMap ? offsetY - 1 : offsetY);
                             };
@@ -476,7 +540,9 @@ this.cyberiaonline = {
                         background: gray;
                     }
 
-                    ${pixiContainerId} { }
+                    ${pixiContainerId} { 
+                        cursor: pointer;
+                    }
 
                     canvas {
                        /* transform: scale(-1, 1) rotate(90deg); */
