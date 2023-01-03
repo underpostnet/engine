@@ -30,7 +30,22 @@ const viewMetaData = {
         `./underpost_modules/underpost-library/engine/spinner-ellipsis.css`
     ],
     statics: [
-        ['/assets/apps/cyberiaonline', `./private-engine/express-ywork/cyberia/assets/app`]
+        ['/assets/apps/cyberiaonline', `./private-engine/express-ywork/cyberia/assets/app`],
+        ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
+    ],
+    cursors: [
+        {
+            src: '/cursors-underpost/black-default.png',
+            x: -30,
+            y: -30,
+            activesClass: []
+        },
+        {
+            src: '/cursors-underpost/black-pointer.png',
+            x: -30,
+            y: -30,
+            activesClass: ['.canvas-cursor']
+        }
     ]
 };
 

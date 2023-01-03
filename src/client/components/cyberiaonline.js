@@ -540,6 +540,8 @@ this.cyberiaonline = {
 
             PIXI_INIT();
 
+            disableOptionsClick(pixiContainerId, ['drag', 'menu', 'select']);
+
             elements = elements.concat(
                 range(0, 10)
                     .map(() => gen().init({
@@ -610,7 +612,7 @@ this.cyberiaonline = {
                 <!--
                 <${containerID} class='in'></${containerID}>
                 -->
-                <${pixiContainerId} class='in'></${pixiContainerId}>
+                <${pixiContainerId} class='in canvas-cursor'></${pixiContainerId}>
             </div>
         
         `

@@ -221,3 +221,14 @@ const preHTML = raw => raw
     .replaceAll('&', '&amp')
     .replaceAll('<', '&lt')
     .replaceAll('>', '&gt');
+
+
+
+const disableOptionsClick = (element, types) => {
+    if (types.includes('menu'))
+        s(element).oncontextmenu = function () { return false; }
+    if (types.includes('drag'))
+        s(element).ondragstart = function () { return false; }
+    if (types.includes('select'))
+        s(element).onselectstart = function () { return false; }
+};
