@@ -79,7 +79,7 @@ const swaggerMod = (app) => {
         "info": {
             "title": "underpost.net engine",
             "description": "underpost.net api docs",
-            "version": "1.0.3"
+            "version": "1.0.4"
         },
         "produces": ["application/json"],
         paths
