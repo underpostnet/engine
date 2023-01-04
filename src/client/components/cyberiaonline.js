@@ -208,8 +208,8 @@ this.cyberiaonline = {
 
             const grid = new PF.Grid(matrix.length, matrix.length, matrix);
             const finder = new PF.AStarFinder({
-                allowDiagonal: false,
-                dontCrossCorners: false,
+                allowDiagonal: true, // enable diagonal
+                dontCrossCorners: false, // corner of a solid
                 heuristic: PF.Heuristic.chebyshev
             });
             return finder.findPath(parseInt(element.x), parseInt(element.y), newX ? newX : x, newY ? newY : y, grid);
@@ -364,17 +364,22 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = 0.1;
-                    this.dim = 1.5;
+                    this.dim = 1.5 // 3; // 1.5
                     this.color = 'red';
                     this.path = [];
                     this.borderRadius = 100;
                     switch (this.type) {
                         case 'BUILDING':
-                            this.color = 'black';
                             this.borderRadius = 0;
+                            if (!(options.x !== undefined && options.y !== undefined)) {
+                                const BUILDING_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
+                                this.x = BUILDING_getAvailablePosition.x;
+                                this.y = BUILDING_getAvailablePosition.y;
+                            }
+                            this.color = 'black';
                             break;
                         case 'USER_MAIN':
-                            if (!(options.x && options.y)) {
+                            if (!(options.x !== undefined && options.y !== undefined)) {
                                 const USER_MAIN_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
                                 this.x = USER_MAIN_getAvailablePosition.x;
                                 this.y = USER_MAIN_getAvailablePosition.y;
@@ -382,7 +387,7 @@ this.cyberiaonline = {
                             this.color = 'yellow';
                             break;
                         case 'BOT':
-                            if (!(options.x && options.y)) {
+                            if (!(options.x !== undefined && options.y !== undefined)) {
                                 const BOT_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
                                 this.x = BOT_getAvailablePosition.x;
                                 this.y = BOT_getAvailablePosition.y;
@@ -463,6 +468,10 @@ this.cyberiaonline = {
                                 offsetY = y;
                                 console.log('onCanvasClick', event, offsetX, offsetY);
                                 this.path = generatePath(this, offsetX === maxRangeMap ? offsetX - 1 : offsetX, offsetY === maxRangeMap ? offsetY - 1 : offsetY);
+                                if (this.path.length === 0) {
+                                    // search solid snail -> auto generate click mov
+                                    // snail inverse -> pathfinding with snail normal
+                                }
                             };
                             break;
 
@@ -512,10 +521,11 @@ this.cyberiaonline = {
 
                             break;
                         case 'BOT_BUG':
+                            const velBotBug = 1;
                             this.x = validatePosition(this, 'x',
-                                pos => random(0, 1) === 0 ? pos + 0.2 : pos - 0.2);
+                                pos => random(0, 1) === 0 ? pos + velBotBug : pos - velBotBug);
                             this.y = validatePosition(this, 'y',
-                                pos => random(0, 1) === 0 ? pos + 0.2 : pos - 0.2);
+                                pos => random(0, 1) === 0 ? pos + velBotBug : pos - velBotBug);
 
                             break;
                         default:
@@ -561,7 +571,16 @@ this.cyberiaonline = {
                 [
                     gen().init({
                         container: containerID,
-                        type: 'USER_MAIN'
+                        type: 'BUILDING',
+                        matrix: { x: 2, y: 2 },
+                        x: 0,
+                        y: 0
+                    }),
+                    gen().init({
+                        container: containerID,
+                        type: 'USER_MAIN',
+                        x: 2,
+                        y: 2
                         // matrix: { x: 2, y: 2 }
                     }),
                     // gen().init({
