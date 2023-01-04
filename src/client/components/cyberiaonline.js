@@ -219,20 +219,28 @@ this.cyberiaonline = {
             if (element.path[0]) {
                 element.delayVelPath = element.delayVelPath + element.vel;
 
-                if (element.path[0][0] - element.x > 0)
+                if (element.path[0][0] - element.x > 0) {
                     element.x = element.x + element.vel;
-                if (element.path[0][0] - element.x < 0)
+                    if (element.x > element.path[0][0]) element.x = element.path[0][0];
+                }
+                if (element.path[0][0] - element.x < 0) {
                     element.x = element.x - element.vel;
+                    if (element.x < element.path[0][0]) element.x = element.path[0][0];
+                }
 
-                if (element.path[0][1] - element.y > 0)
+                if (element.path[0][1] - element.y > 0) {
                     element.y = element.y + element.vel;
-                if (element.path[0][1] - element.y < 0)
+                    if (element.y > element.path[0][1]) element.y = element.path[0][1];
+                }
+                if (element.path[0][1] - element.y < 0) {
                     element.y = element.y - element.vel;
+                    if (element.y < element.path[0][1]) element.y = element.path[0][1];
+                }
 
                 if (element.delayVelPath > 1) {
                     element.delayVelPath = 0;
-                    element.x = parseInt(element.path[0][0]);
-                    element.y = parseInt(element.path[0][1]);
+                    // element.x = parseInt(element.path[0][0]);
+                    // element.y = parseInt(element.path[0][1]);
                     element.path.shift();
                 }
             }
@@ -346,9 +354,28 @@ this.cyberiaonline = {
             } else if (elementsBackground[element.id].tint != colors[element.color]) {
                 elementsBackground[element.id].tint = colors[element.color];
             }
+            const renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            const renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
 
-            elementsContainer[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
-            elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            if (
+                element.type === 'USER_MAIN'
+                &&
+                (element.lastX !== parseInt(renderX) || element.lastY !== parseInt(renderY))
+            ) {
+                if (element.lastX !== undefined && element.lastY !== undefined) {
+                    const x1 = parseInt(`${element.lastX}`);
+                    const y1 = parseInt(`${element.lastY}`);
+                    const x2 = parseInt(renderX);
+                    const y2 = parseInt(renderY);
+                    console.log('getDirection', element.type, getDirection(x1, y1, x2, y2));
+
+                }
+                element.lastX = parseInt(`${renderX}`);
+                element.lastY = parseInt(`${renderY}`);
+            }
+
+            elementsContainer[element.id].x = renderX;
+            elementsContainer[element.id].y = renderY;
         };
 
         // ----------------------------------------------------------------
@@ -364,7 +391,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = 0.1;
-                    this.dim = 1.5 // 3; // 1.5
+                    this.dim = 1.5; // 3; // 1.5
                     this.color = 'red';
                     this.path = [];
                     this.borderRadius = 100;

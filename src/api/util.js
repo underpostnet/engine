@@ -185,6 +185,20 @@ const orderAbc = (arr, attr) => arr.sort((a, b) => {
     return 0;
 });
 
+const getDirection = (x1, y1, x2, y2) => {
+    const deltaX = x2 - x1;
+    const deltaY = y2 - y1;
+    //Check for all the 8 directions that a point can move
+    if (deltaX > 0 && deltaY > 0) return 'South East'
+    if (deltaX > 0 && deltaY === 0) return 'East'
+    if (deltaX > 0 && deltaY < 0) return 'North East'
+    if (deltaX === 0 && deltaY > 0) return 'South'
+    if (deltaX === 0 && deltaY < 0) return 'North'
+    if (deltaX < 0 && deltaY > 0) return 'South West'
+    if (deltaX < 0 && deltaY === 0) return 'West'
+    if (deltaX < 0 && deltaY < 0) return 'North West'
+};
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -211,6 +225,7 @@ const commonFunctions = () => `
     const logDataManage = ${logDataManage};
     const capFirst = ${capFirst};
     const orderAbc = ${orderAbc};
+    const getDirection = ${getDirection};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -310,5 +325,6 @@ export {
     validateGenerateBuild,
     reOrderIntArray,
     capFirst,
-    orderAbc
+    orderAbc,
+    getDirection
 };
