@@ -31,6 +31,7 @@ const viewMetaData = {
     ],
     statics: [
         ['/assets/apps/cyberiaonline', `./private-engine/express-ywork/cyberia/assets/app`],
+        ['/assets/apps/cyberiaonline/clases', `./private-engine/express-ywork/cyberia/assets/clases`],
         ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
     ],
     cursors: [

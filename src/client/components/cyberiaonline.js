@@ -24,6 +24,7 @@ this.cyberiaonline = {
             let originElementClient = newInstance(elementClient);
             elementClient[attr] = fn(elementClient[attr]);
 
+            // for big dim elements 
             if (elementClient[attr] === minRangeMap)
                 elementClient[attr]++;
             if (elementClient[attr] === maxRangeMap)
@@ -265,10 +266,16 @@ this.cyberiaonline = {
             'green': numberHexColor('#33cc33'),
             'yellow': numberHexColor('#ffff00'),
             'black': numberHexColor('#000000'),
-            'magenta': numberHexColor('#ff33cc')
+            'magenta': numberHexColor('#ff33cc'),
+            'blue': numberHexColor('#1a1aff')
         };
 
         const PIXI_INIT = () => {
+
+
+            // https://pixijs.download/dev/docs/PIXI.AnimatedSprite.html
+            // /assets/apps/cyberiaonline/clases
+
 
             s(pixiContainerId).appendChild(app.view);
             app.stage.addChild(container); // container to pixi app
@@ -300,6 +307,8 @@ this.cyberiaonline = {
         const elementsContainer = {};
         const elementsBackground = {};
         const elementsHead = {};
+        const elementsEyesLeft = {};
+        const elementsEyesRight = {};
         const PIXI_INIT_ELEMENT = element => {
 
             // /assets/apps/cyberiaonline
@@ -329,6 +338,24 @@ this.cyberiaonline = {
                     elementsHead[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
                     elementsHead[element.id].y = 0;
                     elementsContainer[element.id].addChild(elementsHead[element.id]);
+
+                    elementsEyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    elementsEyesLeft[element.id].tint = colors['blue'];
+                    elementsEyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    elementsEyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    elementsEyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    elementsEyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(elementsEyesLeft[element.id]);
+
+                    elementsEyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    elementsEyesRight[element.id].tint = colors['blue'];
+                    elementsEyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    elementsEyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    elementsEyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    elementsEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(elementsEyesRight[element.id]);
+
+                    elementsBackground[element.id].visible = false;
 
                     break;
 
@@ -367,7 +394,33 @@ this.cyberiaonline = {
                     const y1 = parseInt(`${element.lastY}`);
                     const x2 = parseInt(renderX);
                     const y2 = parseInt(renderY);
-                    console.log('getDirection', element.type, getDirection(x1, y1, x2, y2));
+
+                    const direction = getDirection(x1, y1, x2, y2);
+                    console.log('getDirection', element.type, direction);
+
+                    if (direction === 'East'
+                        || direction === 'South East'
+                        || direction === 'North East') {
+                        elementsEyesLeft[element.id].visible = false;
+                        elementsEyesRight[element.id].visible = true;
+                    }
+
+                    if (direction === 'West'
+                        || direction === 'South West'
+                        || direction === 'North West') {
+                        elementsEyesRight[element.id].visible = false;
+                        elementsEyesLeft[element.id].visible = true;
+                    }
+
+                    if (direction === 'North') {
+                        elementsEyesRight[element.id].visible = false;
+                        elementsEyesLeft[element.id].visible = false;
+                    }
+
+                    if (direction === 'South') {
+                        elementsEyesRight[element.id].visible = true;
+                        elementsEyesLeft[element.id].visible = true;
+                    }
 
                 }
                 element.lastX = parseInt(`${renderX}`);
@@ -391,7 +444,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = 0.1;
-                    this.dim = 1.5; // 3; // 1.5
+                    this.dim = 2; // 3; // 1.5
                     this.color = 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -606,8 +659,8 @@ this.cyberiaonline = {
                     gen().init({
                         container: containerID,
                         type: 'USER_MAIN',
-                        x: 2,
-                        y: 2
+                        // x: 2,
+                        // y: 2
                         // matrix: { x: 2, y: 2 }
                     }),
                     // gen().init({
