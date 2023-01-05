@@ -22,6 +22,7 @@ import { renderSitemap, buildLocSitemap } from './sitemap.js';
 import { copyDir, deleteFolderRecursive } from './files.js';
 import { dataStatics, renderStatics } from './statics.js';
 import { renderRobots } from './robots.js';
+import { colors } from './colors.js';
 
 dotenv.config();
 
@@ -108,7 +109,9 @@ const renderMicrodata = (viewMetaData, view, typeMicrodata) => {
             break;
     }
     return render;
-}
+};
+
+const JSONweb = data => "JSON.parse(`" + JSON.stringify(data) + "`)";
 
 const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
     <top-${path.component}></top-${path.component}>
@@ -163,6 +166,7 @@ const renderView = dataView => {
         let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
         let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
+        let colors = ${JSONweb(colors)};
         const rrb = ${rrb};
         ${viewMetaData.clientID == 'dev' ? `
             const APPS = JSON.parse('${JSON.stringify(APPS)}');

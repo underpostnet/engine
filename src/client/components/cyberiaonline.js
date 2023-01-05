@@ -261,14 +261,13 @@ this.cyberiaonline = {
         const container = new PIXI.Container(); // create container
         this.htmlPixiLayer = id();
 
-        const colors = {
-            'red': numberHexColor('#ff0000'),
-            'green': numberHexColor('#33cc33'),
-            'yellow': numberHexColor('#ffff00'),
-            'black': numberHexColor('#000000'),
-            'magenta': numberHexColor('#ff33cc'),
-            'blue': numberHexColor('#1a1aff')
-        };
+        const iterateColors = newInstance(colors);
+        colors = {};
+        iterateColors.map(dataColor => {
+            colors[dataColor.name.toLowerCase()] = numberHexColor(dataColor.hex);
+        });
+
+        console.log('COLORS', colors);
 
         const PIXI_INIT = () => {
 
@@ -355,7 +354,7 @@ this.cyberiaonline = {
                     elementsEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(elementsEyesRight[element.id]);
 
-                    elementsBackground[element.id].visible = false;
+                    // elementsBackground[element.id].visible = false;
 
                     break;
 
@@ -472,7 +471,7 @@ this.cyberiaonline = {
                                 this.x = BOT_getAvailablePosition.x;
                                 this.y = BOT_getAvailablePosition.y;
                             }
-                            this.color = 'green';
+                            this.color = 'electric green';
                             break;
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
