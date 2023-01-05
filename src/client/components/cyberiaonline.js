@@ -308,6 +308,20 @@ this.cyberiaonline = {
         let elementsHead = {};
         let elementsEyesLeft = {};
         let elementsEyesRight = {};
+
+        const removeElement = id => {
+            elementsContainer[id].destroy({ children: true });
+            delete elementsContainer[id];
+            delete elementsBackground[id];
+            delete elementsHead[id];
+            delete elementsEyesLeft[id];
+            delete elementsEyesRight[id];
+            elements = elements.filter(x => x.id != id);
+        };
+
+        const removeAllElements = () =>
+            Object.keys(elementsContainer).map(key => removeElement(key));
+
         const PIXI_INIT_ELEMENT = element => {
 
             // /assets/apps/cyberiaonline
@@ -438,7 +452,7 @@ this.cyberiaonline = {
         const gen = () => {
             return {
                 init: function (options) {
-                    this.id = id();
+                    this.id = options.id ? options.id : id();
                     this.x = options.x !== undefined ? options.x : random(minRangeMap, maxRangeMap);
                     this.y = options.y !== undefined ? options.y : random(minRangeMap, maxRangeMap);
                     this.container = options.container;
@@ -478,6 +492,10 @@ this.cyberiaonline = {
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
                             this.y = minRangeMap;
+                        case 'BULLET':
+
+
+                            break;
                         default:
                             break;
                     }
@@ -629,18 +647,7 @@ this.cyberiaonline = {
 
         const INSTANCE_GENERATOR = () => {
 
-            Object.keys(elementsContainer).map(key => {
-                elementsContainer[key].destroy({ children: true });
-            });
-
-            elements = [];
-
-
-            elementsContainer = {};
-            elementsBackground = {};
-            elementsHead = {};
-            elementsEyesLeft = {};
-            elementsEyesRight = {};
+            removeAllElements();
 
             elements = elements.concat(
                 range(0, 10)
