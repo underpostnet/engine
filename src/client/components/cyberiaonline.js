@@ -262,10 +262,10 @@ this.cyberiaonline = {
         const container = new PIXI.Container(); // create container
         this.htmlPixiLayer = id();
 
-        const iterateColors = newInstance(colors);
-        colors = {};
-        iterateColors.map(dataColor => {
-            colors[dataColor.name.toLowerCase()] = numberHexColor(dataColor.hex);
+        const iteratePixiColors = newInstance(colors);
+        const pixiColors = {};
+        iteratePixiColors.map(dataColor => {
+            pixiColors[dataColor.name.toLowerCase()] = numberHexColor(dataColor.hex);
         });
 
         console.log('COLORS', colors);
@@ -319,6 +319,8 @@ this.cyberiaonline = {
             elementsContainer[element.id].width = (element.dim) * pixiAmplitudeFactor;
             elementsContainer[element.id].height = (element.dim) * pixiAmplitudeFactor;
             // elementsContainer[element.id].rotation = -(Math.PI / 2);
+            // elementsContainer[element.id].pivot.x = elementsContainer[element.id].width / 2;
+            // elementsContainer[element.id].pivot.y = elementsContainer[element.id].width / 2;
             container.addChild(elementsContainer[element.id]); // sprite to containers
 
             elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
@@ -326,7 +328,7 @@ this.cyberiaonline = {
             elementsBackground[element.id].y = 0;
             elementsBackground[element.id].width = (element.dim) * pixiAmplitudeFactor;
             elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
-            elementsBackground[element.id].tint = colors[element.color];
+            elementsBackground[element.id].tint = pixiColors[element.color];
             elementsContainer[element.id].addChild(elementsBackground[element.id]);
 
             switch (element.type) {
@@ -339,7 +341,7 @@ this.cyberiaonline = {
                     elementsContainer[element.id].addChild(elementsHead[element.id]);
 
                     elementsEyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    elementsEyesLeft[element.id].tint = colors['blue'];
+                    elementsEyesLeft[element.id].tint = pixiColors['blue'];
                     elementsEyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
                     elementsEyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
                     elementsEyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
@@ -347,7 +349,7 @@ this.cyberiaonline = {
                     elementsContainer[element.id].addChild(elementsEyesLeft[element.id]);
 
                     elementsEyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    elementsEyesRight[element.id].tint = colors['blue'];
+                    elementsEyesRight[element.id].tint = pixiColors['blue'];
                     elementsEyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
                     elementsEyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
                     elementsEyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
@@ -376,9 +378,9 @@ this.cyberiaonline = {
         const PIXI_LOOP_ELEMENT = element => {
 
             if (alertCollision(element)) {
-                elementsBackground[element.id].tint = colors["magenta"];
-            } else if (elementsBackground[element.id].tint != colors[element.color]) {
-                elementsBackground[element.id].tint = colors[element.color];
+                elementsBackground[element.id].tint = pixiColors["magenta"];
+            } else if (elementsBackground[element.id].tint != pixiColors[element.color]) {
+                elementsBackground[element.id].tint = pixiColors[element.color];
             }
             const renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             const renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
@@ -444,7 +446,7 @@ this.cyberiaonline = {
                     this.delayVelPath = 0;
                     this.vel = 0.1;
                     this.dim = 2; // 3; // 1.5
-                    this.color = 'red';
+                    this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
                     switch (this.type) {
@@ -679,6 +681,10 @@ this.cyberiaonline = {
                     gen().init({
                         container: containerID,
                         type: 'BOT_BUG'
+                    }),
+                    gen().init({
+                        container: containerID,
+                        color: 'safety orange'
                     }),
                 ]
             );

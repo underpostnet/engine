@@ -113,6 +113,18 @@ const viewPaths = [
         nohome: false,
         render: true,
         display: true
+    },
+    {
+        path: baseHome + '/colors',
+        homePaths: [baseHome],
+        title: { en: 'colors', es: 'colors' },
+        component: 'colors',
+        options: false,
+        menu: true,
+        home: false,
+        nohome: false,
+        render: true,
+        display: true
     }
 ];
 
