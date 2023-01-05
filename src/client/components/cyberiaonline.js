@@ -4,9 +4,16 @@ this.cyberiaonline = {
 
     init: function () {
 
-        const id = () => 'x' + s4();
-        const containerID = id();
+
         let elements = [];
+        const id = () => {
+            let _id = 'x' + s4() + s4();
+            while (elements.filter(x => x.id === _id).length > 0) {
+                _id = 'x' + s4() + s4();
+            }
+            return _id;
+        };
+        const containerID = id();
         const minRangeMap = 0;
         const maxRangeMap = 32;
         const pixiAmplitudeFactor = window.innerWidth < (maxRangeMap * 20) ? 10 : 20;
@@ -310,12 +317,22 @@ this.cyberiaonline = {
         let elementsEyesRight = {};
 
         const removeElement = id => {
+            if (!elementsContainer[id]) {
+                console.error('error delete', id, elements.find(x => x.id === id));
+                return
+            };
             elementsContainer[id].destroy({ children: true });
             delete elementsContainer[id];
             delete elementsBackground[id];
             delete elementsHead[id];
             delete elementsEyesLeft[id];
             delete elementsEyesRight[id];
+            const elementIndex = elements.findIndex(x => x.id === id);
+            // logDataManage(elements[elementIndex]);
+            if (elementIndex > -1)
+                elements[elementIndex]
+                    .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
+
             elements = elements.filter(x => x.id != id);
         };
 
@@ -390,6 +407,11 @@ this.cyberiaonline = {
         }
 
         const PIXI_LOOP_ELEMENT = element => {
+            if (!elementsContainer[element.id]) {
+                // bug pero si esta en elements
+                console.error('!elementsContainer[element.id]');
+                return;
+            };
 
             if (alertCollision(element)) {
                 elementsBackground[element.id].tint = pixiColors["magenta"];
@@ -463,6 +485,7 @@ this.cyberiaonline = {
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
+                    this.clearsIntervals = [];
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -492,7 +515,11 @@ this.cyberiaonline = {
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
                             this.y = minRangeMap;
+                            break;
                         case 'BULLET':
+                            setTimeout(() => {
+                                removeElement(this.id);
+                            }, 2000);
 
 
                             break;
@@ -514,7 +541,6 @@ this.cyberiaonline = {
                     // `);
                     switch (this.type) {
                         case 'USER_MAIN':
-                            if (this.ArrowLeft) stopListenKey(this.ArrowLeft);
                             this.ArrowLeft = startListenKey({
                                 key: 'ArrowLeft',
                                 vel: timeIntervalGame,
@@ -523,7 +549,7 @@ this.cyberiaonline = {
                                     this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
-                            if (this.ArrowRight) stopListenKey(this.ArrowRight);
+                            this.clearsIntervals.push('ArrowLeft');
                             this.ArrowRight = startListenKey({
                                 key: 'ArrowRight',
                                 vel: timeIntervalGame,
@@ -532,7 +558,7 @@ this.cyberiaonline = {
                                     this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
-                            if (this.ArrowUp) stopListenKey(this.ArrowUp);
+                            this.clearsIntervals.push('ArrowRight');
                             this.ArrowUp = startListenKey({
                                 key: 'ArrowUp',
                                 vel: timeIntervalGame,
@@ -541,7 +567,7 @@ this.cyberiaonline = {
                                     this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
-                            if (this.ArrowDown) stopListenKey(this.ArrowDown);
+                            this.clearsIntervals.push('ArrowUp');
                             this.ArrowDown = startListenKey({
                                 key: 'ArrowDown',
                                 vel: timeIntervalGame,
@@ -550,6 +576,29 @@ this.cyberiaonline = {
                                     this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
+                            this.clearsIntervals.push('ArrowDown');
+
+                            const qKeys = ['q', 'Q'];
+                            qKeys.map(qKey => {
+
+                                this[`key_${qKey}`] = startListenKey({
+                                    key: qKey,
+                                    vel: timeIntervalGame,
+                                    onKey: () => {
+                                        console.log('onKey', this.id);
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET',
+                                            container: containerID,
+                                            x: this.x + (this.dim * 2),
+                                            y: this.y
+                                        }));
+                                    }
+                                });
+                                this.clearsIntervals.push(`key_${qKey}`);
+
+                            });
+
                             this.onCanvasClick = event => {
                                 // off -> this.canvasDim
                                 // x -> 50
@@ -679,7 +728,7 @@ this.cyberiaonline = {
                         type: 'USER_MAIN',
                         // x: 2,
                         // y: 2
-                        // matrix: { x: 2, y: 2 }
+                        matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
                     //     container: containerID,
