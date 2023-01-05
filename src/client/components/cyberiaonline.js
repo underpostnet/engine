@@ -300,17 +300,14 @@ this.cyberiaonline = {
                     x.onCanvasClick ? x.onCanvasClick(event)
                         : null);
 
-            s(`.${newInstanceBtn}`).onclick = () => {
-                alert();
-            };
 
         };
 
-        const elementsContainer = {};
-        const elementsBackground = {};
-        const elementsHead = {};
-        const elementsEyesLeft = {};
-        const elementsEyesRight = {};
+        let elementsContainer = {};
+        let elementsBackground = {};
+        let elementsHead = {};
+        let elementsEyesLeft = {};
+        let elementsEyesRight = {};
         const PIXI_INIT_ELEMENT = element => {
 
             // /assets/apps/cyberiaonline
@@ -628,11 +625,20 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
-        setTimeout(() => {
+        const INSTANCE_GENERATOR = () => {
 
-            PIXI_INIT();
+            Object.keys(elementsContainer).map(key => {
+                elementsContainer[key].destroy({ children: true });
+            });
 
-            disableOptionsClick(pixiContainerId, ['drag', 'menu', 'select']);
+            elements = [];
+
+
+            elementsContainer = {};
+            elementsBackground = {};
+            elementsHead = {};
+            elementsEyesLeft = {};
+            elementsEyesRight = {};
 
             elements = elements.concat(
                 range(0, 10)
@@ -679,11 +685,24 @@ this.cyberiaonline = {
 
             console.log('elements', elements);
 
+
+        };
+
+        // ----------------------------------------------------------------
+        // ----------------------------------------------------------------
+
+        setTimeout(() => {
+            PIXI_INIT();
+            disableOptionsClick(pixiContainerId, ['drag', 'menu', 'select']);
+            INSTANCE_GENERATOR();
+
+            s(`.${newInstanceBtn}`).onclick = () =>
+                INSTANCE_GENERATOR();
+
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
             renderGame();
             this.loopGame = setInterval(() => renderGame(), timeIntervalGame);
-
         });
 
         // ----------------------------------------------------------------
