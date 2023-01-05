@@ -12,6 +12,7 @@ this.cyberiaonline = {
         const pixiAmplitudeFactor = window.innerWidth < (maxRangeMap * 20) ? 10 : 20;
         this.canvasDim = maxRangeMap * pixiAmplitudeFactor;
         const timeIntervalGame = 1;
+        const newInstanceBtn = id();
 
 
 
@@ -282,9 +283,8 @@ this.cyberiaonline = {
             container.y = 0;
             container.width = maxRangeMap * pixiAmplitudeFactor;
             container.height = maxRangeMap * pixiAmplitudeFactor;
-            setTimeout(() => {
 
-                append(pixiContainerId, /*html*/`
+            append(pixiContainerId, /*html*/`
                 <style class='${this.htmlPixiLayer}'></style>
 
                 <${this.htmlPixiLayer} class='abs'>
@@ -293,14 +293,17 @@ this.cyberiaonline = {
             
                 `);
 
-                this.renderHtmlPixiLayer();
+            this.renderHtmlPixiLayer();
 
-                s(this.htmlPixiLayer).onclick = event =>
-                    elements.map(x =>
-                        x.onCanvasClick ? x.onCanvasClick(event)
-                            : null);
+            s(this.htmlPixiLayer).onclick = event =>
+                elements.map(x =>
+                    x.onCanvasClick ? x.onCanvasClick(event)
+                        : null);
 
-            });
+            s(`.${newInstanceBtn}`).onclick = () => {
+                alert();
+            };
+
         };
 
         const elementsContainer = {};
@@ -646,6 +649,7 @@ this.cyberiaonline = {
                         type: 'BOT'
                     }))
             );
+            // mobile friendly
             elements = elements.concat(
                 [
                     gen().init({
@@ -712,13 +716,15 @@ this.cyberiaonline = {
                 -->
                 <${pixiContainerId} class='in canvas-cursor'></${pixiContainerId}>
             </div>
+            <div class='in container' style='text-align: center'>
+                    <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
+            </div>
         
         `
     },
     renderHtmlPixiLayer: function () {
-        setTimeout(() => {
-            if (!s('.' + this.htmlPixiLayer)) return;
-            htmls('.' + this.htmlPixiLayer, /*css*/`
+        if (!s('.' + this.htmlPixiLayer)) return;
+        htmls('.' + this.htmlPixiLayer, /*css*/`
                 ${this.htmlPixiLayer} {
                     height: ${this.canvasDim}px;
                     width: ${this.canvasDim}px;
@@ -730,7 +736,6 @@ this.cyberiaonline = {
                     ${borderChar(2, 'black')}
                 }
             `);
-        });
     },
     routerDisplay: function (options) {
         this.renderHtmlPixiLayer();
