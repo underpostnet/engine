@@ -48,7 +48,7 @@ this.cyberiaonline = {
                     if (
                         elementsCollisions.includes(element.type)
                         &&
-                        element.id != elementClient.id
+                        element.id !== elementClient.id
                         &&
                         validateCollision(element, elementClient)
                     ) {
@@ -76,13 +76,13 @@ this.cyberiaonline = {
         };
 
         const alertCollision = element => {
-            return (element.type != 'BUILDING') &&
+            return (element.type !== 'BUILDING') &&
 
                 elements.filter(x => (
 
                     validateCollision(x, element)
                     &&
-                    element.id != x.id
+                    element.id !== x.id
                 )).length > 0;
         }
 
@@ -316,6 +316,45 @@ this.cyberiaonline = {
         let elementsEyesLeft = {};
         let elementsEyesRight = {};
 
+
+        const animations = {
+            'random-circle-color': {
+                animationElements: {
+                    circle: {}
+                },
+                init: function (element) {
+                    this.animationElements.circle[element.id] = new PIXI.Graphics();
+                    this.animationElements.circle[element.id].beginFill(randomNumberColor());
+                    this.animationElements.circle[element.id].lineStyle(0);
+                    this.animationElements.circle[element.id].drawCircle(0, 0, 1.5 * pixiAmplitudeFactor); // x,y,radio
+                    this.animationElements.circle[element.id].endFill();
+                    this.animationElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor) / 4;
+                    this.animationElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor) / 4;
+                    elementsContainer[element.id].addChild(this.animationElements.circle[element.id]);
+                },
+                loop: function (element) {
+                    switch (element.animationFrame) {
+                        case 0:
+                            // console.error(1);
+                            break;
+                        case 100:
+                            // console.error(2);
+                            break;
+                        case 200:
+                            // console.error(3);
+                            break;
+                        case 300:
+                            element.animationFrame = -1;
+                            break;
+                    }
+                    element.animationFrame++;
+                },
+                delete: function (element) {
+                    delete this.animationElements.circle[element.id]
+                }
+            }
+        };
+
         const removeElement = id => {
             if (!elementsContainer[id]) {
                 console.error('error delete', id, elements.find(x => x.id === id));
@@ -329,11 +368,13 @@ this.cyberiaonline = {
             delete elementsEyesRight[id];
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
-            if (elementIndex > -1)
+            if (elementIndex > -1) {
+                if (elements[elementIndex].animation) animations[elements[elementIndex].animation].delete(elements[elementIndex]);
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
+            }
 
-            elements = elements.filter(x => x.id != id);
+            elements = elements.filter(x => x.id !== id);
         };
 
         const removeAllElements = () =>
@@ -393,7 +434,9 @@ this.cyberiaonline = {
 
                 default:
                     break;
-            }
+            };
+
+            if (element.animation) animations[element.animation].init(element);
 
             // const headCircle = new PIXI.Graphics();
             // headCircle.beginFill(0x3333ff);
@@ -404,7 +447,7 @@ this.cyberiaonline = {
             // headCircle.height = 50;
             // container.addChild(headCircle);
 
-        }
+        };
 
         const PIXI_LOOP_ELEMENT = element => {
             if (!elementsContainer[element.id]) {
@@ -415,7 +458,7 @@ this.cyberiaonline = {
 
             if (alertCollision(element)) {
                 elementsBackground[element.id].tint = pixiColors["magenta"];
-            } else if (elementsBackground[element.id].tint != pixiColors[element.color]) {
+            } else if (elementsBackground[element.id].tint !== pixiColors[element.color]) {
                 elementsBackground[element.id].tint = pixiColors[element.color];
             }
             const renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
@@ -466,6 +509,8 @@ this.cyberiaonline = {
 
             elementsContainer[element.id].x = renderX;
             elementsContainer[element.id].y = renderY;
+
+            if (element.animation) animations[element.animation].loop(element);
         };
 
         // ----------------------------------------------------------------
@@ -503,6 +548,8 @@ this.cyberiaonline = {
                                 this.y = USER_MAIN_getAvailablePosition.y;
                             }
                             this.color = 'yellow';
+                            this.animation = 'random-circle-color';
+                            this.animationFrame = 0;
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
