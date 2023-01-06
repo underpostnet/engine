@@ -350,19 +350,50 @@ this.cyberiaonline = {
                     delete this.componentsElements.sprite[eventHash];
                 },
                 event: function (element) {
-                    const eventHash = 'x' + s4();
-                    this.componentsElements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.sprite[eventHash].x = (element.dim) * pixiAmplitudeFactor / 2;
-                    this.componentsElements.sprite[eventHash].y = (element.dim) * pixiAmplitudeFactor / 2;
-                    this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
-                    this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
-                    this.componentsElements.sprite[eventHash].tint = pixiColors['red'];
-                    elementsContainer[element.id].addChild(this.componentsElements.sprite[eventHash]);
-                    setTimeout(() => {
-                        this.delete(eventHash);
-                    }, 1000);
-
-
+                    const valueAbsDiff = (element.dim) * pixiAmplitudeFactor / 6;
+                    range(0, 4).map(i => {
+                        const eventHash = 'x' + s4();
+                        this.componentsElements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                        switch (i) {
+                            case 0:
+                                this.componentsElements.sprite[eventHash].x = (element.dim) * pixiAmplitudeFactor / 2;
+                                this.componentsElements.sprite[eventHash].y = (element.dim) * pixiAmplitudeFactor / 2;
+                                break;
+                            case 1:
+                                this.componentsElements.sprite[eventHash].x =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                this.componentsElements.sprite[eventHash].y =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                break;
+                            case 2:
+                                this.componentsElements.sprite[eventHash].x =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                this.componentsElements.sprite[eventHash].y =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                break;
+                            case 3:
+                                this.componentsElements.sprite[eventHash].x =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                this.componentsElements.sprite[eventHash].y =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                break;
+                            case 4:
+                                this.componentsElements.sprite[eventHash].x =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                this.componentsElements.sprite[eventHash].y =
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                break;
+                            default:
+                                break;
+                        }
+                        this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
+                        this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
+                        this.componentsElements.sprite[eventHash].tint = pixiColors['red'];
+                        elementsContainer[element.id].addChild(this.componentsElements.sprite[eventHash]);
+                        setTimeout(() => {
+                            this.delete(eventHash);
+                        }, 1000);
+                    });
                 }
             },
             'random-circle-color': {
