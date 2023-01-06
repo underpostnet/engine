@@ -76,13 +76,15 @@ this.cyberiaonline = {
         };
 
         const alertCollision = element => {
-            return (element.type !== 'BUILDING') &&
+            return (element.type !== 'BUILDING' && element.type !== 'FLOOR') &&
 
                 elements.filter(x => (
 
                     validateCollision(x, element)
                     &&
                     element.id !== x.id
+                    &&
+                    x.type !== 'FLOOR'
                 )).length > 0;
         }
 
@@ -310,11 +312,21 @@ this.cyberiaonline = {
 
         };
 
+        let floorLayer1 = {};
+
         let elementsContainer = {};
         let elementsBackground = {};
-        let elementsHead = {};
-        let elementsEyesLeft = {};
-        let elementsEyesRight = {};
+
+
+        let mainUserHead = {};
+        let mainUserEyesLeft = {};
+        let mainUserEyesRight = {};
+
+        let buildingLayer1 = {};
+        let buildingLayer2 = {};
+        let buildingLayer3 = {};
+        let buildingLayer4 = {};
+        let buildingLayer5 = {};
 
 
         const animations = {
@@ -396,11 +408,22 @@ this.cyberiaonline = {
                 return
             };
             elementsContainer[id].destroy({ children: true });
+
+            delete floorLayer1[id];
+
             delete elementsContainer[id];
             delete elementsBackground[id];
-            delete elementsHead[id];
-            delete elementsEyesLeft[id];
-            delete elementsEyesRight[id];
+
+            delete mainUserHead[id];
+            delete mainUserEyesLeft[id];
+            delete mainUserEyesRight[id];
+
+            delete buildingLayer1[id];
+            delete buildingLayer2[id];
+            delete buildingLayer3[id];
+            delete buildingLayer4[id];
+            delete buildingLayer5[id];
+
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
@@ -440,35 +463,59 @@ this.cyberiaonline = {
 
             switch (element.type) {
                 case 'USER_MAIN':
-                    elementsHead[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    elementsHead[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    elementsHead[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    elementsHead[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
-                    elementsHead[element.id].y = 0;
-                    elementsContainer[element.id].addChild(elementsHead[element.id]);
+                    mainUserHead[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    mainUserHead[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    mainUserHead[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    mainUserHead[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    mainUserHead[element.id].y = 0;
+                    elementsContainer[element.id].addChild(mainUserHead[element.id]);
 
-                    elementsEyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    elementsEyesLeft[element.id].tint = pixiColors['blue'];
-                    elementsEyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    elementsEyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    elementsEyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
-                    elementsEyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(elementsEyesLeft[element.id]);
+                    mainUserEyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    mainUserEyesLeft[element.id].tint = pixiColors['blue'];
+                    mainUserEyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserEyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserEyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    mainUserEyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(mainUserEyesLeft[element.id]);
 
-                    elementsEyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    elementsEyesRight[element.id].tint = pixiColors['blue'];
-                    elementsEyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    elementsEyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    elementsEyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
-                    elementsEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(elementsEyesRight[element.id]);
+                    mainUserEyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    mainUserEyesRight[element.id].tint = pixiColors['blue'];
+                    mainUserEyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserEyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserEyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    mainUserEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(mainUserEyesRight[element.id]);
 
                     // elementsBackground[element.id].visible = false;
 
                     break;
 
-                default:
+
+                case 'BUILDING':
+
+                    // buildingLayer1
+
+                    buildingLayer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    buildingLayer1[element.id].tint = pixiColors['zinnwaldite brown'];
+                    buildingLayer1[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    buildingLayer1[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    buildingLayer1[element.id].x = (((element.dim) * pixiAmplitudeFactor) - buildingLayer1[element.id].width) / 2;
+                    buildingLayer1[element.id].y = (((element.dim) * pixiAmplitudeFactor) - buildingLayer1[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(buildingLayer1[element.id]);
+
+                    buildingLayer2[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    buildingLayer2[element.id].tint = pixiColors['cafe noir'];
+                    buildingLayer2[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    buildingLayer2[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    buildingLayer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].width) / 2;
+                    buildingLayer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(buildingLayer2[element.id]);
+
+
                     break;
+
+
+                default:
             };
 
             if (element.animation) animations[element.animation].init(element);
@@ -516,25 +563,25 @@ this.cyberiaonline = {
                     if (direction === 'East'
                         || direction === 'South East'
                         || direction === 'North East') {
-                        elementsEyesLeft[element.id].visible = false;
-                        elementsEyesRight[element.id].visible = true;
+                        mainUserEyesLeft[element.id].visible = false;
+                        mainUserEyesRight[element.id].visible = true;
                     }
 
                     if (direction === 'West'
                         || direction === 'South West'
                         || direction === 'North West') {
-                        elementsEyesRight[element.id].visible = false;
-                        elementsEyesLeft[element.id].visible = true;
+                        mainUserEyesRight[element.id].visible = false;
+                        mainUserEyesLeft[element.id].visible = true;
                     }
 
                     if (direction === 'North') {
-                        elementsEyesRight[element.id].visible = false;
-                        elementsEyesLeft[element.id].visible = false;
+                        mainUserEyesRight[element.id].visible = false;
+                        mainUserEyesLeft[element.id].visible = false;
                     }
 
                     if (direction === 'South') {
-                        elementsEyesRight[element.id].visible = true;
-                        elementsEyesLeft[element.id].visible = true;
+                        mainUserEyesRight[element.id].visible = true;
+                        mainUserEyesLeft[element.id].visible = true;
                     }
 
                 }
@@ -560,8 +607,8 @@ this.cyberiaonline = {
                     this.container = options.container;
                     this.type = options.type;
                     this.delayVelPath = 0;
-                    this.vel = 0.1;
-                    this.dim = 2; // 3; // 1.5
+                    this.vel = options.vel ? options.vel : 0.1;
+                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -779,6 +826,17 @@ this.cyberiaonline = {
         const INSTANCE_GENERATOR = () => {
 
             removeAllElements();
+
+            elements = elements.concat([
+                gen().init({
+                    container: containerID,
+                    type: 'FLOOR',
+                    dim: maxRangeMap,
+                    color: 'dark green (x11)',
+                    x: maxRangeMap / 2,
+                    y: maxRangeMap / 2
+                })
+            ]);
 
             elements = elements.concat(
                 range(0, 10)
