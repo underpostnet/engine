@@ -341,25 +341,26 @@ this.cyberiaonline = {
         const components = {
             'cross-effect': {
                 componentsElements: {
-                    sprites: {}
+                    sprite: {}
                 },
-                init: function (element) {
-
-                    // elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    // elementsBackground[element.id].x = 0;
-                    // elementsBackground[element.id].y = 0;
-                    // elementsBackground[element.id].width = (element.dim) * pixiAmplitudeFactor;
-                    // elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
-                    // elementsBackground[element.id].tint = pixiColors[element.color];
-                    // elementsContainer[element.id].addChild(elementsBackground[element.id]);
-
-
+                init: function (element) { },
+                loop: function (element) { },
+                delete: function (eventHash) {
+                    this.componentsElements.sprite[eventHash].destroy();
+                    delete this.componentsElements.sprite[eventHash];
                 },
-                loop: function (element) {
-
-
-                },
-                delete: function (element) {
+                event: function (element) {
+                    const eventHash = 'x' + s4();
+                    this.componentsElements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.sprite[eventHash].x = (element.dim) * pixiAmplitudeFactor / 2;
+                    this.componentsElements.sprite[eventHash].y = (element.dim) * pixiAmplitudeFactor / 2;
+                    this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
+                    this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
+                    this.componentsElements.sprite[eventHash].tint = pixiColors['red'];
+                    elementsContainer[element.id].addChild(this.componentsElements.sprite[eventHash]);
+                    setTimeout(() => {
+                        this.delete(eventHash);
+                    }, 1000);
 
 
                 }
@@ -577,7 +578,7 @@ this.cyberiaonline = {
 
                     break;
                 case 'TOUCH':
-                    // elementsBackground[element.id].visible = false;
+                    elementsBackground[element.id].visible = false;
                     break;
 
                 default:
@@ -742,9 +743,6 @@ this.cyberiaonline = {
 
 
                             break;
-                        case 'TOUCH':
-                            this.components = ['cross-effect'];
-                            break;
                         default:
                             break;
                     }
@@ -856,6 +854,8 @@ this.cyberiaonline = {
 
                                 this.x = offsetX;
                                 this.y = offsetY;
+
+                                components['cross-effect'].event(this);
                             };
 
                             break;
@@ -975,7 +975,7 @@ this.cyberiaonline = {
                         type: 'USER_MAIN',
                         // x: 2,
                         // y: 2
-                        matrix: { x: 1, y: 2 }
+                        // matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
                     //     container: containerID,
