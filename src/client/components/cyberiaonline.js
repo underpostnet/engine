@@ -335,15 +335,50 @@ this.cyberiaonline = {
                 loop: function (element) {
                     switch (element.animationFrame) {
                         case 0:
-                            // console.error(1);
+                            this.animationElements.circle[element.id].clear();
+                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
+                            this.animationElements.circle[element.id].lineStyle(0);
+                            this.animationElements.circle[element.id].drawCircle(
+                                0,
+                                0,
+                                2 * pixiAmplitudeFactor
+                            ); // x,y,radio
+                            this.animationElements.circle[element.id].endFill();
                             break;
                         case 100:
-                            // console.error(2);
+                            this.animationElements.circle[element.id].clear();
+                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
+                            this.animationElements.circle[element.id].lineStyle(0);
+                            this.animationElements.circle[element.id].drawCircle(
+                                0,
+                                0,
+                                3 * pixiAmplitudeFactor
+                            ); // x,y,radio
+                            this.animationElements.circle[element.id].endFill();
                             break;
                         case 200:
-                            // console.error(3);
+                            this.animationElements.circle[element.id].clear();
+                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
+                            this.animationElements.circle[element.id].lineStyle(0);
+                            this.animationElements.circle[element.id].drawCircle(
+                                0,
+                                0,
+                                2 * pixiAmplitudeFactor
+                            ); // x,y,radio
+                            this.animationElements.circle[element.id].endFill();
                             break;
                         case 300:
+                            this.animationElements.circle[element.id].clear();
+                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
+                            this.animationElements.circle[element.id].lineStyle(0);
+                            this.animationElements.circle[element.id].drawCircle(
+                                0,
+                                0,
+                                1.5 * pixiAmplitudeFactor
+                            ); // x,y,radio
+                            this.animationElements.circle[element.id].endFill();
+                            break;
+                        case 400:
                             element.animationFrame = -1;
                             break;
                     }
