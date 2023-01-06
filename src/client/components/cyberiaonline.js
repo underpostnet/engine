@@ -332,81 +332,81 @@ this.cyberiaonline = {
         let buildingLayer5 = {};
 
 
-        const animations = {
+        const components = {
             'random-circle-color': {
-                animationFrames: {
+                componentsFrames: {
                     circle: {}
                 },
-                animationElements: {
+                componentsElements: {
                     circle: {}
                 },
                 init: function (element) {
-                    this.animationElements.circle[element.id] = new PIXI.Graphics();
-                    this.animationElements.circle[element.id].beginFill(randomNumberColor());
-                    this.animationElements.circle[element.id].lineStyle(0);
-                    this.animationElements.circle[element.id].drawCircle(0, 0, 1.5 * pixiAmplitudeFactor); // x,y,radio
-                    this.animationElements.circle[element.id].endFill();
-                    this.animationElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor) / 4;
-                    this.animationElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor) / 4;
-                    elementsContainer[element.id].addChild(this.animationElements.circle[element.id]);
+                    this.componentsElements.circle[element.id] = new PIXI.Graphics();
+                    this.componentsElements.circle[element.id].beginFill(randomNumberColor());
+                    this.componentsElements.circle[element.id].lineStyle(0);
+                    this.componentsElements.circle[element.id].drawCircle(0, 0, 1.5 * pixiAmplitudeFactor); // x,y,radio
+                    this.componentsElements.circle[element.id].endFill();
+                    this.componentsElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor) / 4;
+                    this.componentsElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor) / 4;
+                    elementsContainer[element.id].addChild(this.componentsElements.circle[element.id]);
                 },
                 loop: function (element) {
-                    if (!this.animationFrames.circle[element.id])
-                        this.animationFrames.circle[element.id] = 0;
-                    switch (this.animationFrames.circle[element.id]) {
+                    if (!this.componentsFrames.circle[element.id])
+                        this.componentsFrames.circle[element.id] = 0;
+                    switch (this.componentsFrames.circle[element.id]) {
                         case 0:
-                            this.animationElements.circle[element.id].clear();
-                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
-                            this.animationElements.circle[element.id].lineStyle(0);
-                            this.animationElements.circle[element.id].drawCircle(
+                            this.componentsElements.circle[element.id].clear();
+                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
+                            this.componentsElements.circle[element.id].lineStyle(0);
+                            this.componentsElements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 2 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.animationElements.circle[element.id].endFill();
+                            this.componentsElements.circle[element.id].endFill();
                             break;
                         case 100:
-                            this.animationElements.circle[element.id].clear();
-                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
-                            this.animationElements.circle[element.id].lineStyle(0);
-                            this.animationElements.circle[element.id].drawCircle(
+                            this.componentsElements.circle[element.id].clear();
+                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
+                            this.componentsElements.circle[element.id].lineStyle(0);
+                            this.componentsElements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 3 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.animationElements.circle[element.id].endFill();
+                            this.componentsElements.circle[element.id].endFill();
                             break;
                         case 200:
-                            this.animationElements.circle[element.id].clear();
-                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
-                            this.animationElements.circle[element.id].lineStyle(0);
-                            this.animationElements.circle[element.id].drawCircle(
+                            this.componentsElements.circle[element.id].clear();
+                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
+                            this.componentsElements.circle[element.id].lineStyle(0);
+                            this.componentsElements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 2 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.animationElements.circle[element.id].endFill();
+                            this.componentsElements.circle[element.id].endFill();
                             break;
                         case 300:
-                            this.animationElements.circle[element.id].clear();
-                            this.animationElements.circle[element.id].beginFill(randomNumberColor());
-                            this.animationElements.circle[element.id].lineStyle(0);
-                            this.animationElements.circle[element.id].drawCircle(
+                            this.componentsElements.circle[element.id].clear();
+                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
+                            this.componentsElements.circle[element.id].lineStyle(0);
+                            this.componentsElements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 1.5 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.animationElements.circle[element.id].endFill();
+                            this.componentsElements.circle[element.id].endFill();
                             break;
                         case 400:
-                            this.animationFrames.circle[element.id] = -1;
+                            this.componentsFrames.circle[element.id] = -1;
                             break;
                     }
-                    this.animationFrames.circle[element.id]++;
+                    this.componentsFrames.circle[element.id]++;
                 },
                 delete: function (element) {
-                    delete this.animationElements.circle[element.id];
-                    delete this.animationFrames.circle[element.id];
+                    delete this.componentsElements.circle[element.id];
+                    delete this.componentsFrames.circle[element.id];
                 }
             }
         };
@@ -439,7 +439,7 @@ this.cyberiaonline = {
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
-                if (elements[elementIndex].animation) animations[elements[elementIndex].animation].delete(elements[elementIndex]);
+                if (elements[elementIndex].components) components[elements[elementIndex].components].delete(elements[elementIndex]);
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
             }
@@ -543,12 +543,14 @@ this.cyberiaonline = {
 
 
                     break;
-
+                case 'TOUCH':
+                    elementsBackground[element.id].visible = false;
+                    break;
 
                 default:
             };
 
-            if (element.animation) animations[element.animation].init(element);
+            if (element.components) components[element.components].init(element);
 
             // const headCircle = new PIXI.Graphics();
             // headCircle.beginFill(0x3333ff);
@@ -646,7 +648,7 @@ this.cyberiaonline = {
             elementsContainer[element.id].x = renderX;
             elementsContainer[element.id].y = renderY;
 
-            if (element.animation) animations[element.animation].loop(element);
+            if (element.components) components[element.components].loop(element);
         };
 
         // ----------------------------------------------------------------
@@ -684,7 +686,7 @@ this.cyberiaonline = {
                                 this.y = USER_MAIN_getAvailablePosition.y;
                             }
                             this.color = 'yellow';
-                            this.animation = 'random-circle-color';
+                            this.components = 'random-circle-color';
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -805,6 +807,9 @@ this.cyberiaonline = {
                                 if (this.path.length === 0) {
                                     // search solid snail -> auto generate click mov
                                     // snail inverse -> pathfinding with snail normal
+                                }
+                                if (this.type == 'TOUCH') {
+
                                 }
                             };
                             break;
@@ -938,6 +943,12 @@ this.cyberiaonline = {
                     gen().init({
                         container: containerID,
                         color: 'safety orange'
+                    }),
+                    gen().init({
+                        container: containerID,
+                        type: 'TOUCH',
+                        x: 1,
+                        y: 1
                     }),
                 ]
             );
