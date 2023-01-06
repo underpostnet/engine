@@ -439,7 +439,9 @@ this.cyberiaonline = {
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
-                if (elements[elementIndex].components) components[elements[elementIndex].components].delete(elements[elementIndex]);
+                if (elements[elementIndex].components)
+                    elements[elementIndex.components.map(component =>
+                        components[component].delete(elements[elementIndex]))];
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
             }
@@ -550,7 +552,8 @@ this.cyberiaonline = {
                 default:
             };
 
-            if (element.components) components[element.components].init(element);
+            if (element.components) element.components.map(component =>
+                components[component].init(element));
 
             // const headCircle = new PIXI.Graphics();
             // headCircle.beginFill(0x3333ff);
@@ -648,7 +651,8 @@ this.cyberiaonline = {
             elementsContainer[element.id].x = renderX;
             elementsContainer[element.id].y = renderY;
 
-            if (element.components) components[element.components].loop(element);
+            if (element.components) element.components.map(component =>
+                components[component].loop(element));
         };
 
         // ----------------------------------------------------------------
@@ -686,7 +690,7 @@ this.cyberiaonline = {
                                 this.y = USER_MAIN_getAvailablePosition.y;
                             }
                             this.color = 'yellow';
-                            this.components = 'random-circle-color';
+                            this.components = ['random-circle-color'];
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
