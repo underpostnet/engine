@@ -321,6 +321,9 @@ this.cyberiaonline = {
         let mainUserHead = {};
         let mainUserEyesLeft = {};
         let mainUserEyesRight = {};
+        let mainUserFootFramesAnimation = {};
+        let mainUserFootLeft = {};
+        let mainUserFootRight = {};
 
         let buildingLayer1 = {};
         let buildingLayer2 = {};
@@ -331,6 +334,9 @@ this.cyberiaonline = {
 
         const animations = {
             'random-circle-color': {
+                animationFrames: {
+                    circle: {}
+                },
                 animationElements: {
                     circle: {}
                 },
@@ -345,7 +351,9 @@ this.cyberiaonline = {
                     elementsContainer[element.id].addChild(this.animationElements.circle[element.id]);
                 },
                 loop: function (element) {
-                    switch (element.animationFrame) {
+                    if (!this.animationFrames.circle[element.id])
+                        this.animationFrames.circle[element.id] = 0;
+                    switch (this.animationFrames.circle[element.id]) {
                         case 0:
                             this.animationElements.circle[element.id].clear();
                             this.animationElements.circle[element.id].beginFill(randomNumberColor());
@@ -391,13 +399,14 @@ this.cyberiaonline = {
                             this.animationElements.circle[element.id].endFill();
                             break;
                         case 400:
-                            element.animationFrame = -1;
+                            this.animationFrames.circle[element.id] = -1;
                             break;
                     }
-                    element.animationFrame++;
+                    this.animationFrames.circle[element.id]++;
                 },
                 delete: function (element) {
-                    delete this.animationElements.circle[element.id]
+                    delete this.animationElements.circle[element.id];
+                    delete this.animationFrames.circle[element.id];
                 }
             }
         };
@@ -417,6 +426,9 @@ this.cyberiaonline = {
             delete mainUserHead[id];
             delete mainUserEyesLeft[id];
             delete mainUserEyesRight[id];
+            delete mainUserFootLeft[id];
+            delete mainUserFootRight[id];
+            delete mainUserFootFramesAnimation[id];
 
             delete buildingLayer1[id];
             delete buildingLayer2[id];
@@ -486,7 +498,25 @@ this.cyberiaonline = {
                     mainUserEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(mainUserEyesRight[element.id]);
 
-                    // elementsBackground[element.id].visible = false;
+                    mainUserFootFramesAnimation[element.id] = 0;
+
+                    mainUserFootLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    mainUserFootLeft[element.id].tint = pixiColors['white'];
+                    mainUserFootLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    mainUserFootLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    mainUserFootLeft[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(mainUserFootLeft[element.id]);
+
+                    mainUserFootRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    mainUserFootRight[element.id].tint = pixiColors['white'];
+                    mainUserFootRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    mainUserFootRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    mainUserFootRight[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(mainUserFootRight[element.id]);
+
+                    elementsBackground[element.id].visible = false;
 
                     break;
 
@@ -546,47 +576,71 @@ this.cyberiaonline = {
             const renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             const renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
 
-            if (
-                element.type === 'USER_MAIN'
-                &&
-                (element.lastX !== parseInt(renderX) || element.lastY !== parseInt(renderY))
-            ) {
-                if (element.lastX !== undefined && element.lastY !== undefined) {
-                    const x1 = parseInt(`${element.lastX}`);
-                    const y1 = parseInt(`${element.lastY}`);
-                    const x2 = parseInt(renderX);
-                    const y2 = parseInt(renderY);
+            if (element.type === 'USER_MAIN') {
 
-                    const direction = getDirection(x1, y1, x2, y2);
-                    console.log('getDirection', element.type, direction);
+                let direction;
 
-                    if (direction === 'East'
-                        || direction === 'South East'
-                        || direction === 'North East') {
-                        mainUserEyesLeft[element.id].visible = false;
-                        mainUserEyesRight[element.id].visible = true;
+                if ((element.lastX !== parseInt(renderX) || element.lastY !== parseInt(renderY))) {
+                    if (element.lastX !== undefined && element.lastY !== undefined) {
+                        const x1 = parseInt(`${element.lastX}`);
+                        const y1 = parseInt(`${element.lastY}`);
+                        const x2 = parseInt(renderX);
+                        const y2 = parseInt(renderY);
+
+                        direction = getDirection(x1, y1, x2, y2);
+                        console.log('getDirection', element.type, direction);
+
+                        if (direction === 'East'
+                            || direction === 'South East'
+                            || direction === 'North East') {
+                            mainUserEyesLeft[element.id].visible = false;
+                            mainUserEyesRight[element.id].visible = true;
+                        }
+
+                        if (direction === 'West'
+                            || direction === 'South West'
+                            || direction === 'North West') {
+                            mainUserEyesRight[element.id].visible = false;
+                            mainUserEyesLeft[element.id].visible = true;
+                        }
+
+                        if (direction === 'North') {
+                            mainUserEyesRight[element.id].visible = false;
+                            mainUserEyesLeft[element.id].visible = false;
+                        }
+
+                        if (direction === 'South') {
+                            mainUserEyesRight[element.id].visible = true;
+                            mainUserEyesLeft[element.id].visible = true;
+                        }
+
                     }
+                    element.lastX = parseInt(`${renderX}`);
+                    element.lastY = parseInt(`${renderY}`);
 
-                    if (direction === 'West'
-                        || direction === 'South West'
-                        || direction === 'North West') {
-                        mainUserEyesRight[element.id].visible = false;
-                        mainUserEyesLeft[element.id].visible = true;
+
+                    switch (mainUserFootFramesAnimation[element.id]) {
+                        case 0:
+                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                            break;
+                        case 50:
+                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                            break;
+                        case 100:
+                            mainUserFootFramesAnimation[element.id] = -1;
+                            break;
                     }
-
-                    if (direction === 'North') {
-                        mainUserEyesRight[element.id].visible = false;
-                        mainUserEyesLeft[element.id].visible = false;
-                    }
-
-                    if (direction === 'South') {
-                        mainUserEyesRight[element.id].visible = true;
-                        mainUserEyesLeft[element.id].visible = true;
-                    }
-
+                    mainUserFootFramesAnimation[element.id]++;
+                } else {
+                    setTimeout(() => {
+                        if (element.lastX === parseInt(renderX) && element.lastY === parseInt(renderY) && elementsContainer[element.id]) {
+                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                        }
+                    }, 100);
                 }
-                element.lastX = parseInt(`${renderX}`);
-                element.lastY = parseInt(`${renderY}`);
             }
 
             elementsContainer[element.id].x = renderX;
@@ -631,7 +685,6 @@ this.cyberiaonline = {
                             }
                             this.color = 'yellow';
                             this.animation = 'random-circle-color';
-                            this.animationFrame = 0;
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -675,6 +728,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
+                                    this.delayVelPath = 0;
                                     this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
@@ -684,6 +738,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
+                                    this.delayVelPath = 0;
                                     this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
@@ -693,6 +748,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
+                                    this.delayVelPath = 0;
                                     this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                 }
                             });
@@ -702,6 +758,7 @@ this.cyberiaonline = {
                                 vel: timeIntervalGame,
                                 onKey: () => {
                                     this.path = [];
+                                    this.delayVelPath = 0;
                                     this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                 }
                             });
