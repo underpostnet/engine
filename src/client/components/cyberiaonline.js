@@ -76,7 +76,11 @@ this.cyberiaonline = {
         };
 
         const alertCollision = element => {
-            return (element.type !== 'BUILDING' && element.type !== 'FLOOR') &&
+            return (
+                element.type !== 'BUILDING'
+                && element.type !== 'FLOOR'
+                && element.type !== 'TOUCH'
+            ) &&
 
                 elements.filter(x => (
 
@@ -85,8 +89,10 @@ this.cyberiaonline = {
                     element.id !== x.id
                     &&
                     x.type !== 'FLOOR'
+                    &&
+                    x.type !== 'TOUCH'
                 )).length > 0;
-        }
+        };
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
@@ -333,6 +339,31 @@ this.cyberiaonline = {
 
 
         const components = {
+            'cross-effect': {
+                componentsElements: {
+                    sprites: {}
+                },
+                init: function (element) {
+
+                    // elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    // elementsBackground[element.id].x = 0;
+                    // elementsBackground[element.id].y = 0;
+                    // elementsBackground[element.id].width = (element.dim) * pixiAmplitudeFactor;
+                    // elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
+                    // elementsBackground[element.id].tint = pixiColors[element.color];
+                    // elementsContainer[element.id].addChild(elementsBackground[element.id]);
+
+
+                },
+                loop: function (element) {
+
+
+                },
+                delete: function (element) {
+
+
+                }
+            },
             'random-circle-color': {
                 componentsFrames: {
                     circle: {}
@@ -440,8 +471,8 @@ this.cyberiaonline = {
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
                 if (elements[elementIndex].components)
-                    elements[elementIndex.components.map(component =>
-                        components[component].delete(elements[elementIndex]))];
+                    elements[elementIndex].components.map(component =>
+                        components[component].delete(elements[elementIndex]));
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
             }
@@ -546,7 +577,7 @@ this.cyberiaonline = {
 
                     break;
                 case 'TOUCH':
-                    elementsBackground[element.id].visible = false;
+                    // elementsBackground[element.id].visible = false;
                     break;
 
                 default:
@@ -711,6 +742,9 @@ this.cyberiaonline = {
 
 
                             break;
+                        case 'TOUCH':
+                            this.components = ['cross-effect'];
+                            break;
                         default:
                             break;
                     }
@@ -812,12 +846,19 @@ this.cyberiaonline = {
                                     // search solid snail -> auto generate click mov
                                     // snail inverse -> pathfinding with snail normal
                                 }
-                                if (this.type == 'TOUCH') {
-
-                                }
                             };
                             break;
+                        case 'TOUCH':
+                            this.onCanvasClick = event => {
 
+                                let offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+                                let offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+
+                                this.x = offsetX;
+                                this.y = offsetY;
+                            };
+
+                            break;
                         default:
                             break;
                     }
