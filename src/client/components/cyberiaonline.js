@@ -98,7 +98,7 @@ this.cyberiaonline = {
 
             let x, y, type;
 
-            if (elementsCollisions.x && elementsCollisions.y) {
+            if (elementsCollisions.x !== undefined && elementsCollisions.y !== undefined) {
                 type = 'snail';
                 x = parseInt(`${elementsCollisions.x}`);
                 y = parseInt(`${elementsCollisions.y}`);
@@ -755,7 +755,7 @@ this.cyberiaonline = {
                             }
                             this.color = 'yellow';
                             this.components = ['random-circle-color'];
-                            this.dim = 2;
+                            this.dim = this.dim * 0.8;
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
