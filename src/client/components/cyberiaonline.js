@@ -736,7 +736,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
-                    this.dim = options.dim ? options.dim : 3; // 3; // 1.5
+                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -1050,7 +1050,7 @@ this.cyberiaonline = {
                         type: 'USER_MAIN',
                         // x: 2,
                         // y: 2
-                        matrix: { x: 1, y: 2 }
+                        // matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
                     //     container: containerID,
