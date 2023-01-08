@@ -354,40 +354,41 @@ this.cyberiaonline = {
                     range(0, 4).map(i => {
                         const eventHash = 'x' + s4();
                         this.componentsElements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                        this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
+                        this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
+                        const xyCorrection = (this.componentsElements.sprite[eventHash].width / 2);
                         switch (i) {
                             case 0:
-                                this.componentsElements.sprite[eventHash].x = (element.dim) * pixiAmplitudeFactor / 2;
-                                this.componentsElements.sprite[eventHash].y = (element.dim) * pixiAmplitudeFactor / 2;
+                                this.componentsElements.sprite[eventHash].x = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
+                                this.componentsElements.sprite[eventHash].y = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
                                 break;
                             case 1:
                                 this.componentsElements.sprite[eventHash].x =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 this.componentsElements.sprite[eventHash].y =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 break;
                             case 2:
                                 this.componentsElements.sprite[eventHash].x =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 this.componentsElements.sprite[eventHash].y =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 break;
                             case 3:
                                 this.componentsElements.sprite[eventHash].x =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 this.componentsElements.sprite[eventHash].y =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 break;
                             case 4:
                                 this.componentsElements.sprite[eventHash].x =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 this.componentsElements.sprite[eventHash].y =
-                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff;
+                                    ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 break;
                             default:
                                 break;
                         }
-                        this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
-                        this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
                         this.componentsElements.sprite[eventHash].tint = pixiColors['red'];
                         elementsContainer[element.id].addChild(this.componentsElements.sprite[eventHash]);
                         setTimeout(() => {
@@ -731,7 +732,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
-                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
+                    this.dim = options.dim ? options.dim : 3; // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -754,6 +755,7 @@ this.cyberiaonline = {
                             }
                             this.color = 'yellow';
                             this.components = ['random-circle-color'];
+                            this.dim = 2;
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
