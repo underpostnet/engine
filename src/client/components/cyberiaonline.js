@@ -612,7 +612,9 @@ this.cyberiaonline = {
                 case 'TOUCH':
                     elementsBackground[element.id].visible = false;
                     break;
-
+                case 'BULLET':
+                    elementsBackground[element.id].visible = false;
+                    break;
                 default:
             };
 
@@ -758,6 +760,21 @@ this.cyberiaonline = {
                             this.color = 'yellow';
                             this.components = ['random-circle-color'];
                             this.dim = this.dim * 0.8;
+                            this.shoot = () => {
+                                if (this.validateShoot) {
+                                    this.validateShoot = false;
+                                    setTimeout(() => {
+                                        this.validateShoot = true;
+                                    }, this.shootTimeInterval);
+                                    elements.push(gen().init({
+                                        id: id(),
+                                        type: 'BULLET',
+                                        container: containerID,
+                                        x: this.x + (this.dim * 2),
+                                        y: this.y
+                                    }));
+                                }
+                            };
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -772,6 +789,9 @@ this.cyberiaonline = {
                             this.y = minRangeMap;
                             break;
                         case 'BULLET':
+                            setTimeout(() => {
+                                components['cross-effect'].event(this);
+                            });
                             setTimeout(() => {
                                 removeElement(this.id);
                             }, 2000);
@@ -837,27 +857,14 @@ this.cyberiaonline = {
                             });
                             this.clearsIntervals.push('ArrowDown');
 
-                            const qKeys = ['q', 'Q'];
-                            qKeys.map(qKey => {
+                            ['q', 'Q', 'w', 'W'].map(qKey => {
 
                                 this[`key_${qKey}`] = startListenKey({
                                     key: qKey,
                                     vel: timeIntervalGame,
                                     onKey: () => {
                                         console.log('onKey', this.id);
-                                        if (this.validateShoot) {
-                                            this.validateShoot = false;
-                                            setTimeout(() => {
-                                                this.validateShoot = true;
-                                            }, this.shootTimeInterval);
-                                            elements.push(gen().init({
-                                                id: id(),
-                                                type: 'BULLET',
-                                                container: containerID,
-                                                x: this.x + (this.dim * 2),
-                                                y: this.y
-                                            }));
-                                        }
+                                        this.shoot();
                                     }
                                 });
                                 this.clearsIntervals.push(`key_${qKey}`);
@@ -987,7 +994,7 @@ this.cyberiaonline = {
             ]);
 
             elements = elements.concat(
-                range(0, 10)
+                range(0, 5)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING',
@@ -1016,7 +1023,7 @@ this.cyberiaonline = {
                         type: 'USER_MAIN',
                         // x: 2,
                         // y: 2
-                        // matrix: { x: 1, y: 2 }
+                        matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
                     //     container: containerID,
@@ -1047,6 +1054,9 @@ this.cyberiaonline = {
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
 
+        const BtnQ = id();
+        const BtnW = id();
+
         setTimeout(() => {
             PIXI_INIT();
             disableOptionsClick(pixiContainerId, ['drag', 'menu', 'select']);
@@ -1054,6 +1064,9 @@ this.cyberiaonline = {
 
             s(`.${newInstanceBtn}`).onclick = () =>
                 INSTANCE_GENERATOR();
+
+            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.type == 'USER_MAIN' ? x.shoot() : null);
+            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.type == 'USER_MAIN' ? x.shoot() : null);
 
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
@@ -1092,7 +1105,12 @@ this.cyberiaonline = {
                 <${pixiContainerId} class='in canvas-cursor'></${pixiContainerId}>
             </div>
             <div class='in container' style='text-align: center'>
+                    <br>
+                    <button class='inl ${BtnQ}' style='font-size: 30px'>Q</button>
+                    <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
+                    <br>
                     <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
+                    <br>
             </div>
         
         `
