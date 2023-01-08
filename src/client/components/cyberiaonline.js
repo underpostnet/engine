@@ -685,6 +685,8 @@ this.cyberiaonline = {
                             mainUserEyesLeft[element.id].visible = true;
                         }
 
+                        element.direction = direction;
+
                     }
                     element.lastX = parseInt(`${renderX}`);
                     element.lastY = parseInt(`${renderY}`);
@@ -741,6 +743,7 @@ this.cyberiaonline = {
                     this.clearsIntervals = [];
                     this.shootTimeInterval = 100;
                     this.validateShoot = true;
+                    this.direction = 'South';
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -766,12 +769,36 @@ this.cyberiaonline = {
                                     setTimeout(() => {
                                         this.validateShoot = true;
                                     }, this.shootTimeInterval);
+                                    let xBullet = 0;
+                                    let yBullet = 0;
+                                    let direction = this.direction;
+
+                                    if (direction === 'East'
+                                        || direction === 'South East'
+                                        || direction === 'North East') {
+                                        xBullet = this.dim * 2;
+                                    }
+
+                                    if (direction === 'West'
+                                        || direction === 'South West'
+                                        || direction === 'North West') {
+                                        xBullet = this.dim * -2;
+                                    }
+
+                                    if (direction === 'North') {
+                                        yBullet = this.dim * -2;
+                                    }
+
+                                    if (direction === 'South') {
+                                        yBullet = this.dim * 2;
+                                    }
+
                                     elements.push(gen().init({
                                         id: id(),
                                         type: 'BULLET',
                                         container: containerID,
-                                        x: this.x + (this.dim * 2),
-                                        y: this.y
+                                        x: this.x + xBullet,
+                                        y: this.y + yBullet
                                     }));
                                 }
                             };
