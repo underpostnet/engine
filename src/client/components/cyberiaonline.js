@@ -737,6 +737,8 @@ this.cyberiaonline = {
                     this.path = [];
                     this.borderRadius = 100;
                     this.clearsIntervals = [];
+                    this.shootTimeInterval = 100;
+                    this.validateShoot = true;
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -843,13 +845,19 @@ this.cyberiaonline = {
                                     vel: timeIntervalGame,
                                     onKey: () => {
                                         console.log('onKey', this.id);
-                                        elements.push(gen().init({
-                                            id: id(),
-                                            type: 'BULLET',
-                                            container: containerID,
-                                            x: this.x + (this.dim * 2),
-                                            y: this.y
-                                        }));
+                                        if (this.validateShoot) {
+                                            this.validateShoot = false;
+                                            setTimeout(() => {
+                                                this.validateShoot = true;
+                                            }, this.shootTimeInterval);
+                                            elements.push(gen().init({
+                                                id: id(),
+                                                type: 'BULLET',
+                                                container: containerID,
+                                                x: this.x + (this.dim * 2),
+                                                y: this.y
+                                            }));
+                                        }
                                     }
                                 });
                                 this.clearsIntervals.push(`key_${qKey}`);
