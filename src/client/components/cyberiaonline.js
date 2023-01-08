@@ -324,9 +324,7 @@ this.cyberiaonline = {
         let elementsBackground = {};
 
 
-        let mainUserHead = {};
-        let mainUserEyesLeft = {};
-        let mainUserEyesRight = {};
+
         let mainUserFootFramesAnimation = {};
         let mainUserFootLeft = {};
         let mainUserFootRight = {};
@@ -339,6 +337,75 @@ this.cyberiaonline = {
 
 
         const components = {
+            'anon-head': {
+                componentsElements: {
+                    head: {},
+                    eyesLeft: {},
+                    eyesRight: {}
+                },
+                init: function (element) {
+
+                    this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.head[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.componentsElements.head[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.componentsElements.head[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    this.componentsElements.head[element.id].y = 0;
+                    elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
+
+                    this.componentsElements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.eyesLeft[element.id].tint = pixiColors['blue'];
+                    this.componentsElements.eyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.componentsElements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.eyesLeft[element.id]);
+
+                    this.componentsElements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.eyesRight[element.id].tint = pixiColors['blue'];
+                    this.componentsElements.eyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.componentsElements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.eyesRight[element.id]);
+
+
+                },
+                loop: function (element) {
+                    let direction = element.direction;
+                    if (direction === 'East'
+                        || direction === 'South East'
+                        || direction === 'North East') {
+                        this.componentsElements.eyesLeft[element.id].visible = false;
+                        this.componentsElements.eyesRight[element.id].visible = true;
+                    }
+
+                    if (direction === 'West'
+                        || direction === 'South West'
+                        || direction === 'North West') {
+                        this.componentsElements.eyesRight[element.id].visible = false;
+                        this.componentsElements.eyesLeft[element.id].visible = true;
+                    }
+
+                    if (direction === 'North') {
+                        this.componentsElements.eyesRight[element.id].visible = false;
+                        this.componentsElements.eyesLeft[element.id].visible = false;
+                    }
+
+                    if (direction === 'South') {
+                        this.componentsElements.eyesRight[element.id].visible = true;
+                        this.componentsElements.eyesLeft[element.id].visible = true;
+                    }
+
+                },
+                event: function (element) {
+
+                },
+                delete: function (element) {
+                    delete this.componentsElements.head[element.id];
+                    delete this.componentsElements.eyesLeft[element.id];
+                    delete this.componentsElements.eyesRight[element.id];
+                }
+            },
             'cross-effect': {
                 componentsElements: {
                     sprite: {}
@@ -487,9 +554,7 @@ this.cyberiaonline = {
             delete elementsContainer[id];
             delete elementsBackground[id];
 
-            delete mainUserHead[id];
-            delete mainUserEyesLeft[id];
-            delete mainUserEyesRight[id];
+
             delete mainUserFootLeft[id];
             delete mainUserFootRight[id];
             delete mainUserFootFramesAnimation[id];
@@ -541,28 +606,8 @@ this.cyberiaonline = {
 
             switch (element.type) {
                 case 'USER_MAIN':
-                    mainUserHead[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    mainUserHead[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    mainUserHead[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    mainUserHead[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
-                    mainUserHead[element.id].y = 0;
-                    elementsContainer[element.id].addChild(mainUserHead[element.id]);
 
-                    mainUserEyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    mainUserEyesLeft[element.id].tint = pixiColors['blue'];
-                    mainUserEyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserEyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserEyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
-                    mainUserEyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(mainUserEyesLeft[element.id]);
 
-                    mainUserEyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    mainUserEyesRight[element.id].tint = pixiColors['blue'];
-                    mainUserEyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserEyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserEyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
-                    mainUserEyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(mainUserEyesRight[element.id]);
 
                     mainUserFootFramesAnimation[element.id] = 0;
 
@@ -661,29 +706,7 @@ this.cyberiaonline = {
                         direction = getDirection(x1, y1, x2, y2);
                         console.log('getDirection', element.type, direction);
 
-                        if (direction === 'East'
-                            || direction === 'South East'
-                            || direction === 'North East') {
-                            mainUserEyesLeft[element.id].visible = false;
-                            mainUserEyesRight[element.id].visible = true;
-                        }
 
-                        if (direction === 'West'
-                            || direction === 'South West'
-                            || direction === 'North West') {
-                            mainUserEyesRight[element.id].visible = false;
-                            mainUserEyesLeft[element.id].visible = true;
-                        }
-
-                        if (direction === 'North') {
-                            mainUserEyesRight[element.id].visible = false;
-                            mainUserEyesLeft[element.id].visible = false;
-                        }
-
-                        if (direction === 'South') {
-                            mainUserEyesRight[element.id].visible = true;
-                            mainUserEyesLeft[element.id].visible = true;
-                        }
 
                         element.direction = direction;
 
@@ -744,6 +767,7 @@ this.cyberiaonline = {
                     this.shootTimeInterval = 100;
                     this.validateShoot = true;
                     this.direction = 'South';
+                    this.components = [];
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -761,7 +785,12 @@ this.cyberiaonline = {
                                 this.y = USER_MAIN_getAvailablePosition.y;
                             }
                             this.color = 'yellow';
-                            this.components = ['random-circle-color'];
+                            this.components = this.components.concat(
+                                [
+                                    'anon-head',
+                                    'random-circle-color'
+                                ]
+                            );
                             this.dim = this.dim * 0.8;
                             this.shoot = () => {
                                 if (this.validateShoot) {
