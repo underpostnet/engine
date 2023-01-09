@@ -301,7 +301,6 @@ this.cyberiaonline = {
 
         };
 
-        let floorLayer1 = {};
 
         let elementsContainer = {};
 
@@ -695,11 +694,7 @@ this.cyberiaonline = {
                 return
             };
             elementsContainer[id].destroy({ children: true });
-
-            delete floorLayer1[id];
-
             delete elementsContainer[id];
-
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
@@ -709,7 +704,6 @@ this.cyberiaonline = {
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
             }
-
             elements = elements.filter(x => x.id !== id);
         };
 
@@ -717,9 +711,7 @@ this.cyberiaonline = {
             Object.keys(elementsContainer).map(key => removeElement(key));
 
         const PIXI_INIT_ELEMENT = element => {
-
             // /assets/apps/cyberiaonline
-
             // elementsContainer[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
             elementsContainer[element.id] = new PIXI.Container();
             elementsContainer[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
@@ -730,15 +722,8 @@ this.cyberiaonline = {
             // elementsContainer[element.id].pivot.x = elementsContainer[element.id].width / 2;
             // elementsContainer[element.id].pivot.y = elementsContainer[element.id].width / 2;
             container.addChild(elementsContainer[element.id]); // sprite to containers
-
-
-
-
             if (element.components) element.components.map(component =>
                 components[component].init(element));
-
-
-
         };
 
         const PIXI_LOOP_ELEMENT = element => {
@@ -749,11 +734,8 @@ this.cyberiaonline = {
             };
             element.renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             element.renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
-
             if (element.type === 'USER_MAIN') {
-
                 let direction;
-
                 if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
                     if (element.lastX !== undefined && element.lastY !== undefined) {
                         const x1 = parseInt(`${element.lastX}`);
@@ -764,22 +746,13 @@ this.cyberiaonline = {
                         direction = getDirection(x1, y1, x2, y2);
                         console.log('getDirection', element.type, direction);
                         element.direction = direction;
-
                     }
-
-
-
                 }
             }
-
             if (element.components) element.components.map(component =>
                 components[component].loop(element));
-
-
-
             element.lastX = parseInt(`${element.renderX}`);
             element.lastY = parseInt(`${element.renderY}`);
-
             elementsContainer[element.id].x = newInstance(element.renderX);
             elementsContainer[element.id].y = newInstance(element.renderY);
 
