@@ -1111,6 +1111,7 @@ this.cyberiaonline = {
 
         const BtnQ = id();
         const BtnW = id();
+        const fullScreenBtn = id();
 
         setTimeout(() => {
             PIXI_INIT();
@@ -1122,6 +1123,8 @@ this.cyberiaonline = {
 
             s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
             s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
+
+            s(`.${fullScreenBtn}`).onclick = () => fullScreenIn();
 
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
@@ -1165,6 +1168,8 @@ this.cyberiaonline = {
                     <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
                     <br>
                     <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
+                    <br>
+                    <button class='inl ${fullScreenBtn}'>${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}</button>
                     <br>
             </div>
         

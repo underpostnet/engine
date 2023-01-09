@@ -232,3 +232,51 @@ const disableOptionsClick = (element, types) => {
     if (types.includes('select'))
         s(element).onselectstart = function () { return false; }
 };
+
+const checkScreenState = () => {
+    if (
+        (window._fullscreenState != (document.fullscreenElement ? true : false)) ||
+        (window._fullscreenState != document.fullscreen)
+    ) {
+        if (document.fullscreenElement || document.fullscreen)
+            window._fullscreenState = true;
+        else
+            window._fullscreenState = false;
+    }
+    return window._fullscreenState;
+};
+
+const fullScreenOut = () => {
+    if (window._fullscreen) clearInterval(window._fullscreen);
+    document.exitFullscreen();
+};
+
+const fullScreenIn = (intervalTime, offFn, onFn) => {
+    const el = document.documentElement;
+    const rfs =
+        el.requestFullScreen
+        || el.webkitRequestFullScreen
+        || el.mozRequestFullScreen
+        || el.msRequestFullScreen
+        ;
+    if (typeof rfs != 'undefined' && rfs) {
+        rfs.call(el);
+    } else if (typeof window.ActiveXObject != 'undefined') {
+
+        const wscript = new ActiveXObject('WScript.Shell');
+        if (wscript != null) {
+            wscript.SendKeys('{F11}');
+        }
+    }
+
+    if (window._fullscreen) clearInterval(window._fullscreen);
+    window._fullscreenState = true;
+    window._fullscreen = setInterval(() => {
+        if (checkScreenState()) {
+            if (onFn) onFn();
+        } else {
+            clearInterval(window._fullscreen);
+            if (offFn) offFn();
+        }
+    }, intervalTime !== undefined ? intervalTime : 0);
+};
