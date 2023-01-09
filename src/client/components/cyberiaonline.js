@@ -325,7 +325,9 @@ this.cyberiaonline = {
         const components = {
             'random-head-common': {
                 componentsParams: {
-                    colorHead: null
+                    color: null,
+                    width: null,
+                    height: null
                 },
                 componentsElements: {
                     head: {},
@@ -334,13 +336,15 @@ this.cyberiaonline = {
                 },
                 init: function (element) {
 
-                    if (this.componentsParams.colorHead === null) this.componentsParams.colorHead = getRandomPixiColor();
+                    if (this.componentsParams.color === null) this.componentsParams.color = getRandomPixiColor();
+                    if (this.componentsParams.width === null) this.componentsParams.width = ((element.dim) * pixiAmplitudeFactor) / (10 / random(1, 8));
+                    if (this.componentsParams.height === null) this.componentsParams.height = ((element.dim) * pixiAmplitudeFactor) / (10 / random(1, 8));
 
                     this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.head[element.id].tint = this.componentsParams.colorHead;
-                    this.componentsElements.head[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    this.componentsElements.head[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    this.componentsElements.head[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    this.componentsElements.head[element.id].tint = this.componentsParams.color;
+                    this.componentsElements.head[element.id].width = this.componentsParams.width;
+                    this.componentsElements.head[element.id].height = this.componentsParams.height;
+                    this.componentsElements.head[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsParams.width) / 2;
                     this.componentsElements.head[element.id].y = 0;
                     elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
 
@@ -393,7 +397,9 @@ this.cyberiaonline = {
                     delete this.componentsElements.head[element.id];
                     delete this.componentsElements.eyesLeft[element.id];
                     delete this.componentsElements.eyesRight[element.id];
-                    this.componentsParams.colorHead = null;
+                    this.componentsParams.color = null;
+                    this.componentsParams.width = null;
+                    this.componentsParams.height = null;
                 }
             },
             'texture|zinnwaldite brown|cafe noir': {
@@ -930,6 +936,7 @@ this.cyberiaonline = {
                                 this.y = BOT_getAvailablePosition.y;
                             }
                             this.color = 'electric green';
+                            this.vel = 0.025;
                             this.components = this.components.concat(
                                 [
                                     'random-head-common'
