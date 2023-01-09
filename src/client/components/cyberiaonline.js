@@ -308,14 +308,51 @@ this.cyberiaonline = {
 
 
 
-        let buildingLayer1 = {};
-        let buildingLayer2 = {};
-        let buildingLayer3 = {};
-        let buildingLayer4 = {};
-        let buildingLayer5 = {};
+        /*
+            const component = {
+                componentsFunctions: {},
+                componentsElements: {},
+                componentsFrames: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element) { },
+                delete: function (element) { }
+            }
 
+        */
 
         const components = {
+            'texture|zinnwaldite brown|cafe noir': {
+                componentsFunctions: {},
+                componentsElements: {
+                    layer1: {},
+                    layer2: {}
+                },
+                componentsFrames: {},
+                init: function (element) {
+                    this.componentsElements.layer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.layer1[element.id].tint = pixiColors['zinnwaldite brown'];
+                    this.componentsElements.layer1[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    this.componentsElements.layer1[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    this.componentsElements.layer1[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer1[element.id].width) / 2;
+                    this.componentsElements.layer1[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer1[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(this.componentsElements.layer1[element.id]);
+
+                    this.componentsElements.layer2[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.layer2[element.id].tint = pixiColors['cafe noir'];
+                    this.componentsElements.layer2[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    this.componentsElements.layer2[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    this.componentsElements.layer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer2[element.id].width) / 2;
+                    this.componentsElements.layer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer2[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(this.componentsElements.layer2[element.id]);
+                },
+                loop: function (element) { },
+                event: function (element) { },
+                delete: function (element) {
+                    delete this.componentsElements.layer1[element.id];
+                    delete this.componentsElements.layer2[element.id];
+                }
+            },
             'background': {
                 componentsFunctions: {
                     alertCollision: element => {
@@ -385,13 +422,15 @@ this.cyberiaonline = {
             'anon-foots': {
                 componentsElements: {
                     footLeft: {},
-                    footRight: {},
-                    footFramesAnimation: {}
+                    footRight: {}
+                },
+                componentsFrames: {
+                    foot: {}
                 },
                 init: function (element) {
 
 
-                    this.componentsElements.footFramesAnimation[element.id] = 0;
+                    this.componentsFrames.foot[element.id] = 0;
 
                     this.componentsElements.footLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.componentsElements.footLeft[element.id].tint = pixiColors['white'];
@@ -413,7 +452,7 @@ this.cyberiaonline = {
                     if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
                         let direction = element.direction;
 
-                        switch (this.componentsElements.footFramesAnimation[element.id]) {
+                        switch (this.componentsFrames.foot[element.id]) {
                             case 0:
                                 this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
                                 this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
@@ -423,10 +462,10 @@ this.cyberiaonline = {
                                 this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
                                 break;
                             case 100:
-                                this.componentsElements.footFramesAnimation[element.id] = -1;
+                                this.componentsFrames.foot[element.id] = -1;
                                 break;
                         }
-                        this.componentsElements.footFramesAnimation[element.id]++;
+                        this.componentsFrames.foot[element.id]++;
                     } else {
                         const currentElement = newInstance(element);
                         setTimeout(() => {
@@ -440,7 +479,7 @@ this.cyberiaonline = {
                 },
                 event: function (element) { },
                 delete: function (element) {
-                    delete this.componentsElements.footFramesAnimation[element.id];
+                    delete this.componentsFrames.foot[element.id];
                     delete this.componentsElements.footLeft[element.id];
                     delete this.componentsElements.footRight[element.id];
                 }
@@ -661,12 +700,6 @@ this.cyberiaonline = {
 
             delete elementsContainer[id];
 
-            delete buildingLayer1[id];
-            delete buildingLayer2[id];
-            delete buildingLayer3[id];
-            delete buildingLayer4[id];
-            delete buildingLayer5[id];
-
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
             if (elementIndex > -1) {
@@ -704,30 +737,7 @@ this.cyberiaonline = {
             if (element.components) element.components.map(component =>
                 components[component].init(element));
 
-            switch (element.type) {
 
-                case 'BUILDING':
-
-                    // buildingLayer1
-
-                    buildingLayer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    buildingLayer1[element.id].tint = pixiColors['zinnwaldite brown'];
-                    buildingLayer1[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.1;
-                    buildingLayer1[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.1;
-                    buildingLayer1[element.id].x = (((element.dim) * pixiAmplitudeFactor) - buildingLayer1[element.id].width) / 2;
-                    buildingLayer1[element.id].y = (((element.dim) * pixiAmplitudeFactor) - buildingLayer1[element.id].height) / 2;
-                    elementsContainer[element.id].addChild(buildingLayer1[element.id]);
-
-                    buildingLayer2[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    buildingLayer2[element.id].tint = pixiColors['cafe noir'];
-                    buildingLayer2[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.5;
-                    buildingLayer2[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.5;
-                    buildingLayer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].width) / 2;
-                    buildingLayer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].height) / 2;
-                    elementsContainer[element.id].addChild(buildingLayer2[element.id]);
-                default:
-                    break;
-            };
 
         };
 
@@ -806,6 +816,11 @@ this.cyberiaonline = {
                                 this.y = BUILDING_getAvailablePosition.y;
                             }
                             this.color = 'black';
+                            this.components = this.components.concat(
+                                [
+                                    'texture|zinnwaldite brown|cafe noir'
+                                ]
+                            );
                             break;
                         case 'USER_MAIN':
                             if (!(options.x !== undefined && options.y !== undefined)) {
