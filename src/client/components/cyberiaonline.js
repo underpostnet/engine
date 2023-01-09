@@ -327,7 +327,10 @@ this.cyberiaonline = {
                 componentsParams: {
                     color: null,
                     width: null,
-                    height: null
+                    height: null,
+                    eyeColor: null,
+                    eyeWidth: null,
+                    eyeHeight: null
                 },
                 componentsElements: {
                     head: {},
@@ -337,8 +340,8 @@ this.cyberiaonline = {
                 init: function (element) {
 
                     if (this.componentsParams.color === null) this.componentsParams.color = getRandomPixiColor();
-                    if (this.componentsParams.width === null) this.componentsParams.width = ((element.dim) * pixiAmplitudeFactor) / (10 / random(1, 8));
-                    if (this.componentsParams.height === null) this.componentsParams.height = ((element.dim) * pixiAmplitudeFactor) / (10 / random(1, 8));
+                    if (this.componentsParams.width === null) this.componentsParams.width = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
+                    if (this.componentsParams.height === null) this.componentsParams.height = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
 
                     this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.componentsElements.head[element.id].tint = this.componentsParams.color;
@@ -348,19 +351,23 @@ this.cyberiaonline = {
                     this.componentsElements.head[element.id].y = 0;
                     elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
 
+                    if (this.componentsParams.eyeWidth === null) this.componentsParams.eyeWidth = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
+                    if (this.componentsParams.eyeHeight === null) this.componentsParams.eyeHeight = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
+                    if (this.componentsParams.eyeColor === null) this.componentsParams.eyeColor = getRandomPixiColor();
+
                     this.componentsElements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesLeft[element.id].tint = pixiColors['blue'];
-                    this.componentsElements.eyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.componentsElements.eyesLeft[element.id].tint = this.componentsParams.eyeColor;
+                    this.componentsElements.eyesLeft[element.id].width = this.componentsParams.eyeWidth;
+                    this.componentsElements.eyesLeft[element.id].height = this.componentsParams.eyeHeight;
+                    this.componentsElements.eyesLeft[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.componentsParams.eyeWidth / 2); /// - [this.componentsParams.eyeWidth, 0][random(0, 1)];
                     this.componentsElements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(this.componentsElements.eyesLeft[element.id]);
 
                     this.componentsElements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesRight[element.id].tint = pixiColors['blue'];
-                    this.componentsElements.eyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.componentsElements.eyesRight[element.id].tint = this.componentsParams.eyeColor;
+                    this.componentsElements.eyesRight[element.id].width = this.componentsParams.eyeWidth;
+                    this.componentsElements.eyesRight[element.id].height = this.componentsParams.eyeHeight;
+                    this.componentsElements.eyesRight[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.componentsParams.eyeWidth / 2); /// + [this.componentsParams.eyeWidth, 0][random(0, 1)];
                     this.componentsElements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(this.componentsElements.eyesRight[element.id]);
 
@@ -400,6 +407,9 @@ this.cyberiaonline = {
                     this.componentsParams.color = null;
                     this.componentsParams.width = null;
                     this.componentsParams.height = null;
+                    this.componentsParams.eyeColor = null;
+                    this.componentsParams.eyeWidth = null;
+                    this.componentsParams.eyeHeight = null;
                 }
             },
             'texture|zinnwaldite brown|cafe noir': {
@@ -477,6 +487,9 @@ this.cyberiaonline = {
                             this.componentsElements.background[element.id].visible = false;
                             break;
                         case 'BULLET':
+                            this.componentsElements.background[element.id].visible = false;
+                            break;
+                        case 'BOT':
                             this.componentsElements.background[element.id].visible = false;
                             break;
                         default:
@@ -939,7 +952,8 @@ this.cyberiaonline = {
                             this.vel = 0.025;
                             this.components = this.components.concat(
                                 [
-                                    'random-head-common'
+                                    'random-head-common',
+                                    'anon-foots'
                                 ]
                             );
                             break;
