@@ -128,11 +128,11 @@ this.cyberiaonline = {
                     while (matrixAux[y][x] !== 0) {
                         currentChange++;
                         if (sum) {
-                            console.log('snail', `${xTarget ? 'x' : 'y'}`, `+`, `${currentChange}/${valueChange}`);
+                            // console.log('snail', `${xTarget ? 'x' : 'y'}`, `+`, `${currentChange}/${valueChange}`);
                             if (xTarget) x = x + 1;
                             else y = y + 1;
                         } else {
-                            console.log('snail', `${xTarget ? 'x' : 'y'}`, `-`, `${currentChange}/${valueChange}`);
+                            // console.log('snail', `${xTarget ? 'x' : 'y'}`, `-`, `${currentChange}/${valueChange}`);
                             if (xTarget) x = x - 1;
                             else y = y - 1;
                         }
@@ -266,6 +266,8 @@ this.cyberiaonline = {
             pixiColors[dataColor.name.toLowerCase()] = numberHexColor(dataColor.hex);
         });
 
+        const getRandomPixiColor = () => pixiColors[Object.keys(pixiColors)[random(0, (Object.keys(pixiColors).length - 1))]];
+
         console.log('COLORS', colors);
 
         const PIXI_INIT = () => {
@@ -311,7 +313,7 @@ this.cyberiaonline = {
             const component = {
                 componentsFunctions: {},
                 componentsElements: {},
-                componentsFrames: {},
+                componentsParams: {},
                 init: function (element) { },
                 loop: function (element) { },
                 event: function (element) { },
@@ -321,13 +323,86 @@ this.cyberiaonline = {
         */
 
         const components = {
+            'random-head-common': {
+                componentsParams: {
+                    colorHead: null
+                },
+                componentsElements: {
+                    head: {},
+                    eyesLeft: {},
+                    eyesRight: {}
+                },
+                init: function (element) {
+
+                    if (this.componentsParams.colorHead === null) this.componentsParams.colorHead = getRandomPixiColor();
+
+                    this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.head[element.id].tint = this.componentsParams.colorHead;
+                    this.componentsElements.head[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.componentsElements.head[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.componentsElements.head[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    this.componentsElements.head[element.id].y = 0;
+                    elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
+
+                    this.componentsElements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.eyesLeft[element.id].tint = pixiColors['blue'];
+                    this.componentsElements.eyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.componentsElements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.eyesLeft[element.id]);
+
+                    this.componentsElements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.eyesRight[element.id].tint = pixiColors['blue'];
+                    this.componentsElements.eyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.eyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.componentsElements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.eyesRight[element.id]);
+
+                },
+                loop: function (element) {
+                    let direction = element.direction;
+                    if (direction === 'East'
+                        || direction === 'South East'
+                        || direction === 'North East') {
+                        this.componentsElements.eyesLeft[element.id].visible = false;
+                        this.componentsElements.eyesRight[element.id].visible = true;
+                    }
+
+                    if (direction === 'West'
+                        || direction === 'South West'
+                        || direction === 'North West') {
+                        this.componentsElements.eyesRight[element.id].visible = false;
+                        this.componentsElements.eyesLeft[element.id].visible = true;
+                    }
+
+                    if (direction === 'North') {
+                        this.componentsElements.eyesRight[element.id].visible = false;
+                        this.componentsElements.eyesLeft[element.id].visible = false;
+                    }
+
+                    if (direction === 'South') {
+                        this.componentsElements.eyesRight[element.id].visible = true;
+                        this.componentsElements.eyesLeft[element.id].visible = true;
+                    }
+
+                },
+                event: function (element) { },
+                delete: function (element) {
+                    delete this.componentsElements.head[element.id];
+                    delete this.componentsElements.eyesLeft[element.id];
+                    delete this.componentsElements.eyesRight[element.id];
+                    this.componentsParams.colorHead = null;
+                }
+            },
             'texture|zinnwaldite brown|cafe noir': {
                 componentsFunctions: {},
                 componentsElements: {
                     layer1: {},
                     layer2: {}
                 },
-                componentsFrames: {},
+                componentsParams: {},
                 init: function (element) {
                     this.componentsElements.layer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.componentsElements.layer1[element.id].tint = pixiColors['zinnwaldite brown'];
@@ -423,13 +498,13 @@ this.cyberiaonline = {
                     footLeft: {},
                     footRight: {}
                 },
-                componentsFrames: {
+                componentsParams: {
                     foot: {}
                 },
                 init: function (element) {
 
 
-                    this.componentsFrames.foot[element.id] = 0;
+                    this.componentsParams.foot[element.id] = 0;
 
                     this.componentsElements.footLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.componentsElements.footLeft[element.id].tint = pixiColors['white'];
@@ -451,7 +526,7 @@ this.cyberiaonline = {
                     if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
                         let direction = element.direction;
 
-                        switch (this.componentsFrames.foot[element.id]) {
+                        switch (this.componentsParams.foot[element.id]) {
                             case 0:
                                 this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
                                 this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
@@ -461,10 +536,10 @@ this.cyberiaonline = {
                                 this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
                                 break;
                             case 100:
-                                this.componentsFrames.foot[element.id] = -1;
+                                this.componentsParams.foot[element.id] = -1;
                                 break;
                         }
-                        this.componentsFrames.foot[element.id]++;
+                        this.componentsParams.foot[element.id]++;
                     } else {
                         const currentElement = newInstance(element);
                         setTimeout(() => {
@@ -478,7 +553,7 @@ this.cyberiaonline = {
                 },
                 event: function (element) { },
                 delete: function (element) {
-                    delete this.componentsFrames.foot[element.id];
+                    delete this.componentsParams.foot[element.id];
                     delete this.componentsElements.footLeft[element.id];
                     delete this.componentsElements.footRight[element.id];
                 }
@@ -611,7 +686,7 @@ this.cyberiaonline = {
                 }
             },
             'random-circle-color': {
-                componentsFrames: {
+                componentsParams: {
                     circle: {}
                 },
                 componentsElements: {
@@ -628,9 +703,9 @@ this.cyberiaonline = {
                     elementsContainer[element.id].addChild(this.componentsElements.circle[element.id]);
                 },
                 loop: function (element) {
-                    if (!this.componentsFrames.circle[element.id])
-                        this.componentsFrames.circle[element.id] = 0;
-                    switch (this.componentsFrames.circle[element.id]) {
+                    if (!this.componentsParams.circle[element.id])
+                        this.componentsParams.circle[element.id] = 0;
+                    switch (this.componentsParams.circle[element.id]) {
                         case 0:
                             this.componentsElements.circle[element.id].clear();
                             this.componentsElements.circle[element.id].beginFill(randomNumberColor());
@@ -676,14 +751,14 @@ this.cyberiaonline = {
                             this.componentsElements.circle[element.id].endFill();
                             break;
                         case 400:
-                            this.componentsFrames.circle[element.id] = -1;
+                            this.componentsParams.circle[element.id] = -1;
                             break;
                     }
-                    this.componentsFrames.circle[element.id]++;
+                    this.componentsParams.circle[element.id]++;
                 },
                 delete: function (element) {
                     delete this.componentsElements.circle[element.id];
-                    delete this.componentsFrames.circle[element.id];
+                    delete this.componentsParams.circle[element.id];
                 }
             }
         };
@@ -734,19 +809,17 @@ this.cyberiaonline = {
             };
             element.renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             element.renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
-            if (element.type === 'USER_MAIN') {
-                let direction;
-                if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
-                    if (element.lastX !== undefined && element.lastY !== undefined) {
-                        const x1 = parseInt(`${element.lastX}`);
-                        const y1 = parseInt(`${element.lastY}`);
-                        const x2 = parseInt(element.renderX);
-                        const y2 = parseInt(element.renderY);
+            let direction;
+            if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
+                if (element.lastX !== undefined && element.lastY !== undefined) {
+                    const x1 = parseInt(`${element.lastX}`);
+                    const y1 = parseInt(`${element.lastY}`);
+                    const x2 = parseInt(element.renderX);
+                    const y2 = parseInt(element.renderY);
 
-                        direction = getDirection(x1, y1, x2, y2);
-                        console.log('getDirection', element.type, direction);
-                        element.direction = direction;
-                    }
+                    direction = getDirection(x1, y1, x2, y2);
+                    // console.log('getDirection', element.type, direction);
+                    element.direction = direction;
                 }
             }
             if (element.components) element.components.map(component =>
@@ -857,6 +930,11 @@ this.cyberiaonline = {
                                 this.y = BOT_getAvailablePosition.y;
                             }
                             this.color = 'electric green';
+                            this.components = this.components.concat(
+                                [
+                                    'random-head-common'
+                                ]
+                            );
                             break;
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
