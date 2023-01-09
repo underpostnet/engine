@@ -1192,5 +1192,11 @@ this.cyberiaonline = {
     },
     routerDisplay: function (options) {
         this.renderHtmlPixiLayer();
+    },
+    offFullScreen: () => {
+        console.warn('offFullScreen');
+    },
+    onFullScreen: () => {
+        console.warn('onFullScreen');
     }
 };

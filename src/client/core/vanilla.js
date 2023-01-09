@@ -233,25 +233,16 @@ const disableOptionsClick = (element, types) => {
         s(element).onselectstart = function () { return false; }
 };
 
-const checkScreenState = () => {
-    if (
-        (window._fullscreenState != (document.fullscreenElement ? true : false)) ||
-        (window._fullscreenState != document.fullscreen)
-    ) {
-        if (document.fullscreenElement || document.fullscreen)
-            window._fullscreenState = true;
-        else
-            window._fullscreenState = false;
-    }
-    return window._fullscreenState;
+const checkFullScreen = () => {
+    // document.fullscreen
+    return (document.fullscreenElement ? true : false)
 };
 
 const fullScreenOut = () => {
-    if (window._fullscreen) clearInterval(window._fullscreen);
     document.exitFullscreen();
 };
 
-const fullScreenIn = (intervalTime, offFn, onFn) => {
+const fullScreenIn = () => {
     const el = document.documentElement;
     const rfs =
         el.requestFullScreen
@@ -269,14 +260,4 @@ const fullScreenIn = (intervalTime, offFn, onFn) => {
         }
     }
 
-    if (window._fullscreen) clearInterval(window._fullscreen);
-    window._fullscreenState = true;
-    window._fullscreen = setInterval(() => {
-        if (checkScreenState()) {
-            if (onFn) onFn();
-        } else {
-            clearInterval(window._fullscreen);
-            if (offFn) offFn();
-        }
-    }, intervalTime !== undefined ? intervalTime : 0);
 };
