@@ -75,24 +75,7 @@ this.cyberiaonline = {
             )
         };
 
-        const alertCollision = element => {
-            return (
-                element.type !== 'BUILDING'
-                && element.type !== 'FLOOR'
-                && element.type !== 'TOUCH'
-            ) &&
 
-                elements.filter(x => (
-
-                    validateCollision(x, element)
-                    &&
-                    element.id !== x.id
-                    &&
-                    x.type !== 'FLOOR'
-                    &&
-                    x.type !== 'TOUCH'
-                )).length > 0;
-        };
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
@@ -321,7 +304,6 @@ this.cyberiaonline = {
         let floorLayer1 = {};
 
         let elementsContainer = {};
-        let elementsBackground = {};
 
 
 
@@ -334,6 +316,72 @@ this.cyberiaonline = {
 
 
         const components = {
+            'background': {
+                componentsFunctions: {
+                    alertCollision: element => {
+                        return (
+                            element.type !== 'BUILDING'
+                            && element.type !== 'FLOOR'
+                            && element.type !== 'TOUCH'
+                        ) &&
+
+                            elements.filter(x => (
+
+                                validateCollision(x, element)
+                                &&
+                                element.id !== x.id
+                                &&
+                                x.type !== 'FLOOR'
+                                &&
+                                x.type !== 'TOUCH'
+                            )).length > 0;
+                    }
+                },
+                componentsElements: {
+                    background: {},
+                },
+                init: function (element) {
+
+                    container.addChild(elementsContainer[element.id]); // sprite to containers
+
+                    this.componentsElements.background[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.background[element.id].x = 0;
+                    this.componentsElements.background[element.id].y = 0;
+                    this.componentsElements.background[element.id].width = (element.dim) * pixiAmplitudeFactor;
+                    this.componentsElements.background[element.id].height = (element.dim) * pixiAmplitudeFactor;
+                    this.componentsElements.background[element.id].tint = pixiColors[element.color];
+                    elementsContainer[element.id].addChild(this.componentsElements.background[element.id]);
+
+                    switch (element.type) {
+                        case 'USER_MAIN':
+                            this.componentsElements.background[element.id].visible = false;
+                            break;
+                        case 'TOUCH':
+                            this.componentsElements.background[element.id].visible = false;
+                            break;
+                        case 'BULLET':
+                            this.componentsElements.background[element.id].visible = false;
+                            break;
+                        default:
+                    };
+
+
+                },
+                loop: function (element) {
+                    if (this.componentsFunctions.alertCollision(element)) {
+                        this.componentsElements.background[element.id].tint = pixiColors["magenta"];
+                    } else if (this.componentsElements.background[element.id].tint !== pixiColors[element.color]) {
+                        this.componentsElements.background[element.id].tint = pixiColors[element.color];
+                    }
+                },
+                event: function (element) {
+
+
+                },
+                delete: function (element) {
+                    delete this.componentsElements.background[element.id];
+                }
+            },
             'anon-foots': {
                 componentsElements: {
                     footLeft: {},
@@ -612,7 +660,6 @@ this.cyberiaonline = {
             delete floorLayer1[id];
 
             delete elementsContainer[id];
-            delete elementsBackground[id];
 
             delete buildingLayer1[id];
             delete buildingLayer2[id];
@@ -651,23 +698,13 @@ this.cyberiaonline = {
             // elementsContainer[element.id].pivot.y = elementsContainer[element.id].width / 2;
             container.addChild(elementsContainer[element.id]); // sprite to containers
 
-            elementsBackground[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-            elementsBackground[element.id].x = 0;
-            elementsBackground[element.id].y = 0;
-            elementsBackground[element.id].width = (element.dim) * pixiAmplitudeFactor;
-            elementsBackground[element.id].height = (element.dim) * pixiAmplitudeFactor;
-            elementsBackground[element.id].tint = pixiColors[element.color];
-            elementsContainer[element.id].addChild(elementsBackground[element.id]);
+
+
+
+            if (element.components) element.components.map(component =>
+                components[component].init(element));
 
             switch (element.type) {
-                case 'USER_MAIN':
-
-
-
-                    elementsBackground[element.id].visible = false;
-
-                    break;
-
 
                 case 'BUILDING':
 
@@ -688,29 +725,9 @@ this.cyberiaonline = {
                     buildingLayer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].width) / 2;
                     buildingLayer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - buildingLayer2[element.id].height) / 2;
                     elementsContainer[element.id].addChild(buildingLayer2[element.id]);
-
-
-                    break;
-                case 'TOUCH':
-                    elementsBackground[element.id].visible = false;
-                    break;
-                case 'BULLET':
-                    elementsBackground[element.id].visible = false;
-                    break;
                 default:
+                    break;
             };
-
-            if (element.components) element.components.map(component =>
-                components[component].init(element));
-
-            // const headCircle = new PIXI.Graphics();
-            // headCircle.beginFill(0x3333ff);
-            // headCircle.lineStyle(0);
-            // headCircle.drawCircle(100, 30, 25); // x,y,radio
-            // headCircle.endFill();
-            // headCircle.width = 50;
-            // headCircle.height = 50;
-            // container.addChild(headCircle);
 
         };
 
@@ -720,12 +737,6 @@ this.cyberiaonline = {
                 console.error('!elementsContainer[element.id]');
                 return;
             };
-
-            if (alertCollision(element)) {
-                elementsBackground[element.id].tint = pixiColors["magenta"];
-            } else if (elementsBackground[element.id].tint !== pixiColors[element.color]) {
-                elementsBackground[element.id].tint = pixiColors[element.color];
-            }
             element.renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             element.renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
 
@@ -785,7 +796,7 @@ this.cyberiaonline = {
                     this.shootTimeInterval = 100;
                     this.validateShoot = true;
                     this.direction = 'South';
-                    this.components = [];
+                    this.components = options.components ? options.components : ['background'];
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -877,18 +888,6 @@ this.cyberiaonline = {
                             break;
                     }
                     PIXI_INIT_ELEMENT(this);
-                    // append(this.container, /*html*/`
-                    //         <style class='${this.id}'></style>
-                    //         <style>
-                    //             ${this.id} {
-                    //                 border-radius: ${this.borderRadius}%;
-                    //                 background: ${this.color};
-                    //                 width: ${this.dim}%;
-                    //                 height: ${this.dim}%;
-                    //             }
-                    //         </style>
-                    //         <${this.id} class='abs'></${this.id}>
-                    // `);
                     switch (this.type) {
                         case 'USER_MAIN':
                             this.ArrowLeft = startListenKey({
@@ -1039,13 +1038,6 @@ this.cyberiaonline = {
                             break;
                     }
                     PIXI_LOOP_ELEMENT(this);
-                    //         htmls(`.${this.id}`,/*css*/`
-                    //             ${this.id} {
-                    //                 top: ${this.x - (this.dim / 2)}%;
-                    //                 left: ${this.y - (this.dim / 2)}%;
-                    //                 ${alertCollision(this) ? 'background: magenta !important;' : ''}
-                    // }
-                    //     `);
                 }
             };
         };
