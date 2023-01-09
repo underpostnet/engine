@@ -325,9 +325,6 @@ this.cyberiaonline = {
 
 
 
-        let mainUserFootFramesAnimation = {};
-        let mainUserFootLeft = {};
-        let mainUserFootRight = {};
 
         let buildingLayer1 = {};
         let buildingLayer2 = {};
@@ -337,6 +334,69 @@ this.cyberiaonline = {
 
 
         const components = {
+            'anon-foots': {
+                componentsElements: {
+                    footLeft: {},
+                    footRight: {},
+                    footFramesAnimation: {}
+                },
+                init: function (element) {
+
+
+                    this.componentsElements.footFramesAnimation[element.id] = 0;
+
+                    this.componentsElements.footLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.footLeft[element.id].tint = pixiColors['white'];
+                    this.componentsElements.footLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    this.componentsElements.footLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.componentsElements.footLeft[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.footLeft[element.id]);
+
+                    this.componentsElements.footRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.footRight[element.id].tint = pixiColors['white'];
+                    this.componentsElements.footRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    this.componentsElements.footRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.componentsElements.footRight[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.componentsElements.footRight[element.id]);
+                },
+                loop: function (element) {
+                    if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
+                        let direction = element.direction;
+
+                        switch (this.componentsElements.footFramesAnimation[element.id]) {
+                            case 0:
+                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                break;
+                            case 50:
+                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                                break;
+                            case 100:
+                                this.componentsElements.footFramesAnimation[element.id] = -1;
+                                break;
+                        }
+                        this.componentsElements.footFramesAnimation[element.id]++;
+                    } else {
+                        const currentElement = newInstance(element);
+                        setTimeout(() => {
+                            if (element.lastX === parseInt(currentElement.renderX) && element.lastY === parseInt(currentElement.renderY) && elementsContainer[element.id]) {
+                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                            }
+                        }, 100);
+                    }
+
+                },
+                event: function (element) { },
+                delete: function (element) {
+                    delete this.componentsElements.footFramesAnimation[element.id];
+                    delete this.componentsElements.footLeft[element.id];
+                    delete this.componentsElements.footRight[element.id];
+                }
+            },
             'anon-head': {
                 componentsElements: {
                     head: {},
@@ -554,11 +614,6 @@ this.cyberiaonline = {
             delete elementsContainer[id];
             delete elementsBackground[id];
 
-
-            delete mainUserFootLeft[id];
-            delete mainUserFootRight[id];
-            delete mainUserFootFramesAnimation[id];
-
             delete buildingLayer1[id];
             delete buildingLayer2[id];
             delete buildingLayer3[id];
@@ -608,24 +663,6 @@ this.cyberiaonline = {
                 case 'USER_MAIN':
 
 
-
-                    mainUserFootFramesAnimation[element.id] = 0;
-
-                    mainUserFootLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    mainUserFootLeft[element.id].tint = pixiColors['white'];
-                    mainUserFootLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                    mainUserFootLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
-                    mainUserFootLeft[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(mainUserFootLeft[element.id]);
-
-                    mainUserFootRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    mainUserFootRight[element.id].tint = pixiColors['white'];
-                    mainUserFootRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                    mainUserFootRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
-                    mainUserFootRight[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(mainUserFootRight[element.id]);
 
                     elementsBackground[element.id].visible = false;
 
@@ -689,61 +726,42 @@ this.cyberiaonline = {
             } else if (elementsBackground[element.id].tint !== pixiColors[element.color]) {
                 elementsBackground[element.id].tint = pixiColors[element.color];
             }
-            const renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
-            const renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            element.renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
+            element.renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
 
             if (element.type === 'USER_MAIN') {
 
                 let direction;
 
-                if ((element.lastX !== parseInt(renderX) || element.lastY !== parseInt(renderY))) {
+                if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
                     if (element.lastX !== undefined && element.lastY !== undefined) {
                         const x1 = parseInt(`${element.lastX}`);
                         const y1 = parseInt(`${element.lastY}`);
-                        const x2 = parseInt(renderX);
-                        const y2 = parseInt(renderY);
+                        const x2 = parseInt(element.renderX);
+                        const y2 = parseInt(element.renderY);
 
                         direction = getDirection(x1, y1, x2, y2);
                         console.log('getDirection', element.type, direction);
-
-
-
                         element.direction = direction;
 
                     }
-                    element.lastX = parseInt(`${renderX}`);
-                    element.lastY = parseInt(`${renderY}`);
 
 
-                    switch (mainUserFootFramesAnimation[element.id]) {
-                        case 0:
-                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
-                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                            break;
-                        case 50:
-                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
-                            break;
-                        case 100:
-                            mainUserFootFramesAnimation[element.id] = -1;
-                            break;
-                    }
-                    mainUserFootFramesAnimation[element.id]++;
-                } else {
-                    setTimeout(() => {
-                        if (element.lastX === parseInt(renderX) && element.lastY === parseInt(renderY) && elementsContainer[element.id]) {
-                            mainUserFootLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                            mainUserFootRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                        }
-                    }, 100);
+
                 }
             }
 
-            elementsContainer[element.id].x = renderX;
-            elementsContainer[element.id].y = renderY;
-
             if (element.components) element.components.map(component =>
                 components[component].loop(element));
+
+
+
+            element.lastX = parseInt(`${element.renderX}`);
+            element.lastY = parseInt(`${element.renderY}`);
+
+            elementsContainer[element.id].x = newInstance(element.renderX);
+            elementsContainer[element.id].y = newInstance(element.renderY);
+
         };
 
         // ----------------------------------------------------------------
@@ -788,6 +806,7 @@ this.cyberiaonline = {
                             this.components = this.components.concat(
                                 [
                                     'anon-head',
+                                    'anon-foots',
                                     'random-circle-color'
                                 ]
                             );
@@ -1121,8 +1140,8 @@ this.cyberiaonline = {
             s(`.${newInstanceBtn}`).onclick = () =>
                 INSTANCE_GENERATOR();
 
-            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.type == 'USER_MAIN' ? x.shoot() : null);
-            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.type == 'USER_MAIN' ? x.shoot() : null);
+            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
+            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
 
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
