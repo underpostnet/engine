@@ -102,6 +102,8 @@ Run terminal with administrator privileges
 
 - Microdata
 
+- Pixi.js RPG Game
+
 #### Virtual Machine HTTP/WS API Server Features
 
 - jwt auth API

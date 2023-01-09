@@ -23,7 +23,6 @@ const viewMetaData = {
     lang: 'en',
     charset: 'utf-8',
     dir: 'ltr',
-    // srcJS: ['https://cdn.jsdelivr.net/npm/phaser@3.15.1/dist/phaser-arcade-physics.min.js'],
     srcJS: ['https://pixijs.download/release/pixi.js', '/pathfinding-browser.min.js'],
     styles: [
         `./underpost_modules/underpost-library/engine/global.css`,
@@ -64,18 +63,6 @@ const viewPaths = [
         home: true,
         nohome: true,
         render: true,
-        display: true
-    },
-    {
-        path: baseHome + '/phaser',
-        homePaths: [baseHome],
-        title: { en: 'Phaser', es: 'Phaser' },
-        component: 'phaser',
-        options: false,
-        menu: true,
-        home: false,
-        nohome: false,
-        render: false,
         display: true
     },
     {
