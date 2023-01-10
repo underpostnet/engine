@@ -310,6 +310,8 @@ this.cyberiaonline = {
 
 
         /*
+            container -> module
+            
             const component = {
                 componentsFunctions: {},
                 componentsElements: {},
@@ -486,9 +488,6 @@ this.cyberiaonline = {
                         case 'TOUCH':
                             this.componentsElements.background[element.id].visible = false;
                             break;
-                        case 'BULLET':
-                            this.componentsElements.background[element.id].visible = false;
-                            break;
                         case 'BOT':
                             this.componentsElements.background[element.id].visible = false;
                             break;
@@ -645,6 +644,79 @@ this.cyberiaonline = {
                     delete this.componentsElements.eyesLeft[element.id];
                     delete this.componentsElements.eyesRight[element.id];
                 }
+            },
+            'three-random-circle-color': {
+                //      X
+                // >  X
+                //      X
+                componentsFunctions: {},
+                componentsElements: {},
+                componentsParams: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element) { },
+                delete: function (element) { }
+            },
+            'life-bar': {
+                componentsFunctions: {},
+                componentsElements: {},
+                componentsParams: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element) { },
+                delete: function (element) { }
+
+            },
+            'BULLET-CROSS': {
+                componentsFunctions: {},
+                componentsElements: {},
+                componentsParams: {},
+                init: function (element) {
+                    element.shoot = () => {
+                        if (element.validateShoot) {
+                            element.validateShoot = false;
+                            setTimeout(() => {
+                                element.validateShoot = true;
+                            }, element.shootTimeInterval);
+                            let xBullet = 0;
+                            let yBullet = 0;
+                            let direction = element.direction;
+
+                            if (direction === 'East'
+                                || direction === 'South East'
+                                || direction === 'North East') {
+                                xBullet = element.dim * 2;
+                            }
+
+                            if (direction === 'West'
+                                || direction === 'South West'
+                                || direction === 'North West') {
+                                xBullet = element.dim * -2;
+                            }
+
+                            if (direction === 'North') {
+                                yBullet = element.dim * -2;
+                            }
+
+                            if (direction === 'South') {
+                                yBullet = element.dim * 2;
+                            }
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-CROSS',
+                                color: 'dark red',
+                                container: containerID,
+                                x: element.x + xBullet,
+                                y: element.y + yBullet
+                            }));
+                        }
+                    };
+                },
+                loop: function (element) { },
+                event: function (element) { },
+                delete: function (element) { }
+
             },
             'cross-effect': {
                 componentsElements: {
@@ -898,49 +970,11 @@ this.cyberiaonline = {
                                 [
                                     'anon-head',
                                     'anon-foots',
-                                    'random-circle-color'
+                                    'random-circle-color',
+                                    'BULLET-CROSS'
                                 ]
                             );
                             this.dim = this.dim * 0.8;
-                            this.shoot = () => {
-                                if (this.validateShoot) {
-                                    this.validateShoot = false;
-                                    setTimeout(() => {
-                                        this.validateShoot = true;
-                                    }, this.shootTimeInterval);
-                                    let xBullet = 0;
-                                    let yBullet = 0;
-                                    let direction = this.direction;
-
-                                    if (direction === 'East'
-                                        || direction === 'South East'
-                                        || direction === 'North East') {
-                                        xBullet = this.dim * 2;
-                                    }
-
-                                    if (direction === 'West'
-                                        || direction === 'South West'
-                                        || direction === 'North West') {
-                                        xBullet = this.dim * -2;
-                                    }
-
-                                    if (direction === 'North') {
-                                        yBullet = this.dim * -2;
-                                    }
-
-                                    if (direction === 'South') {
-                                        yBullet = this.dim * 2;
-                                    }
-
-                                    elements.push(gen().init({
-                                        id: id(),
-                                        type: 'BULLET',
-                                        container: containerID,
-                                        x: this.x + xBullet,
-                                        y: this.y + yBullet
-                                    }));
-                                }
-                            };
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -961,15 +995,13 @@ this.cyberiaonline = {
                             this.x = maxRangeMap;
                             this.y = minRangeMap;
                             break;
-                        case 'BULLET':
+                        case 'BULLET-CROSS':
                             setTimeout(() => {
                                 components['cross-effect'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
                             }, 2000);
-
-
                             break;
                         default:
                             break;
