@@ -247,6 +247,18 @@ this.cyberiaonline = {
             return element;
         };
 
+        const setShoot = (element, fn) => {
+            element.shoot = () => {
+                if (element.validateShoot) {
+                    element.validateShoot = false;
+                    setTimeout(() => {
+                        element.validateShoot = true;
+                    }, element.shootTimeInterval);
+                    fn();
+                }
+            };
+        };
+
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
@@ -672,46 +684,40 @@ this.cyberiaonline = {
                 componentsElements: {},
                 componentsParams: {},
                 init: function (element) {
-                    element.shoot = () => {
-                        if (element.validateShoot) {
-                            element.validateShoot = false;
-                            setTimeout(() => {
-                                element.validateShoot = true;
-                            }, element.shootTimeInterval);
-                            let xBullet = 0;
-                            let yBullet = 0;
-                            let direction = element.direction;
+                    setShoot(element, () => {
+                        let xBullet = 0;
+                        let yBullet = 0;
+                        let direction = element.direction;
 
-                            if (direction === 'East'
-                                || direction === 'South East'
-                                || direction === 'North East') {
-                                xBullet = element.dim * 2;
-                            }
-
-                            if (direction === 'West'
-                                || direction === 'South West'
-                                || direction === 'North West') {
-                                xBullet = element.dim * -2;
-                            }
-
-                            if (direction === 'North') {
-                                yBullet = element.dim * -2;
-                            }
-
-                            if (direction === 'South') {
-                                yBullet = element.dim * 2;
-                            }
-
-                            elements.push(gen().init({
-                                id: id(),
-                                type: 'BULLET-CROSS',
-                                color: 'dark red',
-                                container: containerID,
-                                x: element.x + xBullet,
-                                y: element.y + yBullet
-                            }));
+                        if (direction === 'East'
+                            || direction === 'South East'
+                            || direction === 'North East') {
+                            xBullet = element.dim * 2;
                         }
-                    };
+
+                        if (direction === 'West'
+                            || direction === 'South West'
+                            || direction === 'North West') {
+                            xBullet = element.dim * -2;
+                        }
+
+                        if (direction === 'North') {
+                            yBullet = element.dim * -2;
+                        }
+
+                        if (direction === 'South') {
+                            yBullet = element.dim * 2;
+                        }
+
+                        elements.push(gen().init({
+                            id: id(),
+                            type: 'BULLET-CROSS',
+                            color: 'dark red',
+                            container: containerID,
+                            x: element.x + xBullet,
+                            y: element.y + yBullet
+                        }));
+                    });
                 },
                 loop: function (element) { },
                 event: function (element) { },
