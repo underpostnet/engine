@@ -299,7 +299,7 @@ this.cyberiaonline = {
             append(pixiContainerId, /*html*/`
                 <style class='${this.htmlPixiLayer}'></style>
 
-                <${this.htmlPixiLayer} class='abs'>
+                <${this.htmlPixiLayer} class='abs canvas-cursor'>
                     v3.0.0
                 </${this.htmlPixiLayer}>
             
@@ -1495,9 +1495,7 @@ this.cyberiaonline = {
                         background: gray;
                     }
 
-                    ${pixiContainerId} { 
-                        cursor: pointer;
-                    }
+                    ${pixiContainerId} { }
 
                     canvas {
                        /* transform: scale(-1, 1) rotate(90deg); */
@@ -1509,7 +1507,7 @@ this.cyberiaonline = {
                 <!--
                 <${containerID} class='in'></${containerID}>
                 -->
-                <${pixiContainerId} class='in canvas-cursor'></${pixiContainerId}>
+                <${pixiContainerId} class='in'></${pixiContainerId}>
             </div>
             <div class='in container' style='text-align: center'>
                     <br>
