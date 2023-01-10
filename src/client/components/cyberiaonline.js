@@ -664,7 +664,42 @@ this.cyberiaonline = {
                 componentsFunctions: {},
                 componentsElements: {},
                 componentsParams: {},
-                init: function (element) { },
+                init: function (element) {
+                    setShoot(element, () => {
+                        let xBullet = 0;
+                        let yBullet = 0;
+                        let direction = element.direction;
+
+                        if (direction === 'East'
+                            || direction === 'South East'
+                            || direction === 'North East') {
+                            xBullet = element.dim * 2;
+                        }
+
+                        if (direction === 'West'
+                            || direction === 'South West'
+                            || direction === 'North West') {
+                            xBullet = element.dim * -2;
+                        }
+
+                        if (direction === 'North') {
+                            yBullet = element.dim * -2;
+                        }
+
+                        if (direction === 'South') {
+                            yBullet = element.dim * 2;
+                        }
+
+                        elements.push(gen().init({
+                            id: id(),
+                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                            color: 'dark red',
+                            container: containerID,
+                            x: element.x + xBullet,
+                            y: element.y + yBullet
+                        }));
+                    });
+                },
                 loop: function (element) { },
                 event: function (element) { },
                 delete: function (element) { }
@@ -1010,7 +1045,8 @@ this.cyberiaonline = {
                                     'anon-head',
                                     'anon-foots',
                                     'random-circle-color',
-                                    'BULLET-CROSS'
+                                    'BULLET-THREE-RANDOM-CIRCLE-COLOR'
+                                    // 'BULLET-CROSS'
                                 ]
                             );
                             this.dim = this.dim * 0.8;
@@ -1037,7 +1073,14 @@ this.cyberiaonline = {
                         case 'BULLET-CROSS':
                             setTimeout(() => {
                                 components['cross-effect'].event(this);
-                                // components['random-circle-color-one-big'].event(this);
+                            });
+                            setTimeout(() => {
+                                removeElement(this.id);
+                            }, 2000);
+                            break;
+                        case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
+                            setTimeout(() => {
+                                components['random-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
