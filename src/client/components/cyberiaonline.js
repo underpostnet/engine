@@ -645,7 +645,7 @@ this.cyberiaonline = {
                     delete this.componentsElements.eyesRight[element.id];
                 }
             },
-            'three-random-circle-color': {
+            'BULLET-THREE-RANDOM-CIRCLE-COLOR': {
                 //      X
                 // >  X
                 //      X
@@ -851,6 +851,39 @@ this.cyberiaonline = {
                     delete this.componentsElements.circle[element.id];
                     delete this.componentsParams.circle[element.id];
                 }
+            },
+            'random-circle-color-one-big': {
+                componentsElements: {
+                    circle: {}
+                },
+                init: function (element) { },
+                loop: function (element) { },
+                delete: function (eventHash) {
+                    this.componentsElements.circle[eventHash].destroy();
+                    delete this.componentsElements.circle[eventHash];
+                },
+                event: function (element) {
+                    const eventHash = 'x' + s4();
+
+                    this.componentsElements.circle[eventHash] = new PIXI.Graphics();
+                    this.componentsElements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor) * 0.8;
+                    this.componentsElements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor) * 0.8;
+                    this.componentsElements.circle[eventHash].beginFill(randomNumberColor());
+                    this.componentsElements.circle[eventHash].lineStyle(0);
+                    this.componentsElements.circle[eventHash].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.8 * 0.5
+                    ); // x,y,radio
+                    this.componentsElements.circle[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.componentsElements.circle[eventHash]);
+
+
+                    setTimeout(() => {
+                        this.delete(eventHash);
+                    }, 1000);
+
+                }
             }
         };
 
@@ -998,6 +1031,7 @@ this.cyberiaonline = {
                         case 'BULLET-CROSS':
                             setTimeout(() => {
                                 components['cross-effect'].event(this);
+                                // components['random-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
