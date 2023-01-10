@@ -669,25 +669,26 @@ this.cyberiaonline = {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
+                        const factorCordDim = 1;
 
                         if (direction === 'East'
                             || direction === 'South East'
                             || direction === 'North East') {
-                            xBullet = element.dim * 2;
+                            xBullet = element.dim * factorCordDim;
                         }
 
                         if (direction === 'West'
                             || direction === 'South West'
                             || direction === 'North West') {
-                            xBullet = element.dim * -2;
+                            xBullet = element.dim * -factorCordDim;
                         }
 
                         if (direction === 'North') {
-                            yBullet = element.dim * -2;
+                            yBullet = element.dim * -factorCordDim;
                         }
 
                         if (direction === 'South') {
-                            yBullet = element.dim * 2;
+                            yBullet = element.dim * factorCordDim;
                         }
 
                         elements.push(gen().init({
@@ -696,7 +697,8 @@ this.cyberiaonline = {
                             color: 'dark red',
                             container: containerID,
                             x: element.x + xBullet,
-                            y: element.y + yBullet
+                            y: element.y + yBullet,
+                            direction: element.direction
                         }));
                     });
                 },
@@ -905,16 +907,17 @@ this.cyberiaonline = {
                 },
                 event: function (element) {
                     const eventHash = 'x' + s4();
+                    const radioPor = 0.5;
 
                     this.componentsElements.circle[eventHash] = new PIXI.Graphics();
-                    this.componentsElements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor) * 0.8;
-                    this.componentsElements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor) * 0.8;
+                    this.componentsElements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.componentsElements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor);
                     this.componentsElements.circle[eventHash].beginFill(randomNumberColor());
                     this.componentsElements.circle[eventHash].lineStyle(0);
                     this.componentsElements.circle[eventHash].drawCircle(
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * 0.5,
-                        (element.dim * pixiAmplitudeFactor) * 0.8 * 0.5
+                        (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
                     ); // x,y,radio
                     this.componentsElements.circle[eventHash].endFill();
                     elementsContainer[element.id].addChild(this.componentsElements.circle[eventHash]);
@@ -1016,7 +1019,7 @@ this.cyberiaonline = {
                     this.clearsIntervals = [];
                     this.shootTimeInterval = 100;
                     this.validateShoot = true;
-                    this.direction = 'South';
+                    this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
                     switch (this.type) {
                         case 'BUILDING':
@@ -1079,12 +1082,144 @@ this.cyberiaonline = {
                             }, 2000);
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
+                            this.components = this.components.filter(x => x !== 'background');
                             setTimeout(() => {
                                 components['random-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
                             }, 2000);
+
+                            if (this.direction !== null) {
+                                let direction = this.direction;
+                                setTimeout(() => {
+
+                                    if (direction === 'East'
+                                        || direction === 'South East'
+                                        || direction === 'North East') {
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x + this.dim,
+                                            y: this.y - this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x + this.dim,
+                                            y: this.y + this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x + this.dim,
+                                            y: this.y,
+                                            direction: null
+                                        }));
+                                    }
+
+                                    if (direction === 'West'
+                                        || direction === 'South West'
+                                        || direction === 'North West') {
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x - this.dim,
+                                            y: this.y - this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x - this.dim,
+                                            y: this.y + this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x - this.dim,
+                                            y: this.y,
+                                            direction: null
+                                        }));
+                                    }
+
+                                    if (direction === 'North') {
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x - this.dim,
+                                            y: this.y - this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x + this.dim,
+                                            y: this.y - this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x,
+                                            y: this.y - this.dim,
+                                            direction: null
+                                        }));
+                                    }
+
+                                    if (direction === 'South') {
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x - this.dim,
+                                            y: this.y + this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x + this.dim,
+                                            y: this.y + this.dim,
+                                            direction: null
+                                        }));
+                                        elements.push(gen().init({
+                                            id: id(),
+                                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                            color: 'dark red',
+                                            container: containerID,
+                                            x: this.x,
+                                            y: this.y + this.dim,
+                                            direction: null
+                                        }));
+                                    }
+
+                                }, 200);
+                            }
                             break;
                         default:
                             break;
