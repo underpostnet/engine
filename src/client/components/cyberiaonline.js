@@ -22,7 +22,8 @@ this.cyberiaonline = {
         const newInstanceBtn = id();
 
 
-
+        // generate seed world type instance
+        // backup elements state (memento)
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
@@ -337,6 +338,53 @@ this.cyberiaonline = {
         */
 
         const components = {
+            'bar-life': {
+                componentsFunctions: {},
+                componentsElements: {
+                    bar: {}
+                },
+                componentsParams: {},
+                init: function (element) {
+
+
+                    this.componentsElements.bar[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.componentsElements.bar[element.id].tint = pixiColors['electric green'];
+                    this.componentsElements.bar[element.id].width = element.dim * pixiAmplitudeFactor;
+                    this.componentsElements.bar[element.id].height = element.dim * pixiAmplitudeFactor * 0.2;
+                    this.componentsElements.bar[element.id].x = 0;
+                    this.componentsElements.bar[element.id].y = -1 * element.dim * pixiAmplitudeFactor * 0.2;
+                    elementsContainer[element.id].addChild(this.componentsElements.bar[element.id]);
+
+
+                },
+                loop: function (element) { },
+                event: function (element) {
+                    if (element.life <= 0) element.life = 0;
+                    const factorLife = element.life / element.maxLife;
+                    // console.error('factorLife', factorLife);
+                    this.componentsElements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
+                    if (element.life === 0) {
+                        const typeElement = `${element.type}`;
+                        setTimeout(() => {
+                            switch (typeElement) {
+                                case 'BOT':
+                                    elements.push(gen().init({
+                                        container: containerID,
+                                        type: 'BOT'
+                                    }));
+                                    break;
+
+                                default:
+                                    break;
+                            }
+                        }, element.deadDelay);
+                        removeElement(element.id);
+                    }
+                },
+                delete: function (element) {
+                    delete this.componentsElements.bar[element.id];
+                }
+            },
             'random-head-common': {
                 componentsParams: {
                     color: null,
@@ -418,6 +466,7 @@ this.cyberiaonline = {
                     delete this.componentsElements.head[element.id];
                     delete this.componentsElements.eyesLeft[element.id];
                     delete this.componentsElements.eyesRight[element.id];
+                    // respawn random params
                     this.componentsParams.color = null;
                     this.componentsParams.width = null;
                     this.componentsParams.height = null;
@@ -661,11 +710,34 @@ this.cyberiaonline = {
                 //      X
                 // >  X
                 //      X
-                componentsFunctions: {},
-                componentsElements: {},
-                componentsParams: {},
-                init: function (element) {
-                    setShoot(element, () => {
+                componentsFunctions: {
+                    alertCollision: (element, fromArray, toArray) =>
+                        elements.filter(x => {
+
+
+
+                            // console.error(fromArray, element.type, x.type);
+
+                            // if (fromArray.includes(element.type) &&
+                            //     toArray.includes(x.type)) {
+                            //     console.error('--', fromArray.includes(element.type));
+                            //     console.error('--', validateCollision(x, element));
+                            //     console.error('--', element.id !== x.id);
+                            //     console.error('--', toArray.includes(x.type));
+                            //     console.error(x, element);
+                            // }
+                            return (
+                                fromArray.includes(element.type)
+                                &&
+                                validateCollision(x, element)
+                                &&
+                                element.id !== x.id
+                                &&
+                                toArray.includes(x.type)
+                            );
+
+                        }),
+                    setShoot: element => setShoot(element, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -700,28 +772,47 @@ this.cyberiaonline = {
                             y: element.y + yBullet,
                             direction: element.direction
                         }));
-                    });
+                    })
                 },
-                loop: function (element) { },
-                event: function (element) { },
-                delete: function (element) { }
-            },
-            'life-bar': {
-                componentsFunctions: {},
                 componentsElements: {},
-                componentsParams: {},
-                init: function (element) { },
-                loop: function (element) { },
+                componentsParams: {
+                    value: 20,
+                    vel: 2000,
+                    validateShoot: {}
+                },
+                init: function (element) {
+                    this.componentsParams.validateShoot[element.id] = true;
+                },
+                loop: function (element) {
+                    if (this.componentsParams.validateShoot[element.id] === true) {
+
+                        this.componentsParams.validateShoot[element.id] = false;
+                        setTimeout(() => {
+                            this.componentsParams.validateShoot[element.id] = true;
+                        }, this.componentsParams.vel);
+
+                        const participantsFrom = ['BULLET-THREE-RANDOM-CIRCLE-COLOR'];
+                        const participantsTo = ['BOT'];
+                        // console.error(this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo));
+
+                        this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo)
+                            .map(element => {
+
+
+                                element.life = element.life - this.componentsParams.value;
+                                components['bar-life'].event(element);
+
+                                // console.error(element.life);
+
+                            });
+                    }
+                },
                 event: function (element) { },
                 delete: function (element) { }
-
             },
             'BULLET-CROSS': {
-                componentsFunctions: {},
-                componentsElements: {},
-                componentsParams: {},
-                init: function (element) {
-                    setShoot(element, () => {
+                componentsFunctions: {
+                    setShoot: element => setShoot(element, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -754,8 +845,11 @@ this.cyberiaonline = {
                             x: element.x + xBullet,
                             y: element.y + yBullet
                         }));
-                    });
+                    })
                 },
+                componentsElements: {},
+                componentsParams: {},
+                init: function (element) { },
                 loop: function (element) { },
                 event: function (element) { },
                 delete: function (element) { }
@@ -1021,6 +1115,9 @@ this.cyberiaonline = {
                     this.validateShoot = true;
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
+                    this.deadDelay = 2000;
+                    this.maxLife = 100;
+                    this.life = 100;
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -1048,11 +1145,12 @@ this.cyberiaonline = {
                                     'anon-head',
                                     'anon-foots',
                                     'random-circle-color',
-                                    'BULLET-THREE-RANDOM-CIRCLE-COLOR'
-                                    // 'BULLET-CROSS'
+                                    'bar-life'
                                 ]
                             );
                             this.dim = this.dim * 0.8;
+                            components['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
+                            // components['BULLET-CROSS'].componentsFunctions.setShoot(this);
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1065,7 +1163,8 @@ this.cyberiaonline = {
                             this.components = this.components.concat(
                                 [
                                     'random-head-common',
-                                    'anon-foots'
+                                    'anon-foots',
+                                    'bar-life'
                                 ]
                             );
                             break;
@@ -1074,6 +1173,7 @@ this.cyberiaonline = {
                             this.y = minRangeMap;
                             break;
                         case 'BULLET-CROSS':
+                            this.components = [this.type];
                             setTimeout(() => {
                                 components['cross-effect'].event(this);
                             });
@@ -1082,7 +1182,7 @@ this.cyberiaonline = {
                             }, 2000);
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
-                            this.components = this.components.filter(x => x !== 'background');
+                            this.components = [this.type];
                             setTimeout(() => {
                                 components['random-circle-color-one-big'].event(this);
                             });
