@@ -22,6 +22,10 @@ this.cyberiaonline = {
         const newInstanceBtn = id();
 
 
+        const BtnQ = id();
+        const BtnW = id();
+        const fullScreenBtn = id();
+
         // generate seed world type instance
         // backup elements state (memento)
 
@@ -272,6 +276,7 @@ this.cyberiaonline = {
         const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
         this.htmlPixiLayer = id();
+        this.htmlPixiFontLayer = id();
 
         const iteratePixiColors = newInstance(colors);
         const pixiColors = {};
@@ -299,6 +304,21 @@ this.cyberiaonline = {
 
             append(pixiContainerId, /*html*/`
                 <style class='${this.htmlPixiLayer}'></style>
+
+                <style>
+                     ${this.htmlPixiFontLayer} {
+                        height: ${this.canvasDim}px;
+                        width: ${this.canvasDim}px;
+                        transform: translate(-50%, 0%);
+                        top: 0%;
+                        left: 50%;
+                        background: rgb(0,0,0,0);
+                        color: yellow;
+                        ${borderChar(2, 'black')}
+                    }
+                </style>
+
+                <${this.htmlPixiFontLayer} class='abs'> </${this.htmlPixiFontLayer}>
 
                 <${this.htmlPixiLayer} class='abs canvas-cursor'>
                     v3.0.0
@@ -338,6 +358,75 @@ this.cyberiaonline = {
         */
 
         const components = {
+            'damage-indicator': {
+                componentsFunctions: {},
+                componentsElements: {},
+                componentsParams: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element, value) {
+                    const fontEffectId = id();
+                    append(cyberiaonline.htmlPixiFontLayer, /*html*/`
+                            <span class='abs ${fontEffectId}' style='
+                            top: ${(element.y * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            left: ${(element.x * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            color: red;
+                            font-family: retro;
+                            /* border: 2px solid magenta; */
+                            '>- ${value}</span>
+                    `);
+                    setTimeout(() => {
+                        s(`.${fontEffectId}`).remove();
+                    }, 1000);
+                },
+                delete: function (element) { }
+            },
+            'display-id': {
+                componentsFunctions: {
+                    renderX: (component, element) =>
+                        element.y * component.componentsParams.renderDim - (element.dim * pixiAmplitudeFactor),
+                    renderY: (component, element) =>
+                        element.x * component.componentsParams.renderDim - (element.dim * pixiAmplitudeFactor)
+                },
+                componentsElements: {},
+                componentsParams: {
+                    renderDim: cyberiaonline.canvasDim / maxRangeMap,
+                    id: {}
+                },
+                init: function (element) {
+
+                    this.componentsParams.id[element.id] = 'display-id-' + element.id;
+
+                    append(cyberiaonline.htmlPixiFontLayer, /*html*/`
+                            <div class='abs ${this.componentsParams.id[element.id]}' style='
+                            top: ${this.componentsFunctions.renderX(this, element)}px;
+                            left: ${this.componentsFunctions.renderY(this, element)}px;
+                            color: ${colors.find(x => x.name.toLowerCase() === element.color).hex};
+                            font-family: retro;
+                            font-size: 10px;
+                            width: ${element.dim * pixiAmplitudeFactor * 2}px;
+                            /* border: 2px solid red; */
+                            text-align: center;
+                            '>${element.id}</div>
+                    `);
+
+                },
+                loop: function (element) {
+                    if (s(`.${this.componentsParams.id[element.id]}`)) {
+                        s(`.${this.componentsParams.id[element.id]}`).style.top =
+                            `${this.componentsFunctions.renderX(this, element)}px`;
+                        s(`.${this.componentsParams.id[element.id]}`).style.left =
+                            `${this.componentsFunctions.renderY(this, element)}px`;
+                    } else {
+                        console.error('!s(`.${this.componentsParams.id[element.id]}`)');
+                    }
+                },
+                event: function (element) { },
+                delete: function (element) {
+                    s(`.${this.componentsParams.id[element.id]}`).remove();
+                    delete this.componentsParams.id[element.id];
+                }
+            },
             'bar-life': {
                 componentsFunctions: {},
                 componentsElements: {
@@ -797,13 +886,10 @@ this.cyberiaonline = {
 
                         this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo)
                             .map(element => {
-
-
                                 element.life = element.life - this.componentsParams.value;
+                                components['damage-indicator'].event(element, this.componentsParams.value);
                                 components['bar-life'].event(element);
-
                                 // console.error(element.life);
-
                             });
                     }
                 },
@@ -1106,7 +1192,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
-                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
+                    this.dim = options.dim ? options.dim : 3; // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -1145,6 +1231,7 @@ this.cyberiaonline = {
                                     'anon-head',
                                     'anon-foots',
                                     'random-circle-color',
+                                    'display-id',
                                     'bar-life'
                                 ]
                             );
@@ -1164,6 +1251,7 @@ this.cyberiaonline = {
                                 [
                                     'random-head-common',
                                     'anon-foots',
+                                    'display-id',
                                     'bar-life'
                                 ]
                             );
@@ -1557,10 +1645,6 @@ this.cyberiaonline = {
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
-
-        const BtnQ = id();
-        const BtnW = id();
-        const fullScreenBtn = id();
 
         setTimeout(() => {
             PIXI_INIT();

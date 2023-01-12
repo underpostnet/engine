@@ -21,6 +21,20 @@ const viewMetaData = {
     },
     apiURIS: [],
     lang: 'en',
+    fonts: [
+        {
+            name: 'retro',
+            src: '/fonts-underpost/retro/PressStart2P.ttf',
+            format: 'truetype', // opentype
+            activesClass: []
+        },
+        {
+            name: 'gothic',
+            src: '/fonts-underpost/gothic/GOTHIC.ttf',
+            format: 'truetype', // opentype
+            activesClass: []
+        }
+    ],
     charset: 'utf-8',
     dir: 'ltr',
     srcJS: ['https://pixijs.download/release/pixi.js', '/pathfinding-browser.min.js'],
@@ -31,7 +45,8 @@ const viewMetaData = {
     statics: [
         ['/assets/apps/cyberiaonline', `./private-engine/express-ywork/cyberia/assets/app`],
         ['/assets/apps/cyberiaonline/clases', `./private-engine/express-ywork/cyberia/assets/clases`],
-        ['/cursors-underpost', './underpost_modules/underpost-library/cursors']
+        ['/cursors-underpost', './underpost_modules/underpost-library/cursors'],
+        ['/fonts-underpost', './underpost_modules/underpost-library/fonts']
     ],
     cursors: [
         {
@@ -129,7 +144,7 @@ const statics = app => {
         return res.end(pathfinding);
     });
 
-    if (process.argv[2] == 'build') {
+    if (process.argv[2] == 'build' && process.argv[3] == viewMetaData.clientID) {
         fs.writeFileSync(`./builds/${viewMetaData.clientID}/pathfinding-browser.min.js`, pathfinding, 'utf8');
 
     }
