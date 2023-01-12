@@ -357,7 +357,7 @@ this.cyberiaonline = {
 
         */
 
-        const components = {
+        const COMPONENTS = {
             'damage-indicator': {
                 componentsFunctions: {},
                 componentsElements: {},
@@ -462,7 +462,15 @@ this.cyberiaonline = {
                                         type: 'BOT'
                                     }));
                                     break;
-
+                                case 'USER_MAIN':
+                                    elements.push(gen().init({
+                                        container: containerID,
+                                        type: 'USER_MAIN',
+                                        // x: 2,
+                                        // y: 2
+                                        // matrix: { x: 1, y: 2 }
+                                    }));
+                                    break;
                                 default:
                                     break;
                             }
@@ -823,6 +831,8 @@ this.cyberiaonline = {
                                 element.id !== x.id
                                 &&
                                 toArray.includes(x.type)
+                                &&
+                                element.parentId !== x.id
                             );
 
                         }),
@@ -830,7 +840,7 @@ this.cyberiaonline = {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
-                        const factorCordDim = 1;
+                        const factorCordDim = 1.5;
 
                         if (direction === 'East'
                             || direction === 'South East'
@@ -859,38 +869,42 @@ this.cyberiaonline = {
                             container: containerID,
                             x: element.x + xBullet,
                             y: element.y + yBullet,
-                            direction: element.direction
+                            direction: element.direction,
+                            parentId: element.id
                         }));
                     })
                 },
                 componentsElements: {},
                 componentsParams: {
                     value: 20,
-                    vel: 2000,
+                    vel: 2500,
                     validateShoot: {}
                 },
                 init: function (element) {
                     this.componentsParams.validateShoot[element.id] = true;
                 },
                 loop: function (element) {
-                    if (this.componentsParams.validateShoot[element.id] === true) {
+                    const participantsFrom = ['BULLET-THREE-RANDOM-CIRCLE-COLOR'];
+                    const participantsTo = ['BOT', 'USER_MAIN'];
+                    const collisionTest =
+                        this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo)
+                    if (this.componentsParams.validateShoot[element.id] === true && collisionTest.length > 0) {
 
                         this.componentsParams.validateShoot[element.id] = false;
                         setTimeout(() => {
                             this.componentsParams.validateShoot[element.id] = true;
                         }, this.componentsParams.vel);
 
-                        const participantsFrom = ['BULLET-THREE-RANDOM-CIRCLE-COLOR'];
-                        const participantsTo = ['BOT'];
+
                         // console.error(this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo));
 
-                        this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo)
-                            .map(element => {
-                                element.life = element.life - this.componentsParams.value;
-                                components['damage-indicator'].event(element, this.componentsParams.value);
-                                components['bar-life'].event(element);
-                                // console.error(element.life);
-                            });
+
+                        collisionTest.map(element => {
+                            element.life = element.life - this.componentsParams.value;
+                            COMPONENTS['damage-indicator'].event(element, this.componentsParams.value);
+                            COMPONENTS['bar-life'].event(element);
+                            // console.error(element.life);
+                        });
                     }
                 },
                 event: function (element) { },
@@ -1123,7 +1137,7 @@ this.cyberiaonline = {
             if (elementIndex > -1) {
                 if (elements[elementIndex].components)
                     elements[elementIndex].components.map(component =>
-                        components[component].delete(elements[elementIndex]));
+                        COMPONENTS[component].delete(elements[elementIndex]));
                 elements[elementIndex]
                     .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
             }
@@ -1146,7 +1160,7 @@ this.cyberiaonline = {
             // elementsContainer[element.id].pivot.y = elementsContainer[element.id].width / 2;
             container.addChild(elementsContainer[element.id]); // sprite to containers
             if (element.components) element.components.map(component =>
-                components[component].init(element));
+                COMPONENTS[component].init(element));
         };
 
         const PIXI_LOOP_ELEMENT = element => {
@@ -1171,7 +1185,7 @@ this.cyberiaonline = {
                 }
             }
             if (element.components) element.components.map(component =>
-                components[component].loop(element));
+                COMPONENTS[component].loop(element));
             element.lastX = parseInt(`${element.renderX}`);
             element.lastY = parseInt(`${element.renderY}`);
             elementsContainer[element.id].x = newInstance(element.renderX);
@@ -1204,6 +1218,7 @@ this.cyberiaonline = {
                     this.deadDelay = 2000;
                     this.maxLife = 100;
                     this.life = 100;
+                    this.parentId = options.parentId ? options.parentId : undefined;
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -1236,8 +1251,8 @@ this.cyberiaonline = {
                                 ]
                             );
                             this.dim = this.dim * 0.8;
-                            components['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
-                            // components['BULLET-CROSS'].componentsFunctions.setShoot(this);
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
+                            // COMPONENTS['BULLET-CROSS'].componentsFunctions.setShoot(this);
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1247,6 +1262,7 @@ this.cyberiaonline = {
                             }
                             this.color = 'electric green';
                             this.vel = 0.025;
+                            this.shootTimeInterval = 4000;
                             this.components = this.components.concat(
                                 [
                                     'random-head-common',
@@ -1255,6 +1271,8 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
+                            this.shootTimeInterval = 5000;
                             break;
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
@@ -1263,16 +1281,16 @@ this.cyberiaonline = {
                         case 'BULLET-CROSS':
                             this.components = [this.type];
                             setTimeout(() => {
-                                components['cross-effect'].event(this);
+                                COMPONENTS['cross-effect'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
                             }, 2000);
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
-                            this.components = [this.type];
+                            this.components = ['background', this.type];
                             setTimeout(() => {
-                                components['random-circle-color-one-big'].event(this);
+                                COMPONENTS['random-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
@@ -1292,7 +1310,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1301,7 +1320,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1310,7 +1330,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                     }
 
@@ -1324,7 +1345,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1333,7 +1355,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1342,7 +1365,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                     }
 
@@ -1354,7 +1378,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1363,7 +1388,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1372,7 +1398,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x,
                                             y: this.y - this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                     }
 
@@ -1384,7 +1411,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1393,7 +1421,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1402,7 +1431,8 @@ this.cyberiaonline = {
                                             container: containerID,
                                             x: this.x,
                                             y: this.y + this.dim,
-                                            direction: null
+                                            direction: null,
+                                            parentId: this.parentId ? this.parentId : undefined
                                         }));
                                     }
 
@@ -1502,7 +1532,7 @@ this.cyberiaonline = {
                                 this.x = offsetX;
                                 this.y = offsetY;
 
-                                components['cross-effect'].event(this);
+                                COMPONENTS['cross-effect'].event(this);
                             };
 
                             break;
@@ -1542,6 +1572,7 @@ this.cyberiaonline = {
                             this.path = element.path;
                             this.x = element.x;
                             this.y = element.y;
+                            if (this.shoot) this.shoot();
 
                             break;
                         case 'USER_MAIN':
@@ -1594,7 +1625,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(1, 5)
+                range(1, 1)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
