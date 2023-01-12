@@ -80,16 +80,29 @@ this.cyberiaonline = {
             )
         };
 
-
+        const getTargetRange = (targetRange) => {
+            // 8 * 1 + 8 * 2 + 8 * 3;
+            let totalRange = 0;
+            range(1, targetRange).map(x => {
+                totalRange = totalRange + (x * 8);
+            });
+            return totalRange;
+        };
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
-            let x, y, type;
+            let x, y, type, elementsSearch, elementsRange;
+            let autoTargetCondition = false;
 
             if (elementsCollisions.x !== undefined && elementsCollisions.y !== undefined) {
                 type = 'snail';
                 x = parseInt(`${elementsCollisions.x}`);
                 y = parseInt(`${elementsCollisions.y}`);
+                if (elementsCollisions.elementsSearch !== undefined && elementsCollisions.elementsRange !== undefined) {
+                    elementsSearch = newInstance(elementsCollisions.elementsSearch);
+                    elementsRange = newInstance(elementsCollisions.elementsRange);
+                    autoTargetCondition = true;
+                }
                 elementsCollisions = [].concat(elementsCollisions.elementsCollisions);
             } else {
                 type = 'random';
@@ -129,9 +142,20 @@ this.cyberiaonline = {
                     let contBreak = 0;
                     let valueChange = 1;
                     let currentChange = 0;
-                    let listFindPoint = [];
-                    while (matrixAux[y][x] !== 0) {
+
+                    let searchCondition;
+                    let countSteps = 0;
+                    const elementsTarget = [];
+
+                    if (autoTargetCondition)
+                        searchCondition = () => countSteps < elementsRange;
+                    else
+                        searchCondition = () => matrixAux[y][x] !== 0;
+
+
+                    while (searchCondition()) {
                         currentChange++;
+                        countSteps++;
                         if (sum) {
                             // console.log('snail', `${xTarget ? 'x' : 'y'}`, `+`, `${currentChange}/${valueChange}`);
                             if (xTarget) x = x + 1;
@@ -153,6 +177,23 @@ this.cyberiaonline = {
                                 else sum = true;
                             }
                         }
+                        if (autoTargetCondition) {
+                            elements.map(element => {
+                                if (
+                                    parseInt(element.x) === parseInt(x)
+                                    && parseInt(element.y) === parseInt(y)
+                                    && elementsSearch.includes(element.type)
+                                    && !elementsTarget.find(x => x.id === element.id)
+                                ) {
+                                    elementsTarget.push({
+                                        id: element.id,
+                                        x,
+                                        y,
+                                        aggro: element.aggro
+                                    });
+                                }
+                            });
+                        }
                         if (!matrixAux[y]) {
                             matrixAux[y] = [];
                         }
@@ -161,8 +202,6 @@ this.cyberiaonline = {
                             generatePath(elementClient, x === maxRangeMap ? x - 1 : x, y === maxRangeMap ? y - 1 : y).length === 0) {
                             matrixAux[y][x] = 1;
                         }
-                        listFindPoint.push({ x, y });
-                        // console.log('listFindPoint', listFindPoint, matrixAux[y][x]);
                     }
                     break
                 case '*':
@@ -1219,6 +1258,11 @@ this.cyberiaonline = {
                     this.maxLife = 100;
                     this.life = 100;
                     this.parentId = options.parentId ? options.parentId : undefined;
+                    this.aggro = random(0, 10);
+
+                    this.autoTargetIntervalCalculate = 1000;
+                    this.autoTargetBlockCalculate = true;
+                    this.autoTargetRange = getTargetRange(10);
                     switch (this.type) {
                         case 'BUILDING':
                             this.borderRadius = 0;
@@ -1273,6 +1317,30 @@ this.cyberiaonline = {
                             );
                             COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
                             this.shootTimeInterval = 5000;
+
+                            // cambiar movimiento al que tenga
+                            // mayor agro dentro del rango snail
+
+                            this.autoTarget = () => {
+                                if (this.autoTargetBlockCalculate) {
+                                    this.autoTargetBlockCalculate = false;
+                                    setTimeout(() => {
+                                        this.autoTargetBlockCalculate = true;
+                                    }, this.autoTargetIntervalCalculate);
+
+
+                                    // const { x, y } = getAvailablePosition(this,
+                                    //     {
+                                    //         x: parseInt(this.x),
+                                    //         y: parseInt(this.y),
+                                    //         elementsCollisions: ['BUILDING'],
+                                    //         elementsSearch: ['USER_MAIN'],
+                                    //         elementsRange: this.autoTargetRange
+                                    //     }
+                                    // );
+
+                                }
+                            };
                             break;
                         case 'BOT_BUG':
                             this.x = maxRangeMap;
@@ -1573,6 +1641,7 @@ this.cyberiaonline = {
                             this.x = element.x;
                             this.y = element.y;
                             if (this.shoot) this.shoot();
+                            if (this.autoTarget) this.autoTarget();
 
                             break;
                         case 'USER_MAIN':
