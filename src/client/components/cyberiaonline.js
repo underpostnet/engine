@@ -642,6 +642,105 @@ this.cyberiaonline = {
                     delete this.componentsElements.layer2[element.id];
                 }
             },
+            'background-circle': {
+                componentsFunctions: {
+                    alertCollision: element => {
+                        return (
+                            element.type !== 'BUILDING'
+                            && element.type !== 'FLOOR'
+                            && element.type !== 'TOUCH'
+                        ) &&
+
+                            elements.filter(x => (
+
+                                validateCollision(x, element)
+                                &&
+                                element.id !== x.id
+                                &&
+                                x.type !== 'FLOOR'
+                                &&
+                                x.type !== 'TOUCH'
+                            )).length > 0;
+                    }
+                },
+                componentsElements: {
+                    circle: {}
+                },
+                componentsParams: {
+                    radioPor: 0.9,
+                    collisionColor: {}
+                },
+                init: function (element) {
+
+                    this.componentsParams.collisionColor[element.id] = true;
+
+                    this.componentsElements.circle[element.id] = new PIXI.Graphics();
+                    this.componentsElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor);
+                    this.componentsElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor);
+                    this.componentsElements.circle[element.id].beginFill(pixiColors["black"]);
+                    this.componentsElements.circle[element.id].lineStyle(0);
+                    this.componentsElements.circle[element.id].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                    ); // x,y,radio
+                    this.componentsElements.circle[element.id].endFill();
+
+                    elementsContainer[element.id].addChild(this.componentsElements.circle[element.id]);
+
+                    switch (element.type) {
+                        case 'USER_MAIN':
+                            this.componentsElements.circle[element.id].visible = false;
+                            break;
+                        case 'TOUCH':
+                            this.componentsElements.circle[element.id].visible = false;
+                            break;
+                        case 'BOT':
+                            this.componentsElements.circle[element.id].visible = false;
+                            break;
+                        default:
+                    };
+
+
+                },
+                loop: function (element) {
+                    if (this.componentsFunctions.alertCollision(element) && this.componentsParams.collisionColor[element.id] === true) {
+                        this.componentsParams.collisionColor[element.id] = false;
+                        this.componentsElements.circle[element.id].clear();
+                        this.componentsElements.circle[element.id].beginFill(pixiColors["magenta"]);
+                        this.componentsElements.circle[element.id].lineStyle(0);
+                        this.componentsElements.circle[element.id].drawCircle(
+                            (element.dim * pixiAmplitudeFactor) * 0.5,
+                            (element.dim * pixiAmplitudeFactor) * 0.5,
+                            (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                        ); // x,y,radio
+                        this.componentsElements.circle[element.id].endFill();
+                        setTimeout(() => {
+                            if (!this.componentsElements.circle[element.id]) return;
+                            setTimeout(() => {
+                                if (!this.componentsElements.circle[element.id]) return;
+                                this.componentsParams.collisionColor[element.id] = true;
+                            }, 500);
+                            this.componentsElements.circle[element.id].clear();
+                            this.componentsElements.circle[element.id].beginFill(pixiColors["black"]);
+                            this.componentsElements.circle[element.id].lineStyle(0);
+                            this.componentsElements.circle[element.id].drawCircle(
+                                (element.dim * pixiAmplitudeFactor) * 0.5,
+                                (element.dim * pixiAmplitudeFactor) * 0.5,
+                                (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                            ); // x,y,radio
+                            this.componentsElements.circle[element.id].endFill();
+                        }, 500);
+                    }
+                },
+                event: function (element) {
+
+
+                },
+                delete: function (element) {
+                    delete this.componentsElements.circle[element.id];
+                }
+            },
             'background': {
                 componentsFunctions: {
                     alertCollision: element => {
@@ -667,8 +766,6 @@ this.cyberiaonline = {
                     background: {},
                 },
                 init: function (element) {
-
-                    container.addChild(elementsContainer[element.id]); // sprite to containers
 
                     this.componentsElements.background[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.componentsElements.background[element.id].x = 0;
@@ -1389,7 +1486,7 @@ this.cyberiaonline = {
                             }, 2000);
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
-                            this.components = ['background', this.type];
+                            this.components = ['background-circle', this.type];
                             setTimeout(() => {
                                 COMPONENTS['random-circle-color-one-big'].event(this);
                             });
