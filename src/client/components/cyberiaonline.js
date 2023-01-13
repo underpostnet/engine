@@ -256,7 +256,7 @@ this.cyberiaonline = {
                 dontCrossCorners: false, // corner of a solid
                 heuristic: PF.Heuristic.chebyshev
             });
-            return finder.findPath(parseInt(element.x), parseInt(element.y), newX ? newX : x, newY ? newY : y, grid);
+            return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
         };
 
         const validatePathLoop = element => {
@@ -871,7 +871,9 @@ this.cyberiaonline = {
                                 &&
                                 toArray.includes(x.type)
                                 &&
-                                element.parentId !== x.id
+                                element.parent.id !== x.id
+                                &&
+                                element.parent.type !== x.type
                             );
 
                         }),
@@ -909,7 +911,7 @@ this.cyberiaonline = {
                             x: element.x + xBullet,
                             y: element.y + yBullet,
                             direction: element.direction,
-                            parentId: element.id
+                            parent: element
                         }));
                     })
                 },
@@ -1245,7 +1247,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
-                    this.dim = options.dim ? options.dim : 3; // 3; // 1.5
+                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -1257,8 +1259,10 @@ this.cyberiaonline = {
                     this.deadDelay = 2000;
                     this.maxLife = 100;
                     this.life = 100;
-                    this.parentId = options.parentId ? options.parentId : undefined;
+                    this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
+                    this.range = maxRangeMap * 0.3;
+                    this.autoShoot = false;
 
                     this.autoTargetIntervalCalculate = 1000;
                     this.autoTargetBlockCalculate = true;
@@ -1327,8 +1331,37 @@ this.cyberiaonline = {
                                     setTimeout(() => {
                                         this.autoTargetBlockCalculate = true;
                                     }, this.autoTargetIntervalCalculate);
+                                    let elementTarget;
+                                    elements.map(element => {
+                                        if (element.type === 'USER_MAIN') {
+                                            const targetDistance = getDistance(element.x, element.y, this.x, this.y);
+                                            // console.error(
+                                            //     'getDistance', targetDistance, this.range);
+                                            if (
+                                                targetDistance <= this.range &&
+                                                (elementTarget === undefined || elementTarget.aggro < element.aggro)
+                                            ) {
+                                                const x = parseInt(element.x);
+                                                const y = parseInt(element.y);
+                                                elementTarget = {
+                                                    id: element.id,
+                                                    type: element.type,
+                                                    x: x === 0 ? 1 : x,
+                                                    y: y === 0 ? 1 : y,
+                                                    aggro: element.aggro
+                                                };
+                                            };
+                                            // console.error('elementTarget', elementTarget);
 
+                                            if (elementTarget !== undefined) {
+                                                this.autoShoot = true;
+                                                this.path = generatePath(this, elementTarget.x, elementTarget.y);
 
+                                            } else {
+                                                this.autoShoot = false;
+                                            }
+                                        }
+                                    });
                                     // const { x, y } = getAvailablePosition(this,
                                     //     {
                                     //         x: parseInt(this.x),
@@ -1379,7 +1412,7 @@ this.cyberiaonline = {
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1389,7 +1422,7 @@ this.cyberiaonline = {
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1399,7 +1432,7 @@ this.cyberiaonline = {
                                             x: this.x + this.dim,
                                             y: this.y,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                     }
 
@@ -1414,7 +1447,7 @@ this.cyberiaonline = {
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1424,7 +1457,7 @@ this.cyberiaonline = {
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1434,7 +1467,7 @@ this.cyberiaonline = {
                                             x: this.x - this.dim,
                                             y: this.y,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                     }
 
@@ -1447,7 +1480,7 @@ this.cyberiaonline = {
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1457,7 +1490,7 @@ this.cyberiaonline = {
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1467,7 +1500,7 @@ this.cyberiaonline = {
                                             x: this.x,
                                             y: this.y - this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                     }
 
@@ -1480,7 +1513,7 @@ this.cyberiaonline = {
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1490,7 +1523,7 @@ this.cyberiaonline = {
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                         elements.push(gen().init({
                                             id: id(),
@@ -1500,7 +1533,7 @@ this.cyberiaonline = {
                                             x: this.x,
                                             y: this.y + this.dim,
                                             direction: null,
-                                            parentId: this.parentId ? this.parentId : undefined
+                                            parent: this.parent ? this.parent : undefined
                                         }));
                                     }
 
@@ -1640,7 +1673,7 @@ this.cyberiaonline = {
                             this.path = element.path;
                             this.x = element.x;
                             this.y = element.y;
-                            if (this.shoot) this.shoot();
+                            if (this.autoShoot === true && this.shoot) this.shoot();
                             if (this.autoTarget) this.autoTarget();
 
                             break;
@@ -1694,7 +1727,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(1, 1)
+                range(1, 5)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
