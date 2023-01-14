@@ -1359,6 +1359,7 @@ this.cyberiaonline = {
                     this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
                     this.range = maxRangeMap * 0.3;
+                    this.minRange = this.range * 0.4;
                     this.autoShoot = false;
 
                     this.autoTargetIntervalCalculate = 1000;
@@ -1407,7 +1408,6 @@ this.cyberiaonline = {
                             }
                             this.color = 'electric green';
                             this.vel = 0.025;
-                            this.shootTimeInterval = 4000;
                             this.components = this.components.concat(
                                 [
                                     'random-head-common',
@@ -1762,7 +1762,25 @@ this.cyberiaonline = {
                     let element;
                     switch (this.type) {
                         case 'BOT':
-                            if (this.path.length === 0)
+
+                            if (
+                                this.path[0]
+                                && getDistance(
+                                    this.path[0][0],
+                                    this.path[0][1],
+                                    this.path[this.path.length - 1][0],
+                                    this.path[this.path.length - 1][1]
+                                ) < this.minRange
+                                && this.autoShoot === true
+                            ) {
+                                // console.error('distance reguler 1');
+                                this.path = [];
+                            }
+
+                            else if (this.autoShoot === true && !this.path[0]) {
+                                // console.error('distance reguler 2');
+                            }
+                            if (this.path.length === 0 && this.autoShoot === false)
                                 this.path = generatePath(this);
 
 
