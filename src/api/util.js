@@ -199,6 +199,12 @@ const getDirection = (x1, y1, x2, y2) => {
     if (deltaX < 0 && deltaY < 0) return 'North West'
 };
 
+const getDistance = (x1, y1, x2, y2) => {
+    var disX = Math.abs(x2 - x1);
+    var disY = Math.abs(y2 - y1);
+    return Math.sqrt(disX * disX + disY * disY);
+};
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -226,6 +232,7 @@ const commonFunctions = () => `
     const capFirst = ${capFirst};
     const orderAbc = ${orderAbc};
     const getDirection = ${getDirection};
+    const getDistance = ${getDistance};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -326,5 +333,6 @@ export {
     reOrderIntArray,
     capFirst,
     orderAbc,
-    getDirection
+    getDirection,
+    getDistance
 };
