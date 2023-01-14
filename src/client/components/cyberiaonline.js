@@ -26,6 +26,8 @@ this.cyberiaonline = {
         const BtnW = id();
         const fullScreenBtn = id();
 
+        let baseMatrix;
+
         // generate seed world type instance
         // backup elements state (memento)
 
@@ -1649,7 +1651,10 @@ this.cyberiaonline = {
                                 onKey: () => {
                                     this.path = [];
                                     this.delayVelPath = 0;
-                                    this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
+                                    // this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
+                                    if (baseMatrix[parseInt(this.y)][parseInt(this.x) - 1] === 0)
+                                        this.x = this.x - this.vel;
+
                                 }
                             });
                             this.clearsIntervals.push('ArrowLeft');
@@ -1659,7 +1664,9 @@ this.cyberiaonline = {
                                 onKey: () => {
                                     this.path = [];
                                     this.delayVelPath = 0;
-                                    this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
+                                    // this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
+                                    if (baseMatrix[parseInt(this.y)][parseInt(this.x) + 1] === 0)
+                                        this.x = this.x + this.vel;
                                 }
                             });
                             this.clearsIntervals.push('ArrowRight');
@@ -1669,7 +1676,9 @@ this.cyberiaonline = {
                                 onKey: () => {
                                     this.path = [];
                                     this.delayVelPath = 0;
-                                    this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
+                                    // this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
+                                    if (baseMatrix[parseInt(this.y) - 1][parseInt(this.x)] === 0)
+                                        this.y = this.y - this.vel;
                                 }
                             });
                             this.clearsIntervals.push('ArrowUp');
@@ -1679,7 +1688,9 @@ this.cyberiaonline = {
                                 onKey: () => {
                                     this.path = [];
                                     this.delayVelPath = 0;
-                                    this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
+                                    // this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
+                                    if (baseMatrix[parseInt(this.y) + 1][parseInt(this.x)] === 0)
+                                        this.y = this.y + this.vel;
                                 }
                             });
                             this.clearsIntervals.push('ArrowDown');
@@ -1820,6 +1831,8 @@ this.cyberiaonline = {
 
         const INSTANCE_GENERATOR = () => {
 
+            const mainUserId = id();
+
             removeAllElements();
 
             elements = elements.concat([
@@ -1861,8 +1874,9 @@ this.cyberiaonline = {
                     gen().init({
                         container: containerID,
                         type: 'USER_MAIN',
-                        // x: 2,
-                        // y: 2
+                        x: 3,
+                        y: 3,
+                        id: mainUserId
                         // matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
@@ -1885,6 +1899,23 @@ this.cyberiaonline = {
                     }),
                 ]
             );
+
+            baseMatrix = range(minRangeMap, maxRangeMap).map(y => {
+                return range(minRangeMap, maxRangeMap).map(x => {
+                    return elements.filter(element =>
+                        element.type === 'BUILDING'
+                        &&
+                        validateCollision(
+                            { x: element.x, y: element.y, dim: element.dim },
+                            { x, y, dim: elements.find(elementFind => elementFind.id === mainUserId).dim }
+                        )).length > 0
+                        || x === maxRangeMap
+                        || x === minRangeMap
+                        || y === maxRangeMap
+                        || y === minRangeMap ? 1 : 0;
+                });
+            });
+            // console.table(baseMatrix);
 
             console.log('elements', elements);
 

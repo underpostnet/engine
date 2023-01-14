@@ -156,6 +156,8 @@ const logDataManage = (arg, html) => {
         console.log(rawLog);
 };
 
+const arrayInstanceLog = arr => arr.map(x => console.log(`${x}`));
+
 const reOrderIntArray = (array) => { /* shuffle */
     let currentIndex = array.length, randomIndex;
 
@@ -233,6 +235,7 @@ const commonFunctions = () => `
     const orderAbc = ${orderAbc};
     const getDirection = ${getDirection};
     const getDistance = ${getDistance};
+    const arrayInstanceLog = ${arrayInstanceLog};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -334,5 +337,6 @@ export {
     capFirst,
     orderAbc,
     getDirection,
-    getDistance
+    getDistance,
+    arrayInstanceLog
 };
