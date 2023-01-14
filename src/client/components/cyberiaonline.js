@@ -385,9 +385,9 @@ this.cyberiaonline = {
             container -> module
             
             const component = {
-                componentsFunctions: {},
-                componentsElements: {},
-                componentsParams: {},
+                functions: {},
+                elements: {},
+                data: {},
                 init: function (element) { },
                 loop: function (element) { },
                 event: function (element) { },
@@ -398,9 +398,9 @@ this.cyberiaonline = {
 
         const COMPONENTS = {
             'damage-indicator': {
-                componentsFunctions: {},
-                componentsElements: {},
-                componentsParams: {},
+                functions: {},
+                elements: {},
+                data: {},
                 init: function (element) { },
                 loop: function (element) { },
                 event: function (element, value) {
@@ -421,25 +421,25 @@ this.cyberiaonline = {
                 delete: function (element) { }
             },
             'display-id': {
-                componentsFunctions: {
+                functions: {
                     renderX: (component, element) =>
-                        element.y * component.componentsParams.renderDim - (element.dim * pixiAmplitudeFactor),
+                        element.y * component.data.renderDim - (element.dim * pixiAmplitudeFactor),
                     renderY: (component, element) =>
-                        element.x * component.componentsParams.renderDim - (element.dim * pixiAmplitudeFactor)
+                        element.x * component.data.renderDim - (element.dim * pixiAmplitudeFactor)
                 },
-                componentsElements: {},
-                componentsParams: {
+                elements: {},
+                data: {
                     renderDim: cyberiaonline.canvasDim / maxRangeMap,
                     id: {}
                 },
                 init: function (element) {
 
-                    this.componentsParams.id[element.id] = 'display-id-' + element.id;
+                    this.data.id[element.id] = 'display-id-' + element.id;
 
                     append(cyberiaonline.htmlPixiFontLayer, /*html*/`
-                            <div class='abs ${this.componentsParams.id[element.id]}' style='
-                            top: ${this.componentsFunctions.renderX(this, element)}px;
-                            left: ${this.componentsFunctions.renderY(this, element)}px;
+                            <div class='abs ${this.data.id[element.id]}' style='
+                            top: ${this.functions.renderX(this, element)}px;
+                            left: ${this.functions.renderY(this, element)}px;
                             color: ${colors.find(x => x.name.toLowerCase() === element.color).hex};
                             font-family: retro;
                             font-size: 10px;
@@ -451,37 +451,37 @@ this.cyberiaonline = {
 
                 },
                 loop: function (element) {
-                    if (s(`.${this.componentsParams.id[element.id]}`)) {
-                        s(`.${this.componentsParams.id[element.id]}`).style.top =
-                            `${this.componentsFunctions.renderX(this, element)}px`;
-                        s(`.${this.componentsParams.id[element.id]}`).style.left =
-                            `${this.componentsFunctions.renderY(this, element)}px`;
+                    if (s(`.${this.data.id[element.id]}`)) {
+                        s(`.${this.data.id[element.id]}`).style.top =
+                            `${this.functions.renderX(this, element)}px`;
+                        s(`.${this.data.id[element.id]}`).style.left =
+                            `${this.functions.renderY(this, element)}px`;
                     } else {
-                        console.error('!s(`.${this.componentsParams.id[element.id]}`)');
+                        console.error('!s(`.${this.data.id[element.id]}`)');
                     }
                 },
                 event: function (element) { },
                 delete: function (element) {
-                    s(`.${this.componentsParams.id[element.id]}`).remove();
-                    delete this.componentsParams.id[element.id];
+                    s(`.${this.data.id[element.id]}`).remove();
+                    delete this.data.id[element.id];
                 }
             },
             'bar-life': {
-                componentsFunctions: {},
-                componentsElements: {
+                functions: {},
+                elements: {
                     bar: {}
                 },
-                componentsParams: {},
+                data: {},
                 init: function (element) {
 
 
-                    this.componentsElements.bar[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.bar[element.id].tint = pixiColors['electric green'];
-                    this.componentsElements.bar[element.id].width = element.dim * pixiAmplitudeFactor;
-                    this.componentsElements.bar[element.id].height = element.dim * pixiAmplitudeFactor * 0.2;
-                    this.componentsElements.bar[element.id].x = 0;
-                    this.componentsElements.bar[element.id].y = -1 * element.dim * pixiAmplitudeFactor * 0.2;
-                    elementsContainer[element.id].addChild(this.componentsElements.bar[element.id]);
+                    this.elements.bar[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.bar[element.id].tint = pixiColors['electric green'];
+                    this.elements.bar[element.id].width = element.dim * pixiAmplitudeFactor;
+                    this.elements.bar[element.id].height = element.dim * pixiAmplitudeFactor * 0.2;
+                    this.elements.bar[element.id].x = 0;
+                    this.elements.bar[element.id].y = -1 * element.dim * pixiAmplitudeFactor * 0.2;
+                    elementsContainer[element.id].addChild(this.elements.bar[element.id]);
 
 
                 },
@@ -490,7 +490,7 @@ this.cyberiaonline = {
                     if (element.life <= 0) element.life = 0;
                     const factorLife = element.life / element.maxLife;
                     // console.error('factorLife', factorLife);
-                    this.componentsElements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
+                    this.elements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
                     if (element.life === 0) {
                         const typeElement = `${element.type}`;
                         setTimeout(() => {
@@ -518,11 +518,11 @@ this.cyberiaonline = {
                     }
                 },
                 delete: function (element) {
-                    delete this.componentsElements.bar[element.id];
+                    delete this.elements.bar[element.id];
                 }
             },
             'random-head-common': {
-                componentsParams: {
+                data: {
                     color: null,
                     width: null,
                     height: null,
@@ -530,44 +530,44 @@ this.cyberiaonline = {
                     eyeWidth: null,
                     eyeHeight: null
                 },
-                componentsElements: {
+                elements: {
                     head: {},
                     eyesLeft: {},
                     eyesRight: {}
                 },
                 init: function (element) {
 
-                    if (this.componentsParams.color === null) this.componentsParams.color = getRandomPixiColor();
-                    if (this.componentsParams.width === null) this.componentsParams.width = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
-                    if (this.componentsParams.height === null) this.componentsParams.height = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
+                    if (this.data.color === null) this.data.color = getRandomPixiColor();
+                    if (this.data.width === null) this.data.width = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
+                    if (this.data.height === null) this.data.height = ((element.dim) * pixiAmplitudeFactor) * (100 / random(150, 300));
 
-                    this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.head[element.id].tint = this.componentsParams.color;
-                    this.componentsElements.head[element.id].width = this.componentsParams.width;
-                    this.componentsElements.head[element.id].height = this.componentsParams.height;
-                    this.componentsElements.head[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsParams.width) / 2;
-                    this.componentsElements.head[element.id].y = 0;
-                    elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
+                    this.elements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.head[element.id].tint = this.data.color;
+                    this.elements.head[element.id].width = this.data.width;
+                    this.elements.head[element.id].height = this.data.height;
+                    this.elements.head[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.data.width) / 2;
+                    this.elements.head[element.id].y = 0;
+                    elementsContainer[element.id].addChild(this.elements.head[element.id]);
 
-                    if (this.componentsParams.eyeWidth === null) this.componentsParams.eyeWidth = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
-                    if (this.componentsParams.eyeHeight === null) this.componentsParams.eyeHeight = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
-                    if (this.componentsParams.eyeColor === null) this.componentsParams.eyeColor = getRandomPixiColor();
+                    if (this.data.eyeWidth === null) this.data.eyeWidth = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
+                    if (this.data.eyeHeight === null) this.data.eyeHeight = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
+                    if (this.data.eyeColor === null) this.data.eyeColor = getRandomPixiColor();
 
-                    this.componentsElements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesLeft[element.id].tint = this.componentsParams.eyeColor;
-                    this.componentsElements.eyesLeft[element.id].width = this.componentsParams.eyeWidth;
-                    this.componentsElements.eyesLeft[element.id].height = this.componentsParams.eyeHeight;
-                    this.componentsElements.eyesLeft[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.componentsParams.eyeWidth / 2); /// - [this.componentsParams.eyeWidth, 0][random(0, 1)];
-                    this.componentsElements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.eyesLeft[element.id]);
+                    this.elements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.eyesLeft[element.id].tint = this.data.eyeColor;
+                    this.elements.eyesLeft[element.id].width = this.data.eyeWidth;
+                    this.elements.eyesLeft[element.id].height = this.data.eyeHeight;
+                    this.elements.eyesLeft[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2); /// - [this.data.eyeWidth, 0][random(0, 1)];
+                    this.elements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.eyesLeft[element.id]);
 
-                    this.componentsElements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesRight[element.id].tint = this.componentsParams.eyeColor;
-                    this.componentsElements.eyesRight[element.id].width = this.componentsParams.eyeWidth;
-                    this.componentsElements.eyesRight[element.id].height = this.componentsParams.eyeHeight;
-                    this.componentsElements.eyesRight[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.componentsParams.eyeWidth / 2); /// + [this.componentsParams.eyeWidth, 0][random(0, 1)];
-                    this.componentsElements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.eyesRight[element.id]);
+                    this.elements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.eyesRight[element.id].tint = this.data.eyeColor;
+                    this.elements.eyesRight[element.id].width = this.data.eyeWidth;
+                    this.elements.eyesRight[element.id].height = this.data.eyeHeight;
+                    this.elements.eyesRight[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2); /// + [this.data.eyeWidth, 0][random(0, 1)];
+                    this.elements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.eyesRight[element.id]);
 
                 },
                 loop: function (element) {
@@ -575,75 +575,75 @@ this.cyberiaonline = {
                     if (direction === 'East'
                         || direction === 'South East'
                         || direction === 'North East') {
-                        this.componentsElements.eyesLeft[element.id].visible = false;
-                        this.componentsElements.eyesRight[element.id].visible = true;
+                        this.elements.eyesLeft[element.id].visible = false;
+                        this.elements.eyesRight[element.id].visible = true;
                     }
 
                     if (direction === 'West'
                         || direction === 'South West'
                         || direction === 'North West') {
-                        this.componentsElements.eyesRight[element.id].visible = false;
-                        this.componentsElements.eyesLeft[element.id].visible = true;
+                        this.elements.eyesRight[element.id].visible = false;
+                        this.elements.eyesLeft[element.id].visible = true;
                     }
 
                     if (direction === 'North') {
-                        this.componentsElements.eyesRight[element.id].visible = false;
-                        this.componentsElements.eyesLeft[element.id].visible = false;
+                        this.elements.eyesRight[element.id].visible = false;
+                        this.elements.eyesLeft[element.id].visible = false;
                     }
 
                     if (direction === 'South') {
-                        this.componentsElements.eyesRight[element.id].visible = true;
-                        this.componentsElements.eyesLeft[element.id].visible = true;
+                        this.elements.eyesRight[element.id].visible = true;
+                        this.elements.eyesLeft[element.id].visible = true;
                     }
 
                 },
                 event: function (element) { },
                 delete: function (element) {
-                    delete this.componentsElements.head[element.id];
-                    delete this.componentsElements.eyesLeft[element.id];
-                    delete this.componentsElements.eyesRight[element.id];
+                    delete this.elements.head[element.id];
+                    delete this.elements.eyesLeft[element.id];
+                    delete this.elements.eyesRight[element.id];
                     // respawn random params
-                    this.componentsParams.color = null;
-                    this.componentsParams.width = null;
-                    this.componentsParams.height = null;
-                    this.componentsParams.eyeColor = null;
-                    this.componentsParams.eyeWidth = null;
-                    this.componentsParams.eyeHeight = null;
+                    this.data.color = null;
+                    this.data.width = null;
+                    this.data.height = null;
+                    this.data.eyeColor = null;
+                    this.data.eyeWidth = null;
+                    this.data.eyeHeight = null;
                 }
             },
             'texture|zinnwaldite brown|cafe noir': {
-                componentsFunctions: {},
-                componentsElements: {
+                functions: {},
+                elements: {
                     layer1: {},
                     layer2: {}
                 },
-                componentsParams: {},
+                data: {},
                 init: function (element) {
-                    this.componentsElements.layer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.layer1[element.id].tint = pixiColors['zinnwaldite brown'];
-                    this.componentsElements.layer1[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.1;
-                    this.componentsElements.layer1[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.1;
-                    this.componentsElements.layer1[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer1[element.id].width) / 2;
-                    this.componentsElements.layer1[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer1[element.id].height) / 2;
-                    elementsContainer[element.id].addChild(this.componentsElements.layer1[element.id]);
+                    this.elements.layer1[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.layer1[element.id].tint = pixiColors['zinnwaldite brown'];
+                    this.elements.layer1[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    this.elements.layer1[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.1;
+                    this.elements.layer1[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.elements.layer1[element.id].width) / 2;
+                    this.elements.layer1[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.elements.layer1[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(this.elements.layer1[element.id]);
 
-                    this.componentsElements.layer2[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.layer2[element.id].tint = pixiColors['cafe noir'];
-                    this.componentsElements.layer2[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.5;
-                    this.componentsElements.layer2[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.5;
-                    this.componentsElements.layer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer2[element.id].width) / 2;
-                    this.componentsElements.layer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.componentsElements.layer2[element.id].height) / 2;
-                    elementsContainer[element.id].addChild(this.componentsElements.layer2[element.id]);
+                    this.elements.layer2[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.layer2[element.id].tint = pixiColors['cafe noir'];
+                    this.elements.layer2[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    this.elements.layer2[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 1.5;
+                    this.elements.layer2[element.id].x = (((element.dim) * pixiAmplitudeFactor) - this.elements.layer2[element.id].width) / 2;
+                    this.elements.layer2[element.id].y = (((element.dim) * pixiAmplitudeFactor) - this.elements.layer2[element.id].height) / 2;
+                    elementsContainer[element.id].addChild(this.elements.layer2[element.id]);
                 },
                 loop: function (element) { },
                 event: function (element) { },
                 delete: function (element) {
-                    delete this.componentsElements.layer1[element.id];
-                    delete this.componentsElements.layer2[element.id];
+                    delete this.elements.layer1[element.id];
+                    delete this.elements.layer2[element.id];
                 }
             },
             'background-circle': {
-                componentsFunctions: {
+                functions: {
                     alertCollision: element => {
                         return (
                             element.type !== 'BUILDING'
@@ -663,40 +663,40 @@ this.cyberiaonline = {
                             )).length > 0;
                     }
                 },
-                componentsElements: {
+                elements: {
                     circle: {}
                 },
-                componentsParams: {
+                data: {
                     radioPor: 0.9,
                     collisionColor: {}
                 },
                 init: function (element) {
 
-                    this.componentsParams.collisionColor[element.id] = true;
+                    this.data.collisionColor[element.id] = true;
 
-                    this.componentsElements.circle[element.id] = new PIXI.Graphics();
-                    this.componentsElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor);
-                    this.componentsElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor);
-                    this.componentsElements.circle[element.id].beginFill(pixiColors["black"]);
-                    this.componentsElements.circle[element.id].lineStyle(0);
-                    this.componentsElements.circle[element.id].drawCircle(
+                    this.elements.circle[element.id] = new PIXI.Graphics();
+                    this.elements.circle[element.id].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[element.id].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[element.id].beginFill(pixiColors["black"]);
+                    this.elements.circle[element.id].lineStyle(0);
+                    this.elements.circle[element.id].drawCircle(
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * 0.5,
-                        (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                        (element.dim * pixiAmplitudeFactor) * this.data.radioPor * 0.5
                     ); // x,y,radio
-                    this.componentsElements.circle[element.id].endFill();
+                    this.elements.circle[element.id].endFill();
 
-                    elementsContainer[element.id].addChild(this.componentsElements.circle[element.id]);
+                    elementsContainer[element.id].addChild(this.elements.circle[element.id]);
 
                     switch (element.type) {
                         case 'USER_MAIN':
-                            this.componentsElements.circle[element.id].visible = false;
+                            this.elements.circle[element.id].visible = false;
                             break;
                         case 'TOUCH':
-                            this.componentsElements.circle[element.id].visible = false;
+                            this.elements.circle[element.id].visible = false;
                             break;
                         case 'BOT':
-                            this.componentsElements.circle[element.id].visible = false;
+                            this.elements.circle[element.id].visible = false;
                             break;
                         default:
                     };
@@ -704,32 +704,32 @@ this.cyberiaonline = {
 
                 },
                 loop: function (element) {
-                    if (this.componentsFunctions.alertCollision(element) && this.componentsParams.collisionColor[element.id] === true) {
-                        this.componentsParams.collisionColor[element.id] = false;
-                        this.componentsElements.circle[element.id].clear();
-                        this.componentsElements.circle[element.id].beginFill(pixiColors["magenta"]);
-                        this.componentsElements.circle[element.id].lineStyle(0);
-                        this.componentsElements.circle[element.id].drawCircle(
+                    if (this.functions.alertCollision(element) && this.data.collisionColor[element.id] === true) {
+                        this.data.collisionColor[element.id] = false;
+                        this.elements.circle[element.id].clear();
+                        this.elements.circle[element.id].beginFill(pixiColors["magenta"]);
+                        this.elements.circle[element.id].lineStyle(0);
+                        this.elements.circle[element.id].drawCircle(
                             (element.dim * pixiAmplitudeFactor) * 0.5,
                             (element.dim * pixiAmplitudeFactor) * 0.5,
-                            (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                            (element.dim * pixiAmplitudeFactor) * this.data.radioPor * 0.5
                         ); // x,y,radio
-                        this.componentsElements.circle[element.id].endFill();
+                        this.elements.circle[element.id].endFill();
                         setTimeout(() => {
-                            if (!this.componentsElements.circle[element.id]) return;
+                            if (!this.elements.circle[element.id]) return;
                             setTimeout(() => {
-                                if (!this.componentsElements.circle[element.id]) return;
-                                this.componentsParams.collisionColor[element.id] = true;
+                                if (!this.elements.circle[element.id]) return;
+                                this.data.collisionColor[element.id] = true;
                             }, 500);
-                            this.componentsElements.circle[element.id].clear();
-                            this.componentsElements.circle[element.id].beginFill(pixiColors["black"]);
-                            this.componentsElements.circle[element.id].lineStyle(0);
-                            this.componentsElements.circle[element.id].drawCircle(
+                            this.elements.circle[element.id].clear();
+                            this.elements.circle[element.id].beginFill(pixiColors["black"]);
+                            this.elements.circle[element.id].lineStyle(0);
+                            this.elements.circle[element.id].drawCircle(
                                 (element.dim * pixiAmplitudeFactor) * 0.5,
                                 (element.dim * pixiAmplitudeFactor) * 0.5,
-                                (element.dim * pixiAmplitudeFactor) * this.componentsParams.radioPor * 0.5
+                                (element.dim * pixiAmplitudeFactor) * this.data.radioPor * 0.5
                             ); // x,y,radio
-                            this.componentsElements.circle[element.id].endFill();
+                            this.elements.circle[element.id].endFill();
                         }, 500);
                     }
                 },
@@ -738,11 +738,11 @@ this.cyberiaonline = {
 
                 },
                 delete: function (element) {
-                    delete this.componentsElements.circle[element.id];
+                    delete this.elements.circle[element.id];
                 }
             },
             'background': {
-                componentsFunctions: {
+                functions: {
                     alertCollision: element => {
                         return (
                             element.type !== 'BUILDING'
@@ -762,28 +762,28 @@ this.cyberiaonline = {
                             )).length > 0;
                     }
                 },
-                componentsElements: {
+                elements: {
                     background: {},
                 },
                 init: function (element) {
 
-                    this.componentsElements.background[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.background[element.id].x = 0;
-                    this.componentsElements.background[element.id].y = 0;
-                    this.componentsElements.background[element.id].width = (element.dim) * pixiAmplitudeFactor;
-                    this.componentsElements.background[element.id].height = (element.dim) * pixiAmplitudeFactor;
-                    this.componentsElements.background[element.id].tint = pixiColors[element.color];
-                    elementsContainer[element.id].addChild(this.componentsElements.background[element.id]);
+                    this.elements.background[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.background[element.id].x = 0;
+                    this.elements.background[element.id].y = 0;
+                    this.elements.background[element.id].width = (element.dim) * pixiAmplitudeFactor;
+                    this.elements.background[element.id].height = (element.dim) * pixiAmplitudeFactor;
+                    this.elements.background[element.id].tint = pixiColors[element.color];
+                    elementsContainer[element.id].addChild(this.elements.background[element.id]);
 
                     switch (element.type) {
                         case 'USER_MAIN':
-                            this.componentsElements.background[element.id].visible = false;
+                            this.elements.background[element.id].visible = false;
                             break;
                         case 'TOUCH':
-                            this.componentsElements.background[element.id].visible = false;
+                            this.elements.background[element.id].visible = false;
                             break;
                         case 'BOT':
-                            this.componentsElements.background[element.id].visible = false;
+                            this.elements.background[element.id].visible = false;
                             break;
                         default:
                     };
@@ -791,10 +791,10 @@ this.cyberiaonline = {
 
                 },
                 loop: function (element) {
-                    if (this.componentsFunctions.alertCollision(element)) {
-                        this.componentsElements.background[element.id].tint = pixiColors["magenta"];
-                    } else if (this.componentsElements.background[element.id].tint !== pixiColors[element.color]) {
-                        this.componentsElements.background[element.id].tint = pixiColors[element.color];
+                    if (this.functions.alertCollision(element)) {
+                        this.elements.background[element.id].tint = pixiColors["magenta"];
+                    } else if (this.elements.background[element.id].tint !== pixiColors[element.color]) {
+                        this.elements.background[element.id].tint = pixiColors[element.color];
                     }
                 },
                 event: function (element) {
@@ -802,62 +802,62 @@ this.cyberiaonline = {
 
                 },
                 delete: function (element) {
-                    delete this.componentsElements.background[element.id];
+                    delete this.elements.background[element.id];
                 }
             },
             'anon-foots': {
-                componentsElements: {
+                elements: {
                     footLeft: {},
                     footRight: {}
                 },
-                componentsParams: {
+                data: {
                     foot: {}
                 },
                 init: function (element) {
 
 
-                    this.componentsParams.foot[element.id] = 0;
+                    this.data.foot[element.id] = 0;
 
-                    this.componentsElements.footLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.footLeft[element.id].tint = pixiColors['white'];
-                    this.componentsElements.footLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                    this.componentsElements.footLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
-                    this.componentsElements.footLeft[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.footLeft[element.id]);
+                    this.elements.footLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.footLeft[element.id].tint = pixiColors['white'];
+                    this.elements.footLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    this.elements.footLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.elements.footLeft[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.footLeft[element.id]);
 
-                    this.componentsElements.footRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.footRight[element.id].tint = pixiColors['white'];
-                    this.componentsElements.footRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                    this.componentsElements.footRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
-                    this.componentsElements.footRight[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.footRight[element.id]);
+                    this.elements.footRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.footRight[element.id].tint = pixiColors['white'];
+                    this.elements.footRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                    this.elements.footRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.elements.footRight[element.id].y = element.dim * 0.8 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.footRight[element.id]);
                 },
                 loop: function (element) {
                     if ((element.lastX !== parseInt(element.renderX) || element.lastY !== parseInt(element.renderY))) {
                         let direction = element.direction;
 
-                        switch (this.componentsParams.foot[element.id]) {
+                        switch (this.data.foot[element.id]) {
                             case 0:
-                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
-                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.elements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                                this.elements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
                                 break;
                             case 50:
-                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
+                                this.elements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.elements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) * (direction === 'South' || direction === 'North' ? 0 : (1 / 10));
                                 break;
                             case 100:
-                                this.componentsParams.foot[element.id] = -1;
+                                this.data.foot[element.id] = -1;
                                 break;
                         }
-                        this.componentsParams.foot[element.id]++;
+                        this.data.foot[element.id]++;
                     } else {
                         const currentElement = newInstance(element);
                         setTimeout(() => {
                             if (element.lastX === parseInt(currentElement.renderX) && element.lastY === parseInt(currentElement.renderY) && elementsContainer[element.id]) {
-                                this.componentsElements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
-                                this.componentsElements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.elements.footLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
+                                this.elements.footRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 5;
                             }
                         }, 100);
                     }
@@ -865,41 +865,41 @@ this.cyberiaonline = {
                 },
                 event: function (element) { },
                 delete: function (element) {
-                    delete this.componentsParams.foot[element.id];
-                    delete this.componentsElements.footLeft[element.id];
-                    delete this.componentsElements.footRight[element.id];
+                    delete this.data.foot[element.id];
+                    delete this.elements.footLeft[element.id];
+                    delete this.elements.footRight[element.id];
                 }
             },
             'anon-head': {
-                componentsElements: {
+                elements: {
                     head: {},
                     eyesLeft: {},
                     eyesRight: {}
                 },
                 init: function (element) {
 
-                    this.componentsElements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.head[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    this.componentsElements.head[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
-                    this.componentsElements.head[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
-                    this.componentsElements.head[element.id].y = 0;
-                    elementsContainer[element.id].addChild(this.componentsElements.head[element.id]);
+                    this.elements.head[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.head[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.elements.head[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 2;
+                    this.elements.head[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 4;
+                    this.elements.head[element.id].y = 0;
+                    elementsContainer[element.id].addChild(this.elements.head[element.id]);
 
-                    this.componentsElements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesLeft[element.id].tint = pixiColors['blue'];
-                    this.componentsElements.eyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
-                    this.componentsElements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.eyesLeft[element.id]);
+                    this.elements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.eyesLeft[element.id].tint = pixiColors['blue'];
+                    this.elements.eyesLeft[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.eyesLeft[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.eyesLeft[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 3.25;
+                    this.elements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.eyesLeft[element.id]);
 
-                    this.componentsElements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                    this.componentsElements.eyesRight[element.id].tint = pixiColors['blue'];
-                    this.componentsElements.eyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
-                    this.componentsElements.eyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
-                    this.componentsElements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
-                    elementsContainer[element.id].addChild(this.componentsElements.eyesRight[element.id]);
+                    this.elements.eyesRight[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                    this.elements.eyesRight[element.id].tint = pixiColors['blue'];
+                    this.elements.eyesRight[element.id].width = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.eyesRight[element.id].height = ((element.dim) * pixiAmplitudeFactor) / 6.5;
+                    this.elements.eyesRight[element.id].x = ((element.dim) * pixiAmplitudeFactor) / 1.75;
+                    this.elements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
+                    elementsContainer[element.id].addChild(this.elements.eyesRight[element.id]);
 
 
                 },
@@ -908,25 +908,25 @@ this.cyberiaonline = {
                     if (direction === 'East'
                         || direction === 'South East'
                         || direction === 'North East') {
-                        this.componentsElements.eyesLeft[element.id].visible = false;
-                        this.componentsElements.eyesRight[element.id].visible = true;
+                        this.elements.eyesLeft[element.id].visible = false;
+                        this.elements.eyesRight[element.id].visible = true;
                     }
 
                     if (direction === 'West'
                         || direction === 'South West'
                         || direction === 'North West') {
-                        this.componentsElements.eyesRight[element.id].visible = false;
-                        this.componentsElements.eyesLeft[element.id].visible = true;
+                        this.elements.eyesRight[element.id].visible = false;
+                        this.elements.eyesLeft[element.id].visible = true;
                     }
 
                     if (direction === 'North') {
-                        this.componentsElements.eyesRight[element.id].visible = false;
-                        this.componentsElements.eyesLeft[element.id].visible = false;
+                        this.elements.eyesRight[element.id].visible = false;
+                        this.elements.eyesLeft[element.id].visible = false;
                     }
 
                     if (direction === 'South') {
-                        this.componentsElements.eyesRight[element.id].visible = true;
-                        this.componentsElements.eyesLeft[element.id].visible = true;
+                        this.elements.eyesRight[element.id].visible = true;
+                        this.elements.eyesLeft[element.id].visible = true;
                     }
 
                 },
@@ -934,16 +934,16 @@ this.cyberiaonline = {
 
                 },
                 delete: function (element) {
-                    delete this.componentsElements.head[element.id];
-                    delete this.componentsElements.eyesLeft[element.id];
-                    delete this.componentsElements.eyesRight[element.id];
+                    delete this.elements.head[element.id];
+                    delete this.elements.eyesLeft[element.id];
+                    delete this.elements.eyesRight[element.id];
                 }
             },
             'BULLET-THREE-RANDOM-CIRCLE-COLOR': {
                 //      X
                 // >  X
                 //      X
-                componentsFunctions: {
+                functions: {
                     alertCollision: (element, fromArray, toArray) =>
                         elements.filter(x => {
 
@@ -1012,34 +1012,34 @@ this.cyberiaonline = {
                         }));
                     })
                 },
-                componentsElements: {},
-                componentsParams: {
+                elements: {},
+                data: {
                     value: 20,
                     vel: 2500,
                     validateShoot: {}
                 },
                 init: function (element) {
-                    this.componentsParams.validateShoot[element.id] = true;
+                    this.data.validateShoot[element.id] = true;
                 },
                 loop: function (element) {
                     const participantsFrom = ['BULLET-THREE-RANDOM-CIRCLE-COLOR'];
                     const participantsTo = ['BOT', 'USER_MAIN'];
                     const collisionTest =
-                        this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo)
-                    if (this.componentsParams.validateShoot[element.id] === true && collisionTest.length > 0) {
+                        this.functions.alertCollision(element, participantsFrom, participantsTo)
+                    if (this.data.validateShoot[element.id] === true && collisionTest.length > 0) {
 
-                        this.componentsParams.validateShoot[element.id] = false;
+                        this.data.validateShoot[element.id] = false;
                         setTimeout(() => {
-                            this.componentsParams.validateShoot[element.id] = true;
-                        }, this.componentsParams.vel);
+                            this.data.validateShoot[element.id] = true;
+                        }, this.data.vel);
 
 
-                        // console.error(this.componentsFunctions.alertCollision(element, participantsFrom, participantsTo));
+                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
 
 
                         collisionTest.map(element => {
-                            element.life = element.life - this.componentsParams.value;
-                            COMPONENTS['damage-indicator'].event(element, this.componentsParams.value);
+                            element.life = element.life - this.data.value;
+                            COMPONENTS['damage-indicator'].event(element, this.data.value);
                             COMPONENTS['bar-life'].event(element);
                             // console.error(element.life);
                         });
@@ -1049,7 +1049,7 @@ this.cyberiaonline = {
                 delete: function (element) { }
             },
             'BULLET-CROSS': {
-                componentsFunctions: {
+                functions: {
                     setShoot: element => setShoot(element, () => {
                         let xBullet = 0;
                         let yBullet = 0;
@@ -1085,8 +1085,8 @@ this.cyberiaonline = {
                         }));
                     })
                 },
-                componentsElements: {},
-                componentsParams: {},
+                elements: {},
+                data: {},
                 init: function (element) { },
                 loop: function (element) { },
                 event: function (element) { },
@@ -1094,57 +1094,57 @@ this.cyberiaonline = {
 
             },
             'cross-effect': {
-                componentsElements: {
+                elements: {
                     sprite: {}
                 },
                 init: function (element) { },
                 loop: function (element) { },
                 delete: function (eventHash) {
-                    this.componentsElements.sprite[eventHash].destroy();
-                    delete this.componentsElements.sprite[eventHash];
+                    this.elements.sprite[eventHash].destroy();
+                    delete this.elements.sprite[eventHash];
                 },
                 event: function (element) {
                     const valueAbsDiff = (element.dim) * pixiAmplitudeFactor / 6;
                     range(0, 4).map(i => {
                         const eventHash = 'x' + s4();
-                        this.componentsElements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
-                        this.componentsElements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
-                        this.componentsElements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
-                        const xyCorrection = (this.componentsElements.sprite[eventHash].width / 2);
+                        this.elements.sprite[eventHash] = new PIXI.Sprite(PIXI.Texture.WHITE);
+                        this.elements.sprite[eventHash].width = (element.dim) * pixiAmplitudeFactor / 5;
+                        this.elements.sprite[eventHash].height = (element.dim) * pixiAmplitudeFactor / 5;
+                        const xyCorrection = (this.elements.sprite[eventHash].width / 2);
                         switch (i) {
                             case 0:
-                                this.componentsElements.sprite[eventHash].x = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
-                                this.componentsElements.sprite[eventHash].y = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
+                                this.elements.sprite[eventHash].x = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
+                                this.elements.sprite[eventHash].y = ((element.dim) * pixiAmplitudeFactor / 2) - xyCorrection;
                                 break;
                             case 1:
-                                this.componentsElements.sprite[eventHash].x =
+                                this.elements.sprite[eventHash].x =
                                     ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
-                                this.componentsElements.sprite[eventHash].y =
+                                this.elements.sprite[eventHash].y =
                                     ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 break;
                             case 2:
-                                this.componentsElements.sprite[eventHash].x =
+                                this.elements.sprite[eventHash].x =
                                     ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
-                                this.componentsElements.sprite[eventHash].y =
+                                this.elements.sprite[eventHash].y =
                                     ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
                                 break;
                             case 3:
-                                this.componentsElements.sprite[eventHash].x =
+                                this.elements.sprite[eventHash].x =
                                     ((element.dim) * pixiAmplitudeFactor / 2) - valueAbsDiff - xyCorrection;
-                                this.componentsElements.sprite[eventHash].y =
+                                this.elements.sprite[eventHash].y =
                                     ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 break;
                             case 4:
-                                this.componentsElements.sprite[eventHash].x =
+                                this.elements.sprite[eventHash].x =
                                     ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
-                                this.componentsElements.sprite[eventHash].y =
+                                this.elements.sprite[eventHash].y =
                                     ((element.dim) * pixiAmplitudeFactor / 2) + valueAbsDiff - xyCorrection;
                                 break;
                             default:
                                 break;
                         }
-                        this.componentsElements.sprite[eventHash].tint = pixiColors['red'];
-                        elementsContainer[element.id].addChild(this.componentsElements.sprite[eventHash]);
+                        this.elements.sprite[eventHash].tint = pixiColors['red'];
+                        elementsContainer[element.id].addChild(this.elements.sprite[eventHash]);
                         setTimeout(() => {
                             this.delete(eventHash);
                         }, 1000);
@@ -1152,107 +1152,107 @@ this.cyberiaonline = {
                 }
             },
             'random-circle-color': {
-                componentsParams: {
+                data: {
                     circle: {}
                 },
-                componentsElements: {
+                elements: {
                     circle: {}
                 },
                 init: function (element) {
-                    this.componentsElements.circle[element.id] = new PIXI.Graphics();
-                    this.componentsElements.circle[element.id].beginFill(randomNumberColor());
-                    this.componentsElements.circle[element.id].lineStyle(0);
-                    this.componentsElements.circle[element.id].drawCircle(0, 0, 1.5 * pixiAmplitudeFactor); // x,y,radio
-                    this.componentsElements.circle[element.id].endFill();
-                    this.componentsElements.circle[element.id].width = (element.dim * pixiAmplitudeFactor) / 4;
-                    this.componentsElements.circle[element.id].height = (element.dim * pixiAmplitudeFactor) / 4;
-                    elementsContainer[element.id].addChild(this.componentsElements.circle[element.id]);
+                    this.elements.circle[element.id] = new PIXI.Graphics();
+                    this.elements.circle[element.id].beginFill(randomNumberColor());
+                    this.elements.circle[element.id].lineStyle(0);
+                    this.elements.circle[element.id].drawCircle(0, 0, 1.5 * pixiAmplitudeFactor); // x,y,radio
+                    this.elements.circle[element.id].endFill();
+                    this.elements.circle[element.id].width = (element.dim * pixiAmplitudeFactor) / 4;
+                    this.elements.circle[element.id].height = (element.dim * pixiAmplitudeFactor) / 4;
+                    elementsContainer[element.id].addChild(this.elements.circle[element.id]);
                 },
                 loop: function (element) {
-                    if (!this.componentsParams.circle[element.id])
-                        this.componentsParams.circle[element.id] = 0;
-                    switch (this.componentsParams.circle[element.id]) {
+                    if (!this.data.circle[element.id])
+                        this.data.circle[element.id] = 0;
+                    switch (this.data.circle[element.id]) {
                         case 0:
-                            this.componentsElements.circle[element.id].clear();
-                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
-                            this.componentsElements.circle[element.id].lineStyle(0);
-                            this.componentsElements.circle[element.id].drawCircle(
+                            this.elements.circle[element.id].clear();
+                            this.elements.circle[element.id].beginFill(randomNumberColor());
+                            this.elements.circle[element.id].lineStyle(0);
+                            this.elements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 2 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.componentsElements.circle[element.id].endFill();
+                            this.elements.circle[element.id].endFill();
                             break;
                         case 100:
-                            this.componentsElements.circle[element.id].clear();
-                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
-                            this.componentsElements.circle[element.id].lineStyle(0);
-                            this.componentsElements.circle[element.id].drawCircle(
+                            this.elements.circle[element.id].clear();
+                            this.elements.circle[element.id].beginFill(randomNumberColor());
+                            this.elements.circle[element.id].lineStyle(0);
+                            this.elements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 3 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.componentsElements.circle[element.id].endFill();
+                            this.elements.circle[element.id].endFill();
                             break;
                         case 200:
-                            this.componentsElements.circle[element.id].clear();
-                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
-                            this.componentsElements.circle[element.id].lineStyle(0);
-                            this.componentsElements.circle[element.id].drawCircle(
+                            this.elements.circle[element.id].clear();
+                            this.elements.circle[element.id].beginFill(randomNumberColor());
+                            this.elements.circle[element.id].lineStyle(0);
+                            this.elements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 2 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.componentsElements.circle[element.id].endFill();
+                            this.elements.circle[element.id].endFill();
                             break;
                         case 300:
-                            this.componentsElements.circle[element.id].clear();
-                            this.componentsElements.circle[element.id].beginFill(randomNumberColor());
-                            this.componentsElements.circle[element.id].lineStyle(0);
-                            this.componentsElements.circle[element.id].drawCircle(
+                            this.elements.circle[element.id].clear();
+                            this.elements.circle[element.id].beginFill(randomNumberColor());
+                            this.elements.circle[element.id].lineStyle(0);
+                            this.elements.circle[element.id].drawCircle(
                                 0,
                                 0,
                                 1.5 * pixiAmplitudeFactor
                             ); // x,y,radio
-                            this.componentsElements.circle[element.id].endFill();
+                            this.elements.circle[element.id].endFill();
                             break;
                         case 400:
-                            this.componentsParams.circle[element.id] = -1;
+                            this.data.circle[element.id] = -1;
                             break;
                     }
-                    this.componentsParams.circle[element.id]++;
+                    this.data.circle[element.id]++;
                 },
                 delete: function (element) {
-                    delete this.componentsElements.circle[element.id];
-                    delete this.componentsParams.circle[element.id];
+                    delete this.elements.circle[element.id];
+                    delete this.data.circle[element.id];
                 }
             },
             'random-circle-color-one-big': {
-                componentsElements: {
+                elements: {
                     circle: {}
                 },
                 init: function (element) { },
                 loop: function (element) { },
                 delete: function (eventHash) {
-                    this.componentsElements.circle[eventHash].destroy();
-                    delete this.componentsElements.circle[eventHash];
+                    this.elements.circle[eventHash].destroy();
+                    delete this.elements.circle[eventHash];
                 },
                 event: function (element) {
                     const eventHash = 'x' + s4();
                     const radioPor = 0.5;
 
-                    this.componentsElements.circle[eventHash] = new PIXI.Graphics();
-                    this.componentsElements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
-                    this.componentsElements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor);
-                    this.componentsElements.circle[eventHash].beginFill(randomNumberColor());
-                    this.componentsElements.circle[eventHash].lineStyle(0);
-                    this.componentsElements.circle[eventHash].drawCircle(
+                    this.elements.circle[eventHash] = new PIXI.Graphics();
+                    this.elements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[eventHash].beginFill(randomNumberColor());
+                    this.elements.circle[eventHash].lineStyle(0);
+                    this.elements.circle[eventHash].drawCircle(
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
                     ); // x,y,radio
-                    this.componentsElements.circle[eventHash].endFill();
-                    elementsContainer[element.id].addChild(this.componentsElements.circle[eventHash]);
+                    this.elements.circle[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
 
 
                     setTimeout(() => {
@@ -1396,8 +1396,8 @@ this.cyberiaonline = {
                                 ]
                             );
                             this.dim = this.dim * 0.8;
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
-                            // COMPONENTS['BULLET-CROSS'].componentsFunctions.setShoot(this);
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
+                            // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1416,7 +1416,7 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].componentsFunctions.setShoot(this);
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             this.shootTimeInterval = 5000;
 
                             // cambiar movimiento al que tenga
