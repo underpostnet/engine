@@ -26,7 +26,9 @@ this.cyberiaonline = {
         const BtnW = id();
         const fullScreenBtn = id();
 
-        let baseMatrix;
+        let baseMatrix = [[]];
+        let maxBots = 0;
+        let mainUserId = id();
 
         // generate seed world type instance
         // backup elements state (memento)
@@ -498,19 +500,22 @@ this.cyberiaonline = {
                         setTimeout(() => {
                             switch (typeElement) {
                                 case 'BOT':
-                                    elements.push(gen().init({
-                                        container: containerID,
-                                        type: 'BOT'
-                                    }));
+                                    if (elements.filter(x => x.type === 'BOT').length < maxBots)
+                                        elements.push(gen().init({
+                                            container: containerID,
+                                            type: 'BOT'
+                                        }));
                                     break;
                                 case 'USER_MAIN':
-                                    elements.push(gen().init({
-                                        container: containerID,
-                                        type: 'USER_MAIN',
-                                        // x: 2,
-                                        // y: 2
-                                        // matrix: { x: 1, y: 2 }
-                                    }));
+                                    if (elements.filter(x => x.type === 'USER_MAIN').length === 0)
+                                        elements.push(gen().init({
+                                            container: containerID,
+                                            type: 'USER_MAIN',
+                                            id: mainUserId
+                                            // x: 2,
+                                            // y: 2
+                                            // matrix: { x: 1, y: 2 }
+                                        }));
                                     break;
                                 default:
                                     break;
@@ -1346,7 +1351,7 @@ this.cyberiaonline = {
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
-                    this.dim = options.dim ? options.dim : 2; // 3; // 1.5
+                    this.dim = options.dim ? options.dim : 3; // 2 // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.borderRadius = 100;
@@ -1831,7 +1836,6 @@ this.cyberiaonline = {
 
         const INSTANCE_GENERATOR = () => {
 
-            const mainUserId = id();
 
             removeAllElements();
 
@@ -1855,7 +1859,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(1, 5)
+                range(1, 4)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
@@ -1864,18 +1868,18 @@ this.cyberiaonline = {
             // mobile friendly
             elements = elements.concat(
                 [
-                    gen().init({
-                        container: containerID,
-                        type: 'BUILDING',
-                        matrix: { x: 2, y: 2 },
-                        x: 0,
-                        y: 0
-                    }),
+                    // gen().init({
+                    //     container: containerID,
+                    //     type: 'BUILDING',
+                    //     matrix: { x: 2, y: 2 },
+                    //     x: 0,
+                    //     y: 0
+                    // }),
                     gen().init({
                         container: containerID,
                         type: 'USER_MAIN',
-                        x: 3,
-                        y: 3,
+                        // x: 3,
+                        // y: 3,
                         id: mainUserId
                         // matrix: { x: 1, y: 2 }
                     }),
@@ -1916,6 +1920,8 @@ this.cyberiaonline = {
                 });
             });
             // console.table(baseMatrix);
+
+            maxBots = newInstance(elements.filter(x => x.type === 'BOT').length);
 
             console.log('elements', elements);
 
