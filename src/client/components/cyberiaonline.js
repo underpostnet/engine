@@ -402,6 +402,29 @@ this.cyberiaonline = {
         */
 
         const COMPONENTS = {
+            'heal-indicator': {
+                functions: {},
+                elements: {},
+                data: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element, value) {
+                    const fontEffectId = id();
+                    append(cyberiaonline.htmlPixiFontLayer, /*html*/`
+                            <span class='abs ${fontEffectId}' style='
+                            top: ${(element.y * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            left: ${(element.x * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            color: green;
+                            font-family: retro;
+                            /* border: 2px solid magenta; */
+                            '>+ ${value}</span>
+                    `);
+                    setTimeout(() => {
+                        s(`.${fontEffectId}`).remove();
+                    }, 1000);
+                },
+                delete: function (element) { }
+            },
             'damage-indicator': {
                 functions: {},
                 elements: {},
@@ -492,7 +515,8 @@ this.cyberiaonline = {
                 },
                 loop: function (element) { },
                 event: function (element) {
-                    if (element.life <= 0) element.life = 0;
+                    if (element.life < 0) element.life = 0;
+                    if (element.life > element.maxLife) element.life = newInstance(element.maxLife);
                     const factorLife = element.life / element.maxLife;
                     // console.error('factorLife', factorLife);
                     this.elements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
@@ -1056,6 +1080,78 @@ this.cyberiaonline = {
                 event: function (element) { },
                 delete: function (element) { }
             },
+            'BULLET-HEAL': {
+                functions: {
+                    alertCollision: (element) =>
+                        elements.filter(x => {
+
+
+
+                            // console.error(fromArray, element.type, x.type);
+
+                            // if (fromArray.includes(element.type) &&
+                            //     toArray.includes(x.type)) {
+                            //     console.error('--', fromArray.includes(element.type));
+                            //     console.error('--', validateCollision(x, element));
+                            //     console.error('--', element.id !== x.id);
+                            //     console.error('--', toArray.includes(x.type));
+                            //     console.error(x, element);
+                            // }
+                            return (
+                                validateCollision(x, element)
+                                &&
+                                element.parent.id === x.id
+                            );
+
+                        }),
+                    setShoot: (element, btn) => setShoot(element, btn, () => {
+
+                        elements.push(gen().init({
+                            id: id(),
+                            type: 'BULLET-HEAL',
+                            color: 'dark green',
+                            container: containerID,
+                            x: element.x,
+                            y: element.y,
+                            parent: element
+                        }));
+
+                    })
+                },
+                elements: {},
+                data: {
+                    value: 20,
+                    vel: 2500,
+                    validateShoot: {}
+                },
+                init: function (element) {
+                    this.data.validateShoot[element.id] = true;
+                },
+                loop: function (element) {
+                    const collisionTest =
+                        this.functions.alertCollision(element)
+                    if (this.data.validateShoot[element.id] === true && collisionTest.length > 0) {
+
+                        this.data.validateShoot[element.id] = false;
+                        setTimeout(() => {
+                            this.data.validateShoot[element.id] = true;
+                        }, this.data.vel);
+
+
+                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
+
+
+                        collisionTest.map(element => {
+                            element.life = element.life + this.data.value;
+                            COMPONENTS['heal-indicator'].event(element, this.data.value);
+                            COMPONENTS['bar-life'].event(element);
+                            // console.error(element.life);
+                        });
+                    }
+                },
+                event: function (element) { },
+                delete: function (element) { }
+            },
             'BULLET-CROSS': {
                 functions: {
                     setShoot: (element, btn) => setShoot(element, btn, () => {
@@ -1268,6 +1364,58 @@ this.cyberiaonline = {
                     }, 1000);
 
                 }
+            },
+            'heal-circle-color-one-big': {
+                elements: {
+                    circle: {},
+                    circle0: {}
+                },
+                init: function (element) { },
+                loop: function (element) { },
+                delete: function (eventHash) {
+                    this.elements.circle[eventHash].destroy();
+                    delete this.elements.circle[eventHash];
+                    this.elements.circle0[eventHash].destroy();
+                    delete this.elements.circle0[eventHash];
+                },
+                event: function (element) {
+                    const eventHash = 'x' + s4();
+                    const radioPor = 0.5 * 2;
+
+                    this.elements.circle[eventHash] = new PIXI.Graphics();
+                    this.elements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[eventHash].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle[eventHash].beginFill(pixiColors['british racing green']);
+                    this.elements.circle[eventHash].lineStyle(0);
+                    this.elements.circle[eventHash].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
+                    ); // x,y,radio
+                    this.elements.circle[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
+
+                    const radioPor0 = 0.5;
+
+                    this.elements.circle0[eventHash] = new PIXI.Graphics();
+                    this.elements.circle0[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle0[eventHash].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle0[eventHash].beginFill(pixiColors['vivid malachite']);
+                    this.elements.circle0[eventHash].lineStyle(0);
+                    this.elements.circle0[eventHash].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * radioPor0 * 0.5
+                    ); // x,y,radio
+                    this.elements.circle0[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.elements.circle0[eventHash]);
+
+
+                    setTimeout(() => {
+                        this.delete(eventHash);
+                    }, 1000);
+
+                }
             }
         };
 
@@ -1406,7 +1554,8 @@ this.cyberiaonline = {
                             );
                             this.dim = this.dim * 0.8;
                             COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
-                            COMPONENTS['BULLET-CROSS'].functions.setShoot(this, 'w');
+                            COMPONENTS['BULLET-HEAL'].functions.setShoot(this, 'w');
+                            // COMPONENTS['BULLET-CROSS'].functions.setShoot(this, 'w');
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1492,6 +1641,16 @@ this.cyberiaonline = {
                             setTimeout(() => {
                                 removeElement(this.id);
                             }, 2000);
+                            break;
+                        case 'BULLET-HEAL':
+                            this.components = [this.type];
+                            setTimeout(() => {
+                                COMPONENTS['heal-circle-color-one-big'].event(this);
+                            });
+                            setTimeout(() => {
+                                removeElement(this.id);
+                            }, 2000);
+
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
                             this.components = ['background-circle', this.type];
