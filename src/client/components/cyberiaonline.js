@@ -295,13 +295,14 @@ this.cyberiaonline = {
             return element;
         };
 
-        const setShoot = (element, fn) => {
-            element.shoot = () => {
-                if (element.validateShoot) {
-                    element.validateShoot = false;
+        const setShoot = (element, btn, fn) => {
+            if (!element.shoot) element.shoot = {};
+            element.shoot[btn] = () => {
+                if (element.validateShoot[btn]) {
+                    element.validateShoot[btn] = false;
                     setTimeout(() => {
-                        element.validateShoot = true;
-                    }, element.shootTimeInterval);
+                        element.validateShoot[btn] = true;
+                    }, element.shootTimeInterval[btn]);
                     fn();
                 }
             };
@@ -981,7 +982,7 @@ this.cyberiaonline = {
                             );
 
                         }),
-                    setShoot: element => setShoot(element, () => {
+                    setShoot: (element, btn) => setShoot(element, btn, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -1057,7 +1058,7 @@ this.cyberiaonline = {
             },
             'BULLET-CROSS': {
                 functions: {
-                    setShoot: element => setShoot(element, () => {
+                    setShoot: (element, btn) => setShoot(element, btn, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -1356,8 +1357,8 @@ this.cyberiaonline = {
                     this.path = [];
                     this.borderRadius = 100;
                     this.clearsIntervals = [];
-                    this.shootTimeInterval = 100;
-                    this.validateShoot = true;
+                    this.shootTimeInterval = { q: 100, w: 100 };
+                    this.validateShoot = { q: true, w: true };
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
                     this.deadDelay = 2000;
@@ -1404,8 +1405,8 @@ this.cyberiaonline = {
                                 ]
                             );
                             this.dim = this.dim * 0.8;
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
-                            // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
+                            COMPONENTS['BULLET-CROSS'].functions.setShoot(this, 'w');
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1423,8 +1424,8 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
-                            this.shootTimeInterval = 5000;
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
+                            this.shootTimeInterval.q = 5000;
 
                             // cambiar movimiento al que tenga
                             // mayor agro dentro del rango snail
@@ -1707,7 +1708,8 @@ this.cyberiaonline = {
                                     vel: timeIntervalGame,
                                     onKey: () => {
                                         console.log('onKey', this.id);
-                                        this.shoot();
+                                        if (this.shoot && this.shoot[qKey.toLocaleLowerCase()])
+                                            this.shoot[qKey.toLocaleLowerCase()]();
                                     }
                                 });
                                 this.clearsIntervals.push(`key_${qKey}`);
@@ -1804,7 +1806,8 @@ this.cyberiaonline = {
                             this.path = element.path;
                             this.x = element.x;
                             this.y = element.y;
-                            if (this.autoShoot === true && this.shoot) this.shoot();
+                            if (this.autoShoot === true && this.shoot)
+                                Object.keys(this.shoot).map(btn => this.shoot[btn]());
                             if (this.autoTarget) this.autoTarget();
 
                             break;
@@ -1939,8 +1942,8 @@ this.cyberiaonline = {
             s(`.${newInstanceBtn}`).onclick = () =>
                 INSTANCE_GENERATOR();
 
-            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
-            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.type === 'USER_MAIN' ? x.shoot() : null);
+            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.shoot.q && x.type === 'USER_MAIN' ? x.shoot.q() : null);
+            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.shoot.w && x.type === 'USER_MAIN' ? x.shoot.w() : null);
 
             s(`.${fullScreenBtn}`).onclick = () => fullScreenIn();
 
