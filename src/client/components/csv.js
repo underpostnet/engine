@@ -1,6 +1,6 @@
 
 
-this.test = {
+this.csv = {
 
     init: function () {
 
