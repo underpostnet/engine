@@ -13,13 +13,18 @@ this.cyberiaonline = {
             }
             return _id;
         };
+        const dimData = dimState();
         const containerID = id();
         const minRangeMap = 0;
         const maxRangeMap = 32;
-        const pixiAmplitudeFactor = window.innerWidth < (maxRangeMap * 20) ? 10 : 20;
+        const pixiAmplitudeFactor = dimData.minValue / maxRangeMap;
         this.canvasDim = maxRangeMap * pixiAmplitudeFactor;
         const timeIntervalGame = 1;
         const newInstanceBtn = id();
+        const windowGameId = id();
+        const windowGameZindex = 999;
+        const homeBtnId = id();
+        const windowGamePanel = id();
 
 
         const BtnQ = id();
@@ -2013,7 +2018,7 @@ this.cyberiaonline = {
             ]);
 
             elements = elements.concat(
-                range(0, 5)
+                range(1, 3)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BUILDING',
@@ -2021,7 +2026,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(1, 4)
+                range(1, 3)
                     .map(() => gen().init({
                         container: containerID,
                         type: 'BOT'
@@ -2106,6 +2111,9 @@ this.cyberiaonline = {
 
             s(`.${fullScreenBtn}`).onclick = () => fullScreenIn();
 
+            s(`.${homeBtnId}`).onclick = () =>
+                GLOBAL.router({ newPath: buildBaseUri() });
+
             if (this.loopGame) clearInterval(this.loopGame);
             const renderGame = () => elements.map(x => x.loop());
             renderGame();
@@ -2118,7 +2126,7 @@ this.cyberiaonline = {
 
         return /*html*/`
 
-            <div class='in container'>
+            <div class='fix ${windowGameId}'>
                 <style>
                     ${containerID} {
                         height: 450px;
@@ -2126,7 +2134,24 @@ this.cyberiaonline = {
                         background: gray;
                     }
 
+                    .${windowGameId} {
+                        top: 0%;
+                        left: 0%;
+                        width: 100%;
+                        height: 100%;
+                        z-index: ${windowGameZindex};
+                        background: black;
+                    }
+
                     ${pixiContainerId} { }
+
+                    ${windowGamePanel} {
+                        width: 150px;
+                        bottom: 5px;
+                        left: 5px;
+                        background: #010203;
+                        border: 2px solid yellow;
+                    }
 
                     canvas {
                        /* transform: scale(-1, 1) rotate(90deg); */
@@ -2135,21 +2160,25 @@ this.cyberiaonline = {
                     }
 
                 </style>
-                <!--
-                <${containerID} class='in'></${containerID}>
-                -->
-                <${pixiContainerId} class='in'></${pixiContainerId}>
+                <div class='abs center'>
+                    <${pixiContainerId} class='in'></${pixiContainerId}>
+                </div>
+
+                <${windowGamePanel} class='abs'>
+                    <div class='in' style='text-align: center'>
+                        <br>
+                        <button class='inl ${BtnQ}' style='font-size: 30px'>Q</button>
+                        <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
+                        <i class='fas fa-home ${homeBtnId}'></i>
+                        <br>
+                        <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
+                        <button class='inl ${fullScreenBtn}'>${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}</button>
+                        <br>
+                    </div>
+                </${windowGamePanel}>
+
             </div>
-            <div class='in container' style='text-align: center'>
-                    <br>
-                    <button class='inl ${BtnQ}' style='font-size: 30px'>Q</button>
-                    <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
-                    <br>
-                    <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
-                    <br>
-                    <button class='inl ${fullScreenBtn}'>${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}</button>
-                    <br>
-            </div>
+            
         
         `
     },
@@ -2164,6 +2193,7 @@ this.cyberiaonline = {
                     left: 50%;
                     background: rgb(0,0,0,0);
                     color: yellow;
+                    text-align: left;
                     ${borderChar(2, 'black')}
                 }
             `);
@@ -2172,9 +2202,15 @@ this.cyberiaonline = {
         this.renderHtmlPixiLayer();
     },
     offFullScreen: () => {
-        console.warn('offFullScreen');
+        console.warn('pixijs cyberiaonline | offFullScreen');
     },
     onFullScreen: () => {
-        console.warn('onFullScreen');
+        console.warn('pixijs cyberiaonline | onFullScreen');
+    },
+    changeWindowDimension: function (dimensionData) {
+        console.log('pixijs cyberiaonline | changeWindowDimension', dimensionData);
+
+        if (dimensionData.h > dimensionData.w) { }
+
     }
 };
