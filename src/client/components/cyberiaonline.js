@@ -13,18 +13,17 @@ this.cyberiaonline = {
             }
             return _id;
         };
-        const dimData = dimState();
-        const containerID = id();
+        this.barHeight = 50;
+        const dimData = this.dimStateController();
         const minRangeMap = 0;
         const maxRangeMap = 32;
         const pixiAmplitudeFactor = dimData.minValue / maxRangeMap;
-        this.canvasDim = maxRangeMap * pixiAmplitudeFactor;
         const timeIntervalGame = 1;
         const newInstanceBtn = id();
-        const windowGameId = id();
-        const windowGameZindex = 999;
+        this.windowGameId = id();
+        this.windowGameZindex = 999;
         const homeBtnId = id();
-        const windowGamePanel = id();
+        this.windowGamePanel = id();
 
 
         const BtnQ = id();
@@ -519,14 +518,12 @@ this.cyberiaonline = {
                                 case 'BOT':
                                     if (elements.filter(x => x.type === 'BOT').length < maxBots)
                                         elements.push(gen().init({
-                                            container: containerID,
                                             type: 'BOT'
                                         }));
                                     break;
                                 case 'USER_MAIN':
                                     if (elements.filter(x => x.type === 'USER_MAIN').length === 0)
                                         elements.push(gen().init({
-                                            container: containerID,
                                             type: 'USER_MAIN',
                                             id: mainUserId
                                             // x: 2,
@@ -1028,7 +1025,6 @@ this.cyberiaonline = {
                             id: id(),
                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                             color: 'dark red',
-                            container: containerID,
                             x: element.x + xBullet,
                             y: element.y + yBullet,
                             direction: element.direction,
@@ -1102,7 +1098,6 @@ this.cyberiaonline = {
                             id: id(),
                             type: 'BULLET-HEAL',
                             color: 'dark green',
-                            container: containerID,
                             x: element.x,
                             y: element.y,
                             parent: element
@@ -1175,7 +1170,6 @@ this.cyberiaonline = {
                             id: id(),
                             type: 'BULLET-CROSS',
                             color: 'dark red',
-                            container: containerID,
                             x: element.x + xBullet,
                             y: element.y + yBullet
                         }));
@@ -1488,7 +1482,6 @@ this.cyberiaonline = {
                     this.id = options.id ? options.id : id();
                     this.x = options.x !== undefined ? options.x : random(minRangeMap, maxRangeMap);
                     this.y = options.y !== undefined ? options.y : random(minRangeMap, maxRangeMap);
-                    this.container = options.container;
                     this.type = options.type;
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
@@ -1664,7 +1657,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
@@ -1674,7 +1666,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
@@ -1684,7 +1675,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y,
                                             direction: null,
@@ -1699,7 +1689,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
@@ -1709,7 +1698,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
@@ -1719,7 +1707,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y,
                                             direction: null,
@@ -1732,7 +1719,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
@@ -1742,7 +1728,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y - this.dim,
                                             direction: null,
@@ -1752,7 +1737,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x,
                                             y: this.y - this.dim,
                                             direction: null,
@@ -1765,7 +1749,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x - this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
@@ -1775,7 +1758,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x + this.dim,
                                             y: this.y + this.dim,
                                             direction: null,
@@ -1785,7 +1767,6 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            container: containerID,
                                             x: this.x,
                                             y: this.y + this.dim,
                                             direction: null,
@@ -1900,6 +1881,12 @@ this.cyberiaonline = {
                                 this.y = offsetY;
 
                                 COMPONENTS['cross-effect'].event(this);
+                                // const mainUserElement = elements.find(x => x.id === mainUserId);
+                                // range(0, 2000).map(attemp => {
+                                //     setTimeout(() => {
+                                //         Object.keys(mainUserElement.shoot).map(btn => mainUserElement.shoot[btn]());
+                                //     }, attemp);
+                                // });
                             };
 
                             break;
@@ -1995,7 +1982,6 @@ this.cyberiaonline = {
 
             elements = elements.concat([
                 gen().init({
-                    container: containerID,
                     type: 'FLOOR',
                     dim: maxRangeMap,
                     color: 'dark green (x11)',
@@ -2007,7 +1993,6 @@ this.cyberiaonline = {
             elements = elements.concat(
                 range(1, 3)
                     .map(() => gen().init({
-                        container: containerID,
                         type: 'BUILDING',
                         matrix: { x: 2, y: 3 }
                     }))
@@ -2015,7 +2000,6 @@ this.cyberiaonline = {
             elements = elements.concat(
                 range(1, 3)
                     .map(() => gen().init({
-                        container: containerID,
                         type: 'BOT'
                     }))
             );
@@ -2023,14 +2007,12 @@ this.cyberiaonline = {
             elements = elements.concat(
                 [
                     // gen().init({
-                    //     container: containerID,
                     //     type: 'BUILDING',
                     //     matrix: { x: 2, y: 2 },
                     //     x: 0,
                     //     y: 0
                     // }),
                     gen().init({
-                        container: containerID,
                         type: 'USER_MAIN',
                         // x: 3,
                         // y: 3,
@@ -2038,19 +2020,15 @@ this.cyberiaonline = {
                         // matrix: { x: 1, y: 2 }
                     }),
                     // gen().init({
-                    //     container: containerID,
                     //     type: 'BOT'
                     // }),
                     gen().init({
-                        container: containerID,
                         type: 'BOT_BUG'
                     }),
                     gen().init({
-                        container: containerID,
                         color: 'safety orange'
                     }),
                     gen().init({
-                        container: containerID,
                         type: 'TOUCH',
                         x: 1,
                         y: 1
@@ -2114,32 +2092,16 @@ this.cyberiaonline = {
 
         return /*html*/`
 
-            <div class='fix ${windowGameId}'>
+            <div class='fix ${this.windowGameId}'>
+                <style class='window-game-${this.windowGameId}'></style>
+                <style class='window-game-${this.windowGamePanel}'></style>
                 <style>
-                    ${containerID} {
-                        height: 450px;
-                        width: 450px;
-                        background: gray;
-                    }
 
-                    .${windowGameId} {
-                        top: 0%;
-                        left: 0%;
-                        width: 100%;
-                        height: 100%;
-                        z-index: ${windowGameZindex};
-                        background: black;
-                    }
+                 
 
                     ${pixiContainerId} { }
 
-                    ${windowGamePanel} {
-                        width: 150px;
-                        bottom: 5px;
-                        left: 5px;
-                        background: #010203;
-                        border: 2px solid yellow;
-                    }
+               
 
                     canvas {
                        /* transform: scale(-1, 1) rotate(90deg); */
@@ -2152,31 +2114,34 @@ this.cyberiaonline = {
                     <${pixiContainerId} class='in'></${pixiContainerId}>
                 </div>
 
-                <${windowGamePanel} class='abs'>
-                    <div class='in' style='text-align: center'>
-                        <br>
+                <${this.windowGamePanel} class='abs'>
+                    <div class='in' style='text-align: center'>                        
                         <button class='inl ${BtnQ}' style='font-size: 30px'>Q</button>
                         <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
-                        <i class='fas fa-home ${homeBtnId}'></i>
-                        <br>
+                        <i class='fas fa-home ${homeBtnId}'></i>                        
                         <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
                         <button class='inl ${this.inFullScreenBtn}'>
                             ${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}
                         </button>
                         <button class='inl ${this.outFullScreenBtn}' style='display: none'>
                             ${renderLang({ es: 'Cancelar pantalla completa', en: 'Cancel Full screen' })}
-                        </button>
-                        <br>
+                        </button>                        
                     </div>
-                </${windowGamePanel}>
+                </${this.windowGamePanel}>
 
             </div>
             
         
         `
     },
+    dimStateController: function () {
+        const dimData = dimState();
+        dimData.minValue = dimData.minValue - this.barHeight;
+        this.canvasDim = dimData.minValue;
+        return dimData;
+    },
     renderHtmlPixiLayer: function () {
-        if (!s('.' + this.htmlPixiLayer) || !s('.' + this.htmlPixiFontLayer)) return;
+        if (!s('.' + this.htmlPixiLayer)) return;
         htmls('.' + this.htmlPixiLayer, /*css*/`
                 ${this.htmlPixiLayer} {
                     height: ${this.canvasDim}px;
@@ -2202,6 +2167,26 @@ this.cyberiaonline = {
                     ${borderChar(2, 'black')}
                 }
         `);
+        htmls('.window-game-' + this.windowGamePanel, /*css*/`
+                ${this.windowGamePanel} {
+                    width: 100%;
+                    bottom: -${this.barHeight}px;
+                    left: 0px;
+                    background: #010203;
+                    height: ${this.barHeight}px;
+                    font-size: 10px;
+                }
+        `);
+        htmls('.window-game-' + this.windowGameId, /*css*/`
+                .${this.windowGameId} {
+                    top: 0%;
+                    left: 0%;
+                    width: 100%;
+                    height: ${this.canvasDim}px;
+                    z-index: ${this.windowGameZindex};
+                    background: black;
+                }
+        `);
 
     },
     routerDisplay: function (options) {
@@ -2210,10 +2195,9 @@ this.cyberiaonline = {
     updateWindowGameDim: function () {
         range(0, 10).map(attemp => {
             setTimeout(() => {
-                const dimData = dimState();
+                const dimData = this.dimStateController();
                 s('canvas').style.width = `${dimData.minValue}px`;
                 s('canvas').style.height = `${dimData.minValue}px`;
-                this.canvasDim = dimData.minValue;
                 this.renderHtmlPixiLayer();
             }, attemp * 100);
         });
