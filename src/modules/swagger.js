@@ -1,6 +1,9 @@
 
 
 import * as swaggerUi from 'swagger-ui-express';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const swaggerMod = (app) => {
     const _swaggerDocument = {
@@ -18,17 +21,19 @@ const swaggerMod = (app) => {
                     "operationId": "index",
                     "tags": ["/test"],
                     "description": "[Login 123](https://www.google.com)",
-                    "parameters": [{
-                        "name": "test",
-                        "in": "formData",
-                        "type": "array",
-                        "collectionFormat": "multi",
-                        "items": {
-                            "type": "integer"
-                        }
-                    },
-                    { "name": "profileId", "in": "formData", "required": true, "type": "string" },
-                    { "name": "file", "in": "formData", "type": "file", "required": "true" }],
+                    "parameters": [
+                        {
+                            "name": "test",
+                            "in": "formData",
+                            "type": "array",
+                            "collectionFormat": "multi",
+                            "items": {
+                                "type": "integer"
+                            }
+                        },
+                        { "name": "profileId", "in": "formData", "required": true, "type": "string" },
+                        { "name": "file", "in": "formData", "type": "file", "required": "true" }
+                    ],
                     "responses": {}
                 }
             },
@@ -67,7 +72,8 @@ const swaggerMod = (app) => {
         formatRoutes.map(x => {
             if (x.path == uniquePath) {
                 paths[uniquePath][x.methods] = {
-                    description: `Path index: ${x.index}`
+                    description: `Path index: ${x.index}`,
+                    tags: [`PATHS`] // , `${x.index}`
                 }
             }
         });
@@ -79,7 +85,7 @@ const swaggerMod = (app) => {
         "info": {
             "title": "underpost.net engine",
             "description": "underpost.net api docs",
-            "version": "1.0.4"
+            "version": process.env.npm_package_version
         },
         "produces": ["application/json"],
         paths
