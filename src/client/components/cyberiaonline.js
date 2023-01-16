@@ -29,7 +29,8 @@ this.cyberiaonline = {
 
         const BtnQ = id();
         const BtnW = id();
-        const fullScreenBtn = id();
+        this.inFullScreenBtn = id();
+        this.outFullScreenBtn = id();
 
         let baseMatrix = [[]];
         let maxBots = 0;
@@ -300,6 +301,9 @@ this.cyberiaonline = {
             return element;
         };
 
+        const renderPosition = (cord, element) =>
+            element[cord] * (cyberiaonline.canvasDim / maxRangeMap) - (element.dim * pixiAmplitudeFactor);
+
         const setShoot = (element, btn, fn) => {
             if (!element.shoot) element.shoot = {};
             element.shoot[btn] = () => {
@@ -322,7 +326,7 @@ this.cyberiaonline = {
         // https://www.w3schools.com/colors/colors_picker.asp
 
         const pixiContainerId = id();
-        const app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
+        this.app = new PIXI.Application({ width: maxRangeMap * pixiAmplitudeFactor, height: maxRangeMap * pixiAmplitudeFactor, background: 'gray' });
         const container = new PIXI.Container(); // create container
         this.htmlPixiLayer = id();
         this.htmlPixiFontLayer = id();
@@ -344,8 +348,8 @@ this.cyberiaonline = {
             // /assets/apps/cyberiaonline/clases
 
 
-            s(pixiContainerId).appendChild(app.view);
-            app.stage.addChild(container); // container to pixi app
+            s(pixiContainerId).appendChild(this.app.view);
+            this.app.stage.addChild(container); // container to pixi app
             container.x = 0;
             container.y = 0;
             container.width = maxRangeMap * pixiAmplitudeFactor;
@@ -354,18 +358,7 @@ this.cyberiaonline = {
             append(pixiContainerId, /*html*/`
                 <style class='${this.htmlPixiLayer}'></style>
 
-                <style>
-                     ${this.htmlPixiFontLayer} {
-                        height: ${this.canvasDim}px;
-                        width: ${this.canvasDim}px;
-                        transform: translate(-50%, 0%);
-                        top: 0%;
-                        left: 50%;
-                        background: rgb(0,0,0,0);
-                        color: yellow;
-                        ${borderChar(2, 'black')}
-                    }
-                </style>
+                <style class='${this.htmlPixiFontLayer}'></style>
 
                 <${this.htmlPixiFontLayer} class='abs'> </${this.htmlPixiFontLayer}>
 
@@ -454,15 +447,9 @@ this.cyberiaonline = {
                 delete: function (element) { }
             },
             'display-id': {
-                functions: {
-                    renderX: (component, element) =>
-                        element.y * component.data.renderDim - (element.dim * pixiAmplitudeFactor),
-                    renderY: (component, element) =>
-                        element.x * component.data.renderDim - (element.dim * pixiAmplitudeFactor)
-                },
+                functions: {},
                 elements: {},
                 data: {
-                    renderDim: cyberiaonline.canvasDim / maxRangeMap,
                     id: {}
                 },
                 init: function (element) {
@@ -471,8 +458,8 @@ this.cyberiaonline = {
 
                     append(cyberiaonline.htmlPixiFontLayer, /*html*/`
                             <div class='abs ${this.data.id[element.id]}' style='
-                            top: ${this.functions.renderX(this, element)}px;
-                            left: ${this.functions.renderY(this, element)}px;
+                            top: ${renderPosition('y', element)}px;
+                            left: ${renderPosition('x', element)}px;
                             color: ${colors.find(x => x.name.toLowerCase() === element.color).hex};
                             font-family: retro;
                             font-size: 10px;
@@ -486,9 +473,9 @@ this.cyberiaonline = {
                 loop: function (element) {
                     if (s(`.${this.data.id[element.id]}`)) {
                         s(`.${this.data.id[element.id]}`).style.top =
-                            `${this.functions.renderX(this, element)}px`;
+                            `${renderPosition('y', element)}px`;
                         s(`.${this.data.id[element.id]}`).style.left =
-                            `${this.functions.renderY(this, element)}px`;
+                            `${renderPosition('x', element)}px`;
                     } else {
                         console.error('!s(`.${this.data.id[element.id]}`)');
                     }
@@ -2109,7 +2096,8 @@ this.cyberiaonline = {
             s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.shoot.q && x.type === 'USER_MAIN' ? x.shoot.q() : null);
             s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.shoot.w && x.type === 'USER_MAIN' ? x.shoot.w() : null);
 
-            s(`.${fullScreenBtn}`).onclick = () => fullScreenIn();
+            s(`.${this.inFullScreenBtn}`).onclick = () => fullScreenIn();
+            s(`.${this.outFullScreenBtn}`).onclick = () => fullScreenOut();
 
             s(`.${homeBtnId}`).onclick = () =>
                 GLOBAL.router({ newPath: buildBaseUri() });
@@ -2172,7 +2160,12 @@ this.cyberiaonline = {
                         <i class='fas fa-home ${homeBtnId}'></i>
                         <br>
                         <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
-                        <button class='inl ${fullScreenBtn}'>${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}</button>
+                        <button class='inl ${this.inFullScreenBtn}'>
+                            ${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}
+                        </button>
+                        <button class='inl ${this.outFullScreenBtn}' style='display: none'>
+                            ${renderLang({ es: 'Cancelar pantalla completa', en: 'Cancel Full screen' })}
+                        </button>
                         <br>
                     </div>
                 </${windowGamePanel}>
@@ -2183,7 +2176,7 @@ this.cyberiaonline = {
         `
     },
     renderHtmlPixiLayer: function () {
-        if (!s('.' + this.htmlPixiLayer)) return;
+        if (!s('.' + this.htmlPixiLayer) || !s('.' + this.htmlPixiFontLayer)) return;
         htmls('.' + this.htmlPixiLayer, /*css*/`
                 ${this.htmlPixiLayer} {
                     height: ${this.canvasDim}px;
@@ -2197,15 +2190,45 @@ this.cyberiaonline = {
                     ${borderChar(2, 'black')}
                 }
             `);
+        htmls('.' + this.htmlPixiFontLayer, /*css*/`
+                ${this.htmlPixiFontLayer} {
+                    height: ${this.canvasDim}px;
+                    width: ${this.canvasDim}px;
+                    transform: translate(-50%, 0%);
+                    top: 0%;
+                    left: 50%;
+                    background: rgb(0,0,0,0);
+                    color: yellow;
+                    ${borderChar(2, 'black')}
+                }
+        `);
+
     },
     routerDisplay: function (options) {
         this.renderHtmlPixiLayer();
     },
-    offFullScreen: () => {
-        console.warn('pixijs cyberiaonline | offFullScreen');
+    updateWindowGameDim: function () {
+        range(0, 10).map(attemp => {
+            setTimeout(() => {
+                const dimData = dimState();
+                s('canvas').style.width = `${dimData.minValue}px`;
+                s('canvas').style.height = `${dimData.minValue}px`;
+                this.canvasDim = dimData.minValue;
+                this.renderHtmlPixiLayer();
+            }, attemp * 100);
+        });
     },
-    onFullScreen: () => {
+    offFullScreen: function () {
+        console.warn('pixijs cyberiaonline | offFullScreen');
+        this.updateWindowGameDim();
+        s(`.${this.inFullScreenBtn}`).style.display = 'inline-table';
+        s(`.${this.outFullScreenBtn}`).style.display = 'none';
+    },
+    onFullScreen: function () {
         console.warn('pixijs cyberiaonline | onFullScreen');
+        this.updateWindowGameDim();
+        s(`.${this.inFullScreenBtn}`).style.display = 'none';
+        s(`.${this.outFullScreenBtn}`).style.display = 'inline-table';
     },
     changeWindowDimension: function (dimensionData) {
         console.log('pixijs cyberiaonline | changeWindowDimension', dimensionData);
