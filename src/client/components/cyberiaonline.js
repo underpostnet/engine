@@ -1881,12 +1881,12 @@ this.cyberiaonline = {
                                 this.y = offsetY;
 
                                 COMPONENTS['cross-effect'].event(this);
-                                // const mainUserElement = elements.find(x => x.id === mainUserId);
-                                // range(0, 2000).map(attemp => {
-                                //     setTimeout(() => {
-                                //         Object.keys(mainUserElement.shoot).map(btn => mainUserElement.shoot[btn]());
-                                //     }, attemp);
-                                // });
+                                const mainUserElement = elements.find(x => x.id === mainUserId);
+                                range(0, 2000).map(attemp => {
+                                    setTimeout(() => {
+                                        Object.keys(mainUserElement.shoot).map(btn => mainUserElement.shoot[btn]());
+                                    }, attemp);
+                                });
                             };
 
                             break;
@@ -2136,7 +2136,7 @@ this.cyberiaonline = {
     },
     dimStateController: function () {
         const dimData = dimState();
-        dimData.minValue = dimData.minValue - this.barHeight;
+        dimData.minValue = dimData.minType === 'width' ? dimData.minValue : dimData.minValue - this.barHeight;
         this.canvasDim = dimData.minValue;
         return dimData;
     },
@@ -2170,10 +2170,10 @@ this.cyberiaonline = {
         htmls('.window-game-' + this.windowGamePanel, /*css*/`
                 ${this.windowGamePanel} {
                     width: 100%;
-                    bottom: -${this.barHeight}px;
+                    bottom: 0px;
                     left: 0px;
                     background: #010203;
-                    height: ${this.barHeight}px;
+                    height: 0px;
                     font-size: 10px;
                 }
         `);
@@ -2204,20 +2204,17 @@ this.cyberiaonline = {
     },
     offFullScreen: function () {
         console.warn('pixijs cyberiaonline | offFullScreen');
-        this.updateWindowGameDim();
         s(`.${this.inFullScreenBtn}`).style.display = 'inline-table';
         s(`.${this.outFullScreenBtn}`).style.display = 'none';
     },
     onFullScreen: function () {
         console.warn('pixijs cyberiaonline | onFullScreen');
-        this.updateWindowGameDim();
         s(`.${this.inFullScreenBtn}`).style.display = 'none';
         s(`.${this.outFullScreenBtn}`).style.display = 'inline-table';
     },
     changeWindowDimension: function (dimensionData) {
         console.log('pixijs cyberiaonline | changeWindowDimension', dimensionData);
-
-        if (dimensionData.h > dimensionData.w) { }
+        this.updateWindowGameDim();
 
     }
 };
