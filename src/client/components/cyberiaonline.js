@@ -315,6 +315,8 @@ this.cyberiaonline = {
             };
         };
 
+        const randomIndicatorPosition = () => [0.95, 1.05, 1][random(0, 2)];
+
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
@@ -408,8 +410,8 @@ this.cyberiaonline = {
                     const fontEffectId = id();
                     append(cyberiaonline.htmlPixiFontLayer, /*html*/`
                             <span class='abs ${fontEffectId}' style='
-                            top: ${(element.y * cyberiaonline.canvasDim) / maxRangeMap}px;
-                            left: ${(element.x * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            top: ${((element.y * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
+                            left: ${((element.x * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
                             color: green;
                             font-family: retro;
                             /* border: 2px solid magenta; */
@@ -431,8 +433,8 @@ this.cyberiaonline = {
                     const fontEffectId = id();
                     append(cyberiaonline.htmlPixiFontLayer, /*html*/`
                             <span class='abs ${fontEffectId}' style='
-                            top: ${(element.y * cyberiaonline.canvasDim) / maxRangeMap}px;
-                            left: ${(element.x * cyberiaonline.canvasDim) / maxRangeMap}px;
+                            top: ${((element.y * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
+                            left: ${((element.x * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
                             color: red;
                             font-family: retro;
                             /* border: 2px solid magenta; */
@@ -996,12 +998,12 @@ this.cyberiaonline = {
                         }),
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
-                        shootTimeInterval: element.type === 'BOT' ? 3000 : 1000
+                        shootTimeInterval: 1500
                     }, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
-                        const factorCordDim = 1.5;
+                        const factorCordDim = 0.5;
 
                         if (direction === 'East'
                             || direction === 'South East'
@@ -1030,13 +1032,14 @@ this.cyberiaonline = {
                             x: element.x + xBullet,
                             y: element.y + yBullet,
                             direction: element.direction,
-                            parent: element
+                            parent: element,
+                            dim: 2
                         }));
                     })
                 },
                 elements: {},
                 data: {
-                    value: 20,
+                    value: 10,
                     vel: 2500,
                     validateShoot: {}
                 },
@@ -1112,7 +1115,7 @@ this.cyberiaonline = {
                 },
                 elements: {},
                 data: {
-                    value: 20,
+                    value: 5,
                     vel: 2500,
                     validateShoot: {}
                 },
@@ -1199,6 +1202,7 @@ this.cyberiaonline = {
                 init: function (element) { },
                 loop: function (element) { },
                 delete: function (eventHash) {
+                    if (!this.elements.sprite[eventHash]) return;
                     this.elements.sprite[eventHash].destroy();
                     delete this.elements.sprite[eventHash];
                 },
@@ -1333,6 +1337,7 @@ this.cyberiaonline = {
                 init: function (element) { },
                 loop: function (element) { },
                 delete: function (eventHash) {
+                    if (!this.elements.circle[eventHash]) return;
                     this.elements.circle[eventHash].destroy();
                     delete this.elements.circle[eventHash];
                 },
@@ -1363,19 +1368,34 @@ this.cyberiaonline = {
             'heal-circle-color-one-big': {
                 elements: {
                     circle: {},
-                    circle0: {}
+                    circle0: {},
+                    circle1: {},
+                    circle2: {}
                 },
                 init: function (element) { },
                 loop: function (element) { },
                 delete: function (eventHash) {
-                    this.elements.circle[eventHash].destroy();
-                    delete this.elements.circle[eventHash];
-                    this.elements.circle0[eventHash].destroy();
-                    delete this.elements.circle0[eventHash];
+                    if (this.elements.circle[eventHash]) {
+                        this.elements.circle[eventHash].destroy();
+                        delete this.elements.circle[eventHash];
+                    }
+                    if (this.elements.circle0[eventHash]) {
+                        this.elements.circle0[eventHash].destroy();
+                        delete this.elements.circle0[eventHash];
+                    }
+                    if (this.elements.circle1[eventHash]) {
+                        this.elements.circle1[eventHash].destroy();
+                        delete this.elements.circle1[eventHash];
+                    }
+                    if (this.elements.circle2[eventHash]) {
+                        this.elements.circle2[eventHash].destroy();
+                        delete this.elements.circle2[eventHash];
+                    }
                 },
                 event: function (element) {
                     const eventHash = 'x' + s4();
-                    const radioPor = 0.5 * 2;
+                    const dimFactor = 0.25;
+                    const radioPor = 0.5 * 2 * dimFactor;
 
                     this.elements.circle[eventHash] = new PIXI.Graphics();
                     this.elements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
@@ -1383,14 +1403,14 @@ this.cyberiaonline = {
                     this.elements.circle[eventHash].beginFill(pixiColors['british racing green']);
                     this.elements.circle[eventHash].lineStyle(0);
                     this.elements.circle[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.2,
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
                     ); // x,y,radio
                     this.elements.circle[eventHash].endFill();
                     elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
 
-                    const radioPor0 = 0.5;
+                    const radioPor0 = 0.5 * dimFactor;
 
                     this.elements.circle0[eventHash] = new PIXI.Graphics();
                     this.elements.circle0[eventHash].width = (element.dim * pixiAmplitudeFactor);
@@ -1398,12 +1418,42 @@ this.cyberiaonline = {
                     this.elements.circle0[eventHash].beginFill(pixiColors['vivid malachite']);
                     this.elements.circle0[eventHash].lineStyle(0);
                     this.elements.circle0[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.2,
                         (element.dim * pixiAmplitudeFactor) * 0.5,
                         (element.dim * pixiAmplitudeFactor) * radioPor0 * 0.5
                     ); // x,y,radio
                     this.elements.circle0[eventHash].endFill();
                     elementsContainer[element.id].addChild(this.elements.circle0[eventHash]);
+
+                    const radioPor1 = 0.5 * 2 * dimFactor;
+
+                    this.elements.circle1[eventHash] = new PIXI.Graphics();
+                    this.elements.circle1[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle1[eventHash].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle1[eventHash].beginFill(pixiColors['british racing green']);
+                    this.elements.circle1[eventHash].lineStyle(0);
+                    this.elements.circle1[eventHash].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.8,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * radioPor1 * 0.5
+                    ); // x,y,radio
+                    this.elements.circle1[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.elements.circle1[eventHash]);
+
+                    const radioPor2 = 0.5 * dimFactor;
+
+                    this.elements.circle2[eventHash] = new PIXI.Graphics();
+                    this.elements.circle2[eventHash].width = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle2[eventHash].height = (element.dim * pixiAmplitudeFactor);
+                    this.elements.circle2[eventHash].beginFill(pixiColors['vivid malachite']);
+                    this.elements.circle2[eventHash].lineStyle(0);
+                    this.elements.circle2[eventHash].drawCircle(
+                        (element.dim * pixiAmplitudeFactor) * 0.8,
+                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * radioPor2 * 0.5
+                    ); // x,y,radio
+                    this.elements.circle2[eventHash].endFill();
+                    elementsContainer[element.id].addChild(this.elements.circle2[eventHash]);
 
 
                     setTimeout(() => {
@@ -1419,7 +1469,7 @@ this.cyberiaonline = {
                 console.error('error delete', id, elements.find(x => x.id === id));
                 return
             };
-            elementsContainer[id].destroy({ children: true });
+            elementsContainer[id].destroy();
             delete elementsContainer[id];
             const elementIndex = elements.findIndex(x => x.id === id);
             // logDataManage(elements[elementIndex]);
@@ -1647,7 +1697,7 @@ this.cyberiaonline = {
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
-                            }, 2000);
+                            }, 400);
 
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
@@ -1657,7 +1707,10 @@ this.cyberiaonline = {
                             });
                             setTimeout(() => {
                                 removeElement(this.id);
-                            }, 2000);
+                            }, 500);
+
+                            const midFactor = 1.8;
+                            const dimFactor = 0.5;
 
                             if (this.direction !== null) {
                                 let direction = this.direction;
@@ -1670,8 +1723,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x + this.dim,
-                                            y: this.y - this.dim,
+                                            x: this.x + this.dim * dimFactor,
+                                            y: this.y - this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1679,8 +1732,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x + this.dim,
-                                            y: this.y + this.dim,
+                                            x: this.x + this.dim * dimFactor,
+                                            y: this.y + this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1688,7 +1741,7 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x + this.dim,
+                                            x: this.x + this.dim * dimFactor * midFactor,
                                             y: this.y,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
@@ -1702,8 +1755,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x - this.dim,
-                                            y: this.y - this.dim,
+                                            x: this.x - this.dim * dimFactor,
+                                            y: this.y - this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1711,8 +1764,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x - this.dim,
-                                            y: this.y + this.dim,
+                                            x: this.x - this.dim * dimFactor,
+                                            y: this.y + this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1720,7 +1773,7 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x - this.dim,
+                                            x: this.x - this.dim * dimFactor * midFactor,
                                             y: this.y,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
@@ -1732,8 +1785,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x - this.dim,
-                                            y: this.y - this.dim,
+                                            x: this.x - this.dim * dimFactor,
+                                            y: this.y - this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1741,8 +1794,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x + this.dim,
-                                            y: this.y - this.dim,
+                                            x: this.x + this.dim * dimFactor,
+                                            y: this.y - this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1751,7 +1804,7 @@ this.cyberiaonline = {
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
                                             x: this.x,
-                                            y: this.y - this.dim,
+                                            y: this.y - this.dim * midFactor * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1762,8 +1815,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x - this.dim,
-                                            y: this.y + this.dim,
+                                            x: this.x - this.dim * dimFactor,
+                                            y: this.y + this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1771,8 +1824,8 @@ this.cyberiaonline = {
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
-                                            x: this.x + this.dim,
-                                            y: this.y + this.dim,
+                                            x: this.x + this.dim * dimFactor,
+                                            y: this.y + this.dim * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1781,7 +1834,7 @@ this.cyberiaonline = {
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
                                             x: this.x,
-                                            y: this.y + this.dim,
+                                            y: this.y + this.dim * midFactor * dimFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1994,7 +2047,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(1, 3)
+                range(0, 5)
                     .map(() => gen().init({
                         type: 'BOT'
                     }))
