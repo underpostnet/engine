@@ -66,6 +66,12 @@ const viewMetaData = {
 
 const baseHome = '/' + clientID;
 
+const botDescription = () => /*html*/`
+    <div class='in container'>
+        ${renderLangBtns()}    
+    </div>
+`;
+
 // module render group
 const viewPaths = [
     {
@@ -89,7 +95,7 @@ const viewPaths = [
         menu: true,
         home: false,
         nohome: false,
-        render: true,
+        render: false,
         display: true
     },
     {
@@ -101,7 +107,7 @@ const viewPaths = [
         menu: true,
         home: false,
         nohome: false,
-        render: true,
+        render: false,
         display: true
     },
     {
@@ -154,7 +160,8 @@ const cyberiaonline = {
     viewMetaData,
     viewPaths,
     baseHome,
-    statics
+    statics,
+    botDescription
 };
 
 export { cyberiaonline };

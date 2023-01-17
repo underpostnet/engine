@@ -68,16 +68,16 @@ this.main_menu = {
             s('.' + this.idC).onclick = () => {
                 if (s('.' + this.idMenuBars).style.display != 'none') {
                     s('.' + this.idMenuBars).style.display = 'none';
-                    fadeIn(s('.' + idMenuClose));
-                    fadeIn(s('.' + idE));
+                    s('.' + idMenuClose).style.display = 'block';
+                    s('.' + idE).style.display = 'block';
                     s('.' + idA).style.width = '100%'
                     s('.' + idA).style.height = '100%'
                     s('.' + idA).style.overflow = 'auto'
                     return;
                 }
                 s('.' + idMenuClose).style.display = 'none';
-                fadeIn(s('.' + this.idMenuBars));
-                fadeOut(s('.' + idE));
+                s('.' + this.idMenuBars).style.display = 'block';
+                s('.' + idE).style.display = 'none';
                 s('.' + idA).style.width = null;
                 s('.' + idA).style.height = null;
                 s('.' + idA).style.overflow = null;

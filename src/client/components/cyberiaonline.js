@@ -26,8 +26,6 @@ this.cyberiaonline = {
         this.windowGamePanel = id();
 
 
-        const BtnQ = id();
-        const BtnW = id();
         this.inFullScreenBtn = id();
         this.outFullScreenBtn = id();
 
@@ -303,14 +301,15 @@ this.cyberiaonline = {
         const renderPosition = (cord, element) =>
             element[cord] * (cyberiaonline.canvasDim / maxRangeMap) - (element.dim * pixiAmplitudeFactor);
 
-        const setShoot = (element, btn, fn) => {
-            if (!element.shoot) element.shoot = {};
-            element.shoot[btn] = () => {
-                if (element.validateShoot[btn]) {
-                    element.validateShoot[btn] = false;
+        const setShoot = (element, config, fn) => {
+            element.validateShoot[config.name] = true;
+            element.shootTimeInterval[config.name] = config.shootTimeInterval;
+            element.shoot[config.name] = () => {
+                if (element.validateShoot[config.name]) {
+                    element.validateShoot[config.name] = false;
                     setTimeout(() => {
-                        element.validateShoot[btn] = true;
-                    }, element.shootTimeInterval[btn]);
+                        element.validateShoot[config.name] = true;
+                    }, element.shootTimeInterval[config.name]);
                     fn();
                 }
             };
@@ -995,7 +994,10 @@ this.cyberiaonline = {
                             );
 
                         }),
-                    setShoot: (element, btn) => setShoot(element, btn, () => {
+                    setShoot: element => setShoot(element, {
+                        name: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                        shootTimeInterval: element.type === 'BOT' ? 3000 : 1000
+                    }, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -1092,7 +1094,10 @@ this.cyberiaonline = {
                             );
 
                         }),
-                    setShoot: (element, btn) => setShoot(element, btn, () => {
+                    setShoot: element => setShoot(element, {
+                        name: 'BULLET-HEAL',
+                        shootTimeInterval: 500
+                    }, () => {
 
                         elements.push(gen().init({
                             id: id(),
@@ -1142,7 +1147,10 @@ this.cyberiaonline = {
             },
             'BULLET-CROSS': {
                 functions: {
-                    setShoot: (element, btn) => setShoot(element, btn, () => {
+                    setShoot: element => setShoot(element, {
+                        name: 'BULLET-CROSS',
+                        shootTimeInterval: 500
+                    }, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
@@ -1491,8 +1499,9 @@ this.cyberiaonline = {
                     this.path = [];
                     this.borderRadius = 100;
                     this.clearsIntervals = [];
-                    this.shootTimeInterval = { q: 500, w: 500 };
-                    this.validateShoot = { q: true, w: true };
+                    this.shoot = {};
+                    this.shootTimeInterval = {};
+                    this.validateShoot = {};
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
                     this.deadDelay = 2000;
@@ -1539,13 +1548,13 @@ this.cyberiaonline = {
                                 ]
                             );
                             this.dim = this.dim * 0.8;
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
-                            COMPONENTS['BULLET-HEAL'].functions.setShoot(this, 'w');
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
+                            COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
                             this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
                                 if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
                                     setTimeout(() => this.shoot[btn](), attemp * 100));
                             });
-                            // COMPONENTS['BULLET-CROSS'].functions.setShoot(this, 'w');
+                            // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
                             break;
                         case 'BOT':
                             if (!(options.x !== undefined && options.y !== undefined)) {
@@ -1563,8 +1572,7 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
-                            this.shootTimeInterval.q = 5000;
+                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
 
                             // cambiar movimiento al que tenga
                             // mayor agro dentro del rango snail
@@ -1797,7 +1805,6 @@ this.cyberiaonline = {
                                     // this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y)][parseInt(this.x) - 1] === 0)
                                         this.x = this.x - this.vel;
-                                    this.autoMovementShoot();
 
                                 }
                             });
@@ -1811,7 +1818,6 @@ this.cyberiaonline = {
                                     // this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y)][parseInt(this.x) + 1] === 0)
                                         this.x = this.x + this.vel;
-                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowRight');
@@ -1824,7 +1830,6 @@ this.cyberiaonline = {
                                     // this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y) - 1][parseInt(this.x)] === 0)
                                         this.y = this.y - this.vel;
-                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowUp');
@@ -1837,25 +1842,11 @@ this.cyberiaonline = {
                                     // this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y) + 1][parseInt(this.x)] === 0)
                                         this.y = this.y + this.vel;
-                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowDown');
 
-                            ['q', 'Q', 'w', 'W'].map(qKey => {
 
-                                this[`key_${qKey}`] = startListenKey({
-                                    key: qKey,
-                                    vel: timeIntervalGame,
-                                    onKey: () => {
-                                        console.log('onKey', this.id);
-                                        if (this.shoot && this.shoot[qKey.toLocaleLowerCase()])
-                                            this.autoMovementShoot();
-                                    }
-                                });
-                                this.clearsIntervals.push(`key_${qKey}`);
-
-                            });
 
                             this.onCanvasClick = event => {
                                 // off -> this.canvasDim
@@ -1890,7 +1881,6 @@ this.cyberiaonline = {
                                 this.y = offsetY;
 
                                 COMPONENTS['cross-effect'].event(this);
-                                elements.find(x => x.id === mainUserId).autoMovementShoot();
 
                             };
 
@@ -1950,7 +1940,7 @@ this.cyberiaonline = {
                             this.x = element.x;
                             this.y = element.y;
                             if (this.autoShoot === true && this.shoot)
-                                Object.keys(this.shoot).map(btn => this.shoot[btn]());
+                                Object.keys(this.shoot).map(keyShoot => this.shoot[keyShoot]());
                             if (this.autoTarget) this.autoTarget();
 
                             break;
@@ -1959,6 +1949,7 @@ this.cyberiaonline = {
                             this.path = element.path;
                             this.x = element.x;
                             this.y = element.y;
+                            if (this.autoMovementShoot) this.autoMovementShoot();
 
                             break;
                         case 'BOT_BUG':
@@ -2076,9 +2067,6 @@ this.cyberiaonline = {
             s(`.${newInstanceBtn}`).onclick = () =>
                 INSTANCE_GENERATOR();
 
-            s(`.${BtnQ}`).onclick = () => elements.map(x => x.shoot && x.shoot.q && x.type === 'USER_MAIN' ? x.shoot.q() : null);
-            s(`.${BtnW}`).onclick = () => elements.map(x => x.shoot && x.shoot.w && x.type === 'USER_MAIN' ? x.shoot.w() : null);
-
             s(`.${this.inFullScreenBtn}`).onclick = () => fullScreenIn();
             s(`.${this.outFullScreenBtn}`).onclick = () => fullScreenOut();
 
@@ -2132,9 +2120,6 @@ this.cyberiaonline = {
                 </div>
 
                 <${this.windowGamePanel} class='abs'>
-                    
-                    <button class='inl ${BtnQ}' style='font-size: 30px; display: none'>Q</button>
-                    <button class='inl ${BtnW}' style='font-size: 30px; display: none'>W</button>
 
                     <div class='in panel-btns-container'>  
                         <i class='fas fa-arrows-alt panel-btns ${this.inFullScreenBtn}' aria-hidden='true'></i>
