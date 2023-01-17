@@ -698,7 +698,7 @@ this.cyberiaonline = {
                     this.elements.circle[element.id] = new PIXI.Graphics();
                     this.elements.circle[element.id].width = (element.dim * pixiAmplitudeFactor);
                     this.elements.circle[element.id].height = (element.dim * pixiAmplitudeFactor);
-                    this.elements.circle[element.id].beginFill(pixiColors["black"]);
+                    this.elements.circle[element.id].beginFill(pixiColors['black']);
                     this.elements.circle[element.id].lineStyle(0);
                     this.elements.circle[element.id].drawCircle(
                         (element.dim * pixiAmplitudeFactor) * 0.5,
@@ -728,7 +728,7 @@ this.cyberiaonline = {
                     if (this.functions.alertCollision(element) && this.data.collisionColor[element.id] === true) {
                         this.data.collisionColor[element.id] = false;
                         this.elements.circle[element.id].clear();
-                        this.elements.circle[element.id].beginFill(pixiColors["magenta"]);
+                        this.elements.circle[element.id].beginFill(pixiColors['magenta']);
                         this.elements.circle[element.id].lineStyle(0);
                         this.elements.circle[element.id].drawCircle(
                             (element.dim * pixiAmplitudeFactor) * 0.5,
@@ -743,7 +743,7 @@ this.cyberiaonline = {
                                 this.data.collisionColor[element.id] = true;
                             }, 500);
                             this.elements.circle[element.id].clear();
-                            this.elements.circle[element.id].beginFill(pixiColors["black"]);
+                            this.elements.circle[element.id].beginFill(pixiColors['black']);
                             this.elements.circle[element.id].lineStyle(0);
                             this.elements.circle[element.id].drawCircle(
                                 (element.dim * pixiAmplitudeFactor) * 0.5,
@@ -813,7 +813,7 @@ this.cyberiaonline = {
                 },
                 loop: function (element) {
                     if (this.functions.alertCollision(element)) {
-                        this.elements.background[element.id].tint = pixiColors["magenta"];
+                        this.elements.background[element.id].tint = pixiColors['magenta'];
                     } else if (this.elements.background[element.id].tint !== pixiColors[element.color]) {
                         this.elements.background[element.id].tint = pixiColors[element.color];
                     }
@@ -1129,8 +1129,9 @@ this.cyberiaonline = {
 
 
                         collisionTest.map(element => {
+                            if (element.life < element.maxLife)
+                                COMPONENTS['heal-indicator'].event(element, this.data.value);
                             element.life = element.life + this.data.value;
-                            COMPONENTS['heal-indicator'].event(element, this.data.value);
                             COMPONENTS['bar-life'].event(element);
                             // console.error(element.life);
                         });
@@ -1490,7 +1491,7 @@ this.cyberiaonline = {
                     this.path = [];
                     this.borderRadius = 100;
                     this.clearsIntervals = [];
-                    this.shootTimeInterval = { q: 100, w: 100 };
+                    this.shootTimeInterval = { q: 500, w: 500 };
                     this.validateShoot = { q: true, w: true };
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
@@ -1540,6 +1541,10 @@ this.cyberiaonline = {
                             this.dim = this.dim * 0.8;
                             COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this, 'q');
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this, 'w');
+                            this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
+                                if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
+                                    setTimeout(() => this.shoot[btn](), attemp * 100));
+                            });
                             // COMPONENTS['BULLET-CROSS'].functions.setShoot(this, 'w');
                             break;
                         case 'BOT':
@@ -1792,6 +1797,7 @@ this.cyberiaonline = {
                                     // this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y)][parseInt(this.x) - 1] === 0)
                                         this.x = this.x - this.vel;
+                                    this.autoMovementShoot();
 
                                 }
                             });
@@ -1805,6 +1811,7 @@ this.cyberiaonline = {
                                     // this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y)][parseInt(this.x) + 1] === 0)
                                         this.x = this.x + this.vel;
+                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowRight');
@@ -1817,6 +1824,7 @@ this.cyberiaonline = {
                                     // this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y) - 1][parseInt(this.x)] === 0)
                                         this.y = this.y - this.vel;
+                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowUp');
@@ -1829,6 +1837,7 @@ this.cyberiaonline = {
                                     // this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
                                     if (baseMatrix[parseInt(this.y) + 1][parseInt(this.x)] === 0)
                                         this.y = this.y + this.vel;
+                                    this.autoMovementShoot();
                                 }
                             });
                             this.clearsIntervals.push('ArrowDown');
@@ -1841,7 +1850,7 @@ this.cyberiaonline = {
                                     onKey: () => {
                                         console.log('onKey', this.id);
                                         if (this.shoot && this.shoot[qKey.toLocaleLowerCase()])
-                                            this.shoot[qKey.toLocaleLowerCase()]();
+                                            this.autoMovementShoot();
                                     }
                                 });
                                 this.clearsIntervals.push(`key_${qKey}`);
@@ -1881,12 +1890,8 @@ this.cyberiaonline = {
                                 this.y = offsetY;
 
                                 COMPONENTS['cross-effect'].event(this);
-                                const mainUserElement = elements.find(x => x.id === mainUserId);
-                                range(0, 2000).map(attemp => {
-                                    setTimeout(() => {
-                                        Object.keys(mainUserElement.shoot).map(btn => mainUserElement.shoot[btn]());
-                                    }, attemp);
-                                });
+                                elements.find(x => x.id === mainUserId).autoMovementShoot();
+
                             };
 
                             break;
@@ -2101,12 +2106,24 @@ this.cyberiaonline = {
 
                     ${pixiContainerId} { }
 
-               
-
                     canvas {
                        /* transform: scale(-1, 1) rotate(90deg); */
                         display: block;
                         margin: auto;
+                    }
+                    
+                    .panel-btns {
+                        margin: 10px;
+                        font-size: 20px;
+                    }
+
+                    .panel-btns:hover {
+                        color: yellow;
+                    }
+
+                    .panel-btns-container {
+                        margin: auto;
+                        background: #100C08;
                     }
 
                 </style>
@@ -2115,17 +2132,16 @@ this.cyberiaonline = {
                 </div>
 
                 <${this.windowGamePanel} class='abs'>
-                    <div class='in' style='text-align: center'>                        
-                        <button class='inl ${BtnQ}' style='font-size: 30px'>Q</button>
-                        <button class='inl ${BtnW}' style='font-size: 30px'>W</button>
-                        <i class='fas fa-home ${homeBtnId}'></i>                        
-                        <button class='inl ${newInstanceBtn}'>${renderLang({ es: 'generar nueva instancia', en: 'new instance' })}</button>
-                        <button class='inl ${this.inFullScreenBtn}'>
-                            ${renderLang({ es: 'Pantalla completa', en: 'Full screen' })}
-                        </button>
-                        <button class='inl ${this.outFullScreenBtn}' style='display: none'>
-                            ${renderLang({ es: 'Cancelar pantalla completa', en: 'Cancel Full screen' })}
-                        </button>                        
+                    
+                    <button class='inl ${BtnQ}' style='font-size: 30px; display: none'>Q</button>
+                    <button class='inl ${BtnW}' style='font-size: 30px; display: none'>W</button>
+
+                    <div class='in panel-btns-container'>  
+                        <i class='fas fa-arrows-alt panel-btns ${this.inFullScreenBtn}' aria-hidden='true'></i>
+                        <i class='fas fa-times panel-btns ${this.outFullScreenBtn}' style='display: none' aria-hidden='true'></i> 
+                        <i class='fas fa-home panel-btns ${homeBtnId}' aria-hidden='true'></i>  
+                        <i class='fas fa-refresh panel-btns ${newInstanceBtn}' aria-hidden='true'></i>                  
+                         
                     </div>
                 </${this.windowGamePanel}>
 
@@ -2172,9 +2188,12 @@ this.cyberiaonline = {
                     width: 100%;
                     bottom: 0px;
                     left: 0px;
-                    background: #010203;
                     height: 0px;
                     font-size: 10px;
+                }
+                .panel-btns-container {
+                    width: ${this.canvasDim}px;
+                    height: ${window.innerHeight - this.canvasDim}px;
                 }
         `);
         htmls('.window-game-' + this.windowGameId, /*css*/`
@@ -2204,13 +2223,13 @@ this.cyberiaonline = {
     },
     offFullScreen: function () {
         console.warn('pixijs cyberiaonline | offFullScreen');
-        s(`.${this.inFullScreenBtn}`).style.display = 'inline-table';
+        s(`.${this.inFullScreenBtn}`).style.display = null;
         s(`.${this.outFullScreenBtn}`).style.display = 'none';
     },
     onFullScreen: function () {
         console.warn('pixijs cyberiaonline | onFullScreen');
         s(`.${this.inFullScreenBtn}`).style.display = 'none';
-        s(`.${this.outFullScreenBtn}`).style.display = 'inline-table';
+        s(`.${this.outFullScreenBtn}`).style.display = null;
     },
     changeWindowDimension: function (dimensionData) {
         console.log('pixijs cyberiaonline | changeWindowDimension', dimensionData);
