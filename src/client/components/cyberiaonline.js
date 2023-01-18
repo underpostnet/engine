@@ -998,12 +998,12 @@ this.cyberiaonline = {
                         }),
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
-                        shootTimeInterval: 1500
+                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700
                     }, () => {
                         let xBullet = 0;
                         let yBullet = 0;
                         let direction = element.direction;
-                        const factorCordDim = 0.5;
+                        const factorCordDim = element.type === 'BOT' ? 0.8 : 1.4;
 
                         if (direction === 'East'
                             || direction === 'South East'
@@ -1024,13 +1024,13 @@ this.cyberiaonline = {
                         if (direction === 'South') {
                             yBullet = element.dim * factorCordDim;
                         }
-
+                        const randomAmplitude = [0.9, 1, 1.1][random(0, 2)]
                         elements.push(gen().init({
                             id: id(),
                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                             color: 'dark red',
-                            x: element.x + xBullet,
-                            y: element.y + yBullet,
+                            x: (element.x + xBullet) * (element.type === 'BOT' && xBullet === 0 ? randomAmplitude : 1),
+                            y: (element.y + yBullet) * (element.type === 'BOT' && yBullet === 0 ? randomAmplitude : 1),
                             direction: element.direction,
                             parent: element
                         }));
@@ -1390,8 +1390,10 @@ this.cyberiaonline = {
                 },
                 event: function (element) {
                     const eventHash = 'x' + s4();
-                    const dimFactor = 0.25;
+                    const dimFactor = [0.25, 0.30, 0.35][random(0, 2)];
                     const radioPor = 0.5 * 2 * dimFactor;
+                    const xRandomFactor = 1 // [0.75, 0.8, 1, 1.2, 1.25][random(0, 4)];
+                    const yRandomFactor = [0.8, 1, 1.2][random(0, 2)];
 
                     this.elements.circle[eventHash] = new PIXI.Graphics();
                     this.elements.circle[eventHash].width = (element.dim * pixiAmplitudeFactor);
@@ -1399,8 +1401,8 @@ this.cyberiaonline = {
                     this.elements.circle[eventHash].beginFill(pixiColors['british racing green']);
                     this.elements.circle[eventHash].lineStyle(0);
                     this.elements.circle[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.2,
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.2 * xRandomFactor,
+                        (element.dim * pixiAmplitudeFactor) * 0.5 * yRandomFactor,
                         (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
                     ); // x,y,radio
                     this.elements.circle[eventHash].endFill();
@@ -1414,8 +1416,8 @@ this.cyberiaonline = {
                     this.elements.circle0[eventHash].beginFill(pixiColors['vivid malachite']);
                     this.elements.circle0[eventHash].lineStyle(0);
                     this.elements.circle0[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.2,
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.2 * xRandomFactor,
+                        (element.dim * pixiAmplitudeFactor) * 0.5 * yRandomFactor,
                         (element.dim * pixiAmplitudeFactor) * radioPor0 * 0.5
                     ); // x,y,radio
                     this.elements.circle0[eventHash].endFill();
@@ -1429,8 +1431,8 @@ this.cyberiaonline = {
                     this.elements.circle1[eventHash].beginFill(pixiColors['british racing green']);
                     this.elements.circle1[eventHash].lineStyle(0);
                     this.elements.circle1[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.8,
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.8 * xRandomFactor,
+                        (element.dim * pixiAmplitudeFactor) * 0.5 * yRandomFactor,
                         (element.dim * pixiAmplitudeFactor) * radioPor1 * 0.5
                     ); // x,y,radio
                     this.elements.circle1[eventHash].endFill();
@@ -1444,8 +1446,8 @@ this.cyberiaonline = {
                     this.elements.circle2[eventHash].beginFill(pixiColors['vivid malachite']);
                     this.elements.circle2[eventHash].lineStyle(0);
                     this.elements.circle2[eventHash].drawCircle(
-                        (element.dim * pixiAmplitudeFactor) * 0.8,
-                        (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor) * 0.8 * xRandomFactor,
+                        (element.dim * pixiAmplitudeFactor) * 0.5 * yRandomFactor,
                         (element.dim * pixiAmplitudeFactor) * radioPor2 * 0.5
                     ); // x,y,radio
                     this.elements.circle2[eventHash].endFill();
@@ -1461,10 +1463,7 @@ this.cyberiaonline = {
         };
 
         const removeElement = id => {
-            if (!elementsContainer[id]) {
-                console.error('error delete', id, elements.find(x => x.id === id));
-                return
-            };
+            if (!elementsContainer[id]) return;
             elementsContainer[id].destroy();
             delete elementsContainer[id];
             const elementIndex = elements.findIndex(x => x.id === id);
@@ -1535,6 +1534,7 @@ this.cyberiaonline = {
                     COMPONENTS['damage-indicator'].event(element, valueChangeLife);
                 if (element.lastLife < element.life)
                     COMPONENTS['heal-indicator'].event(element, valueChangeLife);
+                // if (!element) alert();
             }
             element.lastLife = newInstance(element.life);
         };
@@ -1566,7 +1566,7 @@ this.cyberiaonline = {
                     this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
                     this.searchPathRange = maxRangeMap * 0.3;
-                    this.searchStopRange = this.searchPathRange * 0.3;
+                    this.searchStopRange = this.searchPathRange * 0.2;
                     this.autoShoot = false;
 
                     this.autoTargetIntervalCalculate = 1000;
