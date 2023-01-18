@@ -207,6 +207,74 @@ const getDistance = (x1, y1, x2, y2) => {
     return Math.sqrt(disX * disX + disY * disY);
 };
 
+/**
+ * Ajuste decimal de un número.
+ *
+ * @param {String}  tipo  El tipo de ajuste.
+ * @param {Number}  valor El numero.
+ * @param {Integer} exp   El exponente (el logaritmo 10 del ajuste base).
+ * @returns {Number} El valor ajustado.
+ */
+const decimalAdjust = (type, value, exp) => {
+    // Si el exp no está definido o es cero...
+    if (typeof exp === 'undefined' || +exp === 0) {
+        return Math[type](value);
+    }
+    value = +value;
+    exp = +exp;
+    // Si el valor no es un número o el exp no es un entero...
+    if (isNaN(value) || !(typeof exp === 'number' && exp % 1 === 0)) {
+        return NaN;
+    }
+    // Shift
+    value = value.toString().split('e');
+    value = Math[type](+(value[0] + 'e' + (value[1] ? (+value[1] - exp) : -exp)));
+    // Shift back
+    value = value.toString().split('e');
+    return +(value[0] + 'e' + (value[1] ? (+value[1] + exp) : exp));
+
+    // https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/Math/round
+}
+
+// Decimal round
+
+const round10 = (value, exp) => {
+    return decimalAdjust('round', value, exp);
+};
+
+// Decimal floor
+
+const floor10 = (value, exp) => {
+    return decimalAdjust('floor', value, exp);
+};
+
+// Decimal ceil
+
+const ceil10 = (value, exp) => {
+    return decimalAdjust('ceil', value, exp);
+};
+
+// // Round
+// round10(55.55, -1);   // 55.6
+// round10(55.549, -1);  // 55.5
+// round10(55, 1);       // 60
+// round10(54.9, 1);     // 50
+// round10(-55.55, -1);  // -55.5
+// round10(-55.551, -1); // -55.6
+// round10(-55, 1);      // -50
+// round10(-55.1, 1);    // -60
+// round10(1.005, -2);   // 1.01 -- compare this with round(1.005*100)/100 above
+// // Floor
+// floor10(55.59, -1);   // 55.5
+// floor10(59, 1);       // 50
+// floor10(-55.51, -1);  // -55.6
+// floor10(-51, 1);      // -60
+// // Ceil
+// ceil10(55.51, -1);    // 55.6
+// ceil10(51, 1);        // 60
+// ceil10(-55.59, -1);   // -55.5
+// ceil10(-59, 1);       // -50
+
 const commonFunctions = () => `
     const getHash = ${getHash};
     const s4 = ${s4};
@@ -236,6 +304,10 @@ const commonFunctions = () => `
     const getDirection = ${getDirection};
     const getDistance = ${getDistance};
     const arrayInstanceLog = ${arrayInstanceLog};
+    const decimalAdjust= ${decimalAdjust};
+    const round10 = ${round10};
+    const floor10 = ${floor10};
+    const ceil10 = ${ceil10};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -338,5 +410,9 @@ export {
     orderAbc,
     getDirection,
     getDistance,
-    arrayInstanceLog
+    arrayInstanceLog,
+    decimalAdjust,
+    round10,
+    floor10,
+    ceil10
 };

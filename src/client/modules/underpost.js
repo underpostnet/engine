@@ -1,3 +1,5 @@
+'use strict';
+
 import { getBaseComponent } from '../../modules/ssr.js';
 import { cssClientCore } from '../../modules/ssr.js';
 import UglifyJS from 'uglify-js';
@@ -5,6 +7,9 @@ import CleanCSS from 'clean-css';
 import fs from 'fs';
 import { baseStaticUri, commonFunctions } from '../../api/util.js';
 import { media } from './media.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const clientID = 'underpost';
 
@@ -233,10 +238,19 @@ const statics = app => {
     const BSU = baseStaticUri(viewMetaData);
 
     const sourceVanillaJs =
-        UglifyJS.minify(
+        `
+        /*!
+        * vanilla.js/underpost-engine - v${process.env.npm_package_version}
+        * Compiled ${new Date().toUTCString()}
+        * ${process.env.AUTHOR}/underpost-engine
+        *
+        * vanilla.js/underpost-engine is licensed under the MIT License.
+        * http://www.opensource.org/licenses/mit-license
+        */
+        ${UglifyJS.minify(
             commonFunctions() +
             fs.readFileSync('./src/client/core/vanilla.js', 'utf-8')
-        ).code;
+        ).code}`;
     app.get(BSU + '/vanilla.js', (req, res) => {
         res.writeHead(200, {
             'Content-Type': ('application/javascript; charset=utf-8')

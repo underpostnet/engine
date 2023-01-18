@@ -98,16 +98,16 @@ this.cyberiaonline = {
 
         const getAvailablePosition = (elementClient, elementsCollisions) => {
 
-            let x, y, type, elementsSearch, elementsRange;
+            let x, y, type, elementsSearch, maxSnailSteps;
             let autoTargetCondition = false;
 
             if (elementsCollisions.x !== undefined && elementsCollisions.y !== undefined) {
                 type = 'snail';
                 x = parseInt(`${elementsCollisions.x}`);
                 y = parseInt(`${elementsCollisions.y}`);
-                if (elementsCollisions.elementsSearch !== undefined && elementsCollisions.elementsRange !== undefined) {
+                if (elementsCollisions.elementsSearch !== undefined && elementsCollisions.maxSnailSteps !== undefined) {
                     elementsSearch = newInstance(elementsCollisions.elementsSearch);
-                    elementsRange = newInstance(elementsCollisions.elementsRange);
+                    maxSnailSteps = newInstance(elementsCollisions.maxSnailSteps);
                     autoTargetCondition = true;
                 }
                 elementsCollisions = [].concat(elementsCollisions.elementsCollisions);
@@ -155,7 +155,7 @@ this.cyberiaonline = {
                     const elementsTarget = [];
 
                     if (autoTargetCondition)
-                        searchCondition = () => countSteps < elementsRange;
+                        searchCondition = () => countSteps < maxSnailSteps;
                     else
                         searchCondition = () => matrixAux[y][x] !== 0;
 
@@ -415,7 +415,7 @@ this.cyberiaonline = {
                             color: green;
                             font-family: retro;
                             /* border: 2px solid magenta; */
-                            '>+ ${value}</span>
+                            '>+ ${round10(value, -2)}</span>
                     `);
                     setTimeout(() => {
                         s(`.${fontEffectId}`).remove();
@@ -438,7 +438,7 @@ this.cyberiaonline = {
                             color: red;
                             font-family: retro;
                             /* border: 2px solid magenta; */
-                            '>- ${value}</span>
+                            '>- ${round10(value, -2)}</span>
                     `);
                     setTimeout(() => {
                         s(`.${fontEffectId}`).remove();
@@ -1032,14 +1032,13 @@ this.cyberiaonline = {
                             x: element.x + xBullet,
                             y: element.y + yBullet,
                             direction: element.direction,
-                            parent: element,
-                            dim: 2
+                            parent: element
                         }));
                     })
                 },
                 elements: {},
                 data: {
-                    value: 10,
+                    value: 40 / 12,
                     vel: 2500,
                     validateShoot: {}
                 },
@@ -1064,8 +1063,7 @@ this.cyberiaonline = {
 
                         collisionTest.map(element => {
                             element.life = element.life - this.data.value;
-                            COMPONENTS['damage-indicator'].event(element, this.data.value);
-                            COMPONENTS['bar-life'].event(element);
+
                             // console.error(element.life);
                         });
                     }
@@ -1137,11 +1135,9 @@ this.cyberiaonline = {
 
 
                         collisionTest.map(element => {
-                            if (element.life < element.maxLife)
-                                COMPONENTS['heal-indicator'].event(element, this.data.value);
+
                             element.life = element.life + this.data.value;
-                            COMPONENTS['bar-life'].event(element);
-                            // console.error(element.life);
+
                         });
                     }
                 },
@@ -1530,6 +1526,17 @@ this.cyberiaonline = {
             elementsContainer[element.id].x = newInstance(element.renderX);
             elementsContainer[element.id].y = newInstance(element.renderY);
 
+            // dead container and respawn
+            if (element.lastLife !== undefined) {
+                const valueChangeLife = Math.abs((element.lastLife - element.life));
+                if (element.lastLife !== element.life)
+                    COMPONENTS['bar-life'].event(element);
+                if (element.lastLife > element.life)
+                    COMPONENTS['damage-indicator'].event(element, valueChangeLife);
+                if (element.lastLife < element.life)
+                    COMPONENTS['heal-indicator'].event(element, valueChangeLife);
+            }
+            element.lastLife = newInstance(element.life);
         };
 
         // ----------------------------------------------------------------
@@ -1547,7 +1554,6 @@ this.cyberiaonline = {
                     this.dim = options.dim ? options.dim : 3; // 2 // 3; // 1.5
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
-                    this.borderRadius = 100;
                     this.clearsIntervals = [];
                     this.shoot = {};
                     this.shootTimeInterval = {};
@@ -1559,16 +1565,15 @@ this.cyberiaonline = {
                     this.life = 100;
                     this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
-                    this.range = maxRangeMap * 0.3;
-                    this.minRange = this.range * 0.4;
+                    this.searchPathRange = maxRangeMap * 0.3;
+                    this.searchStopRange = this.searchPathRange * 0.3;
                     this.autoShoot = false;
 
                     this.autoTargetIntervalCalculate = 1000;
                     this.autoTargetBlockCalculate = true;
-                    this.autoTargetRange = getTargetRange(10);
+                    this.maxSnailSteps = getTargetRange(10);
                     switch (this.type) {
                         case 'BUILDING':
-                            this.borderRadius = 0;
                             if (!(options.x !== undefined && options.y !== undefined)) {
                                 const BUILDING_getAvailablePosition = getAvailablePosition(this, ['BUILDING']);
                                 this.x = BUILDING_getAvailablePosition.x;
@@ -1638,9 +1643,9 @@ this.cyberiaonline = {
                                         if (element.type === 'USER_MAIN') {
                                             const targetDistance = getDistance(element.x, element.y, this.x, this.y);
                                             // console.error(
-                                            //     'getDistance', targetDistance, this.range);
+                                            //     'getDistance', targetDistance, this.searchPathRange);
                                             if (
-                                                targetDistance <= this.range &&
+                                                targetDistance <= this.searchPathRange &&
                                                 (elementTarget === undefined || elementTarget.aggro < element.aggro)
                                             ) {
                                                 const x = parseInt(element.x);
@@ -1670,7 +1675,7 @@ this.cyberiaonline = {
                                     //         y: parseInt(this.y),
                                     //         elementsCollisions: ['BUILDING'],
                                     //         elementsSearch: ['USER_MAIN'],
-                                    //         elementsRange: this.autoTargetRange
+                                    //         maxSnailSteps: this.maxSnailSteps
                                     //     }
                                     // );
 
@@ -1702,6 +1707,7 @@ this.cyberiaonline = {
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
                             this.components = ['background-circle', this.type];
+                            this.dim = this.dim * 0.25;
                             setTimeout(() => {
                                 COMPONENTS['random-circle-color-one-big'].event(this);
                             });
@@ -1711,6 +1717,7 @@ this.cyberiaonline = {
 
                             const midFactor = 1.8;
                             const dimFactor = 0.5;
+                            const allTarget = true;
 
                             if (this.direction !== null) {
                                 let direction = this.direction;
@@ -1718,7 +1725,7 @@ this.cyberiaonline = {
 
                                     if (direction === 'East'
                                         || direction === 'South East'
-                                        || direction === 'North East') {
+                                        || direction === 'North East' || allTarget) {
                                         elements.push(gen().init({
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
@@ -1750,7 +1757,7 @@ this.cyberiaonline = {
 
                                     if (direction === 'West'
                                         || direction === 'South West'
-                                        || direction === 'North West') {
+                                        || direction === 'North West' || allTarget) {
                                         elements.push(gen().init({
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
@@ -1780,7 +1787,7 @@ this.cyberiaonline = {
                                         }));
                                     }
 
-                                    if (direction === 'North') {
+                                    if (direction === 'North' || allTarget) {
                                         elements.push(gen().init({
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
@@ -1804,13 +1811,13 @@ this.cyberiaonline = {
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
                                             x: this.x,
-                                            y: this.y - this.dim * midFactor * dimFactor,
+                                            y: this.y - this.dim * dimFactor * midFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
                                     }
 
-                                    if (direction === 'South') {
+                                    if (direction === 'South' || allTarget) {
                                         elements.push(gen().init({
                                             id: id(),
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
@@ -1834,7 +1841,7 @@ this.cyberiaonline = {
                                             type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                             color: 'dark red',
                                             x: this.x,
-                                            y: this.y + this.dim * midFactor * dimFactor,
+                                            y: this.y + this.dim * dimFactor * midFactor,
                                             direction: null,
                                             parent: this.parent ? this.parent : undefined
                                         }));
@@ -1974,7 +1981,7 @@ this.cyberiaonline = {
                                     this.path[0][1],
                                     this.path[this.path.length - 1][0],
                                     this.path[this.path.length - 1][1]
-                                ) < this.minRange
+                                ) < this.searchStopRange
                                 && this.autoShoot === true
                             ) {
                                 // console.error('distance reguler 1');
@@ -2047,7 +2054,7 @@ this.cyberiaonline = {
                     }))
             );
             elements = elements.concat(
-                range(0, 5)
+                range(1, 3)
                     .map(() => gen().init({
                         type: 'BOT'
                     }))
