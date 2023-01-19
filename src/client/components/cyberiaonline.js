@@ -1002,8 +1002,106 @@ this.cyberiaonline = {
                     }, () => {
 
                         let direction = element.direction;
-                        const midFactor = 1.8;
-                        const dimFactor = 0.5;
+                        const dimFactor = 1.5;
+
+
+                        if (element.alternate === undefined) element.alternate = true;
+
+                        if (element.alternate) {
+
+                            const distanceFactor = 1;
+                            element.alternate = false;
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y - element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y + element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * distanceFactor,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * distanceFactor,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+
+                        } else {
+
+
+                            const distanceFactor = 0.8;
+                            element.alternate = true;
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * distanceFactor,
+                                y: element.y - element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * distanceFactor,
+                                y: element.y + element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * distanceFactor,
+                                y: element.y + element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * distanceFactor,
+                                y: element.y - element.dim * distanceFactor,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim * dimFactor
+                            }));
+
+                        }
+                        return;
 
                         if (direction === 'East'
                             || direction === 'South East'
