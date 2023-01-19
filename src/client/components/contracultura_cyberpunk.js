@@ -963,6 +963,8 @@ this.contracultura_cyberpunk = {
 
                 <b> > Utilidades&nbsp;</b><a target='_top'   href='https://manytools.org/'/>manytools.org</a><br />
 
+                <b> > Data Utilidades&nbsp;</b><a target='_top'   href='https://tableconvert.com/'/>tableconvert.com</a><br />                
+
                 <br />Backend: Lenguajes<br /><br />
 
                 <b> > PHP&nbsp;</b><a target='_top'   href='https://www.php.net/manual/es/index.php'/>php.net</a><br />
