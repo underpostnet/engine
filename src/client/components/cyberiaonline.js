@@ -1000,40 +1000,141 @@ this.cyberiaonline = {
                         name: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                         shootTimeInterval: element.type === 'BOT' ? 1500 : 700
                     }, () => {
-                        let xBullet = 0;
-                        let yBullet = 0;
+
                         let direction = element.direction;
-                        const factorCordDim = element.type === 'BOT' ? 0.8 : 1.4;
+                        const midFactor = 1.8;
+                        const dimFactor = 0.5;
 
                         if (direction === 'East'
                             || direction === 'South East'
                             || direction === 'North East') {
-                            xBullet = element.dim * factorCordDim;
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * dimFactor,
+                                y: element.y - element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * dimFactor,
+                                y: element.y + element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * dimFactor * midFactor,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element
+                            }));
+
                         }
 
                         if (direction === 'West'
                             || direction === 'South West'
                             || direction === 'North West') {
-                            xBullet = element.dim * -factorCordDim;
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * dimFactor,
+                                y: element.y - element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * dimFactor,
+                                y: element.y + element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * dimFactor * midFactor,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element
+                            }));
+
                         }
 
                         if (direction === 'North') {
-                            yBullet = element.dim * -factorCordDim;
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * dimFactor,
+                                y: element.y - element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * dimFactor,
+                                y: element.y - element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y - element.dim * dimFactor * midFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+
                         }
 
                         if (direction === 'South') {
-                            yBullet = element.dim * factorCordDim;
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x - element.dim * dimFactor,
+                                y: element.y + element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x + element.dim * dimFactor,
+                                y: element.y + element.dim * dimFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y + element.dim * dimFactor * midFactor,
+                                direction: element.direction,
+                                parent: element
+                            }));
                         }
-                        const randomAmplitude = [0.9, 1, 1.1][random(0, 2)]
-                        elements.push(gen().init({
-                            id: id(),
-                            type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
-                            color: 'dark red',
-                            x: (element.x + xBullet) * (element.type === 'BOT' && xBullet === 0 ? randomAmplitude : 1),
-                            y: (element.y + yBullet) * (element.type === 'BOT' && yBullet === 0 ? randomAmplitude : 1),
-                            direction: element.direction,
-                            parent: element
-                        }));
+
                     })
                 },
                 elements: {},
@@ -1602,7 +1703,6 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
-                            this.dim = this.dim * 0.8;
                             COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
                             this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
