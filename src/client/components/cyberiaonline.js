@@ -22,8 +22,11 @@ this.cyberiaonline = {
         const newInstanceBtn = id();
         this.windowGameId = id();
         this.windowGameZindex = 999;
+        this.coinHtmlIndicatorContainer = id();
         const homeBtnId = id();
         this.windowGamePanel = id();
+        let framesCount = -1;
+
 
 
         this.inFullScreenBtn = id();
@@ -31,7 +34,11 @@ this.cyberiaonline = {
 
         let baseMatrix = [[]];
         let maxBots = 0;
-        let mainUserId = id();
+
+
+        const mainUserId = id();
+        const getMainUserElement = () =>
+            elements.find(element => element.id === mainUserId);
 
         // generate seed world type instance
         // backup elements state (memento)
@@ -400,6 +407,29 @@ this.cyberiaonline = {
         */
 
         const COMPONENTS = {
+            'coin-indicator': {
+                functions: {},
+                elements: {},
+                data: {},
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element, value) {
+                    const fontEffectId = id();
+                    append(cyberiaonline.htmlPixiFontLayer, /*html*/`
+                            <span class='abs ${fontEffectId}' style='
+                            top: ${((element.y * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
+                            left: ${((element.x * cyberiaonline.canvasDim) / maxRangeMap) * randomIndicatorPosition()}px;
+                            color: yellow;
+                            font-family: retro;
+                            /* border: 2px solid magenta; */
+                            '>+ $${round10(value, -2)}</span>
+                    `);
+                    setTimeout(() => {
+                        s(`.${fontEffectId}`).remove();
+                    }, 1000);
+                },
+                delete: function (element) { }
+            },
             'heal-indicator': {
                 functions: {},
                 elements: {},
@@ -536,7 +566,7 @@ this.cyberiaonline = {
                                     break;
                             }
                         }, element.deadDelay);
-                        removeElement(element.id);
+                        removeElement(element);
                     }
                 },
                 delete: function (element) {
@@ -1009,7 +1039,7 @@ this.cyberiaonline = {
 
                         if (element.alternate) {
 
-                            const distanceFactor = 1;
+                            const distanceFactor = 1.3;
                             element.alternate = false;
 
                             elements.push(gen().init({
@@ -1056,7 +1086,7 @@ this.cyberiaonline = {
                         } else {
 
 
-                            const distanceFactor = 0.8;
+                            const distanceFactor = 1.1;
                             element.alternate = true;
 
                             elements.push(gen().init({
@@ -1260,9 +1290,15 @@ this.cyberiaonline = {
                         // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
 
 
-                        collisionTest.map(element => {
-                            element.life = element.life - this.data.value;
-
+                        collisionTest.map(elementConllision => {
+                            elementConllision.life = elementConllision.life - this.data.value;
+                            if (elementConllision.type === 'BOT'
+                                && element.parent.type === 'USER_MAIN'
+                                && elementConllision.life <= 0
+                                && !element.parent.idsAfterBotDrops.includes(elementConllision.id)) {
+                                element.parent.coin = element.parent.coin + 10;
+                                element.parent.idsAfterBotDrops.push(elementConllision.id);
+                            };
                             // console.error(element.life);
                         });
                     }
@@ -1551,7 +1587,8 @@ this.cyberiaonline = {
                         (element.dim * pixiAmplitudeFactor) * radioPor * 0.5
                     ); // x,y,radio
                     this.elements.circle[eventHash].endFill();
-                    elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
+                    if (elementsContainer[element.id])
+                        elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
 
 
                     setTimeout(() => {
@@ -1661,24 +1698,20 @@ this.cyberiaonline = {
             }
         };
 
-        const removeElement = id => {
-            if (!elementsContainer[id]) return;
-            elementsContainer[id].destroy();
-            delete elementsContainer[id];
-            const elementIndex = elements.findIndex(x => x.id === id);
-            // logDataManage(elements[elementIndex]);
-            if (elementIndex > -1) {
-                if (elements[elementIndex].components)
-                    elements[elementIndex].components.map(component =>
-                        COMPONENTS[component].delete(elements[elementIndex]));
-                elements[elementIndex]
-                    .clearsIntervals.map(keyInterval => clearInterval(elements[elementIndex][keyInterval]));
-            }
-            elements = elements.filter(x => x.id !== id);
+        const removeElement = element => {
+            if (!elementsContainer[element.id]) return;
+            // logDataManage(element);
+            if (element.components)
+                element.components.map(component =>
+                    COMPONENTS[component].delete(element));
+            element.clearsIntervals.map(keyInterval => clearInterval(element[keyInterval]));
+
+            elementsContainer[element.id].destroy();
+            delete elementsContainer[element.id];
+            elements = elements.filter(x => x.id !== element.id);
         };
 
-        const removeAllElements = () =>
-            Object.keys(elementsContainer).map(key => removeElement(key));
+        const removeAllElements = () => elements.map(element => removeElement(element));
 
         const PIXI_INIT_ELEMENT = element => {
             // /assets/apps/cyberiaonline
@@ -1724,18 +1757,29 @@ this.cyberiaonline = {
             elementsContainer[element.id].x = newInstance(element.renderX);
             elementsContainer[element.id].y = newInstance(element.renderY);
 
+
+            if (element.lastCoin !== undefined) {
+                const valueChangeCoin = Math.abs((element.lastCoin - element.coin));
+                if (element.lastCoin < element.coin) {
+                    COMPONENTS['coin-indicator'].event(element, valueChangeCoin);
+                    htmls(`.${this.coinHtmlIndicatorContainer}`, `$${element.coin}`);
+                }
+            }
+            if (element.id === mainUserId) element.lastCoin = newInstance(element.coin);
+
             // dead container and respawn
+            const intervalFrameLifeIndicator = 50;
             if (element.lastLife !== undefined) {
                 const valueChangeLife = Math.abs((element.lastLife - element.life));
                 if (element.lastLife !== element.life)
                     COMPONENTS['bar-life'].event(element);
-                if (element.lastLife > element.life)
+                if (element.lastLife > element.life && (framesCount % intervalFrameLifeIndicator === 0))
                     COMPONENTS['damage-indicator'].event(element, valueChangeLife);
-                if (element.lastLife < element.life)
+                if (element.lastLife < element.life && (framesCount % intervalFrameLifeIndicator === 0))
                     COMPONENTS['heal-indicator'].event(element, valueChangeLife);
                 // if (!element) alert();
             }
-            element.lastLife = newInstance(element.life);
+            if (framesCount % intervalFrameLifeIndicator === 0) element.lastLife = newInstance(element.life);
         };
 
         // ----------------------------------------------------------------
@@ -1751,6 +1795,8 @@ this.cyberiaonline = {
                     this.delayVelPath = 0;
                     this.vel = options.vel ? options.vel : 0.1;
                     this.dim = options.dim ? options.dim : 3; // 2 // 3; // 1.5
+                    this.coin = 0;
+                    this.idsAfterBotDrops = [];
                     this.color = options.color ? options.color : 'red';
                     this.path = [];
                     this.clearsIntervals = [];
@@ -1765,7 +1811,7 @@ this.cyberiaonline = {
                     this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
                     this.searchPathRange = maxRangeMap * 0.3;
-                    this.searchStopRange = this.searchPathRange * 0.2;
+                    this.searchStopRange = this.searchPathRange * 0.4;
                     this.autoShoot = false;
 
                     this.autoTargetIntervalCalculate = 1000;
@@ -1890,7 +1936,7 @@ this.cyberiaonline = {
                                 COMPONENTS['cross-effect'].event(this);
                             });
                             setTimeout(() => {
-                                removeElement(this.id);
+                                removeElement(this);
                             }, 2000);
                             break;
                         case 'BULLET-HEAL':
@@ -1899,7 +1945,7 @@ this.cyberiaonline = {
                                 COMPONENTS['heal-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
-                                removeElement(this.id);
+                                removeElement(this);
                             }, 400);
 
                             break;
@@ -1910,7 +1956,7 @@ this.cyberiaonline = {
                                 COMPONENTS['random-circle-color-one-big'].event(this);
                             });
                             setTimeout(() => {
-                                removeElement(this.id);
+                                removeElement(this);
                             }, 500);
 
                             const midFactor = 1.8;
@@ -2168,6 +2214,13 @@ this.cyberiaonline = {
                     return this;
                 },
                 loop: function () {
+                    framesCount++;
+                    if (framesCount % 10000 === 0) {
+                        framesCount = 0;
+                        // elements.push(gen().init({
+                        //     type: 'BOT'
+                        // }));
+                    }
                     let element;
                     switch (this.type) {
                         case 'BOT':
@@ -2297,7 +2350,7 @@ this.cyberiaonline = {
                         &&
                         validateCollision(
                             { x: element.x, y: element.y, dim: element.dim },
-                            { x, y, dim: elements.find(elementFind => elementFind.id === mainUserId).dim }
+                            { x, y, dim: getMainUserElement().dim }
                         )).length > 0
                         || x === maxRangeMap
                         || x === minRangeMap
@@ -2372,6 +2425,13 @@ this.cyberiaonline = {
                         background: #100C08;
                     }
 
+                    .${this.coinHtmlIndicatorContainer} {
+                        color: yellow;
+                        font-size: 22px;
+                        padding: 5px;
+                        ${borderChar('black', 2)}
+                    }
+
                 </style>
                 <div class='abs center'>
                     <${pixiContainerId} class='in'></${pixiContainerId}>
@@ -2383,7 +2443,8 @@ this.cyberiaonline = {
                         <i class='fas fa-arrows-alt panel-btns ${this.inFullScreenBtn}' aria-hidden='true'></i>
                         <i class='fas fa-times panel-btns ${this.outFullScreenBtn}' style='display: none' aria-hidden='true'></i> 
                         <i class='fas fa-home panel-btns ${homeBtnId}' aria-hidden='true'></i>  
-                        <i class='fas fa-refresh panel-btns ${newInstanceBtn}' aria-hidden='true'></i>                  
+                        <i class='fas fa-refresh panel-btns ${newInstanceBtn}' aria-hidden='true'></i>    
+                        <div class='inl ${this.coinHtmlIndicatorContainer}'>$0</div>              
                          
                     </div>
                 </${this.windowGamePanel}>
