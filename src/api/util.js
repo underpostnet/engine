@@ -187,18 +187,43 @@ const orderAbc = (arr, attr) => arr.sort((a, b) => {
     return 0;
 });
 
-const getDirection = (x1, y1, x2, y2) => {
+const getDirection = (x1, y1, x2, y2, yTolerance) => {
     const deltaX = x2 - x1;
     const deltaY = y2 - y1;
     //Check for all the 8 directions that a point can move
-    if (deltaX > 0 && deltaY > 0) return 'South East'
-    if (deltaX > 0 && deltaY === 0) return 'East'
-    if (deltaX > 0 && deltaY < 0) return 'North East'
-    if (deltaX === 0 && deltaY > 0) return 'South'
-    if (deltaX === 0 && deltaY < 0) return 'North'
-    if (deltaX < 0 && deltaY > 0) return 'South West'
-    if (deltaX < 0 && deltaY === 0) return 'West'
-    if (deltaX < 0 && deltaY < 0) return 'North West'
+    let direction;
+    if (deltaX > 0 && deltaY > 0) direction = 'South East'
+    else if (deltaX > 0 && deltaY === 0) direction = 'East'
+    else if (deltaX > 0 && deltaY < 0) direction = 'North East'
+    else if (deltaX === 0 && deltaY > 0) direction = 'South'
+    else if (deltaX === 0 && deltaY < 0) direction = 'North'
+    else if (deltaX < 0 && deltaY > 0) direction = 'South West'
+    else if (deltaX < 0 && deltaY === 0) direction = 'West'
+    else if (deltaX < 0 && deltaY < 0) direction = 'North West';
+
+    if (yTolerance !== undefined) {
+
+        if (direction === 'North East'
+            && Math.abs(y1 - y2) < yTolerance
+        ) direction = 'North';
+
+
+        if (direction === 'South East'
+            && Math.abs(y1 - y2) < yTolerance
+        ) direction = 'South';
+
+
+        if (direction === 'North West'
+            && Math.abs(y1 - y2) < yTolerance
+        ) direction = 'North';
+
+
+        if (direction === 'South West'
+            && Math.abs(y1 - y2) < yTolerance
+        ) direction = 'South';
+
+    }
+    return direction;
 };
 
 const getDistance = (x1, y1, x2, y2) => {

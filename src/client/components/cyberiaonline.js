@@ -1711,12 +1711,17 @@ this.cyberiaonline = {
 
         const removeAllElements = () => elements.map(element => removeElement(element));
 
+        const getRenderPosition = (element, attr) =>
+            (element[attr] - (element.dim / 2)) * pixiAmplitudeFactor;
+
+        const yTolerance = maxRangeMap * pixiAmplitudeFactor * 0.9;
+
         const PIXI_INIT_ELEMENT = element => {
             // /assets/apps/cyberiaonline
             // elementsContainer[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
             elementsContainer[element.id] = new PIXI.Container();
-            elementsContainer[element.id].x = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
-            elementsContainer[element.id].y = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
+            elementsContainer[element.id].x = getRenderPosition(element, 'x');
+            elementsContainer[element.id].y = getRenderPosition(element, 'y');
             elementsContainer[element.id].width = (element.dim) * pixiAmplitudeFactor;
             elementsContainer[element.id].height = (element.dim) * pixiAmplitudeFactor;
             // elementsContainer[element.id].rotation = -(Math.PI / 2);
@@ -1740,14 +1745,12 @@ this.cyberiaonline = {
                 if (element.lastX !== undefined && element.lastY !== undefined) {
                     const x1 = parseInt(`${element.lastX}`);
                     const y1 = parseInt(`${element.lastY}`);
-                    const x2 = parseInt(element.renderX);
-                    const y2 = parseInt(element.renderY);
+                    const x2 = element.shootTarget !== undefined ?
+                        getRenderPosition(element.shootTarget, 'x') : parseInt(element.renderX);
+                    const y2 = element.shootTarget !== undefined ?
+                        getRenderPosition(element.shootTarget, 'y') : parseInt(element.renderY);
 
-                    direction = element.shootTarget !== undefined ?
-                        getDirection(x1, y1,
-                            (element.shootTarget.x - (element.shootTarget.dim / 2)) * pixiAmplitudeFactor,
-                            (element.shootTarget.y - (element.shootTarget.dim / 2)) * pixiAmplitudeFactor) :
-                        getDirection(x1, y1, x2, y2);
+                    direction = getDirection(x1, y1, x2, y2, yTolerance);
                     // console.log('getDirection', element.type, direction);
                     element.direction = direction;
                 }
