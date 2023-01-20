@@ -601,15 +601,15 @@ this.cyberiaonline = {
                     this.elements.head[element.id].y = 0;
                     elementsContainer[element.id].addChild(this.elements.head[element.id]);
 
-                    if (this.data.eyeWidth === null) this.data.eyeWidth = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
-                    if (this.data.eyeHeight === null) this.data.eyeHeight = ((element.dim) * pixiAmplitudeFactor) * (100 / random(250, 600));
+                    if (this.data.eyeWidth === null) this.data.eyeWidth = ((element.dim) * pixiAmplitudeFactor) * [0.1, 0.2][random(0, 1)];
+                    if (this.data.eyeHeight === null) this.data.eyeHeight = ((element.dim) * pixiAmplitudeFactor) * [0.1, 0.2][random(0, 1)];
                     if (this.data.eyeColor === null) this.data.eyeColor = getRandomPixiColor();
 
                     this.elements.eyesLeft[element.id] = new PIXI.Sprite(PIXI.Texture.WHITE);
                     this.elements.eyesLeft[element.id].tint = this.data.eyeColor;
                     this.elements.eyesLeft[element.id].width = this.data.eyeWidth;
                     this.elements.eyesLeft[element.id].height = this.data.eyeHeight;
-                    this.elements.eyesLeft[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2); /// - [this.data.eyeWidth, 0][random(0, 1)];
+                    this.elements.eyesLeft[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2) - (this.data.eyeWidth * 0.8);
                     this.elements.eyesLeft[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(this.elements.eyesLeft[element.id]);
 
@@ -617,7 +617,7 @@ this.cyberiaonline = {
                     this.elements.eyesRight[element.id].tint = this.data.eyeColor;
                     this.elements.eyesRight[element.id].width = this.data.eyeWidth;
                     this.elements.eyesRight[element.id].height = this.data.eyeHeight;
-                    this.elements.eyesRight[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2); /// + [this.data.eyeWidth, 0][random(0, 1)];
+                    this.elements.eyesRight[element.id].x = (((element.dim) * pixiAmplitudeFactor) / 2) - (this.data.eyeWidth / 2) + (this.data.eyeWidth * 0.8);
                     this.elements.eyesRight[element.id].y = 0.4 * pixiAmplitudeFactor;
                     elementsContainer[element.id].addChild(this.elements.eyesRight[element.id]);
 
@@ -1039,7 +1039,6 @@ this.cyberiaonline = {
 
                         if (element.alternate) {
 
-                            const distanceFactor = 1.3;
                             element.alternate = false;
 
                             elements.push(gen().init({
@@ -1047,7 +1046,7 @@ this.cyberiaonline = {
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
                                 x: element.x,
-                                y: element.y - element.dim * distanceFactor,
+                                y: element.y - element.searchStopRange,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1057,7 +1056,7 @@ this.cyberiaonline = {
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
                                 x: element.x,
-                                y: element.y + element.dim * distanceFactor,
+                                y: element.y + element.searchStopRange,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1066,7 +1065,7 @@ this.cyberiaonline = {
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x - element.dim * distanceFactor,
+                                x: element.x - element.searchStopRange,
                                 y: element.y,
                                 direction: element.direction,
                                 parent: element,
@@ -1076,7 +1075,7 @@ this.cyberiaonline = {
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x + element.dim * distanceFactor,
+                                x: element.x + element.searchStopRange,
                                 y: element.y,
                                 direction: element.direction,
                                 parent: element,
@@ -1085,16 +1084,15 @@ this.cyberiaonline = {
 
                         } else {
 
-
-                            const distanceFactor = 1.1;
                             element.alternate = true;
+                            const diagonalFactor = 0.75;
 
                             elements.push(gen().init({
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x - element.dim * distanceFactor,
-                                y: element.y - element.dim * distanceFactor,
+                                x: element.x - element.searchStopRange * diagonalFactor,
+                                y: element.y - element.searchStopRange * diagonalFactor,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1103,8 +1101,8 @@ this.cyberiaonline = {
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x + element.dim * distanceFactor,
-                                y: element.y + element.dim * distanceFactor,
+                                x: element.x + element.searchStopRange * diagonalFactor,
+                                y: element.y + element.searchStopRange * diagonalFactor,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1113,8 +1111,8 @@ this.cyberiaonline = {
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x - element.dim * distanceFactor,
-                                y: element.y + element.dim * distanceFactor,
+                                x: element.x - element.searchStopRange * diagonalFactor,
+                                y: element.y + element.searchStopRange * diagonalFactor,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1123,8 +1121,8 @@ this.cyberiaonline = {
                                 id: id(),
                                 type: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
                                 color: 'dark red',
-                                x: element.x + element.dim * distanceFactor,
-                                y: element.y - element.dim * distanceFactor,
+                                x: element.x + element.searchStopRange * diagonalFactor,
+                                y: element.y - element.searchStopRange * diagonalFactor,
                                 direction: element.direction,
                                 parent: element,
                                 dim: element.dim * dimFactor
@@ -1745,7 +1743,11 @@ this.cyberiaonline = {
                     const x2 = parseInt(element.renderX);
                     const y2 = parseInt(element.renderY);
 
-                    direction = getDirection(x1, y1, x2, y2);
+                    direction = element.shootTarget !== undefined ?
+                        getDirection(x1, y1,
+                            (element.shootTarget.x - (element.shootTarget.dim / 2)) * pixiAmplitudeFactor,
+                            (element.shootTarget.y - (element.shootTarget.dim / 2)) * pixiAmplitudeFactor) :
+                        getDirection(x1, y1, x2, y2);
                     // console.log('getDirection', element.type, direction);
                     element.direction = direction;
                 }
@@ -1899,7 +1901,8 @@ this.cyberiaonline = {
                                                     type: element.type,
                                                     x: x === 0 ? 1 : x,
                                                     y: y === 0 ? 1 : y,
-                                                    aggro: element.aggro
+                                                    aggro: element.aggro,
+                                                    dim: element.dim
                                                 };
                                             };
                                             // console.error('elementTarget', elementTarget);
@@ -1907,9 +1910,11 @@ this.cyberiaonline = {
                                             if (elementTarget !== undefined) {
                                                 this.autoShoot = true;
                                                 this.path = generatePath(this, elementTarget.x, elementTarget.y);
+                                                this.shootTarget = elementTarget;
 
                                             } else {
                                                 this.autoShoot = false;
+                                                this.shootTarget = undefined;
                                             }
                                         }
                                     });
@@ -2232,16 +2237,23 @@ this.cyberiaonline = {
                                     this.path[0][1],
                                     this.path[this.path.length - 1][0],
                                     this.path[this.path.length - 1][1]
-                                ) < this.searchStopRange
+                                ) < this.searchStopRange * 0.95
                                 && this.autoShoot === true
                             ) {
-                                // console.error('distance reguler 1');
+                                this.path = generatePath(this);
+                            } else if (
+                                this.path[0]
+                                && getDistance(
+                                    this.path[0][0],
+                                    this.path[0][1],
+                                    this.path[this.path.length - 1][0],
+                                    this.path[this.path.length - 1][1]
+                                ) <= this.searchStopRange * 1.05
+                                && this.autoShoot === true
+                            ) {
                                 this.path = [];
                             }
 
-                            else if (this.autoShoot === true && !this.path[0]) {
-                                // console.error('distance reguler 2');
-                            }
                             if (this.path.length === 0 && this.autoShoot === false)
                                 this.path = generatePath(this);
 
