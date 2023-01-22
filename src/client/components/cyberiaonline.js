@@ -1714,7 +1714,6 @@ this.cyberiaonline = {
         const getRenderPosition = (element, attr) =>
             (element[attr] - (element.dim / 2)) * pixiAmplitudeFactor;
 
-        const yTolerance = maxRangeMap * pixiAmplitudeFactor * 0.9;
 
         const PIXI_INIT_ELEMENT = element => {
             // /assets/apps/cyberiaonline
@@ -1749,10 +1748,7 @@ this.cyberiaonline = {
                         getRenderPosition(element.shootTarget, 'x') : parseInt(element.renderX);
                     const y2 = element.shootTarget !== undefined ?
                         getRenderPosition(element.shootTarget, 'y') : parseInt(element.renderY);
-
-                    direction = getDirection(x1, y1, x2, y2, yTolerance);
-                    // console.log('getDirection', element.type, direction);
-                    element.direction = direction;
+                    element.direction = getDirection(x1, y1, x2, y2).direction;
                 }
             }
             if (element.components) element.components.map(component =>

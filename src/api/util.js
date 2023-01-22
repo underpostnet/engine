@@ -187,11 +187,12 @@ const orderAbc = (arr, attr) => arr.sort((a, b) => {
     return 0;
 });
 
-const getDirection = (x1, y1, x2, y2, yTolerance) => {
+const getDirection = (x1, y1, x2, y2) => {
     const deltaX = x2 - x1;
     const deltaY = y2 - y1;
     //Check for all the 8 directions that a point can move
-    let direction;
+    let direction, arrow, htmlArrow;
+
     if (deltaX > 0 && deltaY > 0) direction = 'South East'
     else if (deltaX > 0 && deltaY === 0) direction = 'East'
     else if (deltaX > 0 && deltaY < 0) direction = 'North East'
@@ -201,29 +202,45 @@ const getDirection = (x1, y1, x2, y2, yTolerance) => {
     else if (deltaX < 0 && deltaY === 0) direction = 'West'
     else if (deltaX < 0 && deltaY < 0) direction = 'North West';
 
-    if (yTolerance !== undefined) {
-
-        if (direction === 'North East'
-            && Math.abs(y1 - y2) < yTolerance
-        ) direction = 'North';
-
-
-        if (direction === 'South East'
-            && Math.abs(y1 - y2) < yTolerance
-        ) direction = 'South';
-
-
-        if (direction === 'North West'
-            && Math.abs(y1 - y2) < yTolerance
-        ) direction = 'North';
-
-
-        if (direction === 'South West'
-            && Math.abs(y1 - y2) < yTolerance
-        ) direction = 'South';
-
+    switch (direction) {
+        case 'South East':
+            arrow = '↘';
+            htmlArrow = '&#8600;'
+            break;
+        case 'East':
+            arrow = '→';
+            htmlArrow = '&#8594;';
+            break;
+        case 'North East':
+            arrow = '↗';
+            htmlArrow = '&#8599;';
+            break;
+        case 'South':
+            arrow = '↓';
+            htmlArrow = '&#8595;';
+            break;
+        case 'North':
+            arrow = '↑';
+            htmlArrow = '&#8593;';
+            break;
+        case 'South West':
+            arrow = '↙';
+            htmlArrow = '&#8601;';
+            break;
+        case 'West':
+            arrow = '←';
+            htmlArrow = '&#8592;';
+            break;
+        case 'North West':
+            arrow = '↖';
+            htmlArrow = '&#8598;';
+            break;
     }
-    return direction;
+    return {
+        direction,
+        arrow,
+        htmlArrow
+    };
 };
 
 const getDistance = (x1, y1, x2, y2) => {
