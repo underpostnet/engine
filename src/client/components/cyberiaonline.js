@@ -991,6 +991,486 @@ this.cyberiaonline = {
                     delete this.elements.eyesRight[element.id];
                 }
             },
+            'BULLET-DARK-TRIANGLE': {
+                functions: {
+                    alertCollision: (element, fromArray, toArray) =>
+                        elements.filter(x => {
+
+
+
+                            // console.error(fromArray, element.type, x.type);
+
+                            // if (fromArray.includes(element.type) &&
+                            //     toArray.includes(x.type)) {
+                            //     console.error('--', fromArray.includes(element.type));
+                            //     console.error('--', validateCollision(x, element));
+                            //     console.error('--', element.id !== x.id);
+                            //     console.error('--', toArray.includes(x.type));
+                            //     console.error(x, element);
+                            // }
+                            return (
+                                fromArray.includes(element.type)
+                                &&
+                                validateCollision(x, element)
+                                &&
+                                element.id !== x.id
+                                &&
+                                toArray.includes(x.type)
+                                &&
+                                element.parent.id !== x.id
+                                &&
+                                element.parent.type !== x.type
+                            );
+
+                        }),
+                    setShoot: element => setShoot(element, {
+                        name: 'BULLET-DARK-TRIANGLE',
+                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700
+                    }, () => {
+
+
+                        const direction = element.direction;
+                        const factorDim = 0.5;
+                        const factorDiagonal = 0.4;
+
+
+                        if (direction === 'North East') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDiagonal,
+                                y: element.y - element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange,
+                                y: element.y - element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange,
+                                y: element.y - element.searchStopRange * factorDiagonal,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'South East') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDiagonal,
+                                y: element.y + element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange,
+                                y: element.y + element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange,
+                                y: element.y + element.searchStopRange * factorDiagonal,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'North') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y - element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDim,
+                                y: element.y - element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDim,
+                                y: element.y - element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'East') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDim,
+                                y: element.y - element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDim,
+                                y: element.y + element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+
+                        if (direction === 'South') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x,
+                                y: element.y + element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDim,
+                                y: element.y + element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x + element.searchStopRange * factorDim,
+                                y: element.y + element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'South West') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDiagonal,
+                                y: element.y + element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange,
+                                y: element.y + element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange,
+                                y: element.y + element.searchStopRange * factorDiagonal,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'West') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange,
+                                y: element.y,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDim,
+                                y: element.y - element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDim,
+                                y: element.y + element.searchStopRange * factorDim,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+                        if (direction === 'North West') {
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange * factorDiagonal,
+                                y: element.y - element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange,
+                                y: element.y - element.searchStopRange,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-DARK-TRIANGLE',
+                                color: 'dark red',
+                                x: element.x - element.searchStopRange,
+                                y: element.y - element.searchStopRange * factorDiagonal,
+                                direction: element.direction,
+                                parent: element,
+                                dim: element.dim
+                            }));
+
+                        }
+
+
+
+
+                    })
+                },
+                elements: {},
+                data: {
+                    value: 25,
+                    vel: 2500,
+                    validateShoot: {}
+                },
+                init: function (element) {
+                    this.data.validateShoot[element.id] = true;
+                },
+                loop: function (element) {
+                    const participantsFrom = ['BULLET-DARK-TRIANGLE'];
+                    const participantsTo = ['BOT', 'USER_MAIN'];
+                    const collisionTest =
+                        this.functions.alertCollision(element, participantsFrom, participantsTo)
+                    if (this.data.validateShoot[element.id] === true && collisionTest.length > 0) {
+
+                        this.data.validateShoot[element.id] = false;
+                        setTimeout(() => {
+                            this.data.validateShoot[element.id] = true;
+                        }, this.data.vel);
+
+
+                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
+
+
+                        collisionTest.map(elementConllision => {
+                            elementConllision.life = elementConllision.life - this.data.value;
+                            if (elementConllision.type === 'BOT'
+                                && element.parent.type === 'USER_MAIN'
+                                && elementConllision.life <= 0
+                                && !element.parent.idsAfterBotDrops.includes(elementConllision.id)) {
+                                element.parent.coin = element.parent.coin + 10;
+                                element.parent.idsAfterBotDrops.push(elementConllision.id);
+                            };
+                            // console.error(element.life);
+                        });
+                    }
+                },
+                event: function (element) { },
+                delete: function (element) { }
+            },
+            'dark-triangle': {
+                elements: {
+                    triangle: {}
+                },
+                init: function (element) { },
+                loop: function (element) { },
+                delete: function (eventHash) {
+                    if (!this.elements.triangle[eventHash]) return;
+                    this.elements.triangle[eventHash].destroy();
+                    delete this.elements.triangle[eventHash];
+                },
+                event: function (element) {
+                    const eventHash = 'x' + s4();
+
+                    this.elements.triangle[eventHash] = new PIXI.Graphics();
+
+                    this.elements.triangle[eventHash].beginFill(pixiColors['black'], 1);
+                    this.elements.triangle[eventHash].lineStyle(0, randomNumberColor(), 1);
+
+
+
+
+                    const direction = element.direction;
+
+                    const triangleDim = element.dim * pixiAmplitudeFactor,
+                        triangleHalfway = triangleDim / 2;
+
+                    if (direction === 'East') {
+                        this.elements.triangle[eventHash].moveTo(0, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(0, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(0, 0);
+                    }
+
+                    if (direction === 'West') {
+                        this.elements.triangle[eventHash].moveTo(triangleDim, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(0, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, 0);
+                    }
+
+                    if (direction === 'South') {
+                        this.elements.triangle[eventHash].moveTo(triangleDim, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(0, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, 0);
+                    }
+
+                    if (direction === 'North') {
+                        this.elements.triangle[eventHash].moveTo(0, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, 0);
+                        this.elements.triangle[eventHash].lineTo(0, triangleDim);
+                    }
+
+                    if (direction === 'North East') {
+                        this.elements.triangle[eventHash].moveTo(0, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, 0);
+                        this.elements.triangle[eventHash].lineTo(0, triangleHalfway);
+                    }
+
+                    if (direction === 'South East') {
+                        this.elements.triangle[eventHash].moveTo(0, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(0, triangleHalfway);
+                    }
+
+                    if (direction === 'North West') {
+                        this.elements.triangle[eventHash].moveTo(triangleHalfway, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(0, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, triangleDim);
+                    }
+
+                    if (direction === 'South West') {
+                        this.elements.triangle[eventHash].moveTo(triangleHalfway, 0);
+                        this.elements.triangle[eventHash].lineTo(triangleDim, triangleHalfway);
+                        this.elements.triangle[eventHash].lineTo(0, triangleDim);
+                        this.elements.triangle[eventHash].lineTo(triangleHalfway, 0);
+                    }
+
+                    this.elements.triangle[eventHash].endFill();
+                    if (elementsContainer[element.id])
+                        elementsContainer[element.id].addChild(this.elements.triangle[eventHash]);
+
+
+                    setTimeout(() => {
+                        this.delete(eventHash);
+                    }, 1000);
+
+                }
+            },
             'BULLET-THREE-RANDOM-CIRCLE-COLOR': {
                 //      X
                 // >  X
@@ -1848,7 +2328,8 @@ this.cyberiaonline = {
                                     'bar-life'
                                 ]
                             );
-                            COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
+                            // COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
+                            COMPONENTS['BULLET-DARK-TRIANGLE'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
                             this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
                                 if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
@@ -1947,6 +2428,16 @@ this.cyberiaonline = {
                             this.components = [this.type];
                             setTimeout(() => {
                                 COMPONENTS['heal-circle-color-one-big'].event(this);
+                            });
+                            setTimeout(() => {
+                                removeElement(this);
+                            }, 400);
+
+                            break;
+                        case 'BULLET-DARK-TRIANGLE':
+                            this.components = [this.type];
+                            setTimeout(() => {
+                                COMPONENTS['dark-triangle'].event(this);
                             });
                             setTimeout(() => {
                                 removeElement(this);
