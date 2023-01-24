@@ -311,6 +311,7 @@ this.cyberiaonline = {
         const setShoot = (element, config, fn) => {
             element.validateShoot[config.name] = true;
             element.shootTimeInterval[config.name] = config.shootTimeInterval;
+            element.shootType[config.name] = config.type;
             element.shoot[config.name] = () => {
                 if (element.validateShoot[config.name]) {
                     element.validateShoot[config.name] = false;
@@ -1025,7 +1026,8 @@ this.cyberiaonline = {
                         }),
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-DARK-TRIANGLE',
-                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700
+                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700,
+                        type: 'trigger'
                     }, () => {
 
 
@@ -1508,7 +1510,8 @@ this.cyberiaonline = {
                         }),
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-THREE-RANDOM-CIRCLE-COLOR',
-                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700
+                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700,
+                        type: 'trigger'
                     }, () => {
 
                         let direction = element.direction;
@@ -1810,7 +1813,8 @@ this.cyberiaonline = {
                         }),
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-HEAL',
-                        shootTimeInterval: 500
+                        shootTimeInterval: 500,
+                        type: 'passive'
                     }, () => {
 
                         elements.push(gen().init({
@@ -1861,7 +1865,8 @@ this.cyberiaonline = {
                 functions: {
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-CROSS',
-                        shootTimeInterval: 500
+                        shootTimeInterval: 500,
+                        type: 'trigger'
                     }, () => {
                         let xBullet = 0;
                         let yBullet = 0;
@@ -2314,6 +2319,7 @@ this.cyberiaonline = {
                     this.shoot = {};
                     this.shootTimeInterval = {};
                     this.validateShoot = {};
+                    this.shootType = {};
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
                     this.deadDelay = 2000;
@@ -2362,9 +2368,12 @@ this.cyberiaonline = {
                             // COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             COMPONENTS['BULLET-DARK-TRIANGLE'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
-                            this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
-                                if (this.validateShoot[btn] === true) range(0, 0).map(attemp =>
-                                    setTimeout(() => this.shoot[btn](), attemp * 100));
+                            this.autoMovementShoot = (types) => Object.keys(this.shoot).map(btn => {
+                                if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
+                                    setTimeout(() =>
+                                        types.includes(this.shootType[btn]) ?
+                                            this.shoot[btn]() : null,
+                                        attemp * 100));
                             });
                             // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
                             break;
@@ -2677,11 +2686,24 @@ this.cyberiaonline = {
                             this.clearsIntervals.push('ArrowDown');
 
 
+                            ['Q', 'q'].map(btnKey => {
+                                this[btnKey] = startListenKey({
+                                    key: btnKey,
+                                    vel: timeIntervalGame,
+                                    onKey: () => {
+                                        if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
+                                    }
+                                });
+                                this.clearsIntervals.push(btnKey);
+                            });
+
+
 
                             this.onCanvasClick = event => {
                                 const currentTimeClick = (+ new Date());
                                 if (this.lastClick !== undefined && (currentTimeClick - this.lastClick) <= 250) {
                                     this.blockPath = true;
+                                    if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
                                 } else {
                                     this.blockPath = undefined;
                                 }
@@ -2800,7 +2822,7 @@ this.cyberiaonline = {
                             this.path = element.path;
                             this.x = element.x;
                             this.y = element.y;
-                            if (this.autoMovementShoot) this.autoMovementShoot();
+                            if (this.autoMovementShoot) this.autoMovementShoot(['passive']);
 
                             break;
                         case 'BOT_BUG':
