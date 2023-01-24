@@ -2173,6 +2173,35 @@ this.cyberiaonline = {
                     }, 1000);
 
                 }
+            },
+            'path-click-controller': {
+                functions: {},
+                elements: {},
+                data: {},
+                init: function (element) { },
+                loop: function (element) {
+                    if (
+                        element.path[0]
+                        && getDistance(
+                            element.path[0][0],
+                            element.path[0][1],
+                            element.path[element.path.length - 1][0],
+                            element.path[element.path.length - 1][1]
+                        ) <= element.searchStopRange * 1.05
+                        &&
+                        element.blockPath
+                    ) {
+                        element.direction = getDirection(
+                            element.path[0][0],
+                            element.path[0][1],
+                            element.path[(element.path.length - 1)][0],
+                            element.path[(element.path.length - 1)][1]).direction;
+                        element.path = [];
+                    }
+                },
+                event: function (element) { },
+                delete: function (element) { }
+
             }
         };
 
@@ -2239,6 +2268,7 @@ this.cyberiaonline = {
             elementsContainer[element.id].y = newInstance(element.renderY);
 
 
+            // coin indicator
             if (element.lastCoin !== undefined) {
                 const valueChangeCoin = Math.abs((element.lastCoin - element.coin));
                 if (element.lastCoin < element.coin) {
@@ -2325,14 +2355,15 @@ this.cyberiaonline = {
                                     'anon-foots',
                                     'random-circle-color',
                                     'display-id',
-                                    'bar-life'
+                                    'bar-life',
+                                    'path-click-controller'
                                 ]
                             );
                             // COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             COMPONENTS['BULLET-DARK-TRIANGLE'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
                             this.autoMovementShoot = () => Object.keys(this.shoot).map(btn => {
-                                if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
+                                if (this.validateShoot[btn] === true) range(0, 0).map(attemp =>
                                     setTimeout(() => this.shoot[btn](), attemp * 100));
                             });
                             // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
@@ -2648,6 +2679,13 @@ this.cyberiaonline = {
 
 
                             this.onCanvasClick = event => {
+                                const currentTimeClick = (+ new Date());
+                                if (this.lastClick !== undefined && (currentTimeClick - this.lastClick) <= 250) {
+                                    this.blockPath = true;
+                                } else {
+                                    this.blockPath = undefined;
+                                }
+                                this.lastClick = currentTimeClick;
                                 // off -> this.canvasDim
                                 // x -> 50
                                 let offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
