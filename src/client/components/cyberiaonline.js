@@ -325,6 +325,103 @@ this.cyberiaonline = {
 
         const randomIndicatorPosition = () => [0.95, 1.05, 1][random(0, 2)];
 
+        const dirDeployElements = (element, config) => {
+
+            const dir8Data = {
+                factorDim: 0.5,
+                factorDiagonal: 0.4,
+                dim: [
+                    {
+                        direction: 'North',
+                        x: [0, -1, 1],
+                        y: [-1, -1, -1]
+                    },
+                    {
+                        direction: 'East',
+                        x: [1, 1, 1],
+                        y: [0, -1, 1]
+                    },
+                    {
+                        direction: 'South',
+                        x: [0, -1, 1],
+                        y: [1, 1, 1]
+                    },
+                    {
+                        direction: 'West',
+                        x: [-1, -1, -1],
+                        y: [0, -1, 1]
+                    }
+                ],
+                diagonal: [
+                    {
+                        direction: 'North East',
+                        x: [1, 1, 1],
+                        y: [-1, -1, -1]
+                    },
+                    {
+                        direction: 'South East',
+                        x: [1, 1, 1],
+                        y: [1, 1, 1]
+                    },
+                    {
+                        direction: 'South West',
+                        x: [-1, -1, -1],
+                        y: [1, 1, 1]
+                    },
+                    {
+                        direction: 'North West',
+                        x: [-1, -1, -1],
+                        y: [-1, -1, -1]
+                    }
+                ]
+            };
+
+            dir8Data.dim.map(dataDir => {
+                if (dataDir.direction === element.direction)
+                    range(0, 2).map(iDir => {
+                        elements.push(gen().init({
+                            id: id(),
+                            ...config,
+                            x: element.x + (dataDir.x[iDir] * (element.searchStopRange * (iDir === 0 ? 1 : dir8Data.factorDim))),
+                            y: element.y + (dataDir.y[iDir] * (element.searchStopRange * (iDir === 0 ? 1 : dir8Data.factorDim))),
+                            direction: element.direction,
+                            parent: element,
+                            dim: element.dim
+                        }));
+                    });
+            });
+
+            dir8Data.diagonal.map(dataDir => {
+                if (dataDir.direction === element.direction)
+                    range(0, 2).map(iDir => {
+                        let xFactor;
+                        let yFactor;
+                        if (iDir === 0) {
+                            xFactor = dir8Data.factorDiagonal;
+                            yFactor = 1;
+                        }
+                        if (iDir === 1) {
+                            xFactor = 1;
+                            yFactor = 1;
+                        }
+                        if (iDir === 2) {
+                            xFactor = 1;
+                            yFactor = dir8Data.factorDiagonal;
+                        }
+                        elements.push(gen().init({
+                            id: id(),
+                            ...config,
+                            x: element.x + (dataDir.x[iDir] * element.searchStopRange * xFactor),
+                            y: element.y + (dataDir.y[iDir] * element.searchStopRange * yFactor),
+                            direction: element.direction,
+                            parent: element,
+                            dim: element.dim
+                        }));
+                    });
+            });
+
+        };
+
 
         // ----------------------------------------------------------------
         // ----------------------------------------------------------------
@@ -1030,102 +1127,11 @@ this.cyberiaonline = {
                         type: 'trigger'
                     }, () => {
 
-
-
-                        const dir8Data = {
-                            factorDim: 0.5,
-                            factorDiagonal: 0.4,
-                            dim: [
-                                {
-                                    direction: 'North',
-                                    x: [0, -1, 1],
-                                    y: [-1, -1, -1]
-                                },
-                                {
-                                    direction: 'East',
-                                    x: [1, 1, 1],
-                                    y: [0, -1, 1]
-                                },
-                                {
-                                    direction: 'South',
-                                    x: [0, -1, 1],
-                                    y: [1, 1, 1]
-                                },
-                                {
-                                    direction: 'West',
-                                    x: [-1, -1, -1],
-                                    y: [0, -1, 1]
-                                }
-                            ],
-                            diagonal: [
-                                {
-                                    direction: 'North East',
-                                    x: [1, 1, 1],
-                                    y: [-1, -1, -1]
-                                },
-                                {
-                                    direction: 'South East',
-                                    x: [1, 1, 1],
-                                    y: [1, 1, 1]
-                                },
-                                {
-                                    direction: 'South West',
-                                    x: [-1, -1, -1],
-                                    y: [1, 1, 1]
-                                },
-                                {
-                                    direction: 'North West',
-                                    x: [-1, -1, -1],
-                                    y: [-1, -1, -1]
-                                }
-                            ]
-                        };
-
-                        dir8Data.dim.map(dataDir => {
-                            if (dataDir.direction === element.direction)
-                                range(0, 2).map(iDir => {
-                                    elements.push(gen().init({
-                                        id: id(),
-                                        type: 'BULLET-DARK-TRIANGLE',
-                                        color: 'dark red',
-                                        x: element.x + (dataDir.x[iDir] * (element.searchStopRange * (iDir === 0 ? 1 : dir8Data.factorDim))),
-                                        y: element.y + (dataDir.y[iDir] * (element.searchStopRange * (iDir === 0 ? 1 : dir8Data.factorDim))),
-                                        direction: element.direction,
-                                        parent: element,
-                                        dim: element.dim
-                                    }));
-                                });
+                        dirDeployElements(element, {
+                            type: 'BULLET-DARK-TRIANGLE',
+                            color: 'dark red'
                         });
 
-                        dir8Data.diagonal.map(dataDir => {
-                            if (dataDir.direction === element.direction)
-                                range(0, 2).map(iDir => {
-                                    let xFactor;
-                                    let yFactor;
-                                    if (iDir === 0) {
-                                        xFactor = dir8Data.factorDiagonal;
-                                        yFactor = 1;
-                                    }
-                                    if (iDir === 1) {
-                                        xFactor = 1;
-                                        yFactor = 1;
-                                    }
-                                    if (iDir === 2) {
-                                        xFactor = 1;
-                                        yFactor = dir8Data.factorDiagonal;
-                                    }
-                                    elements.push(gen().init({
-                                        id: id(),
-                                        type: 'BULLET-DARK-TRIANGLE',
-                                        color: 'dark red',
-                                        x: element.x + (dataDir.x[iDir] * element.searchStopRange * xFactor),
-                                        y: element.y + (dataDir.y[iDir] * element.searchStopRange * yFactor),
-                                        direction: element.direction,
-                                        parent: element,
-                                        dim: element.dim
-                                    }));
-                                });
-                        });
 
 
 
