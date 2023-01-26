@@ -26,6 +26,7 @@ this.cyberiaonline = {
         const homeBtnId = id();
         this.windowGamePanel = id();
         let framesCount = -1;
+        const intervalFrameLifeIndicator = 50;
 
 
 
@@ -604,8 +605,6 @@ this.cyberiaonline = {
                             `${renderPosition('y', element)}px`;
                         s(`.${this.data.id[element.id]}`).style.left =
                             `${renderPosition('x', element)}px`;
-                    } else {
-                        console.error('!s(`.${this.data.id[element.id]}`)');
                     }
                 },
                 event: function (element) { },
@@ -638,7 +637,6 @@ this.cyberiaonline = {
                     if (element.life < 0) element.life = 0;
                     if (element.life > element.maxLife) element.life = newInstance(element.maxLife);
                     const factorLife = element.life / element.maxLife;
-                    // console.error('factorLife', factorLife);
                     this.elements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
                     if (element.life === 0) {
                         const typeElement = `${element.type}`;
@@ -1089,23 +1087,158 @@ this.cyberiaonline = {
                     delete this.elements.eyesRight[element.id];
                 }
             },
+            'BULLET-RED': {
+                functions: {
+                    alertCollision: (element, fromArray, toArray) =>
+                        elements.filter(x => {
+
+                            return (
+                                fromArray.includes(element.type)
+                                &&
+                                validateCollision(x, element)
+                                &&
+                                element.id !== x.id
+                                &&
+                                toArray.includes(x.type)
+                                &&
+                                element.parent.id !== x.id
+                                &&
+                                element.parent.type !== x.type
+                            );
+
+                        }),
+                    setShoot: element => setShoot(element, {
+                        name: 'BULLET-RED',
+                        shootTimeInterval: element.type === 'BOT' ? 1500 : 700,
+                        type: 'trigger'
+                    }, () => {
+
+                        const subFactorDim = 0.25 / 2;
+
+                        elements.push(gen().init({
+                            id: id(),
+                            type: 'BULLET-RED',
+                            color: 'red',
+                            x: element.x + ((element.dim * subFactorDim) / 2), // element.x, // + (element.dim / 2) , // - ((element.dim * subFactorDim) / 2),
+                            y: element.y + ((element.dim * subFactorDim) / 2), // element.y, // + (element.dim / 2) , // - ((element.dim * subFactorDim) / 2),
+                            direction: element.direction,
+                            parent: element,
+                            dim: element.dim * subFactorDim
+                        }));
+
+                    }),
+                    updatePosition: {}
+                },
+                elements: {},
+                data: {
+                    value: 25,
+                    vel: 2500,
+                    validateShoot: {}
+                },
+                init: function (element) {
+                    this.data.validateShoot[element.id] = true;
+                    if (element.direction === 'East') {
+                        this.functions.updatePosition[element.id] = () =>
+                            element.x = element.x + element.vel;
+                    }
+
+                    if (element.direction === 'West') {
+                        this.functions.updatePosition[element.id] = () =>
+                            element.x = element.x - element.vel;
+                    }
+
+                    if (element.direction === 'South') {
+                        this.functions.updatePosition[element.id] = () =>
+                            element.y = element.y + element.vel;
+                    }
+
+                    if (element.direction === 'North') {
+                        this.functions.updatePosition[element.id] = () =>
+                            element.y = element.y - element.vel;
+                    }
+
+                    if (element.direction === 'North East') {
+                        this.functions.updatePosition[element.id] = () => {
+                            element.x = element.x + element.vel;
+                            element.y = element.y - element.vel;
+                        };
+                    }
+
+                    if (element.direction === 'South East') {
+                        this.functions.updatePosition[element.id] = () => {
+                            element.x = element.x + element.vel;
+                            element.y = element.y + element.vel;
+                        };
+                    }
+
+                    if (element.direction === 'North West') {
+                        this.functions.updatePosition[element.id] = () => {
+                            element.x = element.x - element.vel;
+                            element.y = element.y - element.vel;
+                        };
+                    }
+
+                    if (element.direction === 'South West') {
+                        this.functions.updatePosition[element.id] = () => {
+                            element.x = element.x - element.vel;
+                            element.y = element.y + element.vel;
+                        };
+                    }
+                },
+                loop: function (element) {
+
+                    this.functions.updatePosition[element.id]();
+
+                    const participantsFrom = ['BULLET-RED'];
+                    const participantsTo = ['BOT', 'USER_MAIN', 'BUILDING'];
+                    const collisionTest =
+                        this.functions.alertCollision(element, participantsFrom, participantsTo)
+                    if (this.data.validateShoot[element.id] === true && collisionTest.length > 0) {
+
+                        this.data.validateShoot[element.id] = false;
+                        setTimeout(() => {
+                            this.data.validateShoot[element.id] = true;
+                        }, this.data.vel);
+
+                        collisionTest.map(elementConllision => {
+
+                            if (!elementsContainer[element.id]) return;
+
+                            if (elementConllision.type === 'BUILDING') return removeElement(element);
+
+                            elementConllision.life = elementConllision.life - this.data.value;
+                            if (elementConllision.type === 'BOT'
+                                && element.parent.type === 'USER_MAIN'
+                                && elementConllision.life <= 0
+                                && !element.parent.idsAfterBotDrops.includes(elementConllision.id)) {
+                                element.parent.coin = element.parent.coin + 10;
+                                element.parent.idsAfterBotDrops.push(elementConllision.id);
+                            };
+
+                            return removeElement(element);
+                        });
+                    }
+
+                    if (
+                        element.x >= maxRangeMap
+                        || element.y >= maxRangeMap
+                        || element.x <= 0
+                        || element.y <= 0
+                    ) {
+                        removeElement(element);
+                    }
+                },
+                event: function (element) { },
+                delete: function (element) {
+                    delete this.data.validateShoot[element.id];
+                }
+            },
             'BULLET-DARK-TRIANGLE': {
                 functions: {
                     alertCollision: (element, fromArray, toArray) =>
                         elements.filter(x => {
 
 
-
-                            // console.error(fromArray, element.type, x.type);
-
-                            // if (fromArray.includes(element.type) &&
-                            //     toArray.includes(x.type)) {
-                            //     console.error('--', fromArray.includes(element.type));
-                            //     console.error('--', validateCollision(x, element));
-                            //     console.error('--', element.id !== x.id);
-                            //     console.error('--', toArray.includes(x.type));
-                            //     console.error(x, element);
-                            // }
                             return (
                                 fromArray.includes(element.type)
                                 &&
@@ -1161,9 +1294,6 @@ this.cyberiaonline = {
                         }, this.data.vel);
 
 
-                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
-
-
                         collisionTest.map(elementConllision => {
                             elementConllision.life = elementConllision.life - this.data.value;
                             if (elementConllision.type === 'BOT'
@@ -1173,7 +1303,6 @@ this.cyberiaonline = {
                                 element.parent.coin = element.parent.coin + 10;
                                 element.parent.idsAfterBotDrops.push(elementConllision.id);
                             };
-                            // console.error(element.life);
                         });
                     }
                 },
@@ -1281,19 +1410,6 @@ this.cyberiaonline = {
                 functions: {
                     alertCollision: (element, fromArray, toArray) =>
                         elements.filter(x => {
-
-
-
-                            // console.error(fromArray, element.type, x.type);
-
-                            // if (fromArray.includes(element.type) &&
-                            //     toArray.includes(x.type)) {
-                            //     console.error('--', fromArray.includes(element.type));
-                            //     console.error('--', validateCollision(x, element));
-                            //     console.error('--', element.id !== x.id);
-                            //     console.error('--', toArray.includes(x.type));
-                            //     console.error(x, element);
-                            // }
                             return (
                                 fromArray.includes(element.type)
                                 &&
@@ -1569,7 +1685,6 @@ this.cyberiaonline = {
                         }, this.data.vel);
 
 
-                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
 
 
                         collisionTest.map(elementConllision => {
@@ -1581,7 +1696,6 @@ this.cyberiaonline = {
                                 element.parent.coin = element.parent.coin + 10;
                                 element.parent.idsAfterBotDrops.push(elementConllision.id);
                             };
-                            // console.error(element.life);
                         });
                     }
                 },
@@ -1594,17 +1708,6 @@ this.cyberiaonline = {
                         elements.filter(x => {
 
 
-
-                            // console.error(fromArray, element.type, x.type);
-
-                            // if (fromArray.includes(element.type) &&
-                            //     toArray.includes(x.type)) {
-                            //     console.error('--', fromArray.includes(element.type));
-                            //     console.error('--', validateCollision(x, element));
-                            //     console.error('--', element.id !== x.id);
-                            //     console.error('--', toArray.includes(x.type));
-                            //     console.error(x, element);
-                            // }
                             return (
                                 validateCollision(x, element)
                                 &&
@@ -1648,8 +1751,6 @@ this.cyberiaonline = {
                             this.data.validateShoot[element.id] = true;
                         }, this.data.vel);
 
-
-                        // console.error(this.functions.alertCollision(element, participantsFrom, participantsTo));
 
 
                         collisionTest.map(element => {
@@ -2008,11 +2109,48 @@ this.cyberiaonline = {
                 event: function (element) { },
                 delete: function (element) { }
 
+            },
+            'bullet-red': {
+                functions: {},
+                data: {},
+                elements: {
+                    circle: {}
+                },
+                init: function (element) { },
+                loop: function (element) { },
+                event: function (element) {
+
+                    const eventHash = `x${s4()}${s4()}`;
+
+                    this.elements.circle[eventHash] = new PIXI.Graphics();
+
+                    this.elements.circle[eventHash].beginFill(pixiColors['red']);
+                    this.elements.circle[eventHash].lineStyle(0);
+                    this.elements.circle[eventHash].drawCircle(
+                        0, // (element.dim * pixiAmplitudeFactor) * 0.5,
+                        0, // (element.dim * pixiAmplitudeFactor) * 0.5,
+                        (element.dim * pixiAmplitudeFactor)
+                    ); // x,y,radio
+                    this.elements.circle[eventHash].endFill();
+
+                    elementsContainer[element.id].addChild(this.elements.circle[eventHash]);
+                    this.functions[eventHash] = setInterval(() => {
+                        if (!elementsContainer[element.id]) {
+                            this.delete(eventHash);
+                            clearInterval(this.functions[eventHash]);
+                        }
+                    }, 1);
+
+                },
+                delete: function (eventHash) {
+                    this.elements.circle[eventHash].destroy();
+                    delete this.elements.circle[eventHash];
+                }
             }
         };
 
         const removeElement = element => {
-            if (!elementsContainer[element.id]) return;
+            if (!elementsContainer[element.id]) return console.error('re1');
             // logDataManage(element);
             if (element.components)
                 element.components.map(component =>
@@ -2047,11 +2185,7 @@ this.cyberiaonline = {
         };
 
         const PIXI_LOOP_ELEMENT = element => {
-            if (!elementsContainer[element.id]) {
-                // bug pero si esta en elements
-                console.error('!elementsContainer[element.id]');
-                return;
-            };
+            if (!elementsContainer[element.id]) return console.error('ple1');
             element.renderX = (element.x - (element.dim / 2)) * pixiAmplitudeFactor;
             element.renderY = (element.y - (element.dim / 2)) * pixiAmplitudeFactor;
             let direction;
@@ -2070,6 +2204,7 @@ this.cyberiaonline = {
                 COMPONENTS[component].loop(element));
             element.lastX = parseInt(`${element.renderX}`);
             element.lastY = parseInt(`${element.renderY}`);
+            if (!elementsContainer[element.id]) return console.error('ple2');
             elementsContainer[element.id].x = newInstance(element.renderX);
             elementsContainer[element.id].y = newInstance(element.renderY);
 
@@ -2085,7 +2220,6 @@ this.cyberiaonline = {
             if (element.id === mainUserId) element.lastCoin = newInstance(element.coin);
 
             // dead container and respawn
-            const intervalFrameLifeIndicator = 50;
             if (element.lastLife !== undefined) {
                 const valueChangeLife = Math.abs((element.lastLife - element.life));
                 if (element.lastLife !== element.life)
@@ -2094,7 +2228,6 @@ this.cyberiaonline = {
                     COMPONENTS['damage-indicator'].event(element, valueChangeLife);
                 if (element.lastLife < element.life && (framesCount % intervalFrameLifeIndicator === 0))
                     COMPONENTS['heal-indicator'].event(element, valueChangeLife);
-                // if (!element) alert();
             }
             if (framesCount % intervalFrameLifeIndicator === 0) element.lastLife = newInstance(element.life);
         };
@@ -2169,6 +2302,7 @@ this.cyberiaonline = {
                             // COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             COMPONENTS['BULLET-DARK-TRIANGLE'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
+                            COMPONENTS['BULLET-RED'].functions.setShoot(this);
                             this.autoMovementShoot = (types) => Object.keys(this.shoot).map(btn => {
                                 if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
                                     setTimeout(() =>
@@ -2209,8 +2343,6 @@ this.cyberiaonline = {
                                     elements.map(element => {
                                         if (element.type === 'USER_MAIN') {
                                             const targetDistance = getDistance(element.x, element.y, this.x, this.y);
-                                            // console.error(
-                                            //     'getDistance', targetDistance, this.searchPathRange);
                                             if (
                                                 targetDistance <= this.searchPathRange &&
                                                 (elementTarget === undefined || elementTarget.aggro < element.aggro)
@@ -2226,7 +2358,6 @@ this.cyberiaonline = {
                                                     dim: element.dim
                                                 };
                                             };
-                                            // console.error('elementTarget', elementTarget);
 
                                             if (elementTarget !== undefined) {
                                                 this.autoShoot = true;
@@ -2284,6 +2415,12 @@ this.cyberiaonline = {
                                 removeElement(this);
                             }, 400);
 
+                            break;
+                        case 'BULLET-RED':
+                            this.components = [this.type];
+                            setTimeout(() => {
+                                COMPONENTS['bullet-red'].event(this);
+                            });
                             break;
                         case 'BULLET-THREE-RANDOM-CIRCLE-COLOR':
                             this.components = ['background-circle', this.type];
