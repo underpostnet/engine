@@ -19,7 +19,7 @@ const range = (start, end) => {
 };
 
 const buildBaseApiUri = () => {
-    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev')
+    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev')
         return '';
     return '/' + process.env.BASE_API_URI;
 };
@@ -353,9 +353,9 @@ const commonFunctions = () => `
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
-    if (process.argv[2] == 'build' && process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev')
+    if (process.argv[2] == 'build' && process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev')
         return `http://localhost:${process.env.BUILD_DEV_PORT}`;
-    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev')
+    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev')
         return `http://localhost:${process.env.PORT}`;
     if (process.env.SSL == 'true')
         return `https://${subDomain ? subDomain + '.' : viewMetaData.subDomain ? viewMetaData.subDomain + '.' : ''}${viewMetaData.host}`;
@@ -365,16 +365,16 @@ const buildURL = (viewMetaData, subDomain) => {
 const validateGenerateBuild = clientID => (!process.argv[3] || process.argv[3] == clientID);
 
 const buildBaseUri = view => {
-    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' && process.argv[2] != 'build')
+    if (process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' && process.argv[2] != 'build')
         return view.path;
     return clearSubUri(view.path);
 };
 
 const baseStaticUri = viewMetaData =>
-    process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev' ? '/' + viewMetaData.clientID : '';
+    process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev' && process.env.NODE_ENV != 'cyberia-dev' ? '/' + viewMetaData.clientID : '';
 
 const baseStaticClient = viewMetaData =>
-    process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' && process.argv[2] != 'build' ? '/' + viewMetaData.clientID : '';
+    process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' && process.argv[2] != 'build' ? '/' + viewMetaData.clientID : '';
 
 // const banWords = ['boards', 'login', 'register', 'markdown', 'js-editor', 'editor', 'admin', 'mod'];
 const banChars = ['/', '\\', '.', ' '];

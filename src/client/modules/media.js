@@ -32,7 +32,7 @@ const statics = (app, mergeStaticsId) => {
 
 const singleStatics = (app, deployModuleId) => {
 
-    const BSU = process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ? '' : '/' + deployModuleId;
+    const BSU = process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' ? '' : '/' + deployModuleId;
 
     const cssAudioPlayer = fs.readFileSync('./underpost_modules/underpost-library/audioplayer/AudioPlayer.css', 'utf-8');
     app.get(BSU + '/audioplayer/AudioPlayer.css', (req, res) => {
@@ -121,7 +121,7 @@ const singleStatics = (app, deployModuleId) => {
         });
     };
 
-    const baseApiUri = process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' ? '' : process.env.API_URL;
+    const baseApiUri = process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' ? '' : process.env.API_URL;
     const srcAudioPlayer = /*html*/`
     <!DOCTYPE html>
     <html >
@@ -151,7 +151,7 @@ const singleStatics = (app, deployModuleId) => {
 
         <script>
         (function(){
-            const dev =  ${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' && process.argv[2] != 'build' ? 'true' : 'false'};
+            const dev =  ${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' && process.argv[2] != 'build' ? 'true' : 'false'};
             const build = ${process.argv[2] == 'build'};
             if(!dev){
                 console.log = () => null;

@@ -10,7 +10,7 @@ const peerOptions = {
     /* proxied: true */
 };
 
-if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev'
+if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev' && process.env.NODE_ENV != 'cyberia-dev'
     && fs.existsSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/key.key')) peerOptions.ssl = {
         key: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/key.key'),
         cert: fs.readFileSync('C:/dd/virtual_machine/SSL/services_cyberiaonline/ssl/crt.crt'),

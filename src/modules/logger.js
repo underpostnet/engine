@@ -23,7 +23,7 @@ const levels = {
 // if it was run in production, show only warn and error messages.
 const level = () => {
     const env = process.env.NODE_ENV || 'development'
-    const isDevelopment = env === 'development'
+    const isDevelopment = process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev';
     return isDevelopment ? 'debug' : 'warn'
 };
 

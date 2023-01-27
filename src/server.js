@@ -33,7 +33,9 @@ import { cyberiaonline } from './client/modules/cyberiaonline.js';
 
 dotenv.config();
 logger.info(process.argv);
-logger.info(`version ${process.env.npm_package_version}`);
+logger.info(`version: ${process.env.npm_package_version}`);
+logger.info(`env: ${process.env.NODE_ENV}`);
+
 const app = express();
 
 const APPS = [
@@ -73,6 +75,10 @@ apiUploader(app);
                 const { ipfsDaemon } = await loadModule('../modules/ipfs.js');
                 ipfsDaemon();
             }
+            if (process.env.NODE_ENV == 'cyberia-dev') {
+                const { wsCyberia } = await loadModule('../modules/ws-cyberia.js');
+                wsCyberia();
+            }
         });
     }
 
@@ -86,7 +92,7 @@ apiUploader(app);
     }
 
 
-    if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev') {
+    if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev' && process.env.NODE_ENV != 'cyberia-dev') {
         console.log = () => null;
         console.warn = () => null;
         console.error = () => null;
