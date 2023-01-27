@@ -98,7 +98,7 @@ const onUploadFile = async (req, res) => {
 
                 let ipfsObj = {};
                 if (process.env.NODE_ENV == 'ipfs-dev') {
-                    const { ipfsAdd } = await loadModule('../modules/ipfs.js');
+                    const { ipfsAdd } = await import('../modules/ipfs.js');
                     ipfsObj = await ipfsAdd(req.files[keyFile].data);
                 }
 

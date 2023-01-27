@@ -13,8 +13,7 @@ import {
     replaceAll,
     buildBaseUri,
     clearSubUri,
-    uniqueArray,
-    loadModule
+    uniqueArray
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -309,8 +308,8 @@ const ssr = async (app, renderData) => {
     // TODO: pasar como metodo en el modulo de forma generica
     if (viewMetaData.clientID == 'dogmadual') {
         try {
-            const { cv } = await loadModule('../../private-engine/meta-components/cv.js');
-            // const { en } = await loadModule('../../private-engine/meta-components/en.js');
+            const { cv } = await import('../../private-engine/meta-components/cv.js');
+            // const { en } = await import('../../private-engine/meta-components/en.js');
             viewPaths.push(cv);
             // viewPaths.push(en);
         } catch (error) {

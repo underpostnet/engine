@@ -15,7 +15,7 @@ import { peerServer } from './modules/peer.js';
 import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
-import { apiUtil, loadModule, validateGenerateBuild } from './api/util.js';
+import { apiUtil, validateGenerateBuild } from './api/util.js';
 
 // client complements
 import { engine } from './client/modules/engine.js';
@@ -72,18 +72,18 @@ apiUploader(app);
             logger.info(`Http Server is running on port ${process.env.PORT}`);
             peerServer();
             if (process.env.NODE_ENV == 'ipfs-dev') {
-                const { ipfsDaemon } = await loadModule('../modules/ipfs.js');
+                const { ipfsDaemon } = await import('./modules/ipfs.js');
                 ipfsDaemon();
             }
             if (process.env.NODE_ENV == 'cyberia-dev') {
-                const { wsCyberia } = await loadModule('../modules/ws-cyberia.js');
+                const { wsCyberia } = await import('./modules/ws-cyberia.js');
                 wsCyberia();
             }
         });
     }
 
     else {
-        const { generateZipFromFolder } = await loadModule('../modules/zip.js');
+        const { generateZipFromFolder } = await import('./modules/zip.js');
         APPS.map(async dataRender =>
             dataRender.viewMetaData.generateZipBuild
                 && validateGenerateBuild(dataRender.viewMetaData.clientID) ?
@@ -97,7 +97,7 @@ apiUploader(app);
         console.warn = () => null;
         console.error = () => null;
     } else {
-        const { swaggerMod } = await loadModule('../modules/swagger.js');
+        const { swaggerMod } = await import('./modules/swagger.js');
         await ssr(app, APPS);
         app.get('/', (req, res) => res.redirect('/dev'));
         swaggerMod(app);

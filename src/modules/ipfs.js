@@ -1,5 +1,5 @@
 
-import { logger } from '../modules/logger.js';
+import { logger } from './logger.js';
 import * as Ctl from 'ipfsd-ctl'; // require equivalent
 import * as ipfsModule from 'ipfs';
 import * as ipfsHttpModule from 'ipfs-http-client';

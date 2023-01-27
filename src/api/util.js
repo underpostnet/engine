@@ -399,26 +399,9 @@ const apiUtil = app => {
 
 };
 
-class ImportError extends Error { }
-
-const loadModule = async (modulePath) => {
-    try {
-        return await import(modulePath)
-    } catch (e) {
-        throw new ImportError(`Unable to import module ${modulePath}`)
-    }
-}
-
-/* import exampple:
-async function main() {
-    // import myDefault, {foo, bar} from '/modules/my-module.js'
-    const { default: myDefault, foo, bar } = await loadModule('/modules/my-module.js')
-}
-*/
 
 export {
     uriUtil,
-    loadModule,
     apiUtil,
     commonFunctions,
     s4,

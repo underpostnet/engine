@@ -1,7 +1,7 @@
 
 import WebSocket from 'ws';
 import dotenv from 'dotenv';
-import { logger } from '../modules/logger.js';
+import { logger } from './logger.js';
 
 dotenv.config();
 
