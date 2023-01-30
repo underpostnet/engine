@@ -2311,7 +2311,18 @@ this.cyberiaonline = {
                                 if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
                                     setTimeout(() =>
                                         types.includes(this.shootType[btn]) ?
-                                            this.shoot[btn]() : null,
+                                            (() => {
+                                                this.shoot[btn]();
+                                                if (this.id === mainUserId) {
+                                                    socket.send(JSON.stringify({
+                                                        state: 'shoot',
+                                                        storage: {
+                                                            keyShoot: btn
+                                                        },
+                                                        element: getMainUserElement()
+                                                    }));
+                                                }
+                                            })() : null,
                                         attemp * 100));
                             });
                             // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
@@ -2781,7 +2792,18 @@ this.cyberiaonline = {
                             this.x = element.x;
                             this.y = element.y;
                             if (this.autoShoot === true && this.shoot)
-                                Object.keys(this.shoot).map(keyShoot => this.shoot[keyShoot]());
+                                Object.keys(this.shoot).map(keyShoot => {
+                                    this.shoot[keyShoot]();
+                                    if (this.id === mainUserId) {
+                                        socket.send(JSON.stringify({
+                                            state: 'shoot',
+                                            storage: {
+                                                keyShoot
+                                            },
+                                            element: getMainUserElement()
+                                        }));
+                                    }
+                                });
                             if (this.autoTarget) this.autoTarget();
 
                             break;
@@ -2951,13 +2973,22 @@ this.cyberiaonline = {
                         break;
                     case 'path':
                         indexUser = elements.findIndex(x => x.id === elementData.element.id);
-                        if (indexUser > -1) elements[indexUser].path = elementData.element.path;
+                        if (indexUser > -1) {
+                            elements[indexUser].path = elementData.element.path;
+                            elements[indexUser].blockPath = elementData.element.blockPath;
+                        }
                         break;
                     case 'x-y':
                         indexUser = elements.findIndex(x => x.id === elementData.element.id);
                         if (indexUser > -1) {
                             elements[indexUser].x = elementData.element.x;
                             elements[indexUser].y = elementData.element.y;
+                        }
+                        break;
+                    case 'shoot':
+                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
+                        if (indexUser > -1) {
+                            elements[indexUser].shoot[elementData.storage.keyShoot]();
                         }
                         break;
                     case 'close':
