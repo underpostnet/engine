@@ -28,6 +28,9 @@ this.cyberiaonline = {
         let framesCount = -1;
         const intervalFrameLifeIndicator = 50;
 
+        const urlws = 'ws://localhost:5502';
+        const socket = new WebSocket(urlws);
+
 
 
         this.inFullScreenBtn = id();
@@ -2289,16 +2292,17 @@ this.cyberiaonline = {
                                 this.y = USER_MAIN_getAvailablePosition.y;
                             }
                             this.color = 'yellow';
-                            this.components = this.components.concat(
-                                [
-                                    'anon-head',
-                                    'anon-foots',
-                                    'random-circle-color',
-                                    'display-id',
-                                    'bar-life',
-                                    'path-click-controller'
-                                ]
-                            );
+                            if (this.components.length === 1)
+                                this.components = this.components.concat(
+                                    [
+                                        'anon-head',
+                                        'anon-foots',
+                                        'random-circle-color',
+                                        'display-id',
+                                        'bar-life',
+                                        'path-click-controller'
+                                    ]
+                                );
                             // COMPONENTS['BULLET-THREE-RANDOM-CIRCLE-COLOR'].functions.setShoot(this);
                             COMPONENTS['BULLET-DARK-TRIANGLE'].functions.setShoot(this);
                             COMPONENTS['BULLET-HEAL'].functions.setShoot(this);
@@ -2573,100 +2577,126 @@ this.cyberiaonline = {
                     PIXI_INIT_ELEMENT(this);
                     switch (this.type) {
                         case 'USER_MAIN':
-                            this.ArrowLeft = startListenKey({
-                                key: 'ArrowLeft',
-                                vel: timeIntervalGame,
-                                onKey: () => {
-                                    this.path = [];
-                                    this.delayVelPath = 0;
-                                    // this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
-                                    if (baseMatrix[parseInt(this.y)][parseInt(this.x) - 1] === 0)
-                                        this.x = this.x - this.vel;
-
-                                }
-                            });
-                            this.clearsIntervals.push('ArrowLeft');
-                            this.ArrowRight = startListenKey({
-                                key: 'ArrowRight',
-                                vel: timeIntervalGame,
-                                onKey: () => {
-                                    this.path = [];
-                                    this.delayVelPath = 0;
-                                    // this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
-                                    if (baseMatrix[parseInt(this.y)][parseInt(this.x) + 1] === 0)
-                                        this.x = this.x + this.vel;
-                                }
-                            });
-                            this.clearsIntervals.push('ArrowRight');
-                            this.ArrowUp = startListenKey({
-                                key: 'ArrowUp',
-                                vel: timeIntervalGame,
-                                onKey: () => {
-                                    this.path = [];
-                                    this.delayVelPath = 0;
-                                    // this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
-                                    if (baseMatrix[parseInt(this.y) - 1][parseInt(this.x)] === 0)
-                                        this.y = this.y - this.vel;
-                                }
-                            });
-                            this.clearsIntervals.push('ArrowUp');
-                            this.ArrowDown = startListenKey({
-                                key: 'ArrowDown',
-                                vel: timeIntervalGame,
-                                onKey: () => {
-                                    this.path = [];
-                                    this.delayVelPath = 0;
-                                    // this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
-                                    if (baseMatrix[parseInt(this.y) + 1][parseInt(this.x)] === 0)
-                                        this.y = this.y + this.vel;
-                                }
-                            });
-                            this.clearsIntervals.push('ArrowDown');
-
-
-                            ['Q', 'q'].map(btnKey => {
-                                this[btnKey] = startListenKey({
-                                    key: btnKey,
+                            if (this.id === mainUserId) {
+                                this.ArrowLeft = startListenKey({
+                                    key: 'ArrowLeft',
                                     vel: timeIntervalGame,
                                     onKey: () => {
-                                        if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
+                                        this.path = [];
+                                        this.delayVelPath = 0;
+                                        // this.x = validatePosition(this, 'x', pos => pos - this.vel, ['BUILDING']);
+                                        if (baseMatrix[parseInt(this.y)][parseInt(this.x) - 1] === 0) {
+                                            this.x = this.x - this.vel;
+                                            socket.send(JSON.stringify({
+                                                state: 'x-y',
+                                                element: this
+                                            }));
+                                        }
+
                                     }
                                 });
-                                this.clearsIntervals.push(btnKey);
-                            });
-
-
-
-                            this.onCanvasClick = event => {
-                                const currentTimeClick = (+ new Date());
-                                if (this.lastClick !== undefined && (currentTimeClick - this.lastClick) <= 250) {
-                                    this.blockPath = true;
-                                    if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
-                                } else {
-                                    this.blockPath = undefined;
-                                }
-                                this.lastClick = currentTimeClick;
-                                // off -> this.canvasDim
-                                // x -> 50
-                                let offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
-                                let offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
-
-                                const { x, y, matrix } = getAvailablePosition(this,
-                                    {
-                                        x: offsetX,
-                                        y: offsetY,
-                                        elementsCollisions: ['BUILDING']
+                                this.clearsIntervals.push('ArrowLeft');
+                                this.ArrowRight = startListenKey({
+                                    key: 'ArrowRight',
+                                    vel: timeIntervalGame,
+                                    onKey: () => {
+                                        this.path = [];
+                                        this.delayVelPath = 0;
+                                        // this.x = validatePosition(this, 'x', pos => pos + this.vel, ['BUILDING']);
+                                        if (baseMatrix[parseInt(this.y)][parseInt(this.x) + 1] === 0) {
+                                            this.x = this.x + this.vel;
+                                            socket.send(JSON.stringify({
+                                                state: 'x-y',
+                                                element: this
+                                            }));
+                                        }
                                     }
-                                );
-                                offsetX = x;
-                                offsetY = y;
-                                console.log('onCanvasClick', event, offsetX, offsetY);
-                                this.path = generatePath(this, offsetX === maxRangeMap ? offsetX - 1 : offsetX, offsetY === maxRangeMap ? offsetY - 1 : offsetY);
-                                if (this.path.length === 0) {
-                                    // search solid snail -> auto generate click mov
-                                    // snail inverse -> pathfinding with snail normal
-                                }
-                            };
+                                });
+                                this.clearsIntervals.push('ArrowRight');
+                                this.ArrowUp = startListenKey({
+                                    key: 'ArrowUp',
+                                    vel: timeIntervalGame,
+                                    onKey: () => {
+                                        this.path = [];
+                                        this.delayVelPath = 0;
+                                        // this.y = validatePosition(this, 'y', pos => pos - this.vel, ['BUILDING']);
+                                        if (baseMatrix[parseInt(this.y) - 1][parseInt(this.x)] === 0) {
+                                            this.y = this.y - this.vel;
+                                            socket.send(JSON.stringify({
+                                                state: 'x-y',
+                                                element: this
+                                            }));
+                                        }
+                                    }
+                                });
+                                this.clearsIntervals.push('ArrowUp');
+                                this.ArrowDown = startListenKey({
+                                    key: 'ArrowDown',
+                                    vel: timeIntervalGame,
+                                    onKey: () => {
+                                        this.path = [];
+                                        this.delayVelPath = 0;
+                                        // this.y = validatePosition(this, 'y', pos => pos + this.vel, ['BUILDING']);
+                                        if (baseMatrix[parseInt(this.y) + 1][parseInt(this.x)] === 0) {
+                                            this.y = this.y + this.vel;
+                                            socket.send(JSON.stringify({
+                                                state: 'x-y',
+                                                element: this
+                                            }));
+                                        }
+                                    }
+                                });
+                                this.clearsIntervals.push('ArrowDown');
+
+
+                                ['Q', 'q'].map(btnKey => {
+                                    this[btnKey] = startListenKey({
+                                        key: btnKey,
+                                        vel: timeIntervalGame,
+                                        onKey: () => {
+                                            if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
+                                        }
+                                    });
+                                    this.clearsIntervals.push(btnKey);
+                                });
+
+
+
+                                this.onCanvasClick = event => {
+                                    const currentTimeClick = (+ new Date());
+                                    if (this.lastClick !== undefined && (currentTimeClick - this.lastClick) <= 250) {
+                                        this.blockPath = true;
+                                        if (this.autoMovementShoot) this.autoMovementShoot(['trigger']);
+                                    } else {
+                                        this.blockPath = undefined;
+                                    }
+                                    this.lastClick = currentTimeClick;
+                                    // off -> this.canvasDim
+                                    // x -> 50
+                                    let offsetX = parseInt(((event.offsetX * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+                                    let offsetY = parseInt(((event.offsetY * maxRangeMap) / cyberiaonline.canvasDim)) + 1;
+
+                                    const { x, y, matrix } = getAvailablePosition(this,
+                                        {
+                                            x: offsetX,
+                                            y: offsetY,
+                                            elementsCollisions: ['BUILDING']
+                                        }
+                                    );
+                                    offsetX = x;
+                                    offsetY = y;
+                                    console.log('onCanvasClick', event, offsetX, offsetY);
+                                    this.path = generatePath(this, offsetX === maxRangeMap ? offsetX - 1 : offsetX, offsetY === maxRangeMap ? offsetY - 1 : offsetY);
+                                    socket.send(JSON.stringify({
+                                        state: 'path',
+                                        element: this
+                                    }));
+                                    if (this.path.length === 0) {
+                                        // search solid snail -> auto generate click mov
+                                        // snail inverse -> pathfinding with snail normal
+                                    }
+                                };
+                            }
                             break;
                         case 'TOUCH':
                             this.onCanvasClick = event => {
@@ -2798,14 +2828,14 @@ this.cyberiaonline = {
             ]);
 
             elements = elements.concat(
-                range(1, 3)
+                [] // range(1, 3)
                     .map(() => gen().init({
                         type: 'BUILDING',
                         matrix: { x: 2, y: 3 }
                     }))
             );
             elements = elements.concat(
-                range(1, 3)
+                [] // range(1, 3)
                     .map(() => gen().init({
                         type: 'BOT'
                     }))
@@ -2829,12 +2859,12 @@ this.cyberiaonline = {
                     // gen().init({
                     //     type: 'BOT'
                     // }),
-                    gen().init({
-                        type: 'BOT_BUG'
-                    }),
-                    gen().init({
-                        color: 'safety orange'
-                    }),
+                    // gen().init({
+                    //     type: 'BOT_BUG'
+                    // }),
+                    // gen().init({
+                    //     color: 'safety orange'
+                    // }),
                     gen().init({
                         type: 'TOUCH',
                         x: 1,
@@ -2888,6 +2918,64 @@ this.cyberiaonline = {
             const renderGame = () => elements.map(x => x.loop());
             renderGame();
             this.loopGame = setInterval(() => renderGame(), timeIntervalGame);
+
+            socket.onopen = event => {
+
+                console.log(urlws, 'onopen', event);
+
+                socket.send(JSON.stringify({
+                    state: 'new',
+                    element: getMainUserElement()
+                }));
+            };
+            socket.onclose = event => {
+
+                console.log(urlws, 'onclose', event.data);
+
+
+
+            };
+            socket.onmessage = event => {
+                const elementData = JSON.parse(event.data);
+                let indexUser = -1;
+                console.log(urlws, 'onmessage', elementData);
+                switch (elementData.state) {
+                    case 'new':
+                        if (elements.filter(x => x.id === elementData.element.id).length === 0) {
+                            elements.push(gen().init(elementData.element));
+                            socket.send(JSON.stringify({
+                                state: 'new',
+                                element: getMainUserElement()
+                            }));
+                        }
+                        break;
+                    case 'path':
+                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
+                        if (indexUser > -1) elements[indexUser].path = elementData.element.path;
+                        break;
+                    case 'x-y':
+                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
+                        if (indexUser > -1) {
+                            elements[indexUser].x = elementData.element.x;
+                            elements[indexUser].y = elementData.element.y;
+                        }
+                        break;
+                    case 'close':
+                        removeElement(elementData.element);
+                        break;
+                    default:
+                        break;
+                }
+            };
+
+
+
+
+
+
+
+
+
         });
 
         // ----------------------------------------------------------------
