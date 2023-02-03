@@ -305,13 +305,12 @@ const ssr = async (app, renderData) => {
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
 
-    // TODO: pasar como metodo en el modulo de forma generica
     if (viewMetaData.clientID == 'dogmadual') {
         try {
             const { cv } = await import('../../private-engine/meta-components/cv.js');
-            // const { en } = await import('../../private-engine/meta-components/en.js');
+            const { en } = await import('../../private-engine/meta-components/en.js');
             viewPaths.push(cv);
-            // viewPaths.push(en);
+            viewPaths.push(en);
         } catch (error) {
             // console.log(error);
         }

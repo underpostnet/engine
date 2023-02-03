@@ -4,8 +4,7 @@ this.contracultura_cyberpunk = {
     init: function () {
 
         const IDS = s4();
-        this[IDS] = range(0, maxIdComponent).map(() => 'main_menu-' + s4());
-
+        this[IDS] = range(0, maxIdComponent).map(() => 'contracultura_cyberpunk-' + s4());
 
         this.searchOpen = 'x' + s4();
         this.searchClose = 'x' + s4();
@@ -346,6 +345,7 @@ this.contracultura_cyberpunk = {
                 <b> > </b><a target='_top'   href=https://revista-lain.neocities.org/>revista-lain.neocities.org</a><br />
                 <b> > </b><a target='_top'   href=https://plex.neocities.org/>plex.neocities.org</a><br />
                 <b> > </b><a target='_top'   href=http://media.hyperreal.org/cyberia/>media.hyperreal.org</a><br />
+                <b> > </b><a target='_top'   href=https://cybercowboy.de/>cybercowboy.de</a><br />
                 <b> > </b><a target='_top'   href=http://wirepunk.space/>wirepunk.space</a><br />
                 <b> > </b><a target='_top'   href=https://rebelion.digital/>rebelion.digital</a><br />
                 <b> > </b><a target='_top'   href=https://filth.com.mx/>filth.com.mx</a><br />

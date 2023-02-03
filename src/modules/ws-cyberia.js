@@ -13,7 +13,7 @@ const wsCyberia = app => {
 
     wsCyberiaServer.on('connection', async ws => {
 
-        console.log('ws conecction', ws);
+        // console.log('ws conecction', ws);
         const index = wsCyberiaClients.length;
         wsCyberiaClients.push(ws);
         // ws.send();
