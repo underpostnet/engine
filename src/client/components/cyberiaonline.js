@@ -322,14 +322,16 @@ this.cyberiaonline = {
                     setTimeout(() => {
                         element.validateShoot[config.name] = true;
                     }, element.shootTimeInterval[config.name]);
-                    socket.send(JSON.stringify({
-                        state: 'shoot',
-                        storage: {
-                            keyShoot: config.name
-                        },
-                        element
-                    }));
-                    fn();
+                    if (config.validate === undefined || config.validate(element) === true) {
+                        socket.send(JSON.stringify({
+                            state: 'shoot',
+                            storage: {
+                                keyShoot: config.name
+                            },
+                            element
+                        }));
+                        fn();
+                    }
                 }
             };
         };
@@ -1730,18 +1732,18 @@ this.cyberiaonline = {
                     setShoot: element => setShoot(element, {
                         name: 'BULLET-HEAL',
                         shootTimeInterval: 500,
-                        type: 'passive'
+                        type: 'passive',
+                        validate: element => element.life < element.maxLife
                     }, () => {
 
-                        if (element.life < element.maxLife)
-                            elements.push(gen().init({
-                                id: id(),
-                                type: 'BULLET-HEAL',
-                                color: 'dark green',
-                                x: element.x,
-                                y: element.y,
-                                parent: element
-                            }));
+                        elements.push(gen().init({
+                            id: id(),
+                            type: 'BULLET-HEAL',
+                            color: 'dark green',
+                            x: element.x,
+                            y: element.y,
+                            parent: element
+                        }));
 
                     })
                 },
