@@ -322,6 +322,13 @@ this.cyberiaonline = {
                     setTimeout(() => {
                         element.validateShoot[config.name] = true;
                     }, element.shootTimeInterval[config.name]);
+                    socket.send(JSON.stringify({
+                        state: 'shoot',
+                        storage: {
+                            keyShoot: config.name
+                        },
+                        element
+                    }));
                     fn();
                 }
             };
@@ -638,7 +645,7 @@ this.cyberiaonline = {
                 loop: function (element) { },
                 event: function (element) {
                     if (element.life < 0) element.life = 0;
-                    if (element.life > element.maxLife) element.life = newInstance(element.maxLife);
+                    const idElement = `${element.id}`;
                     const factorLife = element.life / element.maxLife;
                     this.elements.bar[element.id].width = element.dim * pixiAmplitudeFactor * factorLife;
                     if (element.life === 0) {
@@ -652,7 +659,7 @@ this.cyberiaonline = {
                                         }));
                                     break;
                                 case 'USER_MAIN':
-                                    if (elements.filter(x => x.type === 'USER_MAIN').length === 0)
+                                    if (idElement === mainUserId && elements.filter(x => x.id === mainUserId).length === 0) {
                                         elements.push(gen().init({
                                             type: 'USER_MAIN',
                                             id: mainUserId
@@ -660,6 +667,11 @@ this.cyberiaonline = {
                                             // y: 2
                                             // matrix: { x: 1, y: 2 }
                                         }));
+                                        socket.send(JSON.stringify({
+                                            state: 'new',
+                                            element: getMainUserElement()
+                                        }));
+                                    }
                                     break;
                                 default:
                                     break;
@@ -1105,8 +1117,6 @@ this.cyberiaonline = {
                                 toArray.includes(x.type)
                                 &&
                                 element.parent.id !== x.id
-                                &&
-                                element.parent.type !== x.type
                             );
 
                         }),
@@ -1252,8 +1262,6 @@ this.cyberiaonline = {
                                 toArray.includes(x.type)
                                 &&
                                 element.parent.id !== x.id
-                                &&
-                                element.parent.type !== x.type
                             );
 
                         }),
@@ -1423,6 +1431,7 @@ this.cyberiaonline = {
                                 toArray.includes(x.type)
                                 &&
                                 element.parent.id !== x.id
+                                // validate party bot
                                 &&
                                 element.parent.type !== x.type
                             );
@@ -1724,14 +1733,15 @@ this.cyberiaonline = {
                         type: 'passive'
                     }, () => {
 
-                        elements.push(gen().init({
-                            id: id(),
-                            type: 'BULLET-HEAL',
-                            color: 'dark green',
-                            x: element.x,
-                            y: element.y,
-                            parent: element
-                        }));
+                        if (element.life < element.maxLife)
+                            elements.push(gen().init({
+                                id: id(),
+                                type: 'BULLET-HEAL',
+                                color: 'dark green',
+                                x: element.x,
+                                y: element.y,
+                                parent: element
+                            }));
 
                     })
                 },
@@ -1747,6 +1757,7 @@ this.cyberiaonline = {
                 loop: function (element) {
                     const collisionTest =
                         this.functions.alertCollision(element)
+                    if (element.parent.life >= element.parent.maxLife) this.data.validateShoot[element.id] = false;
                     if (this.data.validateShoot[element.id] === true && collisionTest.length > 0) {
 
                         this.data.validateShoot[element.id] = false;
@@ -1759,6 +1770,8 @@ this.cyberiaonline = {
                         collisionTest.map(element => {
 
                             element.life = element.life + this.data.value;
+
+                            if (element.life > element.maxLife) element.life = newInstance(element.maxLife);
 
                         });
                     }
@@ -2250,7 +2263,7 @@ this.cyberiaonline = {
                     this.dim = options.dim ? options.dim : 3; // 2 // 3; // 1.5
                     this.coin = 0;
                     this.idsAfterBotDrops = [];
-                    this.color = options.color ? options.color : 'red';
+                    this.color = options.color !== undefined ? options.color : 'red';
                     this.path = [];
                     this.clearsIntervals = [];
                     this.shoot = {};
@@ -2259,9 +2272,9 @@ this.cyberiaonline = {
                     this.shootType = {};
                     this.direction = options.direction !== undefined ? options.direction : 'South';
                     this.components = options.components ? options.components : ['background'];
-                    this.deadDelay = 2000;
-                    this.maxLife = 100;
-                    this.life = 100;
+                    this.deadDelay = options.deadDelay !== undefined ? options.deadDelay : 2000;
+                    this.maxLife = options.maxLife !== undefined ? options.maxLife : 100;
+                    this.life = options.life !== undefined ? options.life : 100;
                     this.parent = options.parent ? options.parent : undefined;
                     this.aggro = random(0, 10);
                     this.searchPathRange = maxRangeMap * 0.3;
@@ -2311,18 +2324,7 @@ this.cyberiaonline = {
                                 if (this.validateShoot[btn] === true) range(0, 10).map(attemp =>
                                     setTimeout(() =>
                                         types.includes(this.shootType[btn]) ?
-                                            (() => {
-                                                this.shoot[btn]();
-                                                if (this.id === mainUserId) {
-                                                    socket.send(JSON.stringify({
-                                                        state: 'shoot',
-                                                        storage: {
-                                                            keyShoot: btn
-                                                        },
-                                                        element: getMainUserElement()
-                                                    }));
-                                                }
-                                            })() : null,
+                                            this.shoot[btn]() : null,
                                         attemp * 100));
                             });
                             // COMPONENTS['BULLET-CROSS'].functions.setShoot(this);
@@ -2792,18 +2794,7 @@ this.cyberiaonline = {
                             this.x = element.x;
                             this.y = element.y;
                             if (this.autoShoot === true && this.shoot)
-                                Object.keys(this.shoot).map(keyShoot => {
-                                    this.shoot[keyShoot]();
-                                    if (this.id === mainUserId) {
-                                        socket.send(JSON.stringify({
-                                            state: 'shoot',
-                                            storage: {
-                                                keyShoot
-                                            },
-                                            element: getMainUserElement()
-                                        }));
-                                    }
-                                });
+                                Object.keys(this.shoot).map(keyShoot => this.shoot[keyShoot]());
                             if (this.autoTarget) this.autoTarget();
 
                             break;
@@ -2957,9 +2948,18 @@ this.cyberiaonline = {
 
 
             };
+            if (this.pingMainUser) clearInterval(this.pingMainUser);
+            this.pingMainUser = setInterval(() => {
+                if (elements.findIndex(x => x.id === mainUserId) > -1) {
+                    socket.send(JSON.stringify({
+                        state: 'new',
+                        element: getMainUserElement()
+                    }));
+                }
+            }, 3000);
             socket.onmessage = event => {
                 const elementData = JSON.parse(event.data);
-                let indexUser = -1;
+                const indexUser = elements.findIndex(x => x.id === elementData.element.id);
                 console.log(urlws, 'onmessage', elementData);
                 switch (elementData.state) {
                     case 'new':
@@ -2972,21 +2972,18 @@ this.cyberiaonline = {
                         }
                         break;
                     case 'path':
-                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
                         if (indexUser > -1) {
                             elements[indexUser].path = elementData.element.path;
                             elements[indexUser].blockPath = elementData.element.blockPath;
                         }
                         break;
                     case 'x-y':
-                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
                         if (indexUser > -1) {
                             elements[indexUser].x = elementData.element.x;
                             elements[indexUser].y = elementData.element.y;
                         }
                         break;
                     case 'shoot':
-                        indexUser = elements.findIndex(x => x.id === elementData.element.id);
                         if (indexUser > -1) {
                             elements[indexUser].shoot[elementData.storage.keyShoot]();
                         }
