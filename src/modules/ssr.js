@@ -132,6 +132,8 @@ const renderView = dataView => {
     const { view, viewMetaData, viewPaths, APPS } = dataView;
     let jsClientCore = `(function(){
 
+        const GLOBAL = this;
+        GLOBAL['auth'] = false;
         const dev =  ${process.env.NODE_ENV == 'development' || process.env.NODE_ENV == 'test-dev' || process.env.NODE_ENV == 'ipfs-dev' || process.env.NODE_ENV == 'cyberia-dev' && process.argv[2] != 'build' ? 'true' : 'false'};
         const build = ${process.argv[2] == 'build'};
         if(!dev){
@@ -173,8 +175,6 @@ const renderView = dataView => {
         ` : ''}
        
         
-        const GLOBAL = this;
-        
         ${viewMetaData.apiURIS.map(dataApiUri => `
             const ${dataApiUri.name} = '${dataApiUri.path}';
         `).join('')}
@@ -196,7 +196,7 @@ const renderView = dataView => {
         ${fs.readFileSync('./src/client/core/fullscreen.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/init-render.js', viewMetaData.charset)}
         
-        GLOBAL['auth'] = false;
+        
 
     })()`;
     if (process.env.NODE_ENV != 'development' && process.env.NODE_ENV != 'test-dev' && process.env.NODE_ENV != 'ipfs-dev' && process.env.NODE_ENV != 'cyberia-dev') jsClientCore = UglifyJS.minify(jsClientCore).code;

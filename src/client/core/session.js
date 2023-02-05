@@ -94,3 +94,8 @@ const renderUserLink = (username, timeOutDelay) => {
         <a class='${idProfile}' href='javascript:null'>${formatUserName(username)}</a>
     `
 };
+
+checkAuthStatus();
+const idCheckAuthStatus = 'check_auth_status';
+if (GLOBAL[idCheckAuthStatus]) clearInterval(GLOBAL[idCheckAuthStatus]);
+GLOBAL[idCheckAuthStatus] = setInterval(async () => checkAuthStatus(), 5000);
