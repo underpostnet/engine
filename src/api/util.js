@@ -30,18 +30,6 @@ const random = (min, max) => {
     return Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
 };
 
-/*
-            
-            hexString = yourNumber.toString(16);
-            yourNumber = parseInt(hexString, 16);
-            
-            */
-const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
-
-const numberHexColor = hex => parseInt(hex.split('#')[1], 16);
-
-const randomNumberColor = () => numberHexColor(randomColor());
-
 const replaceAll = (str, replaceWhat, replaceTo) => {
     replaceWhat = replaceWhat.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     return str.replace(new RegExp(replaceWhat, 'g'), replaceTo);
@@ -325,9 +313,6 @@ const commonFunctions = () => `
     const s4 = ${s4};
     const range = ${range};
     const random = ${random};
-    const randomColor = ${randomColor};
-    const numberHexColor = ${numberHexColor};
-    const randomNumberColor = ${randomNumberColor};
     const passwordValidator = ${passwordValidator};
     const emailValidator = ${emailValidator};
     const newInstance = ${newInstance};
@@ -394,7 +379,7 @@ const apiUtil = app => {
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/getHash`, (req, res) =>
         res.status(200).json(getHash()));
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/randomColor`, (req, res) =>
-        res.status(200).json(randomColor()));
+        res.status(200).json('#'));
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/emailValidator`, (req, res) =>
         res.status(200).json(emailValidator(req.query.email)));
     app.get(`${buildBaseApiUri()}/api/${uriUtil}/getYouTubeID`, (req, res) =>
@@ -411,8 +396,6 @@ export {
     getHash,
     range,
     random,
-    randomColor,
-    randomNumberColor,
     replaceAll,
     passwordValidator,
     emailValidator,
@@ -443,6 +426,5 @@ export {
     round10,
     floor10,
     ceil10,
-    JSONweb,
-    numberHexColor
+    JSONweb
 };

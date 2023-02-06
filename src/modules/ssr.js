@@ -7,9 +7,7 @@ import CleanCSS from 'clean-css';
 import {
     buildURL,
     commonFunctions,
-    getHash,
     newInstance,
-    randomColor,
     replaceAll,
     buildBaseUri,
     clearSubUri,
@@ -22,7 +20,7 @@ import { renderSitemap, buildLocSitemap } from './sitemap.js';
 import { copyDir, deleteFolderRecursive } from './files.js';
 import { dataStatics, renderStatics } from './statics.js';
 import { renderRobots } from './robots.js';
-import { colors } from './colors.js';
+import { randomColor, ssrColor } from './colors.js';
 
 dotenv.config();
 
@@ -142,6 +140,7 @@ const renderView = dataView => {
         }
 
         ${commonFunctions()}
+        ${ssrColor}
         ${fs.readFileSync('./src/client/core/vanilla.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/input.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/session.js', viewMetaData.charset)}
@@ -166,7 +165,6 @@ const renderView = dataView => {
         let mainColor = '${dataView.theme ? dataView.theme[2] : viewMetaData.mainColor ? viewMetaData.mainColor : 'purple'}';
         let mainBackground = '${dataView.theme ? dataView.theme[0] : viewMetaData.mainBackground ? viewMetaData.mainBackground : 'black'}';
         const mobileLimit = 700;
-        let colors = ${JSONweb(colors)};
         const rrb = ${rrb};
         ${viewMetaData.clientID == 'dev' ? `
             const APPS = JSON.parse('${JSON.stringify(APPS)}');

@@ -1,4 +1,10 @@
-import { numberHexColor, random } from "../api/util.js";
+import { random, JSONweb } from "../api/util.js";
+
+const randomColor = () => '#' + Math.floor(Math.random() * 16777215).toString(16);
+
+const numberHexColor = hex => parseInt(hex.split('#')[1], 16);
+
+const randomNumberColor = () => numberHexColor(randomColor());
 
 const colors = [
     {
@@ -5217,4 +5223,21 @@ colors.map(dataColor => {
 });
 const getRandomNumberColors = () => numberColors[Object.keys(numberColors)[random(0, (Object.keys(numberColors).length - 1))]];
 
-export { colors, numberColors, getRandomNumberColors };
+const ssrColor = `
+    const colors = ${JSONweb(colors)};
+    const numberColors = ${JSONweb(numberColors)};
+    const getRandomNumberColors = ${getRandomNumberColors};
+    const randomColor = ${randomColor};
+    const numberHexColor = ${numberHexColor};
+    const randomNumberColor = ${randomNumberColor};
+`;
+
+export {
+    colors,
+    numberColors,
+    ssrColor,
+    getRandomNumberColors,
+    randomColor,
+    numberHexColor,
+    randomNumberColor
+};

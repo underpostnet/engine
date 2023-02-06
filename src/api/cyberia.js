@@ -40,8 +40,6 @@ range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(y => {
 });
 
 const ssrCyberia = `
-    const numberColors = ${JSONweb(numberColors)};
-    const getRandomNumberColors = ${getRandomNumberColors()};
     const ssrCYBERIAONLINE = ${JSONweb(CYBERIAONLINE)};
     const id = ${id};
 `;
