@@ -16,6 +16,7 @@ import { apiKeys } from './api/keys.js';
 import { apiUploader } from './api/uploader.js';
 import { apiAuth } from './api/auth.js';
 import { apiUtil, validateGenerateBuild } from './api/util.js';
+import { apiCyberia } from './api/cyberia.js';
 
 // client complements
 import { engine } from './client/modules/engine.js';
@@ -54,6 +55,7 @@ apiUtil(app);
 apiKeys(app);
 apiAuth(app);
 apiUploader(app);
+apiCyberia(app);
 
 (async () => {
 

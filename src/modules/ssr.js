@@ -13,7 +13,8 @@ import {
     replaceAll,
     buildBaseUri,
     clearSubUri,
-    uniqueArray
+    uniqueArray,
+    JSONweb
 } from '../api/util.js';
 import { logger } from './logger.js';
 import dotenv from 'dotenv';
@@ -110,8 +111,6 @@ const renderMicrodata = (viewMetaData, view, typeMicrodata) => {
     return render;
 };
 
-const JSONweb = data => "JSON.parse(`" + JSON.stringify(data) + "`)";
-
 const renderComponents = () => viewPaths.map(path =>/*html*/ !path.clone ? `
     <top-${path.component}></top-${path.component}>
     <${path.component}>
@@ -194,8 +193,10 @@ const renderView = dataView => {
         ${fs.readFileSync('./src/client/core/keys.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/scroll.js', viewMetaData.charset)}
         ${fs.readFileSync('./src/client/core/fullscreen.js', viewMetaData.charset)}
+
+        ${dataView.ssrDisplay ? dataView.ssrDisplay : ''};
+
         ${fs.readFileSync('./src/client/core/init-render.js', viewMetaData.charset)}
-        
         
 
     })()`;
@@ -301,6 +302,7 @@ const ssr = async (app, renderData) => {
     const botDescription = renderData[0].botDescription;
     const footer = renderData[0].footer;
     const description = renderData[0].description;
+    const ssrDisplay = renderData[0].ssrDisplay;
     renderData = newInstance(renderData);
 
     let { viewPaths, baseHome, viewMetaData } = renderData[0];
@@ -345,6 +347,7 @@ const ssr = async (app, renderData) => {
     renderData[0].botDescription = botDescription;
     renderData[0].footer = footer;
     renderData[0].description = description;
+    renderData[0].ssrDisplay = ssrDisplay;
 
     if (process.argv[2] == 'build')
         deleteFolderRecursive(`./builds/${viewMetaData.clientID}`);

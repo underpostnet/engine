@@ -2,6 +2,7 @@
 import { media } from './media.js';
 import fs from 'fs';
 import { baseStaticUri } from '../../api/util.js';
+import { ssrCyberia } from '../../api/cyberia.js';
 
 const clientID = 'cyberiaonline';
 const viewMetaData = {
@@ -156,12 +157,15 @@ const statics = app => {
     }
 };
 
+const ssrDisplay = `${ssrCyberia}`;
+
 const cyberiaonline = {
     viewMetaData,
     viewPaths,
     baseHome,
     statics,
-    botDescription
+    botDescription,
+    ssrDisplay
 };
 
 export { cyberiaonline };

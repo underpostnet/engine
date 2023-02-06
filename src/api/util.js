@@ -243,6 +243,9 @@ const getDirection = (x1, y1, x2, y2) => {
     };
 };
 
+
+const JSONweb = data => "JSON.parse(`" + JSON.stringify(data) + "`)";
+
 const getDistance = (x1, y1, x2, y2) => {
     var disX = Math.abs(x2 - x1);
     var disY = Math.abs(y2 - y1);
@@ -439,5 +442,6 @@ export {
     decimalAdjust,
     round10,
     floor10,
-    ceil10
+    ceil10,
+    JSONweb
 };
