@@ -358,10 +358,14 @@ const ssr = async (app, renderData) => {
         if (view.sitemap !== false && !view.path.split('/').find(x => x[0] == ':'))
             sitemap += buildLocSitemap(view, viewMetaData);
 
+        const APPS = newInstance(renderData).map(rd => {
+            delete rd.ssrDisplay;
+            return rd;
+        });
         const buildView = renderView({
             view,
             ...renderData[0],
-            APPS: renderData
+            APPS
         });
 
         if (process.argv[2] == 'build' && !view.path.split('/').find(x => x[0] == ':')) {

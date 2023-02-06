@@ -443,5 +443,6 @@ export {
     round10,
     floor10,
     ceil10,
-    JSONweb
+    JSONweb,
+    numberHexColor
 };

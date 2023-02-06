@@ -1,3 +1,5 @@
+import { numberHexColor, random } from "../api/util.js";
+
 const colors = [
     {
         "name": "Absolute Zero",
@@ -5209,4 +5211,10 @@ const colors = [
     }
 ];
 
-export { colors };
+const numberColors = {};
+colors.map(dataColor => {
+    numberColors[dataColor.name.toLowerCase()] = numberHexColor(dataColor.hex);
+});
+const getRandomNumberColors = () => numberColors[Object.keys(numberColors)[random(0, (Object.keys(numberColors).length - 1))]];
+
+export { colors, numberColors, getRandomNumberColors };
