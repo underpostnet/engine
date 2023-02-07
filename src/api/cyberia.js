@@ -1,7 +1,11 @@
 'use strict';
 import fs from 'fs';
 import dotenv from 'dotenv';
+import WebSocket from 'ws';
+import pathfinding from 'pathfinding';
 import { JSONweb, random, range, s4, JSONmatrix } from './util.js';
+import { logger } from '../modules/logger.js';
+
 dotenv.config();
 
 const typeModels = {
@@ -139,9 +143,79 @@ const ssrCyberia = `
     ${common}
 `;
 
-const apiCyberia = app => {
+const wsCyberia = () => {
 
+    const clients = [];
+
+    const server = new WebSocket.Server({ port: process.env.CYBERIA_WS_PORT })
+        .on('connection', async ws => {
+
+            clients.push(ws);
+
+            ws.on('close', () => {
+                clients.splice(clients.indexOf(ws), 1);
+            });
+
+            ws.on('message', msg => { });
+
+        });
+
+    // const grid = new PF.Grid(matrix.length, matrix.length, matrix);
+    //     const finder = new PF.AStarFinder({
+    //         allowDiagonal: true, // enable diagonal
+    //         dontCrossCorners: false, // corner of a solid
+    //         heuristic: PF.Heuristic.chebyshev
+    //     });
+    //     return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
+    
+    const bots = {};
+    setInterval(() => {
+        elements.map(element => {
+            if (element.type === 'bot') {
+
+                if (!bots[element.id]) bots[element.id] = {
+                    path: []
+                };
+                bots[element.id].path.shift();
+
+                if (bots[element.id].path.length === 0) {
+
+                    bots[element.id].path = range(0, maxRangeMap).map(i => [i, i]);
+
+                }
+
+                element.render.x = bots[element.id].path[0][0];
+                element.render.y = bots[element.id].path[0][1];
+
+                clients.map(client => {
+
+                    const eventMsg = {
+                        state: 'x-y',
+                        element: {
+                            render: {
+                                x: element.render.x,
+                                y: element.render.y
+                            },
+                            id: element.id
+                        }
+                    };
+
+                    client.send(JSON.stringify(eventMsg));
+                });
+
+            }
+        });
+    }, 10);
+
+    setTimeout(() => logger.info(`Ws Cyberia Server is running on port ${process.env.CYBERIA_WS_PORT}`));
+
+    return { clients, server };
 };
+
+
+wsCyberia();
+
+const apiCyberia = app => { };
 
 
 export { apiCyberia, ssrCyberia };

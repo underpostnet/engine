@@ -76,10 +76,10 @@ apiCyberia(app);
                 const { ipfsDaemon } = await import('./modules/ipfs.js');
                 ipfsDaemon();
             }
-            if (process.env.NODE_ENV == 'cyberia-dev') {
-                const { wsCyberia } = await import('./modules/ws-cyberia.js');
-                wsCyberia();
-            }
+            // if (process.env.NODE_ENV == 'cyberia-dev') {
+            //     const { wsCyberia } = await import('./modules/ws-cyberia.js');
+            //     wsCyberia();
+            // }
         });
     }
 

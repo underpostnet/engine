@@ -55,6 +55,40 @@ this.cyberiaonline = {
             });
             console.log('CYBERIAONLINE', CYBERIAONLINE);
 
+            const renderPixiEventElement = element => {
+                const { x, y } = setAmplitudeRender(element.render);
+                const container = element.pixi.container;
+                container.x = x;
+                container.y = y;
+            };
+
+            const urlws = 'ws://localhost:5502';
+            const socket = new WebSocket(urlws);
+
+            socket.onopen = event => {
+                console.log(urlws, 'onopen', event);
+            };
+
+            socket.onclose = event => {
+                console.log(urlws, 'onclose', event.data);
+            };
+
+            socket.onmessage = event => {
+                const elementData = JSON.parse(event.data);
+                const { id } = elementData.element;
+                const element = elements.find(element => element.id === id);
+                switch (elementData.state) {
+                    case 'x-y':
+                        const { x, y } = elementData.element.render;
+                        element.render.x = x;
+                        element.render.y = y;
+                        renderPixiEventElement(element);
+                        break;
+                    default:
+                        break;
+                }
+            };
+
         });
 
 
