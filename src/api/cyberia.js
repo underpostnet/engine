@@ -45,15 +45,19 @@ const matrixIterator = (CYBERIAONLINE, fn) =>
     );
 
 const validateCollision = (A, B) => {
-    return (
-        (A.y - A.dim) < (B.y + B.dim)
-        &&
-        (A.x + A.dim) > (B.x - B.dim)
-        &&
-        (A.y + A.dim) > (B.y - B.dim)
-        &&
-        (A.x - A.dim) < (B.x + B.dim)
-    )
+    let collision = false;
+    range(0, A.dim - 1).map(yA => {
+        range(0, A.dim - 1).map(xA => {
+            range(0, B.dim - 1).map(yB => {
+                range(0, B.dim - 1).map(xB => {
+                    if (A.x + xA === B.x + xB && A.y + yA === B.y + yB) {
+                        collision = true;
+                    }
+                });
+            });
+        });
+    });
+    return collision;
 };
 
 const common = `
@@ -68,7 +72,7 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
 
     // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
 
-    if (random(1, 100) <= 3) {
+    if (random(1, 100) <= 2) {
         const type = 'building';
         elements.push({
             id: id(elements),
@@ -77,7 +81,7 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
             render: {
                 x,
                 y,
-                dim: 1
+                dim: 2
             }
         });
     } else if (random(1, 100) <= 1) {
@@ -98,21 +102,10 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
 // test
 const matrix = range(minRangeMap, maxRangeMap).map(y => {
     return range(minRangeMap, maxRangeMap).map(x => {
-        const element = elements.find(element => {
-            // return validateCollision(
-            //     element.render,
-            //     { x, y, dim: 0 }
-            // )
-            let valid = false;
-            range(0, element.render.dim - 1).map(y0 => {
-                range(0, element.render.dim - 1).map(x0 => {
-                    if (x === element.render.x + x0 && y === element.render.y + y0) {
-                        valid = true;
-                    }
-                });
-            });
-            return valid;
-        });
+        const element = elements.find(element => validateCollision(
+            element.render,
+            { x, y, dim: 1 }
+        ));
         if (element) return Object.keys(typeModels).indexOf(element.type);
         return 0;
     });
