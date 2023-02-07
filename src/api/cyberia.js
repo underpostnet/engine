@@ -2,31 +2,29 @@
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { JSONweb, random, range, s4 } from './util.js';
-import { numberColors } from '../modules/colors.js';
 dotenv.config();
 
 const typeModels = {
     'building': {
-        color: numberColors['red']
+        color: 'red'
     },
     'floor': {
-        color: numberColors['green (html/css color)']
+        color: 'green (html/css color)'
     }
 };
 
 const minRangeMap = 0;
 const maxRangeMap = 31;
-const amplitudeRangeMap = 10;
 const elements = [];
 
 const CYBERIAONLINE = {
     minRangeMap,
     maxRangeMap,
-    amplitudeRangeMap,
     elements,
     typeModels
 };
 
+// common
 
 const id = elements => {
     let _id = 'x' + s4() + s4();
@@ -37,44 +35,79 @@ const id = elements => {
 };
 
 const matrixIterator = (CYBERIAONLINE, fn) =>
-    range(CYBERIAONLINE.minRangeMap, maxRangeMap).map(y =>
-        range(CYBERIAONLINE.minRangeMap, maxRangeMap).map(x =>
+    range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(y =>
+        range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(x =>
             fn(x, y)
         )
     );
 
-matrixIterator(CYBERIAONLINE, (x, y) => {
-    if (x >= maxRangeMap - 1 || y >= maxRangeMap - 1) return;
-    const type = 'floor';
-    elements.push({
-        id: id(elements),
-        type,
-        color: typeModels[type].color,
-        x: amplitudeRangeMap * x,
-        y: amplitudeRangeMap * y,
-        dim: 1 * amplitudeRangeMap
-    });
-})
+const validateCollision = (A, B) => {
+    return (
+        (A.y - A.dim) < (B.y + B.dim)
+        &&
+        (A.x + A.dim) > (B.x - B.dim)
+        &&
+        (A.y + A.dim) > (B.y - B.dim)
+        &&
+        (A.x - A.dim) < (B.x + B.dim)
+    )
+};
+
+const common = `
+    const id = ${id};
+    const matrixIterator = ${matrixIterator};
+    const validateCollision = ${validateCollision};
+`;
+
+// end common
 
 matrixIterator(CYBERIAONLINE, (x, y) => {
-    if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
-    if (random(1, 100) <= 10) {
+
+    // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
+
+    if (random(1, 100) <= 3) {
         const type = 'building';
         elements.push({
             id: id(elements),
             type,
             color: typeModels[type].color,
-            x: amplitudeRangeMap * x,
-            y: amplitudeRangeMap * y,
-            dim: 1 * amplitudeRangeMap
+            render: {
+                x,
+                y,
+                dim: 1
+            }
         });
     }
 });
 
+// test
+const matrix = range(minRangeMap, maxRangeMap).map(y => {
+    return range(minRangeMap, maxRangeMap).map(x => {
+        return elements.filter(element =>
+            validateCollision(
+                element.render,
+                { x, y, dim: 0 }
+            )).length > 0 ? 1 : 0;
+    });
+});
+
+// console.table(matrix);
+
+if (!fs.existsSync('./data/cyberia'))
+    fs.mkdirSync('./data/cyberia', { recursive: true });
+
+fs.writeFileSync('./data/cyberia/matrix.json',
+    `[\r\n${matrix.map((x, i) =>
+        `   `
+        + JSON.stringify(x)
+        + (i === matrix.length - 1 ? '' : ',')
+        + '\r\n').join('')}]`, 'utf8');
+
+// end test
+
 const ssrCyberia = `
     const ssrCYBERIAONLINE = ${JSONweb(CYBERIAONLINE)};
-    const id = ${id};
-    const matrixIterator = ${matrixIterator};
+    ${common}
 `;
 
 const apiCyberia = app => {

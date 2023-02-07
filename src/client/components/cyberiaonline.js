@@ -5,42 +5,51 @@ this.cyberiaonline = {
 
         setTimeout(() => {
 
+            const amplitudeRender = 10;
             const CYBERIAONLINE = { ...ssrCYBERIAONLINE };
-            const { maxRangeMap, amplitudeRangeMap } = CYBERIAONLINE;
+            const { maxRangeMap } = CYBERIAONLINE;
+
             CYBERIAONLINE.app = new PIXI.Application({
-                width: maxRangeMap * amplitudeRangeMap,
-                height: maxRangeMap * amplitudeRangeMap,
+                width: maxRangeMap * amplitudeRender,
+                height: maxRangeMap * amplitudeRender,
                 background: 'gray'
             });
+
             const { app, elements } = CYBERIAONLINE;
+
+            const setAmplitudeRender = render => {
+                Object.keys(render).map(keyRender => {
+                    render[keyRender] = render[keyRender] * amplitudeRender;
+                });
+                return render;
+            }
 
             s('pixi-container').appendChild(app.view);
 
             CYBERIAONLINE.elements = elements.map(element => {
 
-                const {
-                    x,
-                    y,
-                    dim,
-                    color,
-                } = element;
+                const { x, y, dim } = setAmplitudeRender(element.render);
+                element.color = numberColors[element.color];
+                const { color } = element;
 
                 element.pixi = {};
 
                 element.pixi.container = new PIXI.Container();
-                element.pixi.container.x = x;
-                element.pixi.container.y = y;
-                element.pixi.container.width = dim;
-                element.pixi.container.height = dim;
-                app.stage.addChild(element.pixi.container);
+                const container = element.pixi.container;
+                container.x = x;
+                container.y = y;
+                container.width = dim;
+                container.height = dim;
+                app.stage.addChild(container);
 
                 element.pixi.background = new PIXI.Sprite(PIXI.Texture.WHITE);
-                element.pixi.background.x = 0;
-                element.pixi.background.y = 0;
-                element.pixi.background.width = dim;
-                element.pixi.background.height = dim;
-                element.pixi.background.tint = color;
-                element.pixi.container.addChild(element.pixi.background);
+                const background = element.pixi.background;
+                background.x = 0;
+                background.y = 0;
+                background.width = dim;
+                background.height = dim;
+                background.tint = color;
+                container.addChild(background);
 
                 return element;
             });

@@ -1,11 +1,10 @@
 'use strict';
 
+// server
 import express from 'express';
 import { logger } from './modules/logger.js';
 import dotenv from 'dotenv';
 import { errors, middlewares } from './modules/middlewares.js';
-
-// server
 import { ssr } from './modules/ssr.js';
 import { statics } from './modules/statics.js';
 import { ioModule } from './modules/socket.io.js';
