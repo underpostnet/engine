@@ -1,7 +1,7 @@
 'use strict';
 import fs from 'fs';
 import dotenv from 'dotenv';
-import { JSONweb, random, range, s4 } from './util.js';
+import { JSONweb, random, range, s4, JSONmatrix } from './util.js';
 dotenv.config();
 
 const typeModels = {
@@ -50,7 +50,11 @@ const validateCollision = (A, B) => {
         range(0, A.dim - 1).map(xA => {
             range(0, B.dim - 1).map(yB => {
                 range(0, B.dim - 1).map(xB => {
-                    if (A.x + xA === B.x + xB && A.y + yA === B.y + yB) {
+                    if (
+                        (A.x + xA) === (B.x + xB)
+                        &&
+                        (A.y + yA) === (B.y + yB)
+                    ) {
                         collision = true;
                     }
                 });
@@ -69,9 +73,7 @@ const common = `
 // end common
 
 matrixIterator(CYBERIAONLINE, (x, y) => {
-
     // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
-
     if (random(1, 100) <= 2) {
         const type = 'building';
         elements.push({
@@ -84,18 +86,30 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
                 dim: 2
             }
         });
-    } else if (random(1, 100) <= 1) {
-        const type = 'bot';
-        elements.push({
-            id: id(elements),
-            type,
-            color: typeModels[type].color,
-            render: {
-                x,
-                y,
-                dim: 2
-            }
-        });
+    }
+});
+
+matrixIterator(CYBERIAONLINE, (x, y) => {
+    // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
+    if (random(1, 100) <= 1) {
+        const dim = 2;
+        const element = elements.find(element => validateCollision(
+            element.render,
+            { x, y, dim }
+        ));
+        if (!element) {
+            const type = 'bot';
+            elements.push({
+                id: id(elements),
+                type,
+                color: typeModels[type].color,
+                render: {
+                    x,
+                    y,
+                    dim
+                }
+            });
+        }
     }
 });
 
@@ -116,12 +130,7 @@ const matrix = range(minRangeMap, maxRangeMap).map(y => {
 if (!fs.existsSync('./data/cyberia'))
     fs.mkdirSync('./data/cyberia', { recursive: true });
 
-fs.writeFileSync('./data/cyberia/matrix.json',
-    `[\r\n${matrix.map((x, i) =>
-        `   `
-        + JSON.stringify(x)
-        + (i === matrix.length - 1 ? '' : ',')
-        + '\r\n').join('')}]`, 'utf8');
+fs.writeFileSync('./data/cyberia/matrix.json', JSONmatrix(matrix), 'utf8');
 
 // end test
 

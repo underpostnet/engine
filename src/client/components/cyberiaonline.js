@@ -5,7 +5,7 @@ this.cyberiaonline = {
 
         setTimeout(() => {
 
-            const amplitudeRender = 10;
+            const amplitudeRender = 13;
             const CYBERIAONLINE = { ...ssrCYBERIAONLINE };
             const { maxRangeMap } = CYBERIAONLINE;
 
