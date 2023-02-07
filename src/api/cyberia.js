@@ -2,14 +2,29 @@
 import fs from 'fs';
 import dotenv from 'dotenv';
 import { JSONweb, random, range, s4 } from './util.js';
-import { getRandomNumberColors, numberColors } from '../modules/colors.js';
+import { numberColors } from '../modules/colors.js';
 dotenv.config();
 
+const typeModels = {
+    'building': {
+        color: numberColors['red']
+    },
+    'floor': {
+        color: numberColors['green (html/css color)']
+    }
+};
+
+const minRangeMap = 0;
+const maxRangeMap = 31;
+const amplitudeRangeMap = 10;
+const elements = [];
+
 const CYBERIAONLINE = {
-    minRangeMap: 0,
-    maxRangeMap: 31,
-    amplitudeRangeMap: 5,
-    elements: []
+    minRangeMap,
+    maxRangeMap,
+    amplitudeRangeMap,
+    elements,
+    typeModels
 };
 
 
@@ -21,27 +36,45 @@ const id = elements => {
     return _id;
 };
 
-range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(y => {
-    range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(x => {
+const matrixIterator = (CYBERIAONLINE, fn) =>
+    range(CYBERIAONLINE.minRangeMap, maxRangeMap).map(y =>
+        range(CYBERIAONLINE.minRangeMap, maxRangeMap).map(x =>
+            fn(x, y)
+        )
+    );
 
-        if (random(1, 100) <= 25) {
-            const type = ['floor', 'building'][random(0, 1)];
-
-            CYBERIAONLINE.elements.push({
-                id: id(CYBERIAONLINE.elements),
-                type,
-                x,
-                y,
-                dim: 3
-            });
-
-        }
+matrixIterator(CYBERIAONLINE, (x, y) => {
+    if (x >= maxRangeMap - 1 || y >= maxRangeMap - 1) return;
+    const type = 'floor';
+    elements.push({
+        id: id(elements),
+        type,
+        color: typeModels[type].color,
+        x: amplitudeRangeMap * x,
+        y: amplitudeRangeMap * y,
+        dim: 1 * amplitudeRangeMap
     });
+})
+
+matrixIterator(CYBERIAONLINE, (x, y) => {
+    if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
+    if (random(1, 100) <= 10) {
+        const type = 'building';
+        elements.push({
+            id: id(elements),
+            type,
+            color: typeModels[type].color,
+            x: amplitudeRangeMap * x,
+            y: amplitudeRangeMap * y,
+            dim: 1 * amplitudeRangeMap
+        });
+    }
 });
 
 const ssrCyberia = `
     const ssrCYBERIAONLINE = ${JSONweb(CYBERIAONLINE)};
     const id = ${id};
+    const matrixIterator = ${matrixIterator};
 `;
 
 const apiCyberia = app => {
