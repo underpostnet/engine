@@ -5,11 +5,14 @@ import { JSONweb, random, range, s4 } from './util.js';
 dotenv.config();
 
 const typeModels = {
+    'floor': {
+        color: 'green (html/css color)'
+    },
     'building': {
         color: 'red'
     },
-    'floor': {
-        color: 'green (html/css color)'
+    'bot': {
+        color: 'yellow'
     }
 };
 
@@ -77,17 +80,41 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
                 dim: 1
             }
         });
+    } else if (random(1, 100) <= 1) {
+        const type = 'bot';
+        elements.push({
+            id: id(elements),
+            type,
+            color: typeModels[type].color,
+            render: {
+                x,
+                y,
+                dim: 2
+            }
+        });
     }
 });
 
 // test
 const matrix = range(minRangeMap, maxRangeMap).map(y => {
     return range(minRangeMap, maxRangeMap).map(x => {
-        return elements.filter(element =>
-            validateCollision(
-                element.render,
-                { x, y, dim: 0 }
-            )).length > 0 ? 1 : 0;
+        const element = elements.find(element => {
+            // return validateCollision(
+            //     element.render,
+            //     { x, y, dim: 0 }
+            // )
+            let valid = false;
+            range(0, element.render.dim - 1).map(y0 => {
+                range(0, element.render.dim - 1).map(x0 => {
+                    if (x === element.render.x + x0 && y === element.render.y + y0) {
+                        valid = true;
+                    }
+                });
+            });
+            return valid;
+        });
+        if (element) return Object.keys(typeModels).indexOf(element.type);
+        return 0;
     });
 });
 
