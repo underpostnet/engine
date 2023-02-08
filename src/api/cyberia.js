@@ -15,24 +15,37 @@ const maxRangeMap = 31;
 
 const typeModels = {
     'floor': {
-        gen: {
-            color: () => 'green (html/css color)',
+        color: () => 'green (html/css color)',
+        render: {
             dim: () => maxRangeMap
         }
     },
     'building': {
-        gen: {
-            color: () => 'black',
+        color: () => 'black',
+        render: {
             dim: () => 2
         }
     },
     'bot': {
-        gen: {
-            color: () => 'yellow',
+        color: () => 'yellow',
+        render: {
             dim: () => 2
         }
     }
 };
+
+const getParamsType = type => {
+    return {
+        color: typeModels[type].color(),
+        render: {
+            dim: typeModels[type].render.dim()
+        }
+    }
+};
+
+Object.keys(typeModels).map(keyType => {
+    typeModels[keyType].elements = [];
+});
 
 
 
@@ -94,20 +107,12 @@ const MAIN = {
     typeModels
 };
 
-const getParamsType = type => {
-    return {
-        color: typeModels[type].gen.color(),
-        dim: typeModels[type].gen.dim()
-    }
-};
 
-Object.keys(typeModels).map(keyType => {
-    typeModels[keyType].elements = [];
-});
 
 (() => {
     const type = 'floor';
-    const { color, dim } = getParamsType(type);
+    const { color, render } = getParamsType(type);
+    const { dim } = render;
     typeModels[type].elements.push({
         id: id(typeModels),
         type,
@@ -125,7 +130,8 @@ matrixIterator(MAIN, (x, y) => {
     if (random(1, 100) <= 2) {
 
         const type = 'building';
-        const { color, dim } = getParamsType(type);
+        const { color, render } = getParamsType(type);
+        const { dim } = render;
 
         typeModels[type].elements.push({
             id: id(typeModels),
@@ -155,7 +161,8 @@ const wsCyberia = () => {
         if (random(1, 100) <= 1) {
 
             const type = 'bot';
-            const { color, dim } = getParamsType(type);
+            const { color, render } = getParamsType(type);
+            const { dim } = render;
 
             const buildingElement = typeModels['building'].elements.find(element => validateCollision(
                 element.render,
@@ -208,7 +215,7 @@ const wsCyberia = () => {
 
     const matrixCollisionBotBuilding = range(minRangeMap, maxRangeMap).map(y => {
         return range(minRangeMap, maxRangeMap).map(x => {
-            const dim = typeModels['bot'].gen.dim();
+            const dim = typeModels['bot'].render.dim();
             const buildingElement = typeModels['building'].elements.find(element => validateCollision(
                 element.render,
                 { x, y, dim }
