@@ -15,25 +15,22 @@ const maxRangeMap = 31;
 
 const typeModels = {
     'floor': {
-        config: {
+        gen: {
             color: () => 'green (html/css color)',
             dim: () => maxRangeMap
-        },
-        elements: []
+        }
     },
     'building': {
-        config: {
-            color: () => 'red',
+        gen: {
+            color: () => 'black',
             dim: () => 2
-        },
-        elements: []
+        }
     },
     'bot': {
-        config: {
+        gen: {
             color: () => 'yellow',
             dim: () => 2
-        },
-        elements: []
+        }
     }
 };
 
@@ -43,17 +40,16 @@ const typeModels = {
 
 const getAllElements = typeModels => {
     let elements = [];
-    Object.keys(typeModels).map(typeKey => {
-        elements = elements.concat(typeModels[typeKey].elements);
+    Object.keys(typeModels).map(keyType => {
+        elements = elements.concat(typeModels[keyType].elements);
     });
     return elements;
 };
 
 const id = (typeModels) => {
     let _id = 'x' + s4() + s4();
-    while (getAllElements(typeModels).filter(x => x.id === _id).length > 0) {
+    while (getAllElements(typeModels).find(x => x.id === _id))
         _id = 'x' + s4() + s4();
-    }
     return _id;
 };
 
@@ -100,10 +96,14 @@ const MAIN = {
 
 const getParamsType = type => {
     return {
-        color: typeModels[type].config.color(),
-        dim: typeModels[type].config.dim()
+        color: typeModels[type].gen.color(),
+        dim: typeModels[type].gen.dim()
     }
 };
+
+Object.keys(typeModels).map(keyType => {
+    typeModels[keyType].elements = [];
+});
 
 (() => {
     const type = 'floor';
@@ -181,6 +181,10 @@ const wsCyberia = () => {
         }
     });
 
+
+    if (!fs.existsSync('./data/cyberia'))
+        fs.mkdirSync('./data/cyberia', { recursive: true });
+
     // test
     const matrix = range(minRangeMap, maxRangeMap).map(y => {
         return range(minRangeMap, maxRangeMap).map(x => {
@@ -198,12 +202,24 @@ const wsCyberia = () => {
         });
     });
 
-    // console.table(matrix);
-
-    if (!fs.existsSync('./data/cyberia'))
-        fs.mkdirSync('./data/cyberia', { recursive: true });
 
     fs.writeFileSync('./data/cyberia/matrix.json', JSONmatrix(matrix), 'utf8');
+
+
+    const matrixCollisionBotBuilding = range(minRangeMap, maxRangeMap).map(y => {
+        return range(minRangeMap, maxRangeMap).map(x => {
+            const dim = typeModels['bot'].gen.dim();
+            const buildingElement = typeModels['building'].elements.find(element => validateCollision(
+                element.render,
+                { x, y, dim }
+            ));
+            if (buildingElement) return 1;
+            return 0;
+        });
+    });
+
+
+    fs.writeFileSync('./data/cyberia/matrixCollisionBotBuilding.json', JSONmatrix(matrixCollisionBotBuilding), 'utf8');
 
     // end test
 
@@ -222,13 +238,16 @@ const wsCyberia = () => {
 
         });
 
-    // const grid = new PF.Grid(matrix.length, matrix.length, matrix);
-    //     const finder = new PF.AStarFinder({
-    //         allowDiagonal: true, // enable diagonal
-    //         dontCrossCorners: false, // corner of a solid
-    //         heuristic: PF.Heuristic.chebyshev
-    //     });
-    //     return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
+
+    const gridMatrixCollisionBotBuilding =
+        new pathfinding.Grid(matrixCollisionBotBuilding);
+    const finderMatrixCollisionBotBuilding = pathfinding.AStarFinder({
+        allowDiagonal: true, // enable diagonal
+        dontCrossCorners: false, // corner of a solid
+        heuristic: pathfinding.Heuristic.chebyshev
+    });
+    // return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
+
 
 
     setInterval(() => {

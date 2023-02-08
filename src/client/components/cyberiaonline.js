@@ -74,7 +74,7 @@ this.cyberiaonline = {
             };
 
             socket.onclose = event => {
-                console.log(wsHost, 'onclose', event.data);
+                console.log(wsHost, 'onclose', event);
             };
 
             socket.onmessage = event => {
