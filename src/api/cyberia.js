@@ -250,8 +250,6 @@ const wsCyberia = () => {
         });
 
 
-    const gridMatrixCollisionBotBuilding =
-        new pathfinding.Grid(matrixCollisionBotBuilding);
     const finderMatrixCollisionBotBuilding = new pathfinding.AStarFinder({
         allowDiagonal: true, // enable diagonal
         dontCrossCorners: false, // corner of a solid
@@ -288,7 +286,7 @@ const wsCyberia = () => {
                             element.render.y,
                             x2,
                             y2,
-                            gridMatrixCollisionBotBuilding
+                            new pathfinding.Grid(matrixCollisionBotBuilding)
                         );
 
 
