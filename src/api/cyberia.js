@@ -24,7 +24,7 @@ const minRangeMap = 0;
 const maxRangeMap = 31;
 const elements = [];
 
-const CYBERIAONLINE = {
+const MAIN = {
     minRangeMap,
     maxRangeMap,
     elements,
@@ -41,9 +41,9 @@ const id = elements => {
     return _id;
 };
 
-const matrixIterator = (CYBERIAONLINE, fn) =>
-    range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(y =>
-        range(CYBERIAONLINE.minRangeMap, CYBERIAONLINE.maxRangeMap).map(x =>
+const matrixIterator = (MAIN, fn) =>
+    range(MAIN.minRangeMap, MAIN.maxRangeMap).map(y =>
+        range(MAIN.minRangeMap, MAIN.maxRangeMap).map(x =>
             fn(x, y)
         )
     );
@@ -75,7 +75,7 @@ const common = `
 
 // end common
 
-matrixIterator(CYBERIAONLINE, (x, y) => {
+matrixIterator(MAIN, (x, y) => {
     // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
     if (random(1, 100) <= 2) {
         const type = 'building';
@@ -92,29 +92,6 @@ matrixIterator(CYBERIAONLINE, (x, y) => {
     }
 });
 
-matrixIterator(CYBERIAONLINE, (x, y) => {
-    // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
-    if (random(1, 100) <= 1) {
-        const dim = 2;
-        const element = elements.find(element => validateCollision(
-            element.render,
-            { x, y, dim }
-        ));
-        if (!element) {
-            const type = 'bot';
-            elements.push({
-                id: id(elements),
-                type,
-                color: typeModels[type].color,
-                render: {
-                    x,
-                    y,
-                    dim
-                }
-            });
-        }
-    }
-});
 
 // test
 const matrix = range(minRangeMap, maxRangeMap).map(y => {
@@ -138,11 +115,35 @@ fs.writeFileSync('./data/cyberia/matrix.json', JSONmatrix(matrix), 'utf8');
 // end test
 
 const ssrCyberia = `
-    const ssrCYBERIAONLINE = ${JSONweb(CYBERIAONLINE)};
+    const ssrMAIN = ${JSONweb(MAIN)};
     ${common}
 `;
 
 const wsCyberia = () => {
+
+    matrixIterator(MAIN, (x, y) => {
+        // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
+        if (random(1, 100) <= 1) {
+            const dim = 2;
+            const element = elements.find(element => validateCollision(
+                element.render,
+                { x, y, dim }
+            ));
+            if (!element) {
+                const type = 'bot';
+                elements.push({
+                    id: id(elements),
+                    type,
+                    color: typeModels[type].color,
+                    render: {
+                        x,
+                        y,
+                        dim
+                    }
+                });
+            }
+        }
+    });
 
     const clients = [];
 

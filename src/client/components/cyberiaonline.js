@@ -6,16 +6,16 @@ this.cyberiaonline = {
         setTimeout(() => {
 
             const amplitudeRender = 13;
-            const CYBERIAONLINE = { ...ssrCYBERIAONLINE };
-            const { maxRangeMap } = CYBERIAONLINE;
+            const MAIN = { ...ssrMAIN };
+            const { maxRangeMap } = MAIN;
 
-            CYBERIAONLINE.app = new PIXI.Application({
+            MAIN.app = new PIXI.Application({
                 width: maxRangeMap * amplitudeRender,
                 height: maxRangeMap * amplitudeRender,
                 background: 'gray'
             });
 
-            const { app, elements } = CYBERIAONLINE;
+            const { app, elements } = MAIN;
 
             const setAmplitudeRender = render => {
                 Object.keys(render).map(keyRender => {
@@ -26,7 +26,10 @@ this.cyberiaonline = {
 
             s('pixi-container').appendChild(app.view);
 
-            CYBERIAONLINE.elements = elements.map(element => {
+
+            console.log('MAIN', MAIN);
+
+            const renderPixiInitElement = element => {
 
                 const { x, y, dim } = setAmplitudeRender(element.render);
                 element.color = numberColors[element.color];
@@ -52,9 +55,7 @@ this.cyberiaonline = {
                 container.addChild(background);
 
                 return element;
-            });
-            console.log('CYBERIAONLINE', CYBERIAONLINE);
-
+            };
             const renderPixiEventElement = element => {
                 const { x, y } = setAmplitudeRender(element.render);
                 const container = element.pixi.container;
@@ -62,22 +63,28 @@ this.cyberiaonline = {
                 container.y = y;
             };
 
-            const urlws = 'ws://localhost:5502';
-            const socket = new WebSocket(urlws);
+            MAIN.elements.map(element => renderPixiInitElement(element));
+
+            const wsHost = 'ws://localhost:5502';
+            const socket = new WebSocket(wsHost);
 
             socket.onopen = event => {
-                console.log(urlws, 'onopen', event);
+                console.log(wsHost, 'onopen', event);
             };
 
             socket.onclose = event => {
-                console.log(urlws, 'onclose', event.data);
+                console.log(wsHost, 'onclose', event.data);
             };
 
             socket.onmessage = event => {
-                const { id, render } = JSON.parse(event.data);
+                event.element = JSON.parse(event.data);
+                const { id, render } = event.element;
                 const element = elements.find(element => element.id === id);
-                element.render = render;
-                renderPixiEventElement(element);
+                if (element) {
+                    element.render = render;
+                    return renderPixiEventElement(element);
+                }
+                return MAIN.elements.push(renderPixiInitElement(event.element));
             };
 
         });
