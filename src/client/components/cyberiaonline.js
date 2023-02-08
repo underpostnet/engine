@@ -15,7 +15,7 @@ this.cyberiaonline = {
                 background: 'gray'
             });
 
-            const { app, elements } = MAIN;
+            const { app, typeModels } = MAIN;
 
             const setAmplitudeRender = render => {
                 Object.keys(render).map(keyRender => {
@@ -63,7 +63,8 @@ this.cyberiaonline = {
                 container.y = y;
             };
 
-            MAIN.elements.map(element => renderPixiInitElement(element));
+            getAllElements(typeModels)
+                .map(element => renderPixiInitElement(element));
 
             const wsHost = 'ws://localhost:5502';
             const socket = new WebSocket(wsHost);
@@ -78,13 +79,13 @@ this.cyberiaonline = {
 
             socket.onmessage = event => {
                 event.element = JSON.parse(event.data);
-                const { id, render } = event.element;
-                const element = elements.find(element => element.id === id);
+                const { id, render, type } = event.element;
+                const element = getAllElements(typeModels).find(element => element.id === id);
                 if (element) {
                     element.render = render;
                     return renderPixiEventElement(element);
                 }
-                return MAIN.elements.push(renderPixiInitElement(event.element));
+                return typeModels[type].elements.push(renderPixiInitElement(event.element));
             };
 
         });

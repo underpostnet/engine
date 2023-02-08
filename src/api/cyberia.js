@@ -8,34 +8,50 @@ import { logger } from '../modules/logger.js';
 
 dotenv.config();
 
-const typeModels = {
-    'floor': {
-        color: 'green (html/css color)'
-    },
-    'building': {
-        color: 'red'
-    },
-    'bot': {
-        color: 'yellow'
-    }
-};
+
 
 const minRangeMap = 0;
 const maxRangeMap = 31;
-const elements = [];
 
-const MAIN = {
-    minRangeMap,
-    maxRangeMap,
-    elements,
-    typeModels
+const typeModels = {
+    'floor': {
+        config: {
+            color: () => 'green (html/css color)',
+            dim: () => maxRangeMap - 1
+        },
+        elements: []
+    },
+    'building': {
+        config: {
+            color: () => 'red',
+            dim: () => 2
+        },
+        elements: []
+    },
+    'bot': {
+        config: {
+            color: () => 'yellow',
+            dim: () => 2
+        },
+        elements: []
+    }
 };
+
+
 
 // common
 
-const id = elements => {
+const getAllElements = typeModels => {
+    let elements = [];
+    Object.keys(typeModels).map(typeKey => {
+        elements = elements.concat(typeModels[typeKey].elements);
+    });
+    return elements;
+};
+
+const id = (typeModels) => {
     let _id = 'x' + s4() + s4();
-    while (elements.filter(x => x.id === _id).length > 0) {
+    while (getAllElements(typeModels).filter(x => x.id === _id).length > 0) {
         _id = 'x' + s4() + s4();
     }
     return _id;
@@ -68,6 +84,7 @@ const validateCollision = (A, B) => {
 };
 
 const common = `
+    const getAllElements = ${getAllElements};
     const id = ${id};
     const matrixIterator = ${matrixIterator};
     const validateCollision = ${validateCollision};
@@ -75,18 +92,34 @@ const common = `
 
 // end common
 
+const MAIN = {
+    minRangeMap,
+    maxRangeMap,
+    typeModels
+};
+
+const getParamsType = type => {
+    return {
+        color: typeModels[type].config.color(),
+        dim: typeModels[type].config.dim()
+    }
+};
+
 matrixIterator(MAIN, (x, y) => {
     // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
     if (random(1, 100) <= 2) {
+
         const type = 'building';
-        elements.push({
-            id: id(elements),
+        const { color, dim } = getParamsType(type);
+
+        typeModels[type].elements.push({
+            id: id(typeModels),
             type,
-            color: typeModels[type].color,
+            color,
             render: {
                 x,
                 y,
-                dim: 2
+                dim
             }
         });
     }
@@ -105,17 +138,24 @@ const wsCyberia = () => {
     matrixIterator(MAIN, (x, y) => {
         // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
         if (random(1, 100) <= 1) {
-            const dim = 2;
-            const element = elements.find(element => validateCollision(
+
+            const type = 'bot';
+            const { color, dim } = getParamsType(type);
+
+            const buildingElement = typeModels['building'].elements.find(element => validateCollision(
                 element.render,
                 { x, y, dim }
             ));
-            if (!element) {
-                const type = 'bot';
-                elements.push({
-                    id: id(elements),
+            const botElement = typeModels['bot'].elements.find(element => validateCollision(
+                element.render,
+                { x, y, dim }
+            ));
+
+            if (!buildingElement && !botElement) {
+                typeModels[type].elements.push({
+                    id: id(typeModels),
                     type,
-                    color: typeModels[type].color,
+                    color,
                     render: {
                         x,
                         y,
@@ -129,11 +169,16 @@ const wsCyberia = () => {
     // test
     const matrix = range(minRangeMap, maxRangeMap).map(y => {
         return range(minRangeMap, maxRangeMap).map(x => {
-            const element = elements.find(element => validateCollision(
+            const botElement = typeModels['bot'].elements.find(element => validateCollision(
                 element.render,
                 { x, y, dim: 1 }
             ));
-            if (element) return Object.keys(typeModels).indexOf(element.type);
+            const buildingElement = typeModels['building'].elements.find(element => validateCollision(
+                element.render,
+                { x, y, dim: 1 }
+            ));
+            if (botElement) return Object.keys(typeModels).indexOf(botElement.type);
+            if (buildingElement) return Object.keys(typeModels).indexOf(buildingElement.type);
             return 0;
         });
     });
@@ -172,7 +217,7 @@ const wsCyberia = () => {
 
     const bots = {};
     setInterval(() => {
-        elements.map(element => {
+        getAllElements(typeModels).map(element => {
             if (element.type === 'bot') {
 
                 if (!bots[element.id]) bots[element.id] = {
