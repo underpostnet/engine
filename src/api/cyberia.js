@@ -8,8 +8,6 @@ import { logger } from '../modules/logger.js';
 
 dotenv.config();
 
-
-
 const minRangeMap = 0;
 const maxRangeMap = 31;
 
@@ -34,6 +32,11 @@ const typeModels = {
     }
 };
 
+
+Object.keys(typeModels).map(keyType => {
+    typeModels[keyType].elements = [];
+});
+
 const getParamsType = type => {
     return {
         color: typeModels[type].color(),
@@ -42,10 +45,6 @@ const getParamsType = type => {
         }
     }
 };
-
-Object.keys(typeModels).map(keyType => {
-    typeModels[keyType].elements = [];
-});
 
 
 
@@ -107,7 +106,7 @@ const MAIN = {
     typeModels
 };
 
-
+// ssr init elements
 
 (() => {
     const type = 'floor';
@@ -146,13 +145,12 @@ matrixIterator(MAIN, (x, y) => {
     }
 });
 
-
-
-
 const ssrCyberia = `
     const ssrMAIN = ${JSONweb(MAIN)};
     ${common}
 `;
+
+// end ssr init elements
 
 const wsCyberia = () => {
 
