@@ -17,7 +17,7 @@ const typeModels = {
     'floor': {
         config: {
             color: () => 'green (html/css color)',
-            dim: () => maxRangeMap - 1
+            dim: () => maxRangeMap
         },
         elements: []
     },
@@ -104,6 +104,21 @@ const getParamsType = type => {
         dim: typeModels[type].config.dim()
     }
 };
+
+(() => {
+    const type = 'floor';
+    const { color, dim } = getParamsType(type);
+    typeModels[type].elements.push({
+        id: id(typeModels),
+        type,
+        color,
+        render: {
+            x: 0,
+            y: 0,
+            dim
+        }
+    });
+})()
 
 matrixIterator(MAIN, (x, y) => {
     // if (x > maxRangeMap - 1 || y > maxRangeMap - 1) return;
@@ -215,24 +230,22 @@ const wsCyberia = () => {
     //     });
     //     return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
 
-    const bots = {};
+
     setInterval(() => {
         getAllElements(typeModels).map(element => {
             if (element.type === 'bot') {
 
-                if (!bots[element.id]) bots[element.id] = {
-                    path: []
-                };
-                bots[element.id].path.shift();
+                if (!element.path) element.path = [];
+                element.path.shift();
 
-                if (bots[element.id].path.length === 0) {
+                if (element.path.length === 0) {
 
-                    bots[element.id].path = range(0, maxRangeMap).map(i => [i, i]);
+                    element.path = range(0, maxRangeMap).map(i => [i, i]);
 
                 }
 
-                element.render.x = bots[element.id].path[0][0];
-                element.render.y = bots[element.id].path[0][1];
+                element.render.x = element.path[0][0];
+                element.render.y = element.path[0][1];
 
                 clients.map(client => {
 
