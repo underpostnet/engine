@@ -93,26 +93,7 @@ matrixIterator(MAIN, (x, y) => {
 });
 
 
-// test
-const matrix = range(minRangeMap, maxRangeMap).map(y => {
-    return range(minRangeMap, maxRangeMap).map(x => {
-        const element = elements.find(element => validateCollision(
-            element.render,
-            { x, y, dim: 1 }
-        ));
-        if (element) return Object.keys(typeModels).indexOf(element.type);
-        return 0;
-    });
-});
 
-// console.table(matrix);
-
-if (!fs.existsSync('./data/cyberia'))
-    fs.mkdirSync('./data/cyberia', { recursive: true });
-
-fs.writeFileSync('./data/cyberia/matrix.json', JSONmatrix(matrix), 'utf8');
-
-// end test
 
 const ssrCyberia = `
     const ssrMAIN = ${JSONweb(MAIN)};
@@ -144,6 +125,27 @@ const wsCyberia = () => {
             }
         }
     });
+
+    // test
+    const matrix = range(minRangeMap, maxRangeMap).map(y => {
+        return range(minRangeMap, maxRangeMap).map(x => {
+            const element = elements.find(element => validateCollision(
+                element.render,
+                { x, y, dim: 1 }
+            ));
+            if (element) return Object.keys(typeModels).indexOf(element.type);
+            return 0;
+        });
+    });
+
+    // console.table(matrix);
+
+    if (!fs.existsSync('./data/cyberia'))
+        fs.mkdirSync('./data/cyberia', { recursive: true });
+
+    fs.writeFileSync('./data/cyberia/matrix.json', JSONmatrix(matrix), 'utf8');
+
+    // end test
 
     const clients = [];
 
