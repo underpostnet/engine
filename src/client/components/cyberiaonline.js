@@ -74,19 +74,10 @@ this.cyberiaonline = {
             };
 
             socket.onmessage = event => {
-                const elementData = JSON.parse(event.data);
-                const { id } = elementData.element;
+                const { id, render } = JSON.parse(event.data);
                 const element = elements.find(element => element.id === id);
-                switch (elementData.state) {
-                    case 'x-y':
-                        const { x, y } = elementData.element.render;
-                        element.render.x = x;
-                        element.render.y = y;
-                        renderPixiEventElement(element);
-                        break;
-                    default:
-                        break;
-                }
+                element.render = render;
+                renderPixiEventElement(element);
             };
 
         });

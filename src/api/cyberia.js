@@ -49,23 +49,22 @@ const matrixIterator = (CYBERIAONLINE, fn) =>
     );
 
 const validateCollision = (A, B) => {
-    let collision = false;
-    range(0, A.dim - 1).map(yA => {
-        range(0, A.dim - 1).map(xA => {
-            range(0, B.dim - 1).map(yB => {
-                range(0, B.dim - 1).map(xB => {
+    for (const yA of range(0, A.dim - 1)) {
+        for (const xA of range(0, A.dim - 1)) {
+            for (const yB of range(0, B.dim - 1)) {
+                for (const xB of range(0, B.dim - 1)) {
                     if (
                         (A.x + xA) === (B.x + xB)
                         &&
                         (A.y + yA) === (B.y + yB)
                     ) {
-                        collision = true;
+                        return true;
                     }
-                });
-            });
-        });
-    });
-    return collision;
+                };
+            };
+        };
+    };
+    return false;
 };
 
 const common = `
@@ -167,7 +166,7 @@ const wsCyberia = () => {
     //         heuristic: PF.Heuristic.chebyshev
     //     });
     //     return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
-    
+
     const bots = {};
     setInterval(() => {
         elements.map(element => {
@@ -189,18 +188,7 @@ const wsCyberia = () => {
 
                 clients.map(client => {
 
-                    const eventMsg = {
-                        state: 'x-y',
-                        element: {
-                            render: {
-                                x: element.render.x,
-                                y: element.render.y
-                            },
-                            id: element.id
-                        }
-                    };
-
-                    client.send(JSON.stringify(eventMsg));
+                    client.send(JSON.stringify(element));
                 });
 
             }
