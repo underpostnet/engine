@@ -119,6 +119,13 @@ const orderArrayFromAttrInt = (arr, attr, type) =>
         arr.sort((a, b) => a[attr] - b[attr]) :
         arr.sort((a, b) => b[attr] - a[attr]);
 
+const getRandomPoint = (suffix, pointsArray) => {
+    const point = pointsArray[random(0, pointsArray.length - 1)];
+    const returnPoint = {};
+    returnPoint['x' + suffix] = point[0];
+    returnPoint['y' + suffix] = point[1];
+    return returnPoint;
+};
 
 const clearSubUri = path => {
     let _path = path.slice(1).split('/');
@@ -345,6 +352,7 @@ const commonFunctions = () => `
     const floor10 = ${floor10};
     const ceil10 = ${ceil10};
     const JSONmatrix = ${JSONmatrix};
+    const getRandomPoint = ${getRandomPoint};
 `;
 
 const buildURL = (viewMetaData, subDomain) => {
@@ -434,5 +442,6 @@ export {
     floor10,
     ceil10,
     JSONweb,
-    JSONmatrix
+    JSONmatrix,
+    getRandomPoint
 };

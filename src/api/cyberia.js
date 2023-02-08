@@ -3,7 +3,7 @@ import fs from 'fs';
 import dotenv from 'dotenv';
 import WebSocket from 'ws';
 import pathfinding from 'pathfinding';
-import { JSONweb, random, range, s4, JSONmatrix } from './util.js';
+import { JSONweb, random, range, s4, JSONmatrix, getRandomPoint } from './util.js';
 import { logger } from '../modules/logger.js';
 
 dotenv.config();
@@ -14,20 +14,26 @@ const maxRangeMap = 31;
 const typeModels = {
     'floor': {
         color: () => 'green (html/css color)',
-        render: {
-            dim: () => maxRangeMap
+        render: () => {
+            return {
+                dim: () => maxRangeMap
+            }
         }
     },
     'building': {
         color: () => 'black',
-        render: {
-            dim: () => 2
+        render: () => {
+            return {
+                dim: () => 2
+            }
         }
     },
     'bot': {
         color: () => 'yellow',
-        render: {
-            dim: () => 2
+        render: () => {
+            return {
+                dim: () => 2
+            }
         }
     }
 };
@@ -41,7 +47,7 @@ const getParamsType = type => {
     return {
         color: typeModels[type].color(),
         render: {
-            dim: typeModels[type].render.dim()
+            dim: typeModels[type].render().dim()
         }
     }
 };
@@ -213,7 +219,7 @@ const wsCyberia = () => {
 
     const matrixCollisionBotBuilding = range(minRangeMap, maxRangeMap).map(y => {
         return range(minRangeMap, maxRangeMap).map(x => {
-            const dim = typeModels['bot'].render.dim();
+            const dim = typeModels['bot'].render().dim();
             const buildingElement = typeModels['building'].elements.find(element => validateCollision(
                 element.render,
                 { x, y, dim }
@@ -246,13 +252,21 @@ const wsCyberia = () => {
 
     const gridMatrixCollisionBotBuilding =
         new pathfinding.Grid(matrixCollisionBotBuilding);
-    const finderMatrixCollisionBotBuilding = pathfinding.AStarFinder({
+    const finderMatrixCollisionBotBuilding = new pathfinding.AStarFinder({
         allowDiagonal: true, // enable diagonal
         dontCrossCorners: false, // corner of a solid
         heuristic: pathfinding.Heuristic.chebyshev
     });
-    // return finder.findPath(parseInt(element.x), parseInt(element.y), newX !== undefined ? newX : x, newY !== undefined ? newY : y, grid);
+    const endPointMatrixCollisionBotBuilding = [];
+    matrixIterator(MAIN, (x, y) => {
+        const buildingElement = typeModels['building'].elements.find(element => validateCollision(
+            element.render,
+            { x, y, dim: 1 }
+        ));
+        if (!buildingElement) endPointMatrixCollisionBotBuilding.push([x, y]);
+    });
 
+    // return 
 
 
     setInterval(() => {
@@ -262,9 +276,21 @@ const wsCyberia = () => {
                 if (!element.path) element.path = [];
                 element.path.shift();
 
-                if (element.path.length === 0) {
+                while (element.path.length === 0) {
 
-                    element.path = range(0, maxRangeMap).map(i => [i, i]);
+                    // element.path = range(0, maxRangeMap).map(i => [i, i]);
+
+                    const { x2, y2 } = getRandomPoint(2, endPointMatrixCollisionBotBuilding);
+
+                    element.path = finderMatrixCollisionBotBuilding
+                        .findPath(
+                            element.render.x,
+                            element.render.y,
+                            x2,
+                            y2,
+                            gridMatrixCollisionBotBuilding
+                        );
+
 
                 }
 
