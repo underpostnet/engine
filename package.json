@@ -63,7 +63,7 @@
     "peer": "^0.6.1",
     "read": "^1.0.7",
     "response-time": "^2.3.2",
-    "shelljs": "latest",
+    "shelljs": "^0.8.5",
     "simplemde": "^1.11.2",
     "socket.io": "^4.5.1",
     "spectre-markdown.css": "^0.1.2",
