@@ -1,0 +1,35 @@
+{
+    "services.nexodev.org/tst": {
+        "client": "test",
+        "port": 3000,
+        "runtime": "nodejs",
+        "forceSSL": false,
+        "proxy": [
+            80,
+            81,
+            443
+        ]
+    },
+    "services.nexodev.org/docs": {
+        "client": "doc",
+        "port": 3001,
+        "runtime": "xampp",
+        "forceSSL": false,
+        "proxy": [
+            80,
+            81,
+            443
+        ]
+    },
+    "cyberiaonline.com": {
+        "client": "cyberia",
+        "port": 3003,
+        "runtime": "nodejs",
+        "forceSSL": true,
+        "proxy": [
+            80,
+            81,
+            443
+        ]
+    }
+}
