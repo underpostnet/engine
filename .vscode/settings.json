@@ -1,0 +1,34 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "[javascript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[python]": {
+    "editor.defaultFormatter": "ms-python.python"
+  },
+  "cSpell.words": [
+    "ANAME",
+    "certbot",
+    "certonly",
+    "cyberia",
+    "cyberiaonline",
+    "dists",
+    "DOGMADUAL",
+    "dondominio",
+    "htmls",
+    "Longname",
+    "minami",
+    "neodrag",
+    "nexodev",
+    "pathfinding",
+    "Pixi",
+    "privkey",
+    "runas",
+    "taffydb",
+    "underpost",
+    "webroot",
+    "xampp",
+    "youtu"
+  ]
+}

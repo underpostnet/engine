@@ -1,0 +1,60 @@
+{
+  "type": "module",
+  "main": "src/server.js",
+  "name": "engine",
+  "version": "2.0.0",
+  "description": "engine server",
+  "scripts": {
+    "start": "env-cmd -f .env.production pm2 start src/server.js --name engine",
+    "dev": "env-cmd -f .env.development nodemon src/server",
+    "docs": "jsdoc -c jsdoc.json",
+    "install": "npm install -g pm2 && npm install -g jsdoc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/underpostnet/engine.git"
+  },
+  "keywords": [
+    "engine",
+    "server",
+    "proxy",
+    "client",
+    "underpost"
+  ],
+  "author": "https://github.com/underpostnet",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/underpostnet/engine/issues"
+  },
+  "homepage": "https://github.com/underpostnet/engine#readme",
+  "dependencies": {
+    "@neodrag/vanilla": "^2.0.3",
+    "axios": "^1.5.1",
+    "colors": "^1.4.0",
+    "copy-paste": "^1.5.3",
+    "cors": "^2.8.5",
+    "detect-port": "^1.5.1",
+    "dotenv": "^16.3.1",
+    "env-cmd": "^10.1.0",
+    "express": "^4.18.2",
+    "fs-extra": "^11.1.1",
+    "http-proxy-middleware": "^2.0.6",
+    "is-admin": "^4.0.0",
+    "json-colorizer": "^2.2.2",
+    "kill-port-process": "^3.2.0",
+    "morgan": "^1.10.0",
+    "nodemon": "^3.0.1",
+    "pathfinding": "^0.4.18",
+    "pixi.js": "^7.2.4",
+    "public-ip": "^6.0.1",
+    "read": "^2.1.0",
+    "sharp": "^0.32.5",
+    "shelljs": "^0.8.5",
+    "socket.io": "^4.7.2",
+    "winston": "^3.11.0"
+  },
+  "devDependencies": {
+    "minami": "^1.2.3",
+    "taffydb": "^2.7.3"
+  }
+}
