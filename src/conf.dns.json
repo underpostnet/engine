@@ -1,0 +1,16 @@
+{
+    "ipDaemon": {
+        "ip": null,
+        "minutesTimeInterval": 3
+    },
+    "records": {
+        "A": [
+            {
+                "host": "example.com",
+                "dns": "dondominio",
+                "api_key": "???",
+                "user": "???"
+            }
+        ]
+    }
+}
