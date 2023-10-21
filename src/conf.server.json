@@ -167,6 +167,58 @@
             ]
         }
     },
+    "www.vitaintegral.cl": {
+        "/": {
+            "client": "test",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "vitaintegral.cl": {
+        "/": {
+            "client": "test",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "www.giancarlobertini.com": {
+        "/": {
+            "client": "test",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "giancarlobertini.com": {
+        "/": {
+            "client": "test",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
     "localhost": {
         "/tst": {
             "port": 4000,
