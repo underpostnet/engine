@@ -27,12 +27,15 @@ const buildRuntime = async () => {
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
       currentPort++;
-      const { runtime, port, client, origins, disabled } = confServer[host][path];
+      const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
 
       if (disabled) continue;
 
       switch (runtime) {
         case 'xampp':
+          if (directory && !fs.existsSync(directory))
+            fs.mkdirSync(`${directory}/.well-known/acme-challenge`, { recursive: true });
+
           if (!xampp.ports.includes(port)) xampp.ports.push(port);
           if (!xampp.roots.includes(rootHostPath)) xampp.roots.push(rootHostPath);
           xampp.router += `
@@ -40,9 +43,9 @@ const buildRuntime = async () => {
         Listen ${port}
 
         <VirtualHost *:${port}>            
-            DocumentRoot "${getRootDirectory()}${rootHostPath}"
+            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
             ServerName localhost
-            <Directory "${getRootDirectory()}${rootHostPath}">
+            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
                 Options Indexes FollowSymLinks MultiViews
                 AllowOverride All
                 Require all granted
