@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 
-const clientBuild = async () => {
+const buildClient = async () => {
   let ViewRender;
   eval(srcFormatted(fs.readFileSync('./src/client/ssr/ViewRender.js', 'utf8')));
   const confClient = JSON.parse(fs.readFileSync(`./src/conf.client.json`, 'utf8'));
@@ -65,4 +65,4 @@ const clientBuild = async () => {
   }
 };
 
-export { clientBuild };
+export { buildClient };

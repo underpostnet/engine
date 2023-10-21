@@ -1,5 +1,5 @@
-import { clientBuild } from './server/client-build.js';
+import { buildClient } from './server/client-build.js';
 import { buildRuntime } from './server/runtime.js';
 
-await clientBuild();
+await buildClient();
 await buildRuntime();
