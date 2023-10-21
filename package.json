@@ -5,7 +5,7 @@
   "version": "2.0.0",
   "description": "engine server",
   "scripts": {
-    "start": "env-cmd -f .env.production pm2 start src/server.js --name engine",
+    "start": "pm2 kill && env-cmd -f .env.production pm2 start src/server.js --name engine",
     "dev": "env-cmd -f .env.development nodemon src/server",
     "docs": "jsdoc -c jsdoc.json",
     "install": "npm install -g pm2 && npm install -g jsdoc"
