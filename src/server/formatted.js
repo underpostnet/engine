@@ -8,18 +8,20 @@ const JSONweb = (data) => 'JSON.parse(`' + JSON.stringify(data) + '`)';
 
 const componentFormatted = (src, module, dists, proxyPath) => {
   dists.map(
-    (dist) => (src = src.replaceAll(dist.import_name, `${proxyPath ? `/${proxyPath}` : ''}${dist.import_name_build}`))
+    (dist) =>
+      (src = src.replaceAll(dist.import_name, `${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}`))
   );
   return src
-    .replaceAll(`from '../`, `from '/${proxyPath ? `${proxyPath}/` : ''}components/`)
-    .replaceAll(`from './`, `from '/${proxyPath ? `${proxyPath}/` : ''}components/${module}/`);
+    .replaceAll(`from '../`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}components/`)
+    .replaceAll(`from './`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}components/${module}/`);
 };
 
 const viewFormatted = (src, dists, proxyPath) => {
   dists.map(
-    (dist) => (src = src.replaceAll(dist.import_name, `${proxyPath ? `/${proxyPath}` : ''}${dist.import_name_build}`))
+    (dist) =>
+      (src = src.replaceAll(dist.import_name, `${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}`))
   );
-  return src.replaceAll(`from './`, `from '/${proxyPath ? `${proxyPath}/` : ''}`);
+  return src.replaceAll(`from './`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}`);
 };
 
 export { srcFormatted, pathViewFormatted, JSONweb, componentFormatted, viewFormatted };
