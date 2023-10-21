@@ -1,6 +1,7 @@
 import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
 
 import { createServer } from 'http';
 import { createIoServer } from './socket.io.js';
@@ -9,9 +10,11 @@ import { network, listenPortController } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 
+dotenv.config();
+
 const buildRuntime = async () => {
   let cmd;
-  let currentPort = 3000;
+  let currentPort = parseInt(process.env.PORT);
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const xampp = {
     router: '',

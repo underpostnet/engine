@@ -3,11 +3,14 @@
 import express from 'express';
 import https from 'https';
 import fs from 'fs';
+import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
@@ -25,7 +28,7 @@ const buildSecureContext = (host) => {
 };
 
 const buildProxy = async () => {
-  let currentPort = 3000;
+  let currentPort = parseInt(process.env.PORT);
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const proxyRouter = {};
   for (const host of Object.keys(confServer))

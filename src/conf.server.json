@@ -64,7 +64,45 @@
             ]
         }
     },
+    "www.cyberiaonline.com": {
+        "/cyb": {
+            "client": "cyberia",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                81,
+                443
+            ]
+        },
+        "/": {
+            "client": "cyberia",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
     "nexodev.org": {
+        "/": {
+            "client": "test",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "www.nexodev.org": {
         "/": {
             "client": "test",
             "runtime": "nodejs",
@@ -90,7 +128,33 @@
             ]
         }
     },
+    "www.cryptokoyn.net": {
+        "/": {
+            "client": "test",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
     "dogmadual.com": {
+        "/": {
+            "client": "test",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "www.dogmadual.com": {
         "/": {
             "client": "test",
             "runtime": "nodejs",
@@ -105,7 +169,7 @@
     },
     "localhost": {
         "/tst": {
-            "port": 3000,
+            "port": 4000,
             "disabled": false,
             "proxy": [
                 80,
@@ -114,7 +178,7 @@
             ]
         },
         "/docs": {
-            "port": 3001,
+            "port": 4001,
             "disabled": false,
             "proxy": [
                 80,
@@ -123,7 +187,7 @@
             ]
         },
         "/": {
-            "port": 3002,
+            "port": 4002,
             "disabled": false,
             "proxy": [
                 80,
