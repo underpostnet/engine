@@ -60,8 +60,7 @@ const Dns = {
               return resolve(true);
             })
             .catch((error) => {
-              logger.error(error);
-              logger.error(`${dns} update ip error`, error.message);
+              logger.error(error, `${dns} update ip error`);
               return resolve(false);
             });
         });

@@ -27,8 +27,8 @@
     },
     "services.cyberiaonline.com": {
         "/": {
-            "client": "test",
-            "runtime": "xampp",
+            "client": "cyberia",
+            "runtime": "nodejs",
             "origins": [],
             "forceSSL": false,
             "disabled": false,

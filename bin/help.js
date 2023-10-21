@@ -77,5 +77,5 @@ try {
   }
   logger.info(out);
 } catch (error) {
-  logger.error(error, error.stack);
+  logger.error(error);
 }
