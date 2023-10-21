@@ -39,35 +39,10 @@
             ]
         }
     },
-    "cyberiaonline.com": {
-        "/cyb": {
-            "client": "cyberia",
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": false,
-            "disabled": false,
-            "proxy": [
-                80,
-                81,
-                443
-            ]
-        },
-        "/": {
-            "client": "cyberia",
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": false,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
     "www.cyberiaonline.com": {
         "/cyb": {
             "client": "cyberia",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -79,7 +54,7 @@
         },
         "/": {
             "client": "cyberia",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -89,10 +64,22 @@
             ]
         }
     },
-    "nexodev.org": {
+    "cyberiaonline.com": {
+        "/cyb": {
+            "client": "cyberia",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                81,
+                443
+            ]
+        },
         "/": {
-            "client": "test",
-            "runtime": "nodejs",
+            "client": "cyberia",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -105,7 +92,7 @@
     "www.nexodev.org": {
         "/": {
             "client": "test",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -115,10 +102,10 @@
             ]
         }
     },
-    "cryptokoyn.net": {
+    "nexodev.org": {
         "/": {
             "client": "test",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -131,7 +118,7 @@
     "www.cryptokoyn.net": {
         "/": {
             "client": "test",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -141,10 +128,10 @@
             ]
         }
     },
-    "dogmadual.com": {
+    "cryptokoyn.net": {
         "/": {
             "client": "test",
-            "runtime": "nodejs",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
@@ -157,7 +144,20 @@
     "www.dogmadual.com": {
         "/": {
             "client": "test",
-            "runtime": "nodejs",
+            "runtime": "xampp",
+            "origins": [],
+            "forceSSL": false,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "dogmadual.com": {
+        "/": {
+            "client": "test",
+            "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
             "disabled": false,
