@@ -27,19 +27,18 @@ const buildRuntime = async () => {
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
       currentPort++;
-      const { runtime, port, client, origins } = confServer[host][path];
+      const { runtime, port, client, origins, disabled } = confServer[host][path];
+
+      if (disabled) continue;
 
       switch (runtime) {
         case 'xampp':
-          if (!xampp.ports.includes(port)) {
-            xampp.ports.push(port);
-            xampp.router += `
+          if (!xampp.ports.includes(port)) xampp.ports.push(port);
+          if (!xampp.roots.includes(rootHostPath)) xampp.roots.push(rootHostPath);
+          xampp.router += `
+            
         Listen ${port}
-            `;
-          }
-          if (!xampp.roots.includes(rootHostPath)) {
-            xampp.roots.push(rootHostPath);
-            xampp.router += `
+
         <VirtualHost *:${port}>            
             DocumentRoot "${getRootDirectory()}${rootHostPath}"
             ServerName localhost
@@ -50,7 +49,6 @@ const buildRuntime = async () => {
             </Directory>
         </VirtualHost>
           `;
-          }
           break;
         case 'nodejs':
           const meta = { url: `app-${client}-${port}` };

@@ -45,7 +45,7 @@
             "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
-            "disabled": false,
+            "disabled": true,
             "proxy": [
                 80,
                 81,
