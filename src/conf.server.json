@@ -23,6 +23,19 @@
             ]
         }
     },
+    "services.cyberiaonline.com": {
+        "/": {
+            "client": "test",
+            "port": 3002,
+            "runtime": "xampp",
+            "forceSSL": true,
+            "proxy": [
+                80,
+                81,
+                443
+            ]
+        }
+    },
     "cyberiaonline.com": {
         "/": {
             "client": "cyberia",
