@@ -56,7 +56,7 @@
             "client": "cyberia",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -81,7 +81,7 @@
             "client": "cyberia",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -94,7 +94,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -107,7 +107,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -120,7 +120,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -133,7 +133,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -146,7 +146,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
@@ -159,7 +159,7 @@
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
+            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
