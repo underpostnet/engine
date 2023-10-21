@@ -173,7 +173,7 @@
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
-            "disabled": false,
+            "disabled": true,
             "git": "https://github.com/underpostnet/wp_vitaintegral",
             "directory": "C:/xampp/htdocs/online/vitaintegral",
             "proxy": [
@@ -188,7 +188,7 @@
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
-            "disabled": false,
+            "disabled": true,
             "redirect": "www.vitaintegral.cl",
             "proxy": [
                 80,
@@ -202,7 +202,7 @@
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
-            "disabled": false,
+            "disabled": true,
             "git": "https://github.com/underpostnet/wp_giancarlobertini",
             "directory": "C:/xampp/htdocs/online/giancarlobertini",
             "proxy": [
@@ -217,7 +217,7 @@
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
-            "disabled": false,
+            "disabled": true,
             "redirect": "www.giancarlobertini.com",
             "proxy": [
                 80,
