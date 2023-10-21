@@ -2,7 +2,6 @@
     "services.nexodev.org": {
         "/tst": {
             "client": "test",
-            "port": 3000,
             "runtime": "nodejs",
             "origins": [],
             "forceSSL": false,
@@ -15,7 +14,6 @@
         },
         "/docs": {
             "client": "doc",
-            "port": 3001,
             "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
@@ -30,7 +28,6 @@
     "services.cyberiaonline.com": {
         "/": {
             "client": "test",
-            "port": 3002,
             "runtime": "xampp",
             "origins": [],
             "forceSSL": false,
@@ -45,7 +42,6 @@
     "cyberiaonline.com": {
         "/cyb": {
             "client": "cyberia",
-            "port": 3004,
             "runtime": "nodejs",
             "origins": [],
             "forceSSL": false,
@@ -58,7 +54,45 @@
         },
         "/": {
             "client": "cyberia",
-            "port": 3003,
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "nexodev.org": {
+        "/": {
+            "client": "test",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "cryptokoyn.net": {
+        "/": {
+            "client": "test",
+            "runtime": "nodejs",
+            "origins": [],
+            "forceSSL": true,
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        }
+    },
+    "dogmadual.com": {
+        "/": {
+            "client": "test",
             "runtime": "nodejs",
             "origins": [],
             "forceSSL": true,
@@ -70,12 +104,8 @@
         }
     },
     "localhost": {
-        "/docs": {
-            "client": "doc",
-            "port": 3001,
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": false,
+        "/tst": {
+            "port": 3000,
             "disabled": false,
             "proxy": [
                 80,
@@ -83,12 +113,8 @@
                 443
             ]
         },
-        "/cyb": {
-            "client": "cyberia",
-            "port": 3004,
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": false,
+        "/docs": {
+            "port": 3001,
             "disabled": false,
             "proxy": [
                 80,
@@ -97,11 +123,7 @@
             ]
         },
         "/": {
-            "client": "test",
-            "port": 3000,
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": false,
+            "port": 3002,
             "disabled": false,
             "proxy": [
                 80,

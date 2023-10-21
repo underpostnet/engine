@@ -14,7 +14,8 @@ const Dns = {
   ipDaemon: null,
   InitIpDaemon: async function () {
     // DNS Records: [ANAME] -> [A] -> [ip]
-    const confDnsPath = './src/conf.dns.json';
+    const confDnsPath =
+      process.env.NODE_ENV === 'production' ? './engine-private/conf.dns.private.json' : './src/conf.dns.json';
     let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
     this.ip = confDnsData.ipDaemon.ip;
     logger.info(`Current ip`, this.ip);

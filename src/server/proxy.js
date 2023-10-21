@@ -7,6 +7,7 @@ import fs from 'fs';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
+import { newInstance } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -24,12 +25,17 @@ const buildSecureContext = (host) => {
 };
 
 const buildProxy = async () => {
+  let currentPort = 3000;
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const proxyRouter = {};
   for (const host of Object.keys(confServer))
     for (const path of Object.keys(confServer[host]))
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
+        if (!confServer[host][path].port) {
+          confServer[host][path].port = newInstance(currentPort);
+          currentPort++;
+        }
         proxyRouter[port][`${host}${path}`] = {
           target: `http://localhost:${confServer[host][path].port}`,
           disabled: confServer[host][path].disabled,
@@ -38,7 +44,7 @@ const buildProxy = async () => {
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
 
-  // logger.info('Proxy router', proxyRouter);
+  logger.info('Proxy router', proxyRouter);
 
   let server;
   let optionsSSL = {};

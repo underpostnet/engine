@@ -7,9 +7,11 @@ import { createIoServer } from './socket.io.js';
 import { getRootDirectory, shellExec } from './process.js';
 import { network, listenPortController } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
+import { newInstance } from '../client/components/core/CommonJs.js';
 
 const buildRuntime = async () => {
   let cmd;
+  let currentPort = 3000;
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const xampp = {
     router: '',
@@ -20,6 +22,8 @@ const buildRuntime = async () => {
     if (host === 'localhost') continue;
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
+      confServer[host][path].port = newInstance(currentPort);
+      currentPort++;
       const { runtime, port, client, origins } = confServer[host][path];
 
       switch (runtime) {
