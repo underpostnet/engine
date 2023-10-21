@@ -44,7 +44,7 @@ const buildRuntime = async () => {
 
         <VirtualHost *:${port}>            
             DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
-            ServerName localhost
+            ServerName ${host}
             <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
                 Options Indexes FollowSymLinks MultiViews
                 AllowOverride All
