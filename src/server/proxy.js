@@ -44,6 +44,8 @@ const buildProxy = async () => {
           disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
+        if (confServer[host][path].redirect)
+          proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
 
@@ -52,6 +54,7 @@ const buildProxy = async () => {
   let server;
   let optionsSSL = {};
   let forceSSL = [];
+  let redirects = {};
 
   for (let port of Object.keys(proxyRouter)) {
     port = parseInt(port);
@@ -84,7 +87,8 @@ const buildProxy = async () => {
       onProxyReq: (proxyReq, req, res) => {
         /* handle proxyReq */
         // `[HPM][${req.method}][SSL:${req.secure}] ${req.headers.host}${req.url}
-
+        if (`${req.headers.host}/` in redirects) return res.redirect(`http://${redirects[`${req.headers.host}/`]}`);
+        if (req.headers.host in redirects) return res.redirect(`http://${redirects[req.headers.host]}`);
         if (
           !req.secure &&
           forceSSL.find((forceData) => forceData.host === req.headers.host && req.url.startsWith(forceData.path))
@@ -96,8 +100,9 @@ const buildProxy = async () => {
     // build router
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((host) => {
-      const { disabled, target, proxy } = hosts[host];
+      const { disabled, target, proxy, redirect } = hosts[host];
       if (disabled || !target || !proxy.includes(port) || (host.split('/')[0] === 'localhost' && port === 443)) return;
+      if (redirect) redirects[host] = redirect;
       if (!('target' in options)) options.target = target;
       else if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
@@ -130,7 +135,8 @@ const buildProxy = async () => {
       if ('listen' in server) await listenPortController(server, port, () => logger.info(`Proxy running on`, port));
     } else await listenPortController(app, port, () => logger.info(`Proxy running on`, port));
   }
-  logger.info('Force SSL:', forceSSL);
+  logger.info('Force SSL', forceSSL);
+  logger.info('Redirects', redirects);
 };
 
 export { buildProxy };

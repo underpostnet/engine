@@ -172,7 +172,7 @@
             "client": "test",
             "runtime": "xampp",
             "origins": [],
-            "forceSSL": false,
+            "forceSSL": true,
             "disabled": false,
             "proxy": [
                 80,
@@ -185,8 +185,9 @@
             "client": "test",
             "runtime": "xampp",
             "origins": [],
-            "forceSSL": false,
+            "forceSSL": true,
             "disabled": false,
+            "redirect": "www.vitaintegral.cl",
             "proxy": [
                 80,
                 443
@@ -198,7 +199,7 @@
             "client": "test",
             "runtime": "xampp",
             "origins": [],
-            "forceSSL": false,
+            "forceSSL": true,
             "disabled": false,
             "proxy": [
                 80,
@@ -211,8 +212,9 @@
             "client": "test",
             "runtime": "xampp",
             "origins": [],
-            "forceSSL": false,
+            "forceSSL": true,
             "disabled": false,
+            "redirect": "www.giancarlobertini.com",
             "proxy": [
                 80,
                 443
