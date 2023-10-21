@@ -1,3 +1,5 @@
+'use strict';
+
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 
@@ -9,6 +11,7 @@ const buildClient = async () => {
   const publicPath = `./public`;
   if (fs.existsSync(publicPath)) fs.removeSync(`${publicPath}`);
   for (const host of Object.keys(confServer)) {
+    if (host === 'localhost') continue;
     fs.mkdirSync(`${publicPath}/${host}/.well-known/acme-challenge`, { recursive: true });
     for (const path of Object.keys(confServer[host])) {
       const rootClientPath = `${publicPath}/${host}${path}`;

@@ -17,6 +17,7 @@ const buildRuntime = async () => {
     ports: [],
   };
   for (const host of Object.keys(confServer)) {
+    if (host === 'localhost') continue;
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       const { runtime, port, client, origins } = confServer[host][path];
