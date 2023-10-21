@@ -13,7 +13,7 @@ ${`Help`.white}
 
 Arguments:
 
-> [optional] section: help | install | deploy
+> [optional] section: help | install | ssl
 > [optional] sections: section,section,...
 
 Command Line:
@@ -34,18 +34,19 @@ Command Line:
 
 > ${`node bin/install <os> <program>`.yellow}
 `,
-  deploy: `
+  ssl: `
 ---------------------------------------------------------------
-${`Deploy management`.white}
+${`SSL management`.white}
 ---------------------------------------------------------------
 
 Arguments:
 
-> [required] dev-hosts: localhost,localhost/path,...
+> [required] os: windows
+> [required] hosts: example.com,www.example.com
 
 Command Line:
 
-> ${`node bin/deploy <dev-hosts>`.yellow}
+> ${`node bin/ssl <os> <hosts>`.yellow}
 `,
   shortcut: `
 ---------------------------------------------------------------
