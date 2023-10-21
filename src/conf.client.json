@@ -4,6 +4,11 @@
         "views": [],
         "dists": []
     },
+    "wordpress": {
+        "components": {},
+        "views": [],
+        "dists": []
+    },
     "test": {
         "components": {
             "core": [

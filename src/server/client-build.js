@@ -9,17 +9,17 @@ const buildClient = async () => {
   const confClient = JSON.parse(fs.readFileSync(`./src/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const publicPath = `./public`;
-  if (fs.existsSync(publicPath)) fs.removeSync(`${publicPath}`);
   for (const host of Object.keys(confServer)) {
     if (host === 'localhost') continue;
     fs.mkdirSync(`${publicPath}/${host}/.well-known/acme-challenge`, { recursive: true });
     for (const path of Object.keys(confServer[host])) {
-      const rootClientPath = `${publicPath}/${host}${path}`;
-      fs.mkdirSync(rootClientPath, { recursive: true });
       const { client } = confServer[host][path];
-      fs.copySync(`./src/client/public/${client}`, rootClientPath);
-
+      if (['wordpress'].includes(client)) continue;
       const { components, dists, views } = confClient[client];
+      const rootClientPath = `${publicPath}/${host}${path}`;
+      if (fs.existsSync(`${rootClientPath}`)) fs.removeSync(`${rootClientPath}`);
+      fs.mkdirSync(rootClientPath, { recursive: true });
+      if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
 
       Object.keys(components).map((module) => {
         if (!fs.existsSync(`${rootClientPath}/components/${module}`))

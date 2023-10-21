@@ -169,7 +169,7 @@
     },
     "www.vitaintegral.cl": {
         "/": {
-            "client": "test",
+            "client": "wordpress",
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
@@ -182,7 +182,7 @@
     },
     "vitaintegral.cl": {
         "/": {
-            "client": "test",
+            "client": "wordpress",
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
@@ -196,7 +196,7 @@
     },
     "www.giancarlobertini.com": {
         "/": {
-            "client": "test",
+            "client": "wordpress",
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
@@ -209,7 +209,7 @@
     },
     "giancarlobertini.com": {
         "/": {
-            "client": "test",
+            "client": "wordpress",
             "runtime": "xampp",
             "origins": [],
             "forceSSL": true,
