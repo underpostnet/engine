@@ -36,7 +36,7 @@ const network = {
     kill: async (ports) => await killPortProcess(ports),
     portClean: async function (port) {
       const [portStatus] = await this.status([port]);
-      logger.info('port status', portStatus);
+      // logger.info('port status', portStatus);
       if (portStatus.open) await this.kill([port]);
     },
   },
