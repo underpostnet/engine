@@ -15,6 +15,7 @@
             "runtime": "nodejs",
             "origins": [],
             "disabled": false,
+            "directory": "c:/test",
             "proxy": [
                 80,
                 443

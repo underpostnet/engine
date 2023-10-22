@@ -18,7 +18,6 @@ const buildRuntime = async () => {
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const xampp = {
     router: '',
-    roots: [],
     ports: [],
   };
   for (const host of Object.keys(confServer)) {
@@ -27,16 +26,11 @@ const buildRuntime = async () => {
       confServer[host][path].port = newInstance(currentPort);
       currentPort++;
       const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
-
       if (disabled) continue;
 
       switch (runtime) {
         case 'xampp':
-          if (directory && !fs.existsSync(directory))
-            fs.mkdirSync(`${directory}/.well-known/acme-challenge`, { recursive: true });
-
           if (!xampp.ports.includes(port)) xampp.ports.push(port);
-          if (!xampp.roots.includes(rootHostPath)) xampp.roots.push(rootHostPath);
           xampp.router += `
             
         Listen ${port}
@@ -59,7 +53,7 @@ const buildRuntime = async () => {
 
           const app = express();
           // instance public static
-          app.use('/', express.static(`.${rootHostPath}`));
+          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
           app.use((req, res, next) => {
             // `[app-${client}][${req.method}] ${req.headers.host}${req.url}`
