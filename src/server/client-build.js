@@ -12,10 +12,10 @@ const buildClient = async () => {
   for (const host of Object.keys(confServer)) {
     fs.mkdirSync(`${publicPath}/${host}/.well-known/acme-challenge`, { recursive: true });
     for (const path of Object.keys(confServer[host])) {
-      const { client } = confServer[host][path];
+      const { client, directory } = confServer[host][path];
       if (['wordpress'].includes(client)) continue;
       const { components, dists, views } = confClient[client];
-      const rootClientPath = `${publicPath}/${host}${path}`;
+      const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       if (fs.existsSync(`${rootClientPath}`)) fs.removeSync(`${rootClientPath}`);
       fs.mkdirSync(rootClientPath, { recursive: true });
       if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
