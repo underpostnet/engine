@@ -49,7 +49,7 @@ const buildProxy = async () => {
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
 
-  logger.info('Proxy router', proxyRouter);
+  // logger.info('Proxy router', proxyRouter);
 
   let server;
   let optionsSSL = {};
@@ -132,7 +132,7 @@ const buildProxy = async () => {
         }
       });
 
-      if ('listen' in server) await listenPortController(server, port, () => logger.info(`Proxy running on`, port));
+      if (server) await listenPortController(server, port, () => logger.info(`Proxy running on`, port));
     } else await listenPortController(app, port, () => logger.info(`Proxy running on`, port));
   }
   logger.info('Force SSL', forceSSL);

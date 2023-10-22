@@ -48,6 +48,21 @@ Command Line:
 
 > ${`node bin/ssl <os> <hosts>`.yellow}
 `,
+  mariadb: `
+---------------------------------------------------------------
+${`MariaDB management`.white}
+---------------------------------------------------------------
+
+Arguments:
+
+> [required] os: windows
+> [required] operation: windows
+> [required] host/path: example.com,www.example.com
+
+Command Line:
+
+> ${`node bin/ssl <os> <operation> <host/path>`.yellow}
+`,
   shortcut: `
 ---------------------------------------------------------------
 ${`Shortcut Generator`.white}
