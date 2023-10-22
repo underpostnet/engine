@@ -58,7 +58,7 @@ const shellCd = (cd) => {
 
 const envController = async () => {
   const confPrivateServerPath = `./engine-private/conf.server.private.json`;
-  if (process.env.NODE_ENV === 'production' && fs.existsSync(confPrivateServerPath))
+  if (fs.existsSync(confPrivateServerPath))
     fs.writeFileSync(
       `./src/conf.server.json`,
       JSON.stringify(JSON.parse(fs.readFileSync(confPrivateServerPath, 'utf8')), null, 4),
