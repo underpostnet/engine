@@ -1,14 +1,12 @@
 {
-    "services.nexodev.org": {
-        "/tst": {
+    "example1.com": {
+        "/": {
             "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
-                81,
                 443
             ]
         },
@@ -16,209 +14,29 @@
             "client": "doc",
             "runtime": "xampp",
             "origins": [],
-            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
-                81,
                 443
             ]
         }
     },
-    "services.cyberiaonline.com": {
+    "www.example2.com": {
         "/": {
-            "client": "cyberia",
+            "client": "test",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": false,
             "disabled": false,
             "proxy": [
                 80,
-                81,
-                443
-            ]
-        }
-    },
-    "www.cyberiaonline.com": {
-        "/cyb": {
-            "client": "cyberia",
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "proxy": [
-                80,
-                81,
                 443
             ]
         },
-        "/": {
+        "/cyberia": {
             "client": "cyberia",
             "runtime": "nodejs",
             "origins": [],
-            "forceSSL": true,
             "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "cyberiaonline.com": {
-        "/cyb": {
-            "client": "cyberia",
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "proxy": [
-                80,
-                81,
-                443
-            ]
-        },
-        "/": {
-            "client": "cyberia",
-            "runtime": "nodejs",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "www.nexodev.org": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "nexodev.org": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "www.cryptokoyn.net": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "cryptokoyn.net": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "www.dogmadual.com": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "dogmadual.com": {
-        "/": {
-            "client": "test",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "www.vitaintegral.cl": {
-        "/": {
-            "client": "wordpress",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "git": "https://github.com/underpostnet/wp_vitaintegral",
-            "directory": "C:/xampp/htdocs/online/vitaintegral",
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "vitaintegral.cl": {
-        "/": {
-            "client": "wordpress",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "redirect": "www.vitaintegral.cl",
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "www.giancarlobertini.com": {
-        "/": {
-            "client": "wordpress",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "git": "https://github.com/underpostnet/wp_giancarlobertini",
-            "directory": "C:/xampp/htdocs/online/giancarlobertini",
-            "proxy": [
-                80,
-                443
-            ]
-        }
-    },
-    "giancarlobertini.com": {
-        "/": {
-            "client": "wordpress",
-            "runtime": "xampp",
-            "origins": [],
-            "forceSSL": true,
-            "disabled": true,
-            "redirect": "www.giancarlobertini.com",
             "proxy": [
                 80,
                 443
