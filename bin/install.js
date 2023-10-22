@@ -1,6 +1,6 @@
 import fs from 'fs';
 import { Downloader } from '../src/server/downloader.js';
-import { getRootDirectory, shellExec } from '../src/server/process.js';
+import { getRootDirectory, shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -59,6 +59,9 @@ try {
               fs.readFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, 'utf8'),
               'utf8'
             );
+            shellCd(`c:/xampp`);
+            shellExec(`git init && git add . && git commit -m "update"`);
+            shellCd(getRootDirectory());
           })();
           break;
         default:
