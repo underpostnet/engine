@@ -52,8 +52,6 @@ const buildRuntime = async () => {
           const logger = loggerFactory(meta);
 
           const app = express();
-          // instance public static
-          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
           app.use((req, res, next) => {
             // `[app-${client}][${req.method}] ${req.headers.host}${req.url}`
@@ -62,6 +60,9 @@ const buildRuntime = async () => {
 
           // set logger
           app.use(loggerMiddleware(meta));
+
+          // instance public static
+          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));
