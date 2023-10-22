@@ -1,6 +1,5 @@
 /node_modules
 /public
 /engine-private
-/src/conf.dns.json
-/src/conf.server.json
+/conf
 /logs

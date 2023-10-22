@@ -13,7 +13,7 @@ const [exe, dir, os, hosts] = process.argv;
 
 try {
   let cmd;
-  const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of hosts.split(',')) {
     if (host in confServer) {
       cmd = `certbot certonly --webroot --webroot-path ${getRootDirectory()}/public/${host} -d ${host}`;

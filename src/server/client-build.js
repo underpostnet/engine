@@ -6,8 +6,8 @@ import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } fr
 const buildClient = async () => {
   let ViewRender;
   eval(srcFormatted(fs.readFileSync('./src/client/ssr/ViewRender.js', 'utf8')));
-  const confClient = JSON.parse(fs.readFileSync(`./src/conf.client.json`, 'utf8'));
-  const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
+  const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {

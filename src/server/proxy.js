@@ -12,8 +12,6 @@ import { newInstance } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
-const logger = loggerFactory(import.meta);
-
 const validateSecureContext = (host) =>
   fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
   fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
@@ -33,9 +31,10 @@ const buildProxy = async () => {
   // default target
   const defaultTargetPort = newInstance(currentPort);
   currentPort++;
+  await network.port.portClean(defaultTargetPort);
   express().listen(defaultTargetPort);
 
-  const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const proxyRouter = {};
   for (const host of Object.keys(confServer))
     for (const path of Object.keys(confServer[host])) {

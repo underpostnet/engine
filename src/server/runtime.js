@@ -14,8 +14,8 @@ dotenv.config();
 
 const buildRuntime = async () => {
   let cmd;
-  let currentPort = parseInt(process.env.PORT);
-  const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
+  let currentPort = parseInt(process.env.PORT) + 1;
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const xampp = {
     router: '',
     ports: [],
