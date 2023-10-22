@@ -140,8 +140,8 @@ const buildProxy = async () => {
       if (server) await listenPortController(server, port, () => logger.info(`Proxy running on`, port));
     } else await listenPortController(app, port, () => logger.info(`Proxy running on`, port));
   }
-  logger.info('Force SSL', forceSSL);
-  logger.info('Redirects', redirects);
+  // logger.info('Force SSL', forceSSL);
+  // logger.info('Redirects', redirects);
 };
 
 export { buildProxy };
