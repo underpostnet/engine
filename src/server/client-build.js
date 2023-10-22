@@ -4,7 +4,6 @@ import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 
 const buildClient = async () => {
-  const disabledRebuildClients = ['wordpress'];
   let ViewRender;
   eval(srcFormatted(fs.readFileSync('./src/client/ssr/ViewRender.js', 'utf8')));
   const confClient = JSON.parse(fs.readFileSync(`./src/conf.client.json`, 'utf8'));
@@ -12,22 +11,9 @@ const buildClient = async () => {
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
-    (() => {
-      let directories = [];
-      for (const path of Object.keys(confServer[host])) {
-        const { client, directory, disabled } = confServer[host][path];
-        if (disabled) continue;
-        if (disabledRebuildClients.includes(client)) return;
-        if (directory) directories.push(directory);
-      }
-      for (const directory of directories) if (fs.existsSync(`${directory}`)) fs.removeSync(`${directory}`);
-      if (fs.existsSync(`${publicPath}/${host}`)) fs.removeSync(`${publicPath}/${host}`);
-    })();
-
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled } = confServer[host][path];
-      if (disabled) continue;
-      if (disabledRebuildClients.includes(client)) continue;
+      const { client, directory, disabled, disabledRebuild } = confServer[host][path];
+
       const acmeChallengeBuild = directory
         ? `${directory}${acmeChallengePath}`
         : path === '/'
@@ -36,7 +22,12 @@ const buildClient = async () => {
       if (acmeChallengeBuild) fs.mkdirSync(acmeChallengeBuild, { recursive: true });
       const { components, dists, views } = confClient[client];
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
-      if (!fs.existsSync(rootClientPath)) fs.mkdirSync(rootClientPath, { recursive: true });
+      if (disabled) continue;
+      if (fs.existsSync(rootClientPath)) {
+        if (disabledRebuild) continue;
+        fs.removeSync(rootClientPath);
+      }
+      fs.mkdirSync(rootClientPath, { recursive: true });
       if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
 
       Object.keys(components).map((module) => {
