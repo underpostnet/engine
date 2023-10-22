@@ -11,7 +11,7 @@ import { buildClient } from './server/client-build.js';
 import { buildRuntime } from './server/runtime.js';
 import { buildProxy } from './server/proxy.js';
 import { Dns } from './server/dns.js';
-import { ProcessController } from './server/process.js';
+import { ProcessController, envController } from './server/process.js';
 
 dotenv.config();
 
@@ -21,6 +21,7 @@ logger.info('argv', process.argv);
 logger.info('env', process.env.NODE_ENV);
 logger.info('admin', await isAdmin());
 
+await envController();
 await buildClient();
 await buildRuntime();
 await buildProxy();

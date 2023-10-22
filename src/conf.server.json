@@ -1,15 +1,5 @@
 {
     "example1.com": {
-        "/": {
-            "client": "test",
-            "runtime": "nodejs",
-            "origins": [],
-            "disabled": false,
-            "proxy": [
-                80,
-                443
-            ]
-        },
         "/docs": {
             "client": "doc",
             "runtime": "xampp",
@@ -19,9 +9,7 @@
                 80,
                 443
             ]
-        }
-    },
-    "www.example2.com": {
+        },
         "/": {
             "client": "test",
             "runtime": "nodejs",
@@ -31,9 +19,21 @@
                 80,
                 443
             ]
-        },
+        }
+    },
+    "www.example2.com": {
         "/cyberia": {
             "client": "cyberia",
+            "runtime": "nodejs",
+            "origins": [],
+            "disabled": false,
+            "proxy": [
+                80,
+                443
+            ]
+        },
+        "/": {
+            "client": "test",
             "runtime": "nodejs",
             "origins": [],
             "disabled": false,

@@ -1,7 +1,12 @@
 // https://nodejs.org/api/process
 
 import shell from 'shelljs';
+import dotenv from 'dotenv';
+import fs from 'fs';
+
 import { loggerFactory } from './logger.js';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
@@ -51,4 +56,14 @@ const shellCd = (cd) => {
   return shell.cd(cd);
 };
 
-export { ProcessController, getRootDirectory, shellExec, shellCd };
+const envController = async () => {
+  const confPrivateServerPath = `./engine-private/conf.server.private.json`;
+  if (process.env.NODE_ENV === 'production' && fs.existsSync(confPrivateServerPath))
+    fs.writeFileSync(
+      `./src/conf.server.json`,
+      JSON.stringify(JSON.parse(fs.readFileSync(confPrivateServerPath, 'utf8')), null, 4),
+      'utf8'
+    );
+};
+
+export { ProcessController, getRootDirectory, shellExec, shellCd, envController };
