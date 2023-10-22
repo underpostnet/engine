@@ -13,21 +13,17 @@ const buildClient = async () => {
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
       const { client, directory, disabled, disabledRebuild } = confServer[host][path];
+      if (disabled || disabledRebuild) continue;
 
-      const acmeChallengeBuild = directory
-        ? `${directory}${acmeChallengePath}`
-        : path === '/'
-        ? `${publicPath}/${host}${acmeChallengePath}`
-        : false;
-      if (acmeChallengeBuild) fs.mkdirSync(acmeChallengeBuild, { recursive: true });
       const { components, dists, views } = confClient[client];
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
-      if (disabled) continue;
-      if (fs.existsSync(rootClientPath)) {
-        if (disabledRebuild) continue;
-        fs.removeSync(rootClientPath);
-      }
+
+      fs.removeSync(rootClientPath);
       fs.mkdirSync(rootClientPath, { recursive: true });
+      fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
+        recursive: true,
+      });
+
       if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
 
       Object.keys(components).map((module) => {
