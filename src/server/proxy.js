@@ -101,7 +101,7 @@ const buildProxy = async () => {
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((host) => {
       const { disabled, target, proxy, redirect } = hosts[host];
-      if (disabled || !target || !proxy.includes(port) || (host.split('/')[0] === 'localhost' && port === 443)) return;
+      if (disabled || !target || !proxy.includes(port)) return;
       if (redirect) redirects[host] = redirect;
       if (!('target' in options)) options.target = target;
       else if ([80, 443].includes(port)) options.router[host] = target;

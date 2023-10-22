@@ -10,7 +10,6 @@ const buildClient = async () => {
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
-    if (host === 'localhost') continue;
     fs.mkdirSync(`${publicPath}/${host}/.well-known/acme-challenge`, { recursive: true });
     for (const path of Object.keys(confServer[host])) {
       const { client } = confServer[host][path];

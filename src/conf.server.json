@@ -224,34 +224,5 @@
                 443
             ]
         }
-    },
-    "localhost": {
-        "/tst": {
-            "port": 4000,
-            "disabled": false,
-            "proxy": [
-                80,
-                81,
-                443
-            ]
-        },
-        "/docs": {
-            "port": 4001,
-            "disabled": false,
-            "proxy": [
-                80,
-                81,
-                443
-            ]
-        },
-        "/": {
-            "port": 4002,
-            "disabled": false,
-            "proxy": [
-                80,
-                81,
-                443
-            ]
-        }
     }
 }
