@@ -50,18 +50,17 @@ Command Line:
 `,
   mariadb: `
 ---------------------------------------------------------------
-${`MariaDB management`.white}
+${`DataBase management`.white}
 ---------------------------------------------------------------
 
 Arguments:
 
-> [required] os: windows
-> [required] operation: windows
-> [required] host/path: example.com,www.example.com
+> [required] operator: show | save | load | delete
+> [required] host/path: example.com | example.com/path | www.example.com
 
 Command Line:
 
-> ${`node bin/ssl <os> <operation> <host/path>`.yellow}
+> ${`node bin/db <operator> <host/path>`.yellow}
 `,
   shortcut: `
 ---------------------------------------------------------------
