@@ -29,6 +29,12 @@ const buildSecureContext = (host) => {
 
 const buildProxy = async () => {
   let currentPort = parseInt(process.env.PORT);
+
+  // default target
+  const defaultTargetPort = newInstance(currentPort);
+  currentPort++;
+  express().listen(defaultTargetPort);
+
   const confServer = JSON.parse(fs.readFileSync(`./src/conf.server.json`, 'utf8'));
   const proxyRouter = {};
   for (const host of Object.keys(confServer))
@@ -49,11 +55,6 @@ const buildProxy = async () => {
     }
 
   // logger.info('Proxy router', proxyRouter);
-
-  // default target
-  const defaultTargetPort = newInstance(currentPort);
-  currentPort++;
-  express().listen(defaultTargetPort);
 
   let server;
   let optionsSSL = {};
