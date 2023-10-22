@@ -105,6 +105,7 @@ const buildRuntime = async () => {
     fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, xampp.router, 'utf8');
     // cmd = `C:/xampp/xampp_stop.exe`;
     // shellExec(cmd);
+    await network.port.portClean(3306);
     for (const port of xampp.ports) await network.port.portClean(port);
     cmd = `C:/xampp/xampp_start.exe`;
     shellExec(cmd);

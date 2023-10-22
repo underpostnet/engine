@@ -59,6 +59,7 @@ try {
               fs.readFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, 'utf8'),
               'utf8'
             );
+            fs.writeFileSync(`C:/xampp/.gitignore`, `/htdocs`, 'utf8');
             shellCd(`c:/xampp`);
             shellExec(`git init && git add . && git commit -m "update"`);
             shellCd(getRootDirectory());
