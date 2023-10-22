@@ -50,6 +50,11 @@ const buildProxy = async () => {
 
   // logger.info('Proxy router', proxyRouter);
 
+  // default target
+  const defaultTargetPort = newInstance(currentPort);
+  currentPort++;
+  express().listen(defaultTargetPort);
+
   let server;
   let optionsSSL = {};
   let forceSSL = [];
@@ -79,8 +84,10 @@ const buildProxy = async () => {
       ws: true,
       changeOrigin: true,
       autoRewrite: true,
+      target: `http://localhost:${defaultTargetPort}`,
       router: {},
       pathRewrite: {
+        // only add path
         // '^/target-path': '/',
       },
       onProxyReq: (proxyReq, req, res) => {
@@ -102,8 +109,7 @@ const buildProxy = async () => {
       const { disabled, target, proxy, redirect } = hosts[host];
       if (disabled || !target || !proxy.includes(port)) return;
       if (redirect) redirects[host] = redirect;
-      if (!('target' in options)) options.target = target;
-      else if ([80, 443].includes(port)) options.router[host] = target;
+      if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
     });
 
