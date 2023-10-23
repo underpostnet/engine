@@ -36,12 +36,14 @@ try {
         case 'windows':
           await (async () => {
             const versions = {
-              '7.4.13':
+              '7.4.13-0':
+                'https://ufpr.dl.sourceforge.net/project/xampp/XAMPP%20Windows/7.4.13/xampp-windows-x64-7.4.13-0-VC15-installer.exe',
+              '7.4.13-1':
                 'https://ufpr.dl.sourceforge.net/project/xampp/XAMPP%20Windows/7.4.13/xampp-portable-windows-x64-7.4.13-1-VC15-installer.exe',
               '8.0.28':
                 'https://sitsa.dl.sourceforge.net/project/xampp/XAMPP%20Windows/8.0.28/xampp-windows-x64-8.0.28-0-VS16-installer.exe',
             };
-            const urlDownload = versions['7.4.13'];
+            const urlDownload = versions['7.4.13-0'];
             const folderPath = `./engine-private/setup`;
             if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
             const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
