@@ -54,5 +54,5 @@ try {
   // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
   // throw new Error(``);
 } catch (error) {
-  logger.error(error);
+  logger.error(error, error.stack);
 }

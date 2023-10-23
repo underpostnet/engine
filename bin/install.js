@@ -120,5 +120,5 @@ try {
   }
   logger.info(`success: ${program} on ${os}`);
 } catch (error) {
-  logger.error(error);
+  logger.error(error, error.stack);
 }

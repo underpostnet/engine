@@ -55,5 +55,5 @@ try {
   logger.info(`run the following command for renewal. Command copy to clipboard`, cmd);
   logger.info(`success install SLL`, hosts);
 } catch (error) {
-  logger.error(error);
+  logger.error(error, error.stack);
 }

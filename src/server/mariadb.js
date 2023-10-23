@@ -18,10 +18,13 @@ const MariaDB = {
       conn = await pool.getConnection();
       result = await conn.query(query, { supportBigNumbers: true, bigNumberStrings: true });
       logger.info(query, result);
+    } catch (error) {
+      logger.error(error, error.stack);
     } finally {
       if (conn) conn.release(); //release to pool
       await pool.end();
     }
+
     return result;
   },
 };

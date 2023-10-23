@@ -93,5 +93,5 @@ try {
   }
   logger.info(out);
 } catch (error) {
-  logger.error(error);
+  logger.error(error, error.stack);
 }
