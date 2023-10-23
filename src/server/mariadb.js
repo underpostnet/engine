@@ -4,8 +4,6 @@ import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
 
-logger.info('argv', process.argv);
-
 const MariaDB = {
   query: async (options) => {
     const { host, port, user, password, query } = options;
