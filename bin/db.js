@@ -2,14 +2,15 @@ import fs from 'fs';
 // import read from 'read';
 // import ncp from 'copy-paste';
 
-// import { getRootDirectory, shellExec } from '../src/server/process.js';
+import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
+import { MariaDB } from '../src/server/mariadb.js';
 
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, operator, hostPath = ''] = process.argv;
+const [exe, dir, hostPath = '', operator] = process.argv;
 const [host, path = ''] = hostPath.split('/');
 
 try {
@@ -20,27 +21,22 @@ try {
     case 'mariadb':
       switch (operator) {
         case 'show':
-          await (async () => {
-            const mariadb = await import('mariadb');
-            const pool = mariadb.createPool({
-              host: '127.0.0.1',
-              port: 3306,
-              user,
-              password,
-            });
-            let conn, query;
-            try {
-              query = 'SHOW DATABASES';
-              conn = await pool.getConnection();
-              const result = await conn.query(query);
-              logger.info(query, result);
-            } finally {
-              if (conn) conn.release(); //release to pool
-            }
-            pool.end();
-          })();
+          await MariaDB.query({ user, password, query: `SHOW DATABASES` });
+          await MariaDB.query({ user, password, query: `SHOW TABLES FROM ${name}` });
           break;
-        case 'save':
+        case 'create':
+          await MariaDB.query({ user, password, query: `CREATE DATABASE ${name}` });
+          break;
+        case 'delete':
+          await MariaDB.query({ user, password, query: `DROP DATABASE IF EXISTS ${name}` });
+          break;
+        case 'export':
+          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${backupPath}`;
+          shellExec(cmd);
+          break;
+        case 'import':
+          cmd = `mysql -u ${user} -p ${name} < ${backupPath}`;
+          shellExec(cmd);
           break;
 
         default:

@@ -55,12 +55,12 @@ ${`DataBase management`.white}
 
 Arguments:
 
-> [required] operator: show | save | load | delete
+> [required] operator: show | create | delete | import | export
 > [required] host/path: example.com | example.com/path | www.example.com
 
 Command Line:
 
-> ${`node bin/db <operator> <host/path>`.yellow}
+> ${`node bin/db <host/path> <operator>`.yellow}
 `,
   shortcut: `
 ---------------------------------------------------------------
