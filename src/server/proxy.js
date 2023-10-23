@@ -43,6 +43,7 @@ const buildProxy = async () => {
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
+          // target: `http://${host}:${confServer[host][path].port}${path}`,
           target: `http://localhost:${confServer[host][path].port}`,
           disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,

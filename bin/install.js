@@ -112,6 +112,9 @@ try {
         logger.info(`Please wait, zip extract to`, zipTargetPath);
         new AdmZip(fullPath).extractAllTo(/*target path*/ `./public/${tmpFolderExtract}`, /*overwrite*/ true);
         fs.moveSync(`./public/${tmpFolderExtract}/wordpress`, zipTargetPath, { overwrite: true });
+        shellCd(zipTargetPath);
+        shellExec(`git init && git add . && git commit -m "update"`);
+        shellCd(getRootDirectory());
         fs.rmSync(`./public/${tmpFolderExtract}`, { recursive: true, force: true });
       })();
       break;
