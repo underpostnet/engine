@@ -1,13 +1,16 @@
-import fs from 'fs';
+import fs from 'fs-extra';
+import AdmZip from 'adm-zip';
 import { Downloader } from '../src/server/downloader.js';
 import { getRootDirectory, shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
+import { s4 } from '../src/client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, os, program] = process.argv;
+const [exe, dir, os, program, hostPath = ''] = process.argv;
+const [host, path = ''] = hostPath.split('/');
 
 try {
   let cmd;
@@ -94,6 +97,22 @@ try {
     case 'wordpress':
       await (async () => {
         const urlDownload = `https://wordpress.org/latest.zip`;
+        const folderPath = `./engine-private/setup`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+        const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
+        logger.info('destination', fullPath);
+        if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
+        const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/conf.server.private.json`, 'utf8'));
+        const { directory } = confServer[host][`/${path}`];
+        logger.info('client found', confServer[host][`/${path}`]);
+        const zipTargetPath = directory ? directory : `./public/${path ? `${host}/${path}` : host}`;
+        if (!fs.existsSync(zipTargetPath)) fs.mkdirSync(zipTargetPath, { recursive: true });
+        const tmpFolderExtract = s4() + s4();
+        fs.mkdirSync(`./public/${tmpFolderExtract}`, { recursive: true });
+        logger.info(`Please wait, zip extract to`, zipTargetPath);
+        new AdmZip(fullPath).extractAllTo(/*target path*/ `./public/${tmpFolderExtract}`, /*overwrite*/ true);
+        fs.moveSync(`./public/${tmpFolderExtract}/wordpress`, zipTargetPath, { overwrite: true });
+        fs.rmSync(`./public/${tmpFolderExtract}`, { recursive: true, force: true });
       })();
       break;
     default:

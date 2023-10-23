@@ -29,6 +29,7 @@
   "homepage": "https://github.com/underpostnet/engine#readme",
   "dependencies": {
     "@neodrag/vanilla": "^2.0.3",
+    "adm-zip": "^0.5.10",
     "axios": "^1.5.1",
     "colors": "^1.4.0",
     "copy-paste": "^1.5.3",

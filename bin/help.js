@@ -29,10 +29,11 @@ Arguments:
 
 > [required] os: windows
 > [required] program: certbot | xampp | docker | wordpress
+> [required] host/path: example.com | example.com/path | www.example.com
 
 Command Line:
 
-> ${`node bin/install <os> <program>`.yellow}
+> ${`node bin/install <os> <program> <host/path>`.yellow}
 `,
   ssl: `
 ---------------------------------------------------------------
