@@ -37,12 +37,31 @@ const buildRuntime = async () => {
 
         <VirtualHost *:${port}>            
             DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
-            ServerName ${host}:${port}
+            ServerName ${host}:${port}          
             <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
-                Options Indexes FollowSymLinks MultiViews
-                AllowOverride All
-                Require all granted
+              Options Indexes FollowSymLinks MultiViews
+              AllowOverride All
+              Require all granted
             </Directory>
+            ${
+              client === 'wordpress'
+                ? `
+            # BEGIN WordPress
+            <IfModule mod_rewrite.c>
+              RewriteEngine On
+              RewriteRule ^index\.php$ - [L]
+              RewriteCond $1 ^(index\.php)?$ [OR]
+              # RewriteCond $1 \.(gif|jpg|png|ico|css|js|php)$ [NC,OR]
+              RewriteCond $1 \.(.*) [NC,OR]
+              RewriteCond %{REQUEST_FILENAME} -f [OR]
+              RewriteCond %{REQUEST_FILENAME} -d
+              RewriteRule ^(.*)$ - [S=1]
+              RewriteRule . /index.php [L]
+            </IfModule>
+            # END wordpress
+            `
+                : ''
+            }
         </VirtualHost>
           `;
           break;
