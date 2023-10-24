@@ -174,7 +174,7 @@ RewriteRule . /index.php [L]
 # END WordPress
 `;
         }
-        fs.writeFileSync(`${zipTargetPath}/.htaccess`, htaccess, 'utf8');
+        // fs.writeFileSync(`${zipTargetPath}/.htaccess`, htaccess, 'utf8');
         const rootDirectory = getRootDirectory();
         shellCd(zipTargetPath);
         shellExec(`git init && git add . && git commit -m "update"`);
