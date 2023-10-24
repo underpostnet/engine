@@ -30,6 +30,7 @@ const buildRuntime = async () => {
 
       switch (runtime) {
         case 'xampp':
+          if (!fs.existsSync(`C:/xampp/apache/conf/httpd.conf`)) break;
           if (!xampp.ports.includes(port)) xampp.ports.push(port);
           xampp.router += `
             
@@ -114,7 +115,7 @@ const buildRuntime = async () => {
       }
     }
   }
-  if (xampp.router && fs.existsSync(`C:/xampp/apache/conf/httpd.conf`)) {
+  if (xampp.router) {
     // windows
     fs.writeFileSync(
       `C:/xampp/apache/conf/httpd.conf`,

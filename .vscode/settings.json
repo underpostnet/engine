@@ -32,6 +32,10 @@
     "underpost",
     "webroot",
     "xampp",
+    "xfwd",
     "youtu"
-  ]
+  ],
+  "[dockerfile]": {
+    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
+  }
 }

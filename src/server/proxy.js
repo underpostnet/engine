@@ -90,6 +90,8 @@ const buildProxy = async () => {
       autoRewrite: true,
       target: `http://localhost:${defaultTargetPort}`,
       router: {},
+      xfwd: true,
+      // secure: true, warn validator
       pathRewrite: {
         // only add path
         // '^/target-path': '/',
