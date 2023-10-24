@@ -12,6 +12,8 @@ import { newInstance } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
+const logger = loggerFactory(import.meta);
+
 const validateSecureContext = (host) =>
   fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
   fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
@@ -44,7 +46,8 @@ const buildProxy = async () => {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
           // target: `http://${host}:${confServer[host][path].port}${path}`,
-          target: `http://localhost:${confServer[host][path].port}`,
+          // target: `http://localhost:${confServer[host][path].port}`,
+          target: `http://127.0.0.1:${confServer[host][path].port}`,
           disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
@@ -83,7 +86,7 @@ const buildProxy = async () => {
     // https://github.com/chimurai/http-proxy-middleware/tree/v2.0.4#readme
     const options = {
       ws: true,
-      changeOrigin: true,
+      // changeOrigin: true,
       autoRewrite: true,
       target: `http://localhost:${defaultTargetPort}`,
       router: {},
