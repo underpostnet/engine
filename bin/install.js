@@ -112,9 +112,73 @@ try {
         logger.info(`Please wait, zip extract to`, zipTargetPath);
         new AdmZip(fullPath).extractAllTo(/*target path*/ `./public/${tmpFolderExtract}`, /*overwrite*/ true);
         fs.moveSync(`./public/${tmpFolderExtract}/wordpress`, zipTargetPath, { overwrite: true });
+        // https://wordpress.org/documentation/article/htaccess/
+        let htaccess = ``;
+        if (host.split('.')[2]) {
+          // sub domain
+          htaccess += `# BEGIN WordPress Multisite
+# Using subdomain network type: https://wordpress.org/documentation/article/htaccess/#multisite
+
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+
+# add a trailing slash to /wp-admin
+RewriteRule ^wp-admin$ wp-admin/ [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+RewriteRule ^(wp-(content|admin|includes).*) $1 [L]
+RewriteRule ^(.*\.php)$ $1 [L]
+RewriteRule . index.php [L]
+
+# END WordPress Multisite
+`;
+        } else if (path) {
+          // sub folder
+          htaccess += `# BEGIN WordPress Multisite
+# Using subfolder network type: https://wordpress.org/documentation/article/htaccess/#multisite
+
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+
+# add a trailing slash to /wp-admin
+RewriteRule ^([_0-9a-zA-Z-]+/)?wp-admin$ $1wp-admin/ [R=301,L]
+
+RewriteCond %{REQUEST_FILENAME} -f [OR]
+RewriteCond %{REQUEST_FILENAME} -d
+RewriteRule ^ - [L]
+RewriteRule ^([_0-9a-zA-Z-]+/)?(wp-(content|admin|includes).*) $2 [L]
+RewriteRule ^([_0-9a-zA-Z-]+/)?(.*\.php)$ $2 [L]
+RewriteRule . index.php [L]
+
+# END WordPress Multisite
+`;
+        } else {
+          // main domain
+          htaccess += `
+# BEGIN WordPress
+
+RewriteEngine On
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteBase /
+RewriteRule ^index\.php$ - [L]
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+
+# END WordPress
+`;
+        }
+        fs.writeFileSync(`${zipTargetPath}/.htaccess`, htaccess, 'utf8');
+        const rootDirectory = getRootDirectory();
         shellCd(zipTargetPath);
         shellExec(`git init && git add . && git commit -m "update"`);
-        shellCd(getRootDirectory());
+        shellCd(rootDirectory);
         fs.rmSync(`./public/${tmpFolderExtract}`, { recursive: true, force: true });
       })();
       break;

@@ -342,6 +342,8 @@ function insertTransitionCoordinates(coordinates, transitionFactor) {
   return coordinatesWithTransition;
 }
 
+const clearTerminalStringColor = (str) => str.replace(/\x1b\[[0-9;]*m/g, '');
+
 const getIdModule = (meta) => meta.url.split(`/`).pop();
 
 export {
@@ -374,4 +376,5 @@ export {
   insertTransitionCoordinates,
   randomHexColor,
   getIdModule,
+  clearTerminalStringColor,
 };

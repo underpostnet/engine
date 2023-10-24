@@ -5,7 +5,7 @@ import winston from 'winston';
 import morgan from 'morgan';
 import colorize from 'json-colorizer';
 import colors from 'colors';
-import { getIdModule } from '../client/components/core/CommonJs.js';
+import { clearTerminalStringColor, getIdModule } from '../client/components/core/CommonJs.js';
 
 colors.enable();
 dotenv.config();
@@ -53,7 +53,15 @@ const format = (project) =>
     winston.format.printf((info) => {
       const symbols = Object.getOwnPropertySymbols(info);
       return `${`[${project}]`.green} ${info.timestamp} ${info.level} ${
-        symbols[1] ? `${info.message}: ${colorize(JSON.stringify(info[symbols[1]][0], null, 4))}` : info.message
+        symbols[1]
+          ? `${clearTerminalStringColor(info.message)}: ${colorize(JSON.stringify(info[symbols[1]][0], null, 4), {
+              colors: {
+                STRING_KEY: 'green',
+                STRING_LITERAL: 'magenta.bold',
+                NUMBER_LITERAL: '#FF0000',
+              },
+            })}`
+          : info.message
       }`;
     })
   );
