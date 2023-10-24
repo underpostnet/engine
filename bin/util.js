@@ -16,6 +16,13 @@ try {
       //   fs.removeSync('./engine-private');
       //   fs.removeSync('./node_modules');
       break;
+    case 'log':
+      (() => {
+        const logPath = `./logs/${process.argv[3]}/${process.argv[4]}.log`;
+        logger.info('Read', logPath);
+        console.log(fs.readFileSync(logPath, 'utf8'));
+      })();
+      break;
     default:
       break;
   }
