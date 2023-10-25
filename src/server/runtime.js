@@ -12,19 +12,20 @@ import { newInstance } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
+const xampp = {
+  router: '',
+  ports: [],
+  enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
+};
+
 const buildRuntime = async () => {
   let cmd;
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const xampp = {
-    router: '',
-    ports: [],
-  };
   for (const host of Object.keys(confServer)) {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      currentPort++;
       const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
@@ -32,7 +33,7 @@ const buildRuntime = async () => {
 
       switch (runtime) {
         case 'xampp':
-          if (!fs.existsSync(`C:/xampp/apache/conf/httpd.conf`)) break;
+          if (!xampp.enabled()) continue;
           if (!xampp.ports.includes(port)) xampp.ports.push(port);
           xampp.router += `
             
@@ -67,6 +68,7 @@ const buildRuntime = async () => {
             }
         </VirtualHost>
           `;
+          logger.info(`App ${client} running on port`, port);
           break;
         case 'nodejs':
           const app = express();
@@ -111,9 +113,10 @@ const buildRuntime = async () => {
         default:
           break;
       }
+      currentPort++;
     }
   }
-  if (xampp.router) {
+  if (xampp.enabled()) {
     // windows
     fs.writeFileSync(
       `C:/xampp/apache/conf/httpd.conf`,
@@ -130,4 +133,4 @@ const buildRuntime = async () => {
   }
 };
 
-export { buildRuntime };
+export { buildRuntime, xampp };

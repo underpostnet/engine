@@ -9,6 +9,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
+import { xampp } from './runtime.js';
 
 dotenv.config();
 
@@ -40,8 +41,15 @@ const buildProxy = async () => {
   const proxyRouter = {};
   for (const host of Object.keys(confServer))
     for (const path of Object.keys(confServer[host])) {
+      switch (confServer[host][path].runtime) {
+        case 'xampp':
+          if (!xampp.enabled()) continue;
+          break;
+
+        default:
+          break;
+      }
       confServer[host][path].port = newInstance(currentPort);
-      currentPort++;
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
@@ -55,6 +63,7 @@ const buildProxy = async () => {
           proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
+      currentPort++;
     }
 
   // logger.info('Proxy router', proxyRouter);
