@@ -26,6 +26,8 @@ const buildRuntime = async () => {
       confServer[host][path].port = newInstance(currentPort);
       currentPort++;
       const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
+      const meta = { url: `app-${client}-${port}` };
+      const logger = loggerFactory(meta);
       if (disabled) continue;
 
       switch (runtime) {
@@ -67,10 +69,6 @@ const buildRuntime = async () => {
           `;
           break;
         case 'nodejs':
-          const meta = { url: `app-${client}-${port}` };
-
-          const logger = loggerFactory(meta);
-
           const app = express();
 
           app.use((req, res, next) => {
