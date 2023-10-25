@@ -94,6 +94,13 @@ try {
           throw new Error(`Os not found: ${os} for program ${program}`);
       }
       break;
+    case 'vs-extensions':
+      fs.readFileSync(`./vs-extensions.txt`, 'utf8')
+        .split(`\n`) // \r\n
+        .map((extension) => {
+          if (extension) shellExec(`code --install-extension ${extension}`);
+        });
+      break;
     case 'wordpress':
       await (async () => {
         const urlDownload = `https://wordpress.org/latest.zip`;

@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import { loggerFactory } from '../src/server/logger.js';
+import { shellExec } from '../src/server/process.js';
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
@@ -22,6 +23,9 @@ try {
         logger.info('Read', logPath);
         console.log(fs.readFileSync(logPath, 'utf8'));
       })();
+      break;
+    case 'export-vs-extensions':
+      shellExec(`code --list-extensions > vs-extensions.txt`);
       break;
     default:
       break;
