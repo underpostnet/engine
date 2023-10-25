@@ -9,7 +9,7 @@ const SocketIo = {
     connect_error: {},
     disconnect: {},
   },
-  Init: function (options) {
+  Init: async function (options) {
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
     logger.info(`ws host:`, this.host);

@@ -2,7 +2,7 @@ import { getId } from './CommonJs.js';
 
 const Modal = {
   Data: {},
-  Init: function () {
+  Init: async function () {
     append(
       'body',
       html`

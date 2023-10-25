@@ -1,5 +1,5 @@
 const BtnIcon = {
-  Init: function () {},
+  Init: async function () {},
 };
 
 export { BtnIcon };

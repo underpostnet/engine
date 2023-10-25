@@ -14,19 +14,17 @@ const Responsive = {
     ResponsiveDataAmplitude.maxValue = ResponsiveDataAmplitude.maxValue * dimAmplitude;
     return ResponsiveDataAmplitude;
   },
-  Init: function (options) {
+  Init: async function (options) {
     const { globalTimeInterval } = options;
-    setTimeout(() => {
-      this.CallBack = () => {
-        const Data = getResponsiveData();
-        if (Data.minValue !== this.Data.minValue || Data.maxValue !== this.Data.maxValue) {
-          this.Data = Data;
-          Object.keys(this.Event).map((key) => this.Event[key]());
-        }
-      };
-      this.CallBack();
-      this.Interval = setInterval(() => this.CallBack(), globalTimeInterval);
-    });
+    this.CallBack = () => {
+      const Data = getResponsiveData();
+      if (Data.minValue !== this.Data.minValue || Data.maxValue !== this.Data.maxValue) {
+        this.Data = Data;
+        Object.keys(this.Event).map((key) => this.Event[key]());
+      }
+    };
+    this.CallBack();
+    this.Interval = setInterval(() => this.CallBack(), globalTimeInterval);
   },
 };
 

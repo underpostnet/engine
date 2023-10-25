@@ -4,7 +4,7 @@ import { Draggable } from '@neodrag/vanilla';
 import { append, s } from './components/core/VanillaJs.js';
 import { Css } from './components/core/Css.js';
 
-Css.Init();
+await Css.Init();
 append(
   'body',
   html`

@@ -6,16 +6,18 @@ import { Pixi } from './components/cyberia/Pixi.js';
 import { Elements } from './components/cyberia/Elements.js';
 import { Event } from './components/cyberia/Event.js';
 import { Css } from './components/core/Css.js';
+import { Matrix } from './components/cyberia/Matrix.js';
 
-Css.Init();
-Responsive.Init({
-  globalTimeInterval: Event.Data.globalTimeInterval,
-});
-SocketIo.Init({
+await Css.Init();
+await SocketIo.Init({
   channels: Elements.Data,
 });
-Keyboard.Init({
+await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
-Elements.Init();
-Pixi.Init();
+await Elements.Init();
+await Pixi.Init();
+await Responsive.Init({
+  globalTimeInterval: Event.Data.globalTimeInterval,
+});
+await Matrix.InitCamera();

@@ -1,7 +1,7 @@
 import { append } from './VanillaJs.js';
 
 const Css = {
-  Init: () => {
+  Init: async () => {
     append(
       'body',
       html`

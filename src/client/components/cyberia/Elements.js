@@ -17,7 +17,7 @@ const Elements = {
     },
     biome: {},
   },
-  Init: function () {
+  Init: async function () {
     const idKeyBoardEvent = 'user.main';
 
     Keyboard.Event[`${idKeyBoardEvent}`] = {
@@ -33,11 +33,6 @@ const Elements = {
       Keyboard.Event[`${idKeyBoardEvent}`][key.toLowerCase()] = () =>
         logger.warn(`${idKeyBoardEvent} Keyboard.Event [${key.toLowerCase()}]`);
     });
-
-    Matrix.UpdateCamera('.pixi-canvas', Elements.Data.user.main);
-    setInterval(() => {
-      Matrix.UpdateCamera('.pixi-canvas', Elements.Data.user.main);
-    }, Event.Data.globalTimeInterval);
   },
 };
 

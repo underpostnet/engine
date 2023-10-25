@@ -3,7 +3,7 @@ import { Translate } from '../core/Translate.js';
 import { s4 } from '../core/CommonJs.js';
 
 const TestComponent = {
-  Init: function () {
+  Init: async function () {
     append(
       'body',
       html` <br />

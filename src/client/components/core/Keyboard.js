@@ -1,7 +1,7 @@
 const Keyboard = {
   ActiveKey: {},
   Event: {},
-  Init: function (options) {
+  Init: async function (options) {
     const { globalTimeInterval } = options;
     window.onkeydown = (e) => {
       this.ActiveKey[e.key] = true;
