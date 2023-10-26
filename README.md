@@ -16,10 +16,16 @@ Run dev
 npm run dev
 ```
 
-Run prod
+Run on VM
 
 ```bash
 npm start
+```
+
+Run on `docker-compose`
+
+```bash
+npm run start:docker
 ```
 
 Generate docs
