@@ -5,10 +5,12 @@
   "version": "2.0.0",
   "description": "engine server",
   "scripts": {
-    "start": "pm2 kill && env-cmd -f .env.production pm2 start src/server.js --name engine && pm2 logs",
+    "start": "env-cmd -f .env.production node src/server",
+    "vm": "pm2 kill && env-cmd -f .env.production pm2 start src/server.js --name engine && pm2 logs",
     "dev": "env-cmd -f .env.development nodemon src/server",
     "docs": "jsdoc -c jsdoc.json",
-    "install": "npm install -g pm2 && npm install -g jsdoc"
+    "install": "npm install -g pm2 && npm install -g jsdoc",
+    "docker:start": "docker-compose up"
   },
   "repository": {
     "type": "git",

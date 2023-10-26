@@ -1,0 +1,32 @@
+# https://docs.docker.com/compose/compose-file/compose-file-v3
+# https://docs.docker.com/engine/reference/commandline/compose/
+version: '3'
+services:
+  engine-container:
+    build:
+      dockerfile: ./Dockerfile
+      context: . # workdir path
+    image: engine-container
+    # container_name: <name> ignore for replicas
+    ports:
+      - '80-80'
+      - '443:443'
+      - '3000-3020:3000-3020'
+    volumes:
+      - ./logs:/code/logs
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    labels: # labels in Compose file instead of Dockerfile
+      engine.version: '2.0.0'
+    networks:
+      - load-balancer
+
+networks:
+  load-balancer:
+    driver: bridge
