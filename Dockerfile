@@ -53,9 +53,7 @@ RUN npm run docs
 
 VOLUME [ "/code/logs" ]
 
-EXPOSE 22
-EXPOSE 80
-EXPOSE 443
+EXPOSE 22 80 443
 EXPOSE 3000-3020
 
 CMD [ "npm", "start" ]
