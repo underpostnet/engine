@@ -9,9 +9,9 @@ services:
     image: engine-container
     # container_name: <name> ignore for replicas
     ports:
-      - '80-80'
-      - '443:443'
-      - '3000-3020:3000-3020'
+      - '80' # host port allocated dynamically, host ports are unique independent of replicas
+      - '443'
+      - '3000-3020'
     volumes:
       - ./logs:/code/logs
     deploy:
