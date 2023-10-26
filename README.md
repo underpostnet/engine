@@ -16,10 +16,10 @@ Run dev
 npm run dev
 ```
 
-Run on VM
+Run on `pm2`
 
 ```bash
-npm start
+npm run pm2
 ```
 
 Run on `docker-compose`
