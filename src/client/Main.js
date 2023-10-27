@@ -25,6 +25,11 @@ await Responsive.Init({
 });
 await Matrix.InitCamera();
 
-await Modal.Render({ html: await BtnIcon.Render({ class: 'main-btn-bag', label: 'bag' }) });
+const modalStyle = { background: 'rgba(0, 0, 0, 0.9)', padding: '5px', color: 'white' };
 
-s(`.main-btn-bag`).onclick = async () => await Modal.Render();
+await Modal.Render({
+  html: await BtnIcon.Render({ class: 'main-btn-bag', label: 'bag' }),
+  style: modalStyle,
+});
+
+s(`.main-btn-bag`).onclick = async () => await Modal.Render({ style: modalStyle });

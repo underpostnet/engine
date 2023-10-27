@@ -22,8 +22,11 @@ const Modal = {
               height: ${height}px;
               top: ${ResponsiveData.height / 2 - height / 2}px;
               left: ${ResponsiveData.width / 2 - width / 2}px;
-              background: black;
-              color: white;
+              ${options && options.style
+                ? Object.keys(options.style)
+                    .map((styleAttr) => `${styleAttr}: ${options.style[styleAttr]};`)
+                    .join('')
+                : ''}
             }`}
         </style>
         <div class="fix ${IdModal}">
