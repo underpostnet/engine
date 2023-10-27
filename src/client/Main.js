@@ -10,6 +10,7 @@ import { Matrix } from './components/cyberia/Matrix.js';
 import { s, append } from './components/core/VanillaJs.js';
 import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
+import { Translate } from './components/core/Translate.js';
 
 await Css.Init();
 await SocketIo.Init({
@@ -25,11 +26,10 @@ await Responsive.Init({
 });
 await Matrix.InitCamera();
 
-const modalStyle = { background: 'rgba(0, 0, 0, 0.9)', padding: '5px', color: 'white' };
-
 await Modal.Render({
-  html: await BtnIcon.Render({ class: 'main-btn-bag', label: 'bag' }),
-  style: modalStyle,
+  html: await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render({ es: 'mochila', en: 'bag' }) }),
+  disabledCloseBtn: true,
+  title: 'menu',
 });
 
-s(`.main-btn-bag`).onclick = async () => await Modal.Render({ style: modalStyle });
+s(`.main-btn-bag`).onclick = async () => await Modal.Render({ title: Translate.Render({ es: 'mochila', en: 'bag' }) });

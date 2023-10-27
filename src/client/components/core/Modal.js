@@ -22,25 +22,49 @@ const Modal = {
               height: ${height}px;
               top: ${ResponsiveData.height / 2 - height / 2}px;
               left: ${ResponsiveData.width / 2 - width / 2}px;
+              background: black;
+              color: white;
+              overflow: hidden; /* resizable required */
+              resize: auto; /* resizable required */
+              font-family: arial;
               ${options && options.style
                 ? Object.keys(options.style)
                     .map((styleAttr) => `${styleAttr}: ${options.style[styleAttr]};`)
                     .join('')
                 : ''}
+            }
+            .bar-default-modal-${IdModal} {
+              background: gray;
+              color: black;
+            }
+
+            .modal-html-${IdModal} {
+              padding: 5px;
+            }
+
+            .btn-modal-default-${IdModal} {
             }`}
         </style>
         <div class="fix ${IdModal}">
-          ${await BtnIcon.Render({ class: `btn-close-${IdModal}`, label: `x` })}
-          ${await BtnIcon.Render({ class: `btn-handle-${IdModal}`, label: `+` })}
-          ${options && options.html ? options.html : IdModal}
+          <div class="in bar-default-modal-${IdModal}">
+            ${await BtnIcon.Render({ class: `btn-handle-${IdModal} btn-modal-default-${IdModal}`, label: `|||` })}
+            ${!options || (options && !options.disabledCloseBtn)
+              ? await BtnIcon.Render({ class: `btn-close-${IdModal} btn-modal-default-${IdModal}`, label: `X` })
+              : ''}
+            ${await BtnIcon.Render({ class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`, label: `_` })}
+            ${options && options.title ? options.title : ''}
+          </div>
+          <div class="in modal-html-${IdModal}">${options && options.html ? options.html : IdModal}</div>
         </div>`
     );
-    s(`.btn-close-${IdModal}`).onclick = () => {
-      s(`.${IdModal}`).remove();
-      s(`.style-${IdModal}`).remove();
-      delete this.Data[IdModal];
-    };
-    const dragInstance = new Draggable(s(`.${IdModal}`), { handle: [s(`.btn-handle-${IdModal}`)] });
+    if (s(`.btn-close-${IdModal}`))
+      s(`.btn-close-${IdModal}`).onclick = () => {
+        s(`.${IdModal}`).remove();
+        s(`.style-${IdModal}`).remove();
+        delete this.Data[IdModal];
+      };
+    if (s(`.btn-minimize-${IdModal}`)) s(`.btn-minimize-${IdModal}`).onclick = () => alert();
+    const dragInstance = new Draggable(s(`.${IdModal}`), { handle: [s(`.bar-default-modal-${IdModal}`)] });
     // cancel: [cancel1, cancel2]
     return {
       id: IdModal,
