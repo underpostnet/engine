@@ -7,6 +7,9 @@ import { Elements } from './components/cyberia/Elements.js';
 import { Event } from './components/cyberia/Event.js';
 import { Css } from './components/core/Css.js';
 import { Matrix } from './components/cyberia/Matrix.js';
+import { s, append } from './components/core/VanillaJs.js';
+import { Modal } from './components/core/Modal.js';
+import { BtnIcon } from './components/core/BtnIcon.js';
 
 await Css.Init();
 await SocketIo.Init({
@@ -21,3 +24,7 @@ await Responsive.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
 await Matrix.InitCamera();
+
+await Modal.Render({ html: await BtnIcon.Render({ class: 'main-btn-bag', label: 'bag' }) });
+
+s(`.main-btn-bag`).onclick = async () => await Modal.Render();

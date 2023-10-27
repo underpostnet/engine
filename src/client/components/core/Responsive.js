@@ -12,6 +12,8 @@ const Responsive = {
     const ResponsiveDataAmplitude = newInstance(this.Data);
     ResponsiveDataAmplitude.minValue = ResponsiveDataAmplitude.minValue * dimAmplitude;
     ResponsiveDataAmplitude.maxValue = ResponsiveDataAmplitude.maxValue * dimAmplitude;
+    ResponsiveDataAmplitude.width = ResponsiveDataAmplitude.width * dimAmplitude;
+    ResponsiveDataAmplitude.height = ResponsiveDataAmplitude.height * dimAmplitude;
     return ResponsiveDataAmplitude;
   },
   Init: async function (options) {

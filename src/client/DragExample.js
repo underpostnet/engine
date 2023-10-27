@@ -1,4 +1,5 @@
 // https://www.npmjs.com/package/@neodrag/vanilla
+// https://www.neodrag.dev/docs/vanilla
 
 import { Draggable } from '@neodrag/vanilla';
 import { append, s } from './components/core/VanillaJs.js';

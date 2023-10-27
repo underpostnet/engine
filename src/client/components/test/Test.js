@@ -1,6 +1,7 @@
 import { append, s } from '../core/VanillaJs.js';
 import { Translate } from '../core/Translate.js';
 import { s4 } from '../core/CommonJs.js';
+import { BtnIcon } from '../core/BtnIcon.js';
 
 const TestComponent = {
   Init: async function () {
@@ -10,8 +11,8 @@ const TestComponent = {
         Test TestComponent ${s4()}
         <br />
         ${Translate.Render({ en: 'Hello World', es: 'Hola Mundo' })}
-        <button class="translate-en">en</button>
-        <button class="translate-es">es</button>
+        ${await BtnIcon.Render({ class: 'translate-en', label: 'en' })}
+        ${await BtnIcon.Render({ class: 'translate-es', label: 'es' })}
         <br />
         <input
           type="text"

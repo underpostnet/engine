@@ -43,9 +43,12 @@ const Pixi = {
     Matrix.Render['matrix-center-square']('.pixi-container');
 
     Responsive.Event['pixi-container'] = () => {
-      const ResponsiveData = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
-      s('.pixi-canvas').style.width = `${ResponsiveData.minValue}px`;
-      s('.pixi-canvas').style.height = `${ResponsiveData.minValue}px`;
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
+      s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+      // const ResponsiveData = Responsive.getResponsiveData();
+      // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
+      // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
     };
 
     // container

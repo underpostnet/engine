@@ -106,10 +106,12 @@ const fullScreenIn = () => {
   }
 };
 
-const getResponsiveData = () =>
-  window.innerWidth > window.innerHeight
-    ? { minValue: window.innerHeight, maxValue: window.innerWidth, minType: 'height', maxType: 'width' }
-    : { minValue: window.innerWidth, maxValue: window.innerHeight, minType: 'width', maxType: 'height' };
+const getResponsiveData = () => {
+  const inner = { width: window.innerWidth, height: window.innerHeight };
+  return inner.width > inner.height
+    ? { ...inner, minValue: window.innerHeight, maxValue: window.innerWidth, minType: 'height', maxType: 'width' }
+    : { ...inner, minValue: window.innerWidth, maxValue: window.innerHeight, minType: 'width', maxType: 'height' };
+};
 
 const isElement = (element) => element instanceof Element || element instanceof HTMLDocument;
 
