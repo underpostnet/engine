@@ -26,10 +26,12 @@ await Responsive.Init({
 });
 await Matrix.InitCamera();
 
+Translate.Data['bag'] = { en: 'bag', es: 'mochila' };
+
 await Modal.Render({
-  html: await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render({ es: 'mochila', en: 'bag' }) }),
+  html: await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') }),
   disabledCloseBtn: true,
   title: 'menu',
 });
 
-s(`.main-btn-bag`).onclick = async () => await Modal.Render({ title: Translate.Render({ es: 'mochila', en: 'bag' }) });
+s(`.main-btn-bag`).onclick = async () => await Modal.Render({ title: Translate.Render('bag') });

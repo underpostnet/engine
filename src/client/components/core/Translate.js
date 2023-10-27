@@ -2,6 +2,7 @@ import { newInstance, getId } from './CommonJs.js';
 import { s, htmls } from './VanillaJs.js';
 
 const Translate = {
+  Data: {},
   Token: {},
   Parse: function (lang) {
     s('html').lang = lang;
@@ -14,15 +15,16 @@ const Translate = {
       }
     });
   },
-  Render: function (langs) {
+  Render: function (keyLang) {
+    keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
-    this.Token[translateHash] = newInstance(langs);
-    if ('placeholder' in langs) {
-      if (s('html').lang in langs) return langs[s('html').lang];
-      return langs['en'];
+    this.Token[translateHash] = newInstance(keyLang);
+    if ('placeholder' in keyLang) {
+      if (s('html').lang in keyLang) return keyLang[s('html').lang];
+      return keyLang['en'];
     }
-    if (s('html').lang in langs) return html`<span class="${translateHash}">${langs[s('html').lang]}</span>`;
-    return html`<span class="${translateHash}">${langs['en']}</span>`;
+    if (s('html').lang in keyLang) return html`<span class="${translateHash}">${keyLang[s('html').lang]}</span>`;
+    return html`<span class="${translateHash}">${keyLang['en']}</span>`;
   },
 };
 
