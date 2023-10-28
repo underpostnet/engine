@@ -54,6 +54,10 @@ const Css = {
               display: block;
             }
 
+            .stq {
+              position: sticky;
+            }
+
             .center {
               transform: translate(-50%, -50%);
               top: 50%;
@@ -149,4 +153,26 @@ scrollbar-width: none;
   },
 };
 
-export { Css };
+const borderChar = (px, color) => html`
+  text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px ${color},
+  ${px}px ${px}px ${px}px ${color};
+`;
+
+const renderMediaQuery = (mediaData) => {
+  //  first limit should be '0'
+  return html`
+    <style>
+      ${mediaData
+        .map(
+          (mediaState) => css`
+            @media only screen and (min-width: ${mediaState.limit}px) {
+              ${mediaState.css}
+            }
+          `
+        )
+        .join('')}
+    </style>
+  `;
+};
+
+export { Css, borderChar, renderMediaQuery };

@@ -8,8 +8,8 @@ const Modal = {
   Data: {},
   Render: async function (options) {
     const ResponsiveData = Responsive.getResponsiveData();
-    const width = 150;
-    const height = 100;
+    const width = 300;
+    const height = 400;
     const IdModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
     this.Data[IdModal] = {};
     append(
@@ -24,7 +24,7 @@ const Modal = {
               left: ${ResponsiveData.width / 2 - width / 2}px;
               background: black;
               color: white;
-              overflow: hidden; /* resizable required */
+              overflow: auto; /* resizable required */
               resize: auto; /* resizable required */
               font-family: arial;
               ${options && options.style
@@ -36,34 +36,45 @@ const Modal = {
             .bar-default-modal-${IdModal} {
               background: gray;
               color: black;
+              top: 0px;
+              left: 0px;
+              z-index: 1;
             }
 
             .modal-html-${IdModal} {
-              padding: 5px;
             }
 
             .btn-modal-default-${IdModal} {
+            }
+            .modal-handle-${IdModal} {
+              width: 90%;
+              height: 90%;
+              top: 5%;
+              left: 5%;
             }`}
         </style>
         <div class="fix ${IdModal}">
-          <div class="in bar-default-modal-${IdModal}">
-            ${await BtnIcon.Render({ class: `btn-handle-${IdModal} btn-modal-default-${IdModal}`, label: `☰` })}
-            ${!options || (options && !options.disabledCloseBtn)
-              ? await BtnIcon.Render({ class: `btn-close-${IdModal} btn-modal-default-${IdModal}`, label: `X` })
-              : ''}
-            ${await BtnIcon.Render({
-              class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
-              label: `▢`,
-            })}
-            ${await BtnIcon.Render({
-              class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
-              label: `□`,
-              style: 'display: none',
-            })}
-            ${await BtnIcon.Render({ class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`, label: `_` })}
-            ${options && options.title ? options.title : ''}
+          <div class="abs modal-handle-${IdModal}"></div>
+          <div class="in modal-html-${IdModal}">
+            <div class="stq bar-default-modal-${IdModal}">
+              ${await BtnIcon.Render({ class: `btn-dropdown-${IdModal} btn-modal-default-${IdModal}`, label: `☰` })}
+              ${!options || (options && !options.disabledCloseBtn)
+                ? await BtnIcon.Render({ class: `btn-close-${IdModal} btn-modal-default-${IdModal}`, label: `X` })
+                : ''}
+              ${await BtnIcon.Render({
+                class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
+                label: `▢`,
+              })}
+              ${await BtnIcon.Render({
+                class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
+                label: `□`,
+                style: 'display: none',
+              })}
+              ${await BtnIcon.Render({ class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`, label: `_` })}
+              ${options && options.title ? options.title : ''}
+            </div>
+            ${options && options.html ? options.html : IdModal}
           </div>
-          <div class="in modal-html-${IdModal}">${options && options.html ? options.html : IdModal}</div>
         </div>`
     );
     if (s(`.btn-close-${IdModal}`))
@@ -100,7 +111,9 @@ const Modal = {
       };
     }
 
-    const dragInstance = new Draggable(s(`.${IdModal}`), { handle: [s(`.bar-default-modal-${IdModal}`)] });
+    const dragInstance = new Draggable(s(`.${IdModal}`), {
+      handle: [s(`.modal-handle-${IdModal}`), s(`.bar-default-modal-${IdModal}`), s(`.modal-html-${IdModal}`)],
+    });
     // cancel: [cancel1, cancel2]
     return {
       id: IdModal,

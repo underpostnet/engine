@@ -11,6 +11,7 @@ import { s, append } from './components/core/VanillaJs.js';
 import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate } from './components/core/Translate.js';
+import { ColorPalette } from './components/core/ColorPalette.js';
 
 await Css.Init();
 await SocketIo.Init({
@@ -27,11 +28,18 @@ await Responsive.Init({
 await Matrix.InitCamera();
 
 Translate.Data['bag'] = { en: 'bag', es: 'mochila' };
+Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
 
 await Modal.Render({
-  html: await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') }),
+  html: `
+  ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
+  ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
+  `,
   disabledCloseBtn: true,
   title: 'menu',
 });
 
 s(`.main-btn-bag`).onclick = async () => await Modal.Render({ title: Translate.Render('bag') });
+
+s(`.main-btn-colors`).onclick = async () =>
+  await Modal.Render({ title: Translate.Render('pallet-colors'), html: ColorPalette.Render() });
