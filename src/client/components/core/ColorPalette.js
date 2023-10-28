@@ -1,6 +1,8 @@
 import { orderArrayFromAttrInt } from './CommonJs.js';
 import { borderChar } from './Css.js';
 import { loggerFactory } from './Logger.js';
+import { NotificationManager } from './NotificationManager.js';
+import { Translate } from './Translate.js';
 import { copyData, s } from './VanillaJs.js';
 
 const colorSRC = [
@@ -5234,6 +5236,9 @@ const getDataColors = () =>
 
 const logger = loggerFactory(import.meta);
 
+Translate.Data['color-copy'] = { es: 'color copiado en el portapapeles', en: 'color copied to clipboard' };
+Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
+
 const ColorPalette = {
   Palettes: {},
   Render: function () {
@@ -5245,6 +5250,7 @@ const ColorPalette = {
               () =>
                 (s(`.btn-palette-${coloData.number}`).onclick = () => {
                   logger.info(coloData);
+                  NotificationManager.Push({ type: 'success', html: Translate.Render('color-copy') });
                   copyData(coloData.hex);
                 })
             );
