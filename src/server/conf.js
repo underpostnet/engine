@@ -57,6 +57,7 @@ const Config = {
             'BtnIcon',
             'Logger',
             'Css',
+            'ColorPalette',
           ],
           cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu'],
           test: ['Test'],
@@ -74,6 +75,12 @@ const Config = {
           },
         ],
         dists: [
+          {
+            folder: './node_modules/@neodrag/vanilla/dist/min',
+            public_folder: '/dist/@neodrag-vanilla',
+            import_name: '@neodrag/vanilla',
+            import_name_build: '/dist/@neodrag-vanilla/index.js',
+          },
           {
             folder: './node_modules/pixi.js/dist',
             public_folder: '/dist/pixi.js',
