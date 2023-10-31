@@ -22,6 +22,13 @@ services:
         delay: 5s
         max_attempts: 3
         window: 120s
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 50M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
     labels: # labels in Compose file instead of Dockerfile
       engine.version: '2.0.0'
     networks:
