@@ -9,6 +9,7 @@ services:
     image: engine-container
     # container_name: <name> ignore for replicas
     ports:
+      - '22'
       - '80' # host port allocated dynamically, host ports are unique independent of replicas
       - '443'
       - '3000-3020'
