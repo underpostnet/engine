@@ -342,6 +342,8 @@ function insertTransitionCoordinates(coordinates, transitionFactor) {
   return coordinatesWithTransition;
 }
 
+const getIsoDate = (date) => date.toISOString().slice(0, -5).replace('T', ' ');
+
 const clearTerminalStringColor = (str) => str.replace(/\x1b\[[0-9;]*m/g, '');
 
 const getIdModule = (meta) => meta.url.split(`/`).pop();
@@ -377,4 +379,5 @@ export {
   randomHexColor,
   getIdModule,
   clearTerminalStringColor,
+  getIsoDate,
 };
