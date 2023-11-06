@@ -5254,11 +5254,9 @@ const ColorPalette = {
                   copyData(coloData.hex);
                 })
             );
-            return html`<button
-              style="background: ${coloData.hex}; font-weight: bold; ${borderChar(1, 'white')}"
-              class="btn-palette-${coloData.number}"
-            >
-              ${coloData.name} - ${coloData.hex}
+            return html`<button class="btn-palette-${coloData.number}">
+              ${coloData.name} - ${coloData.hex} <br />
+              <div class="inl" style="background: ${coloData.hex}; width: 80px; height: 20px;"></div>
             </button>`;
           })
           .join('')}

@@ -13,7 +13,7 @@ const NotificationManager = {
               right: 5px;
               width: 300px;
               bottom: 5px;
-              z-index: 1;
+              z-index: 3;
             }
             .notification-board {
               background: black;
