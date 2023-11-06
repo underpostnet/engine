@@ -15,7 +15,7 @@ import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 
-await Css.Init();
+await Css.Init({ theme: 'default' });
 await SocketIo.Init({
   channels: Elements.Data,
 });
@@ -34,19 +34,24 @@ await NotificationManager.RenderBoard();
 await TranslateCyberia.Init();
 
 await Modal.Render({
+  id: 'modal-menu',
   html: `
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
   `,
   disabledCloseBtn: true,
   title: 'menu',
-  style: {
-    top: '5px',
-    left: '5px',
-  },
+  class: '',
 });
 
-s(`.main-btn-bag`).onclick = async () => await Modal.Render({ title: Translate.Render('bag') });
+s(`.modal-menu`).style.top = '5px';
+s(`.modal-menu`).style.left = '5px';
+
+s(`.main-btn-bag`).onclick = async () => await Modal.Render({ id: 'modal-bag', title: Translate.Render('bag') });
 
 s(`.main-btn-colors`).onclick = async () =>
-  await Modal.Render({ title: Translate.Render('pallet-colors'), html: ColorPalette.Render() });
+  await Modal.Render({
+    id: 'modal-pallet-colors',
+    title: Translate.Render('pallet-colors'),
+    html: ColorPalette.Render(),
+  });

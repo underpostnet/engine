@@ -1,7 +1,7 @@
 import { append } from './VanillaJs.js';
 
 const Css = {
-  Init: async () => {
+  Init: async function (options) {
     append(
       'body',
       html`
@@ -145,11 +145,56 @@ scrollbar-width: none;
             /* Handle on hover */
             ::-webkit-scrollbar-thumb:hover {
               background: #555;
-            }
-          `}
+            }`}
+          ${options && options.theme ? this.themes[options.theme] : ''}
         </style>
       `
     );
+  },
+  themes: {
+    default: css`
+      .modal {
+        background: white;
+        color: black;
+        font-family: arial;
+        border-radius: 10px;
+      }
+      .bar-default-modal {
+        background: #dfdfdf;
+        color: black;
+      }
+      button {
+        background: none;
+        outline: none;
+        border: none;
+        cursor: pointer;
+        transition: 0.3s;
+        font-size: 15px;
+        color: black;
+        margin: 5px;
+        padding: 5px;
+        border-radius: 5px;
+        border: 2px solid #bbbbbb;
+        min-height: 30px;
+        min-width: 30px;
+      }
+      .title-modal {
+        padding: 5px;
+        margin: 5px;
+        text-transform: capitalize;
+        cursor: default;
+        font-size: 20px;
+      }
+      button:hover {
+        background: #bbbbbb;
+      }
+      .box-shadow {
+        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+      }
+      .box-shadow:hover {
+        box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+      }
+    `,
   },
 };
 
