@@ -1,12 +1,13 @@
 import { getId } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s } from './VanillaJs.js';
+import { append, s, prepend } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
 
 const Modal = {
   Data: {},
+  EffectData: {},
   Render: async function (options) {
     const ResponsiveData = Responsive.getResponsiveData();
     const width = 300;
@@ -22,65 +23,129 @@ const Modal = {
       return;
     }
     this.Data[IdModal] = {};
-    append(
-      'body',
-      html` <style class="style-${IdModal}">
+    const render = html` <style class="style-${IdModal}">
 
-          ${css`
-            .${IdModal} {
-              width: ${width}px;
-              height: ${height}px;
-              top: ${top};
-              left: ${left};
-              overflow: auto; /* resizable required */
-              resize: auto; /* resizable required */
-              transition: opacity 0.3s, box-shadow 0.3s;
-              opacity: 0;
-            }
-            .bar-default-modal-${IdModal} {
-              top: 0px;
-              left: 0px;
-              z-index: 1;
-            }
+        ${css`
+          .${IdModal} {
+            width: ${width}px;
+            height: ${height}px;
+            top: ${top};
+            left: ${left};
+            overflow: auto; /* resizable required */
+            resize: auto; /* resizable required */
+            transition: opacity 0.3s, box-shadow 0.3s, bottom 0.3s;
+            opacity: 0;
+            ${options && options.style
+              ? Object.keys(options.style)
+                  .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
+                  .join('')
+              : ''}
+          }
+          .bar-default-modal-${IdModal} {
+            top: 0px;
+            left: 0px;
+            z-index: 1;
+          }
 
-            .modal-html-${IdModal} {
-            }
+          .modal-html-${IdModal} {
+          }
 
-            .btn-modal-default-${IdModal} {
-            }
-            .modal-handle-${IdModal} {
-              width: 90%;
-              height: 90%;
-              top: 5%;
-              left: 5%;
-            }`}
-        </style>
-        <div class="fix modal box-shadow ${IdModal} ${options && options.class ? options.class : ''}">
-          <div class="abs modal-handle-${IdModal}"></div>
-          <div class="in modal-html-${IdModal}">
-            <div class="stq bar-default-modal bar-default-modal-${IdModal}">
-              <div class="in">
-                ${await BtnIcon.Render({ class: `btn-dropdown-${IdModal} btn-modal-default-${IdModal}`, label: `☰` })}
-                ${!options || (options && !options.disabledCloseBtn)
-                  ? await BtnIcon.Render({ class: `btn-close-${IdModal} btn-modal-default-${IdModal}`, label: `X` })
-                  : ''}
-                ${await BtnIcon.Render({
-                  class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
-                  label: `▢`,
-                })}
-                ${await BtnIcon.Render({
-                  class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
-                  label: `□`,
-                  style: 'display: none',
-                })}
-                ${await BtnIcon.Render({ class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`, label: `_` })}
-              </div>
-              <div class="in title-modal">${options && options.title ? options.title : ''}</div>
+          .btn-modal-default-${IdModal} {
+          }
+          .modal-handle-${IdModal} {
+            width: 90%;
+            height: 90%;
+            top: 5%;
+            left: 5%;
+          }`}
+      </style>
+      <div class="${options && options.class ? options.class : 'fix'} modal box-shadow ${IdModal}">
+        <div class="abs modal-handle-${IdModal}"></div>
+        <div class="in modal-html-${IdModal}">
+          <div class="stq bar-default-modal bar-default-modal-${IdModal}">
+            <div class="in" style="text-align: right">
+              ${!options || (options && !options.disabledMinimizeBtn)
+                ? await BtnIcon.Render({
+                    class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`,
+                    label: html`<i class="fa-solid fa-window-minimize"></i>`,
+                  })
+                : ''}
+              ${!options || (options && !options.disabledRestoreBtn)
+                ? await BtnIcon.Render({
+                    class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
+                    label: html`<i class="fa-regular fa-window-restore"></i>`,
+                    style: 'display: none',
+                  })
+                : ''}
+              ${!options || (options && !options.disableMaximizeBtn)
+                ? await BtnIcon.Render({
+                    class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
+                    label: html`<i class="fa-regular fa-square"></i>`,
+                  })
+                : ''}
+              ${!options || (options && !options.disabledCloseBtn)
+                ? await BtnIcon.Render({
+                    class: `btn-close-${IdModal} btn-modal-default-${IdModal}`,
+                    label: html`<i class="fa-solid fa-xmark"></i>`,
+                  })
+                : ''}
+              ${!options || (options && !options.disableDropdownBtn)
+                ? await BtnIcon.Render({
+                    class: `btn-dropdown-${IdModal} btn-modal-default-${IdModal}`,
+                    label: html`<i class="fa-solid fa-bars"></i>`,
+                  })
+                : ''}
             </div>
-            ${options && options.html ? options.html : IdModal}
+            <div class="in ${options && options.titleClass ? options.titleClass : 'title-modal'}">
+              ${options && options.title ? options.title : ''}
+            </div>
           </div>
-        </div>`
-    );
+          ${options && options.html ? html`<div class="in html-modal-content">${options.html}</div>` : ''}
+        </div>
+      </div>`;
+    const selector = options && options.selector ? options.selector : 'body';
+    if (options) {
+      switch (options.renderType) {
+        case 'prepend':
+          prepend(selector, render);
+          break;
+        default:
+          append(selector, render);
+          break;
+      }
+    } else append(selector, render);
+    if (options && options.effect) {
+      if (!this.EffectData[options.effect]) this.EffectData[options.effect] = {};
+      this.EffectData[options.effect][IdModal] = {};
+      switch (options.effect) {
+        case 'dropNotification':
+          (() => {
+            const renderEffect = (IdModalDisable) => {
+              let countDrop = 0;
+              Object.keys(this.EffectData[options.effect])
+                .reverse()
+                .map((idModalKeyEffect) => {
+                  if (idModalKeyEffect !== IdModalDisable) {
+                    s(`.${idModalKeyEffect}`).style.bottom = `${
+                      countDrop * s(`.${idModalKeyEffect}`).clientHeight * 1.05
+                    }px`;
+                    countDrop++;
+                  }
+                });
+            };
+            s(`.${IdModal}`).style.top = 'auto';
+            s(`.${IdModal}`).style.left = 'auto';
+            s(`.${IdModal}`).style.height = 'auto';
+            s(`.${IdModal}`).style.position = 'absolute';
+            renderEffect();
+            this.EffectData[options.effect][IdModal].delete = () => renderEffect(IdModal);
+          })();
+          break;
+
+        default:
+          break;
+      }
+    }
     let dragInstance;
     const dragOptions = {
       handle: [s(`.modal-handle-${IdModal}`), s(`.bar-default-modal-${IdModal}`), s(`.modal-html-${IdModal}`)],
@@ -108,6 +173,10 @@ const Modal = {
           s(`.${IdModal}`).remove();
           s(`.style-${IdModal}`).remove();
           delete this.Data[IdModal];
+          if (options && options.effect) {
+            if (this.EffectData[options.effect][IdModal].delete) this.EffectData[options.effect][IdModal].delete();
+            delete this.EffectData[options.effect][IdModal];
+          }
         }, 300);
       };
     if (s(`.btn-minimize-${IdModal}`) && s(`.btn-maximize-${IdModal}`) && s(`.btn-maximize-${IdModal}`)) {
@@ -151,13 +220,15 @@ const Modal = {
     }
 
     dragInstance = new Draggable(s(`.${IdModal}`), dragOptions);
-    new ResizeObserver(() => {
-      logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
+    const resizeObserver = new ResizeObserver(() => {
+      if (s(`.${IdModal}`))
+        logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
     }).observe(s(`.${IdModal}`));
     // cancel: [cancel1, cancel2]
     return {
       id: IdModal,
       dragInstance,
+      resizeObserver,
     };
   },
 };

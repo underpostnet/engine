@@ -15,6 +15,7 @@ import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 
+await Css.import.fontawesome();
 await Css.Init({ theme: 'default' });
 await SocketIo.Init({
   channels: Elements.Data,
@@ -41,11 +42,11 @@ await Modal.Render({
   `,
   disabledCloseBtn: true,
   title: 'menu',
-  class: '',
+  style: {
+    top: '5px',
+    left: '5px',
+  },
 });
-
-s(`.modal-menu`).style.top = '5px';
-s(`.modal-menu`).style.left = '5px';
 
 s(`.main-btn-bag`).onclick = async () => await Modal.Render({ id: 'modal-bag', title: Translate.Render('bag') });
 

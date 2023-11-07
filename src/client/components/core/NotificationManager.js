@@ -1,4 +1,5 @@
-import { getId } from './CommonJs.js';
+import { getId, getIsoDate } from './CommonJs.js';
+import { Modal } from './Modal.js';
 import { append, prepend, s } from './VanillaJs.js';
 
 const NotificationManager = {
@@ -15,10 +16,9 @@ const NotificationManager = {
               bottom: 5px;
               z-index: 3;
             }
-            .notification-board {
-              background: black;
-              padding: 3px;
-              color: white;
+            .notification-board-title {
+              font-size: 14px;
+              padding: 5px;
             }
           `}
         </style>
@@ -27,18 +27,29 @@ const NotificationManager = {
     );
   },
   Tokens: {},
-  Push: function (options) {
+  Push: async function (options) {
     const idNotification = getId(this.Tokens, 'board-notification-');
-    prepend(
-      '.notification-board-container',
-      html`<div class="in notification-board ${idNotification}">
-        ${new Date().toISOString()}<br />
-        ${options.html}
-      </div>`
-    );
+    await Modal.Render({
+      title: html`<div class="in">${getIsoDate(new Date())}</div>
+        ${options.html}`,
+      html: '',
+      id: idNotification,
+      selector: `.notification-board-container`,
+      class: 'in',
+      titleClass: 'notification-board-title',
+      renderType: 'prepend',
+      disabledMinimizeBtn: true,
+      disabledRestoreBtn: true,
+      disableMaximizeBtn: true,
+      disableDropdownBtn: true,
+      style: {
+        width: '300px',
+      },
+      effect: 'dropNotification',
+    });
     setTimeout(() => {
-      s(`.${idNotification}`).remove();
-    }, 2500);
+      if (s(`.btn-close-${idNotification}`)) s(`.btn-close-${idNotification}`).click();
+    }, 2000);
   },
 };
 

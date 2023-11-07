@@ -163,6 +163,9 @@ scrollbar-width: none;
         background: #dfdfdf;
         color: black;
       }
+      .html-modal-content {
+        padding: 5px;
+      }
       button {
         background: none;
         outline: none;
@@ -195,6 +198,10 @@ scrollbar-width: none;
         box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
       }
     `,
+  },
+  import: {
+    fontawesome: async () =>
+      append('head', html`<link rel="stylesheet" type="text/css" href="/dist/fontawesome/css/all.min.css" />`),
   },
 };
 
