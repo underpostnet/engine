@@ -251,6 +251,61 @@ scrollbar-width: none;
         box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
       }
     `,
+    cryptokoyn: css`
+      html {
+        background: black;
+        color: white;
+      }
+      .modal {
+        /* background: #242124; */
+        background: #121212;
+        color: white;
+        font-family: arial;
+        border: 2px solid yellow;
+        /* border-radius: 10px; */
+      }
+      .bar-default-modal {
+        /* background: #242124; */
+        background: #242424;
+        color: white;
+      }
+      .html-modal-content {
+        padding: 5px;
+      }
+      button {
+        background: none;
+        outline: none;
+        border: none;
+        cursor: pointer;
+        transition: 0.3s;
+        font-size: 15px;
+        color: white;
+        margin: 5px;
+        padding: 5px;
+        /* border-radius: 5px; */
+        border: 2px solid yellow;
+        min-height: 30px;
+        min-width: 30px;
+      }
+      .title-modal {
+        padding: 5px;
+        margin: 5px;
+        text-transform: capitalize;
+        cursor: default;
+        font-size: 20px;
+        color: yellow;
+      }
+      button:hover {
+        background: yellow;
+        color: black;
+      }
+      .box-shadow {
+        /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+      }
+      .box-shadow:hover {
+        /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+      }
+    `,
   },
   import: {
     fontawesome: async () =>

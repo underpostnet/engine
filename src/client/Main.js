@@ -16,7 +16,8 @@ import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 
 await Css.import.fontawesome();
-await Css.Init({ theme: 'default' });
+await Css.Init({ theme: 'cryptokoyn' });
+// await Css.Init({ theme: 'default' });
 // await Css.Init({ theme: 'dark' });
 await SocketIo.Init({
   channels: Elements.Data,
