@@ -1,4 +1,4 @@
-import { orderArrayFromAttrInt } from './CommonJs.js';
+import { orderArrayFromAttrInt, s4 } from './CommonJs.js';
 import { borderChar } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -5246,15 +5246,16 @@ const ColorPalette = {
       <div class="in" style="width: 100%; height: 100%; overflow: auto;">
         ${getDataColors()
           .map((coloData) => {
+            const idColor = `color-${s4()}-${coloData.number}`;
             setTimeout(
               () =>
-                (s(`.btn-palette-${coloData.number}`).onclick = () => {
+                (s(`.btn-palette-${idColor}`).onclick = () => {
                   logger.info(coloData);
                   NotificationManager.Push({ type: 'success', html: Translate.Render('color-copy') });
                   copyData(coloData.hex);
                 })
             );
-            return html`<button class="btn-palette-${coloData.number}">
+            return html`<button class="btn-palette-${idColor}">
               ${coloData.name} - ${coloData.hex} <br />
               <div class="inl" style="background: ${coloData.hex}; width: 80px; height: 20px;"></div>
             </button>`;
