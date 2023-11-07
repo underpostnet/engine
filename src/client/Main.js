@@ -18,31 +18,44 @@ import { newInstance } from './components/core/CommonJs.js';
 
 await Css.Init();
 await Css.fontawesome();
+// await Css.default();
 await Css['dark-light']();
 await Css.retro();
 await Css.cyberia();
+
+const barButtonsIconEnabled = true;
 
 const barConfig = {
   buttons: {
     close: {
       disabled: false,
-      label: html`<img class="inl bar-default-modal-icon" src="/assets/icons/close.png" />`,
+      label: !barButtonsIconEnabled
+        ? false
+        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/close.png" />`,
     },
     maximize: {
       disabled: false,
-      label: html`<img class="inl bar-default-modal-icon" src="/assets/icons/maximize.png" />`,
+      label: !barButtonsIconEnabled
+        ? false
+        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/maximize.png" />`,
     },
     minimize: {
       disabled: false,
-      label: html`<img class="inl bar-default-modal-icon" src="/assets/icons/minimize.png" />`,
+      label: !barButtonsIconEnabled
+        ? false
+        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/minimize.png" />`,
     },
     restore: {
       disabled: false,
-      label: html`<img class="inl bar-default-modal-icon" src="/assets/icons/restore.png" />`,
+      label: !barButtonsIconEnabled
+        ? false
+        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/restore.png" />`,
     },
     menu: {
       disabled: false,
-      label: html`<img class="inl bar-default-modal-icon" src="/assets/icons/menu.png" />`,
+      label: !barButtonsIconEnabled
+        ? false
+        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/menu.png" />`,
     },
   },
 };
