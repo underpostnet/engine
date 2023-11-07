@@ -2,8 +2,10 @@
 
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
+import { loggerFactory } from './logger.js';
 
 const buildClient = async () => {
+  const logger = loggerFactory(import.meta);
   let ViewRender;
   eval(srcFormatted(fs.readFileSync('./src/client/ssr/ViewRender.js', 'utf8')));
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
@@ -54,20 +56,21 @@ const buildClient = async () => {
       const buildId = `index.${client}`;
 
       views.map((view) => {
-        if (!fs.existsSync(`${rootClientPath}${pathViewFormatted(view.path)}`))
-          fs.mkdirSync(`${rootClientPath}${`${pathViewFormatted(view.path)}`}`, { recursive: true });
+        const buildPath = `${
+          rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+        }${pathViewFormatted(view.path)}`;
+
+        logger.info('Build path', buildPath);
+
+        if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
         fs.writeFileSync(
-          `${rootClientPath}${pathViewFormatted(view.path)}${buildId}.js`,
+          `${buildPath}${buildId}.js`,
           viewFormatted(srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')), dists, path),
           'utf8'
         );
 
-        fs.writeFileSync(
-          `${rootClientPath}${pathViewFormatted(view.path)}index.html`,
-          ViewRender({ title: view.title, path, buildId }),
-          'utf8'
-        );
+        fs.writeFileSync(`${buildPath}index.html`, ViewRender({ title: view.title, path, buildId }), 'utf8');
       });
     }
   }
