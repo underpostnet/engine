@@ -64,35 +64,45 @@ const Modal = {
         <div class="in modal-html-${IdModal}">
           <div class="stq bar-default-modal bar-default-modal-${IdModal}">
             <div class="in" style="text-align: right">
-              ${!options || (options && !options.disabledMinimizeBtn)
+              ${!options?.barConfig?.buttons?.minimize?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`,
-                    label: html`<i class="fa-solid fa-window-minimize"></i>`,
+                    label: options?.barConfig?.buttons?.minimize?.label
+                      ? options.barConfig.buttons.minimize.label
+                      : html`<i class="fa-solid fa-window-minimize"></i>`,
                   })
                 : ''}
-              ${!options || (options && !options.disabledRestoreBtn)
+              ${!options?.barConfig?.buttons?.restore?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
-                    label: html`<i class="fa-regular fa-window-restore"></i>`,
+                    label: options?.barConfig?.buttons?.restore?.label
+                      ? options.barConfig.buttons.restore.label
+                      : html`<i class="fa-regular fa-window-restore"></i>`,
                     style: 'display: none',
                   })
                 : ''}
-              ${!options || (options && !options.disableMaximizeBtn)
+              ${!options?.barConfig?.buttons?.maximize?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
-                    label: html`<i class="fa-regular fa-square"></i>`,
+                    label: options?.barConfig?.buttons?.maximize?.label
+                      ? options.barConfig.buttons.maximize.label
+                      : html`<i class="fa-regular fa-square"></i>`,
                   })
                 : ''}
-              ${!options || (options && !options.disabledCloseBtn)
+              ${!options?.barConfig?.buttons?.close?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-close-${IdModal} btn-modal-default-${IdModal}`,
-                    label: html`<i class="fa-solid fa-xmark"></i>`,
+                    label: options?.barConfig?.buttons?.close?.label
+                      ? options.barConfig.buttons.close.label
+                      : html`<i class="fa-solid fa-xmark"></i>`,
                   })
                 : ''}
-              ${!options || (options && !options.disableDropdownBtn)
+              ${!options?.barConfig?.buttons?.menu?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-dropdown-${IdModal} btn-modal-default-${IdModal}`,
-                    label: html`<i class="fa-solid fa-bars"></i>`,
+                    label: options?.barConfig?.buttons?.menu?.label
+                      ? options.barConfig.buttons.menu.label
+                      : html`<i class="fa-solid fa-bars"></i>`,
                   })
                 : ''}
             </div>
@@ -150,14 +160,17 @@ const Modal = {
     const dragOptions = {
       handle: [s(`.modal-handle-${IdModal}`), s(`.bar-default-modal-${IdModal}`), s(`.modal-html-${IdModal}`)],
       onDragStart: (data) => {
+        if (!s(`.${IdModal}`)) return;
         // logger.info('Dragging started', data);
         transition = `${s(`.${IdModal}`).style.transition}`;
         s(`.${IdModal}`).style.transition = null;
       },
       onDrag: (data) => {
+        if (!s(`.${IdModal}`)) return;
         // logger.info('Dragging', data);
       },
       onDragEnd: (data) => {
+        if (!s(`.${IdModal}`)) return;
         // logger.info('Dragging stopped', data);
         s(`.${IdModal}`).style.transition = transition;
       },
@@ -170,6 +183,7 @@ const Modal = {
       s(`.btn-close-${IdModal}`).onclick = () => {
         s(`.${IdModal}`).style.opacity = '0';
         setTimeout(() => {
+          if (!s(`.${IdModal}`)) return;
           s(`.${IdModal}`).remove();
           s(`.style-${IdModal}`).remove();
           delete this.Data[IdModal];

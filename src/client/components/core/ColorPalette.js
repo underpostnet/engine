@@ -5241,19 +5241,23 @@ Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores'
 
 const ColorPalette = {
   Palettes: {},
-  Render: function () {
+  Render: function (options) {
     return html`
       <div class="in" style="width: 100%; height: 100%; overflow: auto;">
         ${getDataColors()
           .map((coloData) => {
             const idColor = `color-${s4()}-${coloData.number}`;
-            setTimeout(
-              () =>
-                (s(`.btn-palette-${idColor}`).onclick = () => {
-                  logger.info(coloData);
-                  NotificationManager.Push({ type: 'success', html: Translate.Render('color-copy') });
-                  copyData(coloData.hex);
-                })
+            setTimeout(() =>
+              s(`.btn-palette-${idColor}`)
+                ? (s(`.btn-palette-${idColor}`).onclick = () => {
+                    logger.info(coloData);
+                    NotificationManager.Push({
+                      html: Translate.Render('color-copy'),
+                      barConfig: options.barConfig,
+                    });
+                    copyData(coloData.hex);
+                  })
+                : null
             );
             return html`<button class="btn-palette-${idColor}">
               ${coloData.name} - ${coloData.hex} <br />

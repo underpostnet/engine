@@ -38,10 +38,7 @@ const NotificationManager = {
       class: 'in',
       titleClass: 'notification-board-title',
       renderType: 'prepend',
-      disabledMinimizeBtn: true,
-      disabledRestoreBtn: true,
-      disableMaximizeBtn: true,
-      disableDropdownBtn: true,
+      barConfig: options.barConfig,
       style: {
         width: '300px',
       },

@@ -145,172 +145,298 @@ scrollbar-width: none;
             /* Handle on hover */
             ::-webkit-scrollbar-thumb:hover {
               background: #555;
-            }`}
-          ${options && options.theme ? this.themes[options.theme] : ''}
+            }
+          `}
         </style>
       `
     );
   },
-  themes: {
-    default: css`
-      .modal {
-        background: white;
-        color: black;
-        font-family: arial;
-        border-radius: 10px;
-      }
-      .bar-default-modal {
-        background: #dfdfdf;
-        color: black;
-      }
-      .html-modal-content {
-        padding: 5px;
-      }
-      button {
-        background: none;
-        outline: none;
-        border: none;
-        cursor: pointer;
-        transition: 0.3s;
-        font-size: 15px;
-        color: black;
-        margin: 5px;
-        padding: 5px;
-        border-radius: 5px;
-        border: 2px solid #bbbbbb;
-        min-height: 30px;
-        min-width: 30px;
-      }
-      .title-modal {
-        padding: 5px;
-        margin: 5px;
-        text-transform: capitalize;
-        cursor: default;
-        font-size: 20px;
-      }
-      button:hover {
-        background: #bbbbbb;
-      }
-      .box-shadow {
-        box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-      }
-      .box-shadow:hover {
-        box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-      }
-    `,
-    dark: css`
-      html {
-        background: black;
-        color: white;
-      }
-      .modal {
-        /* background: #242124; */
-        background: #121212;
-        color: white;
-        font-family: arial;
-        border-radius: 10px;
-      }
-      .bar-default-modal {
-        /* background: #242124; */
-        background: #242424;
-        color: white;
-      }
-      .html-modal-content {
-        padding: 5px;
-      }
-      button {
-        background: none;
-        outline: none;
-        border: none;
-        cursor: pointer;
-        transition: 0.3s;
-        font-size: 15px;
-        color: white;
-        margin: 5px;
-        padding: 5px;
-        border-radius: 5px;
-        border: 2px solid #bbbbbb;
-        min-height: 30px;
-        min-width: 30px;
-      }
-      .title-modal {
-        padding: 5px;
-        margin: 5px;
-        text-transform: capitalize;
-        cursor: default;
-        font-size: 20px;
-      }
-      button:hover {
-        background: #bbbbbb;
-        color: black;
-      }
-      .box-shadow {
-        box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
-      }
-      .box-shadow:hover {
-        box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
-      }
-    `,
-    cryptokoyn: css`
-      html {
-        background: black;
-        color: white;
-      }
-      .modal {
-        /* background: #242124; */
-        background: #121212;
-        color: white;
-        font-family: arial;
-        border: 2px solid yellow;
-        /* border-radius: 10px; */
-      }
-      .bar-default-modal {
-        /* background: #242124; */
-        background: #242424;
-        color: white;
-      }
-      .html-modal-content {
-        padding: 5px;
-      }
-      button {
-        background: none;
-        outline: none;
-        border: none;
-        cursor: pointer;
-        transition: 0.3s;
-        font-size: 15px;
-        color: white;
-        margin: 5px;
-        padding: 5px;
-        /* border-radius: 5px; */
-        border: 2px solid yellow;
-        min-height: 30px;
-        min-width: 30px;
-      }
-      .title-modal {
-        padding: 5px;
-        margin: 5px;
-        text-transform: capitalize;
-        cursor: default;
-        font-size: 20px;
-        color: yellow;
-      }
-      button:hover {
-        background: yellow;
-        color: black;
-      }
-      .box-shadow {
-        /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-      }
-      .box-shadow:hover {
-        /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-      }
-    `,
-  },
-  import: {
-    fontawesome: async () =>
-      append('head', html`<link rel="stylesheet" type="text/css" href="/dist/fontawesome/css/all.min.css" />`),
-  },
+  default: async () =>
+    append(
+      'head',
+      html`
+        <style>
+          ${css`
+            .modal {
+              background: white;
+              color: black;
+              font-family: arial;
+              border-radius: 10px;
+            }
+            .bar-default-modal {
+              background: #dfdfdf;
+              color: black;
+            }
+            .html-modal-content {
+              padding: 5px;
+            }
+            button {
+              background: none;
+              outline: none;
+              border: none;
+              cursor: pointer;
+              transition: 0.3s;
+              font-size: 15px;
+              color: black;
+              margin: 5px;
+              padding: 5px;
+              border-radius: 5px;
+              border: 2px solid #bbbbbb;
+              min-height: 30px;
+              min-width: 30px;
+            }
+            .title-modal {
+              padding: 5px;
+              margin: 5px;
+              text-transform: capitalize;
+              cursor: default;
+              font-size: 20px;
+            }
+            button:hover {
+              background: #bbbbbb;
+            }
+            .box-shadow {
+              box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+            }
+            .box-shadow:hover {
+              box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+            }
+          `}
+        </style>
+      `
+    ),
+  dark: async () =>
+    append(
+      'head',
+      html`
+        <style>
+          ${css`
+            html {
+              background: black;
+              color: white;
+            }
+            .modal {
+              /* background: #242124; */
+              background: #121212;
+              color: white;
+              font-family: arial;
+              border-radius: 10px;
+            }
+            .bar-default-modal {
+              /* background: #242124; */
+              background: #242424;
+              color: white;
+            }
+            .html-modal-content {
+              padding: 5px;
+            }
+            button {
+              background: none;
+              outline: none;
+              border: none;
+              cursor: pointer;
+              transition: 0.3s;
+              font-size: 15px;
+              color: white;
+              margin: 5px;
+              padding: 5px;
+              border-radius: 5px;
+              border: 2px solid #bbbbbb;
+              min-height: 30px;
+              min-width: 30px;
+            }
+            .title-modal {
+              padding: 5px;
+              margin: 5px;
+              text-transform: capitalize;
+              cursor: default;
+              font-size: 20px;
+            }
+            button:hover {
+              background: #bbbbbb;
+              color: black;
+            }
+            .box-shadow {
+              box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
+            }
+            .box-shadow:hover {
+              box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
+            }
+          `}
+        </style>
+      `
+    ),
+  cryptokoyn: async () =>
+    append(
+      'head',
+      html`
+        ${css`
+          html {
+            background: black;
+            color: white;
+          }
+          .modal {
+            /* background: #242124; */
+            background: #121212;
+            color: white;
+            font-family: arial;
+            border: 2px solid yellow;
+            /* border-radius: 10px; */
+          }
+          .bar-default-modal {
+            /* background: #242124; */
+            background: #242424;
+            color: white;
+          }
+          .html-modal-content {
+            padding: 5px;
+          }
+          button {
+            background: none;
+            outline: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+            color: white;
+            margin: 5px;
+            padding: 5px;
+            /* border-radius: 5px; */
+            border: 2px solid yellow;
+            min-height: 30px;
+            min-width: 30px;
+          }
+          .title-modal {
+            padding: 5px;
+            margin: 5px;
+            text-transform: capitalize;
+            cursor: default;
+            font-size: 20px;
+            color: yellow;
+          }
+          button:hover {
+            background: yellow;
+            color: black;
+          }
+          .box-shadow {
+            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+          }
+          .box-shadow:hover {
+            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+          }
+        `}
+      `
+    ),
+  'dark-light': async () =>
+    append(
+      'head',
+      html`
+        <style>
+          ${css`
+            html {
+              background: black;
+              color: white;
+            }
+            .modal {
+              /* background: #242124; */
+              background: #121212;
+              color: white;
+              font-family: arial;
+              border: 2px solid #313131;
+              /* border-radius: 10px; */
+            }
+            .bar-default-modal {
+              /* background: #242124; */
+              background: #242424;
+              color: white;
+            }
+            .bar-default-modal-icon {
+              /* background: #242124; */
+              width: 15px;
+              height: 15px;
+            }
+            .html-modal-content {
+              padding: 5px;
+            }
+            button {
+              background: none;
+              outline: none;
+              border: none;
+              cursor: pointer;
+              transition: 0.3s;
+              font-size: 15px;
+              color: white;
+              margin: 5px;
+              padding: 5px;
+              /* border-radius: 5px; */
+              border: 2px solid #313131;
+              min-height: 30px;
+              min-width: 30px;
+            }
+            .title-modal {
+              padding: 5px;
+              margin: 5px;
+              text-transform: capitalize;
+              cursor: default;
+              font-size: 20px;
+              color: yellow;
+            }
+            button:hover {
+              background: #313131;
+              color: yellow;
+            }
+            .box-shadow {
+              /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+            }
+            .box-shadow:hover {
+              /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+            }
+          `}
+        </style>
+      `
+    ),
+  retro: async () =>
+    append(
+      'head',
+      html`
+        <style>
+          ${css`
+            @font-face {
+              font-family: 'retro-font-title';
+              src: URL('/assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+            }
+            @font-face {
+              font-family: 'retro-font';
+              src: URL('/assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+            }
+          `}
+        </style>
+      `
+    ),
+  cyberia: async () =>
+    append(
+      'head',
+      html`
+        <style>
+          ${css`
+            body,
+            .modal,
+            button {
+              font-family: 'retro-font';
+            }
+            .title-modal {
+              color: #ffcc00;
+              font-family: 'retro-font-title';
+            }
+            button:hover {
+              color: #ffcc00;
+            }
+          `}
+        </style>
+      `
+    ),
+  fontawesome: async () =>
+    append('head', html`<link rel="stylesheet" type="text/css" href="/dist/fontawesome/css/all.min.css" />`),
 };
 
 const borderChar = (px, color) => html`
