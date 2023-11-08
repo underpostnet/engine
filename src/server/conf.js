@@ -58,8 +58,9 @@ const Config = {
             'Logger',
             'Css',
             'ColorPalette',
+            'NotificationManager',
           ],
-          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu'],
+          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia'],
           test: ['Test'],
         },
         views: [
@@ -91,11 +92,22 @@ const Config = {
             import_name: 'socket.io/client-dist/socket.io.esm.min.js',
             import_name_build: '/socket.io/socket.io.esm.min.js',
           },
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
         ],
       },
     },
     server: {
       'example1.com': {
+        '/': {
+          client: 'test',
+          runtime: 'nodejs',
+          origins: [],
+          disabled: false,
+          proxy: [80, 443],
+        },
         '/docs': {
           client: 'doc',
           runtime: 'xampp',
@@ -103,8 +115,10 @@ const Config = {
           disabled: false,
           proxy: [80, 443],
         },
+      },
+      'www.example1.com': {
         '/': {
-          client: 'test',
+          client: 'cyberia',
           runtime: 'nodejs',
           origins: [],
           disabled: false,
@@ -112,15 +126,15 @@ const Config = {
         },
       },
       'www.example2.com': {
-        '/cyberia': {
-          client: 'cyberia',
+        '/': {
+          client: 'test',
           runtime: 'nodejs',
           origins: [],
           disabled: false,
           proxy: [80, 443],
         },
-        '/': {
-          client: 'test',
+        '/cyberia': {
+          client: 'cyberia',
           runtime: 'nodejs',
           origins: [],
           disabled: false,

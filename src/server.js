@@ -5,6 +5,7 @@
 
 import dotenv from 'dotenv';
 import isAdmin from 'is-admin';
+import fs from 'fs-extra';
 
 import { loggerFactory } from './server/logger.js';
 import { buildClient } from './server/client-build.js';
@@ -15,6 +16,10 @@ import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
 
 dotenv.config();
+
+fs.removeSync('./public');
+fs.removeSync('./logs');
+fs.removeSync('./conf');
 
 const logger = loggerFactory(import.meta);
 

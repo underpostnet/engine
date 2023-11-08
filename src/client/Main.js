@@ -31,31 +31,31 @@ const barConfig = {
       disabled: false,
       label: !barButtonsIconEnabled
         ? false
-        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/close.png" />`,
+        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/close.png" />`,
     },
     maximize: {
       disabled: false,
       label: !barButtonsIconEnabled
         ? false
-        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/maximize.png" />`,
+        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/maximize.png" />`,
     },
     minimize: {
       disabled: false,
       label: !barButtonsIconEnabled
         ? false
-        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/minimize.png" />`,
+        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/minimize.png" />`,
     },
     restore: {
       disabled: false,
       label: !barButtonsIconEnabled
         ? false
-        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/restore.png" />`,
+        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/restore.png" />`,
     },
     menu: {
       disabled: false,
       label: !barButtonsIconEnabled
         ? false
-        : html`<img class="inl bar-default-modal-icon" src="/assets/icons/menu.png" />`,
+        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/menu.png" />`,
     },
   },
 };

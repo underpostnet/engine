@@ -405,11 +405,11 @@ scrollbar-width: none;
           ${css`
             @font-face {
               font-family: 'retro-font-title';
-              src: URL('/assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+              src: URL('${location.pathname}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
             }
             @font-face {
               font-family: 'retro-font';
-              src: URL('/assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+              src: URL('${location.pathname}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
             }
           `}
         </style>
@@ -438,7 +438,10 @@ scrollbar-width: none;
       `
     ),
   fontawesome: async () =>
-    append('head', html`<link rel="stylesheet" type="text/css" href="/dist/fontawesome/css/all.min.css" />`),
+    append(
+      'head',
+      html`<link rel="stylesheet" type="text/css" href="${location.pathname}dist/fontawesome/css/all.min.css" />`
+    ),
 };
 
 const borderChar = (px, color) => html`

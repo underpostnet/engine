@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { createServer } from 'http';
 import { createIoServer } from './socket.io.js';
 import { getRootDirectory, shellExec } from './process.js';
-import { network, listenPortController } from './network.js';
+import { network, listenPortController, ip } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 
@@ -19,6 +19,7 @@ const xampp = {
 };
 
 const buildRuntime = async () => {
+  const ipInstance = await ip.public.ipv4();
   let cmd;
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
@@ -29,6 +30,14 @@ const buildRuntime = async () => {
       const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
+      const loggerOnRunningApp = () =>
+        logger.info(`App running`, {
+          runtime,
+          client,
+          public: `http://${ipInstance}:${port}${path}`,
+          host: `http://${host}:${port}${path}`,
+          local: `http://localhost:${port}${path}`,
+        });
       if (disabled) continue;
 
       switch (runtime) {
@@ -68,7 +77,7 @@ const buildRuntime = async () => {
             }
         </VirtualHost>
           `;
-          logger.info(`App ${client} running on port`, port);
+          loggerOnRunningApp();
           break;
         case 'nodejs':
           const app = express();
@@ -107,7 +116,7 @@ const buildRuntime = async () => {
           });
 
           await network.port.portClean(port);
-          await listenPortController(server, port, () => logger.info(`App ${client} running on port`, port));
+          await listenPortController(server, port, loggerOnRunningApp);
 
           break;
         default:
