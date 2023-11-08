@@ -393,6 +393,25 @@ scrollbar-width: none;
             .box-shadow:hover {
               /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
             }
+            .toggle-switch-content-border {
+              border: 2px solid #313131;
+              padding: 5px;
+              transition: 0.3s;
+              cursor: pointer;
+              top: 5px;
+            }
+            .toggle-switch-content-border:hover {
+              background: #313131;
+            }
+            .toggle-switch-content {
+              width: 60px;
+            }
+            .toggle-switch-circle {
+              height: 20px;
+              width: 20px;
+              background: gray;
+              transition: 0.3s;
+            }
           `}
         </style>
       `
@@ -425,6 +444,7 @@ scrollbar-width: none;
             .modal,
             button {
               font-family: 'retro-font';
+              font-size: 18px;
             }
             .title-modal {
               color: #ffcc00;
@@ -432,6 +452,10 @@ scrollbar-width: none;
             }
             button:hover {
               color: #ffcc00;
+            }
+            .toggle-switch-active {
+              background: #ffcc00;
+              /* background: green; */
             }
           `}
         </style>

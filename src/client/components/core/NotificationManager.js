@@ -29,6 +29,7 @@ const NotificationManager = {
   Tokens: {},
   Push: async function (options) {
     const idNotification = getId(this.Tokens, 'board-notification-');
+    this.Tokens[idNotification] = {};
     await Modal.Render({
       title: html`<div class="in">${getIsoDate(new Date())}</div>
         ${options.html}`,

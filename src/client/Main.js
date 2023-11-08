@@ -15,6 +15,7 @@ import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { newInstance } from './components/core/CommonJs.js';
+import { ToggleSwitch } from './components/core/ToggleSwitch.js';
 
 await Css.Init();
 await Css.fontawesome();
@@ -85,6 +86,15 @@ await Modal.Render({
   html: `
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
+  ${await ToggleSwitch.Render()}
+  ${await ToggleSwitch.Render({
+    checked: true,
+    on: {
+      unchecked: () => console.log('uncheck'),
+      checked: () => console.log('checked'),
+    },
+  })}
+  ${await ToggleSwitch.Render()}
   `,
   barConfig: barConfigModalMenu,
   title: 'menu',

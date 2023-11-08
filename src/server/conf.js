@@ -59,6 +59,8 @@ const Config = {
             'Css',
             'ColorPalette',
             'NotificationManager',
+            'ToggleSwitch',
+            'DropDown',
           ],
           cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia'],
           test: ['Test'],
