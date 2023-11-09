@@ -63,7 +63,7 @@ const buildProxy = async () => {
           proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
-      currentPort++;
+      if (!confServer[host][path].disabled) currentPort++;
     }
 
   // logger.info('Proxy router', proxyRouter);
