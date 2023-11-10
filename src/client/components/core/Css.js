@@ -72,6 +72,10 @@ const Css = {
               outline: none !important;
               border: none;
             }
+
+            .hide {
+              display: none !important;
+            }
             /*
 
 placeholder
@@ -411,6 +415,32 @@ scrollbar-width: none;
               width: 20px;
               background: gray;
               transition: 0.3s;
+            }
+            .dropdown {
+              margin-top: 10px;
+            }
+            .dropdown-content {
+              display: none;
+              position: absolute;
+              z-index: 1;
+              width: 100%;
+            }
+            .dropdown:hover .dropdown-content {
+              display: block;
+            }
+            /* .dropdown:hover .dropdown-content:active {
+              display: none;
+            } */
+            .dropdown-option {
+              background: #121212;
+              border: 2px solid #313131;
+              padding: 5px;
+              transition: 0.3s;
+              cursor: pointer;
+            }
+            .dropdown-option:hover {
+              background: #313131;
+              color: yellow;
             }
           `}
         </style>

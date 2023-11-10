@@ -5,17 +5,18 @@ import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
-import { s, append } from './components/core/VanillaJs.js';
+import { s } from './components/core/VanillaJs.js';
 import { Css } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
+import { newInstance } from './components/core/CommonJs.js';
+import { ToggleSwitch } from './components/core/ToggleSwitch.js';
+import { DropDown } from './components/core/DropDown.js';
 
 import { Pixi } from './components/cyberia/Pixi.js';
 import { Elements } from './components/cyberia/Elements.js';
 import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
-import { newInstance } from './components/core/CommonJs.js';
-import { ToggleSwitch } from './components/core/ToggleSwitch.js';
 
 await Css.Init();
 await Css.fontawesome();
@@ -95,6 +96,50 @@ await Modal.Render({
     },
   })}
   ${await ToggleSwitch.Render()}
+  ${await DropDown.Render({
+    head: {
+      value: 'Select option',
+      onClick: function () {
+        console.log('DropDown onClick', this.value);
+      },
+    },
+    list: [
+      {
+        value: 'a',
+        onClick: function () {
+          console.log('DropDown onClick', this.value);
+        },
+      },
+      {
+        value: 'b',
+        onClick: function () {
+          console.log('DropDown onClick', this.value);
+        },
+      },
+    ],
+  })}
+  ${await DropDown.Render({
+    head: {
+      value: 'Select option',
+      onClick: function () {
+        console.log('DropDown onClick', this.value);
+      },
+    },
+    list: [
+      {
+        value: 'c',
+        onClick: function () {
+          console.log('DropDown onClick', this.value);
+        },
+      },
+      {
+        value: 'd',
+        onClick: function () {
+          console.log('DropDown onClick', this.value);
+        },
+      },
+    ],
+  })}
   `,
   barConfig: barConfigModalMenu,
   title: 'menu',
