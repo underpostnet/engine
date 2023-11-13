@@ -27,7 +27,8 @@ const DropDown = {
               setTimeout(() => {
                 s(`.option-${id}-${i}`).onclick = (e) => {
                   e.preventDefault();
-                  if (i < options.list.length - 1) htmls(`.${id}-head`, option.value);
+                  if (i < options.list.length - 1)
+                    htmls(`.${id}-head`, html`<i class="fa-solid fa-caret-down"></i> ${option.value}`);
                   option.onClick();
                   s(`.${id}-content`).classList.add('hide');
                 };

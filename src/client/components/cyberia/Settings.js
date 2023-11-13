@@ -38,6 +38,7 @@ const Settings = {
         ${Translate.Render('lang')}
         ${await DropDown.Render({
           head: {
+            value: s('html').lang ? Translate.Render(s('html').lang) : Translate.Render('en'),
             onClick: function () {
               console.log('DropDown onClick', this.value);
             },
