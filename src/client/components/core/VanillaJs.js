@@ -86,23 +86,36 @@ const disableOptionsClick = (element, types) => {
 
 const checkFullScreen = () => {
   // document.fullscreen
-  return document.fullscreenElement ? true : false;
+  // return document.fullscreenElement ? true : false;
+  return !(!window.screenTop && !window.screenY);
 };
 
 const fullScreenOut = () => {
-  document.exitFullscreen();
+  if (document.exitFullscreen) {
+    document.exitFullscreen();
+  } else if (document.mozCancelFullScreen) {
+    document.mozCancelFullScreen();
+  } else if (document.webkitExitFullscreen) {
+    document.webkitExitFullscreen();
+  } else if (document.msExitFullscreen) {
+    window.top.document.msExitFullscreen();
+  }
 };
 
 const fullScreenIn = () => {
-  const el = document.documentElement;
-  const rfs = el.requestFullScreen || el.webkitRequestFullScreen || el.mozRequestFullScreen || el.msRequestFullScreen;
-  if (typeof rfs != 'undefined' && rfs) {
-    rfs.call(el);
-  } else if (typeof window.ActiveXObject != 'undefined') {
-    const wsScript = new ActiveXObject('WScript.Shell');
-    if (wsScript != null) {
-      wsScript.SendKeys('{F11}');
-    }
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+  } else if (elem.mozRequestFullScreen) {
+    /* Firefox */
+    elem.mozRequestFullScreen();
+  } else if (elem.webkitRequestFullscreen) {
+    /* Chrome, Safari & Opera */
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) {
+    /* IE/Edge */
+    elem = window.top.document.body; //To break out of frame in IE
+    elem.msRequestFullscreen();
   }
 };
 

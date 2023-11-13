@@ -442,6 +442,12 @@ scrollbar-width: none;
               background: #313131;
               color: yellow;
             }
+            .section-row {
+              cursor: default;
+              padding: 15px 0px 15px 0px;
+              border-bottom: 2px solid #313131;
+              max-width: 450px;
+            }
           `}
         </style>
       `

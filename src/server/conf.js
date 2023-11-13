@@ -61,8 +61,10 @@ const Config = {
             'NotificationManager',
             'ToggleSwitch',
             'DropDown',
+            'TranslateCore',
+            'FullScreen',
           ],
-          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia'],
+          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia', 'Settings'],
           test: ['Test'],
         },
         views: [

@@ -17,6 +17,9 @@ import { Elements } from './components/cyberia/Elements.js';
 import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
+import { Settings } from './components/cyberia/Settings.js';
+import { TranslateCore } from './components/core/TranslateCore.js';
+import { FullScreen } from './components/core/FullScreen.js';
 
 await Css.Init();
 await Css.fontawesome();
@@ -24,6 +27,9 @@ await Css.fontawesome();
 await Css['dark-light']();
 await Css.retro();
 await Css.cyberia();
+
+await TranslateCore.Init();
+await TranslateCyberia.Init();
 
 const barButtonsIconEnabled = true;
 
@@ -73,11 +79,12 @@ await Pixi.Init();
 await Responsive.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
+await FullScreen.Init({
+  globalTimeInterval: Event.Data.globalTimeInterval,
+});
 await Matrix.InitCamera();
 
 await NotificationManager.RenderBoard();
-
-await TranslateCyberia.Init();
 
 const barConfigModalMenu = newInstance(barConfig);
 barConfigModalMenu.buttons.close.disabled = true;
@@ -87,59 +94,7 @@ await Modal.Render({
   html: `
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
-  ${await ToggleSwitch.Render()}
-  ${await ToggleSwitch.Render({
-    checked: true,
-    on: {
-      unchecked: () => console.log('uncheck'),
-      checked: () => console.log('checked'),
-    },
-  })}
-  ${await ToggleSwitch.Render()}
-  ${await DropDown.Render({
-    head: {
-      value: 'Select option',
-      onClick: function () {
-        console.log('DropDown onClick', this.value);
-      },
-    },
-    list: [
-      {
-        value: 'a',
-        onClick: function () {
-          console.log('DropDown onClick', this.value);
-        },
-      },
-      {
-        value: 'b',
-        onClick: function () {
-          console.log('DropDown onClick', this.value);
-        },
-      },
-    ],
-  })}
-  ${await DropDown.Render({
-    head: {
-      value: 'Select option',
-      onClick: function () {
-        console.log('DropDown onClick', this.value);
-      },
-    },
-    list: [
-      {
-        value: 'c',
-        onClick: function () {
-          console.log('DropDown onClick', this.value);
-        },
-      },
-      {
-        value: 'd',
-        onClick: function () {
-          console.log('DropDown onClick', this.value);
-        },
-      },
-    ],
-  })}
+  ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
   `,
   barConfig: barConfigModalMenu,
   title: 'menu',
@@ -148,6 +103,68 @@ await Modal.Render({
     left: '5px',
   },
 });
+
+// ${await ToggleSwitch.Render()}
+// ${await ToggleSwitch.Render({
+//   checked: true,
+//   on: {
+//     unchecked: () => console.log('uncheck'),
+//     checked: () => console.log('checked'),
+//   },
+// })}
+// ${await ToggleSwitch.Render()}
+// ${await DropDown.Render({
+//   head: {
+//     value: 'Select option',
+//     onClick: function () {
+//       console.log('DropDown onClick', this.value);
+//     },
+//   },
+//   list: [
+//     {
+//       value: 'a',
+//       onClick: function () {
+//         console.log('DropDown onClick', this.value);
+//       },
+//     },
+//     {
+//       value: 'b',
+//       onClick: function () {
+//         console.log('DropDown onClick', this.value);
+//       },
+//     },
+//   ],
+// })}
+// ${await DropDown.Render({
+//   head: {
+//     value: 'Select option',
+//     onClick: function () {
+//       console.log('DropDown onClick', this.value);
+//     },
+//   },
+//   list: [
+//     {
+//       value: 'c',
+//       onClick: function () {
+//         console.log('DropDown onClick', this.value);
+//       },
+//     },
+//     {
+//       value: 'd',
+//       onClick: function () {
+//         console.log('DropDown onClick', this.value);
+//       },
+//     },
+//   ],
+// })}
+
+s(`.main-btn-settings`).onclick = async () =>
+  await Modal.Render({
+    id: 'modal-bag',
+    barConfig,
+    title: Translate.Render('settings'),
+    html: await Settings.Render(),
+  });
 
 s(`.main-btn-bag`).onclick = async () =>
   await Modal.Render({ id: 'modal-bag', barConfig, title: Translate.Render('bag') });
