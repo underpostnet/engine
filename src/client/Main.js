@@ -160,7 +160,7 @@ await Modal.Render({
 
 s(`.main-btn-settings`).onclick = async () =>
   await Modal.Render({
-    id: 'modal-bag',
+    id: 'modal-settings',
     barConfig,
     title: Translate.Render('settings'),
     html: await Settings.Render(),
