@@ -6,7 +6,6 @@ const DropDown = {
   Tokens: {},
   Render: async function (options) {
     const id = getId(this.Tokens, 'dropdown-');
-    console.log(options);
     if (!options.head.value) options.head.value = Translate.Render('select');
     options.head.value = html`<i class="fa-solid fa-caret-down"></i> ${options.head.value}`;
     this.Tokens[id] = {};
