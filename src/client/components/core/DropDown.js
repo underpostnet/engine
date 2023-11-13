@@ -1,13 +1,17 @@
 import { getId } from './CommonJs.js';
+import { Translate } from './Translate.js';
 import { s, htmls } from './VanillaJs.js';
 
 const DropDown = {
   Tokens: {},
   Render: async function (options) {
     const id = getId(this.Tokens, 'dropdown-');
+    console.log(options);
+    if (!options.head.value) options.head.value = Translate.Render('select');
+    options.head.value = html`<i class="fa-solid fa-caret-down"></i> ${options.head.value}`;
     this.Tokens[id] = {};
     options.list.push({
-      value: 'X close',
+      value: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
       onClick: function () {
         console.log('DropDown onClick', this.value);
       },

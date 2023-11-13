@@ -85,9 +85,7 @@ const disableOptionsClick = (element, types) => {
 };
 
 const checkFullScreen = () => {
-  // document.fullscreen
-  // return document.fullscreenElement ? true : false;
-  return !(!window.screenTop && !window.screenY);
+  return !(!window.screenTop && !window.screenY) || document.fullscreenElement ? true : false;
 };
 
 const fullScreenOut = () => {

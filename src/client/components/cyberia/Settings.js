@@ -1,3 +1,4 @@
+import { DropDown } from '../core/DropDown.js';
 import { FullScreen } from '../core/FullScreen.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
@@ -5,7 +6,7 @@ import { s, fullScreenIn, fullScreenOut, checkFullScreen } from '../core/Vanilla
 
 const Settings = {
   Render: async function () {
-    let fullScreenSwitch = false;
+    let fullScreenSwitch = checkFullScreen();
     FullScreen.Event['full-screen-settings'] = (fullScreenMode) => {
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
         s('.fullscreen-toggle').click();
@@ -31,6 +32,23 @@ const Settings = {
             })}
           </div>
         </div>
+      </div>
+
+      <div class="in section-row">
+        ${Translate.Render('lang')}
+        ${await DropDown.Render({
+          head: {
+            onClick: function () {
+              console.log('DropDown onClick', this.value);
+            },
+          },
+          list: ['en', 'es'].map((language) => {
+            return {
+              value: Translate.Render(language),
+              onClick: () => Translate.Parse(language),
+            };
+          }),
+        })}
       </div>
     `;
   },
