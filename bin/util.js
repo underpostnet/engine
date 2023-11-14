@@ -1,4 +1,6 @@
 import fs from 'fs-extra';
+import si from 'systeminformation';
+
 import { loggerFactory } from '../src/server/logger.js';
 import { shellExec } from '../src/server/process.js';
 import { range } from '../src/client/components/core/CommonJs.js';
@@ -43,6 +45,22 @@ try {
           await network.port.portClean(port);
         }
       }
+      break;
+    case 'system-info':
+      await (async () => {
+        for (const infoKey of Object.keys(si)) {
+          if (typeof si[infoKey] === 'function') {
+            //  'dockerInfo', 'vboxInfo'
+            if (!['osInfo', 'graphics', 'cpu'].includes(infoKey)) continue;
+            try {
+              const infoInstance = await si[infoKey]();
+              logger.info(infoKey, infoInstance);
+            } catch (error) {
+              logger.info('Not valid info function', infoKey);
+            }
+          }
+        }
+      })();
       break;
     default:
       break;
