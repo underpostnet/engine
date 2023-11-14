@@ -40,6 +40,14 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 
 // s(el).classList.remove(targetClass);
 // s(el).classList.add(targetClass);
+// s(el).classList.value;
+// Array.from(s(el).classList);
+
+// s(input).onblur = inputCheckFunction;
+// s(input).oninput = inputCheckFunction;
+
+// s(el).onmouseover = () => null;
+// s(el).onmouseout = () => null;
 
 const copyData = (data) =>
   new Promise((resolve, reject) =>

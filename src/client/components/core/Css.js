@@ -629,6 +629,13 @@ scrollbar-width: none;
           background: #ffcc00;
           /* background: green; */
         }
+        .slot {
+          cursor: pointer;
+          width: 100px;
+          height: 100px;
+          border: 2px solid #313131;
+          margin: 5px;
+        }
       `
     ),
   fontawesome: async () =>

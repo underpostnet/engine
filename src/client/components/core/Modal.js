@@ -154,7 +154,13 @@ const Modal = {
     }
     let dragInstance;
     const dragOptions = {
-      handle: [s(`.modal-handle-${IdModal}`), s(`.bar-default-modal-${IdModal}`), s(`.modal-html-${IdModal}`)],
+      handle: [
+        s(`.bar-default-modal-${IdModal}`),
+        ...(() => {
+          if (['modal-bag'].includes(IdModal)) return [];
+          else return [s(`.modal-handle-${IdModal}`), s(`.modal-html-${IdModal}`)];
+        })(),
+      ],
       onDragStart: (data) => {
         if (!s(`.${IdModal}`)) return;
         // logger.info('Dragging started', data);
@@ -171,6 +177,8 @@ const Modal = {
         s(`.${IdModal}`).style.transition = transition;
       },
     };
+    // new Draggable(s(`.${IdModal}`), { disabled: true });
+    const setDragInstance = () => new Draggable(s(`.${IdModal}`), dragOptions);
     transition = `${s(`.${IdModal}`).style.transition}`;
     s(`.${IdModal}`).style.transition = '0.15s';
     setTimeout(() => (s(`.${IdModal}`).style.opacity = '1'));
@@ -210,7 +218,7 @@ const Modal = {
         s(`.${IdModal}`).style.width = null;
         s(`.${IdModal}`).style.top = top;
         s(`.${IdModal}`).style.left = left;
-        dragInstance = new Draggable(s(`.${IdModal}`), dragOptions);
+        dragInstance = setDragInstance();
         setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 300);
       };
       s(`.btn-maximize-${IdModal}`).onclick = () => {
@@ -224,13 +232,13 @@ const Modal = {
         s(`.${IdModal}`).style.width = '100%';
         s(`.${IdModal}`).style.top = '0px';
         s(`.${IdModal}`).style.left = '0px';
-        dragInstance = new Draggable(s(`.${IdModal}`), dragOptions);
+        dragInstance = setDragInstance();
         setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 300);
       };
     }
 
-    dragInstance = new Draggable(s(`.${IdModal}`), dragOptions);
-    const resizeObserver = new ResizeObserver(() => {
+    dragInstance = setDragInstance();
+    new ResizeObserver(() => {
       if (s(`.${IdModal}`))
         logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
     }).observe(s(`.${IdModal}`));
@@ -238,7 +246,6 @@ const Modal = {
     return {
       id: IdModal,
       dragInstance,
-      resizeObserver,
     };
   },
 };

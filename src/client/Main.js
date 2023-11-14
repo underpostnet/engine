@@ -9,8 +9,8 @@ import { s } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance } from './components/core/CommonJs.js';
-import { ToggleSwitch } from './components/core/ToggleSwitch.js';
-import { DropDown } from './components/core/DropDown.js';
+import { TranslateCore } from './components/core/TranslateCore.js';
+import { FullScreen } from './components/core/FullScreen.js';
 
 import { Pixi } from './components/cyberia/Pixi.js';
 import { Elements } from './components/cyberia/Elements.js';
@@ -18,8 +18,7 @@ import { Event } from './components/cyberia/Event.js';
 import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
-import { TranslateCore } from './components/core/TranslateCore.js';
-import { FullScreen } from './components/core/FullScreen.js';
+import { Bag } from './components/cyberia/Bag.js';
 
 const { barConfig } = await Css.Init();
 
@@ -78,6 +77,7 @@ s(`.main-btn-bag`).onclick = async () => {
     id: 'modal-bag',
     barConfig,
     title: Translate.Render('bag'),
+    html: await Bag.Render(),
   });
 };
 
