@@ -166,7 +166,7 @@ const Config = {
   build: async function () {
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
     for (const confType of Object.keys(this.default)) {
-      if (fs.existsSync(`./engine-private/conf/conf.${confType}.private.json`))
+      if (false && fs.existsSync(`./engine-private/conf/conf.${confType}.private.json`))
         fs.writeFileSync(
           `./conf/conf.${confType}.json`,
           fs.readFileSync(`./engine-private/conf/conf.${confType}.private.json`, 'utf8'),
