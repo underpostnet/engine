@@ -214,19 +214,6 @@ function getJoystickDirection(x1, y1, x2, y2) {
 const JSONmatrix = (matrix) =>
   `[\r\n${matrix.map((x, i) => `   ` + JSON.stringify(x) + (i === matrix.length - 1 ? '' : ',') + '\r\n').join('')}]`;
 
-function merge(target) {
-  for (let i = 1; i < arguments.length; ++i) {
-    let from = arguments[i];
-    if (typeof from !== 'object') continue;
-    for (let j in from) {
-      if (from.hasOwnProperty(j)) {
-        target[j] = typeof from[j] === 'object' ? merge({}, target[j], from[j]) : from[j];
-      }
-    }
-  }
-  return target;
-}
-
 const getDistance = (x1, y1, x2, y2) => {
   const disX = Math.abs(x2 - x1);
   const disY = Math.abs(y2 - y1);
@@ -370,7 +357,6 @@ export {
   ceil10,
   JSONmatrix,
   getRandomPoint,
-  merge,
   objectEquals,
   getJoystickDirection,
   floatFixed,

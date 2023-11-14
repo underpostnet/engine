@@ -1,10 +1,12 @@
 import fs from 'fs-extra';
+import merge from 'deepmerge';
 import si from 'systeminformation';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { shellExec } from '../src/server/process.js';
 import { range } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
+import { Config } from '../src/server/conf.js';
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
@@ -17,7 +19,7 @@ try {
     case 'cls':
       fs.removeSync('./public');
       fs.removeSync('./logs');
-      //   fs.removeSync('./conf');
+      fs.removeSync('./conf');
       //   fs.removeSync('./engine-private');
       //   fs.removeSync('./node_modules');
       break;
@@ -60,6 +62,19 @@ try {
             }
           }
         }
+      })();
+      break;
+    case 'update-client-conf':
+      (() => {
+        let origin = {};
+        const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray;
+        if (!fs.existsSync(`./engine-private/conf`)) fs.mkdirSync(`./engine-private/conf`, { recursive: true });
+        else origin = JSON.parse(fs.readFileSync('./engine-private/conf/conf.client.private.json', 'utf8'));
+        fs.writeFileSync(
+          './engine-private/conf/conf.client.private.json',
+          JSON.stringify(merge(origin, Config.default.client, { arrayMerge: overwriteMerge }), null, 4),
+          'utf8'
+        );
       })();
       break;
     default:
