@@ -69,7 +69,7 @@ const Modal = {
                     class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.minimize?.label
                       ? options.barConfig.buttons.minimize.label
-                      : html`<i class="fa-solid fa-window-minimize"></i>`,
+                      : html`_`,
                   })
                 : ''}
               ${!options?.barConfig?.buttons?.restore?.disabled
@@ -77,7 +77,7 @@ const Modal = {
                     class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.restore?.label
                       ? options.barConfig.buttons.restore.label
-                      : html`<i class="fa-regular fa-window-restore"></i>`,
+                      : html`□`,
                     style: 'display: none',
                   })
                 : ''}
@@ -86,23 +86,19 @@ const Modal = {
                     class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.maximize?.label
                       ? options.barConfig.buttons.maximize.label
-                      : html`<i class="fa-regular fa-square"></i>`,
+                      : html`▢`,
                   })
                 : ''}
               ${!options?.barConfig?.buttons?.close?.disabled
                 ? await BtnIcon.Render({
                     class: `btn-close-${IdModal} btn-modal-default-${IdModal}`,
-                    label: options?.barConfig?.buttons?.close?.label
-                      ? options.barConfig.buttons.close.label
-                      : html`<i class="fa-solid fa-xmark"></i>`,
+                    label: options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`,
                   })
                 : ''}
               ${!options?.barConfig?.buttons?.menu?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-dropdown-${IdModal} btn-modal-default-${IdModal}`,
-                    label: options?.barConfig?.buttons?.menu?.label
-                      ? options.barConfig.buttons.menu.label
-                      : html`<i class="fa-solid fa-bars"></i>`,
+                    class: `btn-menu-${IdModal} btn-modal-default-${IdModal}`,
+                    label: options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`,
                   })
                 : ''}
             </div>

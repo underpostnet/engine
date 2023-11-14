@@ -1,3 +1,4 @@
+import { Css, Themes } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { FullScreen } from '../core/FullScreen.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
@@ -47,6 +48,24 @@ const Settings = {
             return {
               value: Translate.Render(language),
               onClick: () => Translate.Parse(language),
+            };
+          }),
+        })}
+      </div>
+
+      <div class="in section-row">
+        ${Translate.Render('theme')}
+        ${await DropDown.Render({
+          head: {
+            value: Css.currentTheme,
+            onClick: function () {
+              console.log('DropDown onClick', this.value);
+            },
+          },
+          list: Object.keys(Themes).map((theme) => {
+            return {
+              value: theme,
+              onClick: async () => await Themes[theme](),
             };
           }),
         })}

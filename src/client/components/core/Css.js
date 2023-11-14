@@ -1,8 +1,10 @@
-import { append } from './VanillaJs.js';
+import { Modal } from './Modal.js';
+import { append, htmls, s } from './VanillaJs.js';
 
 // https://www.fontspace.com/
 
 const Css = {
+  currentTheme: 'cyberia',
   Init: async function (options) {
     append(
       'body',
@@ -154,347 +156,327 @@ scrollbar-width: none;
             }
           `}
         </style>
+        <style class="theme"></style>
       `
     );
+    return await Themes[this.currentTheme]();
   },
   default: async () =>
     append(
-      'head',
-      html`
-        <style>
-          ${css`
-            .modal {
-              background: white;
-              color: black;
-              font-family: arial;
-              border-radius: 10px;
-            }
-            .bar-default-modal {
-              background: #dfdfdf;
-              color: black;
-            }
-            .html-modal-content {
-              padding: 5px;
-            }
-            button {
-              background: none;
-              outline: none;
-              border: none;
-              cursor: pointer;
-              transition: 0.3s;
-              font-size: 15px;
-              color: black;
-              margin: 5px;
-              padding: 5px;
-              border-radius: 5px;
-              border: 2px solid #bbbbbb;
-              min-height: 30px;
-              min-width: 30px;
-            }
-            .title-modal {
-              padding: 5px;
-              margin: 5px;
-              text-transform: capitalize;
-              cursor: default;
-              font-size: 20px;
-            }
-            button:hover {
-              background: #bbbbbb;
-            }
-            .box-shadow {
-              box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-            }
-            .box-shadow:hover {
-              box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-            }
-          `}
-        </style>
+      '.theme',
+      css`
+        .modal {
+          background: white;
+          color: black;
+          font-family: arial;
+          border-radius: 10px;
+        }
+        .bar-default-modal {
+          background: #dfdfdf;
+          color: black;
+        }
+        .html-modal-content {
+          padding: 5px;
+        }
+        button {
+          background: none;
+          outline: none;
+          border: none;
+          cursor: pointer;
+          transition: 0.3s;
+          font-size: 15px;
+          color: black;
+          margin: 5px;
+          padding: 5px;
+          border-radius: 5px;
+          border: 2px solid #bbbbbb;
+          min-height: 30px;
+          min-width: 30px;
+        }
+        .title-modal {
+          padding: 5px;
+          margin: 5px;
+          text-transform: capitalize;
+          cursor: default;
+          font-size: 20px;
+        }
+        button:hover {
+          background: #bbbbbb;
+        }
+        .box-shadow {
+          box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+        }
+        .box-shadow:hover {
+          box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+        }
       `
     ),
   dark: async () =>
     append(
-      'head',
-      html`
-        <style>
-          ${css`
-            html {
-              background: black;
-              color: white;
-            }
-            .modal {
-              /* background: #242124; */
-              background: #121212;
-              color: white;
-              font-family: arial;
-              border-radius: 10px;
-            }
-            .bar-default-modal {
-              /* background: #242124; */
-              background: #242424;
-              color: white;
-            }
-            .html-modal-content {
-              padding: 5px;
-            }
-            button {
-              background: none;
-              outline: none;
-              border: none;
-              cursor: pointer;
-              transition: 0.3s;
-              font-size: 15px;
-              color: white;
-              margin: 5px;
-              padding: 5px;
-              border-radius: 5px;
-              border: 2px solid #bbbbbb;
-              min-height: 30px;
-              min-width: 30px;
-            }
-            .title-modal {
-              padding: 5px;
-              margin: 5px;
-              text-transform: capitalize;
-              cursor: default;
-              font-size: 20px;
-            }
-            button:hover {
-              background: #bbbbbb;
-              color: black;
-            }
-            .box-shadow {
-              box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
-            }
-            .box-shadow:hover {
-              box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
-            }
-          `}
-        </style>
+      '.theme',
+      css`
+        html {
+          background: black;
+          color: white;
+        }
+        .modal {
+          /* background: #242124; */
+          background: #121212;
+          color: white;
+          font-family: arial;
+          border-radius: 10px;
+        }
+        .bar-default-modal {
+          /* background: #242124; */
+          background: #242424;
+          color: white;
+        }
+        .html-modal-content {
+          padding: 5px;
+        }
+        button {
+          background: none;
+          outline: none;
+          border: none;
+          cursor: pointer;
+          transition: 0.3s;
+          font-size: 15px;
+          color: white;
+          margin: 5px;
+          padding: 5px;
+          border-radius: 5px;
+          border: 2px solid #bbbbbb;
+          min-height: 30px;
+          min-width: 30px;
+        }
+        .title-modal {
+          padding: 5px;
+          margin: 5px;
+          text-transform: capitalize;
+          cursor: default;
+          font-size: 20px;
+        }
+        button:hover {
+          background: #bbbbbb;
+          color: black;
+        }
+        .box-shadow {
+          box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
+        }
+        .box-shadow:hover {
+          box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
+        }
       `
     ),
   cryptokoyn: async () =>
     append(
-      'head',
-      html`
-        ${css`
-          html {
-            background: black;
-            color: white;
-          }
-          .modal {
-            /* background: #242124; */
-            background: #121212;
-            color: white;
-            font-family: arial;
-            border: 2px solid yellow;
-            /* border-radius: 10px; */
-          }
-          .bar-default-modal {
-            /* background: #242124; */
-            background: #242424;
-            color: white;
-          }
-          .html-modal-content {
-            padding: 5px;
-          }
-          button {
-            background: none;
-            outline: none;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-            color: white;
-            margin: 5px;
-            padding: 5px;
-            /* border-radius: 5px; */
-            border: 2px solid yellow;
-            min-height: 30px;
-            min-width: 30px;
-          }
-          .title-modal {
-            padding: 5px;
-            margin: 5px;
-            text-transform: capitalize;
-            cursor: default;
-            font-size: 20px;
-            color: yellow;
-          }
-          button:hover {
-            background: yellow;
-            color: black;
-          }
-          .box-shadow {
-            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-          }
-          .box-shadow:hover {
-            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-          }
-        `}
+      '.theme',
+      css`
+        html {
+          background: black;
+          color: white;
+        }
+        .modal {
+          /* background: #242124; */
+          background: #121212;
+          color: white;
+          font-family: arial;
+          border: 2px solid yellow;
+          /* border-radius: 10px; */
+        }
+        .bar-default-modal {
+          /* background: #242124; */
+          background: #242424;
+          color: white;
+        }
+        .html-modal-content {
+          padding: 5px;
+        }
+        button {
+          background: none;
+          outline: none;
+          border: none;
+          cursor: pointer;
+          transition: 0.3s;
+          font-size: 15px;
+          color: white;
+          margin: 5px;
+          padding: 5px;
+          /* border-radius: 5px; */
+          border: 2px solid yellow;
+          min-height: 30px;
+          min-width: 30px;
+        }
+        .title-modal {
+          padding: 5px;
+          margin: 5px;
+          text-transform: capitalize;
+          cursor: default;
+          font-size: 20px;
+          color: yellow;
+        }
+        button:hover {
+          background: yellow;
+          color: black;
+        }
+        .box-shadow {
+          /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+        }
+        .box-shadow:hover {
+          /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+        }
       `
     ),
   'dark-light': async () =>
     append(
-      'head',
-      html`
-        <style>
-          ${css`
-            html {
-              background: black;
-              color: white;
-            }
-            .modal {
-              /* background: #242124; */
-              background: #121212;
-              color: white;
-              font-family: arial;
-              border: 2px solid #313131;
-              /* border-radius: 10px; */
-            }
-            .bar-default-modal {
-              /* background: #242124; */
-              background: #242424;
-              color: white;
-            }
-            .bar-default-modal-icon {
-              /* background: #242124; */
-              width: 15px;
-              height: 15px;
-            }
-            .html-modal-content {
-              padding: 5px;
-            }
-            button {
-              background: none;
-              outline: none;
-              border: none;
-              cursor: pointer;
-              transition: 0.3s;
-              font-size: 15px;
-              color: white;
-              margin: 5px;
-              padding: 5px;
-              /* border-radius: 5px; */
-              border: 2px solid #313131;
-              min-height: 30px;
-              min-width: 30px;
-            }
-            .title-modal {
-              padding: 5px;
-              margin: 5px;
-              text-transform: capitalize;
-              cursor: default;
-              font-size: 20px;
-              color: yellow;
-            }
-            button:hover {
-              background: #313131;
-              color: yellow;
-            }
-            .box-shadow {
-              /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-            }
-            .box-shadow:hover {
-              /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-            }
-            .toggle-switch-content-border {
-              border: 2px solid #313131;
-              padding: 5px;
-              transition: 0.3s;
-              cursor: pointer;
-              top: 5px;
-            }
-            .toggle-switch-content-border:hover {
-              background: #313131;
-            }
-            .toggle-switch-content {
-              width: 60px;
-            }
-            .toggle-switch-circle {
-              height: 20px;
-              width: 20px;
-              background: gray;
-              transition: 0.3s;
-            }
-            .dropdown {
-              margin-top: 10px;
-            }
-            .dropdown-content {
-              display: none;
-              position: absolute;
-              z-index: 1;
-              width: 100%;
-            }
-            .dropdown:hover .dropdown-content {
-              display: block;
-            }
-            /* .dropdown:hover .dropdown-content:active {
-              display: none;
-            } */
-            .dropdown-option {
-              background: #121212;
-              border: 2px solid #313131;
-              padding: 5px;
-              transition: 0.3s;
-              cursor: pointer;
-            }
-            .dropdown-option:hover {
-              background: #313131;
-              color: yellow;
-            }
-            .section-row {
-              cursor: default;
-              padding: 15px 0px 15px 0px;
-              border-bottom: 2px solid #313131;
-              max-width: 450px;
-            }
-          `}
-        </style>
+      '.theme',
+      css`
+        html {
+          background: black;
+          color: white;
+        }
+        .modal {
+          /* background: #242124; */
+          background: #121212;
+          color: white;
+          font-family: arial;
+          border: 2px solid #313131;
+          /* border-radius: 10px; */
+        }
+        .bar-default-modal {
+          /* background: #242124; */
+          background: #242424;
+          color: white;
+        }
+        .bar-default-modal-icon {
+          /* background: #242124; */
+          width: 15px;
+          height: 15px;
+        }
+        .html-modal-content {
+          padding: 5px;
+        }
+        button {
+          background: none;
+          outline: none;
+          border: none;
+          cursor: pointer;
+          transition: 0.3s;
+          font-size: 15px;
+          color: white;
+          margin: 5px;
+          padding: 5px;
+          /* border-radius: 5px; */
+          border: 2px solid #313131;
+          min-height: 30px;
+          min-width: 30px;
+        }
+        .title-modal {
+          padding: 5px;
+          margin: 5px;
+          text-transform: capitalize;
+          cursor: default;
+          font-size: 20px;
+          color: yellow;
+        }
+        button:hover {
+          background: #313131;
+          color: yellow;
+        }
+        .box-shadow {
+          /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+        }
+        .box-shadow:hover {
+          /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+        }
+        .toggle-switch-content-border {
+          border: 2px solid #313131;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+          top: 5px;
+        }
+        .toggle-switch-content-border:hover {
+          background: #313131;
+        }
+        .toggle-switch-content {
+          width: 60px;
+        }
+        .toggle-switch-circle {
+          height: 20px;
+          width: 20px;
+          background: gray;
+          transition: 0.3s;
+        }
+        .dropdown {
+          margin-top: 10px;
+        }
+        .dropdown-content {
+          display: none;
+          position: absolute;
+          z-index: 1;
+          width: 100%;
+        }
+        .dropdown:hover .dropdown-content {
+          display: block;
+        }
+        /* .dropdown:hover .dropdown-content:active {
+      display: none;
+    } */
+        .dropdown-option {
+          background: #121212;
+          border: 2px solid #313131;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+        }
+        .dropdown-option:hover {
+          background: #313131;
+          color: yellow;
+        }
+        .section-row {
+          cursor: default;
+          padding: 15px 0px 15px 0px;
+          border-bottom: 2px solid #313131;
+          max-width: 450px;
+        }
       `
     ),
   retro: async () =>
     append(
-      'head',
-      html`
-        <style>
-          ${css`
-            @font-face {
-              font-family: 'retro-font-title';
-              src: URL('${location.pathname}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
-            }
-            @font-face {
-              font-family: 'retro-font';
-              src: URL('${location.pathname}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
-            }
-          `}
-        </style>
+      '.theme',
+      css`
+        @font-face {
+          font-family: 'retro-font-title';
+          src: URL('${location.pathname}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+        }
+        @font-face {
+          font-family: 'retro-font';
+          src: URL('${location.pathname}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+        }
       `
     ),
   cyberia: async () =>
     append(
-      'head',
-      html`
-        <style>
-          ${css`
-            body,
-            .modal,
-            button {
-              font-family: 'retro-font';
-              font-size: 18px;
-            }
-            .title-modal {
-              color: #ffcc00;
-              font-family: 'retro-font-title';
-            }
-            button:hover {
-              color: #ffcc00;
-            }
-            .toggle-switch-active {
-              background: #ffcc00;
-              /* background: green; */
-            }
-          `}
-        </style>
+      '.theme',
+      css`
+        body,
+        .modal,
+        button {
+          font-family: 'retro-font';
+          font-size: 18px;
+        }
+        .title-modal {
+          color: #ffcc00;
+          font-family: 'retro-font-title';
+        }
+        button:hover {
+          color: #ffcc00;
+        }
+        .toggle-switch-active {
+          background: #ffcc00;
+          /* background: green; */
+        }
       `
     ),
   fontawesome: async () =>
@@ -502,6 +484,115 @@ scrollbar-width: none;
       'head',
       html`<link rel="stylesheet" type="text/css" href="${location.pathname}dist/fontawesome/css/all.min.css" />`
     ),
+};
+
+const barLabels = {
+  cyberia: {
+    close: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/close.png" />`,
+    maximize: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/maximize.png" />`,
+    minimize: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/minimize.png" />`,
+    restore: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/restore.png" />`,
+    menu: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/menu.png" />`,
+  },
+  fontawesome: {
+    close: html`<i class="fa-solid fa-xmark"></i>`,
+    maximize: html`<i class="fa-regular fa-square"></i>`,
+    minimize: html`<i class="fa-solid fa-window-minimize"></i>`,
+    restore: html`<i class="fa-regular fa-window-restore"></i>`,
+    menu: html`<i class="fa-solid fa-bars"></i>`,
+  },
+  default: {
+    close: html`X`,
+    maximize: html`▢`,
+    minimize: html`_`,
+    restore: html`□`,
+    menu: html`≡`,
+  },
+};
+
+const barConfig = (options) => {
+  const { barButtonsIconTheme } = options;
+  return {
+    buttons: {
+      close: {
+        disabled: false,
+        label: barLabels[barButtonsIconTheme].close,
+      },
+      maximize: {
+        disabled: false,
+        label: barLabels[barButtonsIconTheme].maximize,
+      },
+      minimize: {
+        disabled: false,
+        label: barLabels[barButtonsIconTheme].minimize,
+      },
+      restore: {
+        disabled: false,
+        label: barLabels[barButtonsIconTheme].restore,
+      },
+      menu: {
+        disabled: false,
+        label: barLabels[barButtonsIconTheme].menu,
+      },
+    },
+  };
+};
+
+const renderDefaultWindowsModalButtonContent = (options) => {
+  if (!options)
+    options = {
+      barButtonsIconTheme: 'default',
+    };
+  const { barButtonsIconTheme } = options;
+  const barConfigInstance = barConfig({ barButtonsIconTheme });
+  Object.keys(Modal.Data).map((IdModal) => {
+    if (s(`.btn-minimize-${IdModal}`)) htmls(`.btn-minimize-${IdModal}`, barConfigInstance.buttons.minimize.label);
+    if (s(`.btn-restore-${IdModal}`)) htmls(`.btn-restore-${IdModal}`, barConfigInstance.buttons.restore.label);
+    if (s(`.btn-maximize-${IdModal}`)) htmls(`.btn-maximize-${IdModal}`, barConfigInstance.buttons.maximize.label);
+    if (s(`.btn-close-${IdModal}`)) htmls(`.btn-close-${IdModal}`, barConfigInstance.buttons.close.label);
+    if (s(`.btn-menu-${IdModal}`)) htmls(`.btn-menu-${IdModal}`, barConfigInstance.buttons.menu.label);
+  });
+  return { barConfig: barConfigInstance };
+};
+
+const Themes = {
+  cyberia: async () => {
+    Css.currentTheme = 'cyberia';
+    htmls('.theme', '');
+    await Css.fontawesome();
+    await Css['dark-light']();
+    await Css.retro();
+    await Css.cyberia();
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia' }) };
+  },
+  default: async () => {
+    Css.currentTheme = 'default';
+    htmls('.theme', '');
+    await Css.fontawesome();
+    await Css.default();
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+  },
+  'dark-light': async () => {
+    Css.currentTheme = 'dark-light';
+    htmls('.theme', '');
+    await Css.fontawesome();
+    await Css['dark-light']();
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+  },
+  dark: async () => {
+    Css.currentTheme = 'dark';
+    htmls('.theme', '');
+    await Css.fontawesome();
+    await Css.dark();
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+  },
+  cryptokoyn: async () => {
+    Css.currentTheme = 'cryptokoyn';
+    htmls('.theme', '');
+    await Css.fontawesome();
+    await Css.cryptokoyn();
+    return { ...renderDefaultWindowsModalButtonContent() };
+  },
 };
 
 const borderChar = (px, color) => html`
@@ -526,4 +617,4 @@ const renderMediaQuery = (mediaData) => {
   `;
 };
 
-export { Css, borderChar, renderMediaQuery };
+export { Css, Themes, barLabels, barConfig, borderChar, renderMediaQuery, renderDefaultWindowsModalButtonContent };

@@ -6,7 +6,7 @@ import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
 import { s } from './components/core/VanillaJs.js';
-import { Css } from './components/core/Css.js';
+import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance } from './components/core/CommonJs.js';
 import { ToggleSwitch } from './components/core/ToggleSwitch.js';
@@ -21,52 +21,10 @@ import { Settings } from './components/cyberia/Settings.js';
 import { TranslateCore } from './components/core/TranslateCore.js';
 import { FullScreen } from './components/core/FullScreen.js';
 
-await Css.Init();
-await Css.fontawesome();
-// await Css.default();
-await Css['dark-light']();
-await Css.retro();
-await Css.cyberia();
+const { barConfig } = await Css.Init();
 
 await TranslateCore.Init();
 await TranslateCyberia.Init();
-
-const barButtonsIconEnabled = true;
-
-const barConfig = {
-  buttons: {
-    close: {
-      disabled: false,
-      label: !barButtonsIconEnabled
-        ? false
-        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/close.png" />`,
-    },
-    maximize: {
-      disabled: false,
-      label: !barButtonsIconEnabled
-        ? false
-        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/maximize.png" />`,
-    },
-    minimize: {
-      disabled: false,
-      label: !barButtonsIconEnabled
-        ? false
-        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/minimize.png" />`,
-    },
-    restore: {
-      disabled: false,
-      label: !barButtonsIconEnabled
-        ? false
-        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/restore.png" />`,
-    },
-    menu: {
-      disabled: false,
-      label: !barButtonsIconEnabled
-        ? false
-        : html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/menu.png" />`,
-    },
-  },
-};
 
 await SocketIo.Init({
   channels: Elements.Data,
@@ -104,81 +62,36 @@ await Modal.Render({
   },
 });
 
-// ${await ToggleSwitch.Render()}
-// ${await ToggleSwitch.Render({
-//   checked: true,
-//   on: {
-//     unchecked: () => console.log('uncheck'),
-//     checked: () => console.log('checked'),
-//   },
-// })}
-// ${await ToggleSwitch.Render()}
-// ${await DropDown.Render({
-//   head: {
-//     value: 'Select option',
-//     onClick: function () {
-//       console.log('DropDown onClick', this.value);
-//     },
-//   },
-//   list: [
-//     {
-//       value: 'a',
-//       onClick: function () {
-//         console.log('DropDown onClick', this.value);
-//       },
-//     },
-//     {
-//       value: 'b',
-//       onClick: function () {
-//         console.log('DropDown onClick', this.value);
-//       },
-//     },
-//   ],
-// })}
-// ${await DropDown.Render({
-//   head: {
-//     value: 'Select option',
-//     onClick: function () {
-//       console.log('DropDown onClick', this.value);
-//     },
-//   },
-//   list: [
-//     {
-//       value: 'c',
-//       onClick: function () {
-//         console.log('DropDown onClick', this.value);
-//       },
-//     },
-//     {
-//       value: 'd',
-//       onClick: function () {
-//         console.log('DropDown onClick', this.value);
-//       },
-//     },
-//   ],
-// })}
-
-s(`.main-btn-settings`).onclick = async () =>
+s(`.main-btn-settings`).onclick = async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-settings',
     barConfig,
     title: Translate.Render('settings'),
     html: await Settings.Render(),
   });
+};
 
-s(`.main-btn-bag`).onclick = async () =>
-  await Modal.Render({ id: 'modal-bag', barConfig, title: Translate.Render('bag') });
+s(`.main-btn-bag`).onclick = async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-bag',
+    barConfig,
+    title: Translate.Render('bag'),
+  });
+};
 
-const barConfigNotificationPalletColor = newInstance(barConfig);
-barConfigNotificationPalletColor.buttons.maximize.disabled = true;
-barConfigNotificationPalletColor.buttons.minimize.disabled = true;
-barConfigNotificationPalletColor.buttons.restore.disabled = true;
-barConfigNotificationPalletColor.buttons.menu.disabled = true;
-
-s(`.main-btn-colors`).onclick = async () =>
+s(`.main-btn-colors`).onclick = async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  const barConfigNotificationPalletColor = newInstance(barConfig);
+  barConfigNotificationPalletColor.buttons.maximize.disabled = true;
+  barConfigNotificationPalletColor.buttons.minimize.disabled = true;
+  barConfigNotificationPalletColor.buttons.restore.disabled = true;
+  barConfigNotificationPalletColor.buttons.menu.disabled = true;
   await Modal.Render({
     id: 'modal-pallet-colors',
     barConfig,
     title: Translate.Render('pallet-colors'),
     html: ColorPalette.Render({ barConfig: barConfigNotificationPalletColor }),
   });
+};

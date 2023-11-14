@@ -10,6 +10,7 @@ const TranslateCore = {
     Translate.Data['close'] = { en: 'Close', es: 'Cerrar' };
     Translate.Data['en'] = { en: 'English', es: 'Ingles' };
     Translate.Data['es'] = { en: 'Spanish', es: 'Español' };
+    Translate.Data['theme'] = { en: 'Theme', es: 'Tema' };
   },
 };
 
