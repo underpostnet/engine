@@ -209,6 +209,56 @@ scrollbar-width: none;
         .box-shadow:hover {
           box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
         }
+        .toggle-switch-content-border {
+          border: 2px solid #bbbbbb;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+          top: 5px;
+        }
+        .toggle-switch-content-border:hover {
+          background: #bbbbbb;
+        }
+        .toggle-switch-content {
+          width: 60px;
+        }
+        .toggle-switch-circle {
+          height: 20px;
+          width: 20px;
+          background: gray;
+          transition: 0.3s;
+        }
+        .dropdown {
+          margin-top: 10px;
+        }
+        .dropdown-content {
+          display: none;
+          position: absolute;
+          z-index: 1;
+          width: 100%;
+        }
+        .dropdown:hover .dropdown-content {
+          display: block;
+        }
+        /* .dropdown:hover .dropdown-content:active {
+      display: none;
+    } */
+        .dropdown-option {
+          background: white;
+          border: 2px solid #bbbbbb;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+        }
+        .dropdown-option:hover {
+          background: #bbbbbb;
+        }
+        .section-row {
+          cursor: default;
+          padding: 15px 0px 15px 0px;
+          border-bottom: 2px solid #bbbbbb;
+          max-width: 450px;
+        }
       `
     ),
   dark: async () =>
@@ -265,6 +315,57 @@ scrollbar-width: none;
         }
         .box-shadow:hover {
           box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
+        }
+        .toggle-switch-content-border {
+          border: 2px solid #bbbbbb;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+          top: 5px;
+        }
+        .toggle-switch-content-border:hover {
+          background: #bbbbbb;
+        }
+        .toggle-switch-content {
+          width: 60px;
+        }
+        .toggle-switch-circle {
+          height: 20px;
+          width: 20px;
+          background: gray;
+          transition: 0.3s;
+        }
+        .dropdown {
+          margin-top: 10px;
+        }
+        .dropdown-content {
+          display: none;
+          position: absolute;
+          z-index: 1;
+          width: 100%;
+        }
+        .dropdown:hover .dropdown-content {
+          display: block;
+        }
+        /* .dropdown:hover .dropdown-content:active {
+      display: none;
+    } */
+        .dropdown-option {
+          background: #121212;
+          border: 2px solid #bbbbbb;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+        }
+        .dropdown-option:hover {
+          background: #bbbbbb;
+          color: black;
+        }
+        .section-row {
+          cursor: default;
+          padding: 15px 0px 15px 0px;
+          border-bottom: 2px solid #bbbbbb;
+          max-width: 450px;
         }
       `
     ),
@@ -324,6 +425,57 @@ scrollbar-width: none;
         }
         .box-shadow:hover {
           /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+        }
+        .toggle-switch-content-border {
+          border: 2px solid yellow;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+          top: 5px;
+        }
+        .toggle-switch-content-border:hover {
+          background: yellow;
+        }
+        .toggle-switch-content {
+          width: 60px;
+        }
+        .toggle-switch-circle {
+          height: 20px;
+          width: 20px;
+          background: gray;
+          transition: 0.3s;
+        }
+        .dropdown {
+          margin-top: 10px;
+        }
+        .dropdown-content {
+          display: none;
+          position: absolute;
+          z-index: 1;
+          width: 100%;
+        }
+        .dropdown:hover .dropdown-content {
+          display: block;
+        }
+        /* .dropdown:hover .dropdown-content:active {
+      display: none;
+    } */
+        .dropdown-option {
+          background: #121212;
+          border: 2px solid yellow;
+          padding: 5px;
+          transition: 0.3s;
+          cursor: pointer;
+        }
+        .dropdown-option:hover {
+          background: yellow;
+          color: black;
+        }
+        .section-row {
+          cursor: default;
+          padding: 15px 0px 15px 0px;
+          border-bottom: 2px solid yellow;
+          max-width: 450px;
         }
       `
     ),
