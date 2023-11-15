@@ -64,7 +64,7 @@ const Config = {
             'TranslateCore',
             'FullScreen',
           ],
-          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia', 'Settings'],
+          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia', 'Settings', 'Bag'],
           test: ['Test'],
         },
         views: [
@@ -99,6 +99,12 @@ const Config = {
           {
             folder: './node_modules/@fortawesome/fontawesome-free',
             public_folder: '/dist/fontawesome',
+          },
+          {
+            folder: './node_modules/sortablejs/modular',
+            public_folder: '/dist/sortablejs',
+            import_name: 'sortablejs',
+            import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
           },
         ],
       },

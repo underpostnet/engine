@@ -78,6 +78,7 @@ s(`.main-btn-bag`).onclick = async () => {
     barConfig,
     title: Translate.Render('bag'),
     html: await Bag.Render(),
+    handleType: 'bar',
   });
 };
 

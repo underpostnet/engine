@@ -120,6 +120,7 @@ try {
         new AdmZip(fullPath).extractAllTo(/*target path*/ `./public/${tmpFolderExtract}`, /*overwrite*/ true);
         fs.moveSync(`./public/${tmpFolderExtract}/wordpress`, zipTargetPath, { overwrite: true });
         // https://wordpress.org/documentation/article/htaccess/
+        // https://github.com/chimurai/http-proxy-middleware/issues/785
         let htaccess = ``;
         if (host.split('.')[2]) {
           // sub domain
@@ -188,6 +189,11 @@ RewriteRule . /index.php [L]
         shellCd(rootDirectory);
         fs.rmSync(`./public/${tmpFolderExtract}`, { recursive: true, force: true });
       })();
+      break;
+    case 'nginx':
+      // https://www.digitalocean.com/community/tutorials/how-to-install-linux-nginx-mariadb-php-lemp-stack-on-debian-10
+      // https://github.com/pothi/wordpress-nginx/
+      // https://github.com/digitalocean/nginxconfig.io
       break;
     default:
       throw new Error(`Program not found: ${program}`);

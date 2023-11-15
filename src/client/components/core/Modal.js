@@ -153,14 +153,20 @@ const Modal = {
       }
     }
     let dragInstance;
+    let handle = [s(`.bar-default-modal-${IdModal}`), s(`.modal-handle-${IdModal}`), s(`.modal-html-${IdModal}`)];
+    if (options && 'handleType' in options) {
+      switch (options.handleType) {
+        case 'bar':
+          handle = [s(`.bar-default-modal-${IdModal}`)];
+
+          break;
+
+        default:
+          break;
+      }
+    }
     const dragOptions = {
-      handle: [
-        s(`.bar-default-modal-${IdModal}`),
-        ...(() => {
-          if (['modal-bag'].includes(IdModal)) return [];
-          else return [s(`.modal-handle-${IdModal}`), s(`.modal-html-${IdModal}`)];
-        })(),
-      ],
+      handle,
       onDragStart: (data) => {
         if (!s(`.${IdModal}`)) return;
         // logger.info('Dragging started', data);
