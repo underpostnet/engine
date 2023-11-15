@@ -1,5 +1,5 @@
 import { orderArrayFromAttrInt, s4 } from './CommonJs.js';
-import { borderChar } from './Css.js';
+import { Css, Themes } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
@@ -5238,7 +5238,7 @@ const logger = loggerFactory(import.meta);
 
 const ColorPalette = {
   Palettes: {},
-  Render: function (options) {
+  Render: function () {
     return html`
       <div class="in" style="width: 100%; height: 100%; overflow: auto;">
         ${getDataColors()
@@ -5246,11 +5246,16 @@ const ColorPalette = {
             const idColor = `color-${s4()}-${coloData.number}`;
             setTimeout(() =>
               s(`.btn-palette-${idColor}`)
-                ? (s(`.btn-palette-${idColor}`).onclick = () => {
+                ? (s(`.btn-palette-${idColor}`).onclick = async () => {
                     logger.info(coloData);
+                    const { barConfig } = await Themes[Css.currentTheme](); // newInstance
+                    barConfig.buttons.maximize.disabled = true;
+                    barConfig.buttons.minimize.disabled = true;
+                    barConfig.buttons.restore.disabled = true;
+                    barConfig.buttons.menu.disabled = true;
                     NotificationManager.Push({
                       html: Translate.Render('color-copy'),
-                      barConfig: options.barConfig,
+                      barConfig,
                     });
                     copyData(coloData.hex);
                   })

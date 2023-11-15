@@ -20,7 +20,8 @@ import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
 
-const { barConfig } = await Css.Init();
+const theme = 'cyberia';
+const { barConfig } = await Css.Init({ theme });
 
 await TranslateCore.Init();
 await TranslateCyberia.Init();
@@ -84,15 +85,10 @@ s(`.main-btn-bag`).onclick = async () => {
 
 s(`.main-btn-colors`).onclick = async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
-  const barConfigNotificationPalletColor = newInstance(barConfig);
-  barConfigNotificationPalletColor.buttons.maximize.disabled = true;
-  barConfigNotificationPalletColor.buttons.minimize.disabled = true;
-  barConfigNotificationPalletColor.buttons.restore.disabled = true;
-  barConfigNotificationPalletColor.buttons.menu.disabled = true;
   await Modal.Render({
     id: 'modal-pallet-colors',
     barConfig,
     title: Translate.Render('pallet-colors'),
-    html: ColorPalette.Render({ barConfig: barConfigNotificationPalletColor }),
+    html: ColorPalette.Render(),
   });
 };

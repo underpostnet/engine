@@ -4,8 +4,8 @@ import { append, htmls, s } from './VanillaJs.js';
 // https://www.fontspace.com/
 
 const Css = {
-  currentTheme: 'cyberia',
   Init: async function (options) {
+    const { theme } = options;
     append(
       'body',
       html`
@@ -159,7 +159,7 @@ scrollbar-width: none;
         <style class="theme"></style>
       `
     );
-    return await Themes[this.currentTheme]();
+    return await Themes[theme]();
   },
   default: async () =>
     append(
@@ -698,59 +698,71 @@ const barConfig = (options) => {
 };
 
 const renderDefaultWindowsModalButtonContent = (options) => {
-  if (!options)
-    options = {
-      barButtonsIconTheme: 'default',
-    };
-  const { barButtonsIconTheme } = options;
+  const { barButtonsIconTheme, htmlRender } = options;
   const barConfigInstance = barConfig({ barButtonsIconTheme });
-  Object.keys(Modal.Data).map((IdModal) => {
-    if (s(`.btn-minimize-${IdModal}`)) htmls(`.btn-minimize-${IdModal}`, barConfigInstance.buttons.minimize.label);
-    if (s(`.btn-restore-${IdModal}`)) htmls(`.btn-restore-${IdModal}`, barConfigInstance.buttons.restore.label);
-    if (s(`.btn-maximize-${IdModal}`)) htmls(`.btn-maximize-${IdModal}`, barConfigInstance.buttons.maximize.label);
-    if (s(`.btn-close-${IdModal}`)) htmls(`.btn-close-${IdModal}`, barConfigInstance.buttons.close.label);
-    if (s(`.btn-menu-${IdModal}`)) htmls(`.btn-menu-${IdModal}`, barConfigInstance.buttons.menu.label);
-  });
+  if (htmlRender)
+    Object.keys(Modal.Data).map((IdModal) => {
+      if (s(`.btn-minimize-${IdModal}`)) htmls(`.btn-minimize-${IdModal}`, barConfigInstance.buttons.minimize.label);
+      if (s(`.btn-restore-${IdModal}`)) htmls(`.btn-restore-${IdModal}`, barConfigInstance.buttons.restore.label);
+      if (s(`.btn-maximize-${IdModal}`)) htmls(`.btn-maximize-${IdModal}`, barConfigInstance.buttons.maximize.label);
+      if (s(`.btn-close-${IdModal}`)) htmls(`.btn-close-${IdModal}`, barConfigInstance.buttons.close.label);
+      if (s(`.btn-menu-${IdModal}`)) htmls(`.btn-menu-${IdModal}`, barConfigInstance.buttons.menu.label);
+    });
   return { barConfig: barConfigInstance };
 };
 
 const Themes = {
   cyberia: async () => {
-    Css.currentTheme = 'cyberia';
-    htmls('.theme', '');
-    await Css.fontawesome();
-    await Css['dark-light']();
-    await Css.retro();
-    await Css.cyberia();
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia' }) };
+    const htmlRender = Css.currentTheme !== 'cyberia';
+    if (htmlRender) {
+      Css.currentTheme = 'cyberia';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css.retro();
+      await Css.cyberia();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
   },
   default: async () => {
-    Css.currentTheme = 'default';
-    htmls('.theme', '');
-    await Css.fontawesome();
-    await Css.default();
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+    const htmlRender = Css.currentTheme !== 'default';
+    if (htmlRender) {
+      Css.currentTheme = 'default';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.default();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
   'dark-light': async () => {
-    Css.currentTheme = 'dark-light';
-    htmls('.theme', '');
-    await Css.fontawesome();
-    await Css['dark-light']();
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+    const htmlRender = Css.currentTheme !== 'dark-light';
+    if (htmlRender) {
+      Css.currentTheme = 'dark-light';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
   dark: async () => {
-    Css.currentTheme = 'dark';
-    htmls('.theme', '');
-    await Css.fontawesome();
-    await Css.dark();
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome' }) };
+    const htmlRender = Css.currentTheme !== 'dark';
+    if (htmlRender) {
+      Css.currentTheme = 'dark';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.dark();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
   cryptokoyn: async () => {
-    Css.currentTheme = 'cryptokoyn';
-    htmls('.theme', '');
-    await Css.fontawesome();
-    await Css.cryptokoyn();
-    return { ...renderDefaultWindowsModalButtonContent() };
+    const htmlRender = Css.currentTheme !== 'cryptokoyn';
+    if (htmlRender) {
+      Css.currentTheme = 'cryptokoyn';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.cryptokoyn();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'default', htmlRender }) };
   },
 };
 
