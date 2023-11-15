@@ -64,7 +64,7 @@ try {
         }
       })();
       break;
-    case 'update-client-conf':
+    case 'update-conf-client':
       (() => {
         let origin = {};
         const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray;
