@@ -18,8 +18,8 @@ try {
     if (host in confServer) {
       const directory = confServer[host]['/']?.['directory'] ? confServer[host]['/']['directory'] : undefined;
       cmd = `certbot certonly --webroot --webroot-path ${
-        directory ? directory : getRootDirectory()
-      }/public/${host} -d ${host}`;
+        directory ? directory : `${getRootDirectory()}/public/${host}`
+      } -d ${host}`;
       logger.info(`Run the following command`, cmd);
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
