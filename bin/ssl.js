@@ -16,7 +16,7 @@ try {
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of hosts.split(',')) {
     if (host in confServer) {
-      const { directory } = confServer[host];
+      const directory = confServer[host]['/']?.['directory'] ? confServer[host]['/']['directory'] : undefined;
       cmd = `certbot certonly --webroot --webroot-path ${
         directory ? directory : getRootDirectory()
       }/public/${host} -d ${host}`;
