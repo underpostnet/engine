@@ -14,7 +14,7 @@ const buildClient = async () => {
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled, disabledRebuild } = confServer[host][path];
+      const { client, directory, disabled, disabledRebuild, db } = confServer[host][path];
       if (disabled || disabledRebuild) continue;
 
       const { components, dists, views } = confClient[client];
@@ -27,6 +27,28 @@ const buildClient = async () => {
       });
 
       if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
+      else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
+        switch (client) {
+          case 'mysql_test':
+            if (db) {
+              fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
+              fs.writeFileSync(
+                `${rootClientPath}/index.php`,
+                fs
+                  .readFileSync(`${rootClientPath}/index.php`, 'utf8')
+                  .replace('test_servername', 'localhost')
+                  .replace('test_username', db.user)
+                  .replace('test_password', db.password)
+                  .replace('test_dbname', db.name),
+                'utf8'
+              );
+            }
+            break;
+
+          default:
+            break;
+        }
+      }
 
       Object.keys(components).map((module) => {
         if (!fs.existsSync(`${rootClientPath}/components/${module}`))

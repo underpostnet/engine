@@ -16,7 +16,10 @@ try {
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of hosts.split(',')) {
     if (host in confServer) {
-      cmd = `certbot certonly --webroot --webroot-path ${getRootDirectory()}/public/${host} -d ${host}`;
+      const { directory } = confServer[host];
+      cmd = `certbot certonly --webroot --webroot-path ${
+        directory ? directory : getRootDirectory()
+      }/public/${host} -d ${host}`;
       logger.info(`Run the following command`, cmd);
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });

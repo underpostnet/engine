@@ -1,4 +1,5 @@
 import fs from 'fs';
+import { shellExec } from './process.js';
 
 const Config = {
   default: {
@@ -9,6 +10,11 @@ const Config = {
         dists: [],
       },
       wordpress: {
+        components: {},
+        views: [],
+        dists: [],
+      },
+      mysql_test: {
         components: {},
         views: [],
         dists: [],
@@ -170,6 +176,7 @@ const Config = {
     },
   },
   build: async function () {
+    shellExec(`node bin/util update-conf-client`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
     for (const confType of Object.keys(this.default)) {
       if (false && fs.existsSync(`./engine-private/conf/conf.${confType}.private.json`))

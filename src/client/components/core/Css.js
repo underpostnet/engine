@@ -233,7 +233,7 @@ scrollbar-width: none;
         }
         .dropdown-content {
           display: none;
-          position: absolute;
+          position: block;
           z-index: 1;
           width: 100%;
         }
@@ -340,7 +340,7 @@ scrollbar-width: none;
         }
         .dropdown-content {
           display: none;
-          position: absolute;
+          position: block;
           z-index: 1;
           width: 100%;
         }
@@ -450,7 +450,7 @@ scrollbar-width: none;
         }
         .dropdown-content {
           display: none;
-          position: absolute;
+          position: block;
           z-index: 1;
           width: 100%;
         }
@@ -565,7 +565,7 @@ scrollbar-width: none;
         }
         .dropdown-content {
           display: none;
-          position: absolute;
+          position: block;
           z-index: 1;
           width: 100%;
         }
