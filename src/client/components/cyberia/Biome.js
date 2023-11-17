@@ -175,7 +175,162 @@ const Biome = {
 
     return BiomeMatrix;
   },
-  forest: function () {},
+  forest: function () {
+    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+
+    // phenotypes
+    const treePhenotype = [
+      ['#c41919', '#810202'],
+      ['#aaf93e', '#e7ef46'],
+    ];
+
+    const validateMatrixLimit = (x, y) => x >= 0 && y >= 0 && x <= dim - 1 && y <= dim - 1;
+
+    const BiomeMatrix = {
+      color: {},
+      solid: {},
+    };
+    let colorCell;
+
+    // biome seeds
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        const probColor = random(0, 700);
+        if (probColor <= 3) {
+          colorCell = '#AF5E06';
+        } else if (probColor <= 22) {
+          colorCell = '#29714c';
+        } else if (probColor <= 30) {
+          colorCell = treePhenotype[random(0, treePhenotype.length - 1)][0];
+        } else {
+          colorCell = '#3bb177';
+        }
+
+        if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
+        if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+        BiomeMatrix.color[y][x] = `${colorCell}`;
+        BiomeMatrix.solid[y][x] = 0;
+      });
+    });
+    const seedMatrix = newInstance(BiomeMatrix.color);
+
+    // dark lawn
+    colorCell = '#29714c';
+    Object.keys(BiomeMatrix.color).map((y) => {
+      Object.keys(BiomeMatrix.color[y]).map((x) => {
+        x = parseInt(x);
+        y = parseInt(y);
+        if (seedMatrix[y][x] === colorCell) {
+          range(-3, 3).map((sumX) =>
+            range(-1, 1).map((sumY) => {
+              if (random(0, 8) > 2) return;
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          colorCell = '#349a67';
+          range(-5, 5).map((sumX) =>
+            range(-3, 3).map((sumY) => {
+              if (random(0, 10) > 2) return;
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          colorCell = '#29714c';
+        }
+      });
+    });
+
+    // flowers
+    Object.keys(BiomeMatrix.color).map((y) => {
+      Object.keys(BiomeMatrix.color[y]).map((x) => {
+        x = parseInt(x);
+        y = parseInt(y);
+        treePhenotype.map((phenoType) => {
+          if (seedMatrix[y][x] === phenoType[0]) {
+            range(-2, 2).map((sumX) =>
+              range(1, 1).map((sumY) => {
+                if (random(0, 1) === 0) return;
+                if (validateMatrixLimit(x + sumX, y + sumY))
+                  BiomeMatrix.color[y + sumY][x + sumX] = `${phenoType[random(0, phenoType.length - 1)]}`;
+              })
+            );
+          }
+        });
+      });
+    });
+
+    colorCell = '#AF5E06';
+    Object.keys(BiomeMatrix.color).map((y) => {
+      Object.keys(BiomeMatrix.color[y]).map((x) => {
+        x = parseInt(x);
+        y = parseInt(y);
+        if (seedMatrix[y][x] === colorCell) {
+          // shadow
+          colorCell = '#29714c';
+          range(-2, 2).map((sumX) =>
+            range(4, 5).map((sumY) => {
+              // if (random(0, 1) === 0) return;
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          range(-3, 3).map((sumX) =>
+            range(3, 6).map((sumY) => {
+              if (random(0, 1) === 0) return;
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          colorCell = '#349a67';
+          range(-4, 4).map((sumX) =>
+            range(2, 7).map((sumY) => {
+              if (random(0, 10) > 1) return;
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          // tree leaves
+          const selectPhenotype = treePhenotype[random(0, treePhenotype.length - 1)];
+          range(-4, 4).map((sumX) =>
+            range(-6, -1).map((sumY) => {
+              if (random(1, 0) === 1 && (sumX > 3 || sumX < -3) && (sumY > -3 || sumY < -4)) return;
+              colorCell = selectPhenotype[0];
+              if (validateMatrixLimit(x + sumX, y + sumY)) {
+                BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+                BiomeMatrix.solid[y + sumY][x + sumX] = 1;
+              }
+            })
+          );
+          range(-5, 5).map((sumX) =>
+            range(-5, 0).map((sumY) => {
+              if (random(1, 4) === 4) return;
+              colorCell = selectPhenotype[1];
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+            })
+          );
+          // rhizome
+          colorCell = '#AF5E06';
+          range(0, 0).map((sumX) =>
+            range(-1, 3).map((sumY) => {
+              if (random(0, 1) === 0) colorCell = '#975206';
+              if (validateMatrixLimit(x + sumX, y + sumY)) {
+                BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+                BiomeMatrix.solid[y + sumY][x + sumX] = 1;
+              }
+              colorCell = '#AF5E06';
+            })
+          );
+          // roots
+          [-1, 1].map((sumX) =>
+            range(-1, 3).map((sumY) => {
+              if (random(0, 1) === 0) return;
+              if (random(0, 1) === 0) colorCell = '#975206';
+              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+              colorCell = '#AF5E06';
+            })
+          );
+        }
+      });
+    });
+
+    return BiomeMatrix;
+  },
 };
 
 const BiomeEngine = {
