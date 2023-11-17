@@ -173,22 +173,30 @@ const Biome = {
       });
     });
 
-    htmls(
-      `.biome-solid-matrix-preview`,
-      JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
-    );
-    Pixi.RenderBiome(BiomeMatrix);
+    return BiomeMatrix;
   },
+  forest: function () {},
 };
 
 const BiomeEngine = {
   Render: async function () {
-    setTimeout(() =>
-      Object.keys(Biome).map((biome) => (s(`.btn-biome-engine-${biome}`).onclick = () => Biome[biome]()))
-    );
     let render = '';
     for (const biome of Object.keys(Biome))
       render += await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) });
+
+    setTimeout(() =>
+      Object.keys(Biome).map(
+        (biome) =>
+          (s(`.btn-biome-engine-${biome}`).onclick = () => {
+            const BiomeMatrix = Biome[biome]();
+            htmls(
+              `.biome-solid-matrix-preview`,
+              JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
+            );
+            Pixi.RenderBiome(BiomeMatrix);
+          })
+      )
+    );
     return html`
       <style>
         ${css`

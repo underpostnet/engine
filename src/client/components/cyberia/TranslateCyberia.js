@@ -5,6 +5,7 @@ const TranslateCyberia = {
     Translate.Data['bag'] = { en: 'bag', es: 'mochila' };
     Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
     Translate.Data['city'] = { en: 'City', es: 'ciudad' };
+    Translate.Data['forest'] = { en: 'forest', es: 'bosque' };
   },
 };
 
