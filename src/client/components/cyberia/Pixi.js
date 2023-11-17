@@ -79,6 +79,39 @@ const Pixi = {
       })
     );
   },
+  RenderBiome: function (BiomeMatrix) {
+    if (this.Data.biome.container) {
+      this.Data.biome.container.destroy();
+      this.Data.biome = {};
+    }
+
+    if (!('container' in this.Data.biome)) {
+      this.Data.biome.container = new Container();
+      this.Data.biome.container.width = this.MetaData.dim;
+      this.Data.biome.container.height = this.MetaData.dim;
+      this.Data.biome.container.x = 0;
+      this.Data.biome.container.y = 0;
+      this.App.stage.addChild(this.Data.biome.container);
+    }
+
+    const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    const dim = this.MetaData.dim / paintDim;
+    range(0, paintDim - 1).map((y) =>
+      range(0, paintDim - 1).map((x) => {
+        const id = `biome-cell-${x}-${y}`;
+        if (!(id in this.Data.biome)) {
+          this.Data.biome[id] = new Sprite(Texture.WHITE);
+          this.Data.biome[id].x = dim * x;
+          this.Data.biome[id].y = dim * y;
+          this.Data.biome[id].width = dim;
+          this.Data.biome[id].height = dim;
+          this.Data.biome[id].tint = BiomeMatrix.color[y][x]; // randomHexColor();
+          this.Data.biome[id].visible = true;
+          this.Data.biome.container.addChild(this.Data.biome[id]);
+        }
+      })
+    );
+  },
 };
 
 export { Pixi };
