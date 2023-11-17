@@ -20,6 +20,7 @@ import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
 import { JoyStick } from './components/cyberia/JoyStick.js';
+import { BiomeEngine } from './components/cyberia/Biome.js';
 
 const theme = 'cyberia';
 const { barConfig } = await Css.Init({ theme });
@@ -54,6 +55,7 @@ await Modal.Render({
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
   ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
+  ${await BtnIcon.Render({ class: 'main-btn-biome', label: 'Biome engine' })}
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
@@ -91,6 +93,16 @@ s(`.main-btn-colors`).onclick = async () => {
     barConfig,
     title: Translate.Render('pallet-colors'),
     html: ColorPalette.Render(),
+  });
+};
+
+s(`.main-btn-biome`).onclick = async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-biome',
+    barConfig,
+    title: 'Biome engine',
+    html: await BiomeEngine.Render(),
   });
 };
 
