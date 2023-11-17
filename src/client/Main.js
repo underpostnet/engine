@@ -5,7 +5,7 @@ import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
-import { s } from './components/core/VanillaJs.js';
+import { s, append, disableOptionsClick } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance } from './components/core/CommonJs.js';
@@ -19,6 +19,7 @@ import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
+import { JoyStick } from './components/cyberia/JoyStick.js';
 
 const theme = 'cyberia';
 const { barConfig } = await Css.Init({ theme });
@@ -53,7 +54,7 @@ await Modal.Render({
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
   ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
-  `,
+    `,
   barConfig: barConfigModalMenu,
   title: 'menu',
   style: {
@@ -92,3 +93,7 @@ s(`.main-btn-colors`).onclick = async () => {
     html: ColorPalette.Render(),
   });
 };
+
+append('body', await JoyStick.Render());
+
+disableOptionsClick('html', ['menu', 'drag', 'select']);

@@ -1,6 +1,4 @@
 import { Keyboard } from '../core/Keyboard.js';
-import { Matrix } from './Matrix.js';
-import { Event } from './Event.js';
 import { loggerFactory } from '../core/Logger.js';
 
 const logger = loggerFactory(import.meta);

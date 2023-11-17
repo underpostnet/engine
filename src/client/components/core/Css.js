@@ -5,6 +5,7 @@ import { append, htmls, s } from './VanillaJs.js';
 
 const Css = {
   Init: async function (options) {
+    if (!options) options = { theme: 'default' };
     const { theme } = options;
     append(
       'body',

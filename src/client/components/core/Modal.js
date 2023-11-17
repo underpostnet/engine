@@ -35,6 +35,7 @@ const Modal = {
             resize: auto; /* resizable required */
             transition: opacity 0.3s, box-shadow 0.3s, bottom 0.3s;
             opacity: 0;
+            z-index: 1;
             ${options && options.style
               ? Object.keys(options.style)
                   .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)

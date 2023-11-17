@@ -5,7 +5,6 @@
 
 import dotenv from 'dotenv';
 import isAdmin from 'is-admin';
-import fs from 'fs-extra';
 
 import { loggerFactory } from './server/logger.js';
 import { buildClient } from './server/client-build.js';
@@ -17,9 +16,7 @@ import { Config } from './server/conf.js';
 
 dotenv.config();
 
-fs.removeSync('./public');
-fs.removeSync('./logs');
-fs.removeSync('./conf');
+await Config.build();
 
 const logger = loggerFactory(import.meta);
 
@@ -27,7 +24,6 @@ logger.info('argv', process.argv);
 logger.info('env', process.env.NODE_ENV);
 logger.info('admin', await isAdmin());
 
-await Config.build();
 await buildClient();
 await buildRuntime();
 await buildProxy();

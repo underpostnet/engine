@@ -109,108 +109,6 @@ const orderAbc = (arr, attr) =>
     return 0;
   });
 
-const getDirection = (x1, y1, x2, y2) => {
-  const deltaX = x2 - x1;
-  const deltaY = y2 - y1;
-  //Check for all the 8 directions that a point can move
-  let direction, arrow, htmlArrow;
-
-  if (deltaX > 0 && deltaY > 0) direction = 'South East';
-  else if (deltaX > 0 && deltaY === 0) direction = 'East';
-  else if (deltaX > 0 && deltaY < 0) direction = 'North East';
-  else if (deltaX === 0 && deltaY > 0) direction = 'South';
-  else if (deltaX === 0 && deltaY < 0) direction = 'North';
-  else if (deltaX < 0 && deltaY > 0) direction = 'South West';
-  else if (deltaX < 0 && deltaY === 0) direction = 'West';
-  else if (deltaX < 0 && deltaY < 0) direction = 'North West';
-
-  switch (direction) {
-    case 'South East':
-      arrow = '↘';
-      htmlArrow = '&#8600;';
-      break;
-    case 'East':
-      arrow = '→';
-      htmlArrow = '&#8594;';
-      break;
-    case 'North East':
-      arrow = '↗';
-      htmlArrow = '&#8599;';
-      break;
-    case 'South':
-      arrow = '↓';
-      htmlArrow = '&#8595;';
-      break;
-    case 'North':
-      arrow = '↑';
-      htmlArrow = '&#8593;';
-      break;
-    case 'South West':
-      arrow = '↙';
-      htmlArrow = '&#8601;';
-      break;
-    case 'West':
-      arrow = '←';
-      htmlArrow = '&#8592;';
-      break;
-    case 'North West':
-      arrow = '↖';
-      htmlArrow = '&#8598;';
-      break;
-  }
-  return {
-    direction,
-    arrow,
-    htmlArrow,
-  };
-};
-
-// get joystick direction from eight direction
-// through  x1,y1, to x2, y2 cartesian coordinate in javascript
-
-function getJoystickDirection(x1, y1, x2, y2) {
-  // Calculate the angle in radians
-  const angle = Math.atan2(y2 - y1, x2 - x1);
-
-  // Convert the angle to degrees
-  let degrees = angle * (180 / Math.PI);
-
-  // Adjust the angle to be positive
-  if (degrees < 0) {
-    degrees += 360;
-  }
-
-  // Map the angle to one of the eight directions
-  let direction;
-  if (degrees >= 337.5 || degrees < 22.5) {
-    direction = 'right';
-    // direction = 'East';
-  } else if (degrees >= 22.5 && degrees < 67.5) {
-    direction = 'down-right';
-    // direction = 'South East';
-  } else if (degrees >= 67.5 && degrees < 112.5) {
-    direction = 'down';
-    // direction = 'South';
-  } else if (degrees >= 112.5 && degrees < 157.5) {
-    direction = 'down-left';
-    // direction = 'South West';
-  } else if (degrees >= 157.5 && degrees < 202.5) {
-    direction = 'left';
-    // direction = 'West';
-  } else if (degrees >= 202.5 && degrees < 247.5) {
-    direction = 'up-left';
-    // direction = 'North West';
-  } else if (degrees >= 247.5 && degrees < 292.5) {
-    direction = 'up';
-    // direction = 'North';
-  } else if (degrees >= 292.5 && degrees < 337.5) {
-    direction = 'up-right';
-    // direction = 'North East';
-  }
-
-  return direction;
-}
-
 const JSONmatrix = (matrix) =>
   `[\r\n${matrix.map((x, i) => `   ` + JSON.stringify(x) + (i === matrix.length - 1 ? '' : ',') + '\r\n').join('')}]`;
 
@@ -290,6 +188,9 @@ const ceil10 = (value, exp) => {
 // ceil10(-59, 1);       // -50
 
 function objectEquals(x, y) {
+  // TODO:
+  // https://www.npmjs.com/package/deep-equal
+  // https://www.npmjs.com/package/fast-deep-equal
   const ok = Object.keys,
     tx = typeof x,
     ty = typeof y;
@@ -349,7 +250,6 @@ export {
   reOrderIntArray,
   capFirst,
   orderAbc,
-  getDirection,
   getDistance,
   decimalAdjust,
   round10,
@@ -358,7 +258,6 @@ export {
   JSONmatrix,
   getRandomPoint,
   objectEquals,
-  getJoystickDirection,
   floatFixed,
   getId,
   insertTransitionCoordinates,

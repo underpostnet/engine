@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import { shellExec } from './process.js';
 
 const Config = {
@@ -70,7 +70,7 @@ const Config = {
             'TranslateCore',
             'FullScreen',
           ],
-          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia', 'Settings', 'Bag'],
+          cyberia: ['Pixi', 'Matrix', 'Event', 'Elements', 'Menu', 'TranslateCyberia', 'Settings', 'Bag', 'JoyStick'],
           test: ['Test'],
         },
         views: [
@@ -111,6 +111,10 @@ const Config = {
             public_folder: '/dist/sortablejs',
             import_name: 'sortablejs',
             import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
+          },
+          {
+            folder: './node_modules/virtual-joystick',
+            public_folder: '/dist/virtual-joystick',
           },
         ],
       },
@@ -176,6 +180,9 @@ const Config = {
     },
   },
   build: async function () {
+    fs.removeSync('./public');
+    fs.removeSync('./logs');
+    fs.removeSync('./conf');
     shellExec(`node bin/util update-conf-client`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
     for (const confType of Object.keys(this.default)) {

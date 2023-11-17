@@ -15,7 +15,7 @@ dotenv.config();
 const xampp = {
   router: '',
   ports: [],
-  enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
+  enabled: () => false, // fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
 };
 
 const buildRuntime = async () => {
