@@ -109,8 +109,16 @@ const orderAbc = (arr, attr) =>
     return 0;
   });
 
-const JSONmatrix = (matrix) =>
-  `[\r\n${matrix.map((x, i) => `   ` + JSON.stringify(x) + (i === matrix.length - 1 ? '' : ',') + '\r\n').join('')}]`;
+const JSONmatrix = (matrix) => {
+  if (Array.isArray(matrix))
+    return `[\r\n${matrix
+      .map((x, i) => `   ` + JSON.stringify(x) + (i === matrix.length - 1 ? '' : ',') + '\r\n')
+      .join('')}]`;
+  else
+    return `[\r\n${Object.keys(matrix)
+      .map((x, i) => `   ` + JSON.stringify(Object.values(matrix[x])) + (i === matrix.length - 1 ? '' : ',') + '\r\n')
+      .join('')}]`;
+};
 
 const getDistance = (x1, y1, x2, y2) => {
   const disX = Math.abs(x2 - x1);

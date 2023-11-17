@@ -1,7 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { newInstance, random, range } from '../core/CommonJs.js';
+import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
 import { Translate } from '../core/Translate.js';
-import { s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 
@@ -46,6 +46,7 @@ const Biome = {
         if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
         BiomeMatrix.color[y][x] = `${colorCell}`;
+        BiomeMatrix.solid[y][x] = 0;
       });
     });
     const seedMatrix = newInstance(BiomeMatrix.color);
@@ -172,6 +173,10 @@ const Biome = {
       });
     });
 
+    htmls(
+      `.biome-solid-matrix-preview`,
+      JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
+    );
     Pixi.RenderBiome(BiomeMatrix);
   },
 };
@@ -184,7 +189,17 @@ const BiomeEngine = {
     let render = '';
     for (const biome of Object.keys(Biome))
       render += await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) });
-    return render;
+    return html`
+      <style>
+        ${css`
+          .biome-solid-matrix-preview {
+            font-size: 8px;
+          }
+        `}
+      </style>
+      ${render}
+      <pre class="in biome-solid-matrix-preview"></pre>
+    `;
   },
 };
 
