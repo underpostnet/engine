@@ -4,6 +4,8 @@ import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 import { loggerFactory } from './logger.js';
 
+// Static Site Generation (SSG)
+
 const buildClient = async () => {
   const logger = loggerFactory(import.meta);
   let ViewRender;
