@@ -342,13 +342,15 @@ const BiomeEngine = {
     setTimeout(() =>
       Object.keys(Biome).map(
         (biome) =>
-          (s(`.btn-biome-engine-${biome}`).onclick = () => {
+          (s(`.btn-biome-engine-${biome}`).onclick = async () => {
             const BiomeMatrix = Biome[biome]();
             htmls(
               `.biome-solid-matrix-preview`,
               JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
             );
             Pixi.RenderBiome(BiomeMatrix);
+            const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+            htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
           })
       )
     );
@@ -361,6 +363,7 @@ const BiomeEngine = {
         `}
       </style>
       ${render}
+      <div class="in biome-img-matrix-preview"></div>
       <pre class="in biome-solid-matrix-preview"></pre>
     `;
   },
