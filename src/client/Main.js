@@ -3,13 +3,12 @@ import { Responsive } from './components/core/Responsive.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
-import { Translate } from './components/core/Translate.js';
+import { Translate, TranslateCore } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
 import { s, append, disableOptionsClick } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance } from './components/core/CommonJs.js';
-import { TranslateCore } from './components/core/TranslateCore.js';
 import { FullScreen } from './components/core/FullScreen.js';
 
 import { Pixi } from './components/cyberia/Pixi.js';
