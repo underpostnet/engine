@@ -219,7 +219,7 @@ RewriteRule . /index.php [L]
             //               f - full UI
             // cmd = `msiexec.exe /i ${getRootDirectory()}${fullPath.slice(1)} /qn`;
             shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
-            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} ^ SHOULD_INSTALL_COMPASS="0" /qn `;
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} ^ SHOULD_INSTALL_COMPASS="1" /qn`;
             shellExec(cmd);
             // if (!fs.existsSync(`C:/Program Files/Docker/Docker`)) shellExec(cmd);
           })();
