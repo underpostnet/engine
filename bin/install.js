@@ -273,6 +273,29 @@ RewriteRule . /index.php [L]
       }
 
       break;
+    case 'mongodb-shell':
+      switch (os) {
+        case 'windows':
+          await (async () => {
+            // https://www.mongodb.com/try/download/shell
+            const urlDownload = `https://downloads.mongodb.com/compass/mongosh-2.1.0-x64.msi`;
+            const folderPath = `./engine-private/setup`;
+            if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+            const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
+            logger.info('destination', fullPath);
+            if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
+            shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn`;
+            shellExec(cmd);
+          })();
+          break;
+
+        default:
+          throw new Error(`Os not found: ${os} for program ${program}`);
+      }
+
+      break;
+
     default:
       throw new Error(`Program not found: ${program}`);
   }
