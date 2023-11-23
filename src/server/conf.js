@@ -128,6 +128,7 @@ const Config = {
             public_folder: '/dist/virtual-joystick',
           },
         ],
+        services: ['file'],
       },
     },
     server: {
@@ -166,6 +167,7 @@ const Config = {
         },
         '/cyberia': {
           client: 'cyberia',
+          apis: ['file'],
           runtime: 'nodejs',
           origins: [],
           disabled: false,

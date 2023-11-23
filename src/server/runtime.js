@@ -27,7 +27,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, origins, disabled, directory } = confServer[host][path];
+      const { runtime, port, client, apis, origins, disabled, directory } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
       const loggerOnRunningApp = () =>
@@ -114,6 +114,13 @@ const buildRuntime = async () => {
             path,
             ...confServer[host][path],
           });
+
+          if (apis)
+            for (const api of apis)
+              await (async () => {
+                const { ApiRouter } = await import(`../api/${api}/router.js`);
+                ApiRouter(app, path);
+              })();
 
           await network.port.portClean(port);
           await listenPortController(server, port, loggerOnRunningApp);
