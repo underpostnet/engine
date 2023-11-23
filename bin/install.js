@@ -241,7 +241,29 @@ RewriteRule . /index.php [L]
             logger.info('destination', fullPath);
             if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
             shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
-            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn `;
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn`;
+            shellExec(cmd);
+          })();
+          break;
+
+        default:
+          throw new Error(`Os not found: ${os} for program ${program}`);
+      }
+
+      break;
+    case 'mongodb-op-tools':
+      switch (os) {
+        case 'windows':
+          await (async () => {
+            // https://www.mongodb.com/try/download/database-tools
+            const urlDownload = `https://fastdl.mongodb.org/tools/db/mongodb-database-tools-windows-x86_64-100.9.3.msi`;
+            const folderPath = `./engine-private/setup`;
+            if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+            const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
+            logger.info('destination', fullPath);
+            if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
+            shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn`;
             shellExec(cmd);
           })();
           break;
