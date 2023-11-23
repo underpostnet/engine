@@ -244,6 +244,25 @@ const clearTerminalStringColor = (str) => str.replace(/\x1b\[[0-9;]*m/g, '');
 
 const getIdModule = (meta) => meta.url.split(`/`).pop();
 
+function getValueFromJoinString(obj, path, join = '.') {
+  // Split the path string into an array of attribute names
+  const attributes = path.split(join);
+
+  // Iterate through the attributes to access the desired value
+  let value = obj;
+  for (let i = 0; i < attributes.length; i++) {
+    value = value[attributes[i]];
+
+    // Check if the value is null or undefined at each step
+    if (value === null || value === undefined) {
+      // If the value is null or undefined, stop the iteration
+      break;
+    }
+  }
+
+  return value;
+}
+
 export {
   s4,
   range,
@@ -273,4 +292,5 @@ export {
   getIdModule,
   clearTerminalStringColor,
   getIsoDate,
+  getValueFromJoinString,
 };
