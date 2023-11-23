@@ -1,7 +1,7 @@
 import { endpointFactory } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory({ url: `${endpointFactory(import.meta)}-service` });
 
 const DEV_API_BASE = `http://${location.host}${endpointFactory(import.meta)}`;
 
