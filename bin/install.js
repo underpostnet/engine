@@ -229,6 +229,28 @@ RewriteRule . /index.php [L]
           throw new Error(`Os not found: ${os} for program ${program}`);
       }
       break;
+    case 'mongodb-op-cli':
+      switch (os) {
+        case 'windows':
+          await (async () => {
+            // https://www.mongodb.com/try/download/mongocli
+            const urlDownload = `https://fastdl.mongodb.org/mongocli/mongocli_1.31.0_windows_x86_64.msi`;
+            const folderPath = `./engine-private/setup`;
+            if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+            const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
+            logger.info('destination', fullPath);
+            if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
+            shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn `;
+            shellExec(cmd);
+          })();
+          break;
+
+        default:
+          throw new Error(`Os not found: ${os} for program ${program}`);
+      }
+
+      break;
     default:
       throw new Error(`Program not found: ${program}`);
   }
