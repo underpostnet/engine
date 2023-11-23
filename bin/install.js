@@ -195,10 +195,44 @@ RewriteRule . /index.php [L]
       // https://github.com/pothi/wordpress-nginx/
       // https://github.com/digitalocean/nginxconfig.io
       break;
+    case 'mongodb':
+      switch (os) {
+        case 'windows':
+          await (async () => {
+            const urlDownload = `https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.3-signed.msi`;
+            const folderPath = `./engine-private/setup`;
+            if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+            const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
+            logger.info('destination', fullPath);
+            if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
+            // https://www.mongodb.com/docs/manual/tutorial/install-mongodb-on-windows-unattended/
+            // msiexec.exe /i <path_to_package> [/quiet][/passive][/q{n|b|r|f}]
+            // /quiet - quiet mode (there is no user interaction)
+            // /passive - unattended mode (the installation shows only a progress bar)
+            // /q - set the UI level:
+            //               n - no UI
+            //               n+ - no UI except for a modal dialog box displayed at the end.
+            //               b - basic UI
+            //               b+ - basic UI with a modal dialog box displayed at the end. The modal box is not displayed if the user cancels the installation. Use qb+! or qb!+ to hide the [ Cancel ] button.
+            //               b- - basic UI with no modal dialog boxes. Please note that /qb+- is not a supported UI level. Use qb-! or qb!- to hide the [ Cancel ] button.
+            //               r - reduced UI
+            //               f - full UI
+            // cmd = `msiexec.exe /i ${getRootDirectory()}${fullPath.slice(1)} /qn`;
+            shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
+            cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} /qn`;
+            shellExec(cmd);
+            // if (!fs.existsSync(`C:/Program Files/Docker/Docker`)) shellExec(cmd);
+          })();
+          break;
+
+        default:
+          throw new Error(`Os not found: ${os} for program ${program}`);
+      }
+      break;
     default:
       throw new Error(`Program not found: ${program}`);
   }
-  logger.info(`success: ${program} on ${os}`);
+  logger.info(`end install ${program} on ${os}`);
 } catch (error) {
   logger.error(error, error.stack);
 }
