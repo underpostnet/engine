@@ -1,6 +1,6 @@
-import { FileService } from '../../services/file.service.js';
+import { FileService } from '../../services/file/service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
+import { JSONmatrix, newInstance, random, range, s4 } from '../core/CommonJs.js';
 import { Translate } from '../core/Translate.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
@@ -370,7 +370,13 @@ const BiomeEngine = {
           downloadFile(blob, `${biome}.png`);
         };
         s(`.btn-upload-biome-${biome}`).onclick = async () => {
-          console.log(FileService);
+          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+          const res = await fetch(biomeImg.currentSrc);
+          const blob = await res.blob();
+          const body = new FormData();
+          body.append(s4(), new File([blob], `${biome}.png`));
+          const result = await FileService.post(body);
+          console.log(result);
         };
       })
     );

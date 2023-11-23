@@ -1,4 +1,4 @@
-import { endpointFactory } from '../../server/api.js';
+import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../server/logger.js';
 import { get, post } from './controller.js';
 

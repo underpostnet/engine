@@ -263,6 +263,16 @@ function getValueFromJoinString(obj, path, join = '.') {
   return value;
 }
 
+const endpointFactory = (meta, path = '') => {
+  const data = meta.url.split('/');
+  data.pop();
+  try {
+    if (location) path = location.pathname.slice(0, -1);
+  } catch (error) {}
+  if (path === '/') path = '';
+  return `${path}/${data.pop()}`;
+};
+
 export {
   s4,
   range,
@@ -293,4 +303,5 @@ export {
   clearTerminalStringColor,
   getIsoDate,
   getValueFromJoinString,
+  endpointFactory,
 };

@@ -72,19 +72,22 @@ const buildClient = async () => {
       });
 
       if (services) {
-        if (!fs.existsSync(`${rootClientPath}/services`))
-          fs.mkdirSync(`${rootClientPath}/services`, { recursive: true });
         for (const module of services) {
-          fs.writeFileSync(
-            `${rootClientPath}/services/${module}.service.js`,
-            componentFormatted(
-              srcFormatted(fs.readFileSync(`./src/client/services/${module}.service.js`, 'utf8')),
-              module,
-              dists,
-              path
-            ),
-            'utf8'
-          );
+          if (!fs.existsSync(`${rootClientPath}/services/${module}`))
+            fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
+
+          for (const component of ['service'])
+            fs.writeFileSync(
+              `${rootClientPath}/services/${module}/${component}.js`,
+              componentFormatted(
+                srcFormatted(fs.readFileSync(`./src/client/services/${module}/${component}.js`, 'utf8')),
+                module,
+                dists,
+                path,
+                'services'
+              ),
+              'utf8'
+            );
         }
       }
 
