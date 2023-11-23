@@ -67,7 +67,6 @@ const Config = {
             'NotificationManager',
             'ToggleSwitch',
             'DropDown',
-            'TranslateCore',
             'FullScreen',
           ],
           cyberia: [
