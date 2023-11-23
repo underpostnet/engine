@@ -6,7 +6,7 @@ const pathViewFormatted = (path) => (path === '/' ? path : `${path}/`);
 
 const JSONweb = (data) => 'JSON.parse(`' + JSON.stringify(data) + '`)';
 
-const componentFormatted = (src, module, dists, proxyPath) => {
+const componentFormatted = (src, module, dists, proxyPath, componentBasePath = '') => {
   dists.map(
     (dist) =>
       (src = src.replaceAll(
@@ -15,8 +15,16 @@ const componentFormatted = (src, module, dists, proxyPath) => {
       ))
   );
   return src
-    .replaceAll(`from '../`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}components/`)
-    .replaceAll(`from './`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}components/${module}/`);
+    .replaceAll(
+      `from '../`,
+      `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}${componentBasePath === '' ? `` : `${componentBasePath}/`}`
+    )
+    .replaceAll(
+      `from './`,
+      `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}${
+        componentBasePath === '' ? `` : `${componentBasePath}/`
+      }${module}/`
+    );
 };
 
 const viewFormatted = (src, dists, proxyPath) => {

@@ -63,7 +63,8 @@ const buildClient = async () => {
               srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
               module,
               dists,
-              path
+              path,
+              'components'
             ),
             'utf8'
           )
