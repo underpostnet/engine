@@ -336,10 +336,10 @@ const Biome = {
 const BiomeEngine = {
   Render: async function () {
     let render = '';
-    for (const biome of Object.keys(Biome))
+    for (const biome of Object.keys(Biome)) {
       render += await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) });
-
-    render += await BtnIcon.Render({ class: 'btn-download-biome-png', label: 'Download png' });
+      render += await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` });
+    }
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
@@ -352,8 +352,12 @@ const BiomeEngine = {
           Pixi.RenderBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
+
+          const res = await fetch(biomeImg.currentSrc);
+          const blob = await res.blob();
+          const file = new File([blob], { type: 'image/png' }); // open window save name
         };
-        s(`.btn-download-biome-png`).onclick = async () => {
+        s(`.btn-download-biome-${biome}-png`).onclick = async () => {
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
