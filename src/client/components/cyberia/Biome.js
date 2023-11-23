@@ -1,3 +1,4 @@
+import { FileService } from '../../services/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
 import { Translate } from '../core/Translate.js';
@@ -337,8 +338,13 @@ const BiomeEngine = {
   Render: async function () {
     let render = '';
     for (const biome of Object.keys(Biome)) {
-      render += await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) });
-      render += await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` });
+      render += html`
+        <div class="in section-row">
+          ${await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) })}
+          ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` })}
+          ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: `Upload ${biome} png` })}
+        </div>
+      `;
     }
 
     setTimeout(() =>
@@ -362,6 +368,9 @@ const BiomeEngine = {
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           downloadFile(blob, `${biome}.png`);
+        };
+        s(`.btn-upload-biome-${biome}`).onclick = async () => {
+          console.log(FileService);
         };
       })
     );

@@ -19,7 +19,7 @@ const buildClient = async () => {
       const { client, directory, disabled, disabledRebuild, db } = confServer[host][path];
       if (disabled || disabledRebuild) continue;
 
-      const { components, dists, views } = confClient[client];
+      const { components, dists, views, services } = confClient[client];
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
       fs.removeSync(rootClientPath);
@@ -69,6 +69,23 @@ const buildClient = async () => {
           )
         );
       });
+
+      if (services) {
+        if (!fs.existsSync(`${rootClientPath}/services`))
+          fs.mkdirSync(`${rootClientPath}/services`, { recursive: true });
+        for (const module of services) {
+          fs.writeFileSync(
+            `${rootClientPath}/services/${module}.service.js`,
+            componentFormatted(
+              srcFormatted(fs.readFileSync(`./src/client/services/${module}.service.js`, 'utf8')),
+              module,
+              dists,
+              path
+            ),
+            'utf8'
+          );
+        }
+      }
 
       for (const dist of dists) {
         if ('folder' in dist) {
