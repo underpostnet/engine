@@ -1,5 +1,7 @@
 // vanilla-js thin layer
 
+import { s4 } from './CommonJs.js';
+
 /*
 
 Name: es6-string-html
@@ -72,9 +74,6 @@ const getQueryParams = () => {
   return queries;
 };
 
-const generateBlobSrc = (rawContent, mimeType) =>
-  window.URL.createObjectURL(new Blob([rawContent], { type: mimeType }));
-
 const preHTML = (raw) => raw.replaceAll('&', '&amp').replaceAll('<', '&lt').replaceAll('>', '&gt');
 
 const disableOptionsClick = (element, types) => {
@@ -134,19 +133,34 @@ const getResponsiveData = () => {
 
 const isElement = (element) => element instanceof Element || element instanceof HTMLDocument;
 
-const downloader = (name, mime, raw) => {
-  let content;
-  if (isElement(raw)) content = raw.toDataURL(mime);
-  else if (typeof raw === 'object') content = generateBlobSrc(JSON.stringify(raw, null, 4), mime);
-  else if (typeof raw === 'string') content = generateBlobSrc(raw, mime);
-  else return;
+/**
+ * Query selector.
+ *
+ * @param {File | Blob} fileInstance The file or blob object.
+ * @param {string} fileName The file name with extension.
+ * @returns {void} void.
+ */
+function downloadFile(fileInstance, fileName) {
+  // const blob = new Blob([raw], { type: 'image/png' })
+  // const file = new File([blob], { type: 'image/png' }); // open window save name
+  // downloadFile(blob | file, `${name}.png`);
+
+  // Create a URL for the file
+  const url = URL.createObjectURL(fileInstance);
+
+  // Create an anchor element
   const idDownload = 'downloader-' + s4() + s4();
   append('body', html`<a class="${idDownload}" style="display: none"></a>`);
-  s(`.${idDownload}`).href = content;
-  s(`.${idDownload}`).download = name;
+
+  // Exec download
+  s(`.${idDownload}`).href = url;
+  s(`.${idDownload}`).download = fileName;
   s(`.${idDownload}`).click();
   s(`.${idDownload}`).remove();
-};
+
+  // Revoke the URL object to free up resources
+  return URL.revokeObjectURL(url);
+}
 
 export {
   s,
@@ -159,7 +173,6 @@ export {
   setURI,
   getURI,
   getQueryParams,
-  generateBlobSrc,
   preHTML,
   disableOptionsClick,
   checkFullScreen,
@@ -167,5 +180,5 @@ export {
   fullScreenIn,
   getResponsiveData,
   isElement,
-  downloader,
+  downloadFile,
 };

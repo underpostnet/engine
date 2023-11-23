@@ -1,7 +1,7 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 
@@ -339,20 +339,27 @@ const BiomeEngine = {
     for (const biome of Object.keys(Biome))
       render += await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) });
 
+    render += await BtnIcon.Render({ class: 'btn-download-biome-png', label: 'Download png' });
+
     setTimeout(() =>
-      Object.keys(Biome).map(
-        (biome) =>
-          (s(`.btn-biome-engine-${biome}`).onclick = async () => {
-            const BiomeMatrix = Biome[biome]();
-            htmls(
-              `.biome-solid-matrix-preview`,
-              JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
-            );
-            Pixi.RenderBiome(BiomeMatrix);
-            const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-            htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
-          })
-      )
+      Object.keys(Biome).map((biome) => {
+        s(`.btn-biome-engine-${biome}`).onclick = async () => {
+          const BiomeMatrix = Biome[biome]();
+          htmls(
+            `.biome-solid-matrix-preview`,
+            JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
+          );
+          Pixi.RenderBiome(BiomeMatrix);
+          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+          htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
+        };
+        s(`.btn-download-biome-png`).onclick = async () => {
+          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+          const res = await fetch(biomeImg.currentSrc);
+          const blob = await res.blob();
+          downloadFile(blob, `${biome}.png`);
+        };
+      })
     );
     return html`
       <style>
