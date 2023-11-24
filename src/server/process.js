@@ -2,7 +2,6 @@
 
 import shell from 'shelljs';
 import dotenv from 'dotenv';
-import fs from 'fs';
 
 import { loggerFactory } from './logger.js';
 
