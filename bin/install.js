@@ -199,7 +199,12 @@ RewriteRule . /index.php [L]
       switch (os) {
         case 'windows':
           await (async () => {
-            const urlDownload = `https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.3-signed.msi`;
+            const versions = {
+              '6.0': 'https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-6.0.11-signed.msi',
+              '7.0': `https://fastdl.mongodb.org/windows/mongodb-windows-x86_64-7.0.3-signed.msi`,
+            };
+            const version = '6.0';
+            const urlDownload = versions[version];
             const folderPath = `./engine-private/setup`;
             if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
             const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
@@ -220,8 +225,14 @@ RewriteRule . /index.php [L]
             // cmd = `msiexec.exe /i ${getRootDirectory()}${fullPath.slice(1)} /qn`;
             shellCd(`${getRootDirectory()}${folderPath.slice(1)}`);
             cmd = `msiexec.exe /i ${urlDownload.split('/').pop()} ^ SHOULD_INSTALL_COMPASS="1" /qn`;
-            shellExec(cmd);
-            // if (!fs.existsSync(`C:/Program Files/Docker/Docker`)) shellExec(cmd);
+            if (!fs.existsSync(`C:/Program Files/MongoDB/Server`)) shellExec(cmd);
+            const dbPath = `c:/mongodb/data`;
+            if (!fs.existsSync(dbPath)) fs.mkdirSync(dbPath, { recursive: true });
+            // https://www.mongodb.com/docs/v6.0/tutorial/install-mongodb-on-windows/
+            // https://medium.com/stackfame/run-mongodb-as-a-service-in-windows-b0acd3a4b712
+            // shellCd(`C:/Program Files/MongoDB/Server/${version}/bin/`);
+            // shellExec(`mongos.exe --dbpath="${dbPath}"`);
+            // shellExec(`"C:/Program Files/MongoDB/Server/${version}/bin/mongos.exe" --dbpath "${dbPath}"`);
           })();
           break;
 
