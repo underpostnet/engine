@@ -1,5 +1,7 @@
 import { Modal } from './Modal.js';
-import { append, htmls, s } from './VanillaJs.js';
+import { append, getProxyPath, htmls, s } from './VanillaJs.js';
+
+const proxyPath = getProxyPath();
 
 // https://www.fontspace.com/
 
@@ -601,11 +603,11 @@ scrollbar-width: none;
       css`
         @font-face {
           font-family: 'retro-font-title';
-          src: URL('${location.pathname}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+          src: URL('${proxyPath}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
         }
         @font-face {
           font-family: 'retro-font';
-          src: URL('${location.pathname}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+          src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
         }
       `
     ),
@@ -640,19 +642,16 @@ scrollbar-width: none;
       `
     ),
   fontawesome: async () =>
-    append(
-      'head',
-      html`<link rel="stylesheet" type="text/css" href="${location.pathname}dist/fontawesome/css/all.min.css" />`
-    ),
+    append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
 };
 
 const barLabels = {
   cyberia: {
-    close: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/close.png" />`,
-    maximize: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/maximize.png" />`,
-    minimize: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/minimize.png" />`,
-    restore: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/restore.png" />`,
-    menu: html`<img class="inl bar-default-modal-icon" src="${location.pathname}assets/icons/menu.png" />`,
+    close: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/close.png" />`,
+    maximize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/maximize.png" />`,
+    minimize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/minimize.png" />`,
+    restore: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/restore.png" />`,
+    menu: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/menu.png" />`,
   },
   fontawesome: {
     close: html`<i class="fa-solid fa-xmark"></i>`,

@@ -2,11 +2,11 @@
 // https://github.com/dondido/virtual-joystick
 
 import { loggerFactory } from '../core/Logger.js';
-import { s } from '../core/VanillaJs.js';
+import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import { Event } from './Event.js';
 
-await import(`${location.pathname}dist/virtual-joystick/virtual-joystick.js`);
+await import(`${getProxyPath()}dist/virtual-joystick/virtual-joystick.js`);
 
 const logger = loggerFactory(import.meta);
 

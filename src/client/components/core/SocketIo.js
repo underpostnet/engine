@@ -1,5 +1,6 @@
 import { io } from 'socket.io/client-dist/socket.io.esm.min.js';
 import { loggerFactory } from './Logger.js';
+import { getProxyPath } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,9 +14,7 @@ const SocketIo = {
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
     logger.info(`ws host:`, this.host);
-    const path = location.pathname.split('/')[1]
-      ? { path: `/${location.pathname.split('/')[1]}/socket.io/` }
-      : undefined;
+    const path = getProxyPath() !== '/' ? { path: `${getProxyPath()}socket.io/` } : undefined;
     if (path) logger.info(`ws path:`, path);
     this.socket = io(this.host, path);
 

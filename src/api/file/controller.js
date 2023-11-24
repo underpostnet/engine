@@ -1,9 +1,18 @@
+import { endpointFactory } from '../../client/components/core/CommonJs.js';
+import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
+
 import { loggerFactory } from '../../server/logger.js';
 
-const logger = loggerFactory(import.meta);
+const endpoint = endpointFactory(import.meta);
 
-const post = (req, res) => {
+const logger = loggerFactory({ url: `api-${endpoint}-controller` });
+
+const DataBaseProvider = {};
+
+const post = async (req, res, options) => {
   try {
+    await ProviderFactoryDB(options, endpoint, DataBaseProvider);
+
     return res.status(200).json({
       status: 'success',
     });
@@ -16,7 +25,7 @@ const post = (req, res) => {
   }
 };
 
-const get = (req, res) => {
+const get = async (req, res) => {
   try {
     // throw { message: 'error test' };
     return res.status(200).json({

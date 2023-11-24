@@ -7,6 +7,7 @@ import { loggerFactory } from './logger.js';
 
 const createIoServer = (httpServer, options) => {
   const logger = loggerFactory(options.meta);
+  // logger.info('createIoServer', options);
   return new Server(httpServer, {
     cors: {
       // origin: `http://localhost:${options.port}`,

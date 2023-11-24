@@ -162,6 +162,8 @@ function downloadFile(fileInstance, fileName) {
   return URL.revokeObjectURL(url);
 }
 
+const getProxyPath = () => (location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/');
+
 export {
   s,
   htmls,
@@ -181,4 +183,5 @@ export {
   getResponsiveData,
   isElement,
   downloadFile,
+  getProxyPath,
 };

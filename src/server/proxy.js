@@ -9,7 +9,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
-import { xampp } from './runtime.js';
+import { Xampp } from '../runtime/xampp/Xampp.js';
 
 dotenv.config();
 
@@ -43,7 +43,7 @@ const buildProxy = async () => {
     for (const path of Object.keys(confServer[host])) {
       switch (confServer[host][path].runtime) {
         case 'xampp':
-          if (!xampp.enabled()) continue;
+          if (!Xampp.enabled()) continue;
           break;
 
         default:

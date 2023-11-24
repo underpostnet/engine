@@ -5,29 +5,24 @@ import dotenv from 'dotenv';
 
 import { createServer } from 'http';
 import { createIoServer } from './socket.io.js';
-import { getRootDirectory, shellExec } from './process.js';
+import { getRootDirectory } from './process.js';
 import { network, listenPortController, ip } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
+import { Xampp } from '../runtime/xampp/Xampp.js';
+import { MariaDB } from '../db/mariadb/mariadb.js';
 
 dotenv.config();
 
-const xampp = {
-  router: '',
-  ports: [],
-  enabled: () => false, // fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
-};
-
 const buildRuntime = async () => {
   const ipInstance = await ip.public.ipv4();
-  let cmd;
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of Object.keys(confServer)) {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, disabled, directory } = confServer[host][path];
+      const { runtime, port, client, apis, db, origins, disabled, directory } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
       const loggerOnRunningApp = () =>
@@ -42,9 +37,9 @@ const buildRuntime = async () => {
 
       switch (runtime) {
         case 'xampp':
-          if (!xampp.enabled()) continue;
-          if (!xampp.ports.includes(port)) xampp.ports.push(port);
-          xampp.router += `
+          if (!Xampp.enabled()) continue;
+          if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
+          Xampp.appendRouter(`
             
         Listen ${port}
 
@@ -76,7 +71,7 @@ const buildRuntime = async () => {
                 : ''
             }
         </VirtualHost>
-          `;
+          `);
           loggerOnRunningApp();
           break;
         case 'nodejs':
@@ -105,6 +100,15 @@ const buildRuntime = async () => {
           // cors
           app.use(cors({ origin: origins }));
 
+          if (apis)
+            for (const api of apis)
+              await (async () => {
+                const { ApiRouter } = await import(`../api/${api}/router.js`);
+                const apiPath = `${path === '/' ? '' : path}/api`;
+                logger.info('Load api router', { host, path: apiPath, api });
+                app.use(apiPath, ApiRouter({ host, path: apiPath, db }));
+              })();
+
           // instance server
           const server = createServer({}, app);
 
@@ -114,13 +118,6 @@ const buildRuntime = async () => {
             path,
             ...confServer[host][path],
           });
-
-          if (apis)
-            for (const api of apis)
-              await (async () => {
-                const { ApiRouter } = await import(`../api/${api}/router.js`);
-                ApiRouter(app, path);
-              })();
 
           await network.port.portClean(port);
           await listenPortController(server, port, loggerOnRunningApp);
@@ -132,21 +129,7 @@ const buildRuntime = async () => {
       currentPort++;
     }
   }
-  if (xampp.enabled()) {
-    // windows
-    fs.writeFileSync(
-      `C:/xampp/apache/conf/httpd.conf`,
-      fs.readFileSync(`C:/xampp/apache/conf/httpd.template.conf`, 'utf8').replace(`Listen 80`, ``),
-      'utf8'
-    );
-    fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, xampp.router, 'utf8');
-    // cmd = `C:/xampp/xampp_stop.exe`;
-    // shellExec(cmd);
-    await network.port.portClean(3306);
-    for (const port of xampp.ports) await network.port.portClean(port);
-    cmd = `C:/xampp/xampp_start.exe`;
-    shellExec(cmd);
-  }
+  if (Xampp.enabled()) await MariaDB.initService();
 };
 
-export { buildRuntime, xampp };
+export { buildRuntime };

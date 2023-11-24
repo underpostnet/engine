@@ -48,6 +48,10 @@ const Config = {
             import_name: '@neodrag/vanilla',
             import_name_build: '/dist/@neodrag-vanilla/index.js',
           },
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
         ],
       },
       cyberia: {
@@ -143,7 +147,7 @@ const Config = {
           client: 'doc',
           runtime: 'xampp',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
         },
       },
@@ -161,7 +165,14 @@ const Config = {
           client: 'test',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
+          proxy: [80, 443],
+        },
+        '/path': {
+          client: 'test',
+          runtime: 'nodejs',
+          origins: [],
+          disabled: false,
           proxy: [80, 443],
         },
         '/cyberia': {
@@ -171,6 +182,11 @@ const Config = {
           origins: [],
           disabled: false,
           proxy: [80, 443],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'example2-cyberia',
+          },
         },
       },
     },

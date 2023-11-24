@@ -1,13 +1,17 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../server/logger.js';
 import { get, post } from './controller.js';
+import express from 'express';
 
-const ApiRouter = (app, path = '') => {
-  const logger = loggerFactory(import.meta);
-  const endpoint = endpointFactory(import.meta, path);
-  logger.info('endpoint', endpoint);
-  app.post(endpoint, post);
-  app.get(endpoint, get);
+const endpoint = endpointFactory(import.meta);
+const meta = { url: `api-${endpoint}-router` };
+const logger = loggerFactory(meta);
+
+const ApiRouter = (options) => {
+  const router = express.Router();
+  router.post(endpoint, async (req, res) => await post(req, res, options));
+  router.get(endpoint, async (req, res) => await get(req, res, options));
+  return router;
 };
 
 export { ApiRouter };
