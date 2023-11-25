@@ -18,7 +18,7 @@ const MongooseDB = {
           // }
         )
         .then((db) => {
-          logger.info(`db connected`, { uri, db });
+          logger.info(`db connected`, uri);
           return resolve(db);
         })
         .catch((err) => {

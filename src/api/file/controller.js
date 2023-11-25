@@ -11,7 +11,10 @@ const DataBaseProvider = {};
 
 const post = async (req, res, options) => {
   try {
+    const { host, path } = options;
     await ProviderFactoryDB(options, endpoint, DataBaseProvider);
+    const db = DataBaseProvider[`${host}${path}`];
+    if (db) logger.info('success get db provider', options.db);
 
     return res.status(200).json({
       status: 'success',
@@ -25,8 +28,13 @@ const post = async (req, res, options) => {
   }
 };
 
-const get = async (req, res) => {
+const get = async (req, res, options) => {
   try {
+    const { host, path } = options;
+    await ProviderFactoryDB(options, endpoint, DataBaseProvider);
+    const db = DataBaseProvider[`${host}${path}`];
+    if (db) logger.info('success get db provider', options.db);
+
     // throw { message: 'error test' };
     return res.status(200).json({
       status: 'success',

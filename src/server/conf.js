@@ -156,7 +156,7 @@ const Config = {
           client: 'cyberia',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
         },
       },
