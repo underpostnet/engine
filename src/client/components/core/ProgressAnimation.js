@@ -1,0 +1,2 @@
+const ProgressAnimation = {};
+export { ProgressAnimation };

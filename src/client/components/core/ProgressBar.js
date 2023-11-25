@@ -1,2 +1,0 @@
-const ProgressBar = {};
-export { ProgressBar };
