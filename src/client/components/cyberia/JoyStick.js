@@ -63,7 +63,7 @@ const JoyStick = {
         `}
       </style>
       <div class="fix joystick-container">
-        <img class="abs joy-img-background" src="${location.pathname}assets/joy/joy_alpha.png" />
+        <img class="abs joy-img-background" src="${getProxyPath()}assets/joy/joy_alpha.png" />
         <virtual-joystick data-mode="dynamic"> </virtual-joystick>
       </div>
     `;
