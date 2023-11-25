@@ -6,6 +6,7 @@ bmewburn.vscode-intelephense-client
 cschlosser.doxdocgen
 danielehrhardt.ionic3-vs-ionView-snippets
 dbaeumer.vscode-eslint
+eamodio.gitlens
 esbenp.prettier-vscode
 fivethree.vscode-ionic-snippets
 formulahendry.auto-rename-tag
@@ -14,7 +15,6 @@ Ionic.ionic
 ipedrazas.kubernetes-snippets
 jeff-hykin.better-cpp-syntax
 jinxdash.prettier-rust
-johnpapa.Angular2
 johnpapa.vscode-peacock
 JuanBlanco.solidity
 KevinRose.vsc-python-indent
@@ -30,6 +30,7 @@ ms-toolsai.jupyter-keymap
 ms-toolsai.jupyter-renderers
 ms-toolsai.vscode-jupyter-cell-tags
 ms-toolsai.vscode-jupyter-slideshow
+ms-vscode-remote.remote-containers
 ms-vscode-remote.remote-wsl
 ms-vscode.cmake-tools
 ms-vscode.cpptools
