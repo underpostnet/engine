@@ -8,7 +8,7 @@ const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-let [exe, dir, rawPath] = process.argv;
+let [exe, dir, rawPath, type] = process.argv;
 
 rawPath = rawPath.replaceAll(`'`, '');
 
@@ -18,7 +18,7 @@ path = path.join('/');
 
 const file = `${rawPath}`.split('/').pop();
 const ext = file.split('.').pop();
-let name = file.split('.')[0];
+let name = cap(file.split('.')[0]).replaceAll(' ', '');
 
 logger.info('File metadata', { path, file, ext, name });
 
@@ -26,10 +26,9 @@ try {
   // throw '';
   // let cmd;
   let content = '';
-  switch (ext) {
-    case 'js':
+  switch (type) {
+    case 'js-module':
       // node bin/file './src/client/components/core/progress bar.js'
-      name = cap(name).replaceAll(' ', '');
       content = `const ${name} = {}; export { ${name} }`;
       setTimeout(() => shellExec(`prettier --write ${buildPath}`));
       break;
