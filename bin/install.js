@@ -57,12 +57,12 @@ try {
             fs.writeFileSync(
               `C:/xampp/apache/conf/httpd.template.conf`,
               fs.readFileSync(`C:/xampp/apache/conf/httpd.conf`, 'utf8'),
-              'utf8'
+              'utf8',
             );
             fs.writeFileSync(
               `C:/xampp/apache/conf/extra/httpd-ssl.template.conf`,
               fs.readFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, 'utf8'),
-              'utf8'
+              'utf8',
             );
             fs.writeFileSync(`C:/xampp/.gitignore`, `/htdocs`, 'utf8');
             shellCd(`c:/xampp`);

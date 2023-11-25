@@ -33,7 +33,7 @@ const FileService = {
         .catch((error) => {
           logger.error(error);
           return reject(error);
-        })
+        }),
     ),
 };
 

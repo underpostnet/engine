@@ -5231,7 +5231,7 @@ const getDataColors = () =>
       };
     }),
     'number',
-    true
+    true,
   );
 
 const logger = loggerFactory(import.meta);
@@ -5259,7 +5259,7 @@ const ColorPalette = {
                     });
                     copyData(coloData.hex);
                   })
-                : null
+                : null,
             );
             return html`<button class="btn-palette-${idColor}">
               ${coloData.name} - ${coloData.hex} <br />

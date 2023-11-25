@@ -218,7 +218,7 @@ const Config = {
         fs.writeFileSync(
           `./conf/conf.${confType}.json`,
           fs.readFileSync(`./engine-private/conf/conf.${confType}.private.json`, 'utf8'),
-          'utf8'
+          'utf8',
         );
       else if (!fs.existsSync(`./conf/conf.${confType}.json`))
         fs.writeFileSync(`./conf/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');

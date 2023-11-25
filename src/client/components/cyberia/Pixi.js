@@ -29,7 +29,7 @@ const Pixi = {
           `}
         </style>
         <div class="abs pixi-container"></div>
-      `
+      `,
     );
     this.App = new Application({
       width: this.MetaData.dim,
@@ -76,7 +76,7 @@ const Pixi = {
           this.Data.biome[id].visible = true;
           this.Data.biome.container.addChild(this.Data.biome[id]);
         }
-      })
+      }),
     );
   },
   RenderBiome: function (BiomeMatrix) {
@@ -109,7 +109,7 @@ const Pixi = {
           this.Data.biome[id].visible = true;
           this.Data.biome.container.addChild(this.Data.biome[id]);
         }
-      })
+      }),
     );
   },
 };

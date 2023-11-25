@@ -42,7 +42,7 @@ const buildClient = async () => {
                   .replace('test_username', db.user)
                   .replace('test_password', db.password)
                   .replace('test_dbname', db.name),
-                'utf8'
+                'utf8',
               );
             }
             break;
@@ -64,10 +64,10 @@ const buildClient = async () => {
               module,
               dists,
               path,
-              'components'
+              'components',
             ),
-            'utf8'
-          )
+            'utf8',
+          ),
         );
       });
 
@@ -84,9 +84,9 @@ const buildClient = async () => {
                 module,
                 dists,
                 path,
-                'services'
+                'services',
               ),
-              'utf8'
+              'utf8',
             );
         }
       }
@@ -112,7 +112,7 @@ const buildClient = async () => {
         fs.writeFileSync(
           `${buildPath}${buildId}.js`,
           viewFormatted(srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')), dists, path),
-          'utf8'
+          'utf8',
         );
 
         fs.writeFileSync(`${buildPath}index.html`, ViewRender({ title: view.title, path, buildId }), 'utf8');

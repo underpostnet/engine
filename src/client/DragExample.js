@@ -29,7 +29,7 @@ append(
     <div class="abs drag-container">
       <div class="abs center">Drag Me!</div>
     </div>
-  `
+  `,
 );
 
 const dragInstance = new Draggable(s('.drag-container'));

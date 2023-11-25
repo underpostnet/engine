@@ -26,7 +26,7 @@ const Downloader = async (url, fullPath, options = { method: 'get', responseType
       .catch((error) => {
         logger.error(error, 'Error in the request');
         return reject(error);
-      })
+      }),
   );
 
 export { Downloader };

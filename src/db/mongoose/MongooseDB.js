@@ -11,7 +11,7 @@ const MongooseDB = {
     return new Promise((resolve, reject) =>
       mongoose
         .connect(
-          uri
+          uri,
           // ,{
           //   useNewUrlParser: true,
           //   useUnifiedTopology: true,
@@ -24,7 +24,7 @@ const MongooseDB = {
         .catch((err) => {
           logger.error(err, { host, endpoint, dbName, error: err.stack });
           return reject(err);
-        })
+        }),
     );
   },
 };

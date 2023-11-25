@@ -11,26 +11,26 @@ const componentFormatted = (src, module, dists, proxyPath, componentBasePath = '
     (dist) =>
       (src = src.replaceAll(
         `from '${dist.import_name}'`,
-        `from '${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}'`
-      ))
+        `from '${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}'`,
+      )),
   );
   return src
     .replaceAll(
       `from '../`,
-      `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}${componentBasePath === '' ? `` : `${componentBasePath}/`}`
+      `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}${componentBasePath === '' ? `` : `${componentBasePath}/`}`,
     )
     .replaceAll(
       `from './`,
       `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}${
         componentBasePath === '' ? `` : `${componentBasePath}/`
-      }${module}/`
+      }${module}/`,
     );
 };
 
 const viewFormatted = (src, dists, proxyPath) => {
   dists.map(
     (dist) =>
-      (src = src.replaceAll(dist.import_name, `${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}`))
+      (src = src.replaceAll(dist.import_name, `${proxyPath !== '/' ? `${proxyPath}` : ''}${dist.import_name_build}`)),
   );
   return src.replaceAll(`from './`, `from '${proxyPath !== '/' ? `${proxyPath}/` : '/'}`);
 };

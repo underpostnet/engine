@@ -73,7 +73,7 @@ try {
         fs.writeFileSync(
           './engine-private/conf/conf.client.private.json',
           JSON.stringify(merge(origin, Config.default.client, { arrayMerge: overwriteMerge }), null, 4),
-          'utf8'
+          'utf8',
         );
       })();
       break;

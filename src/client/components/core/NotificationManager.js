@@ -23,7 +23,7 @@ const NotificationManager = {
           `}
         </style>
         <div class="fix notification-board-container"></div>
-      `
+      `,
     );
   },
   Tokens: {},

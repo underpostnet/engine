@@ -26,7 +26,7 @@ switch (oS) {
           $Shortcut.IconLocation = "${getRootDirectory()}/src/client/public/doc/favicon.ico"
 
           $Shortcut.Save()
-          `
+          `,
           );
           shellExec(`PowerShell bin/shortcut.ps1`);
           fs.unlinkSync(`./bin/shortcut.ps1`);

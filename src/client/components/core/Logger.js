@@ -11,7 +11,7 @@ const loggerFactory = (meta) => {
     (type) =>
       (logger[type] = function (...args) {
         return this.log(type, args);
-      })
+      }),
   );
   return logger;
 };

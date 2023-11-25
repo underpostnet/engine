@@ -63,7 +63,7 @@ const format = (project) =>
             })}`
           : info.message
       }`;
-    })
+    }),
   );
 
 const loggerFactory = (meta) => {
@@ -116,7 +116,7 @@ const loggerMiddleware = (project) => {
     `:remote-addr :method :host:url :status :res[content-length] - :response-time ms`,
     // Options: in this case, I overwrote the stream and the skip logic.
     // See the methods above.
-    { stream, skip }
+    { stream, skip },
   );
 };
 

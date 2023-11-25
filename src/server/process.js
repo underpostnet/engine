@@ -33,7 +33,7 @@ const ProcessController = {
       return this.data.map((sig) =>
         process.on(sig, (...args) => {
           logger.info(`process on ${sig}`, args);
-        })
+        }),
       );
     },
   },

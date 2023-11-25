@@ -15,7 +15,7 @@ const TestComponent = {
         ${Translate.Render('hello')} ${await BtnIcon.Render({ class: 'translate-en', label: 'en' })}
         ${await BtnIcon.Render({ class: 'translate-es', label: 'es' })}
         <br />
-        <input type="text" class="input-test" placeholder="${Translate.Render('write-placeholder')}" />`
+        <input type="text" class="input-test" placeholder="${Translate.Render('write-placeholder')}" />`,
     );
     s('.translate-en').onclick = () => Translate.Parse('en');
     s('.translate-es').onclick = () => Translate.Parse('es');

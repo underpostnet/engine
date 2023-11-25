@@ -15,7 +15,7 @@ const MariaDB = {
     fs.writeFileSync(
       `C:/xampp/apache/conf/httpd.conf`,
       fs.readFileSync(`C:/xampp/apache/conf/httpd.template.conf`, 'utf8').replace(`Listen 80`, ``),
-      'utf8'
+      'utf8',
     );
     fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, Xampp.router, 'utf8');
     // cmd = `C:/xampp/xampp_stop.exe`;

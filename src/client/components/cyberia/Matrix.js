@@ -24,7 +24,7 @@ const Matrix = {
             `}
           </style>
           <div class="abs center matrix-center-square"></div>
-        `
+        `,
       );
     },
   },

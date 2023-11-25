@@ -1,0 +1,2 @@
+const ProgressBar = {};
+export { ProgressBar };

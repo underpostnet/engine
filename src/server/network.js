@@ -27,7 +27,7 @@ const network = {
                 // `port: ${port} was occupied, try port: ${_port}`
                 return resolve(true);
               })
-              .catch((error) => resolve(`${error.message}`))
+              .catch((error) => resolve(`${error.message}`)),
           ),
         });
       }

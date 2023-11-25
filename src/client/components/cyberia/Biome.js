@@ -80,7 +80,7 @@ const Biome = {
                   BiomeMatrix.solid[y + sumY][x + sumX] = 1;
                   BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
                 }
-              })
+              }),
             );
             // window
             range(0, buildLimitX).map((sumX) =>
@@ -104,10 +104,10 @@ const Biome = {
                         colorCell = buildStyle.window[random(0, 2)];
                         BiomeMatrix.color[y + sumY + sumY0][x + sumX + sumX0] = `${colorCell}`;
                       }
-                    })
+                    }),
                   );
                 }
-              })
+              }),
             );
           }
         });
@@ -126,7 +126,7 @@ const Biome = {
             const dimDoor = 2;
             const xDoorPadding = 2;
             const xDoorCords = range(x + xDoorPadding, x + buildLimitX - xDoorPadding - dimDoor).filter(
-              (n) => n % Matrix.Data.dimPaintByCell === 0
+              (n) => n % Matrix.Data.dimPaintByCell === 0,
             );
             const xDoor = xDoorCords[random(0, xDoorCords.length - 1)];
             const yDoor = y + buildLimitY;
@@ -154,7 +154,7 @@ const Biome = {
                 ) {
                   validDoor = false;
                 }
-              })
+              }),
             );
             if (!validDoor) return;
             colorCell = 'black';
@@ -167,7 +167,7 @@ const Biome = {
                   BiomeMatrix.color[yDoor - deltaY][xDoor + deltaX] = `${colorCell}`;
                   BiomeMatrix.solid[yDoor - deltaY][xDoor + deltaX] = 0;
                 }
-              })
+              }),
             );
           }
         });
@@ -226,14 +226,14 @@ const Biome = {
             range(-1, 1).map((sumY) => {
               if (random(0, 8) > 2) return;
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           colorCell = '#349a67';
           range(-5, 5).map((sumX) =>
             range(-3, 3).map((sumY) => {
               if (random(0, 10) > 2) return;
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           colorCell = '#29714c';
         }
@@ -252,7 +252,7 @@ const Biome = {
                 if (random(0, 1) === 0) return;
                 if (validateMatrixLimit(x + sumX, y + sumY))
                   BiomeMatrix.color[y + sumY][x + sumX] = `${phenoType[random(0, phenoType.length - 1)]}`;
-              })
+              }),
             );
           }
         });
@@ -271,20 +271,20 @@ const Biome = {
             range(4, 5).map((sumY) => {
               // if (random(0, 1) === 0) return;
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           range(-3, 3).map((sumX) =>
             range(3, 6).map((sumY) => {
               if (random(0, 1) === 0) return;
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           colorCell = '#349a67';
           range(-4, 4).map((sumX) =>
             range(2, 7).map((sumY) => {
               if (random(0, 10) > 1) return;
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           // tree leaves
           const selectPhenotype = treePhenotype[random(0, treePhenotype.length - 1)];
@@ -296,14 +296,14 @@ const Biome = {
                 BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
                 BiomeMatrix.solid[y + sumY][x + sumX] = 1;
               }
-            })
+            }),
           );
           range(-5, 5).map((sumX) =>
             range(-5, 0).map((sumY) => {
               if (random(1, 4) === 4) return;
               colorCell = selectPhenotype[1];
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-            })
+            }),
           );
           // rhizome
           colorCell = '#AF5E06';
@@ -315,7 +315,7 @@ const Biome = {
                 BiomeMatrix.solid[y + sumY][x + sumX] = 1;
               }
               colorCell = '#AF5E06';
-            })
+            }),
           );
           // roots
           [-1, 1].map((sumX) =>
@@ -324,7 +324,7 @@ const Biome = {
               if (random(0, 1) === 0) colorCell = '#975206';
               if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
               colorCell = '#AF5E06';
-            })
+            }),
           );
         }
       });
@@ -353,7 +353,7 @@ const BiomeEngine = {
           const BiomeMatrix = Biome[biome]();
           htmls(
             `.biome-solid-matrix-preview`,
-            JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)
+            JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`),
           );
           Pixi.RenderBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
@@ -378,7 +378,7 @@ const BiomeEngine = {
           const result = await FileService.post(body);
           console.log(result);
         };
-      })
+      }),
     );
     return html`
       <style>

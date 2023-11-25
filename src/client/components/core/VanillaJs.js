@@ -55,8 +55,8 @@ const copyData = (data) =>
   new Promise((resolve, reject) =>
     navigator.clipboard.writeText(data).then(
       () => resolve(true),
-      () => reject(false)
-    )
+      () => reject(false),
+    ),
   );
 
 const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().then((clipText) => resolve(clipText)));

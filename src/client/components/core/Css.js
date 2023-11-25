@@ -160,7 +160,7 @@ scrollbar-width: none;
           `}
         </style>
         <style class="theme"></style>
-      `
+      `,
     );
     return await Themes[theme]();
   },
@@ -207,10 +207,14 @@ scrollbar-width: none;
           background: #bbbbbb;
         }
         .box-shadow {
-          box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          box-shadow:
+            0 4px 8px 0 rgba(0, 0, 0, 0.2),
+            0 6px 20px 0 rgba(0, 0, 0, 0.19);
         }
         .box-shadow:hover {
-          box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+          box-shadow:
+            0 8px 16px 0 rgba(0, 0, 0, 0.2),
+            0 10px 30px 0 rgba(0, 0, 0, 0.3);
         }
         .toggle-switch-content-border {
           border: 2px solid #bbbbbb;
@@ -262,7 +266,7 @@ scrollbar-width: none;
           border-bottom: 2px solid #bbbbbb;
           max-width: 450px;
         }
-      `
+      `,
     ),
   dark: async () =>
     append(
@@ -314,10 +318,14 @@ scrollbar-width: none;
           color: black;
         }
         .box-shadow {
-          box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
+          box-shadow:
+            0 2px 4px 0 rgba(255, 255, 255, 0.2),
+            0 3px 10px 0 rgba(255, 255, 255, 0.19);
         }
         .box-shadow:hover {
-          box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
+          box-shadow:
+            0 4px 8px 0 rgba(255, 255, 255, 0.2),
+            0 5px 15px 0 rgba(255, 255, 255, 0.3);
         }
         .toggle-switch-content-border {
           border: 2px solid #bbbbbb;
@@ -370,7 +378,7 @@ scrollbar-width: none;
           border-bottom: 2px solid #bbbbbb;
           max-width: 450px;
         }
-      `
+      `,
     ),
   cryptokoyn: async () =>
     append(
@@ -480,7 +488,7 @@ scrollbar-width: none;
           border-bottom: 2px solid yellow;
           max-width: 450px;
         }
-      `
+      `,
     ),
   'dark-light': async () =>
     append(
@@ -595,7 +603,7 @@ scrollbar-width: none;
           border-bottom: 2px solid #313131;
           max-width: 450px;
         }
-      `
+      `,
     ),
   retro: async () =>
     append(
@@ -609,7 +617,7 @@ scrollbar-width: none;
           font-family: 'retro-font';
           src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
         }
-      `
+      `,
     ),
   cyberia: async () =>
     append(
@@ -639,7 +647,7 @@ scrollbar-width: none;
           border: 2px solid #313131;
           margin: 5px;
         }
-      `
+      `,
     ),
   fontawesome: async () =>
     append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
@@ -781,7 +789,7 @@ const renderMediaQuery = (mediaData) => {
             @media only screen and (min-width: ${mediaState.limit}px) {
               ${mediaState.css}
             }
-          `
+          `,
         )
         .join('')}
     </style>
