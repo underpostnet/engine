@@ -17,7 +17,7 @@ path.pop();
 path = path.join('/');
 
 const file = `${rawPath}`.split('/').pop();
-const ext = file.split('.').pop();
+const ext = file.split('.')[1];
 let name = cap(file.split('.')[0]).replaceAll(' ', '');
 
 logger.info('File metadata', { path, file, ext, name });
