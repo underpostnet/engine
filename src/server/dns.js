@@ -14,6 +14,8 @@ const Dns = {
   ipDaemon: null,
   InitIpDaemon: async function () {
     // DNS Records: [ANAME] -> [A] -> [ip]
+    // DHCP (Dynamic Host Configuration Protocol) LAN RESERVE IP -> MAC ID
+    // open ports to LAN IPv4
     const confDnsPath = './conf/conf.dns.json';
     let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
     this.ip = confDnsData.ipDaemon.ip;
