@@ -207,14 +207,10 @@ scrollbar-width: none;
           background: #bbbbbb;
         }
         .box-shadow {
-          box-shadow:
-            0 4px 8px 0 rgba(0, 0, 0, 0.2),
-            0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
         }
         .box-shadow:hover {
-          box-shadow:
-            0 8px 16px 0 rgba(0, 0, 0, 0.2),
-            0 10px 30px 0 rgba(0, 0, 0, 0.3);
+          box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
         }
         .toggle-switch-content-border {
           border: 2px solid #bbbbbb;
@@ -318,14 +314,10 @@ scrollbar-width: none;
           color: black;
         }
         .box-shadow {
-          box-shadow:
-            0 2px 4px 0 rgba(255, 255, 255, 0.2),
-            0 3px 10px 0 rgba(255, 255, 255, 0.19);
+          box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
         }
         .box-shadow:hover {
-          box-shadow:
-            0 4px 8px 0 rgba(255, 255, 255, 0.2),
-            0 5px 15px 0 rgba(255, 255, 255, 0.3);
+          box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
         }
         .toggle-switch-content-border {
           border: 2px solid #bbbbbb;
@@ -602,6 +594,40 @@ scrollbar-width: none;
           padding: 15px 0px 15px 0px;
           border-bottom: 2px solid #313131;
           max-width: 450px;
+        }
+        @keyframes diagonal-lines {
+          0% {
+            background-position: initial;
+          }
+          100% {
+            background-position: 100px 0px;
+          }
+        }
+        /*
+        .progress-bar {
+          top: 0px;
+          left: 0px;
+          transition: 0.3s;
+          height: 10px;
+          width: 100%;
+          background: repeating-linear-gradient(45deg, #606dbc, #606dbc 5%, #465298 5%, #465298 10%);
+          background-size: 100px 100px;
+          animation: diagonal-lines 2s linear infinite;
+        }
+        */
+        .progress-bar {
+          top: 0px;
+          left: 0px;
+          transition: 0.3s;
+          height: 10px;
+          width: 100%;
+          background: #313131;
+          z-index: 3;
+        }
+        .diagonal-bar-background-animation {
+          background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);
+          background-size: 100px 100px;
+          animation: diagonal-lines 2s linear infinite;
         }
       `,
     ),
