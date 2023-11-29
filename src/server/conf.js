@@ -136,7 +136,7 @@ const Config = {
             public_folder: '/dist/loadingio',
           },
         ],
-        services: ['file'],
+        services: ['core', 'file'],
       },
     },
     server: {

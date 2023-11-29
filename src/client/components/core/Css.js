@@ -621,7 +621,6 @@ scrollbar-width: none;
           transition: 0.3s;
           height: 10px;
           width: 100%;
-          background: #313131;
           z-index: 3;
         }
         .diagonal-bar-background-animation {

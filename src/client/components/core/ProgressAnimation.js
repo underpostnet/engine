@@ -1,54 +1,60 @@
-import { getId, newInstance } from './CommonJs.js';
-import { append, s } from './VanillaJs.js';
+import { CoreService } from '../../services/core/service.js';
+import { loggerFactory } from './Logger.js';
+import { append, getProxyPath, s } from './VanillaJs.js';
+
+const logger = loggerFactory(import.meta);
 
 const ProgressAnimation = {
   bar: {
-    tokens: {},
-    play: function (id, time) {
-      if (!id) id = getId(this.tokens, 'progress-bar');
+    getId: (id) => `bar-progress-${id.slice(1)}`,
+    play: async function (container) {
+      const id = this.getId(container);
       append(
         'body',
         html` <div class="fix progress-bar diagonal-bar-background-animation ${id}" style="left: -100%"></div> `,
       );
-
-      // Diagonal Lines Animation
-      // https://alvarotrigo.com/blog/animated-backgrounds-css/
-
-      const frames = time
-        ? [
-            { time: time * 0.7, value: '-30%' },
-            { time: time * 0.85, value: '-10%' },
-            { time: time * 1, value: '0%' },
-          ]
-        : [
-            { time: 700, value: '-30%' },
-            { time: 850, value: '-10%' },
-            { time: 1000, value: '0%' },
-          ];
-
-      for (const frame of frames) {
-        setTimeout(() => {
-          s(`.${id}`).style.left = frame.value;
-        }, frame.time);
-      }
-
-      // setTimeout(() => (s(`.${id}`).style.left = '0%'), time + 200);
-      // setTimeout(() => (s(`.${id}`).style.left = '70%'), time + 400);
-      // setTimeout(() => (s(`.${id}`).style.left = '100%'), time + 600);
-      if (time) this.stop(id, time);
-
-      return id;
+      for (const frame of [
+        { time: 500, value: '-35%' },
+        { time: 1250, value: '-15%' },
+      ])
+        setTimeout(() => (s(`.${id}`).style.left = frame.value), frame.time);
     },
-    stop: function (id, time) {
-      setTimeout(() => {
-        s(`.${id}`).style.opacity = 1;
-        setTimeout(() => {
-          s(`.${id}`).style.opacity = 0;
-          setTimeout(() => {
-            s(`.${id}`).remove();
-          }, 400);
-        });
-      }, time);
+    stop: function (container) {
+      const id = this.getId(container);
+      s(`.${id}`).style.left = '0%';
+      s(`.${id}`).style.opacity = 1;
+      setTimeout(() => (s(`.${id}`).style.opacity = 0));
+      setTimeout(() => s(`.${id}`).remove(), 400);
+    },
+  },
+  spinner: {
+    spinners: {},
+    getId: (id) => `spinner-progress-${id.slice(1)}`,
+    spinnerSrcValidator: async function (spinner) {
+      if (!this.spinners[spinner]) {
+        const url = `${getProxyPath()}dist/loadingio/${spinner}/index.` + 'html';
+        this.spinners[spinner] = {
+          url,
+          html: await CoreService.getRaw(url),
+        };
+        append(
+          'head',
+          html`<link
+            rel="stylesheet"
+            type="text/css"
+            href="${getProxyPath()}dist/loadingio/${spinner}/index.min.css"
+          />`,
+        );
+      }
+    },
+    play: async function (container, spinner = 'spinner') {
+      await this.spinnerSrcValidator(spinner);
+      const id = this.getId(container);
+      append(container, html` <div class="in ${id}" style="text-align: center">${this.spinners[spinner].html}</div> `);
+    },
+    stop: function (container) {
+      const id = this.getId(container);
+      s(`.${id}`).remove();
     },
   },
 };
