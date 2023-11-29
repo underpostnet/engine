@@ -378,7 +378,9 @@ const BiomeEngine = {
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           const body = new FormData();
-          body.append(s4(), new File([blob], `${biome}.png`));
+          // https://www.iana.org/assignments/media-types/media-types.xhtml
+          // body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
+          body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
           const result = await FileService.post(body);
           // await timer(3000);
           if (result.status === 'success') {

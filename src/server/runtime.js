@@ -2,6 +2,7 @@ import fs from 'fs';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import fileUpload from 'express-fileupload';
 
 import { createServer } from 'http';
 import { createIoServer } from './socket.io.js';
@@ -93,6 +94,9 @@ const buildRuntime = async () => {
 
           // parse requests of content-type - application/x-www-form-urlencoded
           app.use(express.urlencoded({ extended: true, limit: '20MB' }));
+
+          // file upload middleware
+          app.use(fileUpload());
 
           // json formatted response
           app.set('json spaces', 2);

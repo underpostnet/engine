@@ -2,6 +2,7 @@ import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
 import { loggerFactory } from '../../server/logger.js';
+import { FileModel } from './model.js';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -16,8 +17,12 @@ const post = async (req, res, options) => {
     const db = DataBaseProvider[`${host}${path}`];
     if (db) logger.info('success get db provider', options.db);
 
+    const results = [];
+    for (const file of req.files.file) results.push(await new FileModel(file).save());
+
     return res.status(200).json({
       status: 'success',
+      data: results,
     });
   } catch (error) {
     logger.error(error, error.stack);

@@ -6,7 +6,8 @@ const logger = loggerFactory(import.meta);
 
 const MongooseDB = {
   connect: (host, endpoint, dbName) => {
-    const uri = `${host}${endpoint}-${dbName}`;
+    // ${endpoint}
+    const uri = `${host}/${dbName}`;
     logger.info('MongooseDB connect', { host, endpoint, dbName, uri });
     return new Promise((resolve, reject) =>
       mongoose
