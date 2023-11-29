@@ -73,6 +73,7 @@ const Config = {
             'DropDown',
             'FullScreen',
             'LoadingAnimation',
+            'EventsUI',
           ],
           cyberia: [
             'Pixi',

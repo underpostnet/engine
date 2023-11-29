@@ -1,11 +1,14 @@
 import { FileService } from '../../services/file/service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
-import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { EventsUI } from '../core/EventsUI.js';
+import { loggerFactory } from '../core/Logger.js';
 import { Translate } from '../core/Translate.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
+
+const logger = loggerFactory(import.meta);
 
 const Biome = {
   city: function () {
@@ -370,24 +373,17 @@ const BiomeEngine = {
           const blob = await res.blob();
           downloadFile(blob, `${biome}.png`);
         };
-        (() => {
-          const idBtn = `.btn-upload-biome-${biome}`;
-          s(idBtn).onclick = async function () {
-            LoadingAnimation.bar.play(idBtn);
-            LoadingAnimation.spinner.play(idBtn);
-            const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-            const res = await fetch(biomeImg.currentSrc);
-            const blob = await res.blob();
-            const body = new FormData();
-            body.append(s4(), new File([blob], `${biome}.png`));
-            const result = await FileService.post(body);
-            await timer(3000);
-            LoadingAnimation.bar.stop(idBtn);
-            LoadingAnimation.spinner.stop(idBtn);
-            if (result.status === 'success') {
-            }
-          };
-        })();
+        EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
+          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+          const res = await fetch(biomeImg.currentSrc);
+          const blob = await res.blob();
+          const body = new FormData();
+          body.append(s4(), new File([blob], `${biome}.png`));
+          const result = await FileService.post(body);
+          await timer(3000);
+          if (result.status === 'success') {
+          }
+        });
       }),
     );
     return html`
