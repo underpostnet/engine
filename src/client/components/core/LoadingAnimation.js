@@ -32,7 +32,7 @@ const LoadingAnimation = {
     getId: (id) => `spinner-progress-${id.slice(1)}`,
     spinnerSrcValidator: async function (spinner) {
       if (!this.spinners[spinner]) {
-        const url = `${getProxyPath()}dist/loadingio/${spinner}/index.` + 'html';
+        const url = getProxyPath() + 'dist/loadingio/' + spinner + '/index.html';
         this.spinners[spinner] = {
           url,
           html: await CoreService.getRaw(url),
