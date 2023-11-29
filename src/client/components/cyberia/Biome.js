@@ -380,7 +380,7 @@ const BiomeEngine = {
           const body = new FormData();
           body.append(s4(), new File([blob], `${biome}.png`));
           const result = await FileService.post(body);
-          await timer(3000);
+          // await timer(3000);
           if (result.status === 'success') {
           }
         });

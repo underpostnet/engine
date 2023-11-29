@@ -1,4 +1,5 @@
 import { CoreService } from '../../services/core/service.js';
+import { s4 } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
 
@@ -6,9 +7,12 @@ const logger = loggerFactory(import.meta);
 
 const LoadingAnimation = {
   bar: {
+    tokens: {},
     getId: (id) => `bar-progress-${id.slice(1)}`,
     play: async function (container) {
       const id = this.getId(container);
+      const idEvent = s4() + s4() + s4();
+      this.tokens[container] = `${idEvent}`;
       append(
         'body',
         html` <div class="fix progress-bar diagonal-bar-background-animation ${id}" style="left: -100%"></div> `,
@@ -17,10 +21,13 @@ const LoadingAnimation = {
         { time: 500, value: '-35%' },
         { time: 1250, value: '-15%' },
       ])
-        setTimeout(() => (s(`.${id}`).style.left = frame.value), frame.time);
+        setTimeout(() => {
+          if (this.tokens[container] === idEvent && s(`.${id}`)) s(`.${id}`).style.left = frame.value;
+        }, frame.time);
     },
     stop: function (container) {
       const id = this.getId(container);
+      delete this.tokens[container];
       s(`.${id}`).style.left = '0%';
       s(`.${id}`).style.opacity = 1;
       setTimeout(() => (s(`.${id}`).style.opacity = 0));
