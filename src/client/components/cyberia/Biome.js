@@ -1,7 +1,7 @@
 import { FileService } from '../../services/file/service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
-import { ProgressAnimation } from '../core/ProgressAnimation.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Translate } from '../core/Translate.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
@@ -373,8 +373,8 @@ const BiomeEngine = {
         (() => {
           const idBtn = `.btn-upload-biome-${biome}`;
           s(idBtn).onclick = async function () {
-            ProgressAnimation.bar.play(idBtn);
-            ProgressAnimation.spinner.play(idBtn);
+            LoadingAnimation.bar.play(idBtn);
+            LoadingAnimation.spinner.play(idBtn);
             const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
             const res = await fetch(biomeImg.currentSrc);
             const blob = await res.blob();
@@ -382,8 +382,8 @@ const BiomeEngine = {
             body.append(s4(), new File([blob], `${biome}.png`));
             const result = await FileService.post(body);
             await timer(3000);
-            ProgressAnimation.bar.stop(idBtn);
-            ProgressAnimation.spinner.stop(idBtn);
+            LoadingAnimation.bar.stop(idBtn);
+            LoadingAnimation.spinner.stop(idBtn);
             if (result.status === 'success') {
             }
           };

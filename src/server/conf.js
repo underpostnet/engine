@@ -72,7 +72,7 @@ const Config = {
             'ToggleSwitch',
             'DropDown',
             'FullScreen',
-            'ProgressAnimation',
+            'LoadingAnimation',
           ],
           cyberia: [
             'Pixi',

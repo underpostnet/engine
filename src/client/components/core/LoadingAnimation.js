@@ -4,7 +4,7 @@ import { append, getProxyPath, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const ProgressAnimation = {
+const LoadingAnimation = {
   bar: {
     getId: (id) => `bar-progress-${id.slice(1)}`,
     play: async function (container) {
@@ -58,4 +58,4 @@ const ProgressAnimation = {
     },
   },
 };
-export { ProgressAnimation };
+export { LoadingAnimation };
