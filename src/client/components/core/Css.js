@@ -593,7 +593,7 @@ scrollbar-width: none;
           cursor: default;
           padding: 15px 0px 15px 0px;
           border-bottom: 2px solid #313131;
-          max-width: 450px;
+          /* max-width: 450px; */
         }
         @keyframes diagonal-lines {
           0% {

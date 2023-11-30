@@ -74,6 +74,7 @@ const Config = {
             'FullScreen',
             'LoadingAnimation',
             'EventsUI',
+            'AgGrid',
           ],
           cyberia: [
             'Pixi',
@@ -135,6 +136,14 @@ const Config = {
           {
             folder: './node_modules/@loadingio/css-spinner/entries',
             public_folder: '/dist/loadingio',
+          },
+          {
+            import_name: 'ag-grid-community',
+            import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+            folder: './node_modules/ag-grid-community/dist',
+            public_folder: '/dist/ag-grid-community',
+            styles: './node_modules/ag-grid-community/styles',
+            public_styles_folder: '/styles/ag-grid-community',
           },
         ],
         services: ['core', 'file'],

@@ -102,6 +102,7 @@ s(`.main-btn-biome`).onclick = async () => {
     barConfig,
     title: 'Biome engine',
     html: await BiomeEngine.Render(),
+    handleType: 'bar',
   });
 };
 

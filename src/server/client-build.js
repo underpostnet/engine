@@ -96,6 +96,10 @@ const buildClient = async () => {
           fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
           fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
         }
+        if ('styles' in dist) {
+          fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
+          fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
+        }
       }
 
       const buildId = `index.${client}`;
