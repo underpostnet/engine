@@ -110,7 +110,11 @@ const Modal = {
               ${options && options.title ? options.title : ''}
             </div>
           </div>
-          ${options && options.html ? html`<div class="in html-modal-content">${options.html}</div>` : ''}
+          ${options && options.html
+            ? html`<div class="in html-modal-content">
+                ${typeof options.html === 'function' ? await options.html() : options.html}
+              </div>`
+            : ''}
         </div>
       </div>`;
     const selector = options && options.selector ? options.selector : 'body';
