@@ -33,10 +33,7 @@ const Modal = {
             left: ${left};
             overflow: auto; /* resizable required */
             resize: auto; /* resizable required */
-            transition:
-              opacity 0.3s,
-              box-shadow 0.3s,
-              bottom 0.3s;
+            transition: opacity 0.3s, box-shadow 0.3s, bottom 0.3s;
             opacity: 0;
             z-index: 1;
             ${options && options.style
@@ -106,6 +103,9 @@ const Modal = {
                   })
                 : ''}
             </div>
+            ${options && options.status
+              ? html` <div class="abs modal-icon-container">${this.renderStatus(options.status)}</div> `
+              : ''}
             <div class="in ${options && options.titleClass ? options.titleClass : 'title-modal'}">
               ${options && options.title ? options.title : ''}
             </div>
@@ -257,6 +257,20 @@ const Modal = {
       id: IdModal,
       dragInstance,
     };
+  },
+  renderStatus: (status) => {
+    switch (status) {
+      case 'success':
+        return html`<div class="abs center"><i style="color: green" class="fa-solid fa-check"></i></div>`;
+      case 'error':
+        return html`<div class="abs center"><i style="color: red" class="fa-solid fa-xmark"></i></div>`;
+      case 'warning':
+        return html`<div class="abs center">
+          <i style="color: yellow" class="fa-solid fa-triangle-exclamation"></i>
+        </div>`;
+      default:
+        return html``;
+    }
   },
 };
 

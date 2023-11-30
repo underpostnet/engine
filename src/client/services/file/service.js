@@ -35,6 +35,28 @@ const FileService = {
           return reject(error);
         }),
     ),
+  get: (id = '') =>
+    new Promise((resolve, reject) =>
+      fetch(`${API_BASE}/${id}`, {
+        method: 'GET',
+        // headers: {
+        //   // 'Content-Type': 'application/json',
+        //   // 'Authorization': ''
+        // },
+        // body,
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
 };
 
 export { FileService };

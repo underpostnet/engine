@@ -48,9 +48,24 @@ const get = async (req, res, options) => {
     const db = DataBaseProvider[`${host}${path}`];
     if (db) logger.info('success get db provider', options.db);
 
+    // console.log('req.params', req.params);
+    // console.log('req.query', req.query);
+    // console.log('req.body', req.body);
+
+    let result = {};
+    switch (req.params.id) {
+      case 'all':
+        result = await FileModel.find();
+        break;
+
+      default:
+        break;
+    }
+
     // throw { message: 'error test' };
     return res.status(200).json({
       status: 'success',
+      data: result,
     });
   } catch (error) {
     logger.error(error, error.stack);

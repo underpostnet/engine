@@ -4,6 +4,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { loggerFactory } from '../core/Logger.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
@@ -341,14 +342,15 @@ const Biome = {
 
 const BiomeEngine = {
   Render: async function () {
-    let render = '';
+    const result = await FileService.get('all');
+    if (result.status === 'error') return;
+    let render = html` <div class="in">${AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div> `;
     for (const biome of Object.keys(Biome)) {
       render += html`
         <div class="in section-row">
           ${await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) })}
           ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` })}
           ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: `Upload ${biome} png` })}
-          <div class="in">${AgGrid.Render(`ag-grid-biome-${biome}`)}</div>
         </div>
       `;
     }
@@ -383,10 +385,12 @@ const BiomeEngine = {
           // https://www.iana.org/assignments/media-types/media-types.xhtml
           // body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
           body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
-          const result = await FileService.post(body);
+          const { status } = await FileService.post(body);
           // await timer(3000);
-          if (result.status === 'success') {
-          }
+          NotificationManager.Push({
+            html: Translate.Render(`${status}-upload-file`),
+            status,
+          });
         });
       }),
     );

@@ -1,4 +1,5 @@
 import { getId, getIsoDate } from './CommonJs.js';
+import { Css, Themes } from './Css.js';
 import { Modal } from './Modal.js';
 import { append, prepend, s } from './VanillaJs.js';
 
@@ -28,6 +29,11 @@ const NotificationManager = {
   },
   Tokens: {},
   Push: async function (options) {
+    const { barConfig } = await Themes[Css.currentTheme](); // newInstance
+    barConfig.buttons.maximize.disabled = true;
+    barConfig.buttons.minimize.disabled = true;
+    barConfig.buttons.restore.disabled = true;
+    barConfig.buttons.menu.disabled = true;
     const idNotification = getId(this.Tokens, 'board-notification-');
     this.Tokens[idNotification] = {};
     await Modal.Render({
@@ -39,11 +45,12 @@ const NotificationManager = {
       class: 'in',
       titleClass: 'notification-board-title',
       renderType: 'prepend',
-      barConfig: options.barConfig,
+      barConfig,
       style: {
         width: '300px',
       },
       effect: 'dropNotification',
+      status: options.status,
     });
     setTimeout(() => {
       if (s(`.btn-close-${idNotification}`)) s(`.btn-close-${idNotification}`).click();

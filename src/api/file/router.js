@@ -10,7 +10,7 @@ const logger = loggerFactory(meta);
 const ApiRouter = (options) => {
   const router = express.Router();
   router.post(endpoint, async (req, res) => await post(req, res, options));
-  router.get(endpoint, async (req, res) => await get(req, res, options));
+  router.get(`${endpoint}/:id`, async (req, res) => await get(req, res, options));
   return router;
 };
 

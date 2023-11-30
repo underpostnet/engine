@@ -628,6 +628,13 @@ scrollbar-width: none;
           background-size: 100px 100px;
           animation: diagonal-lines 2s linear infinite;
         }
+        .modal-icon-container {
+          width: 40px;
+          height: 40px;
+          top: 5px;
+          left: 5px;
+          /* border: 2px solid black; */
+        }
       `,
     ),
   retro: async () =>

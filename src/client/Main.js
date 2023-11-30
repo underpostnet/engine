@@ -20,6 +20,7 @@ import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
 import { JoyStick } from './components/cyberia/JoyStick.js';
 import { BiomeEngine } from './components/cyberia/Biome.js';
+import { EventsUI } from './components/core/EventsUI.js';
 
 const theme = 'cyberia';
 const { barConfig } = await Css.Init({ theme });
@@ -64,7 +65,7 @@ await Modal.Render({
   },
 });
 
-s(`.main-btn-settings`).onclick = async () => {
+EventsUI.onClick(`.main-btn-settings`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-settings',
@@ -72,9 +73,9 @@ s(`.main-btn-settings`).onclick = async () => {
     title: Translate.Render('settings'),
     html: await Settings.Render(),
   });
-};
+});
 
-s(`.main-btn-bag`).onclick = async () => {
+EventsUI.onClick(`.main-btn-bag`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-bag',
@@ -83,9 +84,9 @@ s(`.main-btn-bag`).onclick = async () => {
     html: await Bag.Render(),
     handleType: 'bar',
   });
-};
+});
 
-s(`.main-btn-colors`).onclick = async () => {
+EventsUI.onClick(`.main-btn-colors`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-pallet-colors',
@@ -93,9 +94,9 @@ s(`.main-btn-colors`).onclick = async () => {
     title: Translate.Render('pallet-colors'),
     html: ColorPalette.Render(),
   });
-};
+});
 
-s(`.main-btn-biome`).onclick = async () => {
+EventsUI.onClick(`.main-btn-biome`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-biome',
@@ -104,7 +105,7 @@ s(`.main-btn-biome`).onclick = async () => {
     html: await BiomeEngine.Render(),
     handleType: 'bar',
   });
-};
+});
 
 append('body', await JoyStick.Render());
 
