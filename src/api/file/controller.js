@@ -18,7 +18,15 @@ const post = async (req, res, options) => {
     if (db) logger.info('success get db provider', options.db);
 
     const results = [];
-    for (const file of req.files.file) results.push(await new FileModel(file).save());
+    if (Array.isArray(req.files.file))
+      for (const file of req.files.file) results.push(await new FileModel(file).save());
+    else if (req.files.file) results.push(await new FileModel(req.files.file).save());
+
+    if (results.length === 0)
+      return res.status(400).json({
+        status: 'error',
+        message: 'empty or invalid files',
+      });
 
     return res.status(200).json({
       status: 'success',
