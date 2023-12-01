@@ -4,6 +4,7 @@ import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
@@ -352,6 +353,7 @@ const BiomeEngine = {
           ${await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) })}
           ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` })}
           ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: `Upload ${biome} png` })}
+          ${await Input.JumpingText({ id: `input-name-upload-biome-${biome}`, label: Translate.Render('name') })}
         </div>
       `;
     }

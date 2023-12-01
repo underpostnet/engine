@@ -75,6 +75,7 @@ const Config = {
             'LoadingAnimation',
             'EventsUI',
             'AgGrid',
+            'Input',
           ],
           cyberia: [
             'Pixi',

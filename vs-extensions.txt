@@ -1,5 +1,6 @@
 adpyke.vscode-sql-formatter
 Angular.ng-template
+AntiAntiSepticeye.vscode-color-picker
 bashmish.es6-string-css
 bierner.lit-html
 bmewburn.vscode-intelephense-client
@@ -11,7 +12,6 @@ esbenp.prettier-vscode
 fivethree.vscode-ionic-snippets
 formulahendry.auto-rename-tag
 golang.go
-Ionic.ionic
 ipedrazas.kubernetes-snippets
 jeff-hykin.better-cpp-syntax
 jinxdash.prettier-rust
@@ -19,7 +19,6 @@ johnpapa.vscode-peacock
 JuanBlanco.solidity
 KevinRose.vsc-python-indent
 ms-azuretools.vscode-docker
-ms-dotnettools.csharp
 ms-dotnettools.vscode-dotnet-runtime
 ms-kubernetes-tools.vscode-kubernetes-tools
 ms-python.isort

@@ -635,6 +635,43 @@ scrollbar-width: none;
           left: 5px;
           /* border: 2px solid black; */
         }
+
+        .jumping-text-input {
+          background: none;
+          color: white;
+          min-width: 240px;
+          padding: 10px;
+          margin: 5px;
+          border: 2px solid #313131;
+          margin-top: 15px;
+          font-size: 18px;
+        }
+
+        .jumping-text-input-label {
+          position: absolute;
+          top: 20px;
+          left: 15px;
+          font-size: 18px;
+          transition: 0.3s;
+          z-index: 0;
+        }
+
+        .jumping-text-input:not(:placeholder-shown) + .jumping-text-input-label {
+          top: 0px;
+          z-index: 10;
+          font-size: 18px;
+        }
+
+        .jumping-text-input:focus + .jumping-text-input-label {
+          top: 0px;
+          z-index: 10;
+          font-size: 18px;
+          color: #ffcc00;
+        }
+
+        .jumping-text-input:focus {
+          border: 2px solid #ffcc00;
+        }
       `,
     ),
   retro: async () =>
@@ -678,6 +715,9 @@ scrollbar-width: none;
           height: 100px;
           border: 2px solid #313131;
           margin: 5px;
+        }
+        .jumping-text-input {
+          font-family: 'retro-font';
         }
       `,
     ),
