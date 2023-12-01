@@ -146,7 +146,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'file'],
+        services: ['core', 'file', 'cyberia-biome'],
       },
     },
     server: {
@@ -192,7 +192,7 @@ const Config = {
         },
         '/cyberia': {
           client: 'cyberia',
-          apis: ['file'],
+          apis: ['file', 'cyberia-biome'],
           runtime: 'nodejs',
           origins: [],
           disabled: false,

@@ -1,3 +1,4 @@
+import { CyberiaBiomeService } from '../../services/cyberia-biome/service.js';
 import { FileService } from '../../services/file/service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
@@ -357,7 +358,7 @@ const BiomeEngine = {
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        s(`.btn-biome-engine-${biome}`).onclick = async () => {
+        EventsUI.onClick(`.btn-biome-engine-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
           htmls(
             `.biome-solid-matrix-preview`,
@@ -370,7 +371,7 @@ const BiomeEngine = {
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           const file = new File([blob], { type: 'image/png' }); // open window save name
-        };
+        });
         s(`.btn-download-biome-${biome}-png`).onclick = async () => {
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           const res = await fetch(biomeImg.currentSrc);
@@ -385,12 +386,27 @@ const BiomeEngine = {
           // https://www.iana.org/assignments/media-types/media-types.xhtml
           // body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
           body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
-          const { status } = await FileService.post(body);
-          // await timer(3000);
-          NotificationManager.Push({
-            html: Translate.Render(`${status}-upload-file`),
-            status,
-          });
+          let fileId;
+          await (async () => {
+            const { status, data } = await FileService.post(body);
+            // await timer(3000);
+            NotificationManager.Push({
+              html: Translate.Render(`${status}-upload-file`),
+              status,
+            });
+            if (status === 'success') fileId = data[0]._id;
+          })();
+          if (fileId)
+            await (async () => {
+              let { solid, color } = Biome[biome]();
+              color = Object.values(color).map((row) => Object.values(row));
+              solid = Object.values(solid).map((row) => Object.values(row));
+              const { status, data } = await CyberiaBiomeService.post({ fileId, solid, color });
+              NotificationManager.Push({
+                html: Translate.Render(`${status}-upload-biome`),
+                status,
+              });
+            })();
         });
       }),
     );
