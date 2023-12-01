@@ -2,6 +2,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/service.js';
 import { FileService } from '../../services/file/service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
+import { ChoicesUI } from '../core/ChoicesUI.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -346,7 +347,10 @@ const BiomeEngine = {
   Render: async function () {
     const result = await FileService.get('all');
     if (result.status === 'error') return;
-    let render = html` <div class="in">${AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div> `;
+    let render = html`
+      <div class="in">${await ChoicesUI.Render()}</div>
+      <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div>
+    `;
     for (const biome of Object.keys(Biome)) {
       render += html`
         <div class="in section-row">

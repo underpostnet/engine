@@ -672,6 +672,10 @@ scrollbar-width: none;
         .jumping-text-input:focus {
           border: 2px solid #ffcc00;
         }
+        .choices__inner,
+        .choices__list {
+          background-color: #121212 !important;
+        }
       `,
     ),
   retro: async () =>

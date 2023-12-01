@@ -6,7 +6,7 @@ import * as agGrid from 'ag-grid-community';
 
 const AgGrid = {
   grids: {},
-  Render: function (options) {
+  Render: async function (options) {
     let { id, data } = options;
     if (!data) data = [];
     if (!this.theme) {
