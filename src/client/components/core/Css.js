@@ -672,33 +672,6 @@ scrollbar-width: none;
         .jumping-text-input:focus {
           border: 2px solid #ffcc00;
         }
-        .choices__inner {
-          background-color: #121212 !important;
-          width: auto !important;
-          border: 2px solid #313131;
-          display: block;
-          position: relative;
-        }
-        .choices__list {
-          background-color: #121212 !important;
-        }
-        .choices__input {
-          color: #ffffff !important;
-          background: #121212 !important;
-        }
-        .choices__item {
-          transition: 0.3s !important;
-        }
-        .is-highlighted {
-          color: #ffcc00 !important;
-          background: #313131 !important;
-        }
-        ::placeholder {
-          color: white;
-          opacity: 1;
-          /* Firefox */
-          background: none;
-        }
       `,
     ),
   retro: async () =>
@@ -744,9 +717,6 @@ scrollbar-width: none;
           margin: 5px;
         }
         .jumping-text-input {
-          font-family: 'retro-font';
-        }
-        ::placeholder {
           font-family: 'retro-font';
         }
       `,

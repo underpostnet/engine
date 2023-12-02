@@ -76,7 +76,6 @@ const Config = {
             'EventsUI',
             'AgGrid',
             'Input',
-            'ChoicesUI',
           ],
           cyberia: [
             'Pixi',
@@ -146,14 +145,6 @@ const Config = {
             public_folder: '/dist/ag-grid-community',
             styles: './node_modules/ag-grid-community/styles',
             public_styles_folder: '/styles/ag-grid-community',
-          },
-          {
-            import_name: 'choices.js',
-            import_name_build: '/dist/choices.js/choices.min.js',
-            folder: './node_modules/choices.js/public/assets/scripts',
-            public_folder: '/dist/choices.js',
-            styles: './node_modules/choices.js/public/assets/styles',
-            public_styles_folder: '/styles/choices.js',
           },
         ],
         services: ['core', 'file', 'cyberia-biome'],

@@ -26,6 +26,7 @@ logger.info('admin', await isAdmin());
 
 await buildClient();
 await buildRuntime();
-await buildProxy();
-await Dns.InitIpDaemon();
-ProcessController.init();
+
+// await buildProxy();
+// await Dns.InitIpDaemon();
+// ProcessController.init();
