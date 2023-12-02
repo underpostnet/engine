@@ -28,15 +28,7 @@ const ChoicesUI = {
       }
     });
     return html`
-      <h2>Single select input</h2>
-      <label id="choices-single-default-label" for="choices-single-default">Default</label>
-      <select
-        class="form-control"
-        data-trigger
-        name="choices-single-default"
-        id="choices-single-default"
-        placeholder="This is a search placeholder"
-      >
+      <select data-trigger placeholder="This is a search placeholder">
         <option value="">This is a placeholder</option>
         <option value="Choice 1">Choice 1</option>
         <option value="Choice 2">Choice 2</option>
