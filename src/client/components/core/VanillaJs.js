@@ -45,6 +45,9 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(el).classList.value;
 // Array.from(s(el).classList);
 
+// sa('[data-example]');
+// <div data-example ></div>
+
 // s(input).onblur = inputCheckFunction;
 // s(input).oninput = inputCheckFunction;
 
