@@ -30,6 +30,33 @@ const Translate = {
 
 const TranslateCore = {
   Init: async function () {
+    Translate.Data = {
+      ...Translate.Data,
+      emptyField: {
+        es: 'Este campo no puede estar vacío',
+        en: 'This field cannot be empty',
+      },
+      invalidEmail: {
+        es: 'Por favor, introduce una dirección de correo electrónico válida',
+        en: 'Please enter a valid email address',
+      },
+      passwordMismatch: {
+        es: 'Las contraseñas no coinciden',
+        en: 'Passwords do not match',
+      },
+      invalidPhoneNumber: {
+        es: 'Por favor, introduce un número de teléfono válido',
+        en: 'Please enter a valid phone number',
+      },
+      invalidDate: {
+        es: 'Por favor, introduce una fecha válida',
+        en: 'Please enter a valid date',
+      },
+      customValidator: {
+        es: 'Este campo no cumple con los requisitos específicos',
+        en: 'This field does not meet specific requirements',
+      },
+    };
     Translate.Data['color-copy'] = { es: 'color copiado en el portapapeles', en: 'color copied to clipboard' };
     Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
     Translate.Data['fullscreen'] = { en: 'fullscreen', es: 'pantalla completa' };
@@ -42,6 +69,9 @@ const TranslateCore = {
     Translate.Data['theme'] = { en: 'Theme', es: 'Tema' };
     Translate.Data['success-upload-file'] = { en: 'file uploaded successfully', es: 'archivo subido correctamente' };
     Translate.Data['error-upload-file'] = { en: 'error uploading file', es: 'error al subir el archivo' };
+    Translate.Data['generate'] = { en: 'generate', es: 'Generar' };
+    Translate.Data['download'] = { en: 'download', es: 'Descargar' };
+    Translate.Data['upload'] = { en: 'upload', es: 'Subir' };
   },
 };
 

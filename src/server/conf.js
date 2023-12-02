@@ -76,6 +76,7 @@ const Config = {
             'EventsUI',
             'AgGrid',
             'Input',
+            'Validator',
           ],
           cyberia: [
             'Pixi',

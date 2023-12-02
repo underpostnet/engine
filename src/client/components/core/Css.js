@@ -647,6 +647,13 @@ scrollbar-width: none;
           font-size: 18px;
         }
 
+        .jumping-text-input-info {
+          font-size: 14px;
+          padding-left: 5px;
+          cursor: text;
+          top: -2px;
+        }
+
         .jumping-text-input-label {
           position: absolute;
           top: 20px;
@@ -654,6 +661,7 @@ scrollbar-width: none;
           font-size: 18px;
           transition: 0.3s;
           z-index: 0;
+          cursor: text;
         }
 
         .jumping-text-input:not(:placeholder-shown) + .jumping-text-input-label {
@@ -868,4 +876,32 @@ const renderMediaQuery = (mediaData) => {
   `;
 };
 
-export { Css, Themes, barLabels, barConfig, borderChar, renderMediaQuery, renderDefaultWindowsModalButtonContent };
+const renderStatus = (status, options) => {
+  switch (status) {
+    case 'success':
+      return html`<div class="${options?.class ? options.class : 'abs center'}">
+        <i style="color: green" class="fa-solid fa-check"></i>
+      </div>`;
+    case 'error':
+      return html`<div class="${options?.class ? options.class : 'abs center'}">
+        <i style="color: red" class="fa-solid fa-xmark"></i>
+      </div>`;
+    case 'warning':
+      return html`<div class="${options?.class ? options.class : 'abs center'}">
+        <i style="color: yellow" class="fa-solid fa-triangle-exclamation"></i>
+      </div>`;
+    default:
+      return html``;
+  }
+};
+
+export {
+  Css,
+  Themes,
+  barLabels,
+  barConfig,
+  borderChar,
+  renderMediaQuery,
+  renderDefaultWindowsModalButtonContent,
+  renderStatus,
+};

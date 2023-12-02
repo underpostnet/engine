@@ -37,7 +37,6 @@
     "adm-zip": "^0.5.10",
     "ag-grid-community": "^31.0.0",
     "axios": "^1.5.1",
-    "choices.js": "^10.2.0",
     "colors": "^1.4.0",
     "copy-paste": "^1.5.3",
     "cors": "^2.8.5",

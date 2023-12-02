@@ -45,6 +45,8 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(el).classList.value;
 // Array.from(s(el).classList);
 
+// &nbsp
+
 // sa('[data-example]');
 // <div data-example ></div>
 

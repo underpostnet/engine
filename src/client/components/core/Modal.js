@@ -4,6 +4,7 @@ import { append, s, prepend } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
+import { renderStatus } from './Css.js';
 
 const Modal = {
   Data: {},
@@ -104,7 +105,7 @@ const Modal = {
                 : ''}
             </div>
             ${options && options.status
-              ? html` <div class="abs modal-icon-container">${this.renderStatus(options.status)}</div> `
+              ? html` <div class="abs modal-icon-container">${renderStatus(options.status)}</div> `
               : ''}
             <div class="in ${options && options.titleClass ? options.titleClass : 'title-modal'}">
               ${options && options.title ? options.title : ''}
@@ -261,20 +262,6 @@ const Modal = {
       id: IdModal,
       dragInstance,
     };
-  },
-  renderStatus: (status) => {
-    switch (status) {
-      case 'success':
-        return html`<div class="abs center"><i style="color: green" class="fa-solid fa-check"></i></div>`;
-      case 'error':
-        return html`<div class="abs center"><i style="color: red" class="fa-solid fa-xmark"></i></div>`;
-      case 'warning':
-        return html`<div class="abs center">
-          <i style="color: yellow" class="fa-solid fa-triangle-exclamation"></i>
-        </div>`;
-      default:
-        return html``;
-    }
   },
 };
 

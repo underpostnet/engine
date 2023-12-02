@@ -10,8 +10,8 @@ const EventsUI = {
     s(id).onclick = async function () {
       if (complete) {
         complete = false;
-        await LoadingAnimation.bar.play(id);
         await LoadingAnimation.spinner.play(id);
+        await LoadingAnimation.bar.play(id);
         await logic();
         LoadingAnimation.bar.stop(id);
         LoadingAnimation.spinner.stop(id);

@@ -3,11 +3,13 @@ import { FileService } from '../../services/file/service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
+import { renderStatus } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
+import { validationRules } from '../core/Validator.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -344,23 +346,47 @@ const Biome = {
 
 const BiomeEngine = {
   Render: async function () {
-    const result = await FileService.get('all');
-    if (result.status === 'error') return;
-    let render = html` <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div> `;
+    // const result = await FileService.get('all');
+    // if (result.status === 'error') return;
+    // let render = html` <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div> `;
+    let render = '';
     for (const biome of Object.keys(Biome)) {
       render += html`
         <div class="in section-row">
-          ${await BtnIcon.Render({ class: `btn-biome-engine-${biome}`, label: Translate.Render(biome) })}
-          ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: `Download ${biome} png` })}
-          ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: `Upload ${biome} png` })}
+          <div class="in">${Translate.Render(biome)}</div>
           ${await Input.JumpingText({ id: `input-name-upload-biome-${biome}`, label: Translate.Render('name') })}
+          ${await BtnIcon.Render({ class: `btn-generate-biome-${biome}`, label: Translate.Render(`generate`) })}
+          ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: Translate.Render(`download`) })}
+          ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: Translate.Render(`upload`) })}
         </div>
       `;
     }
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        EventsUI.onClick(`.btn-biome-engine-${biome}`, async () => {
+        (() => {
+          const validator = () => {
+            logger.warn(`.input-name-upload-biome-${biome}`, s(`.input-name-upload-biome-${biome}`).value);
+
+            if (validationRules.emptyField(s(`.input-name-upload-biome-${biome}`).value))
+              return htmls(
+                `.jumping-text-input-info-input-name-upload-biome-${biome}`,
+                html` ${renderStatus('error', { class: 'inl' })} &nbsp
+                  <span style="color: red">${Translate.Render('emptyField')}</span>`,
+              );
+
+            return htmls(
+              `.jumping-text-input-info-input-name-upload-biome-${biome}`,
+              html` ${renderStatus('success', { class: 'inl' })} &nbsp
+                <span style="color: green">ok</span>`,
+            );
+          };
+
+          s(`.input-name-upload-biome-${biome}`).oninput = validator;
+          s(`.input-name-upload-biome-${biome}`).onblur = validator;
+        })();
+
+        EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
           htmls(
             `.biome-solid-matrix-preview`,
