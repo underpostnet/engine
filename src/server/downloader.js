@@ -4,7 +4,7 @@ import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const Downloader = async (url, fullPath, options = { method: 'get', responseType: 'stream' }) =>
+const Downloader = (url, fullPath, options = { method: 'get', responseType: 'stream' }) =>
   new Promise((resolve, reject) =>
     axios({
       url,
