@@ -2,7 +2,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/service.js';
 import { FileService } from '../../services/file/service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, newInstance, random, range, s4, timer } from '../core/CommonJs.js';
+import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
 import { renderStatus } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -347,13 +347,14 @@ const Biome = {
 const BiomeEngine = {
   Render: async function () {
     // const result = await FileService.get('all');
+    const { status, data } = await CyberiaBiomeService.get('all-name');
     // if (result.status === 'error') return;
-    // let render = html` <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: result.data })}</div> `;
-    let render = '';
+    let render = html` <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data })}</div> `;
+    // let render = '';
     for (const biome of Object.keys(Biome)) {
       render += html`
         <div class="in section-row">
-          <div class="in">${Translate.Render(biome)}</div>
+          <div class="in sub-title-modal">${Translate.Render(biome)}</div>
           ${await Input.JumpingText({ id: `input-name-upload-biome-${biome}`, label: Translate.Render('name') })}
           ${await BtnIcon.Render({ class: `btn-generate-biome-${biome}`, label: Translate.Render(`generate`) })}
           ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: Translate.Render(`download`) })}
@@ -364,27 +365,30 @@ const BiomeEngine = {
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        (() => {
-          const validator = () => {
+        const validator = {
+          name: () => {
             logger.warn(`.input-name-upload-biome-${biome}`, s(`.input-name-upload-biome-${biome}`).value);
 
-            if (validationRules.emptyField(s(`.input-name-upload-biome-${biome}`).value))
-              return htmls(
+            if (validationRules.emptyField(s(`.input-name-upload-biome-${biome}`).value)) {
+              htmls(
                 `.jumping-text-input-info-input-name-upload-biome-${biome}`,
                 html` ${renderStatus('error', { class: 'inl' })} &nbsp
                   <span style="color: red">${Translate.Render('emptyField')}</span>`,
               );
+              return true;
+            }
 
-            return htmls(
+            htmls(
               `.jumping-text-input-info-input-name-upload-biome-${biome}`,
               html` ${renderStatus('success', { class: 'inl' })} &nbsp
                 <span style="color: green">ok</span>`,
             );
-          };
+            return false;
+          },
+        };
 
-          s(`.input-name-upload-biome-${biome}`).oninput = validator;
-          s(`.input-name-upload-biome-${biome}`).onblur = validator;
-        })();
+        s(`.input-name-upload-biome-${biome}`).oninput = validator.name;
+        s(`.input-name-upload-biome-${biome}`).onblur = validator.name;
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
@@ -407,6 +411,8 @@ const BiomeEngine = {
           downloadFile(blob, `${biome}.png`);
         };
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
+          const validators = [validator.name()];
+          if (validators.includes(true)) return;
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
@@ -429,7 +435,12 @@ const BiomeEngine = {
               let { solid, color } = Biome[biome]();
               color = Object.values(color).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
-              const { status, data } = await CyberiaBiomeService.post({ fileId, solid, color });
+              const { status, data } = await CyberiaBiomeService.post({
+                fileId,
+                solid,
+                color,
+                name: s(`.input-name-upload-biome-${biome}`).value,
+              });
               NotificationManager.Push({
                 html: Translate.Render(`${status}-upload-biome`),
                 status,

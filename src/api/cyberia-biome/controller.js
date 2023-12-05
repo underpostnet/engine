@@ -48,6 +48,10 @@ const get = async (req, res, options) => {
       case 'all':
         result = await CyberiaBiomeModel.find();
         break;
+      case 'all-name':
+        result = await CyberiaBiomeModel.find().select({ _id: 1, name: 1 });
+        // User.findById(id).select("_id, isActive").then(...)
+        break;
 
       default:
         break;

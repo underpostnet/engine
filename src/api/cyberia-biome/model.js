@@ -7,6 +7,7 @@ const CyberiaBiomeSchema = new Schema({
   },
   solid: [[{ type: Number }]],
   color: [[{ type: String }]],
+  name: { type: String },
 });
 
 const CyberiaBiomeModel = model('CyberiaBiome', CyberiaBiomeSchema);

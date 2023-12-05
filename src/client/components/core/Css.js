@@ -727,6 +727,14 @@ scrollbar-width: none;
         .jumping-text-input {
           font-family: 'retro-font';
         }
+        .sub-title-modal {
+          padding: 5px;
+          margin: 5px;
+          text-transform: capitalize;
+          cursor: default;
+          font-size: 16px;
+          color: #ffcc00;
+        }
       `,
     ),
   fontawesome: async () =>
