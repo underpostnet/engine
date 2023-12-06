@@ -15,7 +15,9 @@ const Settings = {
     return html`
       <div class="in section-row">
         <div class="fl ">
-          <div class="in fll" style="width: 70%">${Translate.Render('fullscreen')}</div>
+          <div class="in fll" style="width: 70%">
+            <div class="in label-default">${Translate.Render('fullscreen')}</div>
+          </div>
           <div class="in fll" style="width: 30%">
             ${await ToggleSwitch.Render({
               id: 'fullscreen-toggle',
@@ -36,7 +38,6 @@ const Settings = {
       </div>
 
       <div class="in section-row">
-        ${Translate.Render('lang')}
         ${await DropDown.Render({
           head: {
             value: s('html').lang ? Translate.Render(s('html').lang) : Translate.Render('en'),
@@ -44,6 +45,7 @@ const Settings = {
               console.log('DropDown onClick', this.value);
             },
           },
+          label: html`<div class="in label-default">${Translate.Render('lang')}</div>`,
           list: ['en', 'es'].map((language) => {
             return {
               value: Translate.Render(language),
@@ -54,7 +56,6 @@ const Settings = {
       </div>
 
       <div class="in section-row">
-        ${Translate.Render('theme')}
         ${await DropDown.Render({
           head: {
             value: Css.currentTheme,
@@ -62,6 +63,7 @@ const Settings = {
               console.log('DropDown onClick', this.value);
             },
           },
+          label: html` <div class="in label-default">${Translate.Render('theme')}</div>`,
           list: Object.keys(Themes).map((theme) => {
             return {
               value: theme,

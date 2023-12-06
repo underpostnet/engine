@@ -351,19 +351,7 @@ const BiomeEngine = {
     const biomeData = await CyberiaBiomeService.get('all-name');
     let currentBiome;
     // if (result.status === 'error') return;
-    let render = html`
-      <div class="in">
-        ${await AgGrid.Render({
-          id: `ag-grid-biome-files`,
-          data: biomeData.data,
-          columnDefs: [
-            { field: '_id', headerName: 'ID' },
-            { field: 'biome', headerName: 'Biome' },
-            { field: 'name', headerName: 'Name' },
-          ],
-        })}
-      </div>
-
+    let createBiomeFormRender = html`
       ${await DropDown.Render({
         head: {
           value: Translate.Render('biome-type'),
@@ -371,10 +359,13 @@ const BiomeEngine = {
             console.log('DropDown onClick', this.value);
           },
         },
+        disabledHoverOpen: true,
         initIndex: 1,
+        label: html`<div class="in label-default">${Translate.Render('select-biome')}</div>`,
+        optionsContainerClass: 'in',
         list: Object.keys(Biome).map((biomeKey) => {
           return {
-            value: html`<div class="inl sub-title-modal">${Translate.Render(biomeKey)}</div>`,
+            value: Translate.Render(biomeKey),
             onClick: (event) => {
               // const { selector, id, index } = event;
               currentBiome = biomeKey;
@@ -388,12 +379,24 @@ const BiomeEngine = {
     `;
     // let render = '';
     for (const biome of Object.keys(Biome)) {
-      render += html`
-        <div class="in section-row section-row-${biome}" style="display: none">
-          ${await Input.JumpingText({ id: `input-name-upload-biome-${biome}`, label: Translate.Render('name') })}
-          ${await BtnIcon.Render({ class: `btn-generate-biome-${biome}`, label: Translate.Render(`generate`) })}
-          ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: Translate.Render(`download`) })}
-          ${await BtnIcon.Render({ class: `btn-upload-biome-${biome}`, label: Translate.Render(`upload`) })}
+      createBiomeFormRender += html`
+        <div class="in section-row-${biome}" style="display: none">
+          ${await Input.JumpingText({
+            id: `input-name-upload-biome-${biome}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
+          })}
+          ${await BtnIcon.Render({
+            class: `in btn-form btn-generate-biome-${biome}`,
+            label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
+          })}
+          ${await BtnIcon.Render({
+            class: `in btn-form btn-download-biome-${biome}-png`,
+            label: html`<i class="fa-solid fa-download"></i> ${Translate.Render(`download`)}`,
+          })}
+          ${await BtnIcon.Render({
+            class: `in btn-form btn-upload-biome-${biome}`,
+            label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
+          })}
         </div>
       `;
     }
@@ -499,7 +502,24 @@ const BiomeEngine = {
           }
         `}
       </style>
-      ${render}
+      <div class="in">
+        <div class="in section-row">
+          <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
+          ${await AgGrid.Render({
+            id: `ag-grid-biome-files`,
+            data: biomeData.data,
+            columnDefs: [
+              { field: '_id', headerName: 'ID' },
+              { field: 'biome', headerName: 'Biome' },
+              { field: 'name', headerName: 'Name' },
+            ],
+          })}
+        </div>
+      </div>
+      <div class="in section-row">
+        <div class="in sub-title-modal"><i class="fa-solid fa-plus"></i> ${Translate.Render('create-biome')}</div>
+        ${createBiomeFormRender}
+      </div>
       <div class="in biome-img-matrix-preview"></div>
       <pre class="in biome-solid-matrix-preview"></pre>
     `;

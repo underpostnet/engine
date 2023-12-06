@@ -57,7 +57,7 @@ const LoadingAnimation = {
     play: async function (container, spinner = 'spinner') {
       await this.spinnerSrcValidator(spinner);
       const id = this.getId(container);
-      append(container, html` <div class="in ${id}" style="text-align: center">${this.spinners[spinner].html}</div> `);
+      append(container, html` <div class="in ${id} loading-animation-container">${this.spinners[spinner].html}</div> `);
     },
     stop: function (container) {
       const id = this.getId(container);

@@ -16,13 +16,17 @@ const DropDown = {
       },
     });
     setTimeout(() => {
-      s(`.${id}-head`).onmouseover = () => s(`.${id}-content`).classList.remove('hide');
+      if (!options.disabledHoverOpen) s(`.${id}-head`).onmouseover = () => s(`.${id}-content`).classList.remove('hide');
+      else s(`.${id}-head`).onclick = () => s(`.${id}-content`).classList.remove('hide');
       if (options && 'initIndex' in options) setTimeout(() => s(`.option-${id}-${options.initIndex}`).click());
     });
     return html`
-      <div class="in dropdown">
+      <div class="inl dropdown">
+        ${'label' in options ? options.label : ''}
         <div class="in dropdown-option ${id}-head">${options.head.value}</div>
-        <div class="dropdown-content ${id}-content">
+        <div
+          class="dropdown-content-${options.optionsContainerClass ? options.optionsContainerClass : 'in'} ${id}-content"
+        >
           ${options.list
             .map((option, i) => {
               setTimeout(() => {

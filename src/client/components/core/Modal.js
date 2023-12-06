@@ -46,7 +46,7 @@ const Modal = {
           .bar-default-modal-${IdModal} {
             top: 0px;
             left: 0px;
-            z-index: 1;
+            z-index: 4;
           }
 
           .modal-html-${IdModal} {
