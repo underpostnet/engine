@@ -1,5 +1,5 @@
-import { CyberiaBiomeService } from '../../services/cyberia-biome/service.js';
-import { FileService } from '../../services/file/service.js';
+import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
+import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';

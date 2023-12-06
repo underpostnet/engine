@@ -1,4 +1,4 @@
-import { CoreService } from '../../services/core/service.js';
+import { CoreService } from '../../services/core/core.service.js';
 import { s4 } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
