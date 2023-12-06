@@ -11,7 +11,7 @@ const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 const DataBaseProvider = {};
 
 const select = {
-  'all-name': { _id: 1, name: 1 },
+  'all-name': { _id: 1, name: 1, biome: 1 },
 };
 
 const post = async (req, res, options) => {

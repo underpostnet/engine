@@ -352,7 +352,17 @@ const BiomeEngine = {
     let currentBiome;
     // if (result.status === 'error') return;
     let render = html`
-      <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: biomeData.data })}</div>
+      <div class="in">
+        ${await AgGrid.Render({
+          id: `ag-grid-biome-files`,
+          data: biomeData.data,
+          columnDefs: [
+            { field: '_id', headerName: 'ID' },
+            { field: 'biome', headerName: 'Biome' },
+            { field: 'name', headerName: 'Name' },
+          ],
+        })}
+      </div>
 
       ${await DropDown.Render({
         head: {
@@ -361,12 +371,16 @@ const BiomeEngine = {
             console.log('DropDown onClick', this.value);
           },
         },
+        initIndex: 1,
         list: Object.keys(Biome).map((biomeKey) => {
           return {
-            value: Translate.Render(biomeKey),
-            onClick: () => {
+            value: html`<div class="inl sub-title-modal">${Translate.Render(biomeKey)}</div>`,
+            onClick: (event) => {
+              // const { selector, id, index } = event;
               currentBiome = biomeKey;
               console.log('currentBiome', currentBiome);
+              for (const biome of Object.keys(Biome))
+                s(`.section-row-${biome}`).style.display = currentBiome === biome ? 'block' : 'none';
             },
           };
         }),
@@ -375,8 +389,7 @@ const BiomeEngine = {
     // let render = '';
     for (const biome of Object.keys(Biome)) {
       render += html`
-        <div class="in section-row">
-          <div class="in sub-title-modal">${Translate.Render(biome)}</div>
+        <div class="in section-row section-row-${biome}" style="display: none">
           ${await Input.JumpingText({ id: `input-name-upload-biome-${biome}`, label: Translate.Render('name') })}
           ${await BtnIcon.Render({ class: `btn-generate-biome-${biome}`, label: Translate.Render(`generate`) })}
           ${await BtnIcon.Render({ class: `btn-download-biome-${biome}-png`, label: Translate.Render(`download`) })}
@@ -462,6 +475,7 @@ const BiomeEngine = {
                 solid,
                 color,
                 name: s(`.input-name-upload-biome-${biome}`).value,
+                biome,
               });
               NotificationManager.Push({
                 html: Translate.Render(`${status}-upload-biome`),
@@ -469,6 +483,10 @@ const BiomeEngine = {
               });
               biomeData.data.push(data);
               AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', biomeData.data);
+              // AgGrid.grids[`ag-grid-biome-files`].refreshCells({
+              //   force: true,
+              //   suppressFlash: false,
+              // });
             })();
         });
       }),

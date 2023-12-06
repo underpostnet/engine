@@ -583,7 +583,7 @@ scrollbar-width: none;
           border: 2px solid #313131;
           padding: 5px;
           transition: 0.3s;
-          cursor: pointer;
+          cursor: pointer !important;
         }
         .dropdown-option:hover {
           background: #313131;

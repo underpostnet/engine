@@ -30,8 +30,11 @@ const AgGrid = {
         // Row Data: The data to be displayed.
         rowHeight: 60,
         rowData: data,
+        enableCellChangeFlash: true,
         // Column Definitions: Defines & controls grid columns.
-        columnDefs: data[0]
+        columnDefs: options?.columnDefs
+          ? options.columnDefs
+          : data[0]
           ? Object.keys(data[0]).map((field) => {
               return { field };
             })

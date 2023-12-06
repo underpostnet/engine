@@ -17,6 +17,7 @@ const DropDown = {
     });
     setTimeout(() => {
       s(`.${id}-head`).onmouseover = () => s(`.${id}-content`).classList.remove('hide');
+      if (options && 'initIndex' in options) setTimeout(() => s(`.option-${id}-${options.initIndex}`).click());
     });
     return html`
       <div class="in dropdown">
@@ -29,7 +30,7 @@ const DropDown = {
                   e.preventDefault();
                   if (i < options.list.length - 1)
                     htmls(`.${id}-head`, html`<i class="fa-solid fa-caret-down"></i> ${option.value}`);
-                  option.onClick();
+                  option.onClick({ selector: `.option-${id}-${i}`, id, index: i });
                   s(`.${id}-content`).classList.add('hide');
                 };
               });
