@@ -1,6 +1,6 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../server/logger.js';
-import { get, post } from './controller.js';
+import { get, post } from './file.controller.js';
 import express from 'express';
 
 const endpoint = endpointFactory(import.meta);

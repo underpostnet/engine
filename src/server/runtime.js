@@ -107,7 +107,7 @@ const buildRuntime = async () => {
           if (apis)
             for (const api of apis)
               await (async () => {
-                const { ApiRouter } = await import(`../api/${api}/router.js`);
+                const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
                 const apiPath = `${path === '/' ? '' : path}/api`;
                 logger.info('Load api router', { host, path: apiPath, api });
                 app.use(apiPath, ApiRouter({ host, path: apiPath, db }));

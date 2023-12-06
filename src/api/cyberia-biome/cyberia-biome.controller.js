@@ -2,7 +2,7 @@ import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
 import { loggerFactory } from '../../server/logger.js';
-import { CyberiaBiomeModel } from './model.js';
+import { CyberiaBiomeModel } from './cyberia-biome.model.js';
 
 const endpoint = endpointFactory(import.meta);
 
