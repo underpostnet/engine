@@ -12,7 +12,11 @@ const EventsUI = {
         complete = false;
         await LoadingAnimation.spinner.play(id);
         await LoadingAnimation.bar.play(id);
-        await logic();
+        try {
+          await logic();
+        } catch (error) {
+          logger.error(error);
+        }
         LoadingAnimation.bar.stop(id);
         LoadingAnimation.spinner.stop(id);
         complete = true;

@@ -4,6 +4,7 @@ import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
 import { renderStatus } from '../core/Css.js';
+import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -347,9 +348,30 @@ const Biome = {
 const BiomeEngine = {
   Render: async function () {
     // const result = await FileService.get('all');
-    const { status, data } = await CyberiaBiomeService.get('all-name');
+    const biomeData = await CyberiaBiomeService.get('all-name');
+    let currentBiome;
     // if (result.status === 'error') return;
-    let render = html` <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data })}</div> `;
+    let render = html`
+      <div class="in">${await AgGrid.Render({ id: `ag-grid-biome-files`, data: biomeData.data })}</div>
+
+      ${await DropDown.Render({
+        head: {
+          value: Translate.Render('biome-type'),
+          onClick: function () {
+            console.log('DropDown onClick', this.value);
+          },
+        },
+        list: Object.keys(Biome).map((biomeKey) => {
+          return {
+            value: Translate.Render(biomeKey),
+            onClick: () => {
+              currentBiome = biomeKey;
+              console.log('currentBiome', currentBiome);
+            },
+          };
+        }),
+      })}
+    `;
     // let render = '';
     for (const biome of Object.keys(Biome)) {
       render += html`
@@ -445,6 +467,8 @@ const BiomeEngine = {
                 html: Translate.Render(`${status}-upload-biome`),
                 status,
               });
+              biomeData.data.push(data);
+              AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', biomeData.data);
             })();
         });
       }),

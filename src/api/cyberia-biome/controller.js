@@ -10,6 +10,10 @@ const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 
 const DataBaseProvider = {};
 
+const select = {
+  'all-name': { _id: 1, name: 1 },
+};
+
 const post = async (req, res, options) => {
   try {
     const { host, path } = options;
@@ -17,7 +21,8 @@ const post = async (req, res, options) => {
     const db = DataBaseProvider[`${host}${path}`];
     if (db) logger.info('success get db provider', options.db);
 
-    const result = await new CyberiaBiomeModel(req.body).save();
+    const { _id } = await new CyberiaBiomeModel(req.body).save();
+    const [result] = await CyberiaBiomeModel.find({ _id }).select(select['all-name']);
 
     return res.status(200).json({
       status: 'success',
@@ -49,7 +54,7 @@ const get = async (req, res, options) => {
         result = await CyberiaBiomeModel.find();
         break;
       case 'all-name':
-        result = await CyberiaBiomeModel.find().select({ _id: 1, name: 1 });
+        result = await CyberiaBiomeModel.find().select(select['all-name']);
         // User.findById(id).select("_id, isActive").then(...)
         break;
 
