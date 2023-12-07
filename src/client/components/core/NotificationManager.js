@@ -18,7 +18,6 @@ const NotificationManager = {
               z-index: 3;
             }
             .notification-board-title {
-              font-size: 14px;
               padding: 5px;
             }
           `}
@@ -37,7 +36,7 @@ const NotificationManager = {
     const idNotification = getId(this.Tokens, 'board-notification-');
     this.Tokens[idNotification] = {};
     await Modal.Render({
-      title: html`<div class="in">${getIsoDate(new Date())}</div>
+      title: html`<div class="in notification-manager-date">${getIsoDate(new Date())}</div>
         ${options.html}`,
       html: '',
       id: idNotification,

@@ -253,10 +253,12 @@ const Modal = {
     }
 
     dragInstance = setDragInstance();
-    new ResizeObserver(() => {
-      if (s(`.${IdModal}`))
-        logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
-    }).observe(s(`.${IdModal}`));
+    true
+      ? null
+      : new ResizeObserver(() => {
+          if (s(`.${IdModal}`))
+            logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
+        }).observe(s(`.${IdModal}`));
     // cancel: [cancel1, cancel2]
     return {
       id: IdModal,

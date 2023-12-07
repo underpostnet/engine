@@ -694,21 +694,20 @@ scrollbar-width: none;
           padding-top: 35px;
           padding-bottom: 20px;
           margin-top: 15px;
-          font-size: 18px;
+          font-size: 24px;
         }
 
         .jumping-text-input-label {
           position: absolute;
           top: 30px;
           left: 15px;
-          font-size: 18px;
           transition: 0.3s;
           z-index: 0;
           cursor: text;
         }
 
         .jumping-text-input-info {
-          font-size: 13px;
+          font-size: 16px;
           cursor: text;
           height: 30px;
           top: 61px;
@@ -720,13 +719,11 @@ scrollbar-width: none;
         .jumping-text-input:not(:placeholder-shown) + .jumping-text-input-label {
           top: 15px;
           z-index: 1;
-          font-size: 18px;
         }
 
         .jumping-text-input:focus + .jumping-text-input-label {
           top: 15px;
           z-index: 1;
-          font-size: 18px;
           color: #ffcc00;
         }
 
@@ -757,7 +754,10 @@ scrollbar-width: none;
         .modal,
         button {
           font-family: 'retro-font';
-          font-size: 18px;
+          font-size: 24px;
+        }
+        button {
+          min-width: 40px;
         }
         .title-modal {
           color: #ffcc00;
@@ -789,6 +789,10 @@ scrollbar-width: none;
           /* border: 2px solid #313131; */
           /* color: #ffcc00; */
         }
+        .notification-manager-date {
+          font-size: 20px;
+          color: #7a7a7a;
+        }
         .dropdown-option {
           min-width: 250px;
         }
@@ -798,20 +802,37 @@ scrollbar-width: none;
           text-align: left;
           min-height: 70px;
         }
-        .label-default {
+        .label-dropdown {
           padding: 5px;
+          border: 2px solid #313131;
         }
-        .dropdown {
+        .section-margin-padding {
           margin: 5px;
           margin-top: 15px;
+        }
+        .dropdown {
           z-index: 3 !important;
-          border: 2px solid #313131;
         }
         i {
           margin: 10px;
         }
         .loading-animation-container {
           text-align: center;
+        }
+        .ag-theme-alpine,
+        .ag-theme-alpine-dark {
+          /*
+          --ag-foreground-color: rgb(126, 46, 132);
+          --ag-background-color: rgb(249, 245, 227);
+          --ag-header-foreground-color: rgb(204, 245, 172);
+          --ag-header-background-color: rgb(209, 64, 129);
+          --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
+          --ag-header-column-resize-handle-color: rgb(126, 46, 132);
+
+          --ag-font-size: 17px;
+          */
+          --ag-font-family: 'retro-font';
+          --ag-font-size: 24px;
         }
       `,
     ),

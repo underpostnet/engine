@@ -21,7 +21,7 @@ const DropDown = {
       if (options && 'initIndex' in options) setTimeout(() => s(`.option-${id}-${options.initIndex}`).click());
     });
     return html`
-      <div class="inl dropdown">
+      <div class="inl dropdown section-margin-padding">
         ${'label' in options ? options.label : ''}
         <div class="in dropdown-option ${id}-head">${options.head.value}</div>
         <div

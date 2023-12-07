@@ -346,7 +346,7 @@ const Biome = {
 };
 
 const BiomeEngine = {
-  Render: async function () {
+  Render: async function (options) {
     // const result = await FileService.get('all');
     const biomeData = await CyberiaBiomeService.get('all-name');
     let currentBiome;
@@ -361,7 +361,7 @@ const BiomeEngine = {
         },
         disabledHoverOpen: true,
         initIndex: 1,
-        label: html`<div class="in label-default">${Translate.Render('select-biome')}</div>`,
+        label: html`<div class="in label-dropdown">${Translate.Render('select-biome')}</div>`,
         optionsContainerClass: 'in',
         list: Object.keys(Biome).map((biomeKey) => {
           return {
@@ -494,6 +494,30 @@ const BiomeEngine = {
         });
       }),
     );
+    setTimeout(() => {
+      new ResizeObserver(() => {
+        if (s(`.${options.IdModal}`)) {
+          if (s(`.${options.IdModal}`).offsetWidth < 500)
+            htmls(
+              `.style-biome-col`,
+              css`
+                .biome-col {
+                  width: 100%;
+                }
+              `,
+            );
+          else
+            htmls(
+              `.style-biome-col`,
+              css`
+                .biome-col {
+                  width: 50%;
+                }
+              `,
+            );
+        }
+      }).observe(s(`.${options.IdModal}`));
+    });
     return html`
       <style>
         ${css`
@@ -502,23 +526,26 @@ const BiomeEngine = {
           }
         `}
       </style>
-      <div class="in">
-        <div class="in section-row">
-          <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
-          ${await AgGrid.Render({
-            id: `ag-grid-biome-files`,
-            data: biomeData.data,
-            columnDefs: [
-              { field: '_id', headerName: 'ID' },
-              { field: 'biome', headerName: 'Biome' },
-              { field: 'name', headerName: 'Name' },
-            ],
-          })}
+      <style class="style-biome-col"></style>
+      <div class="fl">
+        <div class="in fll biome-col">
+          <div class="in sub-title-modal"><i class="fa-solid fa-plus"></i> ${Translate.Render('create-biome')}</div>
+          <div class="in section-margin-padding">${createBiomeFormRender}</div>
         </div>
-      </div>
-      <div class="in section-row">
-        <div class="in sub-title-modal"><i class="fa-solid fa-plus"></i> ${Translate.Render('create-biome')}</div>
-        ${createBiomeFormRender}
+        <div class="in fll biome-col">
+          <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
+          <div class="in section-margin-padding">
+            ${await AgGrid.Render({
+              id: `ag-grid-biome-files`,
+              data: biomeData.data,
+              columnDefs: [
+                { field: '_id', headerName: 'ID', flex: 1 },
+                { field: 'biome', headerName: 'Biome', flex: 1 },
+                { field: 'name', headerName: 'Name', flex: 1 },
+              ],
+            })}
+          </div>
+        </div>
       </div>
       <div class="in biome-img-matrix-preview"></div>
       <pre class="in biome-solid-matrix-preview"></pre>
