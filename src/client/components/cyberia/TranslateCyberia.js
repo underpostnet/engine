@@ -13,6 +13,8 @@ const TranslateCyberia = {
     Translate.Data['create-biome'] = { en: 'create biome', es: 'crear bioma' };
     Translate.Data['biome-type'] = { en: 'Biome type', es: 'Seleccionar bioma' };
     Translate.Data['biomes'] = { en: 'Biomes', es: 'Biomas' };
+    Translate.Data['biome-image'] = { en: 'See Image', es: 'Ver Imagen' };
+    Translate.Data['biome-solid'] = { en: 'See Solid', es: 'Ver Matrix' };
   },
 };
 

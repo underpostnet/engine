@@ -3,11 +3,12 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
-import { renderStatus } from '../core/Css.js';
+import { Css, Themes, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
+import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { validationRules } from '../core/Validator.js';
@@ -397,12 +398,22 @@ const BiomeEngine = {
             class: `in btn-form btn-upload-biome-${biome}`,
             label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
           })}
+          ${await BtnIcon.Render({
+            class: `in btn-form btn-image-biome-${biome}`,
+            label: html`<i class="fa-regular fa-image"></i> ${Translate.Render(`biome-image`)}`,
+          })}
+          ${await BtnIcon.Render({
+            class: `in btn-form btn-solid-biome-${biome}`,
+            label: html`<i class="fa-solid fa-table-cells"></i> ${Translate.Render(`biome-solid`)}`,
+          })}
         </div>
       `;
     }
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
+        let currentRenderSolid;
+        let currentRenderImage;
         const validator = {
           name: () => {
             logger.warn(`.input-name-upload-biome-${biome}`, s(`.input-name-upload-biome-${biome}`).value);
@@ -430,14 +441,17 @@ const BiomeEngine = {
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
-          htmls(
-            `.biome-solid-matrix-preview`,
-            JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`),
-          );
+          // htmls(
+          //   `.biome-solid-matrix-preview`,
+          //   JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`),
+          // );
+          currentRenderSolid = html`<pre style="font-size: 10px">
+${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
+          >`;
           Pixi.RenderBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-          htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
-
+          // htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
+          currentRenderImage = html`<img src="${biomeImg.currentSrc}" />`;
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           const file = new File([blob], { type: 'image/png' }); // open window save name
@@ -491,6 +505,25 @@ const BiomeEngine = {
               //   suppressFlash: false,
               // });
             })();
+        });
+
+        EventsUI.onClick(`.btn-image-biome-${biome}`, async () => {
+          const { barConfig } = await Themes[Css.currentTheme]();
+          await Modal.Render({
+            id: `modal-image-biome-${biome}`,
+            barConfig,
+            title: ` ${Translate.Render(`biome-image`)} - ${biome}`,
+            html: currentRenderImage,
+          });
+        });
+        EventsUI.onClick(`.btn-solid-biome-${biome}`, async () => {
+          const { barConfig } = await Themes[Css.currentTheme]();
+          await Modal.Render({
+            id: `modal-solid-biome-${biome}`,
+            barConfig,
+            title: ` ${Translate.Render(`biome-solid`)} - ${biome}`,
+            html: currentRenderSolid,
+          });
         });
       }),
     );
@@ -547,8 +580,10 @@ const BiomeEngine = {
           </div>
         </div>
       </div>
+      <!--
       <div class="in biome-img-matrix-preview"></div>
       <pre class="in biome-solid-matrix-preview"></pre>
+      -->
     `;
   },
 };
