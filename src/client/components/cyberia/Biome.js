@@ -392,19 +392,11 @@ const BiomeEngine = {
     // if (result.status === 'error') return;
     let configBiomeFormRender = html`
       ${await DropDown.Render({
-        head: {
-          display: Translate.Render('biome-type'),
-          onClick: function () {
-            console.log('DropDown onClick', this.value);
-          },
-        },
-        disabledHoverOpen: true,
-        initIndex: 1,
-        minHeight: '116px',
+        value: Object.keys(Biome)[0],
         label: html`${Translate.Render('select-biome')}`,
-        optionsContainerClass: 'in',
-        list: Object.keys(Biome).map((biomeKey) => {
+        data: Object.keys(Biome).map((biomeKey) => {
           return {
+            value: biomeKey,
             display: html`<i class="fa-solid fa-mountain-city"></i> ${Translate.Render(biomeKey)}`,
             onClick: (event) => {
               // const { selector, id, index } = event;
@@ -420,8 +412,7 @@ const BiomeEngine = {
     // let render = '';
     for (const biome of Object.keys(Biome)) {
       configBiomeFormRender += html`
-        <div class="in section-row-${biome}">
-          <!-- style="display: none" -->
+        <div class="in section-row-${biome}" style="display: none">
           ${await Input.Render({
             id: `input-name-${biome}`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
@@ -583,7 +574,8 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             htmls(
               `.style-biome-col`,
               css`
-                .biome-col {
+                .biome-col-a,
+                .biome-col-b {
                   width: 100%;
                 }
               `,
@@ -592,8 +584,11 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             htmls(
               `.style-biome-col`,
               css`
-                .biome-col {
-                  width: 50%;
+                .biome-col-a {
+                  width: 40%;
+                }
+                .biome-col-b {
+                  width: 60%;
                 }
               `,
             );
@@ -610,12 +605,18 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
       </style>
       <style class="style-biome-col"></style>
       <div class="fl">
-        <div class="in fll biome-col">
-          <div class="in sub-title-modal"><i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}</div>
+        <div class="in fll biome-col-a">
+          <div class="in section-margin-padding">
+            <div class="in sub-title-modal">
+              <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}
+            </div>
+          </div>
           ${configBiomeFormRender}
         </div>
-        <div class="in fll biome-col">
-          <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
+        <div class="in fll biome-col-b">
+          <div class="in section-margin-padding">
+            <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
+          </div>
           <div class="in section-margin-padding">
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
@@ -623,7 +624,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
                 rowData: biomeData.data,
                 rowHeight: 240,
                 columnDefs: [
-                  //  { field: '_id', headerName: 'ID' },
+                  { field: '_id', headerName: 'ID' },
                   { field: 'biome', headerName: 'Biome' },
                   { field: 'name', headerName: 'Name' },
                   { headerName: '', cellRenderer: LoadBiomeRenderer },

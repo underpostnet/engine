@@ -663,6 +663,10 @@ scrollbar-width: none;
         .container-component {
           width: 250px;
         }
+        .container-component:hover {
+          color: #ffcc00;
+          background: #313131;
+        }
 
         .input-container {
           cursor: pointer;
@@ -691,7 +695,10 @@ scrollbar-width: none;
           transition: 0.3s;
           cursor: pointer;
         }
-        .dropdown-container:hover {
+        .dropdown-option {
+          width: 250px;
+        }
+        .dropdown-option:hover {
           color: #ffcc00;
           background: #313131;
         }
