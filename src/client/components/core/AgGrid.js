@@ -7,8 +7,7 @@ import * as agGrid from 'ag-grid-community';
 const AgGrid = {
   grids: {},
   Render: async function (options) {
-    let { id, data } = options;
-    if (!data) data = [];
+    let { id } = options;
     if (!this.theme) {
       this.theme = `ag-theme-alpine`; // quartz
       append(
@@ -29,16 +28,21 @@ const AgGrid = {
       const gridOptions = {
         // Row Data: The data to be displayed.
         rowHeight: 60,
-        rowData: data,
+        // autoHeight: true,
         enableCellChangeFlash: true,
+        defaultColDef: {
+          editable: false,
+          flex: 1,
+          minWidth: 100,
+          filter: true,
+        },
         // Column Definitions: Defines & controls grid columns.
-        columnDefs: options?.columnDefs
-          ? options.columnDefs
-          : data[0]
-          ? Object.keys(data[0]).map((field) => {
+        columnDefs: options?.gridOptions?.rowData?.[0]
+          ? Object.keys(options.gridOptions.rowData[0]).map((field) => {
               return { field };
             })
           : [],
+        ...options.gridOptions,
       };
 
       // Your Javascript code to create the grid

@@ -68,7 +68,7 @@ const Modal = {
             <div class="in" style="text-align: right">
               ${!options?.barConfig?.buttons?.minimize?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-minimize-${IdModal} btn-modal-default-${IdModal}`,
+                    class: `btn-minimize-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.minimize?.label
                       ? options.barConfig.buttons.minimize.label
                       : html`_`,
@@ -76,7 +76,7 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.restore?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-restore-${IdModal} btn-modal-default-${IdModal}`,
+                    class: `btn-restore-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.restore?.label
                       ? options.barConfig.buttons.restore.label
                       : html`□`,
@@ -85,7 +85,7 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.maximize?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-maximize-${IdModal} btn-modal-default-${IdModal}`,
+                    class: `btn-maximize-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.maximize?.label
                       ? options.barConfig.buttons.maximize.label
                       : html`▢`,
@@ -93,13 +93,13 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.close?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-close-${IdModal} btn-modal-default-${IdModal}`,
+                    class: `btn-close-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`,
                   })
                 : ''}
               ${!options?.barConfig?.buttons?.menu?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-menu-${IdModal} btn-modal-default-${IdModal}`,
+                    class: `btn-menu-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
                     label: options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`,
                   })
                 : ''}
@@ -111,11 +111,10 @@ const Modal = {
               ${options && options.title ? options.title : ''}
             </div>
           </div>
-          ${options && options.html
-            ? html`<div class="in html-modal-content">
-                ${typeof options.html === 'function' ? await options.html() : options.html}
-              </div>`
-            : ''}
+
+          <div class="in html-modal-content html-${IdModal}">
+            ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
+          </div>
         </div>
       </div>`;
     const selector = options && options.selector ? options.selector : 'body';

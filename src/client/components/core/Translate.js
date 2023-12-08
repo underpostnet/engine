@@ -72,6 +72,9 @@ const TranslateCore = {
     Translate.Data['generate'] = { en: 'generate', es: 'Generar' };
     Translate.Data['download'] = { en: 'download', es: 'Descargar' };
     Translate.Data['upload'] = { en: 'upload', es: 'Subir' };
+    Translate.Data['load'] = { en: 'load', es: 'Cargar' };
+    Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
+    Translate.Data['search'] = { en: 'search', es: 'buscar' };
   },
 };
 

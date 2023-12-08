@@ -40,15 +40,17 @@ const Settings = {
       <div class="in section-row">
         ${await DropDown.Render({
           head: {
-            value: s('html').lang ? Translate.Render(s('html').lang) : Translate.Render('en'),
+            display: s('html').lang ? Translate.Render(s('html').lang) : Translate.Render('en'),
             onClick: function () {
-              console.log('DropDown onClick', this.value);
+              console.log('DropDown onClick', this.display);
             },
           },
-          label: html`<div class="in label-dropdown">${Translate.Render('lang')}</div>`,
+          label: html`${Translate.Render('lang')}`,
+          optionsContainerClass: 'abs',
+          minHeight: '101px',
           list: ['en', 'es'].map((language) => {
             return {
-              value: Translate.Render(language),
+              display: Translate.Render(language),
               onClick: () => Translate.Parse(language),
             };
           }),
@@ -58,15 +60,17 @@ const Settings = {
       <div class="in section-row">
         ${await DropDown.Render({
           head: {
-            value: Css.currentTheme,
+            display: Css.currentTheme,
             onClick: function () {
-              console.log('DropDown onClick', this.value);
+              console.log('DropDown onClick', this.display);
             },
           },
-          label: html` <div class="in label-dropdown">${Translate.Render('theme')}</div>`,
+          label: html`${Translate.Render('theme')}`,
+          optionsContainerClass: 'abs',
+          minHeight: '101px',
           list: Object.keys(Themes).map((theme) => {
             return {
-              value: theme,
+              display: theme,
               onClick: async () => await Themes[theme](),
             };
           }),

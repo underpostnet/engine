@@ -1,21 +1,19 @@
 import { s } from './VanillaJs.js';
 
 const Input = {
-  JumpingText: async function (options) {
-    const { id, inputComponentId = 'jumping-text-input' } = options;
+  Render: async function (options) {
+    const { id } = options;
+    options?.placeholder ? (options.placeholder === true ? (options.placeholder = ' . . .') : null) : null;
     setTimeout(() => {
-      s(`.${inputComponentId}-label-${id}`).onclick = () => s(`.${id}`).focus();
-      s(`.${inputComponentId}-info-${id}`).onclick = () => s(`.${id}`).focus();
+      s(`.input-container-${id}`).onclick = () => s(`.${id}`).focus();
     });
-    return html`
-      <div class="in ${inputComponentId}-container ${inputComponentId}-container-${id}">
-        <div class="in">
-          <input type="text" class="${inputComponentId} ${id}" placeholder />
-          <label class="${inputComponentId}-label ${inputComponentId}-label-${id}">${options.label} </label>
-        </div>
-        <div class="abs ${inputComponentId}-info ${inputComponentId}-info-${id}"></div>
+    return html` <div class="inl input-container-${id} ${options?.containerClass ? options.containerClass : ''}">
+      <div class="in">
+        <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
+        <input type="text" class="in ${id}" placeholder${options?.placeholder ? `="${options.placeholder}"` : ''} />
+        <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
-    `;
+    </div>`;
   },
 };
 

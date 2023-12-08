@@ -44,6 +44,7 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(el).classList.add(targetClass);
 // s(el).classList.value;
 // Array.from(s(el).classList);
+// document.createElement('div');
 
 // &nbsp
 

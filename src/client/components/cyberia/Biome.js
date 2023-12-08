@@ -2,7 +2,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, newInstance, random, range } from '../core/CommonJs.js';
+import { JSONmatrix, newInstance, random, range, timer } from '../core/CommonJs.js';
 import { Css, Themes, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -346,27 +346,66 @@ const Biome = {
   },
 };
 
+class LoadBiomeRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadBiomeRenderer created', params);
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-load-biome-${params.data.biome}-${params.rowIndex}`,
+        label: html`<i class="fa-solid fa-bolt"></i><br />
+          ${Translate.Render(`load`)}`,
+      })}
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-download-biome-${params.data.biome}-${params.rowIndex}`,
+        label: html`<i class="fa-solid fa-download"></i> <br />
+          ${Translate.Render(`download`)}`,
+      })}
+    `;
+    setTimeout(() => {
+      EventsUI.onClick(`.btn-load-biome-${params.data.biome}-${params.rowIndex}`, async () => {
+        await timer(3000);
+      });
+      EventsUI.onClick(`.btn-download-biome-${params.data.biome}-${params.rowIndex}`, async () => {
+        await timer(3000);
+      });
+    });
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadBiomeRenderer refreshed', params);
+    return true;
+  }
+}
+
 const BiomeEngine = {
   Render: async function (options) {
     // const result = await FileService.get('all');
     const biomeData = await CyberiaBiomeService.get('all-name');
     let currentBiome;
     // if (result.status === 'error') return;
-    let createBiomeFormRender = html`
+    let configBiomeFormRender = html`
       ${await DropDown.Render({
         head: {
-          value: Translate.Render('biome-type'),
+          display: Translate.Render('biome-type'),
           onClick: function () {
             console.log('DropDown onClick', this.value);
           },
         },
         disabledHoverOpen: true,
         initIndex: 1,
-        label: html`<div class="in label-dropdown">${Translate.Render('select-biome')}</div>`,
+        minHeight: '116px',
+        label: html`${Translate.Render('select-biome')}`,
         optionsContainerClass: 'in',
         list: Object.keys(Biome).map((biomeKey) => {
           return {
-            value: Translate.Render(biomeKey),
+            display: html`<i class="fa-solid fa-mountain-city"></i> ${Translate.Render(biomeKey)}`,
             onClick: (event) => {
               // const { selector, id, index } = event;
               currentBiome = biomeKey;
@@ -380,32 +419,45 @@ const BiomeEngine = {
     `;
     // let render = '';
     for (const biome of Object.keys(Biome)) {
-      createBiomeFormRender += html`
-        <div class="in section-row-${biome}" style="display: none">
-          ${await Input.JumpingText({
-            id: `input-name-upload-biome-${biome}`,
+      configBiomeFormRender += html`
+        <div class="in section-row-${biome}">
+          <!-- style="display: none" -->
+          ${await Input.Render({
+            id: `input-name-${biome}`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
+            containerClass: 'section-margin-padding container-component input-container',
+            placeholder: true,
           })}
-          ${await BtnIcon.Render({
-            class: `in btn-form btn-generate-biome-${biome}`,
-            label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-form btn-download-biome-${biome}-png`,
-            label: html`<i class="fa-solid fa-download"></i> ${Translate.Render(`download`)}`,
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-form btn-upload-biome-${biome}`,
-            label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-form btn-image-biome-${biome}`,
-            label: html`<i class="fa-regular fa-image"></i> ${Translate.Render(`biome-image`)}`,
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-form btn-solid-biome-${biome}`,
-            label: html`<i class="fa-solid fa-table-cells"></i> ${Translate.Render(`biome-solid`)}`,
-          })}
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-margin-padding btn-engine-biome btn-generate-biome-${biome}`,
+              label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-margin-padding btn-engine-biome btn-download-biome-${biome}-png`,
+              label: html`<i class="fa-solid fa-download"></i> ${Translate.Render(`download`)}`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-margin-padding btn-engine-biome btn-upload-biome-${biome}`,
+              label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-margin-padding btn-engine-biome btn-image-biome-${biome}`,
+              label: html`<i class="fa-regular fa-image"></i> ${Translate.Render(`biome-image`)}`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-margin-padding btn-engine-biome btn-solid-biome-${biome}`,
+              label: html`<i class="fa-solid fa-table-cells"></i> ${Translate.Render(`biome-solid`)}`,
+            })}
+          </div>
         </div>
       `;
     }
@@ -416,11 +468,11 @@ const BiomeEngine = {
         let currentRenderImage;
         const validator = {
           name: () => {
-            logger.warn(`.input-name-upload-biome-${biome}`, s(`.input-name-upload-biome-${biome}`).value);
+            logger.warn(`.input-name-${biome}`, s(`.input-name-${biome}`).value);
 
-            if (validationRules.emptyField(s(`.input-name-upload-biome-${biome}`).value)) {
+            if (validationRules.emptyField(s(`.input-name-${biome}`).value)) {
               htmls(
-                `.jumping-text-input-info-input-name-upload-biome-${biome}`,
+                `.input-info-input-name-${biome}`,
                 html` ${renderStatus('error', { class: 'inl' })} &nbsp
                   <span style="color: red">${Translate.Render('emptyField')}</span>`,
               );
@@ -428,7 +480,7 @@ const BiomeEngine = {
             }
 
             htmls(
-              `.jumping-text-input-info-input-name-upload-biome-${biome}`,
+              `.input-info-input-name-${biome}`,
               html` ${renderStatus('success', { class: 'inl' })} &nbsp
                 <span style="color: green">ok</span>`,
             );
@@ -436,22 +488,19 @@ const BiomeEngine = {
           },
         };
 
-        s(`.input-name-upload-biome-${biome}`).oninput = validator.name;
-        s(`.input-name-upload-biome-${biome}`).onblur = validator.name;
+        s(`.input-name-${biome}`).oninput = validator.name;
+        s(`.input-name-${biome}`).onblur = validator.name;
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
-          // htmls(
-          //   `.biome-solid-matrix-preview`,
-          //   JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`),
-          // );
           currentRenderSolid = html`<pre style="font-size: 10px">
 ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
           >`;
+          if (s(`.html-modal-solid-biome-${biome}`)) htmls(`.html-modal-solid-biome-${biome}`, currentRenderSolid);
           Pixi.RenderBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-          // htmls(`.biome-img-matrix-preview`, html`<img src="${biomeImg.currentSrc}" />`);
           currentRenderImage = html`<img src="${biomeImg.currentSrc}" />`;
+          if (s(`.html-modal-image-biome-${biome}`)) htmls(`.html-modal-image-biome-${biome}`, currentRenderImage);
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           const file = new File([blob], { type: 'image/png' }); // open window save name
@@ -491,7 +540,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
                 fileId,
                 solid,
                 color,
-                name: s(`.input-name-upload-biome-${biome}`).value,
+                name: s(`.input-name-${biome}`).value,
                 biome,
               });
               NotificationManager.Push({
@@ -530,7 +579,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
     setTimeout(() => {
       new ResizeObserver(() => {
         if (s(`.${options.IdModal}`)) {
-          if (s(`.${options.IdModal}`).offsetWidth < 500)
+          if (s(`.${options.IdModal}`).offsetWidth < 600)
             htmls(
               `.style-biome-col`,
               css`
@@ -562,20 +611,24 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
       <style class="style-biome-col"></style>
       <div class="fl">
         <div class="in fll biome-col">
-          <div class="in sub-title-modal"><i class="fa-solid fa-plus"></i> ${Translate.Render('create-biome')}</div>
-          <div class="in section-margin-padding">${createBiomeFormRender}</div>
+          <div class="in sub-title-modal"><i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}</div>
+          ${configBiomeFormRender}
         </div>
         <div class="in fll biome-col">
           <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
           <div class="in section-margin-padding">
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
-              data: biomeData.data,
-              columnDefs: [
-                { field: '_id', headerName: 'ID', flex: 1 },
-                { field: 'biome', headerName: 'Biome', flex: 1 },
-                { field: 'name', headerName: 'Name', flex: 1 },
-              ],
+              gridOptions: {
+                rowData: biomeData.data,
+                rowHeight: 240,
+                columnDefs: [
+                  //  { field: '_id', headerName: 'ID' },
+                  { field: 'biome', headerName: 'Biome' },
+                  { field: 'name', headerName: 'Name' },
+                  { headerName: '', cellRenderer: LoadBiomeRenderer },
+                ],
+              },
             })}
           </div>
         </div>
