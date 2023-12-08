@@ -7,6 +7,7 @@ const DropDown = {
   Tokens: {},
   Render: async function (options) {
     const id = options.id ? options.id : getId(this.Tokens, 'dropdown-');
+    this.Tokens[id] = {};
 
     options.data.push({
       value: 'close',
