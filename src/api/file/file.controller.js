@@ -59,6 +59,7 @@ const get = async (req, res, options) => {
         break;
 
       default:
+        result = await FileModel.find({ _id: req.params.id });
         break;
     }
 

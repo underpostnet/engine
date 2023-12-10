@@ -15,6 +15,7 @@ const TranslateCyberia = {
     Translate.Data['biomes'] = { en: 'Biomes', es: 'Biomas' };
     Translate.Data['biome-image'] = { en: 'See Image', es: 'Ver Imagen' };
     Translate.Data['biome-solid'] = { en: 'See Solid', es: 'Ver Matrix' };
+    Translate.Data['success-biome'] = { en: 'Success load biome(s)', es: 'Biomas cargados con exito' };
   },
 };
 

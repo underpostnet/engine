@@ -5,7 +5,7 @@ import { Responsive } from '../core/Responsive.js';
 import { Matrix } from './Matrix.js';
 import { Elements } from './Elements.js';
 
-import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const Pixi = {
   MetaData: {
@@ -53,14 +53,7 @@ const Pixi = {
 
     // container
 
-    if (!('container' in this.Data.biome)) {
-      this.Data.biome.container = new Container();
-      this.Data.biome.container.width = this.MetaData.dim;
-      this.Data.biome.container.height = this.MetaData.dim;
-      this.Data.biome.container.x = 0;
-      this.Data.biome.container.y = 0;
-      this.App.stage.addChild(this.Data.biome.container);
-    }
+    if (!('container' in this.Data.biome)) this.setContainer();
 
     const dim = this.MetaData.dim / Matrix.Data.dim;
     range(0, Matrix.Data.dim - 1).map((y) =>
@@ -79,20 +72,38 @@ const Pixi = {
       }),
     );
   },
+  setFloor: function (blobUrl) {
+    this.Data.biome.container.destroy();
+    this.setContainer();
+    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
+    this.Data.biome.floor.width = this.MetaData.dim;
+    this.Data.biome.floor.height = this.MetaData.dim;
+    this.Data.biome.floor.x = 0;
+    this.Data.biome.floor.y = 0;
+    this.Data.biome.floorContainer.addChild(this.Data.biome.floor);
+  },
+  setContainer: function () {
+    this.Data.biome.container = new Container();
+    this.Data.biome.container.width = this.MetaData.dim;
+    this.Data.biome.container.height = this.MetaData.dim;
+    this.Data.biome.container.x = 0;
+    this.Data.biome.container.y = 0;
+    this.App.stage.addChild(this.Data.biome.container);
+
+    this.Data.biome.floorContainer = new Container();
+    this.Data.biome.floorContainer.width = this.MetaData.dim;
+    this.Data.biome.floorContainer.height = this.MetaData.dim;
+    this.Data.biome.floorContainer.x = 0;
+    this.Data.biome.floorContainer.y = 0;
+    this.Data.biome.container.addChild(this.Data.biome.floorContainer);
+  },
   RenderBiome: function (BiomeMatrix) {
     if (this.Data.biome.container) {
       this.Data.biome.container.destroy();
       this.Data.biome = {};
     }
 
-    if (!('container' in this.Data.biome)) {
-      this.Data.biome.container = new Container();
-      this.Data.biome.container.width = this.MetaData.dim;
-      this.Data.biome.container.height = this.MetaData.dim;
-      this.Data.biome.container.x = 0;
-      this.Data.biome.container.y = 0;
-      this.App.stage.addChild(this.Data.biome.container);
-    }
+    if (!('container' in this.Data.biome)) this.setContainer();
 
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;

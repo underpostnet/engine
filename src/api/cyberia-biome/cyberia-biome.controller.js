@@ -59,12 +59,14 @@ const get = async (req, res, options) => {
         break;
 
       default:
+        result = await CyberiaBiomeModel.find({ _id: req.params.id });
         break;
     }
 
     // throw { message: 'error test' };
     return res.status(200).json({
       status: 'success',
+      message: 'success-biome',
       data: result,
     });
   } catch (error) {

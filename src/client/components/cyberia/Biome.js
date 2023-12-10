@@ -366,7 +366,31 @@ class LoadBiomeRenderer {
     `;
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-biome-${params.data.biome}-${params.rowIndex}`, async () => {
-        await timer(3000);
+        let imageUrl;
+        if (!s(`.modal-image-biome-${params.data.biome}-${params.data._id}`)) {
+          const resultBiome = await CyberiaBiomeService.get(params.data._id);
+
+          const biomeData = resultBiome.data[0];
+
+          const resultFile = await FileService.get(biomeData.fileId);
+
+          const imageData = resultFile.data[0];
+
+          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+          imageUrl = URL.createObjectURL(imageFile);
+
+          Pixi.setFloor(imageUrl);
+        }
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-image-biome-${params.data.biome}-${params.data._id}`,
+          barConfig,
+          title: ` ${Translate.Render(`biome-image`)} - ${params.data.biome} - ${params.data._id}`,
+          html: html`<img src="${imageUrl}" />`,
+        });
       });
       EventsUI.onClick(`.btn-download-biome-${params.data.biome}-${params.rowIndex}`, async () => {
         await timer(3000);
@@ -388,6 +412,10 @@ const BiomeEngine = {
   Render: async function (options) {
     // const result = await FileService.get('all');
     const biomeData = await CyberiaBiomeService.get('all-name');
+    NotificationManager.Push({
+      html: biomeData.status === 'success' ? Translate.Render(biomeData.message) : biomeData.message,
+      status: biomeData.status,
+    });
     let currentBiome;
     // if (result.status === 'error') return;
     let configBiomeFormRender = html`
