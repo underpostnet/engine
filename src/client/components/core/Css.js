@@ -609,7 +609,7 @@ scrollbar-width: none;
           color: #7a7a7a;
         }
 
-        .section-margin-padding {
+        .section-mp {
           margin: 5px;
           margin-top: 15px;
           text-align: left;

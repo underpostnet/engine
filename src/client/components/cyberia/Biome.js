@@ -416,36 +416,36 @@ const BiomeEngine = {
           ${await Input.Render({
             id: `input-name-${biome}`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
-            containerClass: 'section-margin-padding container-component input-container',
+            containerClass: 'section-mp container-component input-container',
             placeholder: true,
           })}
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-margin-padding btn-engine-biome btn-generate-biome-${biome}`,
+              class: `inl section-mp btn-engine-biome btn-generate-biome-${biome}`,
               label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-margin-padding btn-engine-biome btn-download-biome-${biome}-png`,
+              class: `inl section-mp btn-engine-biome btn-download-biome-${biome}-png`,
               label: html`<i class="fa-solid fa-download"></i> ${Translate.Render(`download`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-margin-padding btn-engine-biome btn-upload-biome-${biome}`,
+              class: `inl section-mp btn-engine-biome btn-upload-biome-${biome}`,
               label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-margin-padding btn-engine-biome btn-image-biome-${biome}`,
+              class: `inl section-mp btn-engine-biome btn-image-biome-${biome}`,
               label: html`<i class="fa-regular fa-image"></i> ${Translate.Render(`biome-image`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-margin-padding btn-engine-biome btn-solid-biome-${biome}`,
+              class: `inl section-mp btn-engine-biome btn-solid-biome-${biome}`,
               label: html`<i class="fa-solid fa-table-cells"></i> ${Translate.Render(`biome-solid`)}`,
             })}
           </div>
@@ -606,7 +606,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
       <style class="style-biome-col"></style>
       <div class="fl">
         <div class="in fll biome-col-a">
-          <div class="in section-margin-padding">
+          <div class="in section-mp">
             <div class="in sub-title-modal">
               <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}
             </div>
@@ -614,10 +614,10 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
           ${configBiomeFormRender}
         </div>
         <div class="in fll biome-col-b">
-          <div class="in section-margin-padding">
+          <div class="in section-mp">
             <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
           </div>
-          <div class="in section-margin-padding">
+          <div class="in section-mp">
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
               gridOptions: {
