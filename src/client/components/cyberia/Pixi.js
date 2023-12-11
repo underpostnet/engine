@@ -65,6 +65,13 @@ const Pixi = {
     this.Data.biome.floorContainer.y = 0;
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
+    this.Data.user.container = new Container();
+    this.Data.user.container.width = this.MetaData.dim;
+    this.Data.user.container.height = this.MetaData.dim;
+    this.Data.user.container.x = 0;
+    this.Data.user.container.y = 0;
+    this.App.stage.addChild(this.Data.user.container);
+
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;
     range(0, paintDim - 1).map((y) =>
@@ -105,8 +112,40 @@ const Pixi = {
   setComponents: function (options) {
     const { type, id } = options;
     for (const component of Object.keys(Elements.Data[type][id].components)) {
-      console.warn(Elements.Data[type][id].components[component].pixi);
+      switch (component) {
+        case 'background':
+          (() => {
+            const dim = this.MetaData.dim / Matrix.Data.dim;
+            this.Data[type][id] = new Container();
+            this.Data[type][id].width = dim * Elements.Data[type][id].dim;
+            this.Data[type][id].height = dim * Elements.Data[type][id].dim;
+            this.Data[type][id].x = dim * Elements.Data[type][id].x;
+            this.Data[type][id].y = dim * Elements.Data[type][id].y;
+            this.Data[type].container.addChild(this.Data[type][id]);
+
+            const { tint, visible } = Elements.Data[type][id].components[component].pixi;
+            this.Data[type][`${id}-${component}`] = new Sprite(Texture.WHITE);
+            this.Data[type][`${id}-${component}`].x = 0;
+            this.Data[type][`${id}-${component}`].y = 0;
+            this.Data[type][`${id}-${component}`].width = dim * Elements.Data[type][id].dim;
+            this.Data[type][`${id}-${component}`].height = dim * Elements.Data[type][id].dim;
+            this.Data[type][`${id}-${component}`].tint = tint;
+            this.Data[type][`${id}-${component}`].visible = visible;
+            this.Data[type][id].addChild(this.Data[type][`${id}-${component}`]);
+          })();
+
+          break;
+
+        default:
+          break;
+      }
     }
+  },
+  updatePosition: function (options) {
+    const dim = this.MetaData.dim / Matrix.Data.dim;
+    const { type, id } = options;
+    this.Data[type][id].x = dim * Elements.Data[type][id].x;
+    this.Data[type][id].y = dim * Elements.Data[type][id].y;
   },
 };
 

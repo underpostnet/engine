@@ -2,7 +2,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, newInstance, random, range, timer } from '../core/CommonJs.js';
+import { JSONmatrix, newInstance, random, range, round10, timer } from '../core/CommonJs.js';
 import { Css, Themes, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -13,6 +13,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { validationRules } from '../core/Validator.js';
 import { downloadFile, htmls, s } from '../core/VanillaJs.js';
+import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 
@@ -382,6 +383,20 @@ class LoadBiomeRenderer {
 
           imageUrl = URL.createObjectURL(imageFile);
 
+          biomeData.color = Object.assign(
+            {},
+            biomeData.color.map((cell) => Object.assign({}, cell)),
+          );
+          biomeData.solid = Object.assign(
+            {},
+            biomeData.solid.map((cell) => Object.assign({}, cell)),
+          );
+          BiomeEngine.currentBiome = biomeData;
+
+          Matrix.Data.dim = biomeData.dim;
+          Matrix.Data.dimPaintByCell = biomeData.dimPaintByCell;
+          Matrix.Data.dimAmplitude = biomeData.dimAmplitude;
+
           Pixi.setFloor(imageUrl);
         }
         const { barConfig } = await Themes[Css.currentTheme]();
@@ -512,6 +527,7 @@ const BiomeEngine = {
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
+          BiomeEngine.currentBiome = BiomeMatrix;
           currentRenderSolid = html`<pre style="font-size: 10px">
 ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
           >`;
@@ -552,15 +568,19 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
           })();
           if (fileId)
             await (async () => {
-              let { solid, color } = Biome[biome]();
+              let { solid, color } = BiomeEngine.currentBiome;
               color = Object.values(color).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
+              const { dim, dimPaintByCell, dimAmplitude } = Matrix.Data;
               const { status, data } = await CyberiaBiomeService.post({
                 fileId,
                 solid,
                 color,
                 name: s(`.input-name-${biome}`).value,
                 biome,
+                dim,
+                dimPaintByCell,
+                dimAmplitude,
               });
               NotificationManager.Push({
                 html: Translate.Render(`${status}-upload-biome`),
@@ -667,6 +687,22 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
       <pre class="in biome-solid-matrix-preview"></pre>
       -->
     `;
+  },
+  isCollision: function (options) {
+    if (!this.currentBiome) return false;
+    const x = options.x * Matrix.Data.dimPaintByCell;
+    const y = options.y * Matrix.Data.dimPaintByCell;
+    const { type, id } = options;
+    for (const sumY of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1))
+      for (const sumX of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1)) {
+        if (
+          this.currentBiome.solid[round10(y + sumY)] === undefined ||
+          this.currentBiome.solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
+          this.currentBiome.solid[round10(y + sumY)][round10(x + sumX)] === 1
+        )
+          return true;
+      }
+    return false;
   },
 };
 

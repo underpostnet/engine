@@ -9,6 +9,9 @@ const CyberiaBiomeSchema = new Schema({
   color: [[{ type: String }]],
   name: { type: String },
   biome: { type: String },
+  dim: { type: Number },
+  dimPaintByCell: { type: Number },
+  dimAmplitude: { type: Number },
 });
 
 const CyberiaBiomeModel = model('CyberiaBiome', CyberiaBiomeSchema);

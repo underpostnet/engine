@@ -1,5 +1,6 @@
 import { Keyboard } from '../core/Keyboard.js';
 import { loggerFactory } from '../core/Logger.js';
+import { BiomeEngine } from './Biome.js';
 import { Pixi } from './Pixi.js';
 
 const logger = loggerFactory(import.meta);
@@ -13,7 +14,7 @@ const Elements = {
         dim: 1.5,
         vel: 0.35,
         components: {
-          background: { pixi: { tint: 'red', visible: true } },
+          background: { pixi: { tint: 'blue', visible: true } },
         },
       },
     },
@@ -28,10 +29,34 @@ const Elements = {
     switch (eventId) {
       case 'user.main':
         Keyboard.Event[`${eventId}`] = {
-          ArrowLeft: () => (this.Data[type][id].x -= this.Data[type][id].vel),
-          ArrowRight: () => (this.Data[type][id].x += this.Data[type][id].vel),
-          ArrowUp: () => (this.Data[type][id].y -= this.Data[type][id].vel),
-          ArrowDown: () => (this.Data[type][id].y += this.Data[type][id].vel),
+          ArrowLeft: () => {
+            const x = this.Data[type][id].x - this.Data[type][id].vel;
+            const y = this.Data[type][id].y;
+            if (BiomeEngine.isCollision({ type, id, x, y })) return;
+            this.Data[type][id].x = x;
+            Pixi.updatePosition(options);
+          },
+          ArrowRight: () => {
+            const x = this.Data[type][id].x + this.Data[type][id].vel;
+            const y = this.Data[type][id].y;
+            if (BiomeEngine.isCollision({ type, id, x, y })) return;
+            this.Data[type][id].x = x;
+            Pixi.updatePosition(options);
+          },
+          ArrowUp: () => {
+            const x = this.Data[type][id].x;
+            const y = this.Data[type][id].y - this.Data[type][id].vel;
+            if (BiomeEngine.isCollision({ type, id, x, y })) return;
+            this.Data[type][id].y = y;
+            Pixi.updatePosition(options);
+          },
+          ArrowDown: () => {
+            const x = this.Data[type][id].x;
+            const y = this.Data[type][id].y + this.Data[type][id].vel;
+            if (BiomeEngine.isCollision({ type, id, x, y })) return;
+            this.Data[type][id].y = y;
+            Pixi.updatePosition(options);
+          },
         };
 
         ['q'].map((key) => {

@@ -1,10 +1,13 @@
 // https://dondido.github.io/virtual-joystick/
 // https://github.com/dondido/virtual-joystick
 
+import { newInstance } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
+import { BiomeEngine } from './Biome.js';
 import { Elements } from './Elements.js';
 import { Event } from './Event.js';
+import { Pixi } from './Pixi.js';
 
 await import(`${getProxyPath()}dist/virtual-joystick/virtual-joystick.js`);
 
@@ -17,24 +20,30 @@ const JoyStick = {
       setInterval(() => {
         if ($joystick.dataset.direction !== '') {
           logger.info($joystick.dataset.direction);
+          let x = newInstance(Elements.Data.user.main.x);
+          let y = newInstance(Elements.Data.user.main.y);
           Array.from($joystick.dataset.direction).map((dir) => {
             switch (dir) {
               case 's':
-                Elements.Data.user.main.y += Elements.Data.user.main.vel;
+                y = Elements.Data.user.main.y + Elements.Data.user.main.vel;
                 break;
               case 'n':
-                Elements.Data.user.main.y -= Elements.Data.user.main.vel;
+                y = Elements.Data.user.main.y - Elements.Data.user.main.vel;
                 break;
               case 'e':
-                Elements.Data.user.main.x += Elements.Data.user.main.vel;
+                x = Elements.Data.user.main.x + Elements.Data.user.main.vel;
                 break;
               case 'w':
-                Elements.Data.user.main.x -= Elements.Data.user.main.vel;
+                x = Elements.Data.user.main.x - Elements.Data.user.main.vel;
                 break;
               default:
                 break;
             }
           });
+          if (BiomeEngine.isCollision({ type: 'user', id: 'main', x, y })) return;
+          Elements.Data.user.main.x = x;
+          Elements.Data.user.main.y = y;
+          Pixi.updatePosition({ type: 'user', id: 'main' });
         }
       }, Event.Data.globalTimeInterval);
     });

@@ -34,8 +34,11 @@ await SocketIo.Init({
 await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
-await Elements.Init();
+
 await Pixi.Init();
+
+await Elements.Init();
+
 await Responsive.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
