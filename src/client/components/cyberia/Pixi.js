@@ -51,38 +51,6 @@ const Pixi = {
       // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
     };
 
-    // container
-
-    if (!('container' in this.Data.biome)) this.setContainer();
-
-    const dim = this.MetaData.dim / Matrix.Data.dim;
-    range(0, Matrix.Data.dim - 1).map((y) =>
-      range(0, Matrix.Data.dim - 1).map((x) => {
-        const id = `biome-cell-${x}-${y}`;
-        if (!(id in this.Data.biome)) {
-          this.Data.biome[id] = new Sprite(Texture.WHITE);
-          this.Data.biome[id].x = dim * x;
-          this.Data.biome[id].y = dim * y;
-          this.Data.biome[id].width = dim;
-          this.Data.biome[id].height = dim;
-          this.Data.biome[id].tint = randomHexColor();
-          this.Data.biome[id].visible = true;
-          this.Data.biome.container.addChild(this.Data.biome[id]);
-        }
-      }),
-    );
-  },
-  setFloor: function (blobUrl) {
-    this.Data.biome.container.destroy();
-    this.setContainer();
-    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
-    this.Data.biome.floor.width = this.MetaData.dim;
-    this.Data.biome.floor.height = this.MetaData.dim;
-    this.Data.biome.floor.x = 0;
-    this.Data.biome.floor.y = 0;
-    this.Data.biome.floorContainer.addChild(this.Data.biome.floor);
-  },
-  setContainer: function () {
     this.Data.biome.container = new Container();
     this.Data.biome.container.width = this.MetaData.dim;
     this.Data.biome.container.height = this.MetaData.dim;
@@ -95,33 +63,50 @@ const Pixi = {
     this.Data.biome.floorContainer.height = this.MetaData.dim;
     this.Data.biome.floorContainer.x = 0;
     this.Data.biome.floorContainer.y = 0;
-    this.Data.biome.container.addChild(this.Data.biome.floorContainer);
-  },
-  RenderBiome: function (BiomeMatrix) {
-    if (this.Data.biome.container) {
-      this.Data.biome.container.destroy();
-      this.Data.biome = {};
-    }
-
-    if (!('container' in this.Data.biome)) this.setContainer();
+    this.App.stage.addChild(this.Data.biome.floorContainer);
 
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;
     range(0, paintDim - 1).map((y) =>
       range(0, paintDim - 1).map((x) => {
         const id = `biome-cell-${x}-${y}`;
-        if (!(id in this.Data.biome)) {
-          this.Data.biome[id] = new Sprite(Texture.WHITE);
-          this.Data.biome[id].x = dim * x;
-          this.Data.biome[id].y = dim * y;
-          this.Data.biome[id].width = dim;
-          this.Data.biome[id].height = dim;
-          this.Data.biome[id].tint = BiomeMatrix.color[y][x]; // randomHexColor();
-          this.Data.biome[id].visible = true;
-          this.Data.biome.container.addChild(this.Data.biome[id]);
-        }
+        this.Data.biome[id] = new Sprite(Texture.WHITE);
+        this.Data.biome[id].x = dim * x;
+        this.Data.biome[id].y = dim * y;
+        this.Data.biome[id].width = dim;
+        this.Data.biome[id].height = dim;
+        this.Data.biome[id].tint = randomHexColor();
+        this.Data.biome[id].visible = true;
+        this.Data.biome.container.addChild(this.Data.biome[id]);
       }),
     );
+  },
+  setFloor: function (blobUrl) {
+    this.Data.biome.container.visible = false;
+    this.Data.biome.floorContainer.removeChildren();
+    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
+    this.Data.biome.floor.width = this.MetaData.dim;
+    this.Data.biome.floor.height = this.MetaData.dim;
+    this.Data.biome.floor.x = 0;
+    this.Data.biome.floor.y = 0;
+    this.Data.biome.floorContainer.addChild(this.Data.biome.floor);
+  },
+  setBiome: function (BiomeMatrix) {
+    this.Data.biome.container.visible = true;
+    this.Data.biome.floorContainer.removeChildren();
+    const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    range(0, paintDim - 1).map((y) =>
+      range(0, paintDim - 1).map((x) => {
+        const id = `biome-cell-${x}-${y}`;
+        this.Data.biome[id].tint = BiomeMatrix.color[y][x]; // randomHexColor();
+      }),
+    );
+  },
+  setComponents: function (options) {
+    const { type, id } = options;
+    for (const component of Object.keys(Elements.Data[type][id].components)) {
+      console.warn(Elements.Data[type][id].components[component].pixi);
+    }
   },
 };
 

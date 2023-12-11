@@ -516,7 +516,7 @@ const BiomeEngine = {
 ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
           >`;
           if (s(`.html-modal-solid-biome-${biome}`)) htmls(`.html-modal-solid-biome-${biome}`, currentRenderSolid);
-          Pixi.RenderBiome(BiomeMatrix);
+          Pixi.setBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           currentRenderImage = html`<img src="${biomeImg.currentSrc}" />`;
           if (s(`.html-modal-image-biome-${biome}`)) htmls(`.html-modal-image-biome-${biome}`, currentRenderImage);
