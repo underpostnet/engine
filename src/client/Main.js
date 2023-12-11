@@ -52,6 +52,8 @@ await NotificationManager.RenderBoard();
 const barConfigModalMenu = newInstance(barConfig);
 barConfigModalMenu.buttons.close.disabled = true;
 
+append('body', await JoyStick.Render());
+
 await Modal.Render({
   id: 'modal-menu',
   html: `
@@ -109,7 +111,5 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     handleType: 'bar',
   });
 });
-
-append('body', await JoyStick.Render());
 
 disableOptionsClick('html', ['menu', 'drag', 'select']);

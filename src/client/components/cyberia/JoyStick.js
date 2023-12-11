@@ -69,6 +69,10 @@ const JoyStick = {
           virtual-joystick {
             --radius: ${width / 2}px;
           }
+          ::selection {
+            color: rgba(255, 255, 255, 0) !important;
+            background: none !important;
+          }
         `}
       </style>
       <div class="fix joystick-container">
