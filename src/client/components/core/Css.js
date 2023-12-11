@@ -582,7 +582,6 @@ scrollbar-width: none;
 
         .sub-title-modal {
           cursor: default;
-          font-size: 25px;
           background: #1a1a1a;
           margin-top: 10px;
           /* background: #dcdcdc; */
