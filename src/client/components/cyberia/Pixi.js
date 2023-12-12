@@ -1,4 +1,4 @@
-import { s, append } from '../core/VanillaJs.js';
+import { s, append, getProxyPath } from '../core/VanillaJs.js';
 import { randomHexColor, range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
@@ -9,7 +9,7 @@ import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const Pixi = {
   MetaData: {
-    dim: 1250,
+    dim: 2250,
   },
   Data: {},
   Init: function () {
@@ -111,29 +111,60 @@ const Pixi = {
   },
   setComponents: function (options) {
     const { type, id } = options;
-    for (const component of Object.keys(Elements.Data[type][id].components)) {
-      switch (component) {
+    const dim = this.MetaData.dim / Matrix.Data.dim;
+    this.Data[type][id] = new Container();
+    this.Data[type][id].width = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].height = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].x = dim * Elements.Data[type][id].x;
+    this.Data[type][id].y = dim * Elements.Data[type][id].y;
+    this.Data[type][id].components = [];
+    this.Data[type].container.addChild(this.Data[type][id]);
+    for (const componentType of Object.keys(Elements.Data[type][id].components)) {
+      switch (componentType) {
         case 'background':
-          (() => {
-            const dim = this.MetaData.dim / Matrix.Data.dim;
-            this.Data[type][id] = new Container();
-            this.Data[type][id].width = dim * Elements.Data[type][id].dim;
-            this.Data[type][id].height = dim * Elements.Data[type][id].dim;
-            this.Data[type][id].x = dim * Elements.Data[type][id].x;
-            this.Data[type][id].y = dim * Elements.Data[type][id].y;
-            this.Data[type].container.addChild(this.Data[type][id]);
+          for (const component of Elements.Data[type][id].components[componentType]) {
+            const { tint, visible } = component.pixi;
+            const componentInstance = new Sprite(Texture.WHITE);
+            componentInstance.x = 0;
+            componentInstance.y = 0;
+            componentInstance.width = dim * Elements.Data[type][id].dim;
+            componentInstance.height = dim * Elements.Data[type][id].dim;
+            componentInstance.tint = tint;
+            componentInstance.visible = visible;
+            this.Data[type][id].components.push(componentInstance);
+            this.Data[type][id].addChild(componentInstance);
+          }
 
-            const { tint, visible } = Elements.Data[type][id].components[component].pixi;
-            this.Data[type][`${id}-${component}`] = new Sprite(Texture.WHITE);
-            this.Data[type][`${id}-${component}`].x = 0;
-            this.Data[type][`${id}-${component}`].y = 0;
-            this.Data[type][`${id}-${component}`].width = dim * Elements.Data[type][id].dim;
-            this.Data[type][`${id}-${component}`].height = dim * Elements.Data[type][id].dim;
-            this.Data[type][`${id}-${component}`].tint = tint;
-            this.Data[type][`${id}-${component}`].visible = visible;
-            this.Data[type][id].addChild(this.Data[type][`${id}-${component}`]);
-          })();
+          break;
 
+        case 'skin':
+          for (const component of Elements.Data[type][id].components[componentType]) {
+            const { displayId, position } = component;
+            for (const positionData of [
+              { positionId: '02', frames: 1 },
+              { positionId: '04', frames: 1 },
+              { positionId: '06', frames: 1 },
+              { positionId: '08', frames: 1 },
+              { positionId: '12', frames: 2 },
+              { positionId: '14', frames: 2 },
+              { positionId: '16', frames: 2 },
+              { positionId: '18', frames: 2 },
+            ]) {
+              const { positionId, frames } = positionData;
+              for (const frame of range(0, frames - 1)) {
+                const componentInstance = Sprite.from(
+                  `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`,
+                );
+                componentInstance.x = 0;
+                componentInstance.y = 0;
+                componentInstance.width = dim * Elements.Data[type][id].dim;
+                componentInstance.height = dim * Elements.Data[type][id].dim;
+                componentInstance.visible = position === positionId;
+                this.Data[type][id].components.push(componentInstance);
+                this.Data[type][id].addChild(componentInstance);
+              }
+            }
+          }
           break;
 
         default:

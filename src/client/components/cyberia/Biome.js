@@ -704,6 +704,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
       }
     return false;
   },
+  getAvailableRandomPosition: function () {},
 };
 
 export { Biome, BiomeEngine };

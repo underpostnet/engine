@@ -11,10 +11,11 @@ const Elements = {
       main: {
         x: 1, // Matrix.Data.dim / 2 - 0.5,
         y: 1, // Matrix.Data.dim / 2 - 0.5,
-        dim: 1.5,
-        vel: 0.35,
+        dim: 1,
+        vel: 0.5,
         components: {
-          background: { pixi: { tint: 'blue', visible: true } },
+          background: [{ pixi: { tint: 'purple', visible: true } }],
+          skin: [{ displayId: 'anon', position: '06' }],
         },
       },
     },
