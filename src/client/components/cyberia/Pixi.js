@@ -1,11 +1,12 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { randomHexColor, range } from '../core/CommonJs.js';
+import { newInstance, randomHexColor, range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
 import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
+import { Event } from './Event.js';
 
 const Pixi = {
   MetaData: {
@@ -40,7 +41,7 @@ const Pixi = {
     s('canvas').classList.add('abs');
     s('canvas').classList.add('pixi-canvas');
 
-    Matrix.Render['matrix-center-square']('.pixi-container');
+    // Matrix.Render['matrix-center-square']('.pixi-container');
 
     Responsive.Event['pixi-container'] = () => {
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
@@ -117,12 +118,20 @@ const Pixi = {
     this.Data[type][id].height = dim * Elements.Data[type][id].dim;
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
-    this.Data[type][id].components = [];
+    this.Data[type][id].components = {};
+    this.Data[type][id].intervals = {};
+    let index;
     this.Data[type].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(Elements.Data[type][id].components)) {
       switch (componentType) {
         case 'background':
+          index = 0;
           for (const component of Elements.Data[type][id].components[componentType]) {
+            const { enabled } = component;
+            if (!enabled) {
+              index++;
+              continue;
+            }
             const { tint, visible } = component.pixi;
             const componentInstance = new Sprite(Texture.WHITE);
             componentInstance.x = 0;
@@ -131,15 +140,22 @@ const Pixi = {
             componentInstance.height = dim * Elements.Data[type][id].dim;
             componentInstance.tint = tint;
             componentInstance.visible = visible;
-            this.Data[type][id].components.push(componentInstance);
+            if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
+            this.Data[type][id].components[componentType][`${index}`] = componentInstance;
             this.Data[type][id].addChild(componentInstance);
+            index++;
           }
 
           break;
 
         case 'skin':
+          index = 0;
           for (const component of Elements.Data[type][id].components[componentType]) {
-            const { displayId, position } = component;
+            const { displayId, position, enabled } = component;
+            if (!enabled) {
+              index++;
+              continue;
+            }
             for (const positionData of [
               { positionId: '02', frames: 1 },
               { positionId: '04', frames: 1 },
@@ -152,18 +168,44 @@ const Pixi = {
             ]) {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
-                const componentInstance = Sprite.from(
-                  `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`,
-                );
+                const src = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`;
+                const componentInstance = Sprite.from(src);
                 componentInstance.x = 0;
                 componentInstance.y = 0;
                 componentInstance.width = dim * Elements.Data[type][id].dim;
                 componentInstance.height = dim * Elements.Data[type][id].dim;
-                componentInstance.visible = position === positionId;
-                this.Data[type][id].components.push(componentInstance);
+                componentInstance.visible = position === positionId && frame === 0;
+                if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
+                this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
                 this.Data[type][id].addChild(componentInstance);
+                if (frame === 0) {
+                  let currentFrame = 0;
+                  let currentSrc;
+                  let currentIndex = newInstance(index);
+                  if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
+
+                  const callBack = () => {
+                    const { position } = Elements.Data[type][id].components[componentType][currentIndex];
+
+                    currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
+                    this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
+
+                    currentFrame++;
+                    if (currentFrame === frames) currentFrame = 0;
+
+                    currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
+                    this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
+                      position === positionId ? true : false;
+                  };
+
+                  this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
+                    callBack,
+                    interval: setInterval(callBack, Event.Data.globalTimeInterval * 10),
+                  };
+                }
               }
             }
+            index++;
           }
           break;
 

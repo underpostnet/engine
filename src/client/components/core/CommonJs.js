@@ -277,6 +277,57 @@ const endpointFactory = (meta) => {
   return path;
 };
 
+function getDirection(x1, y1, x2, y2) {
+  // Calculate the angle in radians
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+
+  // Convert the angle to degrees
+  let degrees = angle * (180 / Math.PI);
+
+  // Adjust the angle to be positive
+  if (degrees < 0) {
+    degrees += 360;
+  }
+
+  // Map the angle to one of the eight directions
+  let direction;
+  if (degrees >= 337.5 || degrees < 22.5) {
+    // direction = 'right';
+    // direction = 'East';
+    direction = 'e';
+  } else if (degrees >= 22.5 && degrees < 67.5) {
+    // direction = 'up-right';
+    // direction = 'South East';
+    direction = 'se';
+  } else if (degrees >= 67.5 && degrees < 112.5) {
+    // direction = 'up';
+    // direction = 'South';
+    direction = 's';
+  } else if (degrees >= 112.5 && degrees < 157.5) {
+    // direction = 'up-left';
+    // direction = 'South West';
+    direction = 'sw';
+  } else if (degrees >= 157.5 && degrees < 202.5) {
+    // direction = 'left';
+    // direction = 'West';
+    direction = 'w';
+  } else if (degrees >= 202.5 && degrees < 247.5) {
+    // direction = 'down-left';
+    // direction = 'North West';
+    direction = 'nw';
+  } else if (degrees >= 247.5 && degrees < 292.5) {
+    // direction = 'down';
+    // direction = 'North';
+    direction = 'n';
+  } else if (degrees >= 292.5 && degrees < 337.5) {
+    // direction = 'down-right';
+    // direction = 'North East';
+    direction = 'ne';
+  }
+
+  return direction;
+}
+
 export {
   s4,
   range,
@@ -308,4 +359,5 @@ export {
   getIsoDate,
   getValueFromJoinString,
   endpointFactory,
+  getDirection,
 };
