@@ -17,7 +17,10 @@ const Elements = {
         vel: 0.5,
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-          skin: [{ displayId: 'anon', position: '08', enabled: true }],
+          skin: [
+            { displayId: 'anon', position: '08', enabled: false },
+            { displayId: 'eiri', position: '08', enabled: true },
+          ],
         },
       },
     },
