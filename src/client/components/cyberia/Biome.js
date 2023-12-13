@@ -594,7 +594,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
               status: 'error',
             });
 
-          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
+          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.App.stage);
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
           const body = new FormData();
