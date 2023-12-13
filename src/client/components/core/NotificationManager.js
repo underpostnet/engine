@@ -27,7 +27,7 @@ const NotificationManager = {
     );
   },
   Tokens: {},
-  Push: async function (options) {
+  Push: async function (options = { status: '', html: '' }) {
     const { barConfig } = await Themes[Css.currentTheme](); // newInstance
     barConfig.buttons.maximize.disabled = true;
     barConfig.buttons.minimize.disabled = true;

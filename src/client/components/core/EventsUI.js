@@ -1,5 +1,6 @@
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
+import { NotificationManager } from './NotificationManager.js';
 import { s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
@@ -16,6 +17,10 @@ const EventsUI = {
           await logic();
         } catch (error) {
           logger.error(error);
+          NotificationManager.Push({
+            status: 'error',
+            html: error?.message ? error.message : error ? error : 'Event error',
+          });
         }
         LoadingAnimation.bar.stop(id);
         LoadingAnimation.spinner.stop(id);
