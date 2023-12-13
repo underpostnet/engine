@@ -9,7 +9,7 @@ const ProviderFactoryDB = async (options, endpoint, DataBaseProvider) => {
   logger.info(`Load ${db.provider} provider`, `${host}${path}`);
   switch (db.provider) {
     case 'mongoose':
-      if (db && !(`${host}${path}` in DataBaseProvider))
+      if (db && DataBaseProvider[`${host}${path}`] === undefined)
         DataBaseProvider[`${host}${path}`] = await MongooseDB.connect(db.host, endpoint, db.name);
       break;
     default:

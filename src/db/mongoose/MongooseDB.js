@@ -24,7 +24,8 @@ const MongooseDB = {
         })
         .catch((err) => {
           logger.error(err, { host, endpoint, dbName, error: err.stack });
-          return reject(err);
+          // return reject(err);
+          return resolve(undefined);
         }),
     );
   },
