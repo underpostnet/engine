@@ -347,6 +347,8 @@ const Biome = {
   },
 };
 
+let biomeData;
+
 class LoadBiomeRenderer {
   eGui;
 
@@ -363,6 +365,11 @@ class LoadBiomeRenderer {
         class: `in ag-btn-renderer btn-download-biome-${params.data.biome}-${params.rowIndex}`,
         label: html`<i class="fa-solid fa-download"></i> <br />
           ${Translate.Render(`download`)}`,
+      })}
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-delete-biome-${params.data.biome}-${params.rowIndex}`,
+        label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
+          ${Translate.Render(`delete`)}`,
       })}
     `;
     setTimeout(() => {
@@ -410,6 +417,30 @@ class LoadBiomeRenderer {
       EventsUI.onClick(`.btn-download-biome-${params.data.biome}-${params.rowIndex}`, async () => {
         await timer(3000);
       });
+      EventsUI.onClick(`.btn-delete-biome-${params.data.biome}-${params.rowIndex}`, async () => {
+        const biomeDeleteResult = await CyberiaBiomeService.delete(params.data._id);
+        NotificationManager.Push({
+          html:
+            biomeDeleteResult.status === 'success'
+              ? Translate.Render(biomeDeleteResult.message)
+              : biomeDeleteResult.message,
+          status: biomeDeleteResult.status,
+        });
+
+        const fileDeleteResult = await FileService.delete(params.data.fileId);
+        NotificationManager.Push({
+          html:
+            fileDeleteResult.status === 'success'
+              ? Translate.Render(fileDeleteResult.message)
+              : fileDeleteResult.message,
+          status: fileDeleteResult.status,
+        });
+
+        setTimeout(() => {
+          biomeData.data = biomeData.data.filter((biome) => biome._id !== params.data._id);
+          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', biomeData.data);
+        });
+      });
     });
   }
 
@@ -426,7 +457,7 @@ class LoadBiomeRenderer {
 const BiomeEngine = {
   Render: async function (options) {
     // const result = await FileService.get('all');
-    const biomeData = await CyberiaBiomeService.get('all-name');
+    biomeData = await CyberiaBiomeService.get('all-name');
     NotificationManager.Push({
       html: biomeData.status === 'success' ? Translate.Render(biomeData.message) : biomeData.message,
       status: biomeData.status,
@@ -549,6 +580,20 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
           const validators = [validator.name()];
           if (validators.includes(true)) return;
+
+          if (!BiomeEngine.currentBiome)
+            return NotificationManager.Push({
+              html: Translate.Render('invalid-data'),
+              status: 'error',
+            });
+
+          let { solid, color } = BiomeEngine.currentBiome;
+          if (!solid || !color)
+            return NotificationManager.Push({
+              html: Translate.Render('invalid-data'),
+              status: 'error',
+            });
+
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
           const res = await fetch(biomeImg.currentSrc);
           const blob = await res.blob();
@@ -568,7 +613,6 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
           })();
           if (fileId)
             await (async () => {
-              let { solid, color } = BiomeEngine.currentBiome;
               color = Object.values(color).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
               const { dim, dimPaintByCell, dimAmplitude } = Matrix.Data;

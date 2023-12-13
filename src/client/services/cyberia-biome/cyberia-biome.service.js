@@ -57,6 +57,28 @@ const CyberiaBiomeService = {
           return reject(error);
         }),
     ),
+  delete: (id = '') =>
+    new Promise((resolve, reject) =>
+      fetch(`${API_BASE}/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          // 'Authorization': ''
+        },
+        // body: JSON.stringify(body),
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
 };
 
 export { CyberiaBiomeService };

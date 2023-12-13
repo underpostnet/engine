@@ -10,7 +10,7 @@ const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 
 const DataBaseProvider = {};
 
-const post = async (req, res, options) => {
+const POST = async (req, res, options) => {
   try {
     const { host, path } = options;
     await ProviderFactoryDB(options, endpoint, DataBaseProvider);
@@ -41,7 +41,7 @@ const post = async (req, res, options) => {
   }
 };
 
-const get = async (req, res, options) => {
+const GET = async (req, res, options) => {
   try {
     const { host, path } = options;
     await ProviderFactoryDB(options, endpoint, DataBaseProvider);
@@ -77,4 +77,41 @@ const get = async (req, res, options) => {
   }
 };
 
-export { post, get };
+const DELETE = async (req, res, options) => {
+  try {
+    const { host, path } = options;
+    await ProviderFactoryDB(options, endpoint, DataBaseProvider);
+    const db = DataBaseProvider[`${host}${path}`];
+    if (db) logger.info('success get db provider', options.db);
+
+    let result = {};
+    switch (req.params.id) {
+      case 'all':
+        break;
+
+      default:
+        result = await FileModel.findByIdAndDelete(req.params.id);
+        break;
+    }
+
+    if (!result)
+      return res.status(400).json({
+        status: 'error',
+        message: 'item not found',
+      });
+
+    return res.status(200).json({
+      status: 'success',
+      data: result,
+      message: 'success-delete',
+    });
+  } catch (error) {
+    logger.error(error, error.stack);
+    return res.status(500).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+};
+
+export { POST, GET, DELETE };

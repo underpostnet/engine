@@ -27,14 +27,14 @@ const AgGrid = {
       // Grid Options: Contains all of the grid configurations
       const gridOptions = {
         // Row Data: The data to be displayed.
-        rowHeight: 60,
-        // autoHeight: true,
+        // rowHeight: 60,
         enableCellChangeFlash: true,
         defaultColDef: {
           editable: false,
           flex: 1,
           minWidth: 100,
           filter: true,
+          autoHeight: true,
         },
         // Column Definitions: Defines & controls grid columns.
         columnDefs: options?.gridOptions?.rowData?.[0]
