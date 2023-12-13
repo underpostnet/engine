@@ -588,7 +588,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             });
 
           let { solid, color } = BiomeEngine.currentBiome;
-          if (!solid || !color)
+          if (!solid)
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
               status: 'error',
@@ -613,7 +613,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
           })();
           if (fileId)
             await (async () => {
-              color = Object.values(color).map((row) => Object.values(row));
+              if (color) color = Object.values(color).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
               const { dim, dimPaintByCell, dimAmplitude } = Matrix.Data;
               const { status, data } = await CyberiaBiomeService.post({

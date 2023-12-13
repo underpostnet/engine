@@ -11,8 +11,8 @@ const Elements = {
   Data: {
     user: {
       main: {
-        x: 1, // Matrix.Data.dim / 2 - 0.5,
-        y: 1, // Matrix.Data.dim / 2 - 0.5,
+        x: 38, // Matrix.Data.dim / 2 - 0.5,
+        y: 40, // Matrix.Data.dim / 2 - 0.5,
         dim: 1,
         vel: 0.5,
         components: {

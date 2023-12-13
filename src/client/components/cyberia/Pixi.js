@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { newInstance, randomHexColor, range } from '../core/CommonJs.js';
+import { JSONmatrix, amplifyMatrix, mergeMatrices, newInstance, randomHexColor, range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
@@ -7,10 +7,12 @@ import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { Event } from './Event.js';
+import { CoreService } from '../../services/core/core.service.js';
+import { BiomeEngine } from './Biome.js';
 
 const Pixi = {
   MetaData: {
-    dim: 2250,
+    dim: 7 * 16 * 3 * 10,
   },
   Data: {},
   Init: function () {
@@ -73,6 +75,8 @@ const Pixi = {
     this.Data.user.container.y = 0;
     this.App.stage.addChild(this.Data.user.container);
 
+    // return this.loadSeedCity();
+
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;
     range(0, paintDim - 1).map((y) =>
@@ -88,6 +92,243 @@ const Pixi = {
         this.Data.biome.container.addChild(this.Data.biome[id]);
       }),
     );
+  },
+  loadSeedCity: async function () {
+    const mapData = [
+      {
+        name_map: '3hnp',
+        position: [4, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: '74fp9',
+        position: [2, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'a225',
+        position: [3, 0],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'b43de',
+        position: [1, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'b4db',
+        position: [-1, 1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'buro',
+        position: [0, 0],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'bx-park',
+        position: [0, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'cd89',
+        position: [2, -1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'cxfr',
+        position: [-1, -1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'cy-stadium',
+        position: [3, -1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'cy03-station',
+        position: [1, 0],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'df23',
+        position: [4, 2],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'ecc0',
+        position: [-1, 0],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'fe17',
+        position: [-1, 2],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'gyr8',
+        position: [3, 2],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'hu6r',
+        position: [1, -1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'iop-house',
+        parent: 'orange-over-purple',
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'jf2b',
+        position: [0, -1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'lim01',
+        position: [3, 4],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'mont',
+        position: [2, 1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'or56m',
+        position: [5, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'or865',
+        position: [-1, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'orange-over-purple',
+        position: [0, 1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'redpark',
+        position: [2, 2],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'til42',
+        position: [4, 4],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'todarp',
+        position: [0, 2],
+        types: ['safe'],
+        safe_cords: [[8, 10]],
+      },
+      {
+        name_map: 'trvc',
+        position: [3, 1],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'ubrig',
+        position: [2, 0],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'vlit6',
+        position: [5, 4],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'wen6x',
+        position: [3, 3],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'yupark',
+        position: [1, 2],
+        types: ['pvp', 'pve'],
+        safe_cords: [],
+      },
+      {
+        name_map: 'zax-shop',
+        position: [1, 1],
+        types: ['safe'],
+        safe_cords: [],
+      },
+    ];
+    // 7x6 (16*3)
+    const dim = 16 * 3 * 10; // this.MetaData.dim * 0.17;
+    const sumFactor = 1;
+    const solid = {};
+    for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
+      solid[y] = {};
+      for (const x of range(-1 + sumFactor, 5 + sumFactor)) {
+        const dataSection = mapData.find(
+          (d) => d.position && d.position[0] + sumFactor === x && d.position[1] + sumFactor === y,
+        );
+
+        let src;
+        if (dataSection) src = `${getProxyPath()}assets/seed-city/${dataSection.name_map}.PNG`;
+        else src = `${getProxyPath()}assets/seed-city/void.PNG`;
+
+        console.warn('dataSection', dataSection, src);
+
+        let sectionSolidMatrix;
+        if (dataSection) {
+          const allData = JSON.parse(
+            await CoreService.getRaw(`${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`),
+          );
+
+          sectionSolidMatrix = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));
+        } else {
+          sectionSolidMatrix = range(0, 15).map((row) => range(0, 15).map(() => 0));
+        }
+
+        sectionSolidMatrix = amplifyMatrix(sectionSolidMatrix, 3);
+
+        solid[y][x] = newInstance(sectionSolidMatrix);
+
+        const mapImg = Sprite.from(src);
+        mapImg.width = dim;
+        mapImg.height = dim;
+        mapImg.x = x * dim;
+        mapImg.y = y * dim;
+        this.Data.biome.container.addChild(mapImg);
+      }
+    }
+    BiomeEngine.currentBiome = { solid: mergeMatrices(solid) };
   },
   setFloor: function (blobUrl) {
     this.Data.biome.container.visible = false;

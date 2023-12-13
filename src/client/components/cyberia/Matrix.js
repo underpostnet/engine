@@ -5,7 +5,7 @@ import { Event } from './Event.js';
 
 const Matrix = {
   Data: {
-    dim: 16 * 6,
+    dim: 16 * 7,
     dimPaintByCell: 3,
     dimAmplitude: 6,
   },

@@ -328,6 +328,65 @@ function getDirection(x1, y1, x2, y2) {
   return direction;
 }
 
+// Function to amplify a matrix in horizontal and vertical directions
+const amplifyMatrix = (matrix, factor) => {
+  // Get the original dimensions of the matrix
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+
+  // Create a new amplified matrix filled with zeros
+  const amplifiedMatrix = Array.from({ length: rows * factor }, () => Array(cols * factor).fill(0));
+
+  // Iterate over the original matrix
+  for (let i = 0; i < rows; i++) {
+    for (let j = 0; j < cols; j++) {
+      // Get the current value in the original matrix
+      const originalValue = matrix[i][j];
+
+      // Amplify in horizontal and vertical directions
+      for (let x = 0; x < factor; x++) {
+        for (let y = 0; y < factor; y++) {
+          // Assign the amplified value to the new matrix
+          amplifiedMatrix[i * factor + x][j * factor + y] = originalValue;
+        }
+      }
+    }
+  }
+
+  return amplifiedMatrix;
+};
+
+const mergeMatrices = (input) => {
+  const rows = Object.keys(input).reduce((acc, key) => {
+    const rowData = Object.keys(input[key]).reduce((rowAcc, subKey) => {
+      const subArray = input[key][subKey];
+      const rowIndex = parseInt(key, 10) * subArray.length;
+      subArray.forEach((subRow, subRowIndex) => {
+        const fullRowIndex = rowIndex + subRowIndex;
+        if (!rowAcc[fullRowIndex]) {
+          rowAcc[fullRowIndex] = [];
+        }
+        rowAcc[fullRowIndex] = rowAcc[fullRowIndex].concat(subRow);
+      });
+      return rowAcc;
+    }, []);
+    acc = acc.concat(rowData);
+    return acc;
+  }, []);
+
+  // Remove empty rows
+  const nonEmptyRows = rows.filter((row) => row.some((cell) => cell !== undefined));
+
+  // Remove empty columns
+  const transpose = nonEmptyRows[0].map((col, i) => nonEmptyRows.map((row) => row[i]));
+  const nonEmptyColumns = transpose.filter((col) => col.some((cell) => cell !== undefined));
+
+  // Transpose back to rows
+  const result = nonEmptyColumns[0].map((row, i) => nonEmptyColumns.map((col) => col[i]));
+
+  return result;
+};
+
 export {
   s4,
   range,
@@ -360,4 +419,6 @@ export {
   getValueFromJoinString,
   endpointFactory,
   getDirection,
+  amplifyMatrix,
+  mergeMatrices,
 };
