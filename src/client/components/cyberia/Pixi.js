@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { JSONmatrix, amplifyMatrix, mergeMatrices, newInstance, randomHexColor, range } from '../core/CommonJs.js';
+import { newInstance, randomHexColor, range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
@@ -7,8 +7,6 @@ import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { Event } from './Event.js';
-import { CoreService } from '../../services/core/core.service.js';
-import { BiomeEngine } from './Biome.js';
 
 const Pixi = {
   MetaData: {
@@ -54,12 +52,14 @@ const Pixi = {
       // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
     };
 
-    this.Data.biome.seedCityContainer = new Container();
-    this.Data.biome.seedCityContainer.width = this.MetaData.dim;
-    this.Data.biome.seedCityContainer.height = this.MetaData.dim;
-    this.Data.biome.seedCityContainer.x = 0;
-    this.Data.biome.seedCityContainer.y = 0;
-    this.App.stage.addChild(this.Data.biome.seedCityContainer);
+    // biome containers
+
+    this.Data.biome['seed-city'] = new Container();
+    this.Data.biome['seed-city'].width = this.MetaData.dim;
+    this.Data.biome['seed-city'].height = this.MetaData.dim;
+    this.Data.biome['seed-city'].x = 0;
+    this.Data.biome['seed-city'].y = 0;
+    this.App.stage.addChild(this.Data.biome['seed-city']);
 
     this.Data.biome.container = new Container();
     this.Data.biome.container.width = this.MetaData.dim;
@@ -75,6 +75,8 @@ const Pixi = {
     this.Data.biome.floorContainer.y = 0;
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
+    // user container
+
     this.Data.user.container = new Container();
     this.Data.user.container.width = this.MetaData.dim;
     this.Data.user.container.height = this.MetaData.dim;
@@ -82,6 +84,43 @@ const Pixi = {
     this.Data.user.container.y = 0;
     this.App.stage.addChild(this.Data.user.container);
 
+    this.setBiome();
+  },
+  currentContainer: String,
+  clearContainers: function () {
+    this.Data.biome.container.removeChildren();
+    this.Data.biome['seed-city'].removeChildren();
+    this.Data.biome.floorContainer.removeChildren();
+  },
+  setFloor: function (blobUrl) {
+    this.clearContainers();
+
+    this.currentContainer = 'floorContainer';
+    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
+    this.Data.biome.floor.width = this.MetaData.dim;
+    this.Data.biome.floor.height = this.MetaData.dim;
+    this.Data.biome.floor.x = 0;
+    this.Data.biome.floor.y = 0;
+    this.Data.biome[this.currentContainer].addChild(this.Data.biome.floor);
+  },
+  setBiome: function (BiomeMatrix) {
+    this.clearContainers();
+
+    if (BiomeMatrix && BiomeMatrix.setBiome) {
+      this.currentContainer = BiomeMatrix.container;
+      for (const cellData of BiomeMatrix.setBiome) {
+        const { src, dim, x, y } = cellData;
+        this.Data.biome[src] = Sprite.from(src);
+        this.Data.biome[src].width = dim;
+        this.Data.biome[src].height = dim;
+        this.Data.biome[src].x = x * dim;
+        this.Data.biome[src].y = y * dim;
+        this.Data.biome[this.currentContainer].addChild(this.Data.biome[src]);
+      }
+      return;
+    }
+
+    this.currentContainer = 'container';
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;
     range(0, paintDim - 1).map((y) =>
@@ -92,200 +131,8 @@ const Pixi = {
         this.Data.biome[id].y = dim * y;
         this.Data.biome[id].width = dim;
         this.Data.biome[id].height = dim;
-        // this.Data.biome[id].tint = randomHexColor();
-        this.Data.biome[id].visible = false;
-        this.Data.biome.container.addChild(this.Data.biome[id]);
-      }),
-    );
-
-    return this.loadSeedCity();
-  },
-  loadSeedCity: async function () {
-    const mapData = [
-      {
-        name_map: '3hnp',
-        position: [4, 3],
-      },
-      {
-        name_map: '74fp9',
-        position: [2, 3],
-      },
-      {
-        name_map: 'a225',
-        position: [3, 0],
-      },
-      {
-        name_map: 'b43de',
-        position: [1, 3],
-      },
-      {
-        name_map: 'b4db',
-        position: [-1, 1],
-      },
-      {
-        name_map: 'buro',
-        position: [0, 0],
-      },
-      {
-        name_map: 'bx-park',
-        position: [0, 3],
-      },
-      {
-        name_map: 'cd89',
-        position: [2, -1],
-      },
-      {
-        name_map: 'cxfr',
-        position: [-1, -1],
-      },
-      {
-        name_map: 'cy-stadium',
-        position: [3, -1],
-      },
-      {
-        name_map: 'cy03-station',
-        position: [1, 0],
-      },
-      {
-        name_map: 'df23',
-        position: [4, 2],
-      },
-      {
-        name_map: 'ecc0',
-        position: [-1, 0],
-      },
-      {
-        name_map: 'fe17',
-        position: [-1, 2],
-      },
-      {
-        name_map: 'gyr8',
-        position: [3, 2],
-      },
-      {
-        name_map: 'hu6r',
-        position: [1, -1],
-      },
-      {
-        name_map: 'jf2b',
-        position: [0, -1],
-      },
-      {
-        name_map: 'lim01',
-        position: [3, 4],
-      },
-      {
-        name_map: 'mont',
-        position: [2, 1],
-      },
-      {
-        name_map: 'or56m',
-        position: [5, 3],
-      },
-      {
-        name_map: 'or865',
-        position: [-1, 3],
-      },
-      {
-        name_map: 'orange-over-purple',
-        position: [0, 1],
-      },
-      {
-        name_map: 'redpark',
-        position: [2, 2],
-      },
-      {
-        name_map: 'til42',
-        position: [4, 4],
-      },
-      {
-        name_map: 'todarp',
-        position: [0, 2],
-      },
-      {
-        name_map: 'trvc',
-        position: [3, 1],
-      },
-      {
-        name_map: 'ubrig',
-        position: [2, 0],
-      },
-      {
-        name_map: 'vlit6',
-        position: [5, 4],
-      },
-      {
-        name_map: 'wen6x',
-        position: [3, 3],
-      },
-      {
-        name_map: 'yupark',
-        position: [1, 2],
-      },
-      {
-        name_map: 'zax-shop',
-        position: [1, 1],
-      },
-    ];
-    // 7x6 (16*3)
-    const dim = 16 * 3 * 10; // this.MetaData.dim * 0.17;
-    const sumFactor = 1;
-    const solid = {};
-    for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
-      solid[y] = {};
-      for (const x of range(-1 + sumFactor, 5 + sumFactor)) {
-        const dataSection = mapData.find(
-          (d) => d.position && d.position[0] + sumFactor === x && d.position[1] + sumFactor === y,
-        );
-
-        let src;
-        if (dataSection) src = `${getProxyPath()}assets/seed-city/${dataSection.name_map}.PNG`;
-        else src = `${getProxyPath()}assets/seed-city/void.PNG`;
-
-        let sectionSolidMatrix;
-        if (dataSection) {
-          const allData = JSON.parse(
-            await CoreService.getRaw(`${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`),
-          );
-
-          sectionSolidMatrix = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));
-        } else {
-          sectionSolidMatrix = range(0, 15).map((row) => range(0, 15).map(() => 0));
-        }
-
-        sectionSolidMatrix = amplifyMatrix(sectionSolidMatrix, 3);
-
-        solid[y][x] = newInstance(sectionSolidMatrix);
-
-        const mapImg = Sprite.from(src);
-        mapImg.width = dim;
-        mapImg.height = dim;
-        mapImg.x = x * dim;
-        mapImg.y = y * dim;
-        this.Data.biome.seedCityContainer.addChild(mapImg);
-      }
-    }
-    BiomeEngine.currentBiome = { solid: mergeMatrices(solid) };
-  },
-  setFloor: function (blobUrl) {
-    this.Data.biome.container.visible = false;
-    this.Data.biome.floorContainer.removeChildren();
-    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
-    this.Data.biome.floor.width = this.MetaData.dim;
-    this.Data.biome.floor.height = this.MetaData.dim;
-    this.Data.biome.floor.x = 0;
-    this.Data.biome.floor.y = 0;
-    this.Data.biome.floorContainer.addChild(this.Data.biome.floor);
-  },
-  setBiome: function (BiomeMatrix) {
-    this.Data.biome.container.visible = true;
-    this.Data.biome.floorContainer.removeChildren();
-    const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
-    range(0, paintDim - 1).map((y) =>
-      range(0, paintDim - 1).map((x) => {
-        const id = `biome-cell-${x}-${y}`;
-        this.Data.biome[id].tint = BiomeMatrix.color[y][x]; // randomHexColor();
-        this.Data.biome[id].visible = true;
+        this.Data.biome[id].tint = BiomeMatrix ? BiomeMatrix.color[y][x] : randomHexColor();
+        this.Data.biome[this.currentContainer].addChild(this.Data.biome[id]);
       }),
     );
   },

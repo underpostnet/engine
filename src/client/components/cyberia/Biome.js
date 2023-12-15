@@ -1,8 +1,9 @@
+import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, newInstance, random, range, round10, timer } from '../core/CommonJs.js';
+import { JSONmatrix, amplifyMatrix, mergeMatrices, newInstance, random, range, round10 } from '../core/CommonJs.js';
 import { Css, Themes, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -12,7 +13,7 @@ import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { validationRules } from '../core/Validator.js';
-import { downloadFile, htmls, s } from '../core/VanillaJs.js';
+import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -20,7 +21,7 @@ import { Pixi } from './Pixi.js';
 const logger = loggerFactory(import.meta);
 
 const Biome = {
-  city: function () {
+  city: async function () {
     const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const buildingStyles = [
       {
@@ -189,7 +190,7 @@ const Biome = {
 
     return BiomeMatrix;
   },
-  forest: function () {
+  forest: async function () {
     const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
 
     // phenotypes
@@ -342,6 +343,182 @@ const Biome = {
         }
       });
     });
+
+    return BiomeMatrix;
+  },
+  'seed-city': async function () {
+    const BiomeMatrix = {
+      color: {},
+      solid: {},
+      setBiome: [],
+      container: 'seed-city',
+      timeOut: 1000,
+    };
+    const mapData = [
+      {
+        name_map: '3hnp',
+        position: [4, 3],
+      },
+      {
+        name_map: '74fp9',
+        position: [2, 3],
+      },
+      {
+        name_map: 'a225',
+        position: [3, 0],
+      },
+      {
+        name_map: 'b43de',
+        position: [1, 3],
+      },
+      {
+        name_map: 'b4db',
+        position: [-1, 1],
+      },
+      {
+        name_map: 'buro',
+        position: [0, 0],
+      },
+      {
+        name_map: 'bx-park',
+        position: [0, 3],
+      },
+      {
+        name_map: 'cd89',
+        position: [2, -1],
+      },
+      {
+        name_map: 'cxfr',
+        position: [-1, -1],
+      },
+      {
+        name_map: 'cy-stadium',
+        position: [3, -1],
+      },
+      {
+        name_map: 'cy03-station',
+        position: [1, 0],
+      },
+      {
+        name_map: 'df23',
+        position: [4, 2],
+      },
+      {
+        name_map: 'ecc0',
+        position: [-1, 0],
+      },
+      {
+        name_map: 'fe17',
+        position: [-1, 2],
+      },
+      {
+        name_map: 'gyr8',
+        position: [3, 2],
+      },
+      {
+        name_map: 'hu6r',
+        position: [1, -1],
+      },
+      {
+        name_map: 'jf2b',
+        position: [0, -1],
+      },
+      {
+        name_map: 'lim01',
+        position: [3, 4],
+      },
+      {
+        name_map: 'mont',
+        position: [2, 1],
+      },
+      {
+        name_map: 'or56m',
+        position: [5, 3],
+      },
+      {
+        name_map: 'or865',
+        position: [-1, 3],
+      },
+      {
+        name_map: 'orange-over-purple',
+        position: [0, 1],
+      },
+      {
+        name_map: 'redpark',
+        position: [2, 2],
+      },
+      {
+        name_map: 'til42',
+        position: [4, 4],
+      },
+      {
+        name_map: 'todarp',
+        position: [0, 2],
+      },
+      {
+        name_map: 'trvc',
+        position: [3, 1],
+      },
+      {
+        name_map: 'ubrig',
+        position: [2, 0],
+      },
+      {
+        name_map: 'vlit6',
+        position: [5, 4],
+      },
+      {
+        name_map: 'wen6x',
+        position: [3, 3],
+      },
+      {
+        name_map: 'yupark',
+        position: [1, 2],
+      },
+      {
+        name_map: 'zax-shop',
+        position: [1, 1],
+      },
+    ];
+    // 7x6 (16*3)
+    const dim = 16 * 3 * 10; // this.MetaData.dim * 0.17;
+    const sumFactor = 1;
+    const solid = {};
+    for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
+      solid[y] = {};
+      for (const x of range(-1 + sumFactor, 5 + sumFactor)) {
+        const dataSection = mapData.find(
+          (d) => d.position && d.position[0] + sumFactor === x && d.position[1] + sumFactor === y,
+        );
+
+        let src;
+        if (dataSection) src = `${getProxyPath()}assets/seed-city/${dataSection.name_map}.PNG`;
+        else src = `${getProxyPath()}assets/seed-city/void.PNG`;
+
+        let sectionSolidMatrix;
+        if (dataSection) {
+          const allData = JSON.parse(
+            await CoreService.getRaw(`${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`),
+          );
+
+          sectionSolidMatrix = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));
+        } else {
+          sectionSolidMatrix = range(0, 15).map((row) => range(0, 15).map(() => 0));
+        }
+
+        sectionSolidMatrix = amplifyMatrix(sectionSolidMatrix, 3);
+
+        solid[y][x] = newInstance(sectionSolidMatrix);
+
+        BiomeMatrix.setBiome.push({
+          src,
+          dim,
+          x,
+          y,
+        });
+      }
+    }
+    BiomeMatrix.solid = mergeMatrices(solid);
 
     return BiomeMatrix;
   },
@@ -555,14 +732,19 @@ const BiomeEngine = {
         s(`.input-name-${biome}`).onblur = validator.name;
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
-          const BiomeMatrix = Biome[biome]();
+          const BiomeMatrix = await Biome[biome]();
           BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
           Pixi.setBiome(BiomeMatrix);
-          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-          BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
-          const res = await fetch(BiomeScope.Keys[biome].imageSrc);
-          const blob = await res.blob();
-          BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+          setTimeout(
+            async () => {
+              const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentContainer]);
+              BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
+              const res = await fetch(BiomeScope.Keys[biome].imageSrc);
+              const blob = await res.blob();
+              BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+            },
+            BiomeMatrix.timeOut ? BiomeMatrix.timeOut : 0,
+          );
         });
         EventsUI.onClick(`.btn-download-biome-${biome}-png`, async () =>
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
@@ -701,7 +883,6 @@ const BiomeEngine = {
               id: `ag-grid-biome-files`,
               gridOptions: {
                 rowData: BiomeScope.Grid,
-                rowHeight: 240,
                 columnDefs: [
                   { field: '_id', headerName: 'ID' },
                   { field: 'biome', headerName: 'Biome' },
