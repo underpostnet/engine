@@ -347,77 +347,78 @@ const Biome = {
   },
 };
 
-let biomeData;
+const BiomeScope = {
+  CurrentKey: Object.keys(Biome)[0],
+  Keys: {},
+  Data: {},
+  Grid: [],
+};
 
 class LoadBiomeRenderer {
   eGui;
 
   async init(params) {
     console.log('LoadBiomeRenderer created', params);
+    const rowId = `${params.data.biome}-${params.rowIndex}`;
+
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`
       ${await BtnIcon.Render({
-        class: `in ag-btn-renderer btn-load-biome-${params.data.biome}-${params.rowIndex}`,
+        class: `in ag-btn-renderer btn-load-biome-${rowId}`,
         label: html`<i class="fa-solid fa-bolt"></i><br />
           ${Translate.Render(`load`)}`,
       })}
       ${await BtnIcon.Render({
-        class: `in ag-btn-renderer btn-download-biome-${params.data.biome}-${params.rowIndex}`,
-        label: html`<i class="fa-solid fa-download"></i> <br />
-          ${Translate.Render(`download`)}`,
-      })}
-      ${await BtnIcon.Render({
-        class: `in ag-btn-renderer btn-delete-biome-${params.data.biome}-${params.rowIndex}`,
+        class: `in ag-btn-renderer btn-delete-biome-${rowId}`,
         label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
           ${Translate.Render(`delete`)}`,
       })}
     `;
+    const loadBiomeScopeData = async () => {
+      const resultBiome = await CyberiaBiomeService.get(params.data._id);
+
+      const biomeData = resultBiome.data[0];
+
+      const resultFile = await FileService.get(biomeData.fileId);
+
+      const imageData = resultFile.data[0];
+
+      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+      const imageSrc = URL.createObjectURL(imageFile);
+
+      biomeData.color = Object.assign(
+        {},
+        biomeData.color.map((cell) => Object.assign({}, cell)),
+      );
+      biomeData.solid = Object.assign(
+        {},
+        biomeData.solid.map((cell) => Object.assign({}, cell)),
+      );
+
+      BiomeScope.Data[rowId] = {
+        ...biomeData,
+        imageFile,
+        imageSrc,
+      };
+    };
+
     setTimeout(() => {
-      EventsUI.onClick(`.btn-load-biome-${params.data.biome}-${params.rowIndex}`, async () => {
-        let imageUrl;
-        if (!s(`.modal-image-biome-${params.data.biome}-${params.data._id}`)) {
-          const resultBiome = await CyberiaBiomeService.get(params.data._id);
+      EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
+        if (!BiomeScope.Data[rowId]) await loadBiomeScopeData();
 
-          const biomeData = resultBiome.data[0];
+        Matrix.Data.dim = BiomeScope.Data[rowId].dim;
+        Matrix.Data.dimPaintByCell = BiomeScope.Data[rowId].dimPaintByCell;
+        Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
+        BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
+        Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
 
-          const resultFile = await FileService.get(biomeData.fileId);
-
-          const imageData = resultFile.data[0];
-
-          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
-
-          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-
-          imageUrl = URL.createObjectURL(imageFile);
-
-          biomeData.color = Object.assign(
-            {},
-            biomeData.color.map((cell) => Object.assign({}, cell)),
-          );
-          biomeData.solid = Object.assign(
-            {},
-            biomeData.solid.map((cell) => Object.assign({}, cell)),
-          );
-          BiomeEngine.currentBiome = biomeData;
-
-          Matrix.Data.dim = biomeData.dim;
-          Matrix.Data.dimPaintByCell = biomeData.dimPaintByCell;
-          Matrix.Data.dimAmplitude = biomeData.dimAmplitude;
-
-          Pixi.setFloor(imageUrl);
-        }
-        const { barConfig } = await Themes[Css.currentTheme]();
-        await Modal.Render({
-          id: `modal-image-biome-${params.data.biome}-${params.data._id}`,
-          barConfig,
-          title: ` ${Translate.Render(`biome-image`)} - ${params.data.biome} - ${params.data._id}`,
-          html: html`<img src="${imageUrl}" />`,
-        });
+        s(`.input-name-${params.data.biome}`).value = BiomeScope.Data[rowId].name;
+        s(`.dropdown-option-${params.data.biome}`).click();
       });
-      EventsUI.onClick(`.btn-download-biome-${params.data.biome}-${params.rowIndex}`, async () => {
-        await timer(3000);
-      });
-      EventsUI.onClick(`.btn-delete-biome-${params.data.biome}-${params.rowIndex}`, async () => {
+      EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
         const biomeDeleteResult = await CyberiaBiomeService.delete(params.data._id);
         NotificationManager.Push({
           html:
@@ -437,8 +438,8 @@ class LoadBiomeRenderer {
         });
 
         setTimeout(() => {
-          biomeData.data = biomeData.data.filter((biome) => biome._id !== params.data._id);
-          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', biomeData.data);
+          BiomeScope.Grid = BiomeScope.Grid.filter((biome) => biome._id !== params.data._id);
+          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeScope.Grid);
         });
       });
     });
@@ -456,28 +457,27 @@ class LoadBiomeRenderer {
 
 const BiomeEngine = {
   Render: async function (options) {
-    // const result = await FileService.get('all');
-    biomeData = await CyberiaBiomeService.get('all-name');
+    const resultBiome = await CyberiaBiomeService.get('all-name');
     NotificationManager.Push({
-      html: biomeData.status === 'success' ? Translate.Render(biomeData.message) : biomeData.message,
-      status: biomeData.status,
+      html: resultBiome.status === 'success' ? Translate.Render(resultBiome.message) : resultBiome.message,
+      status: resultBiome.status,
     });
-    let currentBiome;
-    // if (result.status === 'error') return;
+    if (resultBiome.status === 'success') BiomeScope.Grid = resultBiome.data;
+
     let configBiomeFormRender = html`
       ${await DropDown.Render({
-        value: Object.keys(Biome)[0],
+        value: BiomeScope.CurrentKey,
         label: html`${Translate.Render('select-biome')}`,
         data: Object.keys(Biome).map((biomeKey) => {
           return {
             value: biomeKey,
             display: html`<i class="fa-solid fa-mountain-city"></i> ${Translate.Render(biomeKey)}`,
-            onClick: (event) => {
-              // const { selector, id, index } = event;
-              currentBiome = biomeKey;
-              console.log('currentBiome', currentBiome);
+            onClick: () => {
+              logger.info('DropDown Biome onClick', biomeKey);
+              BiomeScope.CurrentKey = biomeKey;
+
               for (const biome of Object.keys(Biome))
-                s(`.section-row-${biome}`).style.display = currentBiome === biome ? 'block' : 'none';
+                s(`.section-row-${biome}`).style.display = biomeKey === biome ? 'block' : 'none';
             },
           };
         }),
@@ -529,8 +529,6 @@ const BiomeEngine = {
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        let currentRenderSolid;
-        let currentRenderImage;
         const validator = {
           name: () => {
             logger.warn(`.input-name-${biome}`, s(`.input-name-${biome}`).value);
@@ -558,49 +556,36 @@ const BiomeEngine = {
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           const BiomeMatrix = Biome[biome]();
-          BiomeEngine.currentBiome = BiomeMatrix;
-          currentRenderSolid = html`<pre style="font-size: 10px">
-${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
-          >`;
-          if (s(`.html-modal-solid-biome-${biome}`)) htmls(`.html-modal-solid-biome-${biome}`, currentRenderSolid);
+          BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
           Pixi.setBiome(BiomeMatrix);
           const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-          currentRenderImage = html`<img src="${biomeImg.currentSrc}" />`;
-          if (s(`.html-modal-image-biome-${biome}`)) htmls(`.html-modal-image-biome-${biome}`, currentRenderImage);
-          const res = await fetch(biomeImg.currentSrc);
+          BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
+          const res = await fetch(BiomeScope.Keys[biome].imageSrc);
           const blob = await res.blob();
-          const file = new File([blob], { type: 'image/png' }); // open window save name
+          BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
         });
-        s(`.btn-download-biome-${biome}-png`).onclick = async () => {
-          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome.container);
-          const res = await fetch(biomeImg.currentSrc);
-          const blob = await res.blob();
-          downloadFile(blob, `${biome}.png`);
-        };
+        EventsUI.onClick(`.btn-download-biome-${biome}-png`, async () =>
+          downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
+        );
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
           const validators = [validator.name()];
           if (validators.includes(true)) return;
 
-          if (!BiomeEngine.currentBiome)
+          if (!BiomeScope.Keys[biome])
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
               status: 'error',
             });
 
-          let { solid, color } = BiomeEngine.currentBiome;
+          let { solid, color } = BiomeScope.Keys[biome];
           if (!solid)
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
               status: 'error',
             });
-
-          const biomeImg = await Pixi.App.renderer.extract.image(Pixi.App.stage);
-          const res = await fetch(biomeImg.currentSrc);
-          const blob = await res.blob();
           const body = new FormData();
           // https://www.iana.org/assignments/media-types/media-types.xhtml
-          // body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
-          body.append('file', new File([blob], `${biome}.png`, { type: 'image/png' }));
+          body.append('file', BiomeScope.Keys[biome].imageFile);
           let fileId;
           await (async () => {
             const { status, data } = await FileService.post(body);
@@ -630,8 +615,8 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
                 html: Translate.Render(`${status}-upload-biome`),
                 status,
               });
-              biomeData.data.push(data);
-              AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', biomeData.data);
+              BiomeScope.Grid.push(data);
+              AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeScope.Grid);
               // AgGrid.grids[`ag-grid-biome-files`].refreshCells({
               //   force: true,
               //   suppressFlash: false,
@@ -645,7 +630,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             id: `modal-image-biome-${biome}`,
             barConfig,
             title: ` ${Translate.Render(`biome-image`)} - ${biome}`,
-            html: currentRenderImage,
+            html: html`<img src="${BiomeScope.Keys[biome].imageSrc}" />`,
           });
         });
         EventsUI.onClick(`.btn-solid-biome-${biome}`, async () => {
@@ -654,7 +639,9 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             id: `modal-solid-biome-${biome}`,
             barConfig,
             title: ` ${Translate.Render(`biome-solid`)} - ${biome}`,
-            html: currentRenderSolid,
+            html: html`<pre style="font-size: 10px">
+            ${JSONmatrix(BiomeScope.Keys[biome].solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
+            >`,
           });
         });
       }),
@@ -713,7 +700,7 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
               gridOptions: {
-                rowData: biomeData.data,
+                rowData: BiomeScope.Grid,
                 rowHeight: 240,
                 columnDefs: [
                   { field: '_id', headerName: 'ID' },
@@ -733,22 +720,21 @@ ${JSONmatrix(BiomeMatrix.solid).replaceAll('1', html`<span style="color: yellow"
     `;
   },
   isCollision: function (options) {
-    if (!this.currentBiome) return false;
+    if (!BiomeScope.Keys[BiomeScope.CurrentKey] || !BiomeScope.Keys[BiomeScope.CurrentKey].solid) return false;
     const x = options.x * Matrix.Data.dimPaintByCell;
     const y = options.y * Matrix.Data.dimPaintByCell;
     const { type, id } = options;
     for (const sumY of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1))
       for (const sumX of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1)) {
         if (
-          this.currentBiome.solid[round10(y + sumY)] === undefined ||
-          this.currentBiome.solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
-          this.currentBiome.solid[round10(y + sumY)][round10(x + sumX)] === 1
+          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)] === undefined ||
+          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
+          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)][round10(x + sumX)] === 1
         )
           return true;
       }
     return false;
   },
-  getAvailableRandomPosition: function () {},
 };
 
-export { Biome, BiomeEngine };
+export { Biome, BiomeEngine, BiomeScope };

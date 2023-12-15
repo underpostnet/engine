@@ -13,8 +13,8 @@ const TranslateCyberia = {
     Translate.Data['config-biome'] = { en: 'biome settings', es: 'Configuración del bioma' };
     Translate.Data['biome-type'] = { en: 'Biome type', es: 'Seleccionar bioma' };
     Translate.Data['biomes'] = { en: 'Biomes', es: 'Biomas' };
-    Translate.Data['biome-image'] = { en: 'See Image', es: 'Ver Imagen' };
-    Translate.Data['biome-solid'] = { en: 'See Solid', es: 'Ver Matrix' };
+    Translate.Data['biome-image'] = { en: 'Image', es: 'Imagen' };
+    Translate.Data['biome-solid'] = { en: 'Object matrix', es: 'Matriz de Objetos' };
     Translate.Data['success-biome'] = { en: 'Success load biome(s)', es: 'Biomas cargados con exito' };
   },
 };

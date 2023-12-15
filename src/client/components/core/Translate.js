@@ -78,6 +78,7 @@ const TranslateCore = {
     Translate.Data['load'] = { en: 'load', es: 'Cargar' };
     Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
     Translate.Data['search'] = { en: 'search', es: 'buscar' };
+    Translate.Data['view'] = { en: 'view', es: 'ver' };
   },
 };
 

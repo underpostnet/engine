@@ -48,13 +48,22 @@ const DropDown = {
           ${options.data
             .map((optionData, i) => {
               setTimeout(() => {
-                s(`.dropdown-option-${id}-${i}`).onclick = () => {
+                s(`.dropdown-option-${id}-${i}`).onclick = (e) => {
                   s(`.dropdown-option-${id}`).classList.add('hide');
-                  optionData.onClick();
+                  optionData.onClick(e);
                   if (optionData.value !== 'close') htmls(`.dropdown-current-${id}`, optionData.display);
                 };
               });
-              return html` <div class="in dropdown-option dropdown-option-${id}-${i}">${optionData.display}</div> `;
+              return html`
+                <div
+                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${optionData.value.replaceAll(
+                    ' ',
+                    '-',
+                  )}"
+                >
+                  ${optionData.display}
+                </div>
+              `;
             })
             .join('')}
         </div>
