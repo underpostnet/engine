@@ -737,7 +737,7 @@ const BiomeEngine = {
           Pixi.setBiome(BiomeMatrix);
           setTimeout(
             async () => {
-              const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentContainer]);
+              const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentBiomeContainer]);
               BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
               const res = await fetch(BiomeScope.Keys[biome].imageSrc);
               const blob = await res.blob();

@@ -86,28 +86,28 @@ const Pixi = {
 
     this.setBiome();
   },
-  currentContainer: String,
-  clearContainers: function () {
+  currentBiomeContainer: String,
+  clearBiomeContainers: function () {
     this.Data.biome.container.removeChildren();
     this.Data.biome['seed-city'].removeChildren();
     this.Data.biome.floorContainer.removeChildren();
   },
   setFloor: function (blobUrl) {
-    this.clearContainers();
+    this.clearBiomeContainers();
 
-    this.currentContainer = 'floorContainer';
+    this.currentBiomeContainer = 'floorContainer';
     this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
     this.Data.biome.floor.width = this.MetaData.dim;
     this.Data.biome.floor.height = this.MetaData.dim;
     this.Data.biome.floor.x = 0;
     this.Data.biome.floor.y = 0;
-    this.Data.biome[this.currentContainer].addChild(this.Data.biome.floor);
+    this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome.floor);
   },
   setBiome: function (BiomeMatrix) {
-    this.clearContainers();
+    this.clearBiomeContainers();
 
     if (BiomeMatrix && BiomeMatrix.setBiome) {
-      this.currentContainer = BiomeMatrix.container;
+      this.currentBiomeContainer = BiomeMatrix.container;
       for (const cellData of BiomeMatrix.setBiome) {
         const { src, dim, x, y } = cellData;
         this.Data.biome[src] = Sprite.from(src);
@@ -115,12 +115,12 @@ const Pixi = {
         this.Data.biome[src].height = dim;
         this.Data.biome[src].x = x * dim;
         this.Data.biome[src].y = y * dim;
-        this.Data.biome[this.currentContainer].addChild(this.Data.biome[src]);
+        this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[src]);
       }
       return;
     }
 
-    this.currentContainer = 'container';
+    this.currentBiomeContainer = 'container';
     const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
     const dim = this.MetaData.dim / paintDim;
     range(0, paintDim - 1).map((y) =>
@@ -132,7 +132,7 @@ const Pixi = {
         this.Data.biome[id].width = dim;
         this.Data.biome[id].height = dim;
         this.Data.biome[id].tint = BiomeMatrix ? BiomeMatrix.color[y][x] : randomHexColor();
-        this.Data.biome[this.currentContainer].addChild(this.Data.biome[id]);
+        this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[id]);
       }),
     );
   },
