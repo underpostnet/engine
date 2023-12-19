@@ -5,12 +5,19 @@ const Input = {
     const { id } = options;
     options?.placeholder ? (options.placeholder === true ? (options.placeholder = ' . . .') : null) : null;
     setTimeout(() => {
-      s(`.input-container-${id}`).onclick = () => s(`.${id}`).focus();
+      s(`.input-container-${id}`).onclick = () =>
+        ['color'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
     });
     return html` <div class="inl input-container-${id} ${options?.containerClass ? options.containerClass : ''}">
       <div class="in">
         <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
-        <input type="text" class="in ${id}" placeholder${options?.placeholder ? `="${options.placeholder}"` : ''} />
+        <input
+          type="${options?.type ? options.type : 'text'}"
+          class="in ${id}"
+          ${options?.min !== undefined ? `min="${options.min}"` : ''}
+          placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
+          ${options?.value !== undefined ? `value="${options.value}"` : ''}
+        />
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
     </div>`;

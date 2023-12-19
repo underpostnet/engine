@@ -701,6 +701,16 @@ scrollbar-width: none;
           color: #ffcc00;
           background: #313131;
         }
+        .tile-cell {
+          width: 10px;
+          height: 10px;
+          border: 1px solid gray;
+          box-sizing: border-box;
+          cursor: pointer;
+        }
+        .tile-cell:hover {
+          border: 1px solid yellow;
+        }
       `,
     ),
   fontawesome: async () =>

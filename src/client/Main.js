@@ -21,6 +21,7 @@ import { Bag } from './components/cyberia/Bag.js';
 import { JoyStick } from './components/cyberia/JoyStick.js';
 import { BiomeEngine } from './components/cyberia/Biome.js';
 import { EventsUI } from './components/core/EventsUI.js';
+import { Tile } from './components/cyberia/Tile.js';
 
 const theme = 'cyberia';
 const { barConfig } = await Css.Init({ theme });
@@ -61,6 +62,7 @@ await Modal.Render({
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
   ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
   ${await BtnIcon.Render({ class: 'main-btn-biome', label: 'Biome engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn-tile', label: 'Tile Engine' })}
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
@@ -108,6 +110,17 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     barConfig,
     title: 'Biome engine',
     html: async () => await BiomeEngine.Render({ IdModal: 'modal-biome' }),
+    handleType: 'bar',
+  });
+});
+
+EventsUI.onClick(`.main-btn-tile`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-tile-engine',
+    barConfig,
+    title: 'Tile engine',
+    html: await Tile.Render(),
     handleType: 'bar',
   });
 });

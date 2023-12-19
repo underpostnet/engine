@@ -89,6 +89,7 @@ const Config = {
             'Bag',
             'JoyStick',
             'Biome',
+            'Tile',
           ],
           test: ['Test'],
         },
@@ -179,11 +180,17 @@ const Config = {
       },
       'www.example2.com': {
         '/': {
-          client: 'test',
+          client: 'cyberia',
+          apis: ['file', 'cyberia-biome'],
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'example2-cyberia',
+          },
         },
         '/path': {
           client: 'test',
@@ -197,7 +204,7 @@ const Config = {
           apis: ['file', 'cyberia-biome'],
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
