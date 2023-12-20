@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { newInstance, randomHexColor, range } from '../core/CommonJs.js';
+import { newInstance, range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
@@ -105,36 +105,37 @@ const Pixi = {
   },
   setBiome: function (BiomeMatrix) {
     this.clearBiomeContainers();
+    if (BiomeMatrix) {
+      this.currentBiomeContainer = BiomeMatrix?.container ? BiomeMatrix.container : 'container';
 
-    if (BiomeMatrix && BiomeMatrix.setBiome) {
-      this.currentBiomeContainer = BiomeMatrix.container;
-      for (const cellData of BiomeMatrix.setBiome) {
-        const { src, dim, x, y } = cellData;
-        this.Data.biome[src] = Sprite.from(src);
-        this.Data.biome[src].width = dim;
-        this.Data.biome[src].height = dim;
-        this.Data.biome[src].x = x * dim;
-        this.Data.biome[src].y = y * dim;
-        this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[src]);
+      if (BiomeMatrix.setBiome) {
+        for (const cellData of BiomeMatrix.setBiome) {
+          const { src, dim, x, y } = cellData;
+          this.Data.biome[src] = Sprite.from(src);
+          this.Data.biome[src].width = dim;
+          this.Data.biome[src].height = dim;
+          this.Data.biome[src].x = x * dim;
+          this.Data.biome[src].y = y * dim;
+          this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[src]);
+        }
+        return;
       }
-      return;
-    }
 
-    this.currentBiomeContainer = 'container';
-    const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
-    const dim = this.MetaData.dim / paintDim;
-    range(0, paintDim - 1).map((y) =>
-      range(0, paintDim - 1).map((x) => {
-        const id = `biome-cell-${x}-${y}`;
-        this.Data.biome[id] = new Sprite(Texture.WHITE);
-        this.Data.biome[id].x = dim * x;
-        this.Data.biome[id].y = dim * y;
-        this.Data.biome[id].width = dim;
-        this.Data.biome[id].height = dim;
-        this.Data.biome[id].tint = BiomeMatrix ? BiomeMatrix.color[y][x] : randomHexColor();
-        this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[id]);
-      }),
-    );
+      const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+      const dim = this.MetaData.dim / paintDim;
+      range(0, paintDim - 1).map((y) =>
+        range(0, paintDim - 1).map((x) => {
+          const id = `biome-cell-${x}-${y}`;
+          this.Data.biome[id] = new Sprite(Texture.WHITE);
+          this.Data.biome[id].x = dim * x;
+          this.Data.biome[id].y = dim * y;
+          this.Data.biome[id].width = dim;
+          this.Data.biome[id].height = dim;
+          this.Data.biome[id].tint = BiomeMatrix.color[y][x];
+          this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[id]);
+        }),
+      );
+    }
   },
   setComponents: function (options) {
     const { type, id } = options;

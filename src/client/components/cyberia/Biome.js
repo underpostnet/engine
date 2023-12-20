@@ -3,7 +3,16 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, amplifyMatrix, mergeMatrices, newInstance, random, range, round10 } from '../core/CommonJs.js';
+import {
+  JSONmatrix,
+  amplifyMatrix,
+  mergeMatrices,
+  newInstance,
+  random,
+  randomHexColor,
+  range,
+  round10,
+} from '../core/CommonJs.js';
 import { Css, Themes, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -520,6 +529,24 @@ const Biome = {
     }
     BiomeMatrix.solid = mergeMatrices(solid);
 
+    return BiomeMatrix;
+  },
+  'color-chaos': async function () {
+    const BiomeMatrix = {
+      color: {},
+      solid: {},
+      // container: 'container',
+      // setBiome: [],
+      // timeOut: 1000,
+    };
+    for (const y of range(0, Matrix.Data.dim * Matrix.Data.dimPaintByCell - 1)) {
+      BiomeMatrix.color[y] = {};
+      BiomeMatrix.solid[y] = {};
+      for (const x of range(0, Matrix.Data.dim * Matrix.Data.dimPaintByCell - 1)) {
+        BiomeMatrix.solid[y][x] = 0;
+        BiomeMatrix.color[y][x] = randomHexColor();
+      }
+    }
     return BiomeMatrix;
   },
 };

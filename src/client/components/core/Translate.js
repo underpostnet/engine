@@ -1,5 +1,8 @@
 import { newInstance, getId } from './CommonJs.js';
+import { loggerFactory } from './Logger.js';
 import { s, htmls } from './VanillaJs.js';
+
+const logger = loggerFactory(import.meta);
 
 const Translate = {
   Data: {},
@@ -16,6 +19,10 @@ const Translate = {
     });
   },
   Render: function (keyLang) {
+    if (!(keyLang in this.Data)) {
+      logger.error('translate key lang does not exist: ', keyLang);
+      return keyLang;
+    }
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
     this.Token[translateHash] = newInstance(keyLang);
