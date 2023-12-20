@@ -109,7 +109,7 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     id: 'modal-biome',
     barConfig,
     title: 'Biome engine',
-    html: async () => await BiomeEngine.Render({ IdModal: 'modal-biome' }),
+    html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
     handleType: 'bar',
   });
 });
@@ -120,7 +120,7 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
     id: 'modal-tile-engine',
     barConfig,
     title: 'Tile engine',
-    html: await Tile.Render(),
+    html: await Tile.Render({ idModal: 'modal-tile-engine' }),
     handleType: 'bar',
   });
 });

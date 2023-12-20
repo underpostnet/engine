@@ -16,18 +16,18 @@ const Modal = {
     let top = `${ResponsiveData.height / 2 - height / 2}px`;
     let left = `${ResponsiveData.width / 2 - width / 2}px`;
     let transition;
-    const IdModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
-    const logger = loggerFactory({ url: `.${IdModal}` });
-    if (s(`.${IdModal}`)) {
-      s(`.${IdModal}`).style.zIndex = '2';
-      s(`.btn-maximize-${IdModal}`).click();
+    const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
+    const logger = loggerFactory({ url: `.${idModal}` });
+    if (s(`.${idModal}`)) {
+      s(`.${idModal}`).style.zIndex = '2';
+      s(`.btn-maximize-${idModal}`).click();
       return;
     }
-    this.Data[IdModal] = {};
-    const render = html` <style class="style-${IdModal}">
+    this.Data[idModal] = {};
+    const render = html` <style class="style-${idModal}">
 
         ${css`
-          .${IdModal} {
+          .${idModal} {
             width: ${width}px;
             height: ${height}px;
             top: ${top};
@@ -43,32 +43,32 @@ const Modal = {
                   .join('')
               : ''}
           }
-          .bar-default-modal-${IdModal} {
+          .bar-default-modal-${idModal} {
             top: 0px;
             left: 0px;
             z-index: 4;
           }
 
-          .modal-html-${IdModal} {
+          .modal-html-${idModal} {
           }
 
-          .btn-modal-default-${IdModal} {
+          .btn-modal-default-${idModal} {
           }
-          .modal-handle-${IdModal} {
+          .modal-handle-${idModal} {
             width: 90%;
             height: 90%;
             top: 5%;
             left: 5%;
           }`}
       </style>
-      <div class="${options && options.class ? options.class : 'fix'} modal box-shadow ${IdModal}">
-        <div class="abs modal-handle-${IdModal}"></div>
-        <div class="in modal-html-${IdModal}">
-          <div class="stq bar-default-modal bar-default-modal-${IdModal}">
+      <div class="${options && options.class ? options.class : 'fix'} modal box-shadow ${idModal}">
+        <div class="abs modal-handle-${idModal}"></div>
+        <div class="in modal-html-${idModal}">
+          <div class="stq bar-default-modal bar-default-modal-${idModal}">
             <div class="in" style="text-align: right">
               ${!options?.barConfig?.buttons?.minimize?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-minimize-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
+                    class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal}`,
                     label: options?.barConfig?.buttons?.minimize?.label
                       ? options.barConfig.buttons.minimize.label
                       : html`_`,
@@ -76,7 +76,7 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.restore?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-restore-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
+                    class: `btn-restore-${idModal} btn-modal-default btn-modal-default-${idModal}`,
                     label: options?.barConfig?.buttons?.restore?.label
                       ? options.barConfig.buttons.restore.label
                       : html`□`,
@@ -85,7 +85,7 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.maximize?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-maximize-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
+                    class: `btn-maximize-${idModal} btn-modal-default btn-modal-default-${idModal}`,
                     label: options?.barConfig?.buttons?.maximize?.label
                       ? options.barConfig.buttons.maximize.label
                       : html`▢`,
@@ -93,13 +93,13 @@ const Modal = {
                 : ''}
               ${!options?.barConfig?.buttons?.close?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-close-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
+                    class: `btn-close-${idModal} btn-modal-default btn-modal-default-${idModal}`,
                     label: options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`,
                   })
                 : ''}
               ${!options?.barConfig?.buttons?.menu?.disabled
                 ? await BtnIcon.Render({
-                    class: `btn-menu-${IdModal} btn-modal-default btn-modal-default-${IdModal}`,
+                    class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal}`,
                     label: options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`,
                   })
                 : ''}
@@ -112,7 +112,7 @@ const Modal = {
             </div>
           </div>
 
-          <div class="in html-modal-content html-${IdModal}">
+          <div class="in html-modal-content html-${idModal}">
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
           </div>
         </div>
@@ -130,16 +130,16 @@ const Modal = {
     } else append(selector, render);
     if (options && options.effect) {
       if (!this.EffectData[options.effect]) this.EffectData[options.effect] = {};
-      this.EffectData[options.effect][IdModal] = {};
+      this.EffectData[options.effect][idModal] = {};
       switch (options.effect) {
         case 'dropNotification':
           (() => {
-            const renderEffect = (IdModalDisable) => {
+            const renderEffect = (idModalDisable) => {
               let countDrop = 0;
               Object.keys(this.EffectData[options.effect])
                 .reverse()
                 .map((idModalKeyEffect) => {
-                  if (idModalKeyEffect !== IdModalDisable) {
+                  if (idModalKeyEffect !== idModalDisable) {
                     s(`.${idModalKeyEffect}`).style.bottom = `${
                       countDrop * s(`.${idModalKeyEffect}`).clientHeight * 1.05
                     }px`;
@@ -147,12 +147,12 @@ const Modal = {
                   }
                 });
             };
-            s(`.${IdModal}`).style.top = 'auto';
-            s(`.${IdModal}`).style.left = 'auto';
-            s(`.${IdModal}`).style.height = 'auto';
-            s(`.${IdModal}`).style.position = 'absolute';
+            s(`.${idModal}`).style.top = 'auto';
+            s(`.${idModal}`).style.left = 'auto';
+            s(`.${idModal}`).style.height = 'auto';
+            s(`.${idModal}`).style.position = 'absolute';
             renderEffect();
-            this.EffectData[options.effect][IdModal].delete = () => renderEffect(IdModal);
+            this.EffectData[options.effect][idModal].delete = () => renderEffect(idModal);
           })();
           break;
 
@@ -161,11 +161,11 @@ const Modal = {
       }
     }
     let dragInstance;
-    let handle = [s(`.bar-default-modal-${IdModal}`), s(`.modal-handle-${IdModal}`), s(`.modal-html-${IdModal}`)];
+    let handle = [s(`.bar-default-modal-${idModal}`), s(`.modal-handle-${idModal}`), s(`.modal-html-${idModal}`)];
     if (options && 'handleType' in options) {
       switch (options.handleType) {
         case 'bar':
-          handle = [s(`.bar-default-modal-${IdModal}`)];
+          handle = [s(`.bar-default-modal-${idModal}`)];
 
           break;
 
@@ -176,78 +176,78 @@ const Modal = {
     const dragOptions = {
       handle,
       onDragStart: (data) => {
-        if (!s(`.${IdModal}`)) return;
+        if (!s(`.${idModal}`)) return;
         // logger.info('Dragging started', data);
-        transition = `${s(`.${IdModal}`).style.transition}`;
-        s(`.${IdModal}`).style.transition = null;
+        transition = `${s(`.${idModal}`).style.transition}`;
+        s(`.${idModal}`).style.transition = null;
       },
       onDrag: (data) => {
-        if (!s(`.${IdModal}`)) return;
+        if (!s(`.${idModal}`)) return;
         // logger.info('Dragging', data);
       },
       onDragEnd: (data) => {
-        if (!s(`.${IdModal}`)) return;
+        if (!s(`.${idModal}`)) return;
         // logger.info('Dragging stopped', data);
-        s(`.${IdModal}`).style.transition = transition;
+        s(`.${idModal}`).style.transition = transition;
       },
     };
-    // new Draggable(s(`.${IdModal}`), { disabled: true });
-    const setDragInstance = () => new Draggable(s(`.${IdModal}`), dragOptions);
-    transition = `${s(`.${IdModal}`).style.transition}`;
-    s(`.${IdModal}`).style.transition = '0.15s';
-    setTimeout(() => (s(`.${IdModal}`).style.opacity = '1'));
-    setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 150);
-    if (s(`.btn-close-${IdModal}`))
-      s(`.btn-close-${IdModal}`).onclick = () => {
-        s(`.${IdModal}`).style.opacity = '0';
+    // new Draggable(s(`.${idModal}`), { disabled: true });
+    const setDragInstance = () => new Draggable(s(`.${idModal}`), dragOptions);
+    transition = `${s(`.${idModal}`).style.transition}`;
+    s(`.${idModal}`).style.transition = '0.15s';
+    setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
+    setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
+    if (s(`.btn-close-${idModal}`))
+      s(`.btn-close-${idModal}`).onclick = () => {
+        s(`.${idModal}`).style.opacity = '0';
         setTimeout(() => {
-          if (!s(`.${IdModal}`)) return;
-          s(`.${IdModal}`).remove();
-          s(`.style-${IdModal}`).remove();
-          delete this.Data[IdModal];
+          if (!s(`.${idModal}`)) return;
+          s(`.${idModal}`).remove();
+          s(`.style-${idModal}`).remove();
+          delete this.Data[idModal];
           if (options && options.effect) {
-            if (this.EffectData[options.effect][IdModal].delete) this.EffectData[options.effect][IdModal].delete();
-            delete this.EffectData[options.effect][IdModal];
+            if (this.EffectData[options.effect][idModal].delete) this.EffectData[options.effect][idModal].delete();
+            delete this.EffectData[options.effect][idModal];
           }
         }, 300);
       };
-    if (s(`.btn-minimize-${IdModal}`) && s(`.btn-maximize-${IdModal}`) && s(`.btn-maximize-${IdModal}`)) {
-      s(`.btn-minimize-${IdModal}`).onclick = () => {
-        transition = `${s(`.${IdModal}`).style.transition}`;
-        s(`.${IdModal}`).style.transition = '0.3s';
-        s(`.btn-minimize-${IdModal}`).style.display = 'none';
-        s(`.btn-maximize-${IdModal}`).style.display = null;
-        s(`.btn-restore-${IdModal}`).style.display = null;
-        s(`.${IdModal}`).style.height = `${s(`.bar-default-modal-${IdModal}`).clientHeight}px`;
-        setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 300);
+    if (s(`.btn-minimize-${idModal}`) && s(`.btn-maximize-${idModal}`) && s(`.btn-maximize-${idModal}`)) {
+      s(`.btn-minimize-${idModal}`).onclick = () => {
+        transition = `${s(`.${idModal}`).style.transition}`;
+        s(`.${idModal}`).style.transition = '0.3s';
+        s(`.btn-minimize-${idModal}`).style.display = 'none';
+        s(`.btn-maximize-${idModal}`).style.display = null;
+        s(`.btn-restore-${idModal}`).style.display = null;
+        s(`.${idModal}`).style.height = `${s(`.bar-default-modal-${idModal}`).clientHeight}px`;
+        setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
       };
-      s(`.btn-restore-${IdModal}`).onclick = () => {
-        transition = `${s(`.${IdModal}`).style.transition}`;
-        s(`.${IdModal}`).style.transition = '0.3s';
-        s(`.btn-restore-${IdModal}`).style.display = 'none';
-        s(`.btn-minimize-${IdModal}`).style.display = null;
-        s(`.btn-maximize-${IdModal}`).style.display = null;
-        s(`.${IdModal}`).style.transform = null;
-        s(`.${IdModal}`).style.height = null;
-        s(`.${IdModal}`).style.width = null;
-        s(`.${IdModal}`).style.top = top;
-        s(`.${IdModal}`).style.left = left;
+      s(`.btn-restore-${idModal}`).onclick = () => {
+        transition = `${s(`.${idModal}`).style.transition}`;
+        s(`.${idModal}`).style.transition = '0.3s';
+        s(`.btn-restore-${idModal}`).style.display = 'none';
+        s(`.btn-minimize-${idModal}`).style.display = null;
+        s(`.btn-maximize-${idModal}`).style.display = null;
+        s(`.${idModal}`).style.transform = null;
+        s(`.${idModal}`).style.height = null;
+        s(`.${idModal}`).style.width = null;
+        s(`.${idModal}`).style.top = top;
+        s(`.${idModal}`).style.left = left;
         dragInstance = setDragInstance();
-        setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 300);
+        setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
       };
-      s(`.btn-maximize-${IdModal}`).onclick = () => {
-        transition = `${s(`.${IdModal}`).style.transition}`;
-        s(`.${IdModal}`).style.transition = '0.3s';
-        s(`.btn-maximize-${IdModal}`).style.display = 'none';
-        s(`.btn-restore-${IdModal}`).style.display = null;
-        s(`.btn-minimize-${IdModal}`).style.display = null;
-        s(`.${IdModal}`).style.transform = null;
-        s(`.${IdModal}`).style.height = '100%';
-        s(`.${IdModal}`).style.width = '100%';
-        s(`.${IdModal}`).style.top = '0px';
-        s(`.${IdModal}`).style.left = '0px';
+      s(`.btn-maximize-${idModal}`).onclick = () => {
+        transition = `${s(`.${idModal}`).style.transition}`;
+        s(`.${idModal}`).style.transition = '0.3s';
+        s(`.btn-maximize-${idModal}`).style.display = 'none';
+        s(`.btn-restore-${idModal}`).style.display = null;
+        s(`.btn-minimize-${idModal}`).style.display = null;
+        s(`.${idModal}`).style.transform = null;
+        s(`.${idModal}`).style.height = '100%';
+        s(`.${idModal}`).style.width = '100%';
+        s(`.${idModal}`).style.top = '0px';
+        s(`.${idModal}`).style.left = '0px';
         dragInstance = setDragInstance();
-        setTimeout(() => (s(`.${IdModal}`).style.transition = transition), 300);
+        setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
       };
     }
 
@@ -255,12 +255,12 @@ const Modal = {
     true
       ? null
       : new ResizeObserver(() => {
-          if (s(`.${IdModal}`))
-            logger.info('ResizeObserver', `.${IdModal}`, s(`.${IdModal}`).offsetWidth, s(`.${IdModal}`).offsetHeight);
-        }).observe(s(`.${IdModal}`));
+          if (s(`.${idModal}`))
+            logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
+        }).observe(s(`.${idModal}`));
     // cancel: [cancel1, cancel2]
     return {
-      id: IdModal,
+      id: idModal,
       dragInstance,
     };
   },

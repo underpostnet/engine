@@ -773,12 +773,12 @@ const renderDefaultWindowsModalButtonContent = (options) => {
   const { barButtonsIconTheme, htmlRender } = options;
   const barConfigInstance = barConfig({ barButtonsIconTheme });
   if (htmlRender)
-    Object.keys(Modal.Data).map((IdModal) => {
-      if (s(`.btn-minimize-${IdModal}`)) htmls(`.btn-minimize-${IdModal}`, barConfigInstance.buttons.minimize.label);
-      if (s(`.btn-restore-${IdModal}`)) htmls(`.btn-restore-${IdModal}`, barConfigInstance.buttons.restore.label);
-      if (s(`.btn-maximize-${IdModal}`)) htmls(`.btn-maximize-${IdModal}`, barConfigInstance.buttons.maximize.label);
-      if (s(`.btn-close-${IdModal}`)) htmls(`.btn-close-${IdModal}`, barConfigInstance.buttons.close.label);
-      if (s(`.btn-menu-${IdModal}`)) htmls(`.btn-menu-${IdModal}`, barConfigInstance.buttons.menu.label);
+    Object.keys(Modal.Data).map((idModal) => {
+      if (s(`.btn-minimize-${idModal}`)) htmls(`.btn-minimize-${idModal}`, barConfigInstance.buttons.minimize.label);
+      if (s(`.btn-restore-${idModal}`)) htmls(`.btn-restore-${idModal}`, barConfigInstance.buttons.restore.label);
+      if (s(`.btn-maximize-${idModal}`)) htmls(`.btn-maximize-${idModal}`, barConfigInstance.buttons.maximize.label);
+      if (s(`.btn-close-${idModal}`)) htmls(`.btn-close-${idModal}`, barConfigInstance.buttons.close.label);
+      if (s(`.btn-menu-${idModal}`)) htmls(`.btn-menu-${idModal}`, barConfigInstance.buttons.menu.label);
     });
   return { barConfig: barConfigInstance };
 };
@@ -879,6 +879,38 @@ const renderStatus = (status, options) => {
   }
 };
 
+const dynamicCol = (options) => {
+  const { containerSelector, id } = options;
+  setTimeout(() => {
+    new ResizeObserver(() => {
+      if (s(`.${containerSelector}`)) {
+        if (s(`.${containerSelector}`).offsetWidth < 900)
+          htmls(
+            `.style-${id}-col`,
+            css`
+              .${id}-col-a, .${id}-col-b {
+                width: 100%;
+              }
+            `,
+          );
+        else
+          htmls(
+            `.style-${id}-col`,
+            css`
+              .${id}-col-a {
+                width: 30%;
+              }
+              .${id}-col-b {
+                width: 70%;
+              }
+            `,
+          );
+      }
+    }).observe(s(`.${containerSelector}`));
+  });
+  return html` <style class="style-${id}-col"></style>`;
+};
+
 export {
   Css,
   Themes,
@@ -888,4 +920,5 @@ export {
   renderMediaQuery,
   renderDefaultWindowsModalButtonContent,
   renderStatus,
+  dynamicCol,
 };

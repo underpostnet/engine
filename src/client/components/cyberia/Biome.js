@@ -13,7 +13,7 @@ import {
   range,
   round10,
 } from '../core/CommonJs.js';
-import { Css, Themes, renderStatus } from '../core/Css.js';
+import { Css, Themes, dynamicCol, renderStatus } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -855,34 +855,7 @@ const BiomeEngine = {
         });
       }),
     );
-    setTimeout(() => {
-      new ResizeObserver(() => {
-        if (s(`.${options.IdModal}`)) {
-          if (s(`.${options.IdModal}`).offsetWidth < 600)
-            htmls(
-              `.style-biome-col`,
-              css`
-                .biome-col-a,
-                .biome-col-b {
-                  width: 100%;
-                }
-              `,
-            );
-          else
-            htmls(
-              `.style-biome-col`,
-              css`
-                .biome-col-a {
-                  width: 40%;
-                }
-                .biome-col-b {
-                  width: 60%;
-                }
-              `,
-            );
-        }
-      }).observe(s(`.${options.IdModal}`));
-    });
+
     return html`
       <style>
         ${css`
@@ -891,6 +864,7 @@ const BiomeEngine = {
           }
         `}
       </style>
+      ${dynamicCol({ containerSelector: options.idModal, id: 'biome' })}
       <style class="style-biome-col"></style>
       <div class="fl">
         <div class="in fll biome-col-a">

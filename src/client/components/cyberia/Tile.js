@@ -1,9 +1,11 @@
 import { range } from '../core/CommonJs.js';
+import { dynamicCol } from '../core/Css.js';
 import { Input } from '../core/Input.js';
+import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
 const Tile = {
-  Render: async function () {
+  Render: async function (options) {
     setTimeout(() => {
       const RenderTileGrid = () => {
         let mouseDown = false;
@@ -50,34 +52,49 @@ const Tile = {
       RenderTileGrid();
     });
     return html`
-      <div class="in">
-        ${await Input.Render({
-          id: `tile-dim`,
-          label: html`<i class="fa-solid fa-ruler"></i> dim`,
-          containerClass: 'section-mp container-component input-container',
-          type: 'number',
-          min: 0,
-          placeholder: true,
-          value: 16,
-        })}
-        ${await Input.Render({
-          id: `tile-dimPaintByCell`,
-          label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
-          containerClass: 'section-mp container-component input-container',
-          type: 'number',
-          min: 0,
-          placeholder: true,
-          value: 3,
-        })}
-        ${await Input.Render({
-          id: `tile-color`,
-          label: html`<i class="fa-solid fa-brush"></i> color`,
-          containerClass: 'section-mp container-component input-container',
-          type: 'color',
-          placeholder: true,
-        })}
+      ${dynamicCol({ containerSelector: options.idModal, id: 'tile' })}
+      <div class="fl">
+        <div class="in fll tile-col-a">
+          <div class="in section-mp">
+            <div class="in sub-title-modal">
+              <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-tiles')}
+            </div>
+          </div>
+          ${await Input.Render({
+            id: `tile-color`,
+            label: html`<i class="fa-solid fa-brush"></i> color`,
+            containerClass: 'section-mp container-component input-container',
+            type: 'color',
+            placeholder: true,
+          })}
+          ${await Input.Render({
+            id: `tile-dim`,
+            label: html`<i class="fa-solid fa-ruler"></i> dim`,
+            containerClass: 'section-mp container-component input-container',
+            type: 'number',
+            min: 0,
+            placeholder: true,
+            value: 16,
+          })}
+          ${await Input.Render({
+            id: `tile-dimPaintByCell`,
+            label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
+            containerClass: 'section-mp container-component input-container',
+            type: 'number',
+            min: 0,
+            placeholder: true,
+            value: 3,
+          })}
+        </div>
+        <div class="in fll tile-col-b">
+          <div class="in section-mp">
+            <div class="in sub-title-modal"><i class="fa-solid fa-table-cells"></i> ${Translate.Render('tile')}</div>
+          </div>
+          <div class="in section-mp">
+            <div class="in tile-grid-container"></div>
+          </div>
+        </div>
       </div>
-      <div class="in tile-grid-container"></div>
     `;
   },
 };

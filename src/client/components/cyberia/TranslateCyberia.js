@@ -6,6 +6,7 @@ const TranslateCyberia = {
     Translate.Data['city'] = { en: 'City', es: 'ciudad' };
     Translate.Data['forest'] = { en: 'forest', es: 'bosque' };
     Translate.Data['seed-city'] = { en: 'seed city', es: 'ciudad semilla' };
+
     Translate.Data['success-upload-biome'] = { en: 'biome uploaded successfully', es: 'Bioma subido correctamente' };
     Translate.Data['error-upload-biome'] = { en: 'error uploading biome', es: 'error al subir el bioma' };
     Translate.Data['search-biome'] = { en: 'search biome', es: 'buscar bioma' };
@@ -17,6 +18,11 @@ const TranslateCyberia = {
     Translate.Data['biome-image'] = { en: 'Image', es: 'Imagen' };
     Translate.Data['biome-solid'] = { en: 'Object matrix', es: 'Matriz de Objetos' };
     Translate.Data['success-biome'] = { en: 'Success load biome(s)', es: 'Biomas cargados con exito' };
+
+    Translate.Data['config-tiles'] = { en: 'tile settings', es: 'Configuración del tile' };
+    Translate.Data['tiles'] = { en: 'tiles', es: 'tiles' };
+    Translate.Data['tile'] = { en: 'tile', es: 'tile' };
+
     Translate.Data['color-chaos'] = { en: 'color chaos', es: 'color chaos' };
   },
 };
