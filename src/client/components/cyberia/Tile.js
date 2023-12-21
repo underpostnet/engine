@@ -143,7 +143,7 @@ const Tile = {
           })}
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-upload-tile`,
+              class: `inl section-mp btn-custom btn-upload-tile`,
               label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
             })}
           </div>

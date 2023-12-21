@@ -56,7 +56,19 @@ const Config = {
       },
       bms: {
         components: {
-          core: ['CommonJs', 'VanillaJs', 'Responsive', 'Keyboard', 'Translate', 'Modal', 'BtnIcon', 'Logger', 'Css'],
+          core: [
+            'CommonJs',
+            'VanillaJs',
+            'Responsive',
+            'Keyboard',
+            'Translate',
+            'Modal',
+            'BtnIcon',
+            'Logger',
+            'Css',
+            'AgGrid',
+            'Input',
+          ],
         },
         views: [
           {
@@ -69,6 +81,20 @@ const Config = {
           {
             folder: './node_modules/@fortawesome/fontawesome-free',
             public_folder: '/dist/fontawesome',
+          },
+          {
+            folder: './node_modules/@neodrag/vanilla/dist/min',
+            public_folder: '/dist/@neodrag-vanilla',
+            import_name: '@neodrag/vanilla',
+            import_name_build: '/dist/@neodrag-vanilla/index.js',
+          },
+          {
+            import_name: 'ag-grid-community',
+            import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+            folder: './node_modules/ag-grid-community/dist',
+            public_folder: '/dist/ag-grid-community',
+            styles: './node_modules/ag-grid-community/styles',
+            public_styles_folder: '/styles/ag-grid-community',
           },
         ],
       },
@@ -202,7 +228,7 @@ const Config = {
           apis: ['file', 'cyberia-biome'],
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -214,7 +240,7 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
         },
         '/cyberia': {

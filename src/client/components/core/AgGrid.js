@@ -50,7 +50,7 @@ const AgGrid = {
       this.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
       // myGridElement.style.setProperty('width', '100%');
     });
-    return html` <div class="${id} ${this.theme}-dark" style="height: 500px"></div> `;
+    return html` <div class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}" style="height: 500px"></div> `;
   },
 };
 

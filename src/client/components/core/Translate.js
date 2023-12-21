@@ -86,6 +86,9 @@ const TranslateCore = {
     Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
     Translate.Data['search'] = { en: 'search', es: 'buscar' };
     Translate.Data['view'] = { en: 'view', es: 'ver' };
+    Translate.Data['user'] = { en: 'User', es: 'Usuario' };
+    Translate.Data['pass'] = { en: 'Password', es: 'Contraseña' };
+    Translate.Data['email'] = { en: 'Email', es: 'Email' };
   },
 };
 
