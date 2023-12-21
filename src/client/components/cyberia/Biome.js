@@ -699,31 +699,31 @@ const BiomeEngine = {
           })}
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-generate-biome-${biome}`,
+              class: `inl section-mp btn-custom btn-generate-biome-${biome}`,
               label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-download-biome-${biome}-png`,
+              class: `inl section-mp btn-custom btn-download-biome-${biome}-png`,
               label: html`<i class="fa-solid fa-download"></i> ${Translate.Render(`download`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-upload-biome-${biome}`,
+              class: `inl section-mp btn-custom btn-upload-biome-${biome}`,
               label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-image-biome-${biome}`,
+              class: `inl section-mp btn-custom btn-image-biome-${biome}`,
               label: html`<i class="fa-regular fa-image"></i> ${Translate.Render(`biome-image`)}`,
             })}
           </div>
           <div class="in">
             ${await BtnIcon.Render({
-              class: `inl section-mp btn-engine-biome btn-solid-biome-${biome}`,
+              class: `inl section-mp btn-custom btn-solid-biome-${biome}`,
               label: html`<i class="fa-solid fa-table-cells"></i> ${Translate.Render(`biome-solid`)}`,
             })}
           </div>
@@ -882,6 +882,7 @@ const BiomeEngine = {
           <div class="in section-mp">
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
+              darkTheme: true,
               gridOptions: {
                 rowData: BiomeScope.Grid,
                 columnDefs: [
