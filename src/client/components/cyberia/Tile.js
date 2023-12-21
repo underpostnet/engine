@@ -24,14 +24,19 @@ const Tile = {
                       <div class="fl">
                         ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
                           .map((x) => {
+                            const paint = () => {
+                              for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
+                                for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
+                                  if (s(`.tile-cell-${x + sumX}-${y + sumY}`))
+                                    s(`.tile-cell-${x + sumX}-${y + sumY}`).style.background = s(`.tile-color`).value;
+                                }
+                            };
                             setTimeout(() => {
                               s(`.tile-cell-${x}-${y}`).onmouseover = () => {
-                                if (mouseDown) {
-                                  s(`.tile-cell-${x}-${y}`).style.background = s(`.tile-color`).value;
-                                }
+                                if (mouseDown) paint();
                               };
                               s(`.tile-cell-${x}-${y}`).onclick = () => {
-                                s(`.tile-cell-${x}-${y}`).style.background = s(`.tile-color`).value;
+                                paint();
                               };
                             });
                             return html`<div class="in fll tile-cell tile-cell-${x}-${y}"><!-- ${x} - ${y} --></div>`;
@@ -84,6 +89,15 @@ const Tile = {
             min: 0,
             placeholder: true,
             value: 3,
+          })}
+          ${await Input.Render({
+            id: `tile-weight`,
+            label: html`<i class="fa-solid fa-ruler"></i> weight`,
+            containerClass: 'section-mp container-component input-container',
+            type: 'number',
+            min: 0,
+            placeholder: true,
+            value: 1,
           })}
         </div>
         <div class="in fll tile-col-b">
