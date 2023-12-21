@@ -1,14 +1,18 @@
+import { BtnIcon } from '../core/BtnIcon.js';
 import { range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
 import { Input } from '../core/Input.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
+import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
+
 const Tile = {
   Render: async function (options) {
+    let mouseDown = false;
+    let dataColor = {};
     setTimeout(() => {
       const RenderTileGrid = () => {
-        let mouseDown = false;
         setTimeout(() => {
           s(`.tile-grid-container`).onmousedown = () => (mouseDown = true);
           s(`.tile-grid-container`).onmouseup = () => (mouseDown = false);
@@ -27,8 +31,11 @@ const Tile = {
                             const paint = () => {
                               for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
                                 for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
-                                  if (s(`.tile-cell-${x + sumX}-${y + sumY}`))
+                                  if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
                                     s(`.tile-cell-${x + sumX}-${y + sumY}`).style.background = s(`.tile-color`).value;
+                                    if (!dataColor[y + sumY]) dataColor[y + sumY] = {};
+                                    dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
+                                  }
                                 }
                             };
                             setTimeout(() => {
@@ -39,7 +46,12 @@ const Tile = {
                                 paint();
                               };
                             });
-                            return html`<div class="in fll tile-cell tile-cell-${x}-${y}"><!-- ${x} - ${y} --></div>`;
+                            return html`<div
+                              class="in fll tile-cell tile-cell-${x}-${y}"
+                              ${dataColor[y] && dataColor[y][x] ? `style='background: ${dataColor[y][x]}'` : ''}
+                            >
+                              <!-- ${x} - ${y} -->
+                            </div>`;
                           })
                           .join('')}
                       </div>
@@ -55,6 +67,36 @@ const Tile = {
       s(`.tile-dimPaintByCell`).oninput = RenderTileGrid;
       s(`.tile-dimPaintByCell`).onblur = RenderTileGrid;
       RenderTileGrid();
+
+      this.TileAppDim = 600;
+      this.TileApp = new Application({
+        width: this.TileAppDim,
+        height: this.TileAppDim,
+        background: 'gray',
+      });
+
+      s('.tile-pixi-container').appendChild(this.TileApp.view);
+      // s('canvas').classList.add('');
+
+      s(`.btn-upload-tile`).onclick = () => {
+        this.TileApp.stage.removeChildren();
+
+        const rangeTile = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
+        const dim = this.TileAppDim / rangeTile.length;
+
+        for (const y of rangeTile)
+          for (const x of rangeTile) {
+            if (dataColor[y] && dataColor[y][x]) {
+              const cell = new Sprite(Texture.WHITE);
+              cell.x = dim * x;
+              cell.y = dim * y;
+              cell.width = dim;
+              cell.height = dim;
+              cell.tint = dataColor[y][x];
+              this.TileApp.stage.addChild(cell);
+            }
+          }
+      };
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: 'tile' })}
@@ -99,6 +141,12 @@ const Tile = {
             placeholder: true,
             value: 1,
           })}
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-mp btn-engine-biome btn-upload-tile`,
+              label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
+            })}
+          </div>
         </div>
         <div class="in fll tile-col-b">
           <div class="in section-mp">
@@ -106,6 +154,9 @@ const Tile = {
           </div>
           <div class="in section-mp">
             <div class="in tile-grid-container"></div>
+          </div>
+          <div class="in section-mp">
+            <div class="in tile-pixi-container"></div>
           </div>
         </div>
       </div>
