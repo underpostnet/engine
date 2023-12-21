@@ -54,6 +54,24 @@ const Config = {
           },
         ],
       },
+      bms: {
+        components: {
+          core: ['CommonJs', 'VanillaJs', 'Responsive', 'Keyboard', 'Translate', 'Modal', 'BtnIcon', 'Logger', 'Css'],
+        },
+        views: [
+          {
+            path: '/',
+            title: 'Home',
+            client: 'Bms',
+          },
+        ],
+        dists: [
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
+        ],
+      },
       cyberia: {
         components: {
           core: [
@@ -192,8 +210,8 @@ const Config = {
             name: 'example2-cyberia',
           },
         },
-        '/path': {
-          client: 'test',
+        '/bms': {
+          client: 'bms',
           runtime: 'nodejs',
           origins: [],
           disabled: true,
