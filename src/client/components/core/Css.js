@@ -961,7 +961,7 @@ const Themes = {
   bms: async () => {
     const htmlRender = Css.currentTheme !== 'bms';
     if (htmlRender) {
-      Css.currentTheme = 'cyberia';
+      Css.currentTheme = 'bms';
       htmls('.theme', '');
       await Css.fontawesome();
       await Css.default();
