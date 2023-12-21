@@ -615,7 +615,7 @@ class LoadBiomeRenderer {
 
         Matrix.Data.dim = BiomeScope.Data[rowId].dim;
         Matrix.Data.dimPaintByCell = BiomeScope.Data[rowId].dimPaintByCell;
-        Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
+        // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
         BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
         Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
 
