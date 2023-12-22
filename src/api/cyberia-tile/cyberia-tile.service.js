@@ -7,7 +7,7 @@ const endpoint = endpointFactory(import.meta);
 const logger = loggerFactory({ url: `api-${endpoint}-service` });
 
 const select = {
-  'all-name': { _id: 1, name: 1, tile: 1, fileId: 1 },
+  'all-name': { _id: 1, name: 1, fileId: 1 },
 };
 
 const CyberiaTileService = {
