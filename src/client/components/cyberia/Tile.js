@@ -1,7 +1,11 @@
+import { CyberiaTileService } from '../../services/cyberia-tile/cyberia-tile.service.js';
+import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, range } from '../core/CommonJs.js';
+import { JSONmatrix, range, s4 } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
+import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -14,6 +18,40 @@ const Tile = {
     let dataColor = [];
     let dataSolid = [];
     let solidMode = false;
+    const paint = (x, y) => {
+      for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
+        for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
+          if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
+            s(`.tile-cell-${x + sumX}-${y + sumY}`).style.background = s(`.tile-color`).value;
+            if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
+            if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
+            dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
+            dataSolid[y + sumY][x + sumX] = solidMode ? JSON.parse(s(`.tile-solid`).value) : 0;
+          }
+        }
+
+      htmls(
+        `.tile-object-container`,
+        JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
+      );
+      this.TileApp.stage.removeChildren();
+
+      const rangeTile = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
+      const dim = this.TileAppDim / rangeTile.length;
+
+      for (const y of rangeTile)
+        for (const x of rangeTile) {
+          if (dataColor[y] && dataColor[y][x]) {
+            const cell = new Sprite(Texture.WHITE);
+            cell.x = dim * x;
+            cell.y = dim * y;
+            cell.width = dim;
+            cell.height = dim;
+            cell.tint = dataColor[y][x];
+            this.TileApp.stage.addChild(cell);
+          }
+        }
+    };
     setTimeout(() => {
       const RenderTileGrid = () => {
         dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
@@ -43,29 +81,12 @@ const Tile = {
                       <div class="fl">
                         ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
                           .map((x) => {
-                            const paint = () => {
-                              for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
-                                for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
-                                  if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
-                                    s(`.tile-cell-${x + sumX}-${y + sumY}`).style.background = s(`.tile-color`).value;
-                                    if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
-                                    if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
-                                    dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
-                                    dataSolid[y + sumY][x + sumX] = solidMode ? JSON.parse(s(`.tile-solid`).value) : 0;
-                                  }
-                                }
-
-                              htmls(
-                                `.tile-object-container`,
-                                JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
-                              );
-                            };
                             setTimeout(() => {
                               s(`.tile-cell-${x}-${y}`).onmouseover = () => {
-                                if (mouseDown) paint();
+                                if (mouseDown) paint(x, y);
                               };
                               s(`.tile-cell-${x}-${y}`).onclick = () => {
-                                paint();
+                                paint(x, y);
                               };
                             });
                             return html`<div
@@ -100,25 +121,39 @@ const Tile = {
       s('.tile-pixi-container').appendChild(this.TileApp.view);
       // s('canvas').classList.add('');
 
-      s(`.btn-upload-tile`).onclick = () => {
-        this.TileApp.stage.removeChildren();
-
-        const rangeTile = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
-        const dim = this.TileAppDim / rangeTile.length;
-
-        for (const y of rangeTile)
-          for (const x of rangeTile) {
-            if (dataColor[y] && dataColor[y][x]) {
-              const cell = new Sprite(Texture.WHITE);
-              cell.x = dim * x;
-              cell.y = dim * y;
-              cell.width = dim;
-              cell.height = dim;
-              cell.tint = dataColor[y][x];
-              this.TileApp.stage.addChild(cell);
-            }
-          }
-      };
+      EventsUI.onClick(`.btn-upload-tile`, async () => {
+        const tileImg = await this.TileApp.renderer.extract.image(this.TileApp.stage);
+        const imageSrc = tileImg.currentSrc;
+        const res = await fetch(imageSrc);
+        const blob = await res.blob();
+        const tileFile = new File([blob], `${s(`.tile-name`).value ? s(`.tile-name`).value : s4() + s4()}.png`, {
+          type: 'image/png',
+        });
+        const body = new FormData();
+        body.append('file', tileFile);
+        const { status, data } = await FileService.post(body);
+        NotificationManager.Push({
+          html: Translate.Render(`${status}-upload-file`),
+          status,
+        });
+        let fileId;
+        if (status === 'success') fileId = data[0]._id;
+        if (fileId) {
+          const body = {
+            fileId,
+            solid: dataSolid,
+            color: dataColor,
+            name: s(`.tile-name`).value,
+            dim: parseInt(s(`.tile-dim`).value),
+            dimPaintByCell: parseInt(s(`.tile-dimPaintByCell`).value),
+          };
+          const { data, status } = await CyberiaTileService.post(body);
+          NotificationManager.Push({
+            html: Translate.Render(`${status}-upload-tile`),
+            status,
+          });
+        }
+      });
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: 'tile' })}
@@ -129,6 +164,12 @@ const Tile = {
               <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-tiles')}
             </div>
           </div>
+          ${await Input.Render({
+            id: `tile-name`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
+            containerClass: 'section-mp container-component input-container',
+            placeholder: true,
+          })}
           ${await Input.Render({
             id: `tile-color`,
             label: html`<i class="fa-solid fa-brush"></i> color`,

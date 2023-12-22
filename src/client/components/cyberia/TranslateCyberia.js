@@ -22,6 +22,9 @@ const TranslateCyberia = {
     Translate.Data['config-tiles'] = { en: 'tile settings', es: 'Configuración del tile' };
     Translate.Data['tiles'] = { en: 'tiles', es: 'tiles' };
     Translate.Data['tile'] = { en: 'tile', es: 'tile' };
+    Translate.Data['success-upload-tile'] = { en: 'Success upload tile(s)', es: 'Tile subido con exito' };
+    Translate.Data['error-upload-tile'] = { en: 'error uploading tile', es: 'error al subir el Tile' };
+    Translate.Data['success-tile'] = { en: 'Success load tile(s)', es: 'Tile cargado con exito' };
 
     Translate.Data['color-chaos'] = { en: 'color chaos', es: 'color chaos' };
   },
