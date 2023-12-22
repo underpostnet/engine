@@ -134,6 +134,7 @@ const Config = {
             'JoyStick',
             'Biome',
             'Tile',
+            'CssCyberia',
           ],
           test: ['Test'],
         },
@@ -228,7 +229,7 @@ const Config = {
           apis: ['file', 'cyberia-biome'],
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

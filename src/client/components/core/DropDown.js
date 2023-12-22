@@ -31,7 +31,7 @@ const DropDown = {
       s(`.dropdown-current-${id}`).onclick = switchOptionsPanel;
     });
     return html`
-      <div class="inl dropdown-container section-mp ">
+      <div class="inl dropdown-container">
         <div class="in dropdown-option dropdown-label-${id}">
           <i class="fa-solid fa-caret-down"> </i> ${options.label}
         </div>

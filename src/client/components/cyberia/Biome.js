@@ -669,23 +669,25 @@ const BiomeEngine = {
     if (resultBiome.status === 'success') BiomeScope.Grid = resultBiome.data;
 
     let configBiomeFormRender = html`
-      ${await DropDown.Render({
-        value: BiomeScope.CurrentKey,
-        label: html`${Translate.Render('select-biome')}`,
-        data: Object.keys(Biome).map((biomeKey) => {
-          return {
-            value: biomeKey,
-            display: html`<i class="fa-solid fa-mountain-city"></i> ${Translate.Render(biomeKey)}`,
-            onClick: () => {
-              logger.info('DropDown Biome onClick', biomeKey);
-              BiomeScope.CurrentKey = biomeKey;
+      <div class="in section-mp">
+        ${await DropDown.Render({
+          value: BiomeScope.CurrentKey,
+          label: html`${Translate.Render('select-biome')}`,
+          data: Object.keys(Biome).map((biomeKey) => {
+            return {
+              value: biomeKey,
+              display: html`<i class="fa-solid fa-mountain-city"></i> ${Translate.Render(biomeKey)}`,
+              onClick: () => {
+                logger.info('DropDown Biome onClick', biomeKey);
+                BiomeScope.CurrentKey = biomeKey;
 
-              for (const biome of Object.keys(Biome))
-                s(`.section-row-${biome}`).style.display = biomeKey === biome ? 'block' : 'none';
-            },
-          };
-        }),
-      })}
+                for (const biome of Object.keys(Biome))
+                  s(`.section-row-${biome}`).style.display = biomeKey === biome ? 'block' : 'none';
+              },
+            };
+          }),
+        })}
+      </div>
     `;
     // let render = '';
     for (const biome of Object.keys(Biome)) {

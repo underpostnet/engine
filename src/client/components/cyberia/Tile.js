@@ -1,7 +1,8 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { range } from '../core/CommonJs.js';
+import { JSONmatrix, range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
 import { Input } from '../core/Input.js';
+import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
@@ -10,9 +11,23 @@ import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 const Tile = {
   Render: async function (options) {
     let mouseDown = false;
-    let dataColor = {};
+    let dataColor = [];
+    let dataSolid = [];
+    let solidMode = false;
     setTimeout(() => {
       const RenderTileGrid = () => {
+        dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
+          range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
+            if (dataColor[y] && dataColor[y][x] !== undefined) return dataColor[y][x];
+            return '#000000';
+          }),
+        );
+        dataSolid = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
+          range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
+            if (dataSolid[y] && dataSolid[y][x] !== undefined) return dataSolid[y][x];
+            return 0;
+          }),
+        );
         setTimeout(() => {
           s(`.tile-grid-container`).onmousedown = () => (mouseDown = true);
           s(`.tile-grid-container`).onmouseup = () => (mouseDown = false);
@@ -33,10 +48,17 @@ const Tile = {
                                 for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
                                   if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
                                     s(`.tile-cell-${x + sumX}-${y + sumY}`).style.background = s(`.tile-color`).value;
-                                    if (!dataColor[y + sumY]) dataColor[y + sumY] = {};
+                                    if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
+                                    if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
                                     dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
+                                    dataSolid[y + sumY][x + sumX] = solidMode ? JSON.parse(s(`.tile-solid`).value) : 0;
                                   }
                                 }
+
+                              htmls(
+                                `.tile-object-container`,
+                                JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
+                              );
                             };
                             setTimeout(() => {
                               s(`.tile-cell-${x}-${y}`).onmouseover = () => {
@@ -141,6 +163,28 @@ const Tile = {
             placeholder: true,
             value: 1,
           })}
+          ${await Input.Render({
+            id: `tile-solid`,
+            label: html`<i class="fa-solid fa-ruler"></i> matrix object
+              <div class="in toggle-switch-input-container">
+                ${await ToggleSwitch.Render({
+                  id: 'solid-toggle',
+                  checked: solidMode,
+                  on: {
+                    unchecked: () => {
+                      solidMode = false;
+                    },
+                    checked: () => {
+                      solidMode = true;
+                    },
+                  },
+                })}
+              </div>`,
+            containerClass: 'section-mp container-component input-container',
+            placeholder: true,
+            value: 1,
+          })}
+
           <div class="in">
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom btn-upload-tile`,
@@ -157,6 +201,9 @@ const Tile = {
           </div>
           <div class="in section-mp">
             <div class="in tile-pixi-container"></div>
+          </div>
+          <div class="in section-mp">
+            <pre class="in tile-object-container"></pre>
           </div>
         </div>
       </div>

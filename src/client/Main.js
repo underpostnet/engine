@@ -22,9 +22,9 @@ import { JoyStick } from './components/cyberia/JoyStick.js';
 import { BiomeEngine } from './components/cyberia/Biome.js';
 import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
+import { CssCyberia } from './components/cyberia/CssCyberia.js';
 
-const theme = 'cyberia';
-const { barConfig } = await Css.Init({ theme });
+const { barConfig } = await Css.Init(CssCyberia);
 
 await TranslateCore.Init();
 await TranslateCyberia.Init();

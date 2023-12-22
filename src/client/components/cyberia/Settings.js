@@ -16,7 +16,7 @@ const Settings = {
       <div class="in section-row">
         <div class="fl ">
           <div class="in fll" style="width: 70%">
-            <div class="in section-mp">${Translate.Render('fullscreen')}</div>
+            <div class="in">${Translate.Render('fullscreen')}</div>
           </div>
           <div class="in fll" style="width: 30%">
             ${await ToggleSwitch.Render({
