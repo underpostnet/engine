@@ -7,7 +7,7 @@ const Matrix = {
   Data: {
     dim: 16 * 7,
     dimPaintByCell: 3,
-    dimAmplitude: 6,
+    dimAmplitude: 8,
   },
   Render: {
     'matrix-center-square': function (container) {
