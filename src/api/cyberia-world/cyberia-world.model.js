@@ -6,7 +6,7 @@ const CyberiaWorldSchema = new Schema({
   face: [
     {
       type: Schema.Types.ObjectId,
-      ref: 'World',
+      ref: 'CyberiaBiome',
     },
   ],
   name: { type: String },
