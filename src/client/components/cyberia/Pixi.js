@@ -83,8 +83,6 @@ const Pixi = {
     this.Data.user.container.x = 0;
     this.Data.user.container.y = 0;
     this.App.stage.addChild(this.Data.user.container);
-
-    this.setBiome();
   },
   currentBiomeContainer: String,
   clearBiomeContainers: function () {

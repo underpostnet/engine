@@ -761,19 +761,7 @@ const BiomeEngine = {
         s(`.input-name-${biome}`).onblur = validator.name;
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
-          const BiomeMatrix = await Biome[biome]();
-          BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
-          Pixi.setBiome(BiomeMatrix);
-          setTimeout(
-            async () => {
-              const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentBiomeContainer]);
-              BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
-              const res = await fetch(BiomeScope.Keys[biome].imageSrc);
-              const blob = await res.blob();
-              BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
-            },
-            BiomeMatrix.timeOut ? BiomeMatrix.timeOut : 0,
-          );
+          await this.renderBiome(biome);
         });
         EventsUI.onClick(`.btn-download-biome-${biome}-png`, async () =>
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
@@ -919,6 +907,22 @@ const BiomeEngine = {
           return true;
       }
     return false;
+  },
+  renderBiome: async function (biome) {
+    const BiomeMatrix = await Biome[biome]();
+    BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
+    BiomeScope.CurrentKey = biome;
+    Pixi.setBiome(BiomeMatrix);
+    setTimeout(
+      async () => {
+        const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentBiomeContainer]);
+        BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
+        const res = await fetch(BiomeScope.Keys[biome].imageSrc);
+        const blob = await res.blob();
+        BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+      },
+      BiomeMatrix.timeOut ? BiomeMatrix.timeOut : 0,
+    );
   },
 };
 

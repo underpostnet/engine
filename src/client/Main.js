@@ -23,6 +23,7 @@ import { BiomeEngine } from './components/cyberia/Biome.js';
 import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
+import { Polyhedron } from './components/core/Polyhedron.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -61,8 +62,9 @@ await Modal.Render({
   ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
   ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
   ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
-  ${await BtnIcon.Render({ class: 'main-btn-biome', label: 'Biome engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn-biome', label: 'Biome Engine' })}
   ${await BtnIcon.Render({ class: 'main-btn-tile', label: 'Tile Engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn-3d', label: '3D Engine' })}
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
@@ -125,4 +127,17 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
   });
 });
 
+EventsUI.onClick(`.main-btn-3d`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-3d-engine',
+    barConfig,
+    title: '3d Engine',
+    html: await Polyhedron.Render({ idModal: 'modal-3d-engine' }),
+    handleType: 'bar',
+  });
+});
+
 disableOptionsClick('html', ['menu', 'drag', 'select']);
+
+await BiomeEngine.renderBiome('seed-city');

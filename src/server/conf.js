@@ -121,6 +121,7 @@ const Config = {
             'AgGrid',
             'Input',
             'Validator',
+            'Polyhedron',
           ],
           cyberia: [
             'Pixi',
