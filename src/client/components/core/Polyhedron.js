@@ -18,27 +18,31 @@ const Polyhedron = {
           .polyhedron {
             transform: rotateX(${config.cr[0]}deg) rotateY(${config.cr[1]}deg) rotateZ(${config.cr[2]}deg)
               translateX(${config.ct[0]}px) translateY(${config.ct[1]}px) translateZ(${config.ct[2]}px);
+            left: ${s(`.scene`).offsetWidth / 2 - config.dim / 2}px;
+            top: ${s(`.scene`).offsetHeight / 2 - config.dim / 2}px;
           }
         `,
       );
     };
-    setInterval(() => {
-      s(`.polyhedron`).style.transform = renderTransform();
+    this.interval = setInterval(() => {
+      if (s(`.polyhedron`)) s(`.polyhedron`).style.transform = renderTransform();
+      else return clearInterval(this.interval);
     }, 1500);
+    setTimeout(() => {
+      s(`.polyhedron`).style.transition = `1s`;
+      s(`.polyhedron`).style.transform = renderTransform();
+    });
     return html`
       <style>
         .scene {
           height: 500px;
-          background: gray;
+          background: #c7c7c7;
           /* perspective: 10000px; */
         }
         .polyhedron {
           width: ${config.dim}px;
           height: ${config.dim}px;
           transform-style: preserve-3d;
-          transition: 1s;
-          top: 150px;
-          left: 150px;
         }
         .face {
           width: 100%;
