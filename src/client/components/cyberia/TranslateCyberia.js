@@ -29,6 +29,7 @@ const TranslateCyberia = {
     Translate.Data['config'] = { en: 'Setting', es: 'configuración' };
 
     Translate.Data['world'] = { en: 'World', es: 'Mundo' };
+    Translate.Data['worlds'] = { en: 'Worlds', es: 'Mundos' };
 
     Translate.Data['color-chaos'] = { en: 'color chaos', es: 'color chaos' };
 

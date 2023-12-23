@@ -5,8 +5,11 @@ import { Schema, model } from 'mongoose';
 const CyberiaWorldSchema = new Schema({
   face: [
     {
-      type: Schema.Types.ObjectId,
-      ref: 'CyberiaBiome',
+      _id: {
+        type: Schema.Types.ObjectId,
+        ref: 'CyberiaBiome',
+      },
+      biome: { type: String },
     },
   ],
   name: { type: String },

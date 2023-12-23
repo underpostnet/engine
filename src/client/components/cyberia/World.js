@@ -1,6 +1,7 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { CyberiaWorldService } from '../../services/cyberia-world/cyberia-world.service.js';
 import { FileService } from '../../services/file/file.service.js';
+import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { newInstance, random, range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
@@ -16,7 +17,24 @@ import { htmls, s } from '../core/VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const World = {
+  worlds: [],
+  getGridData: function () {
+    return this.worlds.map((w) => {
+      range(0, 5).map((i) => {
+        if (!(i in w.face)) w.face[i] = null;
+      });
+      w.face = w.face.map((f, i) => `${i + 1}-${f?.biome ? f.biome : 'void'}`);
+      return w;
+    });
+  },
   Render: async function (options) {
+    const resultWorlds = await CyberiaWorldService.get('all');
+    NotificationManager.Push({
+      html: resultWorlds.status === 'success' ? Translate.Render(resultWorlds.message) : resultWorlds.message,
+      status: resultWorlds.status,
+    });
+    if (resultWorlds.status === 'success') this.worlds = resultWorlds.data;
+
     const resultBiome = await CyberiaBiomeService.get('all-name');
     NotificationManager.Push({
       html: resultBiome.status === 'success' ? Translate.Render(resultBiome.message) : resultBiome.message,
@@ -75,7 +93,11 @@ const World = {
       EventsUI.onClick(`.btn-upload-world`, async () => {
         const body = newInstance(dataWorld);
         body.face = body.face.map((face) => {
-          if (face && face._id) return face._id;
+          if (face && face._id)
+            return {
+              _id: face._id,
+              biome: face.biome,
+            };
           return null;
         });
         body.name = s(`.world-name`).value;
@@ -84,10 +106,14 @@ const World = {
           html: Translate.Render(`${status}-upload-world`),
           status,
         });
+        if (status === 'success') {
+          this.worlds.push(data);
+          AgGrid.grids[`ag-grid-worlds`].setGridOption('rowData', this.getGridData());
+        }
       });
     });
-
-    return html` ${dynamicCol({ containerSelector: options.idModal, id: 'world' })}
+    return html`
+      ${dynamicCol({ containerSelector: options.idModal, id: 'world' })}
       <style class="style-world-col"></style>
       <div class="fl">
         <div class="in fll world-col-a">
@@ -122,7 +148,26 @@ const World = {
             <div class="in">${await Polyhedron.Render({ id: 'world', idModal: 'world-col-b' })}</div>
           </div>
         </div>
-      </div>`;
+      </div>
+      <div class="in section-mp">
+        <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('worlds')}</div>
+        <div class="in">
+          ${await AgGrid.Render({
+            id: `ag-grid-worlds`,
+            darkTheme: true,
+            gridOptions: {
+              rowData: this.getGridData(),
+              columnDefs: [
+                // { field: '_id', headerName: 'ID' },
+                { field: 'face', headerName: 'face' },
+                { field: 'name', headerName: 'Name' },
+                //  { headerName: '', cellRenderer: LoadWorldRenderer },
+              ],
+            },
+          })}
+        </div>
+      </div>
+    `;
   },
 };
 
