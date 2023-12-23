@@ -140,4 +140,4 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
 
 disableOptionsClick('html', ['menu', 'drag', 'select']);
 
-await BiomeEngine.renderBiome('seed-city');
+await BiomeEngine.generateBiome('seed-city');

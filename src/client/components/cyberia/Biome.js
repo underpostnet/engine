@@ -761,7 +761,7 @@ const BiomeEngine = {
         s(`.input-name-${biome}`).onblur = validator.name;
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
-          await this.renderBiome(biome);
+          await this.generateBiome(biome);
         });
         EventsUI.onClick(`.btn-download-biome-${biome}-png`, async () =>
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
@@ -908,7 +908,7 @@ const BiomeEngine = {
       }
     return false;
   },
-  renderBiome: async function (biome) {
+  generateBiome: async function (biome) {
     const BiomeMatrix = await Biome[biome]();
     BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
     BiomeScope.CurrentKey = biome;
