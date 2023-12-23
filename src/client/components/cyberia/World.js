@@ -6,6 +6,7 @@ import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { Polyhedron } from '../core/Polyhedron.js';
 import { Translate } from '../core/Translate.js';
 
 const logger = loggerFactory(import.meta);
@@ -62,7 +63,7 @@ const World = {
         <div class="in fll world-col-b">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fa-solid fa-cube"></i> ${Translate.Render('world')}</div>
-            <div class="in">[3D CUBE]</div>
+            <div class="in">${await Polyhedron.Render({ id: 'world', idModal: 'world-col-b' })}</div>
           </div>
         </div>
       </div>`;
