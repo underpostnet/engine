@@ -24,6 +24,7 @@ import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
+import { World } from './components/cyberia/World.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -65,6 +66,7 @@ await Modal.Render({
   ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
   ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
   ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-world', label: 'World Engine' })}
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
@@ -134,6 +136,17 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
     barConfig,
     title: '3d Engine',
     html: await Polyhedron.Render({ idModal: 'modal-3d-engine' }),
+    handleType: 'bar',
+  });
+});
+
+EventsUI.onClick(`.main-btn-world`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-world-engine',
+    barConfig,
+    title: 'World Engine',
+    html: await World.Render({ idModal: 'modal-world-engine' }),
     handleType: 'bar',
   });
 });

@@ -136,6 +136,7 @@ const Config = {
             'Biome',
             'Tile',
             'CssCyberia',
+            'World',
           ],
           test: ['Test'],
         },
