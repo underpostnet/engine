@@ -1,10 +1,12 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
+import { CyberiaWorldService } from '../../services/cyberia-world/cyberia-world.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { random, range } from '../core/CommonJs.js';
+import { newInstance, random, range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
@@ -22,14 +24,14 @@ const World = {
     });
     let render = '';
     const dataWorld = {
-      face: {},
+      face: [],
     };
-    for (const index of range(1, 6)) {
+    for (const index of range(0, 5)) {
       render += html`<div class="inl section-mp">
         ${await DropDown.Render({
           // value: ``,
           id: `face-${index}`,
-          label: html`face ${index}`,
+          label: html`face ${index + 1}`,
           data: resultBiome.data.map((biome) => {
             return {
               display: html`${biome.name} <span style="color: #ffcc00; font-size: 15px;">[${biome.biome}]</span>`,
@@ -44,26 +46,44 @@ const World = {
     }
     setTimeout(() => {
       const renderFace = async (index) => {
-        const resultFile = await FileService.get(dataWorld.face[index].fileId);
+        if (dataWorld.face[index] && dataWorld.face[index].fileId) {
+          const resultFile = await FileService.get(dataWorld.face[index].fileId);
 
-        const imageData = resultFile.data[0];
+          const imageData = resultFile.data[0];
 
-        const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
 
-        const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
 
-        const imageSrc = URL.createObjectURL(imageFile);
+          const imageSrc = URL.createObjectURL(imageFile);
 
-        htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+          htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+          return;
+        }
+        dataWorld.face[index] = null;
+        htmls(`.world-${index}`, html``);
       };
       EventsUI.onClick(`.btn-generate-world`, async () => {
-        for (const index of range(1, 6)) await renderFace(index);
+        for (const index of range(0, 5)) await renderFace(index);
       });
       EventsUI.onClick(`.btn-generate-random-world`, async () => {
-        for (const index of range(1, 6)) {
+        for (const index of range(0, 5)) {
           s(`.dropdown-option-face-${index}-${resultBiome.data[random(0, resultBiome.data.length - 1)]._id}`).click();
           await renderFace(index);
         }
+      });
+      EventsUI.onClick(`.btn-upload-world`, async () => {
+        const body = newInstance(dataWorld);
+        body.face = body.face.map((face) => {
+          if (face && face._id) return face._id;
+          return null;
+        });
+        body.name = s(`.world-name`).value;
+        const { data, status } = await CyberiaWorldService.post(body);
+        NotificationManager.Push({
+          html: Translate.Render(`${status}-upload-world`),
+          status,
+        });
       });
     });
 
@@ -82,6 +102,16 @@ const World = {
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-generate-random-world`,
                 label: html`<i class="fa-solid fa-dice"></i> ${Translate.Render(`generate`)} random`,
+              })}
+              ${await BtnIcon.Render({
+                class: `inl section-mp btn-custom btn-upload-world`,
+                label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
+              })}
+              ${await Input.Render({
+                id: `world-name`,
+                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
+                containerClass: 'section-mp container-component input-container',
+                placeholder: true,
               })}
             </div>
           </div>

@@ -17,6 +17,13 @@ const Polyhedron = {
     };
     const renderTransform = () => {
       // config.cr = config.cr.map((r) => r + random(-50, 50));
+      s(
+        `.polyhedron-${id}`,
+      ).style.transform = `rotateX(${config.cr[0]}deg) rotateY(${config.cr[1]}deg) rotateZ(${config.cr[2]}deg)
+      translateX(${config.ct[0]}px) translateY(${config.ct[1]}px) translateZ(${config.ct[2]}px)`;
+      s(`.polyhedron-${id}`).style.left = `${s(`.scene-${id}`).offsetWidth / 2 - config.dim / 2}px`;
+      s(`.polyhedron-${id}`).style.top = `${s(`.scene-${id}`).offsetHeight / 2 - config.dim / 2}px`;
+      return;
       htmls(
         `.polyhedron-animation-${id}`,
         css`
@@ -93,7 +100,9 @@ const Polyhedron = {
           transform: rotateX(90deg) translateZ(${config.dim / 2}px);
         }
       </style>
+      <!--
       <style class="polyhedron-animation-${id}"></style>
+      -->
 
       ${dynamicCol({ containerSelector: options.idModal, id: `polyhedron-${id}` })}
       <style class="style-polyhedron-${id}-col"></style>
@@ -126,12 +135,12 @@ const Polyhedron = {
             <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
             <div class="in scene-${id}">
               <div class="abs polyhedron-${id}">
-                <div class="abs face-${id} face_front-${id} ${id}-1"><div class="abs center">1</div></div>
-                <div class="abs face-${id} face_bottom-${id} ${id}-2"><div class="abs center">2</div></div>
-                <div class="abs face-${id} face_back-${id} ${id}-3"><div class="abs center">3</div></div>
-                <div class="abs face-${id} face_top-${id} ${id}-4"><div class="abs center">4</div></div>
-                <div class="abs face-${id} face_right-${id} ${id}-5"><div class="abs center">5</div></div>
-                <div class="abs face-${id} face_left-${id} ${id}-6"><div class="abs center">6</div></div>
+                <div class="abs face-${id} face_front-${id} ${id}-0"><div class="abs center">1</div></div>
+                <div class="abs face-${id} face_bottom-${id} ${id}-1"><div class="abs center">2</div></div>
+                <div class="abs face-${id} face_back-${id} ${id}-2"><div class="abs center">3</div></div>
+                <div class="abs face-${id} face_top-${id} ${id}-3"><div class="abs center">4</div></div>
+                <div class="abs face-${id} face_right-${id} ${id}-4"><div class="abs center">5</div></div>
+                <div class="abs face-${id} face_left-${id} ${id}-5"><div class="abs center">6</div></div>
               </div>
             </div>
           </div>
