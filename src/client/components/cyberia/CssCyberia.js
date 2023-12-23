@@ -169,6 +169,10 @@ const CssCyberia = {
         background: #232323;
         padding: 5px;
       }
+      .face-world-img {
+        width: 100%;
+        height: 100%;
+      }
     `,
 };
 

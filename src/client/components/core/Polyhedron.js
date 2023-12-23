@@ -126,12 +126,12 @@ const Polyhedron = {
             <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
             <div class="in scene-${id}">
               <div class="abs polyhedron-${id}">
-                <div class="abs face-${id} face_front-${id}"><div class="abs center">1</div></div>
-                <div class="abs face-${id} face_bottom-${id}"><div class="abs center">2</div></div>
-                <div class="abs face-${id} face_back-${id}"><div class="abs center">3</div></div>
-                <div class="abs face-${id} face_top-${id}"><div class="abs center">4</div></div>
-                <div class="abs face-${id} face_right-${id}"><div class="abs center">5</div></div>
-                <div class="abs face-${id} face_left-${id}"><div class="abs center">6</div></div>
+                <div class="abs face-${id} face_front-${id} ${id}-1"><div class="abs center">1</div></div>
+                <div class="abs face-${id} face_bottom-${id} ${id}-2"><div class="abs center">2</div></div>
+                <div class="abs face-${id} face_back-${id} ${id}-3"><div class="abs center">3</div></div>
+                <div class="abs face-${id} face_top-${id} ${id}-4"><div class="abs center">4</div></div>
+                <div class="abs face-${id} face_right-${id} ${id}-5"><div class="abs center">5</div></div>
+                <div class="abs face-${id} face_left-${id} ${id}-6"><div class="abs center">6</div></div>
               </div>
             </div>
           </div>

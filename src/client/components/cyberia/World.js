@@ -1,4 +1,5 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
+import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
@@ -8,6 +9,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { Translate } from '../core/Translate.js';
+import { htmls } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -22,11 +24,11 @@ const World = {
     const dataWorld = {
       face: {},
     };
-    for (const index of range(0, 5)) {
+    for (const index of range(1, 6)) {
       render += html`<div class="inl section-mp">
         ${await DropDown.Render({
           // value: ``,
-          label: html`face ${index + 1}`,
+          label: html`face ${index}`,
           data: resultBiome.data.map((biome) => {
             return {
               display: html`${biome.name} <span style="color: #ffcc00; font-size: 15px;">[${biome.biome}]</span>`,
@@ -41,7 +43,19 @@ const World = {
     }
     setTimeout(() => {
       EventsUI.onClick(`.btn-generate-world`, async () => {
-        logger.warn(dataWorld);
+        for (const face of Object.keys(dataWorld.face)) {
+          const resultFile = await FileService.get(dataWorld.face[face].fileId);
+
+          const imageData = resultFile.data[0];
+
+          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+          const imageSrc = URL.createObjectURL(imageFile);
+
+          htmls(`.world-${face}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+        }
       });
     });
 
