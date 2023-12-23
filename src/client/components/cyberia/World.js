@@ -1,7 +1,7 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { range } from '../core/CommonJs.js';
+import { random, range } from '../core/CommonJs.js';
 import { dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -9,7 +9,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { Translate } from '../core/Translate.js';
-import { htmls } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -28,6 +28,7 @@ const World = {
       render += html`<div class="inl section-mp">
         ${await DropDown.Render({
           // value: ``,
+          id: `face-${index}`,
           label: html`face ${index}`,
           data: resultBiome.data.map((biome) => {
             return {
@@ -42,19 +43,26 @@ const World = {
       </div>`;
     }
     setTimeout(() => {
+      const renderFace = async (index) => {
+        const resultFile = await FileService.get(dataWorld.face[index].fileId);
+
+        const imageData = resultFile.data[0];
+
+        const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+        const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+        const imageSrc = URL.createObjectURL(imageFile);
+
+        htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+      };
       EventsUI.onClick(`.btn-generate-world`, async () => {
-        for (const face of Object.keys(dataWorld.face)) {
-          const resultFile = await FileService.get(dataWorld.face[face].fileId);
-
-          const imageData = resultFile.data[0];
-
-          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
-
-          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-
-          const imageSrc = URL.createObjectURL(imageFile);
-
-          htmls(`.world-${face}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+        for (const index of range(1, 6)) await renderFace(index);
+      });
+      EventsUI.onClick(`.btn-generate-random-world`, async () => {
+        for (const index of range(1, 6)) {
+          s(`.dropdown-option-face-${index}-${resultBiome.data[random(0, resultBiome.data.length - 1)]._id}`).click();
+          await renderFace(index);
         }
       });
     });
@@ -70,6 +78,10 @@ const World = {
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-generate-world`,
                 label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
+              })}
+              ${await BtnIcon.Render({
+                class: `inl section-mp btn-custom btn-generate-random-world`,
+                label: html`<i class="fa-solid fa-dice"></i> ${Translate.Render(`generate`)} random`,
               })}
             </div>
           </div>

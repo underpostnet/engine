@@ -54,12 +54,10 @@ const DropDown = {
                   if (optionData.value !== 'close') htmls(`.dropdown-current-${id}`, optionData.display);
                 };
               });
+              const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
               return html`
                 <div
-                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${optionData.value.replaceAll(
-                    ' ',
-                    '-',
-                  )}"
+                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay}"
                 >
                   ${optionData.display}
                 </div>
