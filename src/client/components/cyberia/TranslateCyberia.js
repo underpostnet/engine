@@ -26,6 +26,10 @@ const TranslateCyberia = {
     Translate.Data['error-upload-tile'] = { en: 'error uploading tile', es: 'error al subir el Tile' };
     Translate.Data['success-tile'] = { en: 'Success load tile(s)', es: 'Tile cargado con exito' };
 
+    Translate.Data['config'] = { en: 'Setting', es: 'configuración' };
+
+    Translate.Data['world'] = { en: 'World', es: 'Mundo' };
+
     Translate.Data['color-chaos'] = { en: 'color chaos', es: 'color chaos' };
   },
 };

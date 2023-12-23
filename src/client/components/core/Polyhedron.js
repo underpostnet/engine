@@ -1,17 +1,18 @@
 // https://underpost.net/cube.php
 
+import { BtnIcon } from './BtnIcon.js';
 import { random } from './CommonJs.js';
 import { htmls, s } from './VanillaJs.js';
 
 const Polyhedron = {
   Render: async function () {
     const config = {
-      cr: [45, 45, 45],
+      cr: [-25, -57, 90],
       ct: [0, 0, 0],
-      dim: 100,
+      dim: 150,
     };
     const renderTransform = () => {
-      config.cr = config.cr.map((r) => r + random(-50, 50));
+      // config.cr = config.cr.map((r) => r + random(-50, 50));
       htmls(
         `.polyhedron-animation`,
         css`
@@ -27,10 +28,24 @@ const Polyhedron = {
     this.interval = setInterval(() => {
       if (s(`.polyhedron`)) s(`.polyhedron`).style.transform = renderTransform();
       else return clearInterval(this.interval);
-    }, 1500);
+    }, 200);
+
     setTimeout(() => {
-      s(`.polyhedron`).style.transition = `1s`;
       s(`.polyhedron`).style.transform = renderTransform();
+      s(`.polyhedron`).style.transition = `.4s`;
+
+      s(`.btn-polyhedron-rotate-down`).onclick = () => {
+        config.cr[0] += 45;
+      };
+      s(`.btn-polyhedron-rotate-up`).onclick = () => {
+        config.cr[0] -= 45;
+      };
+      s(`.btn-polyhedron-rotate-left`).onclick = () => {
+        config.cr[1] += 45;
+      };
+      s(`.btn-polyhedron-rotate-right`).onclick = () => {
+        config.cr[1] -= 45;
+      };
     });
     return html`
       <style>
@@ -43,6 +58,7 @@ const Polyhedron = {
           width: ${config.dim}px;
           height: ${config.dim}px;
           transform-style: preserve-3d;
+          cursor: pointer;
         }
         .face {
           width: 100%;
@@ -80,6 +96,27 @@ const Polyhedron = {
           <div class="abs face face_right"></div>
           <div class="abs face face_top"></div>
           <div class="abs face face_bottom"></div>
+        </div>
+      </div>
+      <div class="in section-mp">
+        <div class="in sub-title-modal"><i class="fa-solid fa-arrows-spin"></i> Rotate</div>
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-polyhedron-rotate-up`,
+            label: html`<i class="fa-solid fa-angle-up"></i>`,
+          })}
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-polyhedron-rotate-down`,
+            label: html`<i class="fa-solid fa-angle-down"></i>`,
+          })}
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-polyhedron-rotate-left`,
+            label: html`<i class="fa-solid fa-angle-left"></i>`,
+          })}
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-polyhedron-rotate-right`,
+            label: html`<i class="fa-solid fa-angle-right"></i>`,
+          })}
         </div>
       </div>
     `;
