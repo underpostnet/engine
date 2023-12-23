@@ -16,6 +16,59 @@ import { htmls, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
+class LoadWorldRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadWorldRenderer created', params);
+    const rowId = `${params.data._id}-${params.rowIndex}`;
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-load-world-${rowId}`,
+        label: html`<i class="fa-solid fa-bolt"></i><br />
+          ${Translate.Render(`load`)}`,
+      })}
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-delete-world-${rowId}`,
+        label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
+          ${Translate.Render(`delete`)}`,
+      })}
+    `;
+
+    setTimeout(() => {
+      EventsUI.onClick(`.btn-load-world-${rowId}`, async () => {
+        alert();
+      });
+      EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
+        const worldDeleteResult = await CyberiaWorldService.delete(params.data._id);
+        NotificationManager.Push({
+          html:
+            worldDeleteResult.status === 'success'
+              ? Translate.Render(worldDeleteResult.message)
+              : worldDeleteResult.message,
+          status: worldDeleteResult.status,
+        });
+
+        setTimeout(() => {
+          World.worlds = World.worlds.filter((world) => world._id !== params.data._id);
+          AgGrid.grids[`ag-grid-world`].setGridOption('rowData', World.getGridData());
+        });
+      });
+    });
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadWorldRenderer refreshed', params);
+    return true;
+  }
+}
+
 const World = {
   worlds: [],
   getGridData: function () {
@@ -108,7 +161,7 @@ const World = {
         });
         if (status === 'success') {
           this.worlds.push(data);
-          AgGrid.grids[`ag-grid-worlds`].setGridOption('rowData', this.getGridData());
+          AgGrid.grids[`ag-grid-world`].setGridOption('rowData', this.getGridData());
         }
       });
     });
@@ -153,7 +206,7 @@ const World = {
         <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('worlds')}</div>
         <div class="in">
           ${await AgGrid.Render({
-            id: `ag-grid-worlds`,
+            id: `ag-grid-world`,
             darkTheme: true,
             gridOptions: {
               rowData: this.getGridData(),
@@ -161,7 +214,7 @@ const World = {
                 // { field: '_id', headerName: 'ID' },
                 { field: 'face', headerName: 'face' },
                 { field: 'name', headerName: 'Name' },
-                //  { headerName: '', cellRenderer: LoadWorldRenderer },
+                { headerName: '', cellRenderer: LoadWorldRenderer },
               ],
             },
           })}
