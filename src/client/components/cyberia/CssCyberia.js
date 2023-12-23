@@ -18,6 +18,10 @@ const CssCyberia = {
         color: #ffcc00;
       }
 
+      .main-btn {
+        width: -webkit-fill-available;
+      }
+
       i {
         margin: 10px;
       }

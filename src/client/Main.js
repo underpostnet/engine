@@ -59,12 +59,12 @@ append('body', await JoyStick.Render());
 await Modal.Render({
   id: 'modal-menu',
   html: `
-  ${await BtnIcon.Render({ class: 'main-btn-bag', label: Translate.Render('bag') })}
-  ${await BtnIcon.Render({ class: 'main-btn-colors', label: Translate.Render('pallet-colors') })}
-  ${await BtnIcon.Render({ class: 'main-btn-settings', label: Translate.Render('settings') })}
-  ${await BtnIcon.Render({ class: 'main-btn-biome', label: 'Biome Engine' })}
-  ${await BtnIcon.Render({ class: 'main-btn-tile', label: 'Tile Engine' })}
-  ${await BtnIcon.Render({ class: 'main-btn-3d', label: '3D Engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
+  ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
