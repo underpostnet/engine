@@ -135,7 +135,16 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
     id: 'modal-3d-engine',
     barConfig,
     title: '3d Engine',
-    html: await Polyhedron.Render({ idModal: 'modal-3d-engine' }),
+    html: await Polyhedron.Render({
+      idModal: 'modal-3d-engine',
+      style: {
+        face: {
+          background: `rgba(0, 0, 0, 0.5)`,
+          border: `2px solid #620000ff`,
+          'font-size': `30px`,
+        },
+      },
+    }),
     handleType: 'bar',
   });
 });

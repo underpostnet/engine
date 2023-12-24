@@ -194,7 +194,19 @@ const World = {
         <div class="in fll world-col-b">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fa-solid fa-cube"></i> ${Translate.Render('world')}</div>
-            <div class="in">${await Polyhedron.Render({ id: 'world', idModal: 'world-col-b' })}</div>
+            <div class="in">
+              ${await Polyhedron.Render({
+                id: 'world',
+                idModal: 'world-col-b',
+                style: {
+                  face: {
+                    background: `rgba(0, 0, 0, 0.5)`,
+                    // border: `2px solid #620000ff`,
+                    'font-size': `30px`,
+                  },
+                },
+              })}
+            </div>
           </div>
         </div>
       </div>
