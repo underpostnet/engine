@@ -10,6 +10,15 @@ const DropDown = {
     this.Tokens[id] = {};
 
     options.data.push({
+      value: 'reset',
+      display: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+      onClick: function () {
+        console.log('DropDown onClick', this.value);
+        if (options && options.resetOnClick) options.resetOnClick();
+      },
+    });
+
+    options.data.push({
       value: 'close',
       display: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
       onClick: function () {
@@ -51,13 +60,22 @@ const DropDown = {
                 s(`.dropdown-option-${id}-${i}`).onclick = (e) => {
                   s(`.dropdown-option-${id}`).classList.add('hide');
                   optionData.onClick(e);
-                  if (optionData.value !== 'close') htmls(`.dropdown-current-${id}`, optionData.display);
+                  if (optionData.value !== 'close') {
+                    if (optionData.value !== 'reset') htmls(`.dropdown-current-${id}`, optionData.display);
+                    else htmls(`.dropdown-current-${id}`, '');
+                    this.Tokens[id].value = optionData.data;
+                  }
                 };
               });
               const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
               return html`
                 <div
-                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay}"
+                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
+                    'reset' &&
+                  options &&
+                  !(options.resetOption === true)
+                    ? 'hide'
+                    : ''}"
                 >
                   ${optionData.display}
                 </div>

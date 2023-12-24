@@ -39,7 +39,14 @@ class LoadWorldRenderer {
 
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-world-${rowId}`, async () => {
-        alert();
+        World.WorldScope = newInstance(World.worlds.find((w) => w._id === params.data._id));
+        for (const index of range(0, 5)) {
+          if (World.WorldScope.face[index])
+            s(`.dropdown-option-face-${index}-${World.WorldScope.face[index]._id}`).click();
+          else s(`.dropdown-option-face-${index}-reset`).click();
+        }
+
+        await World.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
         const worldDeleteResult = await CyberiaWorldService.delete(params.data._id);
@@ -71,8 +78,11 @@ class LoadWorldRenderer {
 
 const World = {
   worlds: [],
+  WorldScope: {
+    face: [],
+  },
   getGridData: function () {
-    return this.worlds.map((w) => {
+    return newInstance(this.worlds).map((w) => {
       range(0, 5).map((i) => {
         if (!(i in w.face)) w.face[i] = null;
       });
@@ -94,21 +104,22 @@ const World = {
       status: resultBiome.status,
     });
     let render = '';
-    const dataWorld = {
-      face: [],
-    };
+
     for (const index of range(0, 5)) {
       render += html`<div class="inl section-mp">
         ${await DropDown.Render({
           // value: ``,
           id: `face-${index}`,
           label: html`face ${index + 1}`,
+          resetOption: true,
+          resetOnClick: () => (this.WorldScope.face[index] = null),
           data: resultBiome.data.map((biome) => {
             return {
+              data: biome,
               display: html`${biome.name} <span style="color: #ffcc00; font-size: 15px;">[${biome.biome}]</span>`,
               value: biome._id,
               onClick: async () => {
-                dataWorld.face[index] = biome;
+                this.WorldScope.face[index] = biome;
               },
             };
           }),
@@ -116,40 +127,26 @@ const World = {
       </div>`;
     }
     setTimeout(() => {
-      const renderFace = async (index) => {
-        if (dataWorld.face[index] && dataWorld.face[index].fileId) {
-          const resultFile = await FileService.get(dataWorld.face[index].fileId);
-
-          const imageData = resultFile.data[0];
-
-          const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
-
-          const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-
-          const imageSrc = URL.createObjectURL(imageFile);
-
-          htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
-          return;
-        }
-        dataWorld.face[index] = null;
-        htmls(`.world-${index}`, html``);
-      };
       EventsUI.onClick(`.btn-generate-world`, async () => {
-        for (const index of range(0, 5)) await renderFace(index);
+        for (const index of range(0, 5)) {
+          if (!DropDown.Tokens[`face-${index}`].value) delete this.WorldScope.face[index];
+          await this.renderFace(index);
+        }
       });
       EventsUI.onClick(`.btn-generate-random-world`, async () => {
         for (const index of range(0, 5)) {
           s(`.dropdown-option-face-${index}-${resultBiome.data[random(0, resultBiome.data.length - 1)]._id}`).click();
-          await renderFace(index);
+          await this.renderFace(index);
         }
       });
       EventsUI.onClick(`.btn-upload-world`, async () => {
-        const body = newInstance(dataWorld);
+        const body = newInstance(this.WorldScope);
         body.face = body.face.map((face) => {
           if (face && face._id) return face._id;
           return null;
         });
         body.name = s(`.world-name`).value;
+        delete body._id;
         const { data, status } = await CyberiaWorldService.post(body);
         NotificationManager.Push({
           html: Translate.Render(`${status}-upload-world`),
@@ -159,6 +156,9 @@ const World = {
           this.worlds.push(data);
           AgGrid.grids[`ag-grid-world`].setGridOption('rowData', this.getGridData());
         }
+      });
+      EventsUI.onClick(`.btn-reset-world`, async () => {
+        for (const index of range(0, 5)) s(`.dropdown-option-face-${index}-reset`).click();
       });
     });
     return html`
@@ -177,6 +177,10 @@ const World = {
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-generate-random-world`,
                 label: html`<i class="fa-solid fa-dice"></i> ${Translate.Render(`generate`)} random`,
+              })}
+              ${await BtnIcon.Render({
+                class: `inl section-mp btn-custom btn-reset-world`,
+                label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render(`clear`)}`,
               })}
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-upload-world`,
@@ -229,6 +233,27 @@ const World = {
         </div>
       </div>
     `;
+  },
+  renderFace: async function (index) {
+    if (this.WorldScope.face[index] && this.WorldScope.face[index].fileId) {
+      const resultFile = await FileService.get(this.WorldScope.face[index].fileId);
+
+      const imageData = resultFile.data[0];
+
+      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+      const imageSrc = URL.createObjectURL(imageFile);
+
+      htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+      return;
+    }
+    this.WorldScope.face[index] = null;
+    htmls(`.world-${index}`, html``);
+  },
+  renderAllFace: async function () {
+    for (const index of range(0, 5)) await this.renderFace(index);
   },
 };
 
