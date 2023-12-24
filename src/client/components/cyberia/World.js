@@ -146,11 +146,7 @@ const World = {
       EventsUI.onClick(`.btn-upload-world`, async () => {
         const body = newInstance(dataWorld);
         body.face = body.face.map((face) => {
-          if (face && face._id)
-            return {
-              _id: face._id,
-              biome: face.biome,
-            };
+          if (face && face._id) return face._id;
           return null;
         });
         body.name = s(`.world-name`).value;

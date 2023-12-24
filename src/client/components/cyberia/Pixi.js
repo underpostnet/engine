@@ -35,7 +35,7 @@ const Pixi = {
     this.App = new Application({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
-      background: 'gray',
+      background: '#c7c7c7',
     });
     s('.pixi-container').appendChild(this.App.view);
     s('canvas').classList.add('abs');

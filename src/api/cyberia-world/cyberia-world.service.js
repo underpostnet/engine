@@ -13,14 +13,16 @@ const select = {
 const CyberiaWorldService = {
   post: async (req, res, options) => {
     const { _id } = await new CyberiaWorldModel(req.body).save();
-    const [result] = await CyberiaWorldModel.find({ _id }).select(select['all-name']);
+    const [result] = await CyberiaWorldModel.find({ _id })
+      .select(select['all-name'])
+      .populate('face', { fileId: 1, biome: 1, name: 1 });
     return result;
   },
   get: async (req, res, options) => {
     let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await CyberiaWorldModel.find();
+        result = await CyberiaWorldModel.find().populate('face', { fileId: 1, biome: 1, name: 1 });
         break;
       case 'all-name':
         result = await CyberiaWorldModel.find().select(select['all-name']);
