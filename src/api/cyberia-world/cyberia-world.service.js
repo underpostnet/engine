@@ -22,7 +22,27 @@ const CyberiaWorldService = {
     let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await CyberiaWorldModel.find().populate('face', { fileId: 1, biome: 1, name: 1 });
+        // preserveNullAndEmptyArrays
+        result = await CyberiaWorldModel.aggregate([
+          {
+            $lookup: {
+              from: 'cyberiabiomes', // collection name
+              localField: 'face',
+              foreignField: '_id',
+              as: 'face',
+            },
+          },
+          {
+            $project: {
+              _id: 1,
+              name: 1,
+              'face._id': 1,
+              'face.fileId': 1,
+              'face.biome': 1,
+            },
+          },
+        ]);
+
         break;
       case 'all-name':
         result = await CyberiaWorldModel.find().select(select['all-name']);
