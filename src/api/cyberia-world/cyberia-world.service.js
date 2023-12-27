@@ -22,6 +22,22 @@ const CyberiaWorldService = {
     let result = {};
     switch (req.params.id) {
       case 'all':
+        result = await CyberiaWorldModel.find().populate(
+          {
+            path: 'face',
+            select: 'fileId biome name',
+            // select: '-fileId -biome -name', // exclude
+            options: { retainNullValues: true },
+          },
+          // 'face',
+          // {
+          //   fileId: 1,
+          //   biome: 1,
+          //   name: 1,
+          // },
+        );
+        break;
+      case 'all-test':
         // preserveNullAndEmptyArrays
         result = await CyberiaWorldModel.aggregate([
           {
@@ -36,9 +52,26 @@ const CyberiaWorldService = {
             $project: {
               _id: 1,
               name: 1,
-              'face._id': 1,
-              'face.fileId': 1,
-              'face.biome': 1,
+              face: {
+                $map: {
+                  input: '$face',
+                  as: 'faceItem',
+                  in: {
+                    $cond: {
+                      if: { $eq: ['$$faceItem', null] },
+                      then: '$$faceItem',
+                      else: {
+                        _id: '$$faceItem._id',
+                        fileId: '$$faceItem.fileId',
+                        biome: '$$faceItem.biome',
+                      },
+                    },
+                  },
+                },
+              },
+              // 'face._id': 1,
+              // 'face.fileId': 1,
+              // 'face.biome': 1,
             },
           },
         ]);
