@@ -77,6 +77,7 @@ EventsUI.onClick(`.main-btn-settings`, async () => {
     barConfig,
     title: Translate.Render('settings'),
     html: await Settings.Render(),
+    maximize: true,
   });
 });
 
@@ -88,6 +89,7 @@ EventsUI.onClick(`.main-btn-bag`, async () => {
     title: Translate.Render('bag'),
     html: await Bag.Render(),
     handleType: 'bar',
+    maximize: true,
   });
 });
 
@@ -98,6 +100,7 @@ EventsUI.onClick(`.main-btn-colors`, async () => {
     barConfig,
     title: Translate.Render('pallet-colors'),
     html: ColorPalette.Render(),
+    maximize: true,
   });
 });
 
@@ -109,6 +112,7 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     title: 'Biome engine',
     html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
     handleType: 'bar',
+    maximize: true,
   });
 });
 
@@ -120,6 +124,7 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
     title: 'Tile engine',
     html: await Tile.Render({ idModal: 'modal-tile-engine' }),
     handleType: 'bar',
+    maximize: true,
   });
 });
 
@@ -129,17 +134,19 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
     id: 'modal-3d-engine',
     barConfig,
     title: '3d Engine',
-    html: await Polyhedron.Render({
-      idModal: 'modal-3d-engine',
-      style: {
-        face: {
-          background: `rgba(0, 0, 0, 0.5)`,
-          border: `2px solid #620000ff`,
-          'font-size': `30px`,
+    html: async () =>
+      await Polyhedron.Render({
+        idModal: 'modal-3d-engine',
+        style: {
+          face: {
+            background: `rgba(0, 0, 0, 0.5)`,
+            border: `2px solid #620000ff`,
+            'font-size': `30px`,
+          },
         },
-      },
-    }),
+      }),
     handleType: 'bar',
+    maximize: true,
   });
 });
 
@@ -149,8 +156,9 @@ EventsUI.onClick(`.main-btn-world`, async () => {
     id: 'modal-world-engine',
     barConfig,
     title: 'World Engine',
-    html: await World.Render({ idModal: 'modal-world-engine' }),
+    html: async () => await World.Render({ idModal: 'modal-world-engine' }),
     handleType: 'bar',
+    maximize: true,
   });
 });
 

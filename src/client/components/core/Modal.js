@@ -27,9 +27,9 @@ const Modal = {
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
     const logger = loggerFactory({ url: `.${idModal}` });
+    if (s(`.${idModal}`) || (options && options.maximize)) setTimeout(() => s(`.btn-maximize-${idModal}`).click(), 750);
     if (s(`.${idModal}`)) {
       s(`.${idModal}`).style.zIndex = '2';
-      s(`.btn-maximize-${idModal}`).click();
       return;
     }
     this.Data[idModal] = {};
