@@ -10,12 +10,17 @@ const select = {
   'all-name': { _id: 1, name: 1, face: 1 },
 };
 
+const populateOptions = {
+  path: 'face',
+  select: 'fileId biome name',
+  // select: '-fileId -biome -name', // exclude
+  options: { retainNullValues: true },
+};
+
 const CyberiaWorldService = {
   post: async (req, res, options) => {
     const { _id } = await new CyberiaWorldModel(req.body).save();
-    const [result] = await CyberiaWorldModel.find({ _id })
-      .select(select['all-name'])
-      .populate('face', { fileId: 1, biome: 1, name: 1 });
+    const [result] = await CyberiaWorldModel.find({ _id }).select(select['all-name']).populate(populateOptions);
     return result;
   },
   get: async (req, res, options) => {
@@ -23,12 +28,7 @@ const CyberiaWorldService = {
     switch (req.params.id) {
       case 'all':
         result = await CyberiaWorldModel.find().populate(
-          {
-            path: 'face',
-            select: 'fileId biome name',
-            // select: '-fileId -biome -name', // exclude
-            options: { retainNullValues: true },
-          },
+          populateOptions,
           // 'face',
           // {
           //   fileId: 1,
