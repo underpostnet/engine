@@ -52,23 +52,21 @@ await Matrix.InitCamera();
 
 await NotificationManager.RenderBoard();
 
-const barConfigModalMenu = newInstance(barConfig);
-
 append('body', await JoyStick.Render());
 
 await Modal.Render({
   id: 'modal-menu',
-  html: `
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
-  ${await BtnIcon.Render({ class: 'main-btn main-btn-world', label: 'World Engine' })}
-    `,
-  barConfig: barConfigModalMenu,
-  title: 'menu',
+  html: html`
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-world', label: 'World Engine' })}
+  `,
+  barConfig: newInstance(barConfig),
+  title: html`C Y B E R I A`,
   mode: 'slide-menu',
 });
 

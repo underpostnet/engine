@@ -8,7 +8,7 @@ import { renderStatus } from './Css.js';
 
 const Modal = {
   Data: {},
-  EffectData: {},
+  ModeData: {},
   Render: async function (
     options = {
       id: '',
@@ -20,11 +20,11 @@ const Modal = {
     },
   ) {
     const ResponsiveData = Responsive.getResponsiveData();
-    const width = 300;
-    const height = 400;
+    let width = 300;
+    let height = 400;
     let top = `${ResponsiveData.height / 2 - height / 2}px`;
     let left = `${ResponsiveData.width / 2 - width / 2}px`;
-    let transition;
+    let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
     const logger = loggerFactory({ url: `.${idModal}` });
     if (s(`.${idModal}`)) {
@@ -34,6 +34,8 @@ const Modal = {
     }
     this.Data[idModal] = {};
     if (options && 'mode' in options) {
+      if (!this.ModeData[options.mode]) this.ModeData[options.mode] = {};
+      this.ModeData[options.mode][idModal] = {};
       switch (options.mode) {
         case 'slide-menu':
           (() => {
@@ -47,6 +49,7 @@ const Modal = {
             options.dragDisabled = true;
             top = '0px';
             left = 'auto';
+            width = 'auto';
             barConfig.buttons.maximize.disabled = true;
             barConfig.buttons.minimize.disabled = true;
             barConfig.buttons.restore.disabled = true;
@@ -54,11 +57,47 @@ const Modal = {
             barConfig.buttons.menu.onClick = () => {
               s(`.btn-menu-${idModal}`).classList.add('hide');
               s(`.btn-close-${idModal}`).classList.remove('hide');
+              s(`.${idModal}`).style.width = '320px';
+              s(`.html-${idModal}`).style.display = 'block';
+              s(`.title-modal-${idModal}`).style.display = 'block';
             };
             barConfig.buttons.close.onClick = () => {
               s(`.btn-close-${idModal}`).classList.add('hide');
               s(`.btn-menu-${idModal}`).classList.remove('hide');
+              s(`.${idModal}`).style.width = '50px';
+              s(`.html-${idModal}`).style.display = 'none';
+              s(`.title-modal-${idModal}`).style.display = 'none';
             };
+            setTimeout(() => {
+              s(`.${idModal}`).style.width = '320px';
+            });
+            transition += `, width 0.3s`;
+          })();
+          break;
+
+        case 'dropNotification':
+          (() => {
+            const renderMode = (idModalDisable) => {
+              let countDrop = 0;
+              Object.keys(this.ModeData[options.mode])
+                .reverse()
+                .map((idModalKeyMode) => {
+                  if (idModalKeyMode !== idModalDisable) {
+                    s(`.${idModalKeyMode}`).style.bottom = `${
+                      countDrop * s(`.${idModalKeyMode}`).clientHeight * 1.05
+                    }px`;
+                    countDrop++;
+                  }
+                });
+            };
+            setTimeout(() => {
+              s(`.${idModal}`).style.top = 'auto';
+              s(`.${idModal}`).style.left = 'auto';
+              s(`.${idModal}`).style.height = 'auto';
+              s(`.${idModal}`).style.position = 'absolute';
+              renderMode();
+              this.ModeData[options.mode][idModal].delete = () => renderMode(idModal);
+            });
           })();
           break;
 
@@ -76,7 +115,7 @@ const Modal = {
             left: ${left};
             overflow: auto; /* resizable required */
             resize: auto; /* resizable required */
-            transition: opacity 0.3s, box-shadow 0.3s, bottom 0.3s;
+            transition: ${transition};
             opacity: 0;
             z-index: 1;
             ${options && options.style
@@ -149,7 +188,9 @@ const Modal = {
             ${options && options.status
               ? html` <div class="abs modal-icon-container">${renderStatus(options.status)}</div> `
               : ''}
-            <div class="in ${options && options.titleClass ? options.titleClass : 'title-modal'}">
+            <div
+              class="in title-modal-${idModal} ${options && options.titleClass ? options.titleClass : 'title-modal'}"
+            >
               ${options && options.title ? options.title : ''}
             </div>
           </div>
@@ -170,38 +211,6 @@ const Modal = {
           break;
       }
     } else append(selector, render);
-    if (options && options.effect) {
-      if (!this.EffectData[options.effect]) this.EffectData[options.effect] = {};
-      this.EffectData[options.effect][idModal] = {};
-      switch (options.effect) {
-        case 'dropNotification':
-          (() => {
-            const renderEffect = (idModalDisable) => {
-              let countDrop = 0;
-              Object.keys(this.EffectData[options.effect])
-                .reverse()
-                .map((idModalKeyEffect) => {
-                  if (idModalKeyEffect !== idModalDisable) {
-                    s(`.${idModalKeyEffect}`).style.bottom = `${
-                      countDrop * s(`.${idModalKeyEffect}`).clientHeight * 1.05
-                    }px`;
-                    countDrop++;
-                  }
-                });
-            };
-            s(`.${idModal}`).style.top = 'auto';
-            s(`.${idModal}`).style.left = 'auto';
-            s(`.${idModal}`).style.height = 'auto';
-            s(`.${idModal}`).style.position = 'absolute';
-            renderEffect();
-            this.EffectData[options.effect][idModal].delete = () => renderEffect(idModal);
-          })();
-          break;
-
-        default:
-          break;
-      }
-    }
     let dragInstance;
     let handle = [s(`.bar-default-modal-${idModal}`), s(`.modal-handle-${idModal}`), s(`.modal-html-${idModal}`)];
     if (options && 'handleType' in options) {
@@ -249,9 +258,9 @@ const Modal = {
           s(`.${idModal}`).remove();
           s(`.style-${idModal}`).remove();
           delete this.Data[idModal];
-          if (options && options.effect) {
-            if (this.EffectData[options.effect][idModal].delete) this.EffectData[options.effect][idModal].delete();
-            delete this.EffectData[options.effect][idModal];
+          if (options && options.mode) {
+            if (this.ModeData[options.mode][idModal].delete) this.ModeData[options.mode][idModal].delete();
+            delete this.ModeData[options.mode][idModal];
           }
         }, 300);
       };

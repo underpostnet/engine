@@ -1,6 +1,7 @@
 'use strict';
 
-const srcFormatted = (src) => src.replaceAll('html`', '`').replaceAll('css`', '`');
+const srcFormatted = (src) =>
+  src.replaceAll(' html`', '`').replaceAll(' css`', '`').replaceAll('${html`', '${`').replaceAll('${css`', '${`');
 
 const pathViewFormatted = (path) => (path === '/' ? path : `${path}/`);
 

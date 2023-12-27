@@ -48,7 +48,7 @@ const NotificationManager = {
       style: {
         width: '300px',
       },
-      effect: 'dropNotification',
+      mode: 'dropNotification',
       status: options.status,
     });
     setTimeout(() => {
