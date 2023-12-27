@@ -53,7 +53,6 @@ await Matrix.InitCamera();
 await NotificationManager.RenderBoard();
 
 const barConfigModalMenu = newInstance(barConfig);
-barConfigModalMenu.buttons.close.disabled = true;
 
 append('body', await JoyStick.Render());
 
@@ -70,10 +69,7 @@ await Modal.Render({
     `,
   barConfig: barConfigModalMenu,
   title: 'menu',
-  style: {
-    top: '5px',
-    left: '5px',
-  },
+  mode: 'slide-menu',
 });
 
 EventsUI.onClick(`.main-btn-settings`, async () => {

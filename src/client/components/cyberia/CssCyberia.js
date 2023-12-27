@@ -10,6 +10,17 @@ const CssCyberia = {
         font-size: 24px;
       }
 
+      body {
+        overflow: hidden;
+      }
+
+      .modal {
+        background: rgba(18, 18, 18, 0.9);
+      }
+      .bar-default-modal {
+        background: rgba(36, 36, 36, 0.75);
+      }
+
       .btn-modal-default {
         min-width: 40px;
       }

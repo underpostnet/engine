@@ -9,7 +9,16 @@ import { renderStatus } from './Css.js';
 const Modal = {
   Data: {},
   EffectData: {},
-  Render: async function (options) {
+  Render: async function (
+    options = {
+      id: '',
+      barConfig: {},
+      title: '',
+      html: '',
+      handleType: 'bar',
+      mode: '' /* slide-menu */,
+    },
+  ) {
     const ResponsiveData = Responsive.getResponsiveData();
     const width = 300;
     const height = 400;
@@ -24,6 +33,39 @@ const Modal = {
       return;
     }
     this.Data[idModal] = {};
+    if (options && 'mode' in options) {
+      switch (options.mode) {
+        case 'slide-menu':
+          (() => {
+            const { barConfig } = options;
+            options.style = {
+              position: 'absolute',
+              height: '100%',
+              width: '320px',
+              right: '0px',
+            };
+            options.dragDisabled = true;
+            top = '0px';
+            left = 'auto';
+            barConfig.buttons.maximize.disabled = true;
+            barConfig.buttons.minimize.disabled = true;
+            barConfig.buttons.restore.disabled = true;
+            barConfig.buttons.menu.disabled = true;
+            barConfig.buttons.menu.onClick = () => {
+              s(`.btn-menu-${idModal}`).classList.add('hide');
+              s(`.btn-close-${idModal}`).classList.remove('hide');
+            };
+            barConfig.buttons.close.onClick = () => {
+              s(`.btn-close-${idModal}`).classList.add('hide');
+              s(`.btn-menu-${idModal}`).classList.remove('hide');
+            };
+          })();
+          break;
+
+        default:
+          break;
+      }
+    }
     const render = html` <style class="style-${idModal}">
 
         ${css`
@@ -97,12 +139,12 @@ const Modal = {
                     label: options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`,
                   })
                 : ''}
-              ${!options?.barConfig?.buttons?.menu?.disabled
-                ? await BtnIcon.Render({
-                    class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal}`,
-                    label: options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`,
-                  })
-                : ''}
+              ${await BtnIcon.Render({
+                class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal}  ${
+                  options?.barConfig?.buttons?.menu?.disabled ? 'hide' : ''
+                }`,
+                label: options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`,
+              })}
             </div>
             ${options && options.status
               ? html` <div class="abs modal-icon-container">${renderStatus(options.status)}</div> `
@@ -192,13 +234,15 @@ const Modal = {
       },
     };
     // new Draggable(s(`.${idModal}`), { disabled: true });
-    const setDragInstance = () => new Draggable(s(`.${idModal}`), dragOptions);
+    const setDragInstance = () => (options?.dragDisabled ? null : new Draggable(s(`.${idModal}`), dragOptions));
     transition = `${s(`.${idModal}`).style.transition}`;
     s(`.${idModal}`).style.transition = '0.15s';
     setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
     setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
     if (s(`.btn-close-${idModal}`))
       s(`.btn-close-${idModal}`).onclick = () => {
+        if (options && 'barConfig' in options && options.barConfig.buttons.close.onClick)
+          return options.barConfig.buttons.close.onClick();
         s(`.${idModal}`).style.opacity = '0';
         setTimeout(() => {
           if (!s(`.${idModal}`)) return;
@@ -250,6 +294,11 @@ const Modal = {
         setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
       };
     }
+
+    s(`.btn-menu-${idModal}`).onclick = () => {
+      if (options && 'barConfig' in options && options.barConfig.buttons.menu.onClick)
+        return options.barConfig.buttons.menu.onClick();
+    };
 
     dragInstance = setDragInstance();
     true
