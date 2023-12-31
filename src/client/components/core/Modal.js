@@ -67,6 +67,7 @@ const Modal = {
               width: '320px',
               right: '0px',
               'z-index': 3,
+              resize: 'none',
             };
             options.dragDisabled = true;
             top = '0px';
