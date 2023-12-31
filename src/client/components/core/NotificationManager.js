@@ -15,7 +15,7 @@ const NotificationManager = {
               right: 5px;
               width: 300px;
               bottom: 5px;
-              z-index: 3;
+              z-index: 4;
             }
             .notification-board-title {
               padding: 5px;

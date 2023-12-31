@@ -786,7 +786,7 @@ const barConfig = (options) => {
         label: barLabels[barButtonsIconTheme].restore,
       },
       menu: {
-        disabled: false,
+        disabled: true,
         label: barLabels[barButtonsIconTheme].menu,
       },
     },

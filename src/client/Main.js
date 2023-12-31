@@ -76,8 +76,10 @@ EventsUI.onClick(`.main-btn-settings`, async () => {
     id: 'modal-settings',
     barConfig,
     title: Translate.Render('settings'),
-    html: await Settings.Render(),
+    html: async () => await Settings.Render(),
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -87,9 +89,11 @@ EventsUI.onClick(`.main-btn-bag`, async () => {
     id: 'modal-bag',
     barConfig,
     title: Translate.Render('bag'),
-    html: await Bag.Render(),
+    html: async () => await Bag.Render(),
     handleType: 'bar',
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -99,8 +103,10 @@ EventsUI.onClick(`.main-btn-colors`, async () => {
     id: 'modal-pallet-colors',
     barConfig,
     title: Translate.Render('pallet-colors'),
-    html: ColorPalette.Render(),
+    html: async () => ColorPalette.Render(),
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -113,6 +119,8 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
     handleType: 'bar',
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -122,9 +130,11 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
     id: 'modal-tile-engine',
     barConfig,
     title: 'Tile engine',
-    html: await Tile.Render({ idModal: 'modal-tile-engine' }),
+    html: async () => await Tile.Render({ idModal: 'modal-tile-engine' }),
     handleType: 'bar',
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -147,6 +157,8 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
       }),
     handleType: 'bar',
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 
@@ -159,6 +171,8 @@ EventsUI.onClick(`.main-btn-world`, async () => {
     html: async () => await World.Render({ idModal: 'modal-world-engine' }),
     handleType: 'bar',
     maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
   });
 });
 

@@ -22,11 +22,15 @@ const Responsive = {
       const Data = getResponsiveData();
       if (Data.minValue !== this.Data.minValue || Data.maxValue !== this.Data.maxValue) {
         this.Data = Data;
-        Object.keys(this.Event).map((key) => this.Event[key]());
+        this.triggerEvents();
       }
     };
     this.CallBack();
     this.Interval = setInterval(() => this.CallBack(), globalTimeInterval);
+  },
+  triggerEvents: function (keyEvent) {
+    if (keyEvent) return this.Event[keyEvent]();
+    return Object.keys(this.Event).map((key) => this.Event[key]());
   },
 };
 
