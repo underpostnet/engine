@@ -255,7 +255,6 @@ const Modal = {
       onDragStart: (data) => {
         if (!s(`.${idModal}`)) return;
         // logger.info('Dragging started', data);
-        transition = `${s(`.${idModal}`).style.transition}`;
         s(`.${idModal}`).style.transition = null;
       },
       onDrag: (data) => {
@@ -270,7 +269,6 @@ const Modal = {
     };
     // new Draggable(s(`.${idModal}`), { disabled: true });
     const setDragInstance = () => (options?.dragDisabled ? null : new Draggable(s(`.${idModal}`), dragOptions));
-    transition = `${s(`.${idModal}`).style.transition}`;
     s(`.${idModal}`).style.transition = '0.15s';
     setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
     setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
@@ -289,7 +287,6 @@ const Modal = {
 
     s(`.btn-minimize-${idModal}`).onclick = () => {
       if (options.slideMenu) delete this.Data[idModal].slideMenu;
-      transition = `${s(`.${idModal}`).style.transition}`;
       s(`.${idModal}`).style.transition = '0.3s';
       s(`.btn-minimize-${idModal}`).style.display = 'none';
       s(`.btn-maximize-${idModal}`).style.display = null;
@@ -299,7 +296,6 @@ const Modal = {
     };
     s(`.btn-restore-${idModal}`).onclick = () => {
       if (options.slideMenu) delete this.Data[idModal].slideMenu;
-      transition = `${s(`.${idModal}`).style.transition}`;
       s(`.${idModal}`).style.transition = '0.3s';
       s(`.btn-restore-${idModal}`).style.display = 'none';
       s(`.btn-minimize-${idModal}`).style.display = null;
@@ -313,8 +309,8 @@ const Modal = {
       setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
     };
     s(`.btn-maximize-${idModal}`).onclick = () => {
-      transition = `${s(`.${idModal}`).style.transition}`;
       s(`.${idModal}`).style.transition = '0.3s';
+      setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
       s(`.btn-maximize-${idModal}`).style.display = 'none';
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
@@ -340,7 +336,6 @@ const Modal = {
       s(`.${idModal}`).style.top = '0px';
       s(`.${idModal}`).style.left = '0px';
       dragInstance = setDragInstance();
-      setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
     };
 
     s(`.btn-menu-${idModal}`).onclick = () => {
