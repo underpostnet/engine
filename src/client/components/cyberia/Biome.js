@@ -21,7 +21,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { validationRules } from '../core/Validator.js';
+import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
@@ -735,30 +735,7 @@ const BiomeEngine = {
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        const validator = {
-          name: () => {
-            logger.warn(`.input-name-${biome}`, s(`.input-name-${biome}`).value);
-
-            if (validationRules.emptyField(s(`.input-name-${biome}`).value)) {
-              htmls(
-                `.input-info-input-name-${biome}`,
-                html` ${renderStatus('error', { class: 'inl' })} &nbsp
-                  <span style="color: red">${Translate.Render('emptyField')}</span>`,
-              );
-              return true;
-            }
-
-            htmls(
-              `.input-info-input-name-${biome}`,
-              html` ${renderStatus('success', { class: 'inl' })} &nbsp
-                <span style="color: green">ok</span>`,
-            );
-            return false;
-          },
-        };
-
-        s(`.input-name-${biome}`).oninput = validator.name;
-        s(`.input-name-${biome}`).onblur = validator.name;
+        const validators = Validator.instance([{ id: `input-name-${biome}`, rules: ['emptyField'] }]);
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           await this.generateBiome(biome);
@@ -767,8 +744,8 @@ const BiomeEngine = {
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
         );
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
-          const validators = [validator.name()];
-          if (validators.includes(true)) return;
+          const validateError = await validators();
+          if (validateError) return;
 
           if (!BiomeScope.Keys[biome])
             return NotificationManager.Push({
