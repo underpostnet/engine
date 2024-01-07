@@ -29,14 +29,14 @@ const ToggleSwitch = {
         options?.on?.unchecked ? options.on.unchecked() : null;
       };
 
-      const onCLickEvent = () => {
+      const onClickEvent = () => {
         s(`.${id}-checkbox`).checked ? offToggle() : onToggle();
         logger.info(id, s(`.${id}-checkbox`).checked);
       };
 
-      this.Tokens[id].click = onCLickEvent;
+      this.Tokens[id].click = onClickEvent;
 
-      if (!options.disabledOnClick) s(`.${id}`).onclick = onCLickEvent;
+      if (!options.disabledOnClick) s(`.${id}`).onclick = onClickEvent;
 
       setTimeout(() => {
         options?.checked ? onToggle() : null;
