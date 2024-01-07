@@ -36,7 +36,7 @@ const ToggleSwitch = {
 
       this.Tokens[id].click = onCLickEvent;
 
-      if (!options.disabledOnClick) s(`.${id}`).onclick = () => onCLickEvent;
+      if (!options.disabledOnClick) s(`.${id}`).onclick = onCLickEvent;
 
       setTimeout(() => {
         options?.checked ? onToggle() : null;
