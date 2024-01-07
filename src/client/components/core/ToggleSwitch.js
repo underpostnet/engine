@@ -9,11 +9,15 @@ const ToggleSwitch = {
   Render: async function (options) {
     const id = options?.id ? options.id : getId(this.Tokens, 'toggle-switch-');
     this.Tokens[id] = {};
+
+    const widthContent = 60;
+    const widthCircle = 20;
+
     setTimeout(() => {
       s(`.${id}-circle`).style.left = `0px`;
 
       const onToggle = () => {
-        s(`.${id}-circle`).style.left = `${s(`.${id}-content`).offsetWidth - s(`.${id}-circle`).offsetWidth}px`;
+        s(`.${id}-circle`).style.left = `${widthContent - widthCircle}px`;
         s(`.${id}-checkbox`).checked = true;
         s(`.${id}-circle`).classList.add(`toggle-switch-active`);
         options?.on?.checked ? options.on.checked() : null;
@@ -25,16 +29,23 @@ const ToggleSwitch = {
         options?.on?.unchecked ? options.on.unchecked() : null;
       };
 
-      s(`.${id}`).onclick = () => {
+      const onCLickEvent = () => {
         s(`.${id}-checkbox`).checked ? offToggle() : onToggle();
         logger.info(id, s(`.${id}-checkbox`).checked);
       };
+
+      this.Tokens[id].click = onCLickEvent;
+
+      if (!options.disabledOnClick) s(`.${id}`).onclick = () => onCLickEvent;
 
       setTimeout(() => {
         options?.checked ? onToggle() : null;
         logger.info(id, s(`.${id}-checkbox`).checked);
       });
     });
+
+    if (options.type === 'checkbox') {
+    }
     return html`
       <div class="inl toggle-switch-content-border ${id}">
         <div class="in ${id}-content toggle-switch-content ">

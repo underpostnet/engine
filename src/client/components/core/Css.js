@@ -739,7 +739,7 @@ scrollbar-width: none;
           cursor: pointer;
         }
         .dropdown-option {
-          width: 250px;
+          width: 300px;
         }
         .dropdown-option:hover {
           color: #f1f1f1;

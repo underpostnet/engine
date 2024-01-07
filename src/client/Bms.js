@@ -2,11 +2,15 @@ import { AgGrid } from './components/core/AgGrid.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { newInstance, random, range } from './components/core/CommonJs.js';
 import { Css, dynamicCol } from './components/core/Css.js';
+import { DropDown } from './components/core/DropDown.js';
 import { Input } from './components/core/Input.js';
+import { loggerFactory } from './components/core/Logger.js';
 import { Modal } from './components/core/Modal.js';
 import { Responsive } from './components/core/Responsive.js';
 import { Translate, TranslateCore } from './components/core/Translate.js';
-import { append } from './components/core/VanillaJs.js';
+import { s, append } from './components/core/VanillaJs.js';
+
+const logger = loggerFactory(import.meta);
 
 await TranslateCore.Init();
 await Responsive.Init({ globalTimeInterval: 100 });
@@ -226,12 +230,9 @@ setInterval(() => {
 //    fadeDelay: 2000,
 //  });
 
-const barConfigModalMenu = newInstance(barConfig);
-// barConfigModalMenu.buttons.close.disabled = true;
-
 await Modal.Render({
-  id: 'modal-login',
-  html: html`
+  id: 'modal-log-in',
+  html: async () => html`
     ${await Input.Render({
       id: `input-login-user`,
       label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
@@ -247,15 +248,48 @@ await Modal.Render({
     })}
     <div class="in">
       ${await BtnIcon.Render({
-        class: `in section-mp btn-custom`,
-        label: html`<i class="fa-solid fa-right-to-bracket"></i> Log In`,
+        class: `inl section-mp btn-custom btn-log-in`,
+        label: html`<i class="fa-solid fa-right-to-bracket"></i> ${Translate.Render('log-in')}`,
+      })}
+      ${await BtnIcon.Render({
+        class: 'inl section-mp btn-custom btn-sign-up',
+        label: html`<i class="fa-solid fa-user-plus"></i> ${Translate.Render('sign-up')}`,
       })}
     </div>
   `,
-  barConfig: barConfigModalMenu,
-  title: 'Log In',
+  barConfig: newInstance(barConfig),
+  title: html`${Translate.Render('log-in')}`,
   style: {
     width: '330px',
     height: '500px',
   },
 });
+
+s(`.btn-sign-up`).onclick = async () => {
+  await Modal.Render({
+    id: 'modal-sign-up',
+    html: async () => html`
+      ${await DropDown.Render({
+        label: html`${Translate.Render('select-role')}`,
+        type: 'checkbox',
+        data: ['broker', 'owner'].map((dKey) => {
+          return {
+            value: dKey,
+            data: dKey,
+            checked: true,
+            display: html`${Translate.Render(dKey)}`,
+            onClick: function () {
+              logger.info('DropDown onClick', this.checked);
+            },
+          };
+        }),
+      })}
+    `,
+    barConfig: newInstance(barConfig),
+    title: html`${Translate.Render('sign-up')}`,
+    style: {
+      width: '330px',
+      height: '500px',
+    },
+  });
+};

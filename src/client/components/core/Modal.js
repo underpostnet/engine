@@ -41,11 +41,6 @@ const Modal = {
 
           if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
 
-          if (s(`.${idModal}`)) {
-            s(`.btn-maximize-${idModal}`).click();
-            return;
-          }
-
           options.style = {
             ...options.style,
             'min-width': '320px',
@@ -158,6 +153,10 @@ const Modal = {
         default:
           break;
       }
+    }
+    if (s(`.${idModal}`)) {
+      s(`.btn-maximize-${idModal}`).click();
+      return;
     }
     const render = html` <style class="style-${idModal}">
 

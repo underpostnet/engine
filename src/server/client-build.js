@@ -28,7 +28,16 @@ const buildClient = async () => {
         recursive: true,
       });
 
-      if (fs.existsSync(`./src/client/public/${client}`)) fs.copySync(`./src/client/public/${client}`, rootClientPath);
+      if (fs.existsSync(`./src/client/public/${client}`))
+        fs.copySync(
+          `./src/client/public/${client}`,
+          rootClientPath /* {
+          filter: function (name) {
+            console.log(name);
+            return true;
+          },
+        } */,
+        );
       else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
         switch (client) {
           case 'mysql_test':

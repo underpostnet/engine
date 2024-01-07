@@ -90,6 +90,11 @@ const TranslateCore = {
     Translate.Data['pass'] = { en: 'Password', es: 'Contraseña' };
     Translate.Data['email'] = { en: 'Email', es: 'Email' };
     Translate.Data['clear'] = { en: 'Reset', es: 'Limpiar' };
+    Translate.Data['select-role'] = { en: 'Select Role', es: 'Seleccionar Rol' };
+    Translate.Data['sign-up'] = { en: 'Sign Up', es: 'Registrarse' };
+    Translate.Data['log-in'] = { en: 'Log In', es: 'Ingresar' };
+    Translate.Data['broker'] = { en: 'Broker', es: 'Agente de ventas' };
+    Translate.Data['owner'] = { en: 'Owner', es: 'Propietario' };
   },
 };
 

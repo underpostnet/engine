@@ -68,6 +68,8 @@ const Config = {
             'Css',
             'AgGrid',
             'Input',
+            'DropDown',
+            'ToggleSwitch',
           ],
         },
         views: [
@@ -243,7 +245,7 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
         },
         '/cyberia': {

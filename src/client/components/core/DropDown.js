@@ -1,5 +1,6 @@
-import { getId } from './CommonJs.js';
+import { getId, newInstance } from './CommonJs.js';
 import { Input } from './Input.js';
+import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { s, htmls } from './VanillaJs.js';
 
@@ -33,12 +34,85 @@ const DropDown = {
     };
 
     setTimeout(() => {
-      const indexValue = options.data.findIndex((t) => t.value === options.value);
-      if (indexValue > -1) setTimeout(() => s(`.dropdown-option-${id}-${indexValue}`).click());
+      if (options.type === 'checkbox')
+        options.data.map((optionData) => {
+          const indexValue = options.data.findIndex((t) => optionData.checked && t.value === optionData.value);
+          if (indexValue > -1) setTimeout(() => s(`.dropdown-option-${id}-${indexValue}`).click());
+        });
+      else {
+        const indexValue = options.data.findIndex((t) => t.value === options.value);
+        if (indexValue > -1) setTimeout(() => s(`.dropdown-option-${id}-${indexValue}`).click());
+      }
 
       s(`.dropdown-label-${id}`).onclick = switchOptionsPanel;
       s(`.dropdown-current-${id}`).onclick = switchOptionsPanel;
     });
+
+    let render = '';
+    let index = -1;
+    for (const optionData of options.data) {
+      index++;
+      const i = index;
+      setTimeout(() => {
+        s(`.dropdown-option-${id}-${i}`).onclick = (e) => {
+          if (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
+            s(`.dropdown-option-${id}`).classList.add('hide');
+
+          if (options.type === 'checkbox' && ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`])
+            ToggleSwitch.Tokens[`checkbox-role-${valueDisplay}`].click();
+          if (optionData.value !== 'close') {
+            if (optionData.value !== 'reset')
+              htmls(
+                `.dropdown-current-${id}`,
+                options.type === 'checkbox'
+                  ? options.data
+                      .filter((d) => d.checked)
+                      .map((v, i, a) => `${v.display}${i < a.length - 1 ? ',' : ''}`)
+                      .join('')
+                  : optionData.display,
+              );
+            else htmls(`.dropdown-current-${id}`, '');
+
+            this.Tokens[id].value =
+              options.type === 'checkbox' ? options.data.filter((d) => d.checked).map((d) => d.data) : optionData.data;
+
+            console.warn('current value dropdown id:' + id, this.Tokens[id].value);
+
+            optionData.onClick(e);
+          }
+        };
+      });
+      const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
+      render += html`
+        <div
+          class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
+            'reset' &&
+          options &&
+          !(options.resetOption === true)
+            ? 'hide'
+            : ''}"
+        >
+          ${options.type === 'checkbox' && optionData.value !== 'close' && optionData.value !== 'reset'
+            ? html`
+                ${await ToggleSwitch.Render({
+                  id: `checkbox-role-${valueDisplay}`,
+                  type: 'checkbox',
+                  disabledOnClick: true,
+                  checked: optionData.checked,
+                  on: {
+                    unchecked: () => {
+                      optionData.checked = false;
+                    },
+                    checked: () => {
+                      optionData.checked = true;
+                    },
+                  },
+                })}
+              `
+            : ''}${optionData.display}
+        </div>
+      `;
+    }
     return html`
       <div class="inl dropdown-container">
         <div class="in dropdown-option dropdown-label-${id}">
@@ -54,34 +128,7 @@ const DropDown = {
               placeholder: true,
             })}
           </div>
-          ${options.data
-            .map((optionData, i) => {
-              setTimeout(() => {
-                s(`.dropdown-option-${id}-${i}`).onclick = (e) => {
-                  s(`.dropdown-option-${id}`).classList.add('hide');
-                  optionData.onClick(e);
-                  if (optionData.value !== 'close') {
-                    if (optionData.value !== 'reset') htmls(`.dropdown-current-${id}`, optionData.display);
-                    else htmls(`.dropdown-current-${id}`, '');
-                    this.Tokens[id].value = optionData.data;
-                  }
-                };
-              });
-              const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
-              return html`
-                <div
-                  class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
-                    'reset' &&
-                  options &&
-                  !(options.resetOption === true)
-                    ? 'hide'
-                    : ''}"
-                >
-                  ${optionData.display}
-                </div>
-              `;
-            })
-            .join('')}
+          ${render}
         </div>
       </div>
     `;
