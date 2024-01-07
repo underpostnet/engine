@@ -67,6 +67,7 @@ await Modal.Render({
   `,
   barConfig: newInstance(barConfig),
   title: html`C Y B E R I A`,
+  // titleClass: 'hide',
   mode: 'slide-menu',
 });
 

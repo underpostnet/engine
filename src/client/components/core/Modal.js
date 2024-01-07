@@ -63,11 +63,12 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: '100%',
+              height: `${window.innerHeight - 50}px`,
               width: '320px',
-              right: '0px',
-              'z-index': 3,
+              left: '0px',
+              'z-index': 2,
               resize: 'none',
+              top: '50px',
             };
             options.dragDisabled = true;
             top = '0px';
@@ -89,22 +90,48 @@ const Modal = {
               s(`.btn-close-${idModal}`).classList.remove('hide');
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'block';
-              s(`.title-modal-${idModal}`).style.display = 'block';
+              // s(`.title-modal-${idModal}`).style.display = 'block';
               Responsive.Event[`slide-menu-${idModal}`]();
             };
             barConfig.buttons.close.onClick = () => {
-              this.Data[idModal][options.mode].width = 50;
+              this.Data[idModal][options.mode].width = 0;
               s(`.btn-close-${idModal}`).classList.add('hide');
               s(`.btn-menu-${idModal}`).classList.remove('hide');
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'none';
-              s(`.title-modal-${idModal}`).style.display = 'none';
+              // s(`.title-modal-${idModal}`).style.display = 'none';
               Responsive.Event[`slide-menu-${idModal}`]();
             };
             setTimeout(() => {
               s(`.${idModal}`).style.width = '320px';
             });
             transition += `, width 0.3s`;
+
+            append('body', html`<div class="fix modal slide-menu-top-bar"></div>`);
+
+            setTimeout(() => {
+              // clone and change position
+
+              // s(`.btn-close-${idModal}`);
+              // s(`.btn-menu-${idModal}`);
+
+              const btnCloseNode = s(`.btn-close-${idModal}`).cloneNode(true);
+              s(`.btn-close-${idModal}`).remove();
+              s(`.slide-menu-top-bar`).appendChild(btnCloseNode);
+              s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
+
+              const btnMenuNode = s(`.btn-menu-${idModal}`).cloneNode(true);
+              s(`.btn-menu-${idModal}`).remove();
+              s(`.slide-menu-top-bar`).appendChild(btnMenuNode);
+              s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
+
+              const titleNode = s(`.title-modal-${idModal}`).cloneNode(true);
+              s(`.title-modal-${idModal}`).remove();
+              s(`.slide-menu-top-bar`).appendChild(titleNode);
+
+              // s('body').removeChild(`.${idModal}`);
+              // while (s(`.top-modal`).firstChild) s(`.top-modal`).removeChild(s(`.top-modal`).firstChild);
+            });
           })();
           break;
 
@@ -214,7 +241,7 @@ const Modal = {
               ? html` <div class="abs modal-icon-container">${renderStatus(options.status)}</div> `
               : ''}
             <div
-              class="in title-modal-${idModal} ${options && options.titleClass ? options.titleClass : 'title-modal'}"
+              class="inl title-modal-${idModal} ${options && options.titleClass ? options.titleClass : 'title-modal'}"
             >
               ${options && options.title ? options.title : ''}
             </div>
@@ -273,7 +300,7 @@ const Modal = {
     setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
     setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
 
-    s(`.btn-close-${idModal}`).onclick = () => {
+    const btnCloseEvent = () => {
       if (options && 'barConfig' in options && options.barConfig.buttons.close.onClick)
         return options.barConfig.buttons.close.onClick();
       s(`.${idModal}`).style.opacity = '0';
@@ -284,6 +311,7 @@ const Modal = {
         delete this.Data[idModal];
       }, 300);
     };
+    s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
 
     s(`.btn-minimize-${idModal}`).onclick = () => {
       if (options.slideMenu) delete this.Data[idModal].slideMenu;
@@ -315,13 +343,11 @@ const Modal = {
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
       s(`.${idModal}`).style.transform = null;
-      s(`.${idModal}`).style.height = '100%';
       if (options.slideMenu) {
         const callBack = () => {
           s(`.${idModal}`).style.transition = '0.3s';
-          s(`.${idModal}`).style.width = `${
-            window.innerWidth - this.Data[options.slideMenu]['slide-menu'].width - 7
-          }px`;
+          s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu]['slide-menu'].width}px`;
+          s(`.${idModal}`).style.left = `${this.Data[options.slideMenu]['slide-menu'].width}px`;
           setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
         };
 
@@ -330,18 +356,22 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
+        s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
+        s(`.${idModal}`).style.top = `50px`;
       } else {
         s(`.${idModal}`).style.width = '100%';
+        s(`.${idModal}`).style.height = '100%';
+        s(`.${idModal}`).style.top = '0px';
+        s(`.${idModal}`).style.left = '0px';
       }
-      s(`.${idModal}`).style.top = '0px';
-      s(`.${idModal}`).style.left = '0px';
       dragInstance = setDragInstance();
     };
 
-    s(`.btn-menu-${idModal}`).onclick = () => {
+    const btnMenuEvent = () => {
       if (options && 'barConfig' in options && options.barConfig.buttons.menu.onClick)
         return options.barConfig.buttons.menu.onClick();
     };
+    s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
 
     dragInstance = setDragInstance();
     if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();

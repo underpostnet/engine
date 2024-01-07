@@ -563,7 +563,7 @@ class LoadBiomeRenderer {
 
   async init(params) {
     console.log('LoadBiomeRenderer created', params);
-    const rowId = `${params.data.biome}-${params.rowIndex}`;
+    const rowId = `${params.data.biome}-${params.data._id}`;
 
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`
@@ -830,6 +830,8 @@ const BiomeEngine = {
             barConfig,
             title: ` ${Translate.Render(`biome-image`)} - ${biome}`,
             html: html`<img src="${BiomeScope.Keys[biome].imageSrc}" />`,
+            mode: 'view',
+            slideMenu: 'modal-menu',
           });
         });
         EventsUI.onClick(`.btn-solid-biome-${biome}`, async () => {
@@ -841,6 +843,8 @@ const BiomeEngine = {
             html: html`<pre style="font-size: 10px">
             ${JSONmatrix(BiomeScope.Keys[biome].solid).replaceAll('1', html`<span style="color: yellow">1</span>`)}</pre
             >`,
+            mode: 'view',
+            slideMenu: 'modal-menu',
           });
         });
       }),

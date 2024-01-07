@@ -21,7 +21,7 @@ class LoadWorldRenderer {
 
   async init(params) {
     console.log('LoadWorldRenderer created', params);
-    const rowId = `${params.data._id}-${params.rowIndex}`;
+    const rowId = `${params.data._id}-${params.data._id}`;
 
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`
