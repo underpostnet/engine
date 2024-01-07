@@ -8,7 +8,6 @@ const Matrix = {
     dim: 16 * 7,
     dimPaintByCell: 3,
     dimAmplitude: 8,
-    dimPixel: 50,
   },
   Render: {
     'matrix-center-square': function (container) {
@@ -44,23 +43,27 @@ const Matrix = {
       s(gridId).style.left = `${
         ResponsiveData.maxValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * x -
-        ResponsiveDataAmplitude.minValue / this.Data.dim / 2
+        ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
+        (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim)
       }px`;
       s(gridId).style.top = `${
         ResponsiveData.minValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * y -
-        ResponsiveDataAmplitude.minValue / this.Data.dim / 2
+        ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
+        (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim)
       }px`;
     } else {
       s(gridId).style.left = `${
         ResponsiveData.minValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * x -
-        ResponsiveDataAmplitude.minValue / this.Data.dim / 2
+        ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
+        (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim)
       }px`;
       s(gridId).style.top = `${
         ResponsiveData.maxValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * y -
-        ResponsiveDataAmplitude.minValue / this.Data.dim / 2
+        ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
+        (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim)
       }px`;
     }
   },

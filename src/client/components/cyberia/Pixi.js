@@ -47,6 +47,12 @@ const Pixi = {
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
       s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.main-user-content').style.width = `${
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
+      }px`;
+      s('.main-user-content').style.height = `${
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
+      }px`;
       // const ResponsiveData = Responsive.getResponsiveData();
       // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
       // s('.pixi-container').style.width = `${ResponsiveData.width}px`;

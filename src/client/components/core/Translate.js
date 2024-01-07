@@ -95,6 +95,9 @@ const TranslateCore = {
     Translate.Data['log-in'] = { en: 'Log In', es: 'Ingresar' };
     Translate.Data['broker'] = { en: 'Broker', es: 'Agente de ventas' };
     Translate.Data['owner'] = { en: 'Owner', es: 'Propietario' };
+    Translate.Data['password'] = { en: 'Password', es: 'Contraseña' };
+    Translate.Data['repeat'] = { en: 'Repeat', es: 'Repetir' };
+    Translate.Data['username'] = { en: 'username', es: 'Nombre de usuario' };
   },
 };
 

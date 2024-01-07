@@ -1,6 +1,5 @@
 import { s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
-import { Matrix } from './Matrix.js';
 
 const MainUser = {
   Render: async function () {
@@ -9,8 +8,8 @@ const MainUser = {
       // displayId
       // position
 
-      s(`.main-user-content`).style.width = `${Matrix.Data.dimPixel}px`;
-      s(`.main-user-content`).style.height = `${Matrix.Data.dimPixel}px`;
+      // s(`.main-user-content`).style.width = `${50}px`;
+      // s(`.main-user-content`).style.height = `${50}px`;
     });
     return html` <div class="abs center main-user-content"></div> `;
   },

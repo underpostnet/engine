@@ -8,13 +8,13 @@ const logger = loggerFactory(import.meta);
 const EventsUI = {
   onClick: (id, logic) => {
     let complete = true;
-    s(id).onclick = async function () {
+    s(id).onclick = async function (e) {
       if (complete) {
         complete = false;
         await LoadingAnimation.spinner.play(id);
         await LoadingAnimation.bar.play(id);
         try {
-          await logic();
+          await logic(e);
         } catch (error) {
           logger.error(error);
           NotificationManager.Push({
