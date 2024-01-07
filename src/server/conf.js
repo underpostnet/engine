@@ -245,7 +245,7 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           proxy: [80, 443],
         },
         '/cyberia': {

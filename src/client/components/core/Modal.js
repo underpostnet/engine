@@ -54,17 +54,20 @@ const Modal = {
 
           break;
         case 'slide-menu':
+        case 'slide-menu-right':
+        case 'slide-menu-left':
           (() => {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
               height: `${window.innerHeight - 50}px`,
               width: '320px',
-              left: '0px',
               'z-index': 2,
               resize: 'none',
               top: '50px',
             };
+            options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
+
             options.dragDisabled = true;
             top = '0px';
             left = 'auto';
@@ -342,11 +345,18 @@ const Modal = {
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
       s(`.${idModal}`).style.transform = null;
+      const idSlide = this.Data[options.slideMenu]['slide-menu']
+        ? 'slide-menu'
+        : this.Data[options.slideMenu]['slide-menu-right']
+        ? 'slide-menu-right'
+        : 'slide-menu-left';
+
       if (options.slideMenu) {
         const callBack = () => {
           s(`.${idModal}`).style.transition = '0.3s';
-          s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu]['slide-menu'].width}px`;
-          s(`.${idModal}`).style.left = `${this.Data[options.slideMenu]['slide-menu'].width}px`;
+          s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu][idSlide].width}px`;
+          s(`.${idModal}`).style.left =
+            idSlide === 'slide-menu-right' ? `0px` : `${this.Data[options.slideMenu][idSlide].width}px`;
           setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
         };
 
