@@ -20,24 +20,27 @@ const Validator = {
     for (const validator of validators) {
       validatorFunction[validator.id] = async () => {
         logger.warn(validator.id, s(`.${validator.id}`).value);
-
+        let error = false;
+        let errorMessage = '';
         for (const rule of validator.rules) {
           if (validationRules[rule](s(`.${validator.id}`).value)) {
-            htmls(
-              `.input-info-${validator.id}`,
-              html` ${renderStatus('error', { class: 'inl' })} &nbsp
-                <span style="color: red">${Translate.Render(rule)}</span>`,
-            );
-            return true;
+            errorMessage += html` <div class="in">
+              ${renderStatus('error', { class: 'inl' })} &nbsp
+              <span style="color: red">${Translate.Render(rule)}</span>
+            </div>`;
+
+            error = true;
           }
         }
 
-        htmls(
-          `.input-info-${validator.id}`,
-          html` ${renderStatus('success', { class: 'inl' })} &nbsp
-            <span style="color: green">ok</span>`,
-        );
-        return false;
+        if (!error)
+          htmls(
+            `.input-info-${validator.id}`,
+            html` ${renderStatus('success', { class: 'inl' })} &nbsp
+              <span style="color: green">ok</span>`,
+          );
+        else htmls(`.input-info-${validator.id}`, errorMessage);
+        return error;
       };
 
       s(`.${validator.id}`).oninput = validatorFunction[validator.id];
