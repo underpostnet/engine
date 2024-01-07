@@ -735,7 +735,7 @@ const BiomeEngine = {
 
     setTimeout(() =>
       Object.keys(Biome).map((biome) => {
-        const validators = Validator.instance([{ id: `input-name-${biome}`, rules: ['emptyField'] }]);
+        const validators = Validator.instance([{ id: `input-name-${biome}`, rules: [{ type: 'emptyField' }] }]);
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           await this.generateBiome(biome);

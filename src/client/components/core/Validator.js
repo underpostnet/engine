@@ -23,10 +23,19 @@ const Validator = {
         let error = false;
         let errorMessage = '';
         for (const rule of validator.rules) {
-          if (validationRules[rule](s(`.${validator.id}`).value)) {
+          let options;
+          switch (rule.type) {
+            case 'passwordMismatch':
+              options = s(`.${rule.match}`).value;
+              break;
+
+            default:
+              break;
+          }
+          if (validationRules[rule.type](s(`.${validator.id}`).value, options)) {
             errorMessage += html` <div class="in">
               ${renderStatus('error', { class: 'inl' })} &nbsp
-              <span style="color: red">${Translate.Render(rule)}</span>
+              <span style="color: red">${Translate.Render(rule.type)}</span>
             </div>`;
 
             error = true;
