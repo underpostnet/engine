@@ -8,6 +8,7 @@ const Matrix = {
     dim: 16 * 7,
     dimPaintByCell: 3,
     dimAmplitude: 8,
+    dimPixel: 50,
   },
   Render: {
     'matrix-center-square': function (container) {

@@ -194,12 +194,23 @@ const Pixi = {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
                 const src = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`;
+                if (id === 'main')
+                  append(
+                    '.main-user-content',
+                    html`
+                      <img
+                        src="${src}"
+                        class="abs main-user-avatar-img skin-${id}-${displayId}-${positionId}-${frame}"
+                        style="display: ${position === positionId && frame === 0 ? 'block' : 'none'};"
+                      />
+                    `,
+                  );
                 const componentInstance = Sprite.from(src);
                 componentInstance.x = 0;
                 componentInstance.y = 0;
                 componentInstance.width = dim * Elements.Data[type][id].dim;
                 componentInstance.height = dim * Elements.Data[type][id].dim;
-                componentInstance.visible = position === positionId && frame === 0;
+                componentInstance.visible = id === 'main' ? false : position === positionId && frame === 0;
                 if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
                 this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
                 this.Data[type][id].addChild(componentInstance);
@@ -214,13 +225,19 @@ const Pixi = {
 
                     currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
+                    if (id === 'main')
+                      s(`.skin-${id}-${displayId}-${positionId}-${currentFrame}`).style.display = 'none';
 
                     currentFrame++;
                     if (currentFrame === frames) currentFrame = 0;
 
                     currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
-                      position === positionId ? true : false;
+                      id === 'main' ? false : position === positionId ? true : false;
+
+                    if (id === 'main')
+                      s(`.skin-${id}-${displayId}-${positionId}-${currentFrame}`).style.display =
+                        position === positionId ? 'block' : 'none';
                   };
 
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {

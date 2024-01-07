@@ -184,6 +184,16 @@ const CssCyberia = {
         width: 100%;
         height: 100%;
       }
+      .main-user-content {
+        /* border: 2px solid red; */
+        z-index: 1;
+      }
+      .main-user-avatar-img {
+        width: 100%;
+        height: 100%;
+        top: 0px;
+        left: 0px;
+      }
     `,
 };
 

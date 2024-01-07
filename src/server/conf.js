@@ -139,6 +139,7 @@ const Config = {
             'Tile',
             'CssCyberia',
             'World',
+            'MainUser',
           ],
           test: ['Test'],
         },
@@ -245,7 +246,7 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
           proxy: [80, 443],
         },
         '/cyberia': {

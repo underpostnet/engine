@@ -25,19 +25,18 @@ import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
 import { World } from './components/cyberia/World.js';
+import { MainUser } from './components/cyberia/MainUser.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
 await TranslateCore.Init();
 await TranslateCyberia.Init();
 
-await SocketIo.Init({
-  channels: Elements.Data,
-});
 await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
 
+append('body', await MainUser.Render());
 await Pixi.Init();
 
 await Elements.Init();
@@ -180,3 +179,7 @@ EventsUI.onClick(`.main-btn-world`, async () => {
 disableOptionsClick('html', ['menu', 'drag', 'select']);
 
 await BiomeEngine.generateBiome('seed-city');
+
+await SocketIo.Init({
+  channels: Elements.Data,
+});

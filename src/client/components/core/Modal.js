@@ -345,13 +345,13 @@ const Modal = {
       s(`.btn-restore-${idModal}`).style.display = null;
       s(`.btn-minimize-${idModal}`).style.display = null;
       s(`.${idModal}`).style.transform = null;
-      const idSlide = this.Data[options.slideMenu]['slide-menu']
-        ? 'slide-menu'
-        : this.Data[options.slideMenu]['slide-menu-right']
-        ? 'slide-menu-right'
-        : 'slide-menu-left';
 
       if (options.slideMenu) {
+        const idSlide = this.Data[options.slideMenu]['slide-menu']
+          ? 'slide-menu'
+          : this.Data[options.slideMenu]['slide-menu-right']
+          ? 'slide-menu-right'
+          : 'slide-menu-left';
         const callBack = () => {
           s(`.${idModal}`).style.transition = '0.3s';
           s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu][idSlide].width}px`;
