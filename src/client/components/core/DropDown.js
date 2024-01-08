@@ -16,6 +16,7 @@ const DropDown = {
       onClick: function () {
         console.log('DropDown onClick', this.value);
         if (options && options.resetOnClick) options.resetOnClick();
+        this.Tokens[id].value = undefined;
       },
     });
 

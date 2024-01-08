@@ -52,6 +52,10 @@ const Modal = {
             options.style.resize = 'none';
           }
 
+          Responsive.Event[`view-${idModal}`] = () => {
+            if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
+          };
+
           break;
         case 'slide-menu':
         case 'slide-menu-right':
@@ -81,6 +85,7 @@ const Modal = {
                 if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
                   this.Data[_idModal].slideMenu.callBack();
               }
+              s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
             };
             barConfig.buttons.menu.onClick = () => {
               this.Data[idModal][options.mode].width = 320;
