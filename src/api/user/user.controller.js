@@ -2,7 +2,7 @@ import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
 import { loggerFactory } from '../../server/logger.js';
-import { CyberiaWorldService } from './cyberia-world.service.js';
+import { UserService } from './user.service.js';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -10,7 +10,7 @@ const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 
 const DataBaseProvider = {};
 
-const CyberiaWorldController = {
+const UserController = {
   post: async (req, res, options) => {
     try {
       const { host, path } = options;
@@ -19,7 +19,7 @@ const CyberiaWorldController = {
       if (db) logger.info('success get db provider', options.db);
       return res.status(200).json({
         status: 'success',
-        data: await CyberiaWorldService.post(req, res, options),
+        data: await UserService.post(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -39,8 +39,8 @@ const CyberiaWorldController = {
       // throw { message: 'error test' };
       return res.status(200).json({
         status: 'success',
-        message: 'success-world',
-        data: await CyberiaWorldService.get(req, res, options),
+        message: 'success-user',
+        data: await UserService.get(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -56,7 +56,7 @@ const CyberiaWorldController = {
       await ProviderFactoryDB(options, endpoint, DataBaseProvider);
       const db = DataBaseProvider[`${host}${path}`];
       if (db) logger.info('success get db provider', options.db);
-      const result = await CyberiaWorldService.delete(req, res, options);
+      const result = await UserService.delete(req, res, options);
       if (!result)
         return res.status(400).json({
           status: 'error',
@@ -78,4 +78,4 @@ const CyberiaWorldController = {
   },
 };
 
-export { CyberiaWorldController };
+export { UserController };

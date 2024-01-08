@@ -25,7 +25,6 @@ const CyberiaTileController = {
       logger.error(error, error.stack);
       return res.status(500).json({
         status: 'error',
-        message: 'success-upload-tile',
         message: error.message,
       });
     }

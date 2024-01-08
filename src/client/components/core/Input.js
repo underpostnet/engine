@@ -17,6 +17,7 @@ const Input = {
           ${options?.min !== undefined ? `min="${options.min}"` : ''}
           placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
           ${options?.value !== undefined ? `value="${options.value}"` : ''}
+          ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
         />
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>

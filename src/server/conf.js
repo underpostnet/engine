@@ -124,6 +124,7 @@ const Config = {
             'Input',
             'Validator',
             'Polyhedron',
+            'SignUp',
           ],
           cyberia: [
             'Pixi',
@@ -199,7 +200,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'file', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+        services: ['core', 'file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
       },
     },
     server: {
@@ -231,7 +232,7 @@ const Config = {
       'www.example2.com': {
         '/': {
           client: 'cyberia',
-          apis: ['file', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           runtime: 'nodejs',
           origins: [],
           disabled: false,
@@ -248,19 +249,6 @@ const Config = {
           origins: [],
           disabled: false,
           proxy: [80, 443],
-        },
-        '/cyberia': {
-          client: 'cyberia',
-          apis: ['file', 'cyberia-biome'],
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'example2-cyberia',
-          },
         },
       },
     },

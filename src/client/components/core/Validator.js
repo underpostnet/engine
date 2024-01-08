@@ -1,18 +1,10 @@
+import { validationRules } from './CommonJs.js';
 import { renderStatus } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
-
-const validationRules = {
-  emptyField: (value) => !value.trim(),
-  invalidEmail: (value) => !/^\S+@\S+\.\S+$/.test(value),
-  passwordMismatch: (value, password) => value !== password,
-  invalidPhoneNumber: (value) => !/^\d{10}$/.test(value),
-  invalidDate: (value) => !/^\d{4}-\d{2}-\d{2}$/.test(value),
-  customValidator: (value) => true,
-};
 
 const Validator = {
   instance: function (validators) {
@@ -32,7 +24,7 @@ const Validator = {
             default:
               break;
           }
-          if (validationRules[rule.type](s(`.${validator.id}`).value, options)) {
+          if (!validationRules[rule.type](s(`.${validator.id}`).value, options)) {
             errorMessage += html` <div class="in">
               ${renderStatus('error', { class: 'inl' })} &nbsp
               <span style="color: red">${Translate.Render(rule.type)}</span>
@@ -64,4 +56,4 @@ const Validator = {
   },
 };
 
-export { Validator, validationRules };
+export { Validator };

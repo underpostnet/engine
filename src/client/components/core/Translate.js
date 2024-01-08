@@ -43,7 +43,7 @@ const TranslateCore = {
         es: 'Este campo no puede estar vacío',
         en: 'This field cannot be empty',
       },
-      invalidEmail: {
+      validEmail: {
         es: 'Por favor, introduce una dirección de correo electrónico válida',
         en: 'Please enter a valid email address',
       },
@@ -98,6 +98,9 @@ const TranslateCore = {
     Translate.Data['password'] = { en: 'Password', es: 'Contraseña' };
     Translate.Data['repeat'] = { en: 'Repeat', es: 'Repetir' };
     Translate.Data['username'] = { en: 'username', es: 'Nombre de usuario' };
+    Translate.Data['success-upload-user'] = { en: 'user uploaded successfully', es: 'usuario subido correctamente' };
+    Translate.Data['error-upload-user'] = { en: 'error uploading user', es: 'error al subir el usuario' };
+    Translate.Data['success-user'] = { en: 'user/s successfully obtained', es: 'Usuario/s obtenido correctamente' };
   },
 };
 

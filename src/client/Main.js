@@ -26,6 +26,7 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
 import { World } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
+import { SignUp } from './components/core/SignUp.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -59,6 +60,7 @@ await Modal.Render({
     ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-sign-up', label: Translate.Render('sign-up') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
@@ -169,6 +171,20 @@ EventsUI.onClick(`.main-btn-world`, async () => {
     barConfig,
     title: 'World Engine',
     html: async () => await World.Render({ idModal: 'modal-world-engine' }),
+    handleType: 'bar',
+    maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
+  });
+});
+
+EventsUI.onClick(`.main-btn-sign-up`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-sign-up',
+    barConfig,
+    title: Translate.Render('sign-up'),
+    html: async () => await SignUp.Render(),
     handleType: 'bar',
     maximize: true,
     mode: 'view',

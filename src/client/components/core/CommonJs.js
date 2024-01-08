@@ -387,6 +387,15 @@ const mergeMatrices = (input) => {
   return result;
 };
 
+const validationRules = {
+  emptyField: (value) => !!value.trim(),
+  validEmail: (value) => /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/.test(value),
+  passwordMismatch: (value, password) => !(value !== password),
+  validPhoneNumber: (value) => /^\d{10}$/.test(value),
+  validDate: (value) => /^\d{4}-\d{2}-\d{2}$/.test(value),
+  customValidator: (value) => false,
+};
+
 export {
   s4,
   range,
@@ -421,4 +430,5 @@ export {
   getDirection,
   amplifyMatrix,
   mergeMatrices,
+  validationRules,
 };
