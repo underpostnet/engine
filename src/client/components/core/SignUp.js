@@ -27,7 +27,7 @@ const SignUp = {
         if (validatorError) return;
         const body = {};
         for (const inputData of formData) {
-          body[inputData.model] = s(`.${inputData.id}`).value;
+          if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post(body);
         NotificationManager.Push({
