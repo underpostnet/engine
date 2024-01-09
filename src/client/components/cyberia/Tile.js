@@ -26,7 +26,15 @@ const Tile = {
             if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
             if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
             dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
-            dataSolid[y + sumY][x + sumX] = solidMode ? JSON.parse(s(`.tile-solid`).value) : 0;
+            dataSolid[y + sumY][x + sumX] = solidMode
+              ? JSON.parse(
+                  s(`.tile-solid`).value[0] === '{' ||
+                    s(`.tile-solid`).value[0] === `"` ||
+                    s(`.tile-solid`).value[0] === '['
+                    ? s(`.tile-solid`).value
+                    : `"${s(`.tile-solid`).value}"`,
+                )
+              : 0;
           }
         }
 
