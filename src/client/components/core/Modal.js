@@ -53,6 +53,7 @@ const Modal = {
           }
 
           Responsive.Event[`view-${idModal}`] = () => {
+            if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
             if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
           };
 
