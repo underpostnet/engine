@@ -15,11 +15,13 @@ const Elements = {
         y: 40, // Matrix.Data.dim / 2 - 0.5,
         dim: 1,
         vel: 0.5,
+        world: '659dbc930b091230854c8184',
+        face: 3,
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
           skin: [
-            { displayId: 'anon', position: '08', enabled: false },
-            { displayId: 'eiri', position: '08', enabled: true },
+            { displayId: 'anon', position: '08', enabled: true },
+            { displayId: 'eiri', position: '08', enabled: false },
           ],
         },
       },

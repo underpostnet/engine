@@ -19,9 +19,13 @@ const logger = loggerFactory(import.meta);
 class LoadWorldRenderer {
   eGui;
 
+  idFactory(params) {
+    return `world-${params.data._id}`;
+  }
+
   async init(params) {
     console.log('LoadWorldRenderer created', params);
-    const rowId = `${params.data._id}-${params.data._id}`;
+    const rowId = this.idFactory(params);
 
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`

@@ -561,9 +561,13 @@ const BiomeScope = {
 class LoadBiomeRenderer {
   eGui;
 
+  idFactory(params) {
+    return `biome-${params.data._id}`;
+  }
+
   async init(params) {
     console.log('LoadBiomeRenderer created', params);
-    const rowId = `${params.data.biome}-${params.data._id}`;
+    const rowId = this.idFactory(params);
 
     this.eGui = document.createElement('div');
     this.eGui.innerHTML = html`
@@ -578,47 +582,11 @@ class LoadBiomeRenderer {
           ${Translate.Render(`delete`)}`,
       })}
     `;
-    const loadBiomeScopeData = async () => {
-      const resultBiome = await CyberiaBiomeService.get(params.data._id);
-
-      const biomeData = resultBiome.data[0];
-
-      const resultFile = await FileService.get(biomeData.fileId);
-
-      const imageData = resultFile.data[0];
-
-      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
-
-      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
-
-      const imageSrc = URL.createObjectURL(imageFile);
-
-      biomeData.color = Object.assign(
-        {},
-        biomeData.color.map((cell) => Object.assign({}, cell)),
-      );
-      biomeData.solid = Object.assign(
-        {},
-        biomeData.solid.map((cell) => Object.assign({}, cell)),
-      );
-
-      BiomeScope.Data[rowId] = {
-        ...biomeData,
-        imageFile,
-        imageSrc,
-      };
-    };
 
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
-        if (!BiomeScope.Data[rowId]) await loadBiomeScopeData();
-
-        Matrix.Data.dim = BiomeScope.Data[rowId].dim;
-        Matrix.Data.dimPaintByCell = BiomeScope.Data[rowId].dimPaintByCell;
-        // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
-        BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
-        Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
-
+        if (!BiomeScope.Data[rowId]) await this.loadScope(params);
+        await this.load(params);
         s(`.input-name-${params.data.biome}`).value = BiomeScope.Data[rowId].name;
         s(`.dropdown-option-${params.data.biome}`).click();
       });
@@ -656,6 +624,52 @@ class LoadBiomeRenderer {
   refresh(params) {
     console.log('LoadBiomeRenderer refreshed', params);
     return true;
+  }
+
+  async loadScope(params) {
+    const rowId = this.idFactory(params);
+
+    const resultBiome = await CyberiaBiomeService.get(params.data._id);
+
+    const biomeData = resultBiome.data[0];
+
+    const resultFile = await FileService.get(biomeData.fileId);
+
+    const imageData = resultFile.data[0];
+
+    const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+    const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+    const imageSrc = URL.createObjectURL(imageFile);
+
+    biomeData.color = Object.assign(
+      {},
+      biomeData.color.map((cell) => Object.assign({}, cell)),
+    );
+    biomeData.solid = Object.assign(
+      {},
+      biomeData.solid.map((cell) => Object.assign({}, cell)),
+    );
+
+    BiomeScope.Data[rowId] = {
+      ...biomeData,
+      imageFile,
+      imageSrc,
+    };
+
+    return BiomeScope.Data[rowId];
+  }
+
+  async load(params) {
+    const rowId = this.idFactory(params);
+    BiomeScope.CurrentKey = BiomeScope.Data[rowId].biome;
+
+    Matrix.Data.dim = BiomeScope.Data[rowId].dim;
+    Matrix.Data.dimPaintByCell = BiomeScope.Data[rowId].dimPaintByCell;
+    // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
+    BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
+    Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
   }
 }
 
@@ -907,4 +921,4 @@ const BiomeEngine = {
   },
 };
 
-export { Biome, BiomeEngine, BiomeScope };
+export { Biome, BiomeEngine, BiomeScope, LoadBiomeRenderer };

@@ -19,7 +19,7 @@ import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
 import { JoyStick } from './components/cyberia/JoyStick.js';
-import { BiomeEngine } from './components/cyberia/Biome.js';
+import { BiomeEngine, LoadBiomeRenderer } from './components/cyberia/Biome.js';
 import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
@@ -27,6 +27,7 @@ import { Polyhedron } from './components/core/Polyhedron.js';
 import { World } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
 import { SignUp } from './components/core/SignUp.js';
+import { CyberiaWorldService } from './services/cyberia-world/cyberia-world.service.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -37,10 +38,21 @@ await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
 
-append('body', await MainUser.Render());
-await Pixi.Init();
+await (async () => {
+  append('body', await MainUser.Render());
+  await Pixi.Init();
+  await Elements.Init();
 
-await Elements.Init();
+  const world = await CyberiaWorldService.get(Elements.Data.user.main.world);
+
+  const biomeRenderer = new LoadBiomeRenderer();
+
+  await biomeRenderer.load({
+    data: await biomeRenderer.loadScope({
+      data: { _id: world.data[0].face[Elements.Data.user.main.face - 1] },
+    }),
+  });
+})();
 
 await Responsive.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
@@ -194,7 +206,7 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
 
 disableOptionsClick('html', ['menu', 'drag', 'select']);
 
-await BiomeEngine.generateBiome('seed-city');
+// await BiomeEngine.generateBiome('seed-city');
 
 await SocketIo.Init({
   channels: Elements.Data,
