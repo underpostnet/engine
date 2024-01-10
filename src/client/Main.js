@@ -211,3 +211,6 @@ disableOptionsClick('html', ['menu', 'drag', 'select']);
 await SocketIo.Init({
   channels: Elements.Data,
 });
+
+s('.loading-background').style.opacity = 0;
+setTimeout(() => s('.loading-background').remove(), 300);

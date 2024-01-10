@@ -1,5 +1,5 @@
 ViewRender = (data) => html`
-  <!doctype html>
+  <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>
       <title>${data.title}</title>

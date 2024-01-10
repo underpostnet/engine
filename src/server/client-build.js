@@ -8,8 +8,6 @@ import { loggerFactory } from './logger.js';
 
 const buildClient = async () => {
   const logger = loggerFactory(import.meta);
-  let ViewRender;
-  eval(srcFormatted(fs.readFileSync('./src/client/ssr/ViewRender.js', 'utf8')));
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
@@ -126,6 +124,9 @@ const buildClient = async () => {
           viewFormatted(srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')), dists, path),
           'utf8',
         );
+
+        let ViewRender;
+        eval(srcFormatted(fs.readFileSync(`./src/client/ssr/${view.ssr ? view.ssr : 'ViewRender'}.js`, 'utf8')));
 
         fs.writeFileSync(`${buildPath}index.html`, ViewRender({ title: view.title, path, buildId }), 'utf8');
       });
