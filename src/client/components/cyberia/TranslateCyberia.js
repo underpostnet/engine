@@ -36,6 +36,8 @@ const TranslateCyberia = {
     Translate.Data['success-upload-world'] = { en: 'Success upload World(s)', es: 'Mundo subido con exito' };
     Translate.Data['error-upload-world'] = { en: 'error uploading World', es: 'error al subir el Mundo' };
     Translate.Data['success-world'] = { en: 'Success load World(s)', es: 'Mundo cargado con exito' };
+
+    Translate.Data['space'] = { en: 'Space', es: 'Espacial' };
   },
 };
 

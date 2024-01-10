@@ -355,6 +355,41 @@ const Biome = {
 
     return BiomeMatrix;
   },
+  space: async function () {
+    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+
+    const validateMatrixLimit = (x, y) => x >= 0 && y >= 0 && x <= dim - 1 && y <= dim - 1;
+
+    const BiomeMatrix = {
+      color: {},
+      solid: {},
+    };
+    let colorCell;
+
+    // biome seeds
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        const probColor = random(0, 700);
+        if (probColor <= 3) {
+          colorCell = '#cfcf05';
+        } else if (probColor <= 22) {
+          colorCell = '#212121';
+        } else if (probColor <= 30) {
+          colorCell = '#29166e';
+        } else {
+          colorCell = '#080808';
+        }
+
+        if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
+        if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+        BiomeMatrix.color[y][x] = `${colorCell}`;
+        BiomeMatrix.solid[y][x] = 0;
+      });
+    });
+    const seedMatrix = newInstance(BiomeMatrix.color);
+
+    return BiomeMatrix;
+  },
   'seed-city': async function () {
     const BiomeMatrix = {
       color: {},
