@@ -16,7 +16,7 @@ const Elements = {
         dim: 1,
         vel: 0.5,
         world: '659dbc930b091230854c8184',
-        face: 3,
+        face: 5,
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
           skin: [

@@ -39,6 +39,8 @@ await Keyboard.Init({
 });
 
 await (async () => {
+  // ws or rest init user data
+
   append('body', await MainUser.Render());
   await Pixi.Init();
   await Elements.Init();

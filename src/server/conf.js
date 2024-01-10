@@ -141,6 +141,7 @@ const Config = {
             'CssCyberia',
             'World',
             'MainUser',
+            'Universe',
           ],
           test: ['Test'],
         },
@@ -149,6 +150,7 @@ const Config = {
             path: '/',
             title: 'Home',
             client: 'Main',
+            ssr: 'Cyberia',
           },
           {
             path: '/test',
