@@ -30,7 +30,8 @@ const Tile = {
               ? JSON.parse(
                   s(`.tile-solid`).value[0] === '{' ||
                     s(`.tile-solid`).value[0] === `"` ||
-                    s(`.tile-solid`).value[0] === '['
+                    s(`.tile-solid`).value[0] === '[' ||
+                    !isNaN(parseFloat(s(`.tile-solid`).value))
                     ? s(`.tile-solid`).value
                     : `"${s(`.tile-solid`).value}"`,
                 )
