@@ -4,7 +4,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { newInstance, random, range } from '../core/CommonJs.js';
-import { dynamicCol } from '../core/Css.js';
+import { borderChar, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -13,6 +13,8 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
+import { BiomeScope, LoadBiomeRenderer } from './Biome.js';
+import { Elements } from './Elements.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -79,6 +81,89 @@ class LoadWorldRenderer {
     return true;
   }
 }
+
+const WorldLimit = {
+  5: {
+    top: [2, 'left'],
+    bottom: [4, 'left'],
+    left: [3, 'right'],
+    right: [1, 'left'],
+  },
+  2: {
+    left: [5, 'top'],
+  },
+};
+
+const WorldManagement = {
+  biomeRender: new LoadBiomeRenderer(),
+  Data: {},
+  ChangeFace: async function (options = { type: 'user', id: 'main', direction: '' }) {
+    const { type, id, direction } = options;
+    if (!this.Data[type][id].blockChangeFace) {
+      this.Data[type][id].blockChangeFace = true;
+      setTimeout(() => (this.Data[type][id].blockChangeFace = false), 2000);
+
+      const [newFace, initDirection] = WorldLimit[Elements.Data[type][id].world.face][direction];
+
+      console.warn('newFace', newFace);
+      let newBiome;
+      for (const biomeKey of Object.keys(BiomeScope.Data)) {
+        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].world.face[newFace - 1]) {
+          newBiome = BiomeScope.Data[biomeKey];
+          break;
+        }
+      }
+      console.warn('newBiome', newBiome);
+      console.warn('initDirection', initDirection);
+
+      await this.biomeRender.load({
+        data: newBiome,
+      });
+      Elements.Data[type][id].world.face = newFace;
+      Elements.Data[type][id].world._id = newBiome._id;
+      switch (initDirection) {
+        case 'left':
+          Elements.Data[type][id].y = newInstance(Elements.Data[type][id].x);
+          Elements.Data[type][id].x = 0;
+          break;
+        case 'top':
+          Elements.Data[type][id].x = newInstance(Elements.Data[type][id].y);
+          Elements.Data[type][id].y = 0;
+        default:
+          break;
+      }
+    }
+  },
+  Load: async function (options = { type: 'user', id: 'main' }) {
+    const { type, id } = options;
+
+    if (!this.Data[type]) this.Data[type] = {};
+    if (!this.Data[type][id]) this.Data[type][id] = {};
+
+    const { data } = await CyberiaWorldService.get(Elements.Data[type][id].world._id);
+    this.Data[type][id].world = {
+      blockChangeFace: false,
+      ...data[0],
+    };
+
+    // load single world
+    let indexFace = -1;
+    for (const _id of this.Data[type][id].world.face) {
+      indexFace++;
+
+      if (Elements.Data.user.main.world.face - 1 === indexFace) {
+        await this.biomeRender.load({
+          data: await this.biomeRender.loadScope({
+            data: { _id },
+          }),
+        });
+      } else
+        this.biomeRender.loadScope({
+          data: { _id },
+        });
+    }
+  },
+};
 
 const World = {
   worlds: [],
@@ -250,15 +335,21 @@ const World = {
 
       const imageSrc = URL.createObjectURL(imageFile);
 
-      htmls(`.world-${index}`, html` <img class="in face-world-img" src="${imageSrc}" /> `);
+      htmls(
+        `.world-${index}`,
+        html`
+          <img class="in face-world-img" src="${imageSrc}" />
+          <div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>
+        `,
+      );
       return;
     }
     this.WorldScope.face[index] = null;
-    htmls(`.world-${index}`, html``);
+    htmls(`.world-${index}`, html`<div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>`);
   },
   renderAllFace: async function () {
     for (const index of range(0, 5)) await this.renderFace(index);
   },
 };
 
-export { World };
+export { World, WorldManagement, WorldLimit };

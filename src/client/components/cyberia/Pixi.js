@@ -7,6 +7,7 @@ import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { Event } from './Event.js';
+import { WorldManagement } from './World.js';
 
 const Pixi = {
   MetaData: {
@@ -263,8 +264,28 @@ const Pixi = {
     }
   },
   updatePosition: function (options) {
-    const dim = this.MetaData.dim / Matrix.Data.dim;
     const { type, id } = options;
+
+    if (type === 'user' && id === 'main') {
+      if (Elements.Data[type][id].x <= 0) {
+        console.warn('limit map position', 'left');
+        WorldManagement.ChangeFace({ type, id, direction: 'left' });
+      }
+      if (Elements.Data[type][id].y <= 0) {
+        console.warn('limit map position', 'top');
+        WorldManagement.ChangeFace({ type, id, direction: 'top' });
+      }
+      if (Elements.Data[type][id].x >= Matrix.Data.dim - Elements.Data[type][id].dim) {
+        console.warn('limit map position', 'right');
+        WorldManagement.ChangeFace({ type, id, direction: 'right' });
+      }
+      if (Elements.Data[type][id].y >= Matrix.Data.dim - Elements.Data[type][id].dim) {
+        console.warn('limit map position', 'bottom');
+        WorldManagement.ChangeFace({ type, id, direction: 'bottom' });
+      }
+    }
+
+    const dim = this.MetaData.dim / Matrix.Data.dim;
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
   },

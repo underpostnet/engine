@@ -24,10 +24,9 @@ import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
-import { World } from './components/cyberia/World.js';
+import { World, WorldManagement } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
 import { SignUp } from './components/core/SignUp.js';
-import { CyberiaWorldService } from './services/cyberia-world/cyberia-world.service.js';
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -43,17 +42,10 @@ await (async () => {
 
   append('body', await MainUser.Render());
   await Pixi.Init();
-  await Elements.Init();
+  const element = { type: 'user', id: 'main' };
+  await Elements.Init(element);
 
-  const world = await CyberiaWorldService.get(Elements.Data.user.main.world);
-
-  const biomeRenderer = new LoadBiomeRenderer();
-
-  await biomeRenderer.load({
-    data: await biomeRenderer.loadScope({
-      data: { _id: world.data[0].face[Elements.Data.user.main.face - 1] },
-    }),
-  });
+  await WorldManagement.Load(element);
 })();
 
 await Responsive.Init({
@@ -214,5 +206,7 @@ await SocketIo.Init({
   channels: Elements.Data,
 });
 
-s('.loading-background').style.opacity = 0;
-setTimeout(() => s('.loading-background').remove(), 300);
+setTimeout(() => {
+  s('.loading-background').style.opacity = 0;
+  setTimeout(() => s('.loading-background').remove(), 300);
+}, 0);
