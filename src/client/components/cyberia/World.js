@@ -15,6 +15,7 @@ import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { BiomeScope, LoadBiomeRenderer } from './Biome.js';
 import { Elements } from './Elements.js';
+import { Matrix } from './Matrix.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -83,14 +84,41 @@ class LoadWorldRenderer {
 }
 
 const WorldLimit = {
+  6: {
+    top: [2, 'right'],
+    bottom: [4, 'right'],
+    left: [3, 'right'],
+    right: [1, 'right'],
+  },
   5: {
     top: [2, 'left'],
     bottom: [4, 'left'],
-    left: [3, 'right'],
+    left: [3, 'left'],
     right: [1, 'left'],
   },
+  4: {
+    top: [1, 'bottom'],
+    bottom: [3, 'top'],
+    left: [5, 'bottom'],
+    right: [6, 'bottom'],
+  },
+  3: {
+    top: [4, 'bottom'],
+    bottom: [2, 'top'],
+    left: [5, 'left'],
+    right: [6, 'right'],
+  },
   2: {
+    top: [3, 'bottom'],
+    bottom: [1, 'top'],
     left: [5, 'top'],
+    right: [6, 'top'],
+  },
+  1: {
+    top: [2, 'bottom'],
+    bottom: [4, 'top'],
+    left: [5, 'right'],
+    right: [6, 'left'],
   },
 };
 
@@ -123,12 +151,17 @@ const WorldManagement = {
       Elements.Data[type][id].world._id = newBiome._id;
       switch (initDirection) {
         case 'left':
-          Elements.Data[type][id].y = newInstance(Elements.Data[type][id].x);
           Elements.Data[type][id].x = 0;
           break;
+        case 'right':
+          Elements.Data[type][id].x = Matrix.Data.dim - Elements.Data[type][id].dim;
+          break;
+        case 'bottom':
+          Elements.Data[type][id].y = Matrix.Data.dim - Elements.Data[type][id].dim;
+          break;
         case 'top':
-          Elements.Data[type][id].x = newInstance(Elements.Data[type][id].y);
           Elements.Data[type][id].y = 0;
+          break;
         default:
           break;
       }
@@ -338,7 +371,7 @@ const World = {
       htmls(
         `.world-${index}`,
         html`
-          <img class="in face-world-img" src="${imageSrc}" />
+          <img class="in face-world-img" src="${imageSrc}" ${index === 2 ? `style="transform: rotate(180deg)"` : ''} />
           <div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>
         `,
       );

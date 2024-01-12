@@ -17,7 +17,7 @@ const Elements = {
         vel: 0.5,
         world: {
           _id: '659dbc930b091230854c8184',
-          face: 5,
+          face: 1,
         },
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],

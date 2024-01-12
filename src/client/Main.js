@@ -209,4 +209,4 @@ await SocketIo.Init({
 setTimeout(() => {
   s('.loading-background').style.opacity = 0;
   setTimeout(() => s('.loading-background').remove(), 300);
-}, 0);
+}, 500);
