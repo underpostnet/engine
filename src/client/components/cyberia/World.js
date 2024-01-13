@@ -13,7 +13,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { BiomeScope, LoadBiomeRenderer } from './Biome.js';
+import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 
@@ -85,34 +85,34 @@ class LoadWorldRenderer {
 
 const WorldLimit = {
   6: {
-    top: [2, 'right'],
-    bottom: [4, 'right'],
-    left: [3, 'right'],
-    right: [1, 'right'],
+    top: [2, 'bottom'],
+    bottom: [4, 'top'],
+    left: [1, 'right'],
+    right: [3, 'left'],
   },
   5: {
-    top: [2, 'left'],
-    bottom: [4, 'left'],
-    left: [3, 'left'],
+    top: [2, 'bottom'],
+    bottom: [4, 'top'],
+    left: [3, 'right'],
     right: [1, 'left'],
   },
   4: {
     top: [1, 'bottom'],
     bottom: [3, 'top'],
-    left: [5, 'bottom'],
-    right: [6, 'bottom'],
+    left: [5, 'right'],
+    right: [6, 'left'],
   },
   3: {
     top: [4, 'bottom'],
     bottom: [2, 'top'],
-    left: [5, 'left'],
-    right: [6, 'right'],
+    left: [5, 'right'],
+    right: [6, 'left'],
   },
   2: {
     top: [3, 'bottom'],
     bottom: [1, 'top'],
-    left: [5, 'top'],
-    right: [6, 'top'],
+    left: [5, 'right'],
+    right: [6, 'left'],
   },
   1: {
     top: [2, 'bottom'],
@@ -125,11 +125,33 @@ const WorldLimit = {
 const WorldManagement = {
   biomeRender: new LoadBiomeRenderer(),
   Data: {},
+  LoadAdjacentFaces: function (type, id, newFace) {
+    for (const biomeKey of Object.keys(BiomeScope.Data)) {
+      for (const limitType of ['top', 'bottom', 'left', 'right']) {
+        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].world.face[WorldLimit[newFace][limitType][0] - 1]) {
+          htmls(
+            `.adjacent-map-limit-${limitType}`,
+            html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
+          );
+          if (limitType === 'right' || limitType === 'left') {
+            htmls(
+              `.adjacent-map-limit-top-${limitType}`,
+              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
+            );
+            htmls(
+              `.adjacent-map-limit-bottom-${limitType}`,
+              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
+            );
+          }
+        }
+      }
+    }
+  },
   ChangeFace: async function (options = { type: 'user', id: 'main', direction: '' }) {
     const { type, id, direction } = options;
     if (!this.Data[type][id].blockChangeFace) {
       this.Data[type][id].blockChangeFace = true;
-      setTimeout(() => (this.Data[type][id].blockChangeFace = false), 2000);
+      setTimeout(() => (this.Data[type][id].blockChangeFace = false), 400);
 
       const [newFace, initDirection] = WorldLimit[Elements.Data[type][id].world.face][direction];
 
@@ -141,30 +163,37 @@ const WorldManagement = {
           break;
         }
       }
+      let newX = newInstance(Elements.Data[type][id].x);
+      let newY = newInstance(Elements.Data[type][id].y);
+      switch (initDirection) {
+        case 'left':
+          newX = 0;
+          break;
+        case 'right':
+          newX = Matrix.Data.dim - Elements.Data[type][id].dim;
+          break;
+        case 'bottom':
+          newY = Matrix.Data.dim - Elements.Data[type][id].dim;
+          break;
+        case 'top':
+          newY = 0;
+          break;
+        default:
+          break;
+      }
+      if (BiomeEngine.isCollision({ type, id, x: newX, y: newY, biome: newBiome })) return;
       console.warn('newBiome', newBiome);
       console.warn('initDirection', initDirection);
 
+      Elements.Data[type][id].x = newX;
+      Elements.Data[type][id].y = newY;
       await this.biomeRender.load({
         data: newBiome,
       });
       Elements.Data[type][id].world.face = newFace;
       Elements.Data[type][id].world._id = newBiome._id;
-      switch (initDirection) {
-        case 'left':
-          Elements.Data[type][id].x = 0;
-          break;
-        case 'right':
-          Elements.Data[type][id].x = Matrix.Data.dim - Elements.Data[type][id].dim;
-          break;
-        case 'bottom':
-          Elements.Data[type][id].y = Matrix.Data.dim - Elements.Data[type][id].dim;
-          break;
-        case 'top':
-          Elements.Data[type][id].y = 0;
-          break;
-        default:
-          break;
-      }
+      this.LoadAdjacentFaces(type, id, newFace);
+      htmls('.display-current-face', newFace);
     }
   },
   Load: async function (options = { type: 'user', id: 'main' }) {
@@ -191,9 +220,11 @@ const WorldManagement = {
           }),
         });
       } else
-        this.biomeRender.loadScope({
+        await this.biomeRender.loadScope({
           data: { _id },
         });
+      this.LoadAdjacentFaces(type, id, Elements.Data.user.main.world.face);
+      htmls('.display-current-face', Elements.Data.user.main.world.face);
     }
   },
 };

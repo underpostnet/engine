@@ -11,12 +11,12 @@ const Elements = {
   Data: {
     user: {
       main: {
-        x: 38, // Matrix.Data.dim / 2 - 0.5,
-        y: 40, // Matrix.Data.dim / 2 - 0.5,
+        x: 1, // Matrix.Data.dim / 2 - 0.5,
+        y: 1, // Matrix.Data.dim / 2 - 0.5,
         dim: 1,
         vel: 0.5,
         world: {
-          _id: '659dbc930b091230854c8184',
+          _id: '65a2721757325ebbea5240e8',
           face: 1,
         },
         components: {

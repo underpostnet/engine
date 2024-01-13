@@ -44,7 +44,7 @@ await (async () => {
   await Pixi.Init();
   const element = { type: 'user', id: 'main' };
   await Elements.Init(element);
-
+  // ->
   await WorldManagement.Load(element);
 })();
 
@@ -209,4 +209,4 @@ await SocketIo.Init({
 setTimeout(() => {
   s('.loading-background').style.opacity = 0;
   setTimeout(() => s('.loading-background').remove(), 300);
-}, 500);
+});

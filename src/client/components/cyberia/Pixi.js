@@ -8,6 +8,7 @@ import { Elements } from './Elements.js';
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { Event } from './Event.js';
 import { WorldManagement } from './World.js';
+import { borderChar } from '../core/Css.js';
 
 const Pixi = {
   MetaData: {
@@ -20,17 +21,28 @@ const Pixi = {
       'body',
       html`
         <style>
-          ${css`
-            .pixi-container {
-              width: 100%;
-              height: 100%;
-              top: 0px;
-              left: 0px;
-              overflow: hidden;
-            }
-          `}
+          .pixi-container {
+            width: 100%;
+            height: 100%;
+            top: 0px;
+            left: 0px;
+            /* overflow: hidden; */
+          }
+          .adjacent-map {
+            border: 2px solid #ff0000;
+          }
         </style>
-        <div class="abs pixi-container"></div>
+        <div class="abs pixi-container">
+          <div class="abs adjacent-map adjacent-map-limit-top"></div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom"></div>
+          <div class="abs adjacent-map adjacent-map-limit-left"></div>
+          <div class="abs adjacent-map adjacent-map-limit-right"></div>
+
+          <div class="abs adjacent-map adjacent-map-limit-top-left"></div>
+          <div class="abs adjacent-map adjacent-map-limit-top-right"></div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom-left"></div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom-right"></div>
+        </div>
       `,
     );
     this.App = new Application({
@@ -41,6 +53,7 @@ const Pixi = {
     s('.pixi-container').appendChild(this.App.view);
     s('canvas').classList.add('abs');
     s('canvas').classList.add('pixi-canvas');
+    append('.pixi-container', html` <div class="abs display-current-face" style="${borderChar(2, 'black')}"></div> `);
 
     // Matrix.Render['matrix-center-square']('.pixi-container');
 
@@ -48,6 +61,21 @@ const Pixi = {
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
       s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+
+      for (const limitType of [
+        'top',
+        'bottom',
+        'left',
+        'right',
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right',
+      ]) {
+        s(`.adjacent-map-limit-${limitType}`).style.height = `${ResponsiveDataAmplitude.minValue}px`;
+        s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      }
+
       s('.main-user-content').style.width = `${
         (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
       }px`;

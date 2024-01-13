@@ -194,6 +194,15 @@ const CssCyberia = {
         top: 0px;
         left: 0px;
       }
+      .adjacent-map-limit-img {
+        width: 100%;
+        height: 100%;
+      }
+      .display-current-face {
+        top: 50px;
+        right: 50px;
+        font-size: 60px;
+      }
     `,
 };
 

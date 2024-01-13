@@ -923,16 +923,17 @@ const BiomeEngine = {
     `;
   },
   isCollision: function (options) {
-    if (!BiomeScope.Keys[BiomeScope.CurrentKey] || !BiomeScope.Keys[BiomeScope.CurrentKey].solid) return false;
+    const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
+    if (!biomeData || !biomeData.solid) return false;
     const x = options.x * Matrix.Data.dimPaintByCell;
     const y = options.y * Matrix.Data.dimPaintByCell;
     const { type, id } = options;
     for (const sumY of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1))
       for (const sumX of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1)) {
         if (
-          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)] === undefined ||
-          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
-          BiomeScope.Keys[BiomeScope.CurrentKey].solid[round10(y + sumY)][round10(x + sumX)] === 1
+          biomeData.solid[round10(y + sumY)] === undefined ||
+          biomeData.solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
+          biomeData.solid[round10(y + sumY)][round10(x + sumX)] === 1
         )
           return true;
       }
