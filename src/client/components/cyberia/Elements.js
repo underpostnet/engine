@@ -15,9 +15,11 @@ const Elements = {
         y: 1, // Matrix.Data.dim / 2 - 0.5,
         dim: 1,
         vel: 0.5,
-        world: {
-          _id: '65a2721757325ebbea5240e8',
-          face: 1,
+        model: {
+          world: {
+            _id: '65a30d542b1b755da7eb0427',
+            face: 1,
+          },
         },
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],

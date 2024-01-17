@@ -128,7 +128,9 @@ const WorldManagement = {
   LoadAdjacentFaces: function (type, id, newFace) {
     for (const biomeKey of Object.keys(BiomeScope.Data)) {
       for (const limitType of ['top', 'bottom', 'left', 'right']) {
-        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].world.face[WorldLimit[newFace][limitType][0] - 1]) {
+        if (
+          BiomeScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[WorldLimit[newFace][limitType][0] - 1]
+        ) {
           htmls(
             `.adjacent-map-limit-${limitType}`,
             html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
@@ -153,12 +155,12 @@ const WorldManagement = {
       this.Data[type][id].blockChangeFace = true;
       setTimeout(() => (this.Data[type][id].blockChangeFace = false), 400);
 
-      const [newFace, initDirection] = WorldLimit[Elements.Data[type][id].world.face][direction];
+      const [newFace, initDirection] = WorldLimit[Elements.Data[type][id].model.world.face][direction];
 
       console.warn('newFace', newFace);
       let newBiome;
       for (const biomeKey of Object.keys(BiomeScope.Data)) {
-        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].world.face[newFace - 1]) {
+        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
           newBiome = BiomeScope.Data[biomeKey];
           break;
         }
@@ -190,8 +192,8 @@ const WorldManagement = {
       await this.biomeRender.load({
         data: newBiome,
       });
-      Elements.Data[type][id].world.face = newFace;
-      Elements.Data[type][id].world._id = newBiome._id;
+      Elements.Data[type][id].model.world.face = newFace;
+      Elements.Data[type][id].model.world._id = newBiome._id;
       this.LoadAdjacentFaces(type, id, newFace);
       htmls('.display-current-face', newFace);
     }
@@ -200,20 +202,17 @@ const WorldManagement = {
     const { type, id } = options;
 
     if (!this.Data[type]) this.Data[type] = {};
-    if (!this.Data[type][id]) this.Data[type][id] = {};
+    if (!this.Data[type][id]) this.Data[type][id] = { model: {} };
 
-    const { data } = await CyberiaWorldService.get(Elements.Data[type][id].world._id);
-    this.Data[type][id].world = {
-      blockChangeFace: false,
-      ...data[0],
-    };
+    const { data } = await CyberiaWorldService.get(Elements.Data[type][id].model.world._id);
+    this.Data[type][id].model.world = data[0];
 
     // load single world
     let indexFace = -1;
-    for (const _id of this.Data[type][id].world.face) {
+    for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
 
-      if (Elements.Data.user.main.world.face - 1 === indexFace) {
+      if (Elements.Data.user.main.model.world.face - 1 === indexFace) {
         await this.biomeRender.load({
           data: await this.biomeRender.loadScope({
             data: { _id },
@@ -223,8 +222,8 @@ const WorldManagement = {
         await this.biomeRender.loadScope({
           data: { _id },
         });
-      this.LoadAdjacentFaces(type, id, Elements.Data.user.main.world.face);
-      htmls('.display-current-face', Elements.Data.user.main.world.face);
+      this.LoadAdjacentFaces(type, id, Elements.Data.user.main.model.world.face);
+      htmls('.display-current-face', Elements.Data.user.main.model.world.face);
     }
   },
 };
