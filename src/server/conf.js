@@ -208,22 +208,6 @@ const Config = {
       },
     },
     server: {
-      'example1.com': {
-        '/': {
-          client: 'test',
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
-        },
-        '/docs': {
-          client: 'doc',
-          runtime: 'xampp',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
-        },
-      },
       'www.example1.com': {
         '/': {
           client: 'cyberia',
@@ -253,6 +237,22 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
+          proxy: [80, 443],
+        },
+      },
+      'example1.com': {
+        '/': {
+          client: 'test',
+          runtime: 'nodejs',
+          origins: [],
+          disabled: true,
+          proxy: [80, 443],
+        },
+        '/docs': {
+          client: 'doc',
+          runtime: 'xampp',
+          origins: [],
+          disabled: true,
           proxy: [80, 443],
         },
       },

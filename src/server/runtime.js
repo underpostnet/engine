@@ -136,7 +136,7 @@ const buildRuntime = async () => {
       currentPort++;
     }
   }
-  if (Xampp.enabled()) await Xampp.initService();
+  if (Xampp.enabled() && Xampp.router) await Xampp.initService();
 };
 
 export { buildRuntime };
