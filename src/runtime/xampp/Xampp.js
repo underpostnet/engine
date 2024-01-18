@@ -20,7 +20,7 @@ const Xampp = {
     cmd = `C:/xampp/xampp_start.exe`;
     shellExec(cmd);
   },
-  enabled: () => false, // fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
+  enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
   appendRouter: function (render) {
     if (!this.router) return (this.router = render);
     return (this.router += render);
