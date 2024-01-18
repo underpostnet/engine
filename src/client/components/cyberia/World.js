@@ -46,12 +46,14 @@ class LoadWorldRenderer {
 
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-world-${rowId}`, async () => {
-        World.WorldScope = newInstance(World.worlds.find((w) => w._id === params.data._id));
+        World.WorldScope = { ...World.WorldScope, ...newInstance(World.worlds.find((w) => w._id === params.data._id)) };
         for (const index of range(0, 5)) {
           if (World.WorldScope.face[index])
             s(`.dropdown-option-face-${index}-${World.WorldScope.face[index]._id}`).click();
           else s(`.dropdown-option-face-${index}-reset`).click();
         }
+        s(`.world-name`).value = World.WorldScope.name;
+        if (s(`.dropdown-option-${World.WorldScope.type}`)) s(`.dropdown-option-${World.WorldScope.type}`).click();
 
         await World.renderAllFace();
       });
@@ -83,43 +85,46 @@ class LoadWorldRenderer {
   }
 }
 
-const WorldLimit = {
-  6: {
-    top: [2, 'bottom'],
-    bottom: [4, 'top'],
-    left: [1, 'right'],
-    right: [3, 'left'],
-  },
-  5: {
-    top: [2, 'bottom'],
-    bottom: [4, 'top'],
-    left: [3, 'right'],
-    right: [1, 'left'],
-  },
-  4: {
-    top: [1, 'bottom'],
-    bottom: [3, 'top'],
-    left: [5, 'right'],
-    right: [6, 'left'],
-  },
-  3: {
-    top: [4, 'bottom'],
-    bottom: [2, 'top'],
-    left: [5, 'right'],
-    right: [6, 'left'],
-  },
-  2: {
-    top: [3, 'bottom'],
-    bottom: [1, 'top'],
-    left: [5, 'right'],
-    right: [6, 'left'],
-  },
-  1: {
-    top: [2, 'bottom'],
-    bottom: [4, 'top'],
-    left: [5, 'right'],
-    right: [6, 'left'],
-  },
+const WorldLimit = (options = { type: undefined }) => {
+  const { type } = options;
+  return {
+    6: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [1, 'right'],
+      right: [3, 'left'],
+    },
+    5: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [3, 'right'],
+      right: [1, 'left'],
+    },
+    4: {
+      top: [1, 'bottom'],
+      bottom: [3, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+    3: {
+      top: [4, 'bottom'],
+      bottom: [2, 'top'],
+      left: [type === 'width' ? 6 : 5, 'right'],
+      right: [type === 'width' ? 5 : 6, 'left'],
+    },
+    2: {
+      top: [3, 'bottom'],
+      bottom: [1, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+    1: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+  };
 };
 
 const WorldManagement = {
@@ -129,13 +134,16 @@ const WorldManagement = {
     for (const biomeKey of Object.keys(BiomeScope.Data)) {
       for (const limitType of ['top', 'bottom', 'left', 'right']) {
         if (
-          BiomeScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[WorldLimit[newFace][limitType][0] - 1]
+          BiomeScope.Data[biomeKey]._id ===
+          this.Data[type][id].model.world.face[
+            WorldLimit({ type: this.Data[type][id].model.world.type })[newFace][limitType][0] - 1
+          ]
         ) {
           htmls(
             `.adjacent-map-limit-${limitType}`,
             html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
           );
-          if (limitType === 'right' || limitType === 'left') {
+          if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
             htmls(
               `.adjacent-map-limit-top-${limitType}`,
               html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
@@ -145,17 +153,33 @@ const WorldManagement = {
               html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
             );
           }
+          if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
+            htmls(
+              `.adjacent-map-limit-${limitType}-right`,
+              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
+            );
+            htmls(
+              `.adjacent-map-limit-${limitType}-left`,
+              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
+            );
+          }
         }
       }
     }
   },
   ChangeFace: async function (options = { type: 'user', id: 'main', direction: '' }) {
     const { type, id, direction } = options;
+
+    if (this.Data[type][id].model.world.type === 'height' && (direction === 'right' || direction === 'left')) return;
+    if (this.Data[type][id].model.world.type === 'width' && (direction === 'top' || direction === 'bottom')) return;
+
     if (!this.Data[type][id].blockChangeFace) {
       this.Data[type][id].blockChangeFace = true;
       setTimeout(() => (this.Data[type][id].blockChangeFace = false), 400);
 
-      const [newFace, initDirection] = WorldLimit[Elements.Data[type][id].model.world.face][direction];
+      const [newFace, initDirection] = WorldLimit({ type: this.Data[type][id].model.world.type })[
+        Elements.Data[type][id].model.world.face
+      ][direction];
 
       console.warn('newFace', newFace);
       let newBiome;
@@ -268,7 +292,7 @@ const World = {
           data: resultBiome.data.map((biome) => {
             return {
               data: biome,
-              display: html`${biome.name} <span style="color: #ffcc00; font-size: 15px;">[${biome.biome}]</span>`,
+              display: html`${biome.name} <span class="drop-down-option-info">[${biome.biome}]</span>`,
               value: biome._id,
               onClick: async () => {
                 this.WorldScope.face[index] = biome;
@@ -322,6 +346,36 @@ const World = {
             <div class="in sub-title-modal"><i class="fa-solid fa-sliders"></i> ${Translate.Render('config')}</div>
             <div class="in">
               ${render}
+              <div class="in section-mp">
+                ${await DropDown.Render({
+                  value: 'width',
+                  label: html`${Translate.Render('type')}`,
+                  data: ['width', 'height'].map((worldType) => {
+                    let infoType;
+                    switch (worldType) {
+                      case 'width':
+                        infoType = '[1-6-3-5]';
+                        break;
+                      case 'height':
+                        infoType = '[1-2-3-4]';
+                        break;
+
+                      default:
+                        break;
+                    }
+                    return {
+                      display: html`
+                      <i class="fa-solid fa-text-${worldType}"></i></i> ${Translate.Render(worldType)} 
+                      <span class="drop-down-option-info">${infoType}</span>`,
+                      value: worldType,
+                      data: worldType,
+                      onClick: () => {
+                        this.WorldScope.type = worldType;
+                      },
+                    };
+                  }),
+                })}
+              </div>
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-generate-world`,
                 label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
@@ -378,6 +432,7 @@ const World = {
                 // { field: '_id', headerName: 'ID' },
                 { field: 'face', headerName: 'face' },
                 { field: 'name', headerName: 'Name' },
+                { field: 'type', headerName: 'type' },
                 { headerName: '', cellRenderer: LoadWorldRenderer },
               ],
             },
