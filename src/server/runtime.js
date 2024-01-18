@@ -10,7 +10,6 @@ import { network, listenPortController, ip } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
-import { MariaDB } from '../db/mariadb/mariadb.js';
 
 dotenv.config();
 
@@ -137,7 +136,7 @@ const buildRuntime = async () => {
       currentPort++;
     }
   }
-  if (Xampp.enabled()) await MariaDB.initService();
+  if (Xampp.enabled()) await Xampp.initService();
 };
 
 export { buildRuntime };
