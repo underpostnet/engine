@@ -4,7 +4,7 @@ import fs from 'fs';
 
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { MariaDB } from '../src/db/mariadb/mariadb.js';
+import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 
 const logger = loggerFactory(import.meta);
 
