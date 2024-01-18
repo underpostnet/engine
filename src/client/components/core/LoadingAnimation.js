@@ -1,7 +1,7 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { s4 } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { append, getProxyPath, s } from './VanillaJs.js';
+import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -18,11 +18,14 @@ const LoadingAnimation = {
         html` <div class="fix progress-bar diagonal-bar-background-animation ${id}" style="left: -100%"></div> `,
       );
       for (const frame of [
-        { time: 500, value: '-35%' },
-        { time: 1250, value: '-15%' },
+        { time: 500, value: '-35%', numberValue: 35 },
+        { time: 1250, value: '-15%', numberValue: 15 },
       ])
         setTimeout(() => {
-          if (this.tokens[container] === idEvent && s(`.${id}`)) s(`.${id}`).style.left = frame.value;
+          if (this.tokens[container] === idEvent && s(`.${id}`)) {
+            s(`.${id}`).style.left = frame.value;
+            if (s('.loading-progress')) htmls('.loading-progress', html`${100 - frame.numberValue}%`);
+          }
         }, frame.time);
     },
     stop: function (container) {

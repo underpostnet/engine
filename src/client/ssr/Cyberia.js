@@ -83,9 +83,12 @@ ViewRender = (data) => html`
             width: 100%;
             text-align: center;
           }
+          .loading-progress {
+            font-size: 40px;
+          }
         </style>
         <style></style>
-        <div class="loading-center">Loading...</div>
+        <div class="loading-center"><!-- Loading... --><span class="loading-progress">0%</span></div>
       </div>
 
       <script async type="module" src="./${data.buildId}.js"></script>
