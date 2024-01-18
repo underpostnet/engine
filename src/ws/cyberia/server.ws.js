@@ -1,7 +1,7 @@
 'use strict';
 
 import { Server } from 'socket.io';
-import { loggerFactory } from './logger.js';
+import { loggerFactory } from '../../server/logger.js';
 
 // https://socket.io/docs/v3/
 

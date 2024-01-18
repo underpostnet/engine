@@ -8,7 +8,7 @@ import { ColorPalette } from './components/core/ColorPalette.js';
 import { s, append, disableOptionsClick } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
-import { newInstance } from './components/core/CommonJs.js';
+import { newInstance, s4 } from './components/core/CommonJs.js';
 import { FullScreen } from './components/core/FullScreen.js';
 
 import { Pixi } from './components/cyberia/Pixi.js';
@@ -19,7 +19,7 @@ import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
 import { JoyStick } from './components/cyberia/JoyStick.js';
-import { BiomeEngine, LoadBiomeRenderer } from './components/cyberia/Biome.js';
+import { BiomeEngine } from './components/cyberia/Biome.js';
 import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
@@ -27,6 +27,11 @@ import { Polyhedron } from './components/core/Polyhedron.js';
 import { World, WorldManagement } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
 import { SignUp } from './components/core/SignUp.js';
+import { LoadingAnimation } from './components/core/LoadingAnimation.js';
+import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
+
+const loadId = s4();
+await LoadingAnimation.bar.play(loadId);
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -206,7 +211,12 @@ await SocketIo.Init({
   channels: Elements.Data,
 });
 
+SocketIoCyberia.Init();
+
 setTimeout(() => {
   s('.loading-background').style.opacity = 0;
-  setTimeout(() => s('.loading-background').remove(), 300);
+  setTimeout(async () => {
+    s('.loading-background').remove();
+    LoadingAnimation.bar.stop(loadId);
+  }, 300);
 });

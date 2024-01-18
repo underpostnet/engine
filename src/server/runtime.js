@@ -5,7 +5,6 @@ import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
 
 import { createServer } from 'http';
-import { createIoServer } from './socket.io.js';
 import { getRootDirectory } from './process.js';
 import { network, listenPortController, ip } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
@@ -23,7 +22,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, db, origins, disabled, directory } = confServer[host][path];
+      const { runtime, port, client, apis, db, origins, disabled, directory, wss } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
       const loggerOnRunningApp = () =>
@@ -115,13 +114,18 @@ const buildRuntime = async () => {
 
           // instance server
           const server = createServer({}, app);
-
-          // start socket.io
-          const ioServer = createIoServer(server, {
-            meta: { url: `socket.io-${meta.url}` },
-            path,
-            ...confServer[host][path],
-          });
+          if (wss)
+            for (const ws of wss)
+              await (async () => {
+                const { createIoServer } = await import(`../ws/${ws}/server.ws.js`);
+                logger.info('Load socket.io ws router', { host, ws });
+                // start socket.io
+                const ioServer = createIoServer(server, {
+                  meta: { url: `socket.io-${meta.url}-${ws}` },
+                  path,
+                  ...confServer[host][path],
+                });
+              })();
 
           await network.port.portClean(port);
           await listenPortController(server, port, loggerOnRunningApp);

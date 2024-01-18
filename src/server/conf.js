@@ -142,6 +142,8 @@ const Config = {
             'World',
             'MainUser',
             'Universe',
+            'CommonCyberia',
+            'SocketIoCyberia',
           ],
           test: ['Test'],
         },
@@ -235,6 +237,7 @@ const Config = {
         '/': {
           client: 'cyberia',
           apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],
           disabled: false,

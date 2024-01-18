@@ -538,7 +538,7 @@ scrollbar-width: none;
           transition: 0.3s;
           height: 10px;
           width: 100%;
-          z-index: 3;
+          z-index: 11;
         }
         .diagonal-bar-background-animation {
           background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);
