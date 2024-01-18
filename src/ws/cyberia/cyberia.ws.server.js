@@ -1,13 +1,11 @@
 'use strict';
 
 import { Server } from 'socket.io';
-import { loggerFactory } from '../../server/logger.js';
+import { CyberiaWsConnection } from './cyberia.ws.connection.js';
 
 // https://socket.io/docs/v3/
 
 const createIoServer = (httpServer, options) => {
-  const logger = loggerFactory(options.meta);
-  // logger.info('createIoServer', options);
   return new Server(httpServer, {
     cors: {
       // origin: `http://localhost:${options.port}`,
@@ -27,17 +25,9 @@ const createIoServer = (httpServer, options) => {
       credentials: true,
     },
     path: options.path !== '/' ? `${options.path}/socket.io/` : undefined,
-  }).on('connection', (socket) => {
-    // const headers = socket.handshake.headers;
-    // const ip = socket.handshake.address;
-    logger.info(`on connection id: ${socket.id}`);
-
-    socket.broadcast.emit('user', socket.id);
-
-    socket.on('disconnect', (reason) => {
-      logger.info(`on disconnect id: ${socket.id} due to reason: ${reason}`);
-    });
-  });
+  }).on('connection', CyberiaWsConnection);
 };
 
-export { createIoServer };
+const CyberiaWsServer = createIoServer;
+
+export { createIoServer, CyberiaWsServer };

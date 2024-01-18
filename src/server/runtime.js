@@ -114,14 +114,14 @@ const buildRuntime = async () => {
 
           // instance server
           const server = createServer({}, app);
+
           if (wss)
             for (const ws of wss)
               await (async () => {
-                const { createIoServer } = await import(`../ws/${ws}/server.ws.js`);
+                const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
                 logger.info('Load socket.io ws router', { host, ws });
                 // start socket.io
                 const ioServer = createIoServer(server, {
-                  meta: { url: `socket.io-${meta.url}-${ws}` },
                   path,
                   ...confServer[host][path],
                 });
