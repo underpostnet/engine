@@ -50,16 +50,14 @@ const ip = {
   },
 };
 
-const listenPortController = async (server, port, callback) => {
-  try {
-    return new Promise((resolve) => server.listen(port, () => (callback(), resolve(true))));
-  } catch (error) {
-    logger.error(error, {
-      message: 'Listen port error',
-      port,
-    });
-    return false;
-  }
-};
+const listenPortController = async (server, port, log) =>
+  new Promise((resolve) => {
+    try {
+      server.listen(port, () => (logger.info('App running:', log), resolve(true)));
+    } catch (error) {
+      logger.error(error, error.stack);
+      resolve(false);
+    }
+  });
 
 export { ip, network, listenPortController };

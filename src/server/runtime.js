@@ -24,14 +24,13 @@ const buildRuntime = async () => {
       const { runtime, port, client, apis, db, origins, disabled, directory, wss } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
-      const loggerOnRunningApp = () =>
-        logger.info(`App running`, {
-          runtime,
-          client,
-          public: `http://${ipInstance}:${port}${path}`,
-          host: `http://${host}:${port}${path}`,
-          local: `http://localhost:${port}${path}`,
-        });
+      const runningData = {
+        runtime,
+        client,
+        public: `http://${ipInstance}:${port}${path}`,
+        host: `http://${host}:${port}${path}`,
+        local: `http://localhost:${port}${path}`,
+      };
       if (disabled) continue;
 
       switch (runtime) {
@@ -71,7 +70,7 @@ const buildRuntime = async () => {
             }
         </VirtualHost>
           `);
-          loggerOnRunningApp();
+          await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
           break;
         case 'nodejs':
           const app = express();
@@ -127,7 +126,7 @@ const buildRuntime = async () => {
               })();
 
           await network.port.portClean(port);
-          await listenPortController(server, port, loggerOnRunningApp);
+          await listenPortController(server, port, runningData);
 
           break;
         default:
