@@ -12,7 +12,7 @@ const select = {
 
 const populateOptions = {
   path: 'face',
-  select: 'fileId biome name',
+  select: 'fileId biome name type',
   // select: '-fileId -biome -name', // exclude
   options: { retainNullValues: true },
 };

@@ -203,6 +203,10 @@ const CssCyberia = {
         right: 50px;
         font-size: 60px;
       }
+      .drop-down-option-info {
+        color: #ffcc00;
+        font-size: 15px;
+      }
     `,
 };
 

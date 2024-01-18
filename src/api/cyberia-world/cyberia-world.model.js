@@ -9,6 +9,7 @@ const CyberiaWorldSchema = new Schema({
       ref: 'CyberiaBiome',
     },
   ],
+  type: { type: String },
   name: { type: String },
 });
 

@@ -101,6 +101,9 @@ const TranslateCore = {
     Translate.Data['success-upload-user'] = { en: 'user uploaded successfully', es: 'usuario subido correctamente' };
     Translate.Data['error-upload-user'] = { en: 'error uploading user', es: 'error al subir el usuario' };
     Translate.Data['success-user'] = { en: 'user/s successfully obtained', es: 'Usuario/s obtenido correctamente' };
+    Translate.Data['width'] = { en: 'width', es: 'ancho' };
+    Translate.Data['height'] = { en: 'height', es: 'altura' };
+    Translate.Data['type'] = { en: 'Type', es: 'Tipo' };
   },
 };
 
