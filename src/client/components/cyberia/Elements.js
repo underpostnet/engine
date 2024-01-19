@@ -64,6 +64,86 @@ const Elements = {
             const direction = getDirection(lastX, lastY, this.Data[type][id].x, this.Data[type][id].y);
             lastX = newInstance(this.Data[type][id].x);
             lastY = newInstance(this.Data[type][id].y);
+            const stopX = newInstance(lastX);
+            const stopY = newInstance(lastY);
+            setTimeout(() => {
+              if (stopX === this.Data[type][id].x && stopY === this.Data[type][id].y) {
+                switch (lastDirection) {
+                  case 'n':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '02';
+                        return component;
+                      });
+                    break;
+                  case 's':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '08';
+                        return component;
+                      });
+                    break;
+                  case 'e':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '06';
+                        return component;
+                      });
+                    break;
+                  case 'se':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '06';
+                        return component;
+                      });
+                    break;
+                  case 'ne':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '06';
+                        return component;
+                      });
+                    break;
+                  case 'w':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '04';
+                        return component;
+                      });
+                    break;
+                  case 'sw':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '04';
+                        return component;
+                      });
+                    break;
+                  case 'nw':
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '04';
+                        return component;
+                      });
+                    break;
+                  default:
+                    if (this.Data[type][id].components.skin)
+                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
+                        component.position = '08';
+                        return component;
+                      });
+                    break;
+                }
+                for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
+                  Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
+                SocketIo.socket.emit(
+                  type,
+                  JSON.stringify({
+                    status: 'update-skin-position',
+                    element: { components: { skin: this.Data[type][id].components.skin } },
+                  }),
+                );
+              }
+            }, 500);
             if (lastDirection === direction) return;
             lastDirection = newInstance(direction);
             logger.info('New direction', direction);
@@ -141,87 +221,6 @@ const Elements = {
                 element: { components: { skin: this.Data[type][id].components.skin } },
               }),
             );
-          } else {
-            const stopX = newInstance(lastX);
-            const stopY = newInstance(lastY);
-            setTimeout(() => {
-              if (stopX === this.Data[type][id].x && stopY === this.Data[type][id].y) {
-                switch (lastDirection) {
-                  case 'n':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '02';
-                        return component;
-                      });
-                    break;
-                  case 's':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '08';
-                        return component;
-                      });
-                    break;
-                  case 'e':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'se':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'ne':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'w':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  case 'sw':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  case 'nw':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  default:
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '08';
-                        return component;
-                      });
-                    break;
-                }
-                for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
-                  Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
-                // SocketIo.socket.emit(
-                //   type,
-                //   JSON.stringify({
-                //     status: 'update-skin-position',
-                //     element: { components: { skin: this.Data[type][id].components.skin } },
-                //   }),
-                // );
-              }
-            }, 500);
           }
         }, Event.Data.globalTimeInterval);
 
