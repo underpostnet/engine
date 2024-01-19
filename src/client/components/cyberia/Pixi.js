@@ -9,6 +9,7 @@ import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { Event } from './Event.js';
 import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
+import { SocketIo } from '../core/SocketIo.js';
 
 const Pixi = {
   MetaData: {
@@ -316,6 +317,16 @@ const Pixi = {
     const dim = this.MetaData.dim / Matrix.Data.dim;
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
+
+    if (id === 'main') {
+      SocketIo.socket.emit(
+        type,
+        JSON.stringify({
+          status: 'update-position',
+          element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
+        }),
+      );
+    }
   },
 };
 

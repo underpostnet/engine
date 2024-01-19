@@ -1,6 +1,7 @@
 import { getDirection, newInstance } from '../core/CommonJs.js';
 import { Keyboard } from '../core/Keyboard.js';
 import { loggerFactory } from '../core/Logger.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { BiomeEngine } from './Biome.js';
 import { BaseElement } from './CommonCyberia.js';
 import { Event } from './Event.js';
@@ -133,6 +134,13 @@ const Elements = {
             }
             for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
               Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
+            SocketIo.socket.emit(
+              type,
+              JSON.stringify({
+                status: 'update-skin-position',
+                element: { components: { skin: this.Data[type][id].components.skin } },
+              }),
+            );
           } else {
             const stopX = newInstance(lastX);
             const stopY = newInstance(lastY);
@@ -205,6 +213,13 @@ const Elements = {
                 }
                 for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
                   Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
+                // SocketIo.socket.emit(
+                //   type,
+                //   JSON.stringify({
+                //     status: 'update-skin-position',
+                //     element: { components: { skin: this.Data[type][id].components.skin } },
+                //   }),
+                // );
               }
             }, 500);
           }

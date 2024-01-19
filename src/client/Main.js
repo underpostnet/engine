@@ -24,14 +24,13 @@ import { EventsUI } from './components/core/EventsUI.js';
 import { Tile } from './components/cyberia/Tile.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
-import { World, WorldManagement } from './components/cyberia/World.js';
+import { World } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
 import { SignUp } from './components/core/SignUp.js';
 import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 
-const loadId = s4();
-await LoadingAnimation.bar.play(loadId);
+await LoadingAnimation.bar.play('init-loading');
 
 const { barConfig } = await Css.Init(CssCyberia);
 
@@ -42,6 +41,9 @@ await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
 
+append('body', await MainUser.Render());
+await Pixi.Init();
+
 await (async () => {
   // ws or rest init user data
 
@@ -50,12 +52,6 @@ await (async () => {
   });
 
   SocketIoCyberia.Init();
-
-  append('body', await MainUser.Render());
-  await Pixi.Init();
-  const element = { type: 'user', id: 'main' };
-  await Elements.Init(element);
-  await WorldManagement.Load(element);
 })();
 
 await Responsive.Init({
@@ -211,11 +207,3 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
 disableOptionsClick('html', ['menu', 'drag', 'select']);
 
 // await BiomeEngine.generateBiome('seed-city');
-
-setTimeout(() => {
-  s('.loading-background').style.opacity = 0;
-  setTimeout(async () => {
-    s('.loading-background').remove();
-    LoadingAnimation.bar.stop(loadId);
-  }, 300);
-});

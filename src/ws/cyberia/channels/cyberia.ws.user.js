@@ -11,7 +11,50 @@ const CyberiaWsUserChannel = {
   socket: {},
   baseElement: BaseElement()[channel].main,
   controller: function (socket, args) {
-    logger.info(`CyberiaWsUserChannel controller`, socket.id, args);
+    args = JSON.parse(args);
+    logger.info(`CyberiaWsUserChannel controller`, { id: socket.id, args });
+    const { status, element } = args;
+    switch (status) {
+      case 'update-position':
+        this.element[socket.id].x = element.x;
+        this.element[socket.id].y = element.y;
+        for (const elementId of Object.keys(this.element)) {
+          if (
+            elementId !== socket.id &&
+            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+          ) {
+            this.socket[elementId].emit(
+              channel,
+              JSON.stringify({
+                status,
+                id: socket.id,
+                element: { x: element.x, y: element.y },
+              }),
+            );
+          }
+        }
+        break;
+      case 'update-skin-position':
+        this.element[socket.id].components.skin = element.components.skin;
+        for (const elementId of Object.keys(this.element)) {
+          if (
+            elementId !== socket.id &&
+            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+          ) {
+            this.socket[elementId].emit(
+              channel,
+              JSON.stringify({
+                status,
+                id: socket.id,
+                element: { components: { skin: element.components.skin } },
+              }),
+            );
+          }
+        }
+        break;
+      default:
+        break;
+    }
   },
   connection: function (socket) {
     logger.info(`CyberiaWsUserChannel connection`, socket.id);
