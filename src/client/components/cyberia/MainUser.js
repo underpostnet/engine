@@ -224,6 +224,7 @@ const MainUser = {
               });
             break;
         }
+        Pixi.triggerUpdateSkinPosition({ type, id });
         SocketIo.socket.emit(
           type,
           JSON.stringify({

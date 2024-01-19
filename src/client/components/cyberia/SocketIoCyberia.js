@@ -37,6 +37,7 @@ const SocketIoCyberia = {
 
           case 'update-skin-position':
             Elements.Data[type][id].components.skin = element.components.skin;
+            Pixi.triggerUpdateSkinPosition({ type, id });
             break;
           case 'disconnect':
             delete Elements.Data[type][id];

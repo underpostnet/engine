@@ -338,6 +338,11 @@ const Pixi = {
     this.Data[type][id].destroy();
     delete this.Data[type][id];
   },
+  triggerUpdateSkinPosition: function (options = { type: 'user', id: 'main' }) {
+    const { type, id } = options;
+    for (const skinInterval of Object.keys(this.Data[type][id].intervals['skin']))
+      this.Data[type][id].intervals['skin'][skinInterval].callBack();
+  },
 };
 
 export { Pixi };
