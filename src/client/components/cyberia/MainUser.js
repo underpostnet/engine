@@ -144,8 +144,6 @@ const MainUser = {
                   });
                 break;
             }
-            for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
-              Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
             SocketIo.socket.emit(
               type,
               JSON.stringify({
@@ -155,9 +153,12 @@ const MainUser = {
             );
           }
         }, 500);
-        if (lastDirection === direction) return;
-        lastDirection = newInstance(direction);
-        logger.info('New direction', direction);
+
+        if (lastDirection !== direction) {
+          lastDirection = newInstance(direction);
+          logger.info('New direction', direction);
+        } else if (Elements.Data[type][id].components.skin.find((skin) => skin.position[0] === '1')) return;
+
         switch (direction) {
           case 'n':
             if (Elements.Data[type][id].components.skin)
@@ -223,8 +224,6 @@ const MainUser = {
               });
             break;
         }
-        for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
-          Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
         SocketIo.socket.emit(
           type,
           JSON.stringify({
