@@ -5,7 +5,7 @@ import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate, TranslateCore } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
-import { s, append, disableOptionsClick } from './components/core/VanillaJs.js';
+import { append, disableOptionsClick } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance, s4 } from './components/core/CommonJs.js';
@@ -14,7 +14,6 @@ import { FullScreen } from './components/core/FullScreen.js';
 import { Pixi } from './components/cyberia/Pixi.js';
 import { Elements } from './components/cyberia/Elements.js';
 import { Event } from './components/cyberia/Event.js';
-import { Matrix } from './components/cyberia/Matrix.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { Settings } from './components/cyberia/Settings.js';
 import { Bag } from './components/cyberia/Bag.js';
@@ -60,7 +59,6 @@ await Responsive.Init({
 await FullScreen.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
 });
-await Matrix.InitCamera();
 
 await NotificationManager.RenderBoard();
 

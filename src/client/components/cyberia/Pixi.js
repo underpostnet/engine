@@ -230,7 +230,7 @@ const Pixi = {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
                 const src = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`;
-                if (id === 'main')
+                if (id === 'main' && !s(`.skin-${id}-${displayId}-${positionId}-${frame}`))
                   append(
                     '.main-user-content',
                     html`

@@ -28,10 +28,11 @@ const Matrix = {
       );
     },
   },
-  InitCamera: async function () {
-    await this.UpdateCamera('.pixi-canvas', Elements.Data.user.main);
-    setInterval(async () => {
-      await this.UpdateCamera('.pixi-canvas', Elements.Data.user.main);
+  InitCamera: async function (options = { type: 'user', id: 'main' }) {
+    const { type, id } = options;
+    await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
+    Elements.Interval[type][id]['camera'] = setInterval(async () => {
+      await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
     }, Event.Data.globalTimeInterval);
   },
   UpdateAdjacentLimit: function (params) {

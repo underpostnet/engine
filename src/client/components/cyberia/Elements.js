@@ -11,8 +11,11 @@ const logger = loggerFactory(import.meta);
 
 const Elements = {
   Data: BaseElement(),
+  Interval: {},
   Init: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
+    if (!this.Interval[type]) this.Interval[type] = {};
+    if (!this.Interval[type][id]) this.Interval[type][id] = {};
     const eventId = `${type}.${id}`;
     Pixi.setComponents(options);
 
@@ -59,7 +62,7 @@ const Elements = {
         let lastX = newInstance(this.Data[type][id].x);
         let lastY = newInstance(this.Data[type][id].y);
         let lastDirection;
-        setInterval(() => {
+        this.Interval[type][id]['main-skin-sprite-controller'] = setInterval(() => {
           if (lastX !== this.Data[type][id].x || lastY !== this.Data[type][id].y) {
             const direction = getDirection(lastX, lastY, this.Data[type][id].x, this.Data[type][id].y);
             lastX = newInstance(this.Data[type][id].x);

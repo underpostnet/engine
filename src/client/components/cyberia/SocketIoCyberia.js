@@ -5,6 +5,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
 import { BaseElement } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
+import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 import { WorldManagement } from './World.js';
 
@@ -55,10 +56,12 @@ const SocketIoCyberia = {
               case 'user':
                 if (id === 'main') {
                   await WorldManagement.Load({ type, id });
+                  Matrix.InitCamera({ type, id });
                   setTimeout(() => {
-                    s('.loading-background').style.opacity = 0;
+                    s('.ssr-background').style.opacity = 0;
                     setTimeout(async () => {
-                      s('.loading-background').remove();
+                      s('.ssr-background').style.display = 'none';
+                      s(`.main-user-content`).style.display = 'block';
                       LoadingAnimation.bar.stop('init-loading');
                     }, 300);
                   });
@@ -76,6 +79,24 @@ const SocketIoCyberia = {
             break;
         }
       };
+    SocketIo.Event.disconnect[s4()] = async (reason) => {
+      s('.ssr-background').style.display = 'block';
+      setTimeout((s('.ssr-background').style.opacity = '1'));
+      s(`.main-user-content`).style.display = 'none';
+      LoadingAnimation.bar.play('init-loading');
+
+      for (const type of Object.keys(Elements.Data)) {
+        for (const id of Object.keys(Elements.Data[type])) {
+          Pixi.removeElement({ type, id });
+          if (Elements.Interval[type] && Elements.Interval[type][id]) {
+            for (const interval of Object.keys(Elements.Interval[type][id]))
+              clearInterval(Elements.Interval[type][id][interval]);
+          }
+        }
+        Elements.Interval = {};
+        Elements.Data[type] = {};
+      }
+    };
   },
 };
 

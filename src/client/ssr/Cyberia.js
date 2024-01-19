@@ -8,9 +8,9 @@ ViewRender = (data) => html`
       <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
     </head>
     <body>
-      <div class="loading-background" style="opacity: 1">
+      <div class="ssr-background" style="opacity: 1">
         <style>
-          .loading-background {
+          .ssr-background {
             --s: 100px; /* control the size */
             --c1: #1c1c1c;
             --c2: #090909;
@@ -59,7 +59,7 @@ ViewRender = (data) => html`
             padding: 0;
             margin: 0;
           }
-          .loading-background {
+          .ssr-background {
             position: absolute;
             display: block;
             /* background: #1a1a1a; */
