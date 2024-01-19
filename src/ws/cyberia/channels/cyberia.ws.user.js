@@ -34,6 +34,45 @@ const CyberiaWsUserChannel = {
           }
         }
         break;
+      case 'update-world-face':
+        for (const elementId of Object.keys(this.element)) {
+          if (
+            elementId !== socket.id &&
+            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+          ) {
+            this.socket[elementId].emit(
+              channel,
+              JSON.stringify({
+                status: 'disconnect',
+                id: socket.id,
+              }),
+            );
+          }
+        }
+        this.element[socket.id].model.world = element.model.world;
+        for (const elementId of Object.keys(this.element)) {
+          if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
+            if (elementId !== socket.id) {
+              this.socket[elementId].emit(
+                channel,
+                JSON.stringify({
+                  status: 'connection',
+                  id: socket.id,
+                  element: this.element[socket.id],
+                }),
+              );
+              socket.emit(
+                channel,
+                JSON.stringify({
+                  status: 'connection',
+                  id: elementId,
+                  element: this.element[elementId],
+                }),
+              );
+            }
+          }
+        }
+        break;
       case 'update-skin-position':
         this.element[socket.id].components.skin = element.components.skin;
         for (const elementId of Object.keys(this.element)) {

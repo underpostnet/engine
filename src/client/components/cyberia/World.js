@@ -11,11 +11,13 @@ import { Input } from '../core/Input.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
+import { Pixi } from './Pixi.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -217,9 +219,21 @@ const WorldManagement = {
         data: newBiome,
       });
       Elements.Data[type][id].model.world.face = newFace;
-      Elements.Data[type][id].model.world._id = newBiome._id;
       this.LoadAdjacentFaces(type, id, newFace);
       htmls('.display-current-face', newFace);
+      for (const userId of Object.keys(Elements.Data.user)) {
+        if (userId !== 'main') {
+          delete Elements.Data.user[userId];
+          Pixi.removeElement({ type: 'user', id: userId });
+        }
+      }
+      SocketIo.socket.emit(
+        type,
+        JSON.stringify({
+          status: 'update-world-face',
+          element: { model: { world: Elements.Data[type][id].model.world } },
+        }),
+      );
     }
   },
   Load: async function (options = { type: 'user', id: 'main' }) {
