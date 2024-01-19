@@ -1,8 +1,11 @@
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { loggerFactory } from './logger.js';
 
 dotenv.config();
+
+const logger = loggerFactory(import.meta);
 
 const getPasswordHash = (password, saltRounds = 10) =>
   new Promise((resolve, reject) => {
@@ -14,6 +17,7 @@ const getPasswordHash = (password, saltRounds = 10) =>
         });
       });
     } catch (error) {
+      logger.error(error, error.stack);
       reject(error);
     }
   });
