@@ -10,13 +10,23 @@ const SocketIo = {
     connect_error: {},
     disconnect: {},
   },
+  socket: {},
   Init: async function (options) {
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
     logger.info(`ws host:`, this.host);
     const path = getProxyPath() !== '/' ? { path: `${getProxyPath()}socket.io/` } : undefined;
-    if (path) logger.info(`ws path:`, path);
-    this.socket = io(this.host, path);
+    const connectOptions = {
+      path,
+      auth: {
+        token: localStorage.getItem('jwt'),
+      },
+      // query: {
+      //   'my-key': 'my-value',
+      // },
+    };
+    logger.info(`connect options:`, connectOptions);
+    this.socket = io(this.host, connectOptions);
 
     this.socket.on('connect', () => {
       logger.info(`event: connect | session id: ${this.socket.id}`);

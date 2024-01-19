@@ -7,6 +7,8 @@ const logger = loggerFactory(meta);
 const CyberiaWsConnection = function (socket) {
   // const headers = socket.handshake.headers;
   // const ip = socket.handshake.address;
+  // const { query, auth } = socket.handshake;
+
   logger.info(`CyberiaWsConnection ${socket.id}`);
 
   CyberiaWsUserChannel.connection(socket);

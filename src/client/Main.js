@@ -45,11 +45,16 @@ await Keyboard.Init({
 await (async () => {
   // ws or rest init user data
 
+  await SocketIo.Init({
+    channels: Elements.Data,
+  });
+
+  SocketIoCyberia.Init();
+
   append('body', await MainUser.Render());
   await Pixi.Init();
   const element = { type: 'user', id: 'main' };
   await Elements.Init(element);
-  // ->
   await WorldManagement.Load(element);
 })();
 
@@ -206,12 +211,6 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
 disableOptionsClick('html', ['menu', 'drag', 'select']);
 
 // await BiomeEngine.generateBiome('seed-city');
-
-await SocketIo.Init({
-  channels: Elements.Data,
-});
-
-SocketIoCyberia.Init();
 
 setTimeout(() => {
   s('.loading-background').style.opacity = 0;
