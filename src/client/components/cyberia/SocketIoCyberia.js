@@ -3,15 +3,11 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
-import { BaseElement } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
-import { Matrix } from './Matrix.js';
+import { MainUser } from './MainUser.js';
 import { Pixi } from './Pixi.js';
-import { WorldManagement } from './World.js';
 
 const logger = loggerFactory(import.meta);
-
-const baseElement = BaseElement();
 
 const SocketIoCyberia = {
   Init: async function () {
@@ -47,32 +43,18 @@ const SocketIoCyberia = {
             Pixi.removeElement({ type, id });
             break;
           case 'connection':
-            Elements.Data[type][id] = {
-              ...baseElement[type].main,
-              ...Elements.Data[type][id],
-              ...element,
-            };
-            switch (type) {
-              case 'user':
-                if (id === 'main') {
-                  await WorldManagement.Load({ type, id });
-                  Matrix.InitCamera({ type, id });
-                  setTimeout(() => {
-                    s('.ssr-background').style.opacity = 0;
-                    setTimeout(async () => {
-                      s('.ssr-background').style.display = 'none';
-                      s(`.main-user-content`).style.display = 'block';
-                      LoadingAnimation.bar.stop('init-loading');
-                    }, 300);
-                  });
-                }
-
-                await Elements.Init({ type, id });
-
-                break;
-
-              default:
-                break;
+            Elements.Init({ type, id, element });
+            Pixi.setComponents({ type, id });
+            if (type === 'user' && id === 'main') {
+              await MainUser.Init();
+              setTimeout(() => {
+                s('.ssr-background').style.opacity = 0;
+                setTimeout(async () => {
+                  s('.ssr-background').style.display = 'none';
+                  s(`.main-user-content`).style.display = 'block';
+                  LoadingAnimation.bar.stop('init-loading');
+                }, 300);
+              });
             }
             break;
           default:
@@ -84,18 +66,7 @@ const SocketIoCyberia = {
       setTimeout((s('.ssr-background').style.opacity = '1'));
       s(`.main-user-content`).style.display = 'none';
       LoadingAnimation.bar.play('init-loading');
-
-      for (const type of Object.keys(Elements.Data)) {
-        for (const id of Object.keys(Elements.Data[type])) {
-          Pixi.removeElement({ type, id });
-          if (Elements.Interval[type] && Elements.Interval[type][id]) {
-            for (const interval of Object.keys(Elements.Interval[type][id]))
-              clearInterval(Elements.Interval[type][id][interval]);
-          }
-        }
-        Elements.Interval = {};
-        Elements.Data[type] = {};
-      }
+      Elements.removeAll();
     };
   },
 };

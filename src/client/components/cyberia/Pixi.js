@@ -171,7 +171,7 @@ const Pixi = {
       );
     }
   },
-  setComponents: function (options) {
+  setComponents: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
     const dim = this.MetaData.dim / Matrix.Data.dim;
     this.Data[type][id] = new Container();

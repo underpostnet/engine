@@ -1,237 +1,36 @@
-import { getDirection, newInstance } from '../core/CommonJs.js';
-import { Keyboard } from '../core/Keyboard.js';
+import { newInstance } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
-import { SocketIo } from '../core/SocketIo.js';
-import { BiomeEngine } from './Biome.js';
 import { BaseElement } from './CommonCyberia.js';
-import { Event } from './Event.js';
 import { Pixi } from './Pixi.js';
 
 const logger = loggerFactory(import.meta);
 
+const templateElement = BaseElement();
+
 const Elements = {
-  Data: BaseElement(),
+  Data: newInstance(templateElement),
   Interval: {},
-  Init: async function (options = { type: 'user', id: 'main' }) {
-    const { type, id } = options;
+  Init: function (options = { type: 'user', id: 'main', element: {} }) {
+    const { type, id, element } = options;
+    this.Data[type][id] = {
+      ...templateElement[type].main,
+      ...this.Data[type][id],
+      ...element,
+    };
     if (!this.Interval[type]) this.Interval[type] = {};
     if (!this.Interval[type][id]) this.Interval[type][id] = {};
-    const eventId = `${type}.${id}`;
-    Pixi.setComponents(options);
-
-    switch (eventId) {
-      case 'user.main':
-        Keyboard.Event[`${eventId}`] = {
-          ArrowLeft: () => {
-            const x = this.Data[type][id].x - this.Data[type][id].vel;
-            const y = this.Data[type][id].y;
-            if (BiomeEngine.isCollision({ type, id, x, y })) return;
-            this.Data[type][id].x = x;
-            Pixi.updatePosition(options);
-          },
-          ArrowRight: () => {
-            const x = this.Data[type][id].x + this.Data[type][id].vel;
-            const y = this.Data[type][id].y;
-            if (BiomeEngine.isCollision({ type, id, x, y })) return;
-            this.Data[type][id].x = x;
-            Pixi.updatePosition(options);
-          },
-          ArrowUp: () => {
-            const x = this.Data[type][id].x;
-            const y = this.Data[type][id].y - this.Data[type][id].vel;
-            if (BiomeEngine.isCollision({ type, id, x, y })) return;
-            this.Data[type][id].y = y;
-            Pixi.updatePosition(options);
-          },
-          ArrowDown: () => {
-            const x = this.Data[type][id].x;
-            const y = this.Data[type][id].y + this.Data[type][id].vel;
-            if (BiomeEngine.isCollision({ type, id, x, y })) return;
-            this.Data[type][id].y = y;
-            Pixi.updatePosition(options);
-          },
-        };
-
-        ['q'].map((key) => {
-          Keyboard.Event[`${eventId}`][key.toUpperCase()] = () =>
-            logger.warn(`${eventId} Keyboard.Event [${key.toUpperCase()}]`);
-          Keyboard.Event[`${eventId}`][key.toLowerCase()] = () =>
-            logger.warn(`${eventId} Keyboard.Event [${key.toLowerCase()}]`);
-        });
-
-        let lastX = newInstance(this.Data[type][id].x);
-        let lastY = newInstance(this.Data[type][id].y);
-        let lastDirection;
-        this.Interval[type][id]['main-skin-sprite-controller'] = setInterval(() => {
-          if (lastX !== this.Data[type][id].x || lastY !== this.Data[type][id].y) {
-            const direction = getDirection(lastX, lastY, this.Data[type][id].x, this.Data[type][id].y);
-            lastX = newInstance(this.Data[type][id].x);
-            lastY = newInstance(this.Data[type][id].y);
-            const stopX = newInstance(lastX);
-            const stopY = newInstance(lastY);
-            setTimeout(() => {
-              if (stopX === this.Data[type][id].x && stopY === this.Data[type][id].y) {
-                switch (lastDirection) {
-                  case 'n':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '02';
-                        return component;
-                      });
-                    break;
-                  case 's':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '08';
-                        return component;
-                      });
-                    break;
-                  case 'e':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'se':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'ne':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '06';
-                        return component;
-                      });
-                    break;
-                  case 'w':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  case 'sw':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  case 'nw':
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '04';
-                        return component;
-                      });
-                    break;
-                  default:
-                    if (this.Data[type][id].components.skin)
-                      this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                        component.position = '08';
-                        return component;
-                      });
-                    break;
-                }
-                for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
-                  Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
-                SocketIo.socket.emit(
-                  type,
-                  JSON.stringify({
-                    status: 'update-skin-position',
-                    element: { components: { skin: this.Data[type][id].components.skin } },
-                  }),
-                );
-              }
-            }, 500);
-            if (lastDirection === direction) return;
-            lastDirection = newInstance(direction);
-            logger.info('New direction', direction);
-            switch (direction) {
-              case 'n':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '12';
-                    return component;
-                  });
-                break;
-              case 's':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '18';
-                    return component;
-                  });
-                break;
-              case 'e':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '16';
-                    return component;
-                  });
-                break;
-              case 'se':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '16';
-                    return component;
-                  });
-                break;
-              case 'ne':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '16';
-                    return component;
-                  });
-                break;
-              case 'w':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '14';
-                    return component;
-                  });
-                break;
-              case 'sw':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '14';
-                    return component;
-                  });
-                break;
-              case 'nw':
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '14';
-                    return component;
-                  });
-                break;
-              default:
-                if (this.Data[type][id].components.skin)
-                  this.Data[type][id].components.skin = this.Data[type][id].components.skin.map((component) => {
-                    component.position = '18';
-                    return component;
-                  });
-                break;
-            }
-            for (const skinInterval of Object.keys(Pixi.Data[type][id].intervals['skin']))
-              Pixi.Data[type][id].intervals['skin'][skinInterval].callBack();
-            SocketIo.socket.emit(
-              type,
-              JSON.stringify({
-                status: 'update-skin-position',
-                element: { components: { skin: this.Data[type][id].components.skin } },
-              }),
-            );
-          }
-        }, Event.Data.globalTimeInterval);
-
-        break;
-
-      default:
-        break;
+  },
+  removeAll: function () {
+    for (const type of Object.keys(this.Data)) {
+      for (const id of Object.keys(this.Data[type])) {
+        Pixi.removeElement({ type, id });
+        if (this.Interval[type] && this.Interval[type][id]) {
+          for (const interval of Object.keys(this.Interval[type][id])) clearInterval(this.Interval[type][id][interval]);
+        }
+      }
     }
+    this.Interval = {};
+    this.Data = BaseElement();
   },
 };
 
