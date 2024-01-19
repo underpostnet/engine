@@ -43,6 +43,7 @@ const SocketIoCyberia = {
             break;
           case 'disconnect':
             delete Elements.Data[type][id];
+            Pixi.removeElement({ type, id });
             break;
           case 'connection':
             Elements.Data[type][id] = {

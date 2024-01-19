@@ -275,7 +275,6 @@ const Pixi = {
                       s(`.skin-${id}-${displayId}-${positionId}-${currentFrame}`).style.display =
                         position === positionId ? 'block' : 'none';
                   };
-
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
                     interval: setInterval(callBack, Event.Data.globalTimeInterval * 10),
@@ -327,6 +326,17 @@ const Pixi = {
         }),
       );
     }
+  },
+  removeElement: function (options = { type: 'user', id: 'main' }) {
+    const { type, id } = options;
+    for (const componentType of Object.keys(this.Data[type][id].intervals)) {
+      for (const keyIntervalInstance of Object.keys(this.Data[type][id].intervals[componentType])) {
+        if (this.Data[type][id].intervals[componentType][keyIntervalInstance].interval)
+          clearInterval(this.Data[type][id].intervals[componentType][keyIntervalInstance].interval);
+      }
+    }
+    this.Data[type][id].destroy();
+    delete this.Data[type][id];
   },
 };
 
