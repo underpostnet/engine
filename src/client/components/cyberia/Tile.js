@@ -18,7 +18,7 @@ const Tile = {
     let dataColor = [];
     let dataSolid = [];
     let solidMode = false;
-    const paint = async (x, y) => {
+    const paint = (x, y) => {
       for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
         for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
           if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
@@ -26,7 +26,7 @@ const Tile = {
             if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
             if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
             dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
-            dataSolid[y + sumY][x + sumX] = solidMode ? await Input.parseJsonEval('.tile-solid') : 0;
+            dataSolid[y + sumY][x + sumX] = solidMode ? Input.parseJsonEval('.tile-solid') : 0;
           }
         }
 
