@@ -13,7 +13,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { append, htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
@@ -132,6 +132,13 @@ const WorldLimit = (options = { type: undefined }) => {
 const WorldManagement = {
   biomeRender: new LoadBiomeRenderer(),
   Data: {},
+  LoadSingleFace: function (selector, src) {
+    for (const element of s(selector).children) element.style.display = 'none';
+    const adjacentMapDisplay = Array.from(s(selector).children).find((e) => e.src === src);
+    adjacentMapDisplay
+      ? (adjacentMapDisplay.style.display = 'block')
+      : append(selector, html`<img class="in adjacent-map-limit-img" src="${src}" />`);
+  },
   LoadAdjacentFaces: function (type, id, newFace) {
     for (const biomeKey of Object.keys(BiomeScope.Data)) {
       for (const limitType of ['top', 'bottom', 'left', 'right']) {
@@ -141,29 +148,14 @@ const WorldManagement = {
             WorldLimit({ type: this.Data[type][id].model.world.type })[newFace][limitType][0] - 1
           ]
         ) {
-          htmls(
-            `.adjacent-map-limit-${limitType}`,
-            html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
-          );
+          this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
           if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
-            htmls(
-              `.adjacent-map-limit-top-${limitType}`,
-              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
-            );
-            htmls(
-              `.adjacent-map-limit-bottom-${limitType}`,
-              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
-            );
+            this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
+            this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
           }
           if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
-            htmls(
-              `.adjacent-map-limit-${limitType}-right`,
-              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
-            );
-            htmls(
-              `.adjacent-map-limit-${limitType}-left`,
-              html`<img class="in adjacent-map-limit-img" src="${BiomeScope.Data[biomeKey].imageSrc}" />`,
-            );
+            this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeScope.Data[biomeKey].imageSrc);
+            this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeScope.Data[biomeKey].imageSrc);
           }
         }
       }
