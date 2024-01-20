@@ -90,6 +90,15 @@ const Polyhedron = {
               }
             `
           : css``}
+          ${options?.style?.scene
+          ? css`
+              .scene-${id} {
+                ${Object.keys(options.style.scene)
+                  .map((styleKey) => `${styleKey} : ${options.style.scene[styleKey]};`)
+                  .join('')}
+              }
+            `
+          : css``}
       </style>
       <!--
       <style class="polyhedron-animation-${id}"></style>

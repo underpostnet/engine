@@ -30,7 +30,7 @@ const Pixi = {
             /* overflow: hidden; */
           }
           .adjacent-map {
-            border: 2px solid #ff0000;
+            /* border: 2px solid #ff0000; */
           }
         </style>
         <div class="abs pixi-container">
