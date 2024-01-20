@@ -128,6 +128,10 @@ const CssCyberia = {
         color: #ffcc00;
         background: #313131;
       }
+      .container-component-hover:hover {
+        color: #ffcc00;
+        background: #313131;
+      }
 
       .input-container {
         cursor: pointer;

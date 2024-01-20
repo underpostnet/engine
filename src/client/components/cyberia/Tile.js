@@ -167,20 +167,20 @@ const Tile = {
           ${await Input.Render({
             id: `tile-name`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
           })}
           ${await Input.Render({
             id: `tile-color`,
             label: html`<i class="fa-solid fa-brush"></i> color`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             type: 'color',
             placeholder: true,
           })}
           ${await Input.Render({
             id: `tile-dim`,
             label: html`<i class="fa-solid fa-ruler"></i> dim`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             type: 'number',
             min: 0,
             placeholder: true,
@@ -189,7 +189,7 @@ const Tile = {
           ${await Input.Render({
             id: `tile-dimPaintByCell`,
             label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             type: 'number',
             min: 0,
             placeholder: true,
@@ -198,7 +198,7 @@ const Tile = {
           ${await Input.Render({
             id: `tile-weight`,
             label: html`<i class="fa-solid fa-ruler"></i> weight`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             type: 'number',
             min: 0,
             placeholder: true,
@@ -221,7 +221,7 @@ const Tile = {
                   },
                 })}
               </div>`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
             value: 1,
           })}

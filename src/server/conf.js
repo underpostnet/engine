@@ -126,6 +126,7 @@ const Config = {
             'Validator',
             'Polyhedron',
             'SignUp',
+            'Chat',
           ],
           cyberia: [
             'Pixi',

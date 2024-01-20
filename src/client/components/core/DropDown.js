@@ -125,7 +125,7 @@ const DropDown = {
             ${await Input.Render({
               id: `search-box-${id}`,
               label: html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
-              containerClass: 'container-component',
+              containerClass: 'inl container-component',
               placeholder: true,
             })}
           </div>

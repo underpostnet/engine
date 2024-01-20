@@ -8,7 +8,7 @@ const Input = {
       s(`.input-container-${id}`).onclick = () =>
         ['color'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
     });
-    return html` <div class="inl input-container-${id} ${options?.containerClass ? options.containerClass : ''}">
+    return html` <div class="${options?.containerClass ? options.containerClass : ''} input-container-${id}">
       <div class="in">
         <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
         <input

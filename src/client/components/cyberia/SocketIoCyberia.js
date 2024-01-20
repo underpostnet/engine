@@ -40,8 +40,8 @@ const SocketIoCyberia = {
             Pixi.triggerUpdateSkinPosition({ type, id });
             break;
           case 'disconnect':
-            delete Elements.Data[type][id];
             Pixi.removeElement({ type, id });
+            delete Elements.Data[type][id];
             break;
           case 'connection':
             Elements.Init({ type, id, element });
@@ -67,8 +67,8 @@ const SocketIoCyberia = {
       setTimeout((s('.ssr-background').style.opacity = '1'));
       s(`.main-user-content`).style.display = 'none';
       LoadingAnimation.bar.play('init-loading');
-      Elements.removeAll();
       Pixi.removeAll();
+      Elements.removeAll();
     };
   },
 };

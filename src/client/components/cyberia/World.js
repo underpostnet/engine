@@ -403,7 +403,7 @@ const World = {
               ${await Input.Render({
                 id: `world-name`,
                 label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
-                containerClass: 'section-mp container-component input-container',
+                containerClass: 'inl section-mp container-component input-container',
                 placeholder: true,
               })}
             </div>

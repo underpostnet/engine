@@ -104,6 +104,7 @@ const TranslateCore = {
     Translate.Data['width'] = { en: 'width', es: 'ancho' };
     Translate.Data['height'] = { en: 'height', es: 'altura' };
     Translate.Data['type'] = { en: 'Type', es: 'Tipo' };
+    Translate.Data['write'] = { en: 'write', es: 'escribir' };
   },
 };
 

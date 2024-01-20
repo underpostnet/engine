@@ -28,6 +28,7 @@ import { MainUser } from './components/cyberia/MainUser.js';
 import { SignUp } from './components/core/SignUp.js';
 import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
+import { Chat } from './components/core/Chat.js';
 
 await LoadingAnimation.bar.play('init-loading');
 
@@ -71,6 +72,7 @@ await Modal.Render({
     ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-sign-up', label: Translate.Render('sign-up') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-chat', label: 'Chat' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-3d', label: '3D Engine' })}
@@ -195,6 +197,20 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
     barConfig,
     title: Translate.Render('sign-up'),
     html: async () => await SignUp.Render(),
+    handleType: 'bar',
+    maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
+  });
+});
+
+EventsUI.onClick(`.main-btn-chat`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-chat',
+    barConfig,
+    title: 'Chat',
+    html: async () => await Chat.Render(),
     handleType: 'bar',
     maximize: true,
     mode: 'view',

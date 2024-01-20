@@ -747,7 +747,7 @@ const BiomeEngine = {
           ${await Input.Render({
             id: `input-name-${biome}`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
-            containerClass: 'section-mp container-component input-container',
+            containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
           })}
           <div class="in">

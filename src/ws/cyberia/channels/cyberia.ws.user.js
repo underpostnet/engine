@@ -1,18 +1,17 @@
 import { newInstance, objectEquals } from '../../../client/components/core/CommonJs.js';
 import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
+import { IoCreateChannel } from '../../IoInterface.js';
 
 const channel = 'user';
 const meta = { url: `ws-cyberia-${channel}` };
 const logger = loggerFactory(meta);
 
-const CyberiaWsUserChannel = {
-  element: {},
-  socket: {},
+const CyberiaWsUserController = {
   baseElement: BaseElement()[channel].main,
-  controller: function (socket, args) {
-    args = JSON.parse(args);
-    logger.info(`CyberiaWsUserChannel controller`, { id: socket.id, args });
+  element: {},
+  channel: channel,
+  controller: function (socket, client, args) {
     const { status, element } = args;
     switch (status) {
       case 'update-position':
@@ -23,7 +22,7 @@ const CyberiaWsUserChannel = {
             elementId !== socket.id &&
             objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
           ) {
-            this.socket[elementId].emit(
+            client[elementId].emit(
               channel,
               JSON.stringify({
                 status,
@@ -40,7 +39,7 @@ const CyberiaWsUserChannel = {
             elementId !== socket.id &&
             objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
           ) {
-            this.socket[elementId].emit(
+            client[elementId].emit(
               channel,
               JSON.stringify({
                 status: 'disconnect',
@@ -53,7 +52,7 @@ const CyberiaWsUserChannel = {
         for (const elementId of Object.keys(this.element)) {
           if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
             if (elementId !== socket.id) {
-              this.socket[elementId].emit(
+              client[elementId].emit(
                 channel,
                 JSON.stringify({
                   status: 'connection',
@@ -80,7 +79,7 @@ const CyberiaWsUserChannel = {
             elementId !== socket.id &&
             objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
           ) {
-            this.socket[elementId].emit(
+            client[elementId].emit(
               channel,
               JSON.stringify({
                 status,
@@ -95,16 +94,11 @@ const CyberiaWsUserChannel = {
         break;
     }
   },
-  connection: function (socket) {
-    logger.info(`CyberiaWsUserChannel connection`, socket.id);
-    socket.on(channel, (args) => this.controller(socket, args));
-
+  connection: function (socket, client) {
     this.element[socket.id] = newInstance(this.baseElement);
-    this.socket[socket.id] = socket;
-
     for (const elementId of Object.keys(this.element)) {
       if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
-        this.socket[elementId].emit(
+        client[elementId].emit(
           channel,
           JSON.stringify({
             status: 'connection',
@@ -124,14 +118,13 @@ const CyberiaWsUserChannel = {
       }
     }
   },
-  disconnect: function (socket, reason) {
-    logger.info(`CyberiaWsUserChannel disconnect`, socket.id, reason);
+  disconnect: function (socket, client, reason) {
     for (const elementId of Object.keys(this.element)) {
       if (
         elementId !== socket.id &&
         objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
       )
-        this.socket[elementId].emit(
+        client[elementId].emit(
           channel,
           JSON.stringify({
             status: 'disconnect',
@@ -140,8 +133,9 @@ const CyberiaWsUserChannel = {
         );
     }
     delete this.element[socket.id];
-    delete this.socket[socket.id];
   },
 };
 
-export { CyberiaWsUserChannel };
+const CyberiaWsUserChannel = IoCreateChannel(CyberiaWsUserController);
+
+export { CyberiaWsUserChannel, CyberiaWsUserController };
