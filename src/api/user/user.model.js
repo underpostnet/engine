@@ -1,5 +1,5 @@
 import { Schema, model } from 'mongoose';
-import { validationRules } from '../../client/components/core/CommonJs.js';
+import { CommonValidationRules } from '../../client/components/core/CommonValidationRules.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -10,7 +10,7 @@ const UserSchema = new Schema({
     lowercase: true,
     unique: true,
     required: 'Email address is required',
-    validate: [validationRules.validEmail, 'Please fill a valid email address'],
+    validate: [CommonValidationRules.validEmail, 'Please fill a valid email address'],
     match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address'],
   },
   password: { type: String, trim: true, required: 'Password is required' },

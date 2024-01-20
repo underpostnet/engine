@@ -1,4 +1,4 @@
-import { validationRules } from './CommonJs.js';
+import { CommonValidationRules } from './CommonValidationRules.js';
 import { renderStatus } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
@@ -24,7 +24,7 @@ const Validator = {
             default:
               break;
           }
-          if (!validationRules[rule.type](s(`.${validator.id}`).value, options)) {
+          if (!CommonValidationRules[rule.type](s(`.${validator.id}`).value, options)) {
             errorMessage += html` <div class="in">
               ${renderStatus('error', { class: 'inl' })} &nbsp
               <span style="color: red">${Translate.Render(rule.type)}</span>

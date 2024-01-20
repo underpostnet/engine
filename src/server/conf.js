@@ -104,6 +104,7 @@ const Config = {
         components: {
           core: [
             'CommonJs',
+            'CommonValidationRules',
             'VanillaJs',
             'Responsive',
             'Keyboard',
