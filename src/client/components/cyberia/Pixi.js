@@ -343,6 +343,13 @@ const Pixi = {
     for (const skinInterval of Object.keys(this.Data[type][id].intervals['skin']))
       this.Data[type][id].intervals['skin'][skinInterval].callBack();
   },
+  removeAll: function () {
+    for (const type of Object.keys(Elements.Data)) {
+      for (const id of Object.keys(Elements.Data[type])) {
+        this.removeElement({ type, id });
+      }
+    }
+  },
 };
 
 export { Pixi };

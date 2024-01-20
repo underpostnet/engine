@@ -68,6 +68,7 @@ const SocketIoCyberia = {
       s(`.main-user-content`).style.display = 'none';
       LoadingAnimation.bar.play('init-loading');
       Elements.removeAll();
+      Pixi.removeAll();
     };
   },
 };
