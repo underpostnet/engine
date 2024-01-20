@@ -218,6 +218,6 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
   });
 });
 
-disableOptionsClick('html', ['menu', 'drag', 'select']);
+disableOptionsClick('html', ['drag', 'select']);
 
 // await BiomeEngine.generateBiome('seed-city');
