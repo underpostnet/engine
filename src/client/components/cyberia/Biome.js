@@ -664,34 +664,36 @@ class LoadBiomeRenderer {
   async loadScope(params) {
     const rowId = this.idFactory(params);
 
-    const resultBiome = await CyberiaBiomeService.get(params.data._id);
+    if (!(rowId in BiomeScope.Data)) {
+      const resultBiome = await CyberiaBiomeService.get(params.data._id);
 
-    const biomeData = resultBiome.data[0];
+      const biomeData = resultBiome.data[0];
 
-    const resultFile = await FileService.get(biomeData.fileId);
+      const resultFile = await FileService.get(biomeData.fileId);
 
-    const imageData = resultFile.data[0];
+      const imageData = resultFile.data[0];
 
-    const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
 
-    const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
 
-    const imageSrc = URL.createObjectURL(imageFile);
+      const imageSrc = URL.createObjectURL(imageFile);
 
-    biomeData.color = Object.assign(
-      {},
-      biomeData.color.map((cell) => Object.assign({}, cell)),
-    );
-    biomeData.solid = Object.assign(
-      {},
-      biomeData.solid.map((cell) => Object.assign({}, cell)),
-    );
+      biomeData.color = Object.assign(
+        {},
+        biomeData.color.map((cell) => Object.assign({}, cell)),
+      );
+      biomeData.solid = Object.assign(
+        {},
+        biomeData.solid.map((cell) => Object.assign({}, cell)),
+      );
 
-    BiomeScope.Data[rowId] = {
-      ...biomeData,
-      imageFile,
-      imageSrc,
-    };
+      BiomeScope.Data[rowId] = {
+        ...biomeData,
+        imageFile,
+        imageSrc,
+      };
+    }
 
     return BiomeScope.Data[rowId];
   }

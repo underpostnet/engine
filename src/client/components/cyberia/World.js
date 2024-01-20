@@ -242,8 +242,10 @@ const WorldManagement = {
     if (!this.Data[type]) this.Data[type] = {};
     if (!this.Data[type][id]) this.Data[type][id] = { model: {} };
 
-    const { data } = await CyberiaWorldService.get(Elements.Data[type][id].model.world._id);
-    this.Data[type][id].model.world = data[0];
+    if (!('world' in this.Data[type][id].model)) {
+      const { data } = await CyberiaWorldService.get(Elements.Data[type][id].model.world._id);
+      this.Data[type][id].model.world = data[0];
+    }
 
     // load single world
     let indexFace = -1;

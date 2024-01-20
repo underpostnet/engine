@@ -23,6 +23,13 @@ const Input = {
       </div>
     </div>`;
   },
+  parseJsonEval: (selector) => {
+    try {
+      return JSON.parse(s(selector).value);
+    } catch (error) {
+      return s(selector).value;
+    }
+  },
 };
 
 export { Input };
