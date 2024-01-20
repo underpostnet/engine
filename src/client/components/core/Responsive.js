@@ -4,6 +4,7 @@ import { getResponsiveData } from './VanillaJs.js';
 const Responsive = {
   Data: {},
   Event: {},
+  Observer: ResizeObserver,
   getResponsiveData: function () {
     return newInstance(this.Data);
   },
@@ -16,17 +17,14 @@ const Responsive = {
     ResponsiveDataAmplitude.height = ResponsiveDataAmplitude.height * dimAmplitude;
     return ResponsiveDataAmplitude;
   },
-  Init: async function (options) {
-    const { globalTimeInterval } = options;
-    this.CallBack = () => {
+  Init: async function () {
+    this.Observer = new ResizeObserver(() => {
       const Data = getResponsiveData();
       if (Data.minValue !== this.Data.minValue || Data.maxValue !== this.Data.maxValue) {
         this.Data = Data;
         this.triggerEvents();
       }
-    };
-    this.CallBack();
-    this.Interval = setInterval(() => this.CallBack(), globalTimeInterval);
+    }).observe(document.documentElement);
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
