@@ -1,4 +1,5 @@
 import { loggerFactory } from '../../../server/logger.js';
+import { IoCreateChannel } from '../../IoInterface.js';
 
 const channel = 'chat';
 const meta = { url: `ws-core-${channel}` };
