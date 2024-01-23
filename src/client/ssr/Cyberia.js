@@ -97,11 +97,13 @@ ViewRender = (data) => html`
           }
         </style>
         <style></style>
-        <h1>Browser massively multiplayer online role-playing game.</h1>
-        <h2>
-          Immerse yourself in an exciting cyberpunk world with our pixel art MMORPG. Explore a dynamic online universe
-          right from your browser.
-        </h2>
+        <div style="display: none">
+          <h1>Browser massively multiplayer online role-playing game.</h1>
+          <h2>
+            Immerse yourself in an exciting cyberpunk world with our pixel art MMORPG. Explore a dynamic online universe
+            right from your browser.
+          </h2>
+        </div>
         <div class="ssr-body">
           <br />
           <img

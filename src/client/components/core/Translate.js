@@ -20,6 +20,7 @@ const Translate = {
   },
   Render: function (keyLang) {
     if (!(keyLang in this.Data)) {
+      // TODO: add translate package or library for this case
       logger.error('translate key lang does not exist: ', keyLang);
       return keyLang;
     }
@@ -105,6 +106,7 @@ const TranslateCore = {
     Translate.Data['height'] = { en: 'height', es: 'altura' };
     Translate.Data['type'] = { en: 'Type', es: 'Tipo' };
     Translate.Data['write'] = { en: 'write', es: 'escribir' };
+    Translate.Data['send'] = { en: 'Send', es: 'Enviar' };
   },
 };
 
