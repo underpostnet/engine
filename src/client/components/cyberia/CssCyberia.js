@@ -211,6 +211,13 @@ const CssCyberia = {
         color: #ffcc00;
         font-size: 15px;
       }
+      .chat-message-header {
+        color: #ffcc00;
+      }
+      .chat-box {
+        border: 2px solid #313131;
+        overflow: auto;
+      }
     `,
 };
 

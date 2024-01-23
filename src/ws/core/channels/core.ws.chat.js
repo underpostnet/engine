@@ -7,7 +7,13 @@ const logger = loggerFactory(meta);
 
 const CoreWsChatController = {
   channel,
-  controller: function (socket, client, args) {},
+  controller: function (socket, client, args) {
+    for (const socketId of Object.keys(client)) {
+      if (socketId !== socket.id) {
+        client[socketId].emit(channel, JSON.stringify({ id: socket.id, ...args }));
+      }
+    }
+  },
   connection: function (socket, client) {},
   disconnect: function (socket, client, reason) {},
 };

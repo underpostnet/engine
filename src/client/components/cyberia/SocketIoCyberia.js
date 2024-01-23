@@ -1,3 +1,4 @@
+import { Chat } from '../core/Chat.js';
 import { s4 } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -19,6 +20,10 @@ const SocketIoCyberia = {
           case 'user':
             if (args.id === SocketIo.socket.id) args.id = 'main';
 
+            break;
+
+          case 'chat':
+            if (s(`.chat-box`)) Chat.appendChatBox(args);
             break;
 
           default:

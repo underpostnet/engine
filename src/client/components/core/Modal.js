@@ -390,12 +390,19 @@ const Modal = {
 
     dragInstance = setDragInstance();
     if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();
-    // true
-    //   ? null
-    //   : new ResizeObserver(() => {
-    //       if (s(`.${idModal}`))
-    //         logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
-    //     }).observe(s(`.${idModal}`));
+    if (options.observer) {
+      this.Data[idModal].observerEvent = {};
+      this.Data[idModal].observer = new ResizeObserver(() => {
+        if (s(`.${idModal}`))
+          logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
+        Object.keys(this.Data[idModal].observerEvent).map((eventKey) =>
+          this.Data[idModal].observerEvent[eventKey]({
+            width: s(`.${idModal}`).offsetWidth,
+            height: s(`.${idModal}`).offsetHeight,
+          }),
+        );
+      }).observe(s(`.${idModal}`));
+    }
     // cancel: [cancel1, cancel2]
     return {
       id: idModal,

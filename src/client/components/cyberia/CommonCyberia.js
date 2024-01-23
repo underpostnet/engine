@@ -23,6 +23,7 @@ const BaseElement = () => {
     },
     bot: {},
     biome: {},
+    chat: {},
   };
 };
 

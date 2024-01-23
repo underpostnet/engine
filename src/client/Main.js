@@ -210,9 +210,10 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
     id: 'modal-chat',
     barConfig,
     title: 'Chat',
-    html: async () => await Chat.Render(),
+    html: async () => await Chat.Render({ idModal: 'modal-chat' }),
     handleType: 'bar',
     maximize: true,
+    observer: true,
     mode: 'view',
     slideMenu: 'modal-menu',
   });
