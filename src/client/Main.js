@@ -29,6 +29,7 @@ import { SignUp } from './components/core/SignUp.js';
 import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { Chat } from './components/core/Chat.js';
+import { LogIn } from './components/core/LogIn.js';
 
 await LoadingAnimation.bar.play('init-loading');
 
@@ -71,6 +72,7 @@ await Modal.Render({
     ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-log-in', label: Translate.Render('log-in') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-sign-up', label: Translate.Render('sign-up') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-chat', label: 'Chat' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
@@ -197,6 +199,20 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
     barConfig,
     title: Translate.Render('sign-up'),
     html: async () => await SignUp.Render(),
+    handleType: 'bar',
+    maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
+  });
+});
+
+EventsUI.onClick(`.main-btn-log-in`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-log-in',
+    barConfig,
+    title: Translate.Render('log-in'),
+    html: async () => await LogIn.Render(),
     handleType: 'bar',
     maximize: true,
     mode: 'view',

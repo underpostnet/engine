@@ -13,9 +13,9 @@ const API_BASE = `${window.location.protocol}//${location.host}${proxyPath}api${
 logger.info('Load service', API_BASE);
 
 const UserService = {
-  post: (body) =>
+  post: (body, uri = '') =>
     new Promise((resolve, reject) =>
-      fetch(API_BASE, {
+      fetch(`${API_BASE}${uri}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -35,14 +35,14 @@ const UserService = {
           return reject(error);
         }),
     ),
-  get: (id = '') =>
+  get: (id = '', token) =>
     new Promise((resolve, reject) =>
       fetch(`${API_BASE}/${id}`, {
         method: 'GET',
-        // headers: {
-        //   // 'Content-Type': 'application/json',
-        //   // 'Authorization': ''
-        // },
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: token ? `Bearer ${token}` : undefined,
+        },
         // body,
       })
         .then(async (res) => {

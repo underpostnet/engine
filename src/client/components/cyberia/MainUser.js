@@ -8,6 +8,8 @@ import { getDirection, newInstance } from '../core/CommonJs.js';
 import { Event } from './Event.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
+import { LogIn } from '../core/LogIn.js';
+import { UserService } from '../../services/user/user.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -30,7 +32,9 @@ const MainUser = {
     await WorldManagement.Load({ type, id });
     Matrix.InitCamera({ type, id });
 
-    Keyboard.Event[`${type}.${id}`] = {
+    const idEvent = `${type}.${id}`;
+
+    Keyboard.Event[idEvent] = {
       ArrowLeft: () => {
         const x = Elements.Data[type][id].x - Elements.Data[type][id].vel;
         const y = Elements.Data[type][id].y;
@@ -234,6 +238,19 @@ const MainUser = {
         );
       }
     }, Event.Data.globalTimeInterval);
+
+    LogIn.Events[idEvent] = (logInData) => {
+      Elements.Data.user.main.model.user = logInData.user;
+      Elements.Data.user.main.token = logInData.token;
+    };
+
+    const token = localStorage.getItem('jwt');
+    if (token) {
+      Elements.Data.user.main.token = token;
+      const result = await UserService.get('auth', token);
+      if (result.status === 'success' && result.data[0]) LogIn.Events[idEvent]({ token, user: result.data[0] });
+      else localStorage.removeItem('jwt');
+    }
   },
 };
 

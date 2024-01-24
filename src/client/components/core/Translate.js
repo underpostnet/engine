@@ -107,6 +107,14 @@ const TranslateCore = {
     Translate.Data['type'] = { en: 'Type', es: 'Tipo' };
     Translate.Data['write'] = { en: 'write', es: 'escribir' };
     Translate.Data['send'] = { en: 'Send', es: 'Enviar' };
+    Translate.Data['success-user-log-in'] = {
+      en: 'User successfully logged in.',
+      es: 'Usuario ha iniciado sesión exitosamente.',
+    };
+    Translate.Data['error-user-log-in'] = {
+      en: 'Error during user login. Please check your credentials and try again.',
+      es: 'Error durante el inicio de sesión del usuario. Por favor, verifica tus credenciales e intenta nuevamente.',
+    };
   },
 };
 

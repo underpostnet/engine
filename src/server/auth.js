@@ -7,6 +7,16 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
+const validatePassword = (plaintextPassword, hash) =>
+  new Promise((resolve) => {
+    bcrypt.compare(plaintextPassword, hash, function (error, result) {
+      if (!error && result) resolve(result); // true or false
+      else resolve(false);
+    });
+  });
+
+const getToken = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: `${process.env.EXPIRE}h` });
+
 const getPasswordHash = (password, saltRounds = 10) =>
   new Promise((resolve, reject) => {
     try {
@@ -33,6 +43,7 @@ const authMiddleware = (req, res, next) => {
           status: 'error',
           message: 'unauthorized: expire token',
         });
+      req.auth = response;
       return next();
     }
     return res.status(401).json({
@@ -48,4 +59,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-export { authMiddleware, getPasswordHash };
+export { authMiddleware, getPasswordHash, validatePassword, getToken };
