@@ -157,7 +157,7 @@ const Config = {
           {
             path: '/',
             title: 'Home',
-            client: 'Main',
+            client: 'Cyberia',
             ssr: 'Cyberia',
           },
           {
