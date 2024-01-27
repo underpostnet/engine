@@ -15,7 +15,7 @@ const SocketIo = {
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
     logger.info(`ws host:`, this.host);
-    const path = getProxyPath() !== '/' ? { path: `${getProxyPath()}socket.io/` } : undefined;
+    const path = getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined;
     const connectOptions = {
       path,
       auth: {

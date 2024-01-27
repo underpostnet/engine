@@ -33,6 +33,9 @@ import { LogIn } from './components/core/LogIn.js';
 import { LogOut } from './components/core/LogOut.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
+import { RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
+
+window.Routes = RoutesCyberia;
 
 await LoadingAnimation.bar.play('init-loading');
 
@@ -101,6 +104,7 @@ EventsUI.onClick(`.main-btn-bag`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-bag',
+    path: 'bag',
     barConfig,
     title: Translate.Render('bag'),
     html: async () => await Bag.Render(),

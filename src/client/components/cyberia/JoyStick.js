@@ -9,12 +9,11 @@ import { Elements } from './Elements.js';
 import { Event } from './Event.js';
 import { Pixi } from './Pixi.js';
 
-await import(`${getProxyPath()}dist/virtual-joystick/virtual-joystick.js`);
-
 const logger = loggerFactory(import.meta);
 
 const JoyStick = {
   Render: async function () {
+    await import(`${getProxyPath()}dist/virtual-joystick/virtual-joystick.js`);
     setTimeout(() => {
       const $joystick = s('virtual-joystick');
       setInterval(() => {

@@ -1,6 +1,6 @@
 import { getId } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend } from './VanillaJs.js';
+import { append, s, prepend, setURI, getProxyPath } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -56,6 +56,10 @@ const Modal = {
             if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
             if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
           };
+
+          // router
+
+          if (options.path) setURI(`${getProxyPath()}${options.path}`);
 
           break;
         case 'slide-menu':

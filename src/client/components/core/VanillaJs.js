@@ -169,7 +169,11 @@ function downloadFile(fileInstance, fileName) {
   return URL.revokeObjectURL(url);
 }
 
-const getProxyPath = () => (location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/');
+const getProxyPath = () => {
+  let path = location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/';
+  if (window.Routes && path !== '/' && path.slice(0, -1) in window.Routes()) path = '/';
+  return path;
+};
 
 export {
   s,

@@ -150,13 +150,20 @@ const Config = {
             'SocketIoCyberia',
             'LogInCyberia',
             'LogOutCyberia',
+            'RoutesCyberia',
           ],
           test: ['Test'],
         },
         views: [
           {
             path: '/',
-            title: 'Home',
+            title: 'MMORPG',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/bag',
+            title: 'bag',
             client: 'Cyberia',
             ssr: 'Cyberia',
           },
@@ -180,8 +187,10 @@ const Config = {
             import_name_build: '/dist/pixi.js/pixi.min.mjs',
           },
           {
+            folder: './node_modules/socket.io/client-dist',
+            public_folder: '/dist/socket.io',
             import_name: 'socket.io/client-dist/socket.io.esm.min.js',
-            import_name_build: '/socket.io/socket.io.esm.min.js',
+            import_name_build: '/dist/socket.io/socket.io.esm.min.js',
           },
           {
             folder: './node_modules/@fortawesome/fontawesome-free',
@@ -223,8 +232,22 @@ const Config = {
           proxy: [80, 443],
         },
       },
-      'www.example2.com': {
+      'www.cyberiaonline.com': {
         '/': {
+          client: 'cyberia',
+          apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          wss: ['cyberia'],
+          runtime: 'nodejs',
+          origins: [],
+          disabled: false,
+          proxy: [80, 443],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'example2-cyberia',
+          },
+        },
+        '/game': {
           client: 'cyberia',
           apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           wss: ['cyberia'],

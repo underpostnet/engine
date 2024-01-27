@@ -1,12 +1,12 @@
 import { Modal } from './Modal.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
-const proxyPath = getProxyPath();
-
+let proxyPath;
 // https://www.fontspace.com/
 
 const Css = {
   Init: async function (options) {
+    if (!proxyPath) proxyPath = getProxyPath();
     if (!options) options = { theme: 'default' };
     const { theme } = options;
     append(
@@ -769,28 +769,30 @@ scrollbar-width: none;
     append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
 };
 
-const barLabels = {
-  cyberia: {
-    close: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/close.png" />`,
-    maximize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/maximize.png" />`,
-    minimize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/minimize.png" />`,
-    restore: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/restore.png" />`,
-    menu: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/menu.png" />`,
-  },
-  fontawesome: {
-    close: html`<i class="fa-solid fa-xmark"></i>`,
-    maximize: html`<i class="fa-regular fa-square"></i>`,
-    minimize: html`<i class="fa-solid fa-window-minimize"></i>`,
-    restore: html`<i class="fa-regular fa-window-restore"></i>`,
-    menu: html`<i class="fa-solid fa-bars"></i>`,
-  },
-  default: {
-    close: html`X`,
-    maximize: html`▢`,
-    minimize: html`_`,
-    restore: html`□`,
-    menu: html`≡`,
-  },
+const barLabels = () => {
+  return {
+    cyberia: {
+      close: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/close.png" />`,
+      maximize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/maximize.png" />`,
+      minimize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/minimize.png" />`,
+      restore: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/restore.png" />`,
+      menu: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/menu.png" />`,
+    },
+    fontawesome: {
+      close: html`<i class="fa-solid fa-xmark"></i>`,
+      maximize: html`<i class="fa-regular fa-square"></i>`,
+      minimize: html`<i class="fa-solid fa-window-minimize"></i>`,
+      restore: html`<i class="fa-regular fa-window-restore"></i>`,
+      menu: html`<i class="fa-solid fa-bars"></i>`,
+    },
+    default: {
+      close: html`X`,
+      maximize: html`▢`,
+      minimize: html`_`,
+      restore: html`□`,
+      menu: html`≡`,
+    },
+  };
 };
 
 const barConfig = (options) => {
@@ -799,23 +801,23 @@ const barConfig = (options) => {
     buttons: {
       close: {
         disabled: false,
-        label: barLabels[barButtonsIconTheme].close,
+        label: barLabels()[barButtonsIconTheme].close,
       },
       maximize: {
         disabled: false,
-        label: barLabels[barButtonsIconTheme].maximize,
+        label: barLabels()[barButtonsIconTheme].maximize,
       },
       minimize: {
         disabled: false,
-        label: barLabels[barButtonsIconTheme].minimize,
+        label: barLabels()[barButtonsIconTheme].minimize,
       },
       restore: {
         disabled: false,
-        label: barLabels[barButtonsIconTheme].restore,
+        label: barLabels()[barButtonsIconTheme].restore,
       },
       menu: {
         disabled: true,
-        label: barLabels[barButtonsIconTheme].menu,
+        label: barLabels()[barButtonsIconTheme].menu,
       },
     },
   };

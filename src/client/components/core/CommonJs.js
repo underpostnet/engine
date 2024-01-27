@@ -266,13 +266,6 @@ function getValueFromJoinString(obj, path, join = '.') {
 const endpointFactory = (meta) => {
   const data = meta.url.split('/');
   let path = `/${data[data.length - 2]}`;
-  // try {
-  //   if (location) {
-  //     path = location.pathname.split('/');
-  //     path.pop();
-  //     path = path.pop();
-  //   }
-  // } catch (error) {}
   if (path === '/') path = '';
   return path;
 };
