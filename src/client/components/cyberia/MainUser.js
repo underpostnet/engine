@@ -4,7 +4,7 @@ import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 import { WorldManagement } from './World.js';
-import { getDirection, newInstance } from '../core/CommonJs.js';
+import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
 import { Event } from './Event.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -25,9 +25,10 @@ const MainUser = {
     });
     return html` <div class="abs center main-user-content"></div> `;
   },
-  Init: async function () {
+  Update: async function (options = { oldElement: {} }) {
     const type = 'user';
     const id = 'main';
+    const { oldElement } = options;
 
     await WorldManagement.Load({ type, id });
     Matrix.InitCamera({ type, id });
@@ -240,6 +241,29 @@ const MainUser = {
         );
       }
     }, Event.Data.globalTimeInterval);
+
+    if (Object.values(oldElement).length > 0) {
+      await WorldManagement.Load();
+
+      if (!objectEquals(oldElement.model.world, Elements.Data[type][id].model.world))
+        WorldManagement.EmitNewWorldFace({ type, id });
+
+      if (oldElement.x !== Elements.Data[type][id].x || oldElement.y !== Elements.Data[type][id].y)
+        SocketIo.socket.emit(
+          type,
+          JSON.stringify({
+            status: 'update-position',
+            element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
+          }),
+        );
+      SocketIo.socket.emit(
+        type,
+        JSON.stringify({
+          status: 'update-skin-position',
+          element: { components: { skin: Elements.Data[type][id].components.skin } },
+        }),
+      );
+    }
   },
 };
 

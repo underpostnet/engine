@@ -53,7 +53,7 @@ const SocketIoCyberia = {
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
               if (type === 'user' && id === 'main') {
-                await MainUser.Init();
+                await MainUser.Update();
                 resolve();
                 setTimeout(() => {
                   s('.ssr-background').style.opacity = 0;
