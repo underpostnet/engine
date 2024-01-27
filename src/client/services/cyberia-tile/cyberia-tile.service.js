@@ -8,14 +8,14 @@ const proxyPath = getProxyPath();
 
 const endpoint = endpointFactory(import.meta);
 
-const API_BASE = `${window.location.protocol}//${location.host}${proxyPath}api${endpoint}`;
+const API_BASE = () => `${window.location.protocol}//${location.host}${getProxyPath()}api${endpoint}`;
 
 logger.info('Load service', API_BASE);
 
 const CyberiaTileService = {
   post: (body) =>
     new Promise((resolve, reject) =>
-      fetch(API_BASE, {
+      fetch(API_BASE(), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ const CyberiaTileService = {
     ),
   get: (id = '') =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE}/${id}`, {
+      fetch(`${API_BASE()}/${id}`, {
         method: 'GET',
         // headers: {
         //   // 'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ const CyberiaTileService = {
     ),
   delete: (id = '') =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE}/${id}`, {
+      fetch(`${API_BASE()}/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',

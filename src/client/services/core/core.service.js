@@ -8,7 +8,7 @@ const proxyPath = getProxyPath();
 
 const endpoint = endpointFactory(import.meta);
 
-const API_BASE = `${window.location.protocol}//${location.host}${proxyPath}api${endpoint}`;
+const API_BASE = () => `${window.location.protocol}//${location.host}${getProxyPath()}api${endpoint}`;
 
 logger.info('Load service', API_BASE);
 

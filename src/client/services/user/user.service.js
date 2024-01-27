@@ -8,14 +8,14 @@ const proxyPath = getProxyPath();
 
 const endpoint = endpointFactory(import.meta);
 
-const API_BASE = `${window.location.protocol}//${location.host}${proxyPath}api${endpoint}`;
+const API_BASE = () => `${window.location.protocol}//${location.host}${getProxyPath()}api${endpoint}`;
 
 logger.info('Load service', API_BASE);
 
 const UserService = {
   post: (body, uri = '') =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE}${uri}`, {
+      fetch(`${API_BASE()}${uri}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -37,7 +37,7 @@ const UserService = {
     ),
   get: (id = '', token) =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE}/${id}`, {
+      fetch(`${API_BASE()}/${id}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -59,7 +59,7 @@ const UserService = {
     ),
   delete: (id = '') =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE}/${id}`, {
+      fetch(`${API_BASE()}/${id}`, {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
