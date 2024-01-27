@@ -312,6 +312,7 @@ const Modal = {
       if (options && 'barConfig' in options && options.barConfig.buttons.close.onClick)
         return options.barConfig.buttons.close.onClick();
       s(`.${idModal}`).style.opacity = '0';
+      if (this.Data[idModal].observer) this.Data[idModal].observer.disconnect();
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
         s(`.${idModal}`).remove();
@@ -392,16 +393,17 @@ const Modal = {
     if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();
     if (options.observer) {
       this.Data[idModal].observerEvent = {};
-      this.Data[idModal].observer = new ResizeObserver(() => {
-        if (s(`.${idModal}`))
-          logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
+      this.Data[idModal].observerCallBack = () => {
+        logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
         Object.keys(this.Data[idModal].observerEvent).map((eventKey) =>
           this.Data[idModal].observerEvent[eventKey]({
             width: s(`.${idModal}`).offsetWidth,
             height: s(`.${idModal}`).offsetHeight,
           }),
         );
-      }).observe(s(`.${idModal}`));
+      };
+      this.Data[idModal].observer = new ResizeObserver(this.Data[idModal].observerCallBack);
+      this.Data[idModal].observer.observe(s(`.${idModal}`));
     }
     // cancel: [cancel1, cancel2]
     return {

@@ -2,6 +2,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
+import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
@@ -31,9 +32,10 @@ const SignUp = {
         }
         const result = await UserService.post(body);
         NotificationManager.Push({
-          html: Translate.Render(`${result.status}-upload-user`),
+          html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-user`),
           status: result.status,
         });
+        if (result.status === 'success') LogIn.Trigger(result.data);
       });
     });
     return html`

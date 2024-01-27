@@ -1,15 +1,15 @@
 import { loggerFactory } from '../server/logger.js';
 
-const logger = loggerFactory(import.meta);
-
 const IoCreateChannel = (
   IoInterface = {
     channel: '',
+    meta: 'io-interface',
     connection: (socket, client) => {},
     controller: (socket, client, args) => {},
     disconnect: (socket, client, reason) => {},
   },
 ) => {
+  const logger = loggerFactory(IoInterface.meta);
   return {
     client: {},
     connection: function (socket) {

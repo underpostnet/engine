@@ -31,8 +31,11 @@ const UserService = {
     req.body.password = await getPasswordHash(req.body.password);
     req.body.role = 'user';
     const { _id } = await new UserModel(req.body).save();
-    const [result] = await UserModel.find({ _id }).select(select['all-name']);
-    return result;
+    const [user] = await UserModel.find({ _id }).select(select['auth']);
+    return {
+      token: getToken({ user }),
+      user,
+    };
   },
   get: async (req, res, options) => {
     let result = {};

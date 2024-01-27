@@ -924,6 +924,16 @@ const BiomeEngine = {
       -->
     `;
   },
+  getRandomAvailablePosition: function (options) {
+    const { type, id } = options;
+    let x, y;
+    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    while (x === undefined || y === undefined || this.isCollision({ type, id, x, y })) {
+      x = random(0, dim - 1);
+      y = random(0, dim - 1);
+    }
+    return { x, y };
+  },
   isCollision: function (options) {
     const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
     if (!biomeData || !biomeData.solid) return false;

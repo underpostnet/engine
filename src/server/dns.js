@@ -13,6 +13,7 @@ const Dns = {
   ip: null,
   ipDaemon: null,
   InitIpDaemon: async function () {
+    // WAN | NAT-VPS | LAN
     // DNS Records: [ANAME] -> [A] -> [ip]
     // DHCP (Dynamic Host Configuration Protocol) LAN RESERVE IP -> MAC ID
     // open ports to LAN IPv4

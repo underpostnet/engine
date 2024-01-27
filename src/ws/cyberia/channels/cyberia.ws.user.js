@@ -11,6 +11,7 @@ const CyberiaWsUserController = {
   baseElement: BaseElement()[channel].main,
   element: {},
   channel: channel,
+  meta,
   controller: function (socket, client, args) {
     const { status, element } = args;
     switch (status) {

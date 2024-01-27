@@ -218,6 +218,11 @@ const CssCyberia = {
         border: 2px solid #313131;
         overflow: auto;
       }
+      .warn-logout {
+        text-align: center;
+        padding-top: 50px;
+        padding-bottom: 50px;
+      }
     `,
 };
 

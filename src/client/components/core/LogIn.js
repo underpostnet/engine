@@ -8,7 +8,10 @@ import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 
 const LogIn = {
-  Events: {},
+  Event: {},
+  Trigger: async function (options) {
+    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
+  },
   Render: async function () {
     setTimeout(() => {
       const formData = [
@@ -26,10 +29,7 @@ const LogIn = {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post(body, '/auth');
-        if (result.status === 'success') {
-          localStorage.setItem('jwt', result.data.token);
-          for (const eventKey of Object.keys(this.Events)) this.Events[eventKey](result.data);
-        }
+        if (result.status === 'success') this.Trigger(result.data);
         NotificationManager.Push({
           html: Translate.Render(`${result.status}-user-log-in`),
           status: result.status,

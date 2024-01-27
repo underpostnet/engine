@@ -74,6 +74,8 @@ const MainUser = {
     let lastX = newInstance(Elements.Data[type][id].x);
     let lastY = newInstance(Elements.Data[type][id].y);
     let lastDirection;
+    if (Elements.Interval[type][id]['main-skin-sprite-controller'])
+      clearInterval(Elements.Interval[type][id]['main-skin-sprite-controller']);
     Elements.Interval[type][id]['main-skin-sprite-controller'] = setInterval(() => {
       if (lastX !== Elements.Data[type][id].x || lastY !== Elements.Data[type][id].y) {
         const direction = getDirection(lastX, lastY, Elements.Data[type][id].x, Elements.Data[type][id].y);
@@ -238,19 +240,6 @@ const MainUser = {
         );
       }
     }, Event.Data.globalTimeInterval);
-
-    LogIn.Events[idEvent] = (logInData) => {
-      Elements.Data.user.main.model.user = logInData.user;
-      Elements.Data.user.main.token = logInData.token;
-    };
-
-    const token = localStorage.getItem('jwt');
-    if (token) {
-      Elements.Data.user.main.token = token;
-      const result = await UserService.get('auth', token);
-      if (result.status === 'success' && result.data[0]) LogIn.Events[idEvent]({ token, user: result.data[0] });
-      else localStorage.removeItem('jwt');
-    }
   },
 };
 

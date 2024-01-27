@@ -139,13 +139,15 @@ const WorldManagement = {
       ? (adjacentMapDisplay.style.display = 'block')
       : append(selector, html`<img class="in adjacent-map-limit-img" src="${src}" />`);
   },
-  LoadAdjacentFaces: function (type, id, newFace) {
+  LoadAdjacentFaces: function (type, id) {
     for (const biomeKey of Object.keys(BiomeScope.Data)) {
       for (const limitType of ['top', 'bottom', 'left', 'right']) {
         if (
           BiomeScope.Data[biomeKey]._id ===
           this.Data[type][id].model.world.face[
-            WorldLimit({ type: this.Data[type][id].model.world.type })[newFace][limitType][0] - 1
+            WorldLimit({ type: this.Data[type][id].model.world.type })[Elements.Data[type][id].model.world.face][
+              limitType
+            ][0] - 1
           ]
         ) {
           this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
@@ -207,26 +209,30 @@ const WorldManagement = {
 
       Elements.Data[type][id].x = newX;
       Elements.Data[type][id].y = newY;
+      Elements.Data[type][id].model.world.face = newFace;
       await this.biomeRender.load({
         data: newBiome,
       });
-      Elements.Data[type][id].model.world.face = newFace;
       this.LoadAdjacentFaces(type, id, newFace);
       htmls('.display-current-face', newFace);
-      for (const userId of Object.keys(Elements.Data.user)) {
-        if (userId !== 'main') {
-          delete Elements.Data.user[userId];
-          Pixi.removeElement({ type: 'user', id: userId });
-        }
-      }
-      SocketIo.socket.emit(
-        type,
-        JSON.stringify({
-          status: 'update-world-face',
-          element: { model: { world: Elements.Data[type][id].model.world } },
-        }),
-      );
+      this.EmitNewWorldFace({ type, id });
     }
+  },
+  EmitNewWorldFace: (options) => {
+    const { type, id } = options;
+    for (const userId of Object.keys(Elements.Data.user)) {
+      if (userId !== 'main') {
+        delete Elements.Data.user[userId];
+        Pixi.removeElement({ type: 'user', id: userId });
+      }
+    }
+    SocketIo.socket.emit(
+      type,
+      JSON.stringify({
+        status: 'update-world-face',
+        element: { model: { world: Elements.Data[type][id].model.world } },
+      }),
+    );
   },
   Load: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
@@ -254,7 +260,7 @@ const WorldManagement = {
         await this.biomeRender.loadScope({
           data: { _id },
         });
-      this.LoadAdjacentFaces(type, id, Elements.Data.user.main.model.world.face);
+      this.LoadAdjacentFaces(type, id);
       htmls('.display-current-face', Elements.Data.user.main.model.world.face);
     }
   },

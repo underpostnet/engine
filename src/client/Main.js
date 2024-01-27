@@ -25,11 +25,14 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Polyhedron } from './components/core/Polyhedron.js';
 import { World } from './components/cyberia/World.js';
 import { MainUser } from './components/cyberia/MainUser.js';
-import { SignUp } from './components/core/SignUp.js';
 import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { Chat } from './components/core/Chat.js';
+import { SignUp } from './components/core/SignUp.js';
 import { LogIn } from './components/core/LogIn.js';
+import { LogOut } from './components/core/LogOut.js';
+import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
+import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
 
 await LoadingAnimation.bar.play('init-loading');
 
@@ -44,16 +47,6 @@ await Keyboard.Init({
 
 append('body', await MainUser.Render());
 await Pixi.Init();
-
-await (async () => {
-  // ws or rest init user data
-
-  await SocketIo.Init({
-    channels: Elements.Data,
-  });
-
-  SocketIoCyberia.Init();
-})();
 
 await Responsive.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
@@ -74,6 +67,11 @@ await Modal.Render({
     ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-log-in', label: Translate.Render('log-in') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-sign-up', label: Translate.Render('sign-up') })}
+    ${await BtnIcon.Render({
+      class: 'main-btn main-btn-log-out',
+      label: Translate.Render('log-out'),
+      style: 'display: none',
+    })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-chat', label: 'Chat' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-biome', label: 'Biome Engine' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-tile', label: 'Tile Engine' })}
@@ -198,7 +196,21 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
     id: 'modal-sign-up',
     barConfig,
     title: Translate.Render('sign-up'),
-    html: async () => await SignUp.Render(),
+    html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
+    handleType: 'bar',
+    maximize: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
+  });
+});
+
+EventsUI.onClick(`.main-btn-log-out`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-log-out',
+    barConfig,
+    title: Translate.Render('log-out'),
+    html: async () => await LogOut.Render(),
     handleType: 'bar',
     maximize: true,
     mode: 'view',
@@ -238,3 +250,18 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
 disableOptionsClick('html', ['drag', 'select']);
 
 // await BiomeEngine.generateBiome('seed-city');
+
+await (async () => {
+  // ws or rest init user data
+
+  Elements.Init({ type: 'user', id: 'main' });
+
+  await SocketIo.Init({
+    channels: Elements.Data,
+  });
+
+  await SocketIoCyberia.Init();
+
+  await LogOutCyberia();
+  await LogInCyberia();
+})();

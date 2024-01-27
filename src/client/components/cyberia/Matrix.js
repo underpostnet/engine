@@ -30,10 +30,12 @@ const Matrix = {
   },
   InitCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
-    Elements.Interval[type][id]['camera'] = setInterval(async () => {
+    if (!Elements.Interval[type][id]['camera']) {
       await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
-    }, Event.Data.globalTimeInterval);
+      Elements.Interval[type][id]['camera'] = setInterval(async () => {
+        await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
+      }, Event.Data.globalTimeInterval);
+    }
   },
   UpdateAdjacentLimit: function (params) {
     const { gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;

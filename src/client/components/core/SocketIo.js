@@ -19,7 +19,7 @@ const SocketIo = {
     const connectOptions = {
       path,
       auth: {
-        token: localStorage.getItem('jwt'),
+        token: '',
       },
       // query: {
       //   'my-key': 'my-value',

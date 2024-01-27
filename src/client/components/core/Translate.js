@@ -94,6 +94,7 @@ const TranslateCore = {
     Translate.Data['select-role'] = { en: 'Select Role', es: 'Seleccionar Rol' };
     Translate.Data['sign-up'] = { en: 'Sign Up', es: 'Registrarse' };
     Translate.Data['log-in'] = { en: 'Log In', es: 'Ingresar' };
+    Translate.Data['log-out'] = { en: 'Log Out', es: 'Cerrar Sesión' };
     Translate.Data['broker'] = { en: 'Broker', es: 'Agente de ventas' };
     Translate.Data['owner'] = { en: 'Owner', es: 'Propietario' };
     Translate.Data['password'] = { en: 'Password', es: 'Contraseña' };
@@ -115,6 +116,8 @@ const TranslateCore = {
       en: 'Error during user login. Please check your credentials and try again.',
       es: 'Error durante el inicio de sesión del usuario. Por favor, verifica tus credenciales e intenta nuevamente.',
     };
+    Translate.Data['confirm-logout'] = { en: 'Confirm Logout', es: 'Confirmar cierre de sesión' };
+    Translate.Data['success-logout'] = { en: 'Successful session logout', es: 'Cierre de sesión exitoso' };
   },
 };
 

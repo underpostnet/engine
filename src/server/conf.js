@@ -127,6 +127,7 @@ const Config = {
             'Polyhedron',
             'SignUp',
             'LogIn',
+            'LogOut',
             'Chat',
           ],
           cyberia: [
@@ -147,6 +148,8 @@ const Config = {
             'Universe',
             'CommonCyberia',
             'SocketIoCyberia',
+            'LogInCyberia',
+            'LogOutCyberia',
           ],
           test: ['Test'],
         },
