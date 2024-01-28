@@ -288,7 +288,7 @@ const World = {
     });
     if (resultWorlds.status === 'success') this.worlds = resultWorlds.data;
 
-    const resultBiome = await CyberiaBiomeService.get('all-name');
+    const resultBiome = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
       html: resultBiome.status === 'success' ? Translate.Render(resultBiome.message) : resultBiome.message,
       status: resultBiome.status,

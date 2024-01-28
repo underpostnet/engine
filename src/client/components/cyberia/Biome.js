@@ -628,7 +628,7 @@ class LoadBiomeRenderer {
         s(`.dropdown-option-${params.data.biome}`).click();
       });
       EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
-        const biomeDeleteResult = await CyberiaBiomeService.delete(params.data._id);
+        const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
         NotificationManager.Push({
           html:
             biomeDeleteResult.status === 'success'
@@ -667,7 +667,7 @@ class LoadBiomeRenderer {
     const rowId = this.idFactory(params);
 
     if (!(rowId in BiomeScope.Data)) {
-      const resultBiome = await CyberiaBiomeService.get(params.data._id);
+      const resultBiome = await CyberiaBiomeService.get({ id: params.data._id });
 
       const biomeData = resultBiome.data[0];
 
@@ -714,7 +714,7 @@ class LoadBiomeRenderer {
 
 const BiomeEngine = {
   Render: async function (options) {
-    const resultBiome = await CyberiaBiomeService.get('all-name');
+    const resultBiome = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
       html: resultBiome.status === 'success' ? Translate.Render(resultBiome.message) : resultBiome.message,
       status: resultBiome.status,
@@ -831,14 +831,16 @@ const BiomeEngine = {
               solid = Object.values(solid).map((row) => Object.values(row));
               const { dim, dimPaintByCell, dimAmplitude } = Matrix.Data;
               const { status, data } = await CyberiaBiomeService.post({
-                fileId,
-                solid,
-                color,
-                name: s(`.input-name-${biome}`).value,
-                biome,
-                dim,
-                dimPaintByCell,
-                dimAmplitude,
+                body: {
+                  fileId,
+                  solid,
+                  color,
+                  name: s(`.input-name-${biome}`).value,
+                  biome,
+                  dim,
+                  dimPaintByCell,
+                  dimAmplitude,
+                },
               });
               NotificationManager.Push({
                 html: Translate.Render(`${status}-upload-biome`),
