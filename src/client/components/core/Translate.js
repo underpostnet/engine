@@ -119,6 +119,10 @@ const TranslateCore = {
     Translate.Data['confirm-logout'] = { en: 'Confirm Logout', es: 'Confirmar cierre de sesión' };
     Translate.Data['success-logout'] = { en: 'Successful session logout', es: 'Cierre de sesión exitoso' };
     Translate.Data['account'] = { en: 'Account', es: 'Cuenta' };
+
+    Translate.Data['update'] = { en: 'Update', es: 'Actualizar' };
+    Translate.Data['success-update-user'] = { en: 'user update successfully', es: 'usuario actualizado correctamente' };
+    Translate.Data['error-update-user'] = { en: 'error update user', es: 'error al actualizar el usuario' };
   },
 };
 
