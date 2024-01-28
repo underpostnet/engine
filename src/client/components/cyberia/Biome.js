@@ -637,7 +637,7 @@ class LoadBiomeRenderer {
           status: biomeDeleteResult.status,
         });
 
-        const fileDeleteResult = await FileService.delete(params.data.fileId);
+        const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
         NotificationManager.Push({
           html:
             fileDeleteResult.status === 'success'
@@ -671,7 +671,7 @@ class LoadBiomeRenderer {
 
       const biomeData = resultBiome.data[0];
 
-      const resultFile = await FileService.get(biomeData.fileId);
+      const resultFile = await FileService.get({ id: biomeData.fileId });
 
       const imageData = resultFile.data[0];
 
@@ -817,7 +817,7 @@ const BiomeEngine = {
           body.append('file', BiomeScope.Keys[biome].imageFile);
           let fileId;
           await (async () => {
-            const { status, data } = await FileService.post(body);
+            const { status, data } = await FileService.post({ body });
             // await timer(3000);
             NotificationManager.Push({
               html: Translate.Render(`${status}-upload-file`),

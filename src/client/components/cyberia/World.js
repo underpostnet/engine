@@ -457,7 +457,7 @@ const World = {
   },
   renderFace: async function (index) {
     if (this.WorldScope.face[index] && this.WorldScope.face[index].fileId) {
-      const resultFile = await FileService.get(this.WorldScope.face[index].fileId);
+      const resultFile = await FileService.get({ id: this.WorldScope.face[index].fileId });
 
       const imageData = resultFile.data[0];
 

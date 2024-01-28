@@ -131,7 +131,7 @@ const Tile = {
         });
         const body = new FormData();
         body.append('file', tileFile);
-        const { status, data } = await FileService.post(body);
+        const { status, data } = await FileService.post({ body });
         NotificationManager.Push({
           html: Translate.Render(`${status}-upload-file`),
           status,
