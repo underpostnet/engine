@@ -34,6 +34,7 @@ import { LogOut } from './components/core/LogOut.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
 import { RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
+import { RouterCyberia } from './components/cyberia/RouterCyberia.js';
 
 window.Routes = RoutesCyberia;
 
@@ -253,19 +254,15 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
 
 disableOptionsClick('html', ['drag', 'select']);
 
-// await BiomeEngine.generateBiome('seed-city');
+Elements.Init({ type: 'user', id: 'main' });
 
-await (async () => {
-  // ws or rest init user data
+await SocketIo.Init({
+  channels: Elements.Data,
+});
 
-  Elements.Init({ type: 'user', id: 'main' });
+await SocketIoCyberia.Init();
 
-  await SocketIo.Init({
-    channels: Elements.Data,
-  });
+await LogOutCyberia();
+await LogInCyberia();
 
-  await SocketIoCyberia.Init();
-
-  await LogOutCyberia();
-  await LogInCyberia();
-})();
+RouterCyberia();

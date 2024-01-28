@@ -24,7 +24,8 @@ const Responsive = {
         this.Data = Data;
         this.triggerEvents();
       }
-    }).observe(document.documentElement);
+    });
+    this.Observer.observe(document.documentElement);
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();

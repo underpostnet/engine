@@ -945,10 +945,15 @@ const renderStatus = (status, options) => {
   }
 };
 
+const dynamicColTokens = {};
+
 const dynamicCol = (options) => {
   const { containerSelector, id } = options;
+  if (!(id in dynamicColTokens)) dynamicColTokens[id] = {};
+  dynamicColTokens[id].options = options;
+  if (dynamicColTokens[id].observer) dynamicColTokens[id].observer.disconnect();
   setTimeout(() => {
-    new ResizeObserver(() => {
+    dynamicColTokens[id].observer = new ResizeObserver(() => {
       if (s(`.${containerSelector}`)) {
         if (s(`.${containerSelector}`).offsetWidth < 900)
           htmls(
@@ -972,7 +977,8 @@ const dynamicCol = (options) => {
             `,
           );
       }
-    }).observe(s(`.${containerSelector}`));
+    });
+    dynamicColTokens[id].observer.observe(s(`.${containerSelector}`));
   });
   return html` <style class="style-${id}-col"></style>`;
 };
@@ -987,4 +993,5 @@ export {
   renderDefaultWindowsModalButtonContent,
   renderStatus,
   dynamicCol,
+  dynamicColTokens,
 };

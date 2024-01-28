@@ -151,6 +151,7 @@ const Config = {
             'LogInCyberia',
             'LogOutCyberia',
             'RoutesCyberia',
+            'RouterCyberia',
           ],
           test: ['Test'],
         },
