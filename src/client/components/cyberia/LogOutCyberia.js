@@ -1,3 +1,4 @@
+import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
 import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
@@ -21,6 +22,7 @@ const LogOutCyberia = function () {
 
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
+    Auth.deleteToken();
     await MainUser.Update({ oldElement });
 
     NotificationManager.Push({

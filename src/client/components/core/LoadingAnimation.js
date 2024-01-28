@@ -45,7 +45,7 @@ const LoadingAnimation = {
         const url = getProxyPath() + 'dist/loadingio/' + spinner + '/index.html';
         this.spinners[spinner] = {
           url,
-          html: await CoreService.getRaw(url),
+          html: await CoreService.getRaw({ url }),
         };
         append(
           'head',

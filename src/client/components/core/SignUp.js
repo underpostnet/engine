@@ -30,7 +30,7 @@ const SignUp = {
         for (const inputData of formData) {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
-        const result = await UserService.post(body);
+        const result = await UserService.post({ body });
         NotificationManager.Push({
           html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-user`),
           status: result.status,

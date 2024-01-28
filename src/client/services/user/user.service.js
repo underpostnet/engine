@@ -1,27 +1,24 @@
+import { Auth } from '../../components/core/Auth.js';
 import { endpointFactory } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { getProxyPath } from '../../components/core/VanillaJs.js';
+import { ApiBase } from '../core/core.service.js';
 
 const logger = loggerFactory({ url: `${endpointFactory(import.meta)}-service` });
 
-const proxyPath = getProxyPath();
-
 const endpoint = endpointFactory(import.meta);
 
-const API_BASE = () => `${window.location.protocol}//${location.host}${getProxyPath()}api${endpoint}`;
-
-logger.info('Load service', API_BASE);
+logger.info('Load service');
 
 const UserService = {
-  post: (body, uri = '') =>
+  post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE()}${uri}`, {
+      fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': ''
+          Authorization: Auth.getJWT(),
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(options.body),
       })
         .then(async (res) => {
           return await res.json();
@@ -35,15 +32,14 @@ const UserService = {
           return reject(error);
         }),
     ),
-  get: (id = '', token) =>
+  get: (options = { id: '' }) =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE()}/${id}`, {
+      fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: token ? `Bearer ${token}` : undefined,
+          Authorization: Auth.getJWT(),
         },
-        // body,
       })
         .then(async (res) => {
           return await res.json();
@@ -57,15 +53,15 @@ const UserService = {
           return reject(error);
         }),
     ),
-  delete: (id = '') =>
+  delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(`${API_BASE()}/${id}`, {
+      fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: {
           'Content-Type': 'application/json',
-          // 'Authorization': ''
+          Authorization: Auth.getJWT(),
         },
-        // body: JSON.stringify(body),
+        body: JSON.stringify(options.body),
       })
         .then(async (res) => {
           return await res.json();

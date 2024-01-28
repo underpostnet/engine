@@ -1,12 +1,11 @@
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from '../core/Auth.js';
 import { newInstance, objectEquals } from '../core/CommonJs.js';
 import { LogIn } from '../core/LogIn.js';
-import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
 import { BaseElement } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
-import { WorldManagement } from './World.js';
 
 const LogInCyberia = async function () {
   const type = 'user';
@@ -27,12 +26,13 @@ const LogInCyberia = async function () {
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
     Elements.Data[type][id].model.user = user;
-    Elements.Data[type][id].token = token;
+    Auth.setToken(token);
     await MainUser.Update({ oldElement });
   };
   const token = localStorage.getItem('jwt');
   if (token) {
-    const result = await UserService.get('auth', token);
+    Auth.setToken(token);
+    const result = await UserService.get({ id: 'auth' });
     if (result.status === 'success' && result.data[0]) {
       const [user] = result.data;
       await LogIn.Trigger({

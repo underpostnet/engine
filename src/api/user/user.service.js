@@ -13,29 +13,36 @@ const select = {
 };
 
 const UserService = {
-  auth: async (req, res, options) => {
-    const user = await UserModel.find({ email: req.body.email });
-    let result;
-    if (user[0]) {
-      const login = await validatePassword(req.body.password, user[0].password);
-      if (login === true) {
+  post: async (req, res, options) => {
+    let result, user, _id, save, find, login;
+    switch (req.params.id) {
+      case 'auth':
+        user = await UserModel.find({ email: req.body.email });
+        if (user[0]) {
+          login = await validatePassword(req.body.password, user[0].password);
+          if (login === true) {
+            result = {
+              token: getToken({ user: user[0] }),
+              user: await UserModel.find({ _id: user[0]._id.toString() }).select(select['auth'])[0],
+            };
+          }
+        }
+        break;
+
+      default:
+        req.body.password = await getPasswordHash(req.body.password);
+        req.body.role = 'user';
+        save = await new UserModel(req.body).save();
+        _id = save._id;
+        find = await UserModel.find({ _id }).select(select['auth']);
+        user = find[0];
         result = {
-          token: getToken({ user: user[0] }),
-          user: await UserModel.find({ _id: user[0]._id.toString() }).select(select['auth'])[0],
+          token: getToken({ user }),
+          user,
         };
-      }
+        break;
     }
     return result;
-  },
-  post: async (req, res, options) => {
-    req.body.password = await getPasswordHash(req.body.password);
-    req.body.role = 'user';
-    const { _id } = await new UserModel(req.body).save();
-    const [user] = await UserModel.find({ _id }).select(select['auth']);
-    return {
-      token: getToken({ user }),
-      user,
-    };
   },
   get: async (req, res, options) => {
     let result = {};
@@ -46,6 +53,7 @@ const UserService = {
         break;
 
       case 'auth':
+        logger.error(req.auth);
         result = await UserModel.find({ _id: req.auth.user._id }).select(select['auth']);
         break;
 

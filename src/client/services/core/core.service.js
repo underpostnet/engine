@@ -4,18 +4,17 @@ import { getProxyPath } from '../../components/core/VanillaJs.js';
 
 const logger = loggerFactory({ url: `${endpointFactory(import.meta)}-service` });
 
-const proxyPath = getProxyPath();
+const ApiBase = (options = { id: '', endpoint: '' }) =>
+  `${window.location.protocol}//${location.host}${getProxyPath()}api${options?.endpoint ? options.endpoint : ''}${
+    options?.id ? `/${options.id}` : ''
+  }`;
 
-const endpoint = endpointFactory(import.meta);
-
-const API_BASE = () => `${window.location.protocol}//${location.host}${getProxyPath()}api${endpoint}`;
-
-logger.info('Load service', API_BASE);
+logger.info('Load service');
 
 const CoreService = {
-  getRaw: (url) =>
+  getRaw: (options = { url: '' }) =>
     new Promise((resolve, reject) =>
-      fetch(url, {
+      fetch(options.url, {
         method: 'GET',
         // headers: {
         //   // 'Content-Type': 'application/json',
@@ -37,4 +36,4 @@ const CoreService = {
     ),
 };
 
-export { CoreService };
+export { CoreService, ApiBase };

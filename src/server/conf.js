@@ -131,6 +131,7 @@ const Config = {
             'Chat',
             'Router',
             'Account',
+            'Auth',
           ],
           cyberia: [
             'Pixi',

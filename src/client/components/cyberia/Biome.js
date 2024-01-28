@@ -542,7 +542,9 @@ const Biome = {
         let sectionSolidMatrix;
         if (dataSection) {
           const allData = JSON.parse(
-            await CoreService.getRaw(`${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`),
+            await CoreService.getRaw({
+              url: `${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`,
+            }),
           );
 
           sectionSolidMatrix = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));

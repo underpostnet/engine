@@ -28,7 +28,7 @@ const LogIn = {
         for (const inputData of formData) {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
-        const result = await UserService.post(body, '/auth');
+        const result = await UserService.post({ id: 'auth', body });
         if (result.status === 'success') this.Trigger(result.data);
         NotificationManager.Push({
           html: Translate.Render(`${result.status}-user-log-in`),
