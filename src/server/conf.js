@@ -130,6 +130,7 @@ const Config = {
             'LogOut',
             'Chat',
             'Router',
+            'Account',
           ],
           cyberia: [
             'Pixi',
@@ -214,6 +215,11 @@ const Config = {
           },
           {
             path: '/world',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/account',
             client: 'Cyberia',
             ssr: 'Cyberia',
           },

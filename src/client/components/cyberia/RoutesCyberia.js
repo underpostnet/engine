@@ -25,6 +25,12 @@ const RoutesCyberia = () => {
       hideDisplay: true,
       translateTitle: true,
     },
+    '/account': {
+      title: 'account',
+      render: () => s(`.main-btn-account`).click(),
+      hideDisplay: true,
+      translateTitle: true,
+    },
     '/chat': { title: 'Chat', render: () => s(`.main-btn-chat`).click() },
     '/biome': { title: 'Biome Engine', render: () => s(`.main-btn-biome`).click() },
     '/tile': { title: 'Tile Engine', render: () => s(`.main-btn-tile`).click() },

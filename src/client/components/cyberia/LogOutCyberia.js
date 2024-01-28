@@ -14,6 +14,7 @@ const LogOutCyberia = function () {
 
     localStorage.removeItem('jwt');
     s(`.main-btn-log-out`).style.display = 'none';
+    s(`.main-btn-account`).style.display = 'none';
     s(`.main-btn-log-in`).style.display = null;
     s(`.main-btn-sign-up`).style.display = null;
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();

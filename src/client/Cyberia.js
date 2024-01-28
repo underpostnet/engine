@@ -35,6 +35,7 @@ import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
 import { NameApp, RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Router } from './components/core/Router.js';
+import { Account } from './components/core/Account.js';
 
 // Router
 window.Routes = RoutesCyberia;
@@ -79,6 +80,11 @@ await Modal.Render({
     ${await BtnIcon.Render({
       class: 'main-btn main-btn-log-out',
       label: Translate.Render('log-out'),
+      style: 'display: none',
+    })}
+    ${await BtnIcon.Render({
+      class: 'main-btn main-btn-account',
+      label: Translate.Render('account'),
       style: 'display: none',
     })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-chat', label: 'Chat' })}
@@ -272,6 +278,22 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
     handleType: 'bar',
     maximize: true,
     observer: true,
+    mode: 'view',
+    slideMenu: 'modal-menu',
+    RouterOptions,
+  });
+});
+
+EventsUI.onClick(`.main-btn-account`, async () => {
+  const { barConfig } = await Themes[Css.currentTheme]();
+  await Modal.Render({
+    id: 'modal-account',
+    route: 'account',
+    barConfig,
+    title: Translate.Render('account'),
+    html: async () => await Account.Render({ idModal: 'modal-account' }),
+    handleType: 'bar',
+    maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
     RouterOptions,
