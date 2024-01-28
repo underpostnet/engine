@@ -129,6 +129,7 @@ const Config = {
             'LogIn',
             'LogOut',
             'Chat',
+            'Router',
           ],
           cyberia: [
             'Pixi',
@@ -151,7 +152,6 @@ const Config = {
             'LogInCyberia',
             'LogOutCyberia',
             'RoutesCyberia',
-            'RouterCyberia',
           ],
           test: ['Test'],
         },
@@ -164,7 +164,56 @@ const Config = {
           },
           {
             path: '/bag',
-            title: 'bag',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/colors',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/settings',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/log-in',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/sign-up',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/log-out',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/chat',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/biome',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/tile',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/3d',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/world',
             client: 'Cyberia',
             ssr: 'Cyberia',
           },

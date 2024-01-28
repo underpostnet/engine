@@ -1,10 +1,11 @@
 import { getId } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setURI, getProxyPath } from './VanillaJs.js';
+import { append, s, prepend, setURI, getProxyPath, getURI } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
 import { renderStatus } from './Css.js';
+import { setDocTitle } from './Router.js';
 
 const Modal = {
   Data: {},
@@ -16,6 +17,7 @@ const Modal = {
       html: '',
       handleType: 'bar',
       mode: '' /* slide-menu */,
+      RouterOptions: {},
     },
   ) {
     const ResponsiveData = Responsive.getResponsiveData();
@@ -36,7 +38,11 @@ const Modal = {
               if (this.Data[_idModal].options.mode === 'view' && s(`.${_idModal}`))
                 s(`.${_idModal}`).style.zIndex = '1';
             });
-            if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '2';
+            const setTopModal = () => {
+              if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '2';
+              else setTimeout(setTopModal, 100);
+            };
+            setTopModal();
           });
 
           if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
@@ -57,9 +63,19 @@ const Modal = {
             if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
           };
 
-          // router
-
-          if (options.path) setURI(`${getProxyPath()}${options.path}`);
+          // Router
+          if (options.route)
+            (() => {
+              let path = getURI();
+              if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
+              const proxyPath = getProxyPath();
+              const newPath = `${proxyPath}${options.route}`;
+              if (path !== newPath) {
+                console.warn('SET MODAL URI', newPath);
+                setURI(newPath);
+                setDocTitle({ ...options.RouterOptions, route: options.route });
+              }
+            })();
 
           break;
         case 'slide-menu':
@@ -322,6 +338,27 @@ const Modal = {
         s(`.${idModal}`).remove();
         s(`.style-${idModal}`).remove();
         delete this.Data[idModal];
+        // Router
+        if (options.route)
+          (() => {
+            let path = getURI();
+            if (path[path.length - 1] !== '/') path = `${path}/`;
+            let newPath = `${getProxyPath()}`;
+            if (path !== newPath) {
+              for (const subIdModal of Object.keys(this.Data)) {
+                if (this.Data[subIdModal].options.route) {
+                  newPath = `${newPath}${this.Data[subIdModal].options.route}`;
+                  console.warn('SET MODAL URI', newPath);
+                  setURI(newPath);
+                  s(`.${subIdModal}`).style.zIndex = '2';
+                  return setDocTitle({ ...options.RouterOptions, route: this.Data[subIdModal].options.route });
+                }
+              }
+              console.warn('SET MODAL URI', newPath);
+              setURI(newPath);
+              return setDocTitle({ ...options.RouterOptions, route: '' });
+            }
+          })();
       }, 300);
     };
     s(`.btn-close-${idModal}`).onclick = btnCloseEvent;

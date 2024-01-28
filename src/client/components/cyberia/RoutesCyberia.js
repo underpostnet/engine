@@ -1,11 +1,19 @@
 import { loggerFactory } from '../core/Logger.js';
+import { Modal } from '../core/Modal.js';
 import { s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
+const NameApp = html`CYBERIA`;
+
+// Router
 const RoutesCyberia = () => {
   return {
-    '/': { title: 'MMORPG', render: () => logger.warn('render MMORPG') },
+    '/': {
+      title: 'MMORPG',
+      render: () => s(`.main-btn-home`).click(),
+      upperCase: true,
+    },
     '/bag': { title: 'bag', render: () => s(`.main-btn-bag`).click(), translateTitle: true },
     '/colors': { title: 'pallet-colors', render: () => s(`.main-btn-colors`).click(), translateTitle: true },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
@@ -25,4 +33,4 @@ const RoutesCyberia = () => {
   };
 };
 
-export { RoutesCyberia };
+export { RoutesCyberia, NameApp };

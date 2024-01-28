@@ -380,6 +380,8 @@ const mergeMatrices = (input) => {
   return result;
 };
 
+const titleFormatted = (str) => cap(str.trim().replaceAll('/', '').replaceAll('-', ' '));
+
 export {
   s4,
   range,
@@ -414,4 +416,5 @@ export {
   getDirection,
   amplifyMatrix,
   mergeMatrices,
+  titleFormatted,
 };

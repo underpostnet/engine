@@ -3,6 +3,7 @@
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 import { loggerFactory } from './logger.js';
+import { titleFormatted } from '../client/components/core/CommonJs.js';
 
 // Static Site Generation (SSG)
 
@@ -128,7 +129,11 @@ const buildClient = async () => {
         let ViewRender;
         eval(srcFormatted(fs.readFileSync(`./src/client/ssr/${view.ssr ? view.ssr : 'ViewRender'}.js`, 'utf8')));
 
-        fs.writeFileSync(`${buildPath}index.html`, ViewRender({ title: view.title, path, buildId }), 'utf8');
+        fs.writeFileSync(
+          `${buildPath}index.html`,
+          ViewRender({ title: view.title ? view.title : titleFormatted(view.path), path, buildId }),
+          'utf8',
+        );
       });
     }
   }

@@ -5,7 +5,7 @@ import { Modal } from './components/core/Modal.js';
 import { BtnIcon } from './components/core/BtnIcon.js';
 import { Translate, TranslateCore } from './components/core/Translate.js';
 import { ColorPalette } from './components/core/ColorPalette.js';
-import { append, disableOptionsClick } from './components/core/VanillaJs.js';
+import { append, disableOptionsClick, getProxyPath, s } from './components/core/VanillaJs.js';
 import { Css, Themes } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { newInstance, s4 } from './components/core/CommonJs.js';
@@ -33,10 +33,13 @@ import { LogIn } from './components/core/LogIn.js';
 import { LogOut } from './components/core/LogOut.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
-import { RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
-import { RouterCyberia } from './components/cyberia/RouterCyberia.js';
+import { NameApp, RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
+import { Router } from './components/core/Router.js';
 
+// Router
 window.Routes = RoutesCyberia;
+const proxyPath = getProxyPath();
+const RouterOptions = { Routes: RoutesCyberia, proxyPath, NameApp };
 
 await LoadingAnimation.bar.play('init-loading');
 
@@ -63,9 +66,11 @@ await NotificationManager.RenderBoard();
 
 append('body', await JoyStick.Render());
 
+// Router
 await Modal.Render({
   id: 'modal-menu',
   html: html`
+    ${await BtnIcon.Render({ class: 'main-btn main-btn-home', label: 'Home' })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
     ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
@@ -83,7 +88,7 @@ await Modal.Render({
     ${await BtnIcon.Render({ class: 'main-btn main-btn-world', label: 'World Engine' })}
   `,
   barConfig: newInstance(barConfig),
-  title: html`C Y B E R I A`,
+  title: NameApp,
   // titleClass: 'hide',
   mode: 'slide-menu',
 });
@@ -92,12 +97,14 @@ EventsUI.onClick(`.main-btn-settings`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-settings',
+    route: 'settings',
     barConfig,
     title: Translate.Render('settings'),
     html: async () => await Settings.Render(),
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -105,7 +112,7 @@ EventsUI.onClick(`.main-btn-bag`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-bag',
-    path: 'bag',
+    route: 'bag',
     barConfig,
     title: Translate.Render('bag'),
     html: async () => await Bag.Render(),
@@ -113,6 +120,7 @@ EventsUI.onClick(`.main-btn-bag`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -120,12 +128,14 @@ EventsUI.onClick(`.main-btn-colors`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-pallet-colors',
+    route: 'colors',
     barConfig,
     title: Translate.Render('pallet-colors'),
     html: async () => ColorPalette.Render(),
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -133,6 +143,7 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-biome',
+    route: 'biome',
     barConfig,
     title: 'Biome engine',
     html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
@@ -140,6 +151,7 @@ EventsUI.onClick(`.main-btn-biome`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -147,6 +159,7 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-tile-engine',
+    route: 'tile',
     barConfig,
     title: 'Tile engine',
     html: async () => await Tile.Render({ idModal: 'modal-tile-engine' }),
@@ -154,6 +167,7 @@ EventsUI.onClick(`.main-btn-tile`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -161,6 +175,7 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-3d-engine',
+    route: '3d',
     barConfig,
     title: '3d Engine',
     html: async () =>
@@ -178,6 +193,7 @@ EventsUI.onClick(`.main-btn-3d`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -185,6 +201,7 @@ EventsUI.onClick(`.main-btn-world`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-world-engine',
+    route: 'world',
     barConfig,
     title: 'World Engine',
     html: async () => await World.Render({ idModal: 'modal-world-engine' }),
@@ -192,6 +209,7 @@ EventsUI.onClick(`.main-btn-world`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -199,6 +217,7 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-sign-up',
+    route: 'sign-up',
     barConfig,
     title: Translate.Render('sign-up'),
     html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
@@ -206,6 +225,7 @@ EventsUI.onClick(`.main-btn-sign-up`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -213,6 +233,7 @@ EventsUI.onClick(`.main-btn-log-out`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-log-out',
+    route: 'log-out',
     barConfig,
     title: Translate.Render('log-out'),
     html: async () => await LogOut.Render(),
@@ -220,6 +241,7 @@ EventsUI.onClick(`.main-btn-log-out`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -227,6 +249,7 @@ EventsUI.onClick(`.main-btn-log-in`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-log-in',
+    route: 'log-in',
     barConfig,
     title: Translate.Render('log-in'),
     html: async () => await LogIn.Render(),
@@ -234,6 +257,7 @@ EventsUI.onClick(`.main-btn-log-in`, async () => {
     maximize: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
 
@@ -241,6 +265,7 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
   const { barConfig } = await Themes[Css.currentTheme]();
   await Modal.Render({
     id: 'modal-chat',
+    route: 'chat',
     barConfig,
     title: 'Chat',
     html: async () => await Chat.Render({ idModal: 'modal-chat' }),
@@ -249,8 +274,16 @@ EventsUI.onClick(`.main-btn-chat`, async () => {
     observer: true,
     mode: 'view',
     slideMenu: 'modal-menu',
+    RouterOptions,
   });
 });
+
+s(`.main-btn-home`).onclick = () => {
+  for (const idModal of Object.keys(Modal.Data)) {
+    if (Modal.Data[idModal].options.route) s(`.btn-close-${idModal}`).click();
+  }
+  s(`.btn-close-modal-menu`).click();
+};
 
 disableOptionsClick('html', ['drag', 'select']);
 
@@ -265,4 +298,7 @@ await SocketIoCyberia.Init();
 await LogOutCyberia();
 await LogInCyberia();
 
-RouterCyberia();
+// Router
+Router(RouterOptions);
+window.onpopstate = (e) => Router({ ...RouterOptions, e });
+s(`.btn-menu-modal-menu`).click();
