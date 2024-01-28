@@ -53,7 +53,7 @@ const ip = {
 const listenPortController = async (server, port, log) =>
   new Promise((resolve) => {
     try {
-      server.listen(port, () => (logger.info('App running:', log), resolve(true)));
+      server.listen(port, () => (logger.info('App running', log), resolve(true)));
     } catch (error) {
       logger.error(error, error.stack);
       resolve(false);

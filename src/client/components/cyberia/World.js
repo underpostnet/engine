@@ -60,7 +60,7 @@ class LoadWorldRenderer {
         await World.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
-        const worldDeleteResult = await CyberiaWorldService.delete(params.data._id);
+        const worldDeleteResult = await CyberiaWorldService.delete({ id: params.data._id });
         NotificationManager.Push({
           html:
             worldDeleteResult.status === 'success'
@@ -241,7 +241,7 @@ const WorldManagement = {
     if (!this.Data[type][id]) this.Data[type][id] = { model: {} };
 
     if (!('world' in this.Data[type][id].model)) {
-      const { data } = await CyberiaWorldService.get(Elements.Data[type][id].model.world._id);
+      const { data } = await CyberiaWorldService.get({ id: Elements.Data[type][id].model.world._id });
       this.Data[type][id].model.world = data[0];
     }
 
@@ -281,7 +281,7 @@ const World = {
     });
   },
   Render: async function (options) {
-    const resultWorlds = await CyberiaWorldService.get('all');
+    const resultWorlds = await CyberiaWorldService.get({ id: 'all' });
     NotificationManager.Push({
       html: resultWorlds.status === 'success' ? Translate.Render(resultWorlds.message) : resultWorlds.message,
       status: resultWorlds.status,
@@ -337,7 +337,7 @@ const World = {
         });
         body.name = s(`.world-name`).value;
         delete body._id;
-        const { data, status } = await CyberiaWorldService.post(body);
+        const { data, status } = await CyberiaWorldService.post({ body });
         NotificationManager.Push({
           html: Translate.Render(`${status}-upload-world`),
           status,
