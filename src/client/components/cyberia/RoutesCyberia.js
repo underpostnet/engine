@@ -1,5 +1,4 @@
 import { loggerFactory } from '../core/Logger.js';
-import { Modal } from '../core/Modal.js';
 import { s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
