@@ -141,7 +141,7 @@ const getResponsiveData = () => {
 const isElement = (element) => element instanceof Element || element instanceof HTMLDocument;
 
 /**
- * Query selector.
+ * Download File.
  *
  * @param {File | Blob} fileInstance The file or blob object.
  * @param {string} fileName The file name with extension.
