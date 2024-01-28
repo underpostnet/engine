@@ -147,7 +147,7 @@ const Tile = {
             dim: parseInt(s(`.tile-dim`).value),
             dimPaintByCell: parseInt(s(`.tile-dimPaintByCell`).value),
           };
-          const { data, status } = await CyberiaTileService.post(body);
+          const { data, status } = await CyberiaTileService.post({ body });
           NotificationManager.Push({
             html: Translate.Render(`${status}-upload-tile`),
             status,

@@ -9,9 +9,12 @@ const logger = loggerFactory(meta);
 
 const CyberiaTileRouter = (options) => {
   const router = express.Router();
-  router.post(endpoint, async (req, res) => await CyberiaTileController.post(req, res, options));
+  router.post(`${endpoint}/:id`, async (req, res) => await CyberiaTileController.post(req, res, options));
+  router.post(`${endpoint}`, async (req, res) => await CyberiaTileController.post(req, res, options));
   router.get(`${endpoint}/:id`, async (req, res) => await CyberiaTileController.get(req, res, options));
+  router.get(`${endpoint}`, async (req, res) => await CyberiaTileController.get(req, res, options));
   router.delete(`${endpoint}/:id`, async (req, res) => await CyberiaTileController.delete(req, res, options));
+  router.delete(`${endpoint}`, async (req, res) => await CyberiaTileController.delete(req, res, options));
   return router;
 };
 
