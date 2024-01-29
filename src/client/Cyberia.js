@@ -291,7 +291,7 @@ EventsUI.onClick(`.main-btn-account`, async () => {
     route: 'account',
     barConfig,
     title: Translate.Render('account'),
-    html: async () => await Account.Render({ idModal: 'modal-account' }),
+    html: async () => await Account.Render({ idModal: 'modal-account', user: Elements.Data.user.main.model.user }),
     handleType: 'bar',
     maximize: true,
     mode: 'view',

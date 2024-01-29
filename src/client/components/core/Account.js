@@ -2,14 +2,15 @@ import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
-import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 
 const Account = {
-  Render: async function () {
+  UpdateEvent: {},
+  Render: async function (options = { user: {} }) {
+    const { user } = options;
     setTimeout(() => {
       const formData = [
         { model: 'username', id: `account-username`, rules: [{ type: 'emptyField' }] },
@@ -18,20 +19,31 @@ const Account = {
       ];
       const validators = Validator.instance(formData);
 
+      for (const inputData of formData) {
+        s(`.${inputData.id}`).value = user[inputData.model];
+      }
+
       EventsUI.onClick(`.btn-account`, async (e) => {
         e.preventDefault();
         const validatorError = await validators();
         if (validatorError) return;
         const body = {};
         for (const inputData of formData) {
-          if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
+          if ('model' in inputData) {
+            body[inputData.model] = s(`.${inputData.id}`).value;
+            user[inputData.model] = s(`.${inputData.id}`).value;
+          }
         }
-        const result = await UserService.post({ body });
+        const result = await UserService.put({ id: user._id, body });
         NotificationManager.Push({
           html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-update-user`),
           status: result.status,
         });
-        if (result.status === 'success') LogIn.Trigger(result.data);
+        if (result.status === 'success') {
+          for (const updateEvent of Object.keys(this.UpdateEvent)) {
+            await this.UpdateEvent[updateEvent]({ user });
+          }
+        }
       });
     });
     return html`
@@ -43,6 +55,7 @@ const Account = {
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
             containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
+            disabled: false,
           })}
         </div>
         <div class="in">
@@ -53,6 +66,7 @@ const Account = {
             containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
             autocomplete: 'email',
+            disabled: false,
           })}
         </div>
         <div class="in">
@@ -63,6 +77,7 @@ const Account = {
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
             containerClass: 'inl section-mp container-component input-container',
             placeholder: true,
+            disabled: true,
           })}
         </div>
         <div class="in">

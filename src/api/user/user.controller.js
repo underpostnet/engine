@@ -83,6 +83,32 @@ const UserController = {
       });
     }
   },
+  put: async (req, res, options) => {
+    try {
+      const { host, path } = options;
+      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
+      const db = DataBaseProvider[`${host}${path}`];
+      if (db) logger.info('success get db provider', options.db);
+      const result = await UserService.put(req, res, options);
+      if (!result)
+        return res.status(400).json({
+          status: 'error',
+          message: 'item not found',
+        });
+
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+        message: 'success-update',
+      });
+    } catch (error) {
+      logger.error(error, error.stack);
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
 };
 
 export { UserController };

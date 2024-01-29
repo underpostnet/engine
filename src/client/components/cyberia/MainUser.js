@@ -10,6 +10,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { LogIn } from '../core/LogIn.js';
 import { UserService } from '../../services/user/user.service.js';
+import { Account } from '../core/Account.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -264,6 +265,11 @@ const MainUser = {
         }),
       );
     }
+
+    Account.UpdateEvent[idEvent] = (options) => {
+      const { user } = options;
+      Elements.Data.user.main.model.user = user;
+    };
   },
 };
 

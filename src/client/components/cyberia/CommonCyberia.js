@@ -11,6 +11,9 @@ const BaseElement = () => {
             _id: '65a8783937c1183be094ccb0', // '65a820d4cc37f11f003a4082', // '65a820a9cc37f11f003a4077',
             face: 1,
           },
+          user: {
+            _id: '',
+          },
         },
         components: {
           background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],

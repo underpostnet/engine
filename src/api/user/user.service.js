@@ -20,10 +20,12 @@ const UserService = {
         user = await UserModel.find({ email: req.body.email });
         if (user[0]) {
           login = await validatePassword(req.body.password, user[0].password);
+          find = await UserModel.find({ _id: user[0]._id.toString() }).select(select['auth']);
+          user = find[0];
           if (login === true) {
             result = {
               token: getToken({ user: user[0] }),
-              user: await UserModel.find({ _id: user[0]._id.toString() }).select(select['auth'])[0],
+              user,
             };
           }
         }
@@ -53,7 +55,6 @@ const UserService = {
         break;
 
       case 'auth':
-        logger.error(req.auth);
         result = await UserModel.find({ _id: req.auth.user._id }).select(select['auth']);
         break;
 
@@ -71,6 +72,18 @@ const UserService = {
 
       default:
         result = await UserModel.findByIdAndDelete(req.params.id);
+        break;
+    }
+    return result;
+  },
+  put: async (req, res, options) => {
+    let result, find;
+    switch (req.params.id) {
+      default:
+        delete req.body.password;
+        result = await UserModel.findByIdAndUpdate(req.params.id, req.body);
+        find = await UserModel.find({ _id: result._id.toString() }).select(select['auth']);
+        result = find[0];
         break;
     }
     return result;
