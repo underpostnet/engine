@@ -8,9 +8,8 @@ const meta = { url: `ws-cyberia-${channel}` };
 const logger = loggerFactory(meta);
 
 const CyberiaWsUserController = {
-  baseElement: BaseElement()[channel].main,
   element: {},
-  channel: channel,
+  channel,
   meta,
   controller: function (socket, client, args) {
     const { status, element } = args;
@@ -96,7 +95,7 @@ const CyberiaWsUserController = {
     }
   },
   connection: function (socket, client) {
-    this.element[socket.id] = newInstance(this.baseElement);
+    this.element[socket.id] = BaseElement()[channel].main;
     for (const elementId of Object.keys(this.element)) {
       if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
         client[elementId].emit(
