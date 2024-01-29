@@ -41,7 +41,7 @@ const Validator = {
               <span style="color: green">ok</span>`,
           );
         else htmls(`.input-info-${validator.id}`, errorMessage);
-        return error;
+        return { error, errorMessage };
       };
 
       s(`.${validator.id}`).oninput = validatorFunction[validator.id];
@@ -50,8 +50,13 @@ const Validator = {
 
     return async () => {
       let error = false;
-      for (const validator of Object.keys(validatorFunction)) error = await validatorFunction[validator]();
-      return error;
+      let errorMessage = '';
+      for (const validator of Object.keys(validatorFunction)) {
+        const result = await validatorFunction[validator]();
+        errorMessage += result.errorMessage;
+        if (!error && result.error) error = true;
+      }
+      return { error, errorMessage };
     };
   },
 };

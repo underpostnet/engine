@@ -797,8 +797,8 @@ const BiomeEngine = {
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
         );
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
-          const validateError = await validators();
-          if (validateError) return;
+          const { error, errorMessage } = await validators();
+          if (error) return;
 
           if (!BiomeScope.Keys[biome])
             return NotificationManager.Push({

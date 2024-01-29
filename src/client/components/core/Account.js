@@ -25,10 +25,11 @@ const Account = {
 
       EventsUI.onClick(`.btn-account`, async (e) => {
         e.preventDefault();
-        const validatorError = await validators();
-        if (validatorError) return;
+        const { error, errorMessage } = await validators();
+        if (error) return;
         const body = {};
         for (const inputData of formData) {
+          if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
           if ('model' in inputData) {
             body[inputData.model] = s(`.${inputData.id}`).value;
             user[inputData.model] = s(`.${inputData.id}`).value;
@@ -36,7 +37,10 @@ const Account = {
         }
         const result = await UserService.put({ id: user._id, body });
         NotificationManager.Push({
-          html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-update-user`),
+          html:
+            result.status === 'error' && result.message
+              ? result.message
+              : Translate.Render(`${result.status}-update-user`),
           status: result.status,
         });
         if (result.status === 'success') {

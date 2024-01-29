@@ -22,8 +22,8 @@ const LogIn = {
 
       EventsUI.onClick(`.btn-log-in`, async (e) => {
         e.preventDefault();
-        const validatorError = await validators();
-        if (validatorError) return;
+        const { error, errorMessage } = await validators();
+        if (error) return;
         const body = {};
         for (const inputData of formData) {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;

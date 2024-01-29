@@ -24,7 +24,7 @@ const UserService = {
           user = find[0];
           if (login === true) {
             result = {
-              token: getToken({ user: user[0] }),
+              token: getToken({ user }),
               user,
             };
           }
@@ -80,8 +80,8 @@ const UserService = {
     let result, find;
     switch (req.params.id) {
       default:
-        delete req.body.password;
-        result = await UserModel.findByIdAndUpdate(req.params.id, req.body);
+        if (req.body.password) req.body.password = await getPasswordHash(req.body.password);
+        result = await UserModel.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
         find = await UserModel.find({ _id: result._id.toString() }).select(select['auth']);
         result = find[0];
         break;
