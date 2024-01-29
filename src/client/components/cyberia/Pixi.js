@@ -112,13 +112,20 @@ const Pixi = {
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
     // user container
-
     this.Data.user.container = new Container();
     this.Data.user.container.width = this.MetaData.dim;
     this.Data.user.container.height = this.MetaData.dim;
     this.Data.user.container.x = 0;
     this.Data.user.container.y = 0;
     this.App.stage.addChild(this.Data.user.container);
+
+    // bot container
+    this.Data.bot.container = new Container();
+    this.Data.bot.container.width = this.MetaData.dim;
+    this.Data.bot.container.height = this.MetaData.dim;
+    this.Data.bot.container.x = 0;
+    this.Data.bot.container.y = 0;
+    this.App.stage.addChild(this.Data.bot.container);
   },
   currentBiomeContainer: String,
   clearBiomeContainers: function () {

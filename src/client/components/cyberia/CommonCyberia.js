@@ -16,19 +16,34 @@ const ModelElement = {
   },
 };
 
+const ComponentElement = {
+  user: () => {
+    return {
+      components: {
+        background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
+        skin: [
+          { displayId: 'anon', position: '08', enabled: true },
+          { displayId: 'eiri', position: '08', enabled: false },
+        ],
+      },
+    };
+  },
+  bot: () => {
+    return {
+      components: {
+        background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
+        skin: [{ displayId: 'purple', position: '08', enabled: true }],
+      },
+    };
+  },
+};
+
 const PlayerElement = () => {
   return {
     x: 1, // Matrix.Data.dim / 2 - 0.5,
     y: 1, // Matrix.Data.dim / 2 - 0.5,
     dim: 1,
     vel: 0.5,
-    components: {
-      background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-      skin: [
-        { displayId: 'anon', position: '08', enabled: true },
-        { displayId: 'eiri', position: '08', enabled: false },
-      ],
-    },
   };
 };
 
@@ -37,6 +52,7 @@ const BaseElement = () => {
     user: {
       main: {
         ...PlayerElement(),
+        ...ComponentElement.user(),
         model: {
           ...ModelElement.world(),
           ...ModelElement.user(),
@@ -46,6 +62,7 @@ const BaseElement = () => {
     bot: {
       main: {
         ...PlayerElement(),
+        ...ComponentElement.bot(),
         model: {
           ...ModelElement.world(),
         },
@@ -56,4 +73,4 @@ const BaseElement = () => {
   };
 };
 
-export { BaseElement, PlayerElement, ModelElement };
+export { BaseElement, PlayerElement, ModelElement, ComponentElement };
