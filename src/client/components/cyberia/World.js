@@ -15,6 +15,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
+import { WorldType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -367,18 +368,7 @@ const World = {
                   value: 'width',
                   label: html`${Translate.Render('type')}`,
                   data: ['width', 'height'].map((worldType) => {
-                    let infoType;
-                    switch (worldType) {
-                      case 'width':
-                        infoType = '[1-6-3-5]';
-                        break;
-                      case 'height':
-                        infoType = '[1-2-3-4]';
-                        break;
-
-                      default:
-                        break;
-                    }
+                    const infoType = WorldType[worldType].worldFaces;
                     return {
                       display: html`
                       <i class="fa-solid fa-text-${worldType}"></i></i> ${Translate.Render(worldType)} 

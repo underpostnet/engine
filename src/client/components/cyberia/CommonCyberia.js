@@ -103,4 +103,23 @@ const getRandomAvailablePosition = function (options = { biomeData: {}, element:
   return { x, y };
 };
 
-export { BaseElement, PlayerElement, ModelElement, ComponentElement, getRandomAvailablePosition, isCollision };
+const WorldType = {
+  width: {
+    worldFaces: [1, 6, 3, 5],
+    spaceFace: [2, 4],
+  },
+  height: {
+    worldFaces: [1, 2, 3, 4],
+    spaceFace: [5, 6],
+  },
+};
+
+export {
+  BaseElement,
+  PlayerElement,
+  ModelElement,
+  ComponentElement,
+  getRandomAvailablePosition,
+  isCollision,
+  WorldType,
+};
