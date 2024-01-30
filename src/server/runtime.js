@@ -120,7 +120,9 @@ const buildRuntime = async () => {
                 logger.info('Load socket.io ws router', { host, ws });
                 // start socket.io
                 const ioServer = createIoServer(server, {
+                  host,
                   path,
+                  db,
                   port,
                   origins,
                 });

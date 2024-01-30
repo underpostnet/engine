@@ -3,7 +3,7 @@ import { MongooseDB } from './mongoose/MongooseDB.js';
 
 const logger = loggerFactory(import.meta);
 
-const ProviderFactoryDB = async (options, endpoint, DataBaseProvider) => {
+const ProviderFactoryDB = async (options = { host: '', path: '', db: {} }, endpoint = '', DataBaseProvider = {}) => {
   const { host, path, db } = options;
   if (!db) return;
   logger.info(`Load ${db.provider} provider`, `${host}${path}`);
