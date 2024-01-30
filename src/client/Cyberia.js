@@ -37,17 +37,17 @@ import { NameApp, RoutesCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Router } from './components/core/Router.js';
 import { Account } from './components/core/Account.js';
 
+await LoadingAnimation.bar.play('init-loading');
+
+await TranslateCore.Init();
+await TranslateCyberia.Init();
+
 // Router
 window.Routes = RoutesCyberia;
 const proxyPath = getProxyPath();
 const RouterOptions = { Routes: RoutesCyberia, proxyPath, NameApp };
 
-await LoadingAnimation.bar.play('init-loading');
-
 const { barConfig } = await Css.Init(CssCyberia);
-
-await TranslateCore.Init();
-await TranslateCyberia.Init();
 
 await Keyboard.Init({
   globalTimeInterval: Event.Data.globalTimeInterval,
