@@ -38,6 +38,7 @@ const Translate = {
 
 const TranslateCore = {
   Init: async function () {
+    if (localStorage.getItem('lang')) s('html').lang = localStorage.getItem('lang');
     Translate.Data = {
       ...Translate.Data,
       emptyField: {

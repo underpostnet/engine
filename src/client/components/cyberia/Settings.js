@@ -45,7 +45,10 @@ const Settings = {
             return {
               display: html`<i class="fa-solid fa-language"></i> ${Translate.Render(language)}`,
               value: language,
-              onClick: () => Translate.Parse(language),
+              onClick: () => {
+                localStorage.setItem('lang', language);
+                return Translate.Parse(language);
+              },
             };
           }),
         })}
