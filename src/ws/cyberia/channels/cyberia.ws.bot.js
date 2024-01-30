@@ -1,37 +1,30 @@
-import { getId, objectEquals } from '../../../client/components/core/CommonJs.js';
-import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js';
+import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
-import { CyberiaWsUserController } from './cyberia.ws.user.js';
+import { CyberiaWsBotManagement } from '../management/cyberia.ws.bot.js';
+import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 
 const channel = 'bot';
 const meta = { url: `ws-cyberia-${channel}` };
 const logger = loggerFactory(meta);
 
-const element = {};
-
-element[getId(element, 'bot-')] = BaseElement().bot.main;
-
 const CyberiaWsBotController = {
-  element,
   channel,
   meta,
-  controller: function (socket, client, args) {
+  controller: function (socket, client, args, wsManagementId) {
     const { status, element } = args;
     switch (status) {
       case 'update-world-face':
-        for (const botId of Object.keys(this.element)) {
-          for (const clientId of Object.keys(client)) {
-            if (objectEquals(this.element[botId].model.world, element.model.world)) {
-              client[clientId].emit(
-                channel,
-                JSON.stringify({
-                  status: 'connection',
-                  id: botId,
-                  element: this.element[botId],
-                }),
-              );
-            }
+        for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
+          if (objectEquals(CyberiaWsBotManagement.element[wsManagementId][botId].model.world, element.model.world)) {
+            client[socket.id].emit(
+              channel,
+              JSON.stringify({
+                status: 'connection',
+                id: botId,
+                element: CyberiaWsBotManagement.element[wsManagementId][botId],
+              }),
+            );
           }
         }
         break;
@@ -39,23 +32,26 @@ const CyberiaWsBotController = {
         break;
     }
   },
-  connection: function (socket, client) {
-    for (const botId of Object.keys(this.element)) {
-      for (const clientId of Object.keys(client)) {
-        if (objectEquals(this.element[botId].model.world, CyberiaWsUserController.element[clientId].model.world)) {
-          client[clientId].emit(
-            channel,
-            JSON.stringify({
-              status: 'connection',
-              id: botId,
-              element: this.element[botId],
-            }),
-          );
-        }
+  connection: function (socket, client, wsManagementId) {
+    for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
+      if (
+        objectEquals(
+          CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
+          CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+        )
+      ) {
+        client[socket.id].emit(
+          channel,
+          JSON.stringify({
+            status: 'connection',
+            id: botId,
+            element: CyberiaWsBotManagement.element[wsManagementId][botId],
+          }),
+        );
       }
     }
   },
-  disconnect: function (socket, client, reason) {},
+  disconnect: function (socket, client, reason, wsManagementId) {},
 };
 
 const CyberiaWsBotChannel = IoCreateChannel(CyberiaWsBotController);

@@ -6,25 +6,25 @@ import { CyberiaWsUserChannel } from './channels/cyberia.ws.user.js';
 const meta = { url: `ws-cyberia-connection` };
 const logger = loggerFactory(meta);
 
-const CyberiaWsConnection = function (socket) {
+const CyberiaWsConnection = function (socket, wsManagementId) {
   // const headers = socket.handshake.headers;
   // const ip = socket.handshake.address;
   // const { query, auth } = socket.handshake;
 
   logger.info(`CyberiaWsConnection ${socket.id}`);
 
-  CyberiaWsUserChannel.connection(socket);
-  CyberiaWsBotChannel.connection(socket);
+  CyberiaWsUserChannel.connection(socket, wsManagementId);
+  CyberiaWsBotChannel.connection(socket, wsManagementId);
 
-  CoreWsChatChannel.connection(socket);
+  CoreWsChatChannel.connection(socket, wsManagementId);
 
   socket.on('disconnect', (reason) => {
     logger.info(`CyberiaWsConnection ${socket.id} due to reason: ${reason}`);
 
-    CyberiaWsUserChannel.disconnect(socket, reason);
-    CyberiaWsBotChannel.disconnect(socket, reason);
+    CyberiaWsUserChannel.disconnect(socket, reason, wsManagementId);
+    CyberiaWsBotChannel.disconnect(socket, reason, wsManagementId);
 
-    CoreWsChatChannel.disconnect(socket, reason);
+    CoreWsChatChannel.disconnect(socket, reason, wsManagementId);
   });
 };
 

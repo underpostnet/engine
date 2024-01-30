@@ -336,6 +336,7 @@ const Pixi = {
   },
   removeElement: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
+    if (!this.Data[type][id]) return; // error case -> type: bot, id: main
     for (const componentType of Object.keys(this.Data[type][id].intervals)) {
       for (const keyIntervalInstance of Object.keys(this.Data[type][id].intervals[componentType])) {
         if (this.Data[type][id].intervals[componentType][keyIntervalInstance].interval)

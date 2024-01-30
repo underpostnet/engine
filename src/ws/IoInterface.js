@@ -4,28 +4,28 @@ const IoCreateChannel = (
   IoInterface = {
     channel: '',
     meta: 'io-interface',
-    connection: (socket, client) => {},
-    controller: (socket, client, args) => {},
-    disconnect: (socket, client, reason) => {},
+    connection: (socket = {}, client = {}, wsManagementId = '') => {},
+    controller: (socket = {}, client = {}, args = '', wsManagementId = '') => {},
+    disconnect: (socket = {}, client = {}, reason = '', wsManagementId = '') => {},
   },
 ) => {
   const logger = loggerFactory(IoInterface.meta);
   return {
     client: {},
-    connection: function (socket) {
+    connection: function (socket, wsManagementId) {
       this.client[socket.id] = socket;
       logger.info(`on connection`, { id: socket.id });
-      socket.on(IoInterface.channel, (args) => this.controller(socket, args));
-      IoInterface.connection(socket, this.client);
+      socket.on(IoInterface.channel, (args) => this.controller(socket, args, wsManagementId));
+      IoInterface.connection(socket, this.client, wsManagementId);
     },
-    controller: function (socket, args) {
+    controller: function (socket, args, wsManagementId) {
       args = JSON.parse(args);
       logger.info(`on controller`, { id: socket.id, args });
-      IoInterface.controller(socket, this.client, args);
+      IoInterface.controller(socket, this.client, args, wsManagementId);
     },
-    disconnect: function (socket, reason) {
+    disconnect: function (socket, reason, wsManagementId) {
       logger.info(`on disconnect`, { id: socket.id, reason });
-      IoInterface.disconnect(socket, this.client, reason);
+      IoInterface.disconnect(socket, this.client, reason, wsManagementId);
       delete this.client[socket.id];
     },
   };

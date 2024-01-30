@@ -121,7 +121,8 @@ const buildRuntime = async () => {
                 // start socket.io
                 const ioServer = createIoServer(server, {
                   path,
-                  ...confServer[host][path],
+                  port,
+                  origins,
                 });
               })();
 

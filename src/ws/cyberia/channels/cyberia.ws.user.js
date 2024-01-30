@@ -1,26 +1,29 @@
-import { newInstance, objectEquals } from '../../../client/components/core/CommonJs.js';
+import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
+import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 
 const channel = 'user';
 const meta = { url: `ws-cyberia-${channel}` };
 const logger = loggerFactory(meta);
 
 const CyberiaWsUserController = {
-  element: {},
   channel,
   meta,
-  controller: function (socket, client, args) {
+  controller: function (socket, client, args, wsManagementId) {
     const { status, element } = args;
     switch (status) {
       case 'update-position':
-        this.element[socket.id].x = element.x;
-        this.element[socket.id].y = element.y;
-        for (const elementId of Object.keys(this.element)) {
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].x = element.x;
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].y = element.y;
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
             elementId !== socket.id &&
-            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
           ) {
             client[elementId].emit(
               channel,
@@ -34,10 +37,13 @@ const CyberiaWsUserController = {
         }
         break;
       case 'update-world-face':
-        for (const elementId of Object.keys(this.element)) {
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
             elementId !== socket.id &&
-            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
           ) {
             client[elementId].emit(
               channel,
@@ -48,16 +54,21 @@ const CyberiaWsUserController = {
             );
           }
         }
-        this.element[socket.id].model.world = element.model.world;
-        for (const elementId of Object.keys(this.element)) {
-          if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world = element.model.world;
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+          if (
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
+          ) {
             if (elementId !== socket.id) {
               client[elementId].emit(
                 channel,
                 JSON.stringify({
                   status: 'connection',
                   id: socket.id,
-                  element: this.element[socket.id],
+                  element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
                 }),
               );
               socket.emit(
@@ -65,7 +76,7 @@ const CyberiaWsUserController = {
                 JSON.stringify({
                   status: 'connection',
                   id: elementId,
-                  element: this.element[elementId],
+                  element: CyberiaWsUserManagement.element[wsManagementId][elementId],
                 }),
               );
             }
@@ -73,11 +84,14 @@ const CyberiaWsUserController = {
         }
         break;
       case 'update-skin-position':
-        this.element[socket.id].components.skin = element.components.skin;
-        for (const elementId of Object.keys(this.element)) {
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].components.skin = element.components.skin;
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
             elementId !== socket.id &&
-            objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
           ) {
             client[elementId].emit(
               channel,
@@ -94,16 +108,21 @@ const CyberiaWsUserController = {
         break;
     }
   },
-  connection: function (socket, client) {
-    this.element[socket.id] = BaseElement()[channel].main;
-    for (const elementId of Object.keys(this.element)) {
-      if (objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)) {
+  connection: function (socket, client, wsManagementId) {
+    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement()[channel].main;
+    for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+      if (
+        objectEquals(
+          CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+          CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+        )
+      ) {
         client[elementId].emit(
           channel,
           JSON.stringify({
             status: 'connection',
             id: socket.id,
-            element: this.element[socket.id],
+            element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
           }),
         );
         if (elementId !== socket.id)
@@ -112,17 +131,20 @@ const CyberiaWsUserController = {
             JSON.stringify({
               status: 'connection',
               id: elementId,
-              element: this.element[elementId],
+              element: CyberiaWsUserManagement.element[wsManagementId][elementId],
             }),
           );
       }
     }
   },
-  disconnect: function (socket, client, reason) {
-    for (const elementId of Object.keys(this.element)) {
+  disconnect: function (socket, client, reason, wsManagementId) {
+    for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (
         elementId !== socket.id &&
-        objectEquals(this.element[elementId].model.world, this.element[socket.id].model.world)
+        objectEquals(
+          CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+          CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+        )
       )
         client[elementId].emit(
           channel,
@@ -132,7 +154,7 @@ const CyberiaWsUserController = {
           }),
         );
     }
-    delete this.element[socket.id];
+    delete CyberiaWsUserManagement.element[wsManagementId][socket.id];
   },
 };
 
