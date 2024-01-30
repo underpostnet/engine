@@ -223,8 +223,8 @@ const WorldManagement = {
     for (const elementType of ['user', 'bot']) {
       for (const elementId of Object.keys(Elements.Data[elementType])) {
         if (elementId !== 'main') {
-          delete Elements.Data[elementType][elementId];
           Pixi.removeElement({ type: elementType, id: elementId });
+          delete Elements.Data[elementType][elementId];
         }
       }
       SocketIo.socket.emit(

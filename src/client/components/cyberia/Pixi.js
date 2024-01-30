@@ -324,7 +324,7 @@ const Pixi = {
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
 
-    if (id === 'main') {
+    if (type === 'user' && id === 'main') {
       SocketIo.socket.emit(
         type,
         JSON.stringify({

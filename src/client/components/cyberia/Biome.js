@@ -23,6 +23,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { getRandomAvailablePosition, isCollision } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -930,30 +931,13 @@ const BiomeEngine = {
   },
   getRandomAvailablePosition: function (options) {
     const { type, id } = options;
-    let x, y;
-    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
-    while (x === undefined || y === undefined || this.isCollision({ type, id, x, y })) {
-      x = random(0, dim - 1);
-      y = random(0, dim - 1);
-    }
-    return { x, y };
+    const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
+    return getRandomAvailablePosition({ element: Elements.Data[type][id], biomeData });
   },
   isCollision: function (options) {
+    const { type, id, x, y } = options;
     const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
-    if (!biomeData || !biomeData.solid) return false;
-    const x = options.x * Matrix.Data.dimPaintByCell;
-    const y = options.y * Matrix.Data.dimPaintByCell;
-    const { type, id } = options;
-    for (const sumY of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1))
-      for (const sumX of range(0, round10(Elements.Data[type][id].dim * Matrix.Data.dimPaintByCell) - 1)) {
-        if (
-          biomeData.solid[round10(y + sumY)] === undefined ||
-          biomeData.solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
-          biomeData.solid[round10(y + sumY)][round10(x + sumX)] === 1
-        )
-          return true;
-      }
-    return false;
+    return isCollision({ element: Elements.Data[type][id], biomeData, x, y });
   },
   generateBiome: async function (biome) {
     const BiomeMatrix = await Biome[biome]();

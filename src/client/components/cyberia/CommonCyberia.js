@@ -1,3 +1,5 @@
+import { newInstance, random, range, round10 } from '../core/CommonJs.js';
+
 const ModelElement = {
   world: () => {
     return {
@@ -73,4 +75,32 @@ const BaseElement = () => {
   };
 };
 
-export { BaseElement, PlayerElement, ModelElement, ComponentElement };
+const isCollision = function (options = { biomeData: {}, element: {}, x: 1, y: 1 }) {
+  let { biomeData, element, x, y } = newInstance(options);
+  if (!biomeData || !biomeData.solid) return false;
+  x = x * biomeData.dimPaintByCell;
+  y = y * biomeData.dimPaintByCell;
+  for (const sumY of range(0, round10(element.dim * biomeData.dimPaintByCell) - 1))
+    for (const sumX of range(0, round10(element.dim * biomeData.dimPaintByCell) - 1)) {
+      if (
+        biomeData.solid[round10(y + sumY)] === undefined ||
+        biomeData.solid[round10(y + sumY)][round10(x + sumX)] === undefined ||
+        biomeData.solid[round10(y + sumY)][round10(x + sumX)] === 1
+      )
+        return true;
+    }
+  return false;
+};
+
+const getRandomAvailablePosition = function (options = { biomeData: {}, element: {} }) {
+  const { biomeData } = options;
+  let x, y;
+  const dim = biomeData.dim * biomeData.dimPaintByCell;
+  while (x === undefined || y === undefined || isCollision({ ...options, x, y })) {
+    x = random(0, dim - 1);
+    y = random(0, dim - 1);
+  }
+  return { x, y };
+};
+
+export { BaseElement, PlayerElement, ModelElement, ComponentElement, getRandomAvailablePosition, isCollision };
