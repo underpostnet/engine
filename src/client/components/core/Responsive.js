@@ -17,15 +17,17 @@ const Responsive = {
     ResponsiveDataAmplitude.height = ResponsiveDataAmplitude.height * dimAmplitude;
     return ResponsiveDataAmplitude;
   },
+  resizeCallback: function () {
+    const Data = getResponsiveData();
+    if (Data.minValue !== Responsive.Data.minValue || Data.maxValue !== Responsive.Data.maxValue) {
+      Responsive.Data = Data;
+      Responsive.triggerEvents();
+    }
+  },
   Init: async function () {
-    this.Observer = new ResizeObserver(() => {
-      const Data = getResponsiveData();
-      if (Data.minValue !== this.Data.minValue || Data.maxValue !== this.Data.maxValue) {
-        this.Data = Data;
-        this.triggerEvents();
-      }
-    });
+    this.Observer = new ResizeObserver(this.resizeCallback);
     this.Observer.observe(document.documentElement);
+    window.onresize = this.resizeCallback;
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
