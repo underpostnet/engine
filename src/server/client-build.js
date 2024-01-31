@@ -22,6 +22,8 @@ const buildClient = async () => {
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
       if (!disabledFullRebuild) {
+        logger.info('Full build', rootClientPath);
+
         fs.removeSync(rootClientPath);
         fs.mkdirSync(rootClientPath, { recursive: true });
         fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
@@ -117,6 +119,8 @@ const buildClient = async () => {
         }${pathViewFormatted(view.path)}`;
 
         if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+
+        logger.info('View build', buildPath);
 
         fs.writeFileSync(
           `${buildPath}${buildId}.js`,
