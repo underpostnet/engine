@@ -28,7 +28,6 @@ const buildClient = async () => {
           recursive: true,
         });
         if (fs.existsSync(`./src/client/public/${client}`)) {
-          logger.info('Build public path', `./src/client/public/${client}`);
           fs.copySync(
             `./src/client/public/${client}`,
             rootClientPath /* {
@@ -39,7 +38,6 @@ const buildClient = async () => {
         } */,
           );
         } else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
-          logger.info('Build public path', `./engine-private/src/client/public/${client}`);
           switch (client) {
             case 'mysql_test':
               if (db) {
@@ -63,12 +61,10 @@ const buildClient = async () => {
         }
         for (const dist of dists) {
           if ('folder' in dist) {
-            logger.info('Build public js dist', dist.folder);
             fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
             fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
           }
           if ('styles' in dist) {
-            logger.info('Build public css dist', dist.styles);
             fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
             fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
           }
@@ -79,7 +75,7 @@ const buildClient = async () => {
         if (!fs.existsSync(`${rootClientPath}/components/${module}`))
           fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
 
-        components[module].map((component) =>
+        components[module].map((component) => {
           fs.writeFileSync(
             `${rootClientPath}/components/${module}/${component}.js`,
             componentFormatted(
@@ -90,8 +86,8 @@ const buildClient = async () => {
               'components',
             ),
             'utf8',
-          ),
-        );
+          );
+        });
       });
 
       if (services) {
@@ -119,8 +115,6 @@ const buildClient = async () => {
         const buildPath = `${
           rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
         }${pathViewFormatted(view.path)}`;
-
-        logger.info('Build path', buildPath);
 
         if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
