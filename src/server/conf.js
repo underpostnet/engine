@@ -57,6 +57,7 @@ const Config = {
       bms: {
         components: {
           core: [
+            'Router',
             'CommonJs',
             'VanillaJs',
             'Responsive',
@@ -295,6 +296,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
+          disabledFullRebuild: true,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -309,6 +311,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
+          disabledFullRebuild: true,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -320,7 +323,8 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: true,
+          disabled: false,
+          disabledFullRebuild: true,
           proxy: [80, 443],
         },
       },
@@ -359,7 +363,7 @@ const Config = {
     },
   },
   build: async function () {
-    fs.removeSync('./public');
+    // fs.removeSync('./public');
     fs.removeSync('./logs');
     fs.removeSync('./conf');
     shellExec(`node bin/util update-conf-client`);

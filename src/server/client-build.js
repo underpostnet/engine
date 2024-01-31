@@ -15,48 +15,63 @@ const buildClient = async () => {
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled, disabledRebuild, db } = confServer[host][path];
+      const { client, directory, disabled, disabledRebuild, disabledFullRebuild, db } = confServer[host][path];
       if (disabled || disabledRebuild || !client) continue;
 
       const { components, dists, views, services } = confClient[client];
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      fs.removeSync(rootClientPath);
-      fs.mkdirSync(rootClientPath, { recursive: true });
-      fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
-        recursive: true,
-      });
-
-      if (fs.existsSync(`./src/client/public/${client}`))
-        fs.copySync(
-          `./src/client/public/${client}`,
-          rootClientPath /* {
+      if (!disabledFullRebuild) {
+        fs.removeSync(rootClientPath);
+        fs.mkdirSync(rootClientPath, { recursive: true });
+        fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
+          recursive: true,
+        });
+        if (fs.existsSync(`./src/client/public/${client}`)) {
+          logger.info('Build public path', `./src/client/public/${client}`);
+          fs.copySync(
+            `./src/client/public/${client}`,
+            rootClientPath /* {
           filter: function (name) {
             console.log(name);
             return true;
           },
         } */,
-        );
-      else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
-        switch (client) {
-          case 'mysql_test':
-            if (db) {
-              fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
-              fs.writeFileSync(
-                `${rootClientPath}/index.php`,
-                fs
-                  .readFileSync(`${rootClientPath}/index.php`, 'utf8')
-                  .replace('test_servername', 'localhost')
-                  .replace('test_username', db.user)
-                  .replace('test_password', db.password)
-                  .replace('test_dbname', db.name),
-                'utf8',
-              );
-            }
-            break;
+          );
+        } else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
+          logger.info('Build public path', `./engine-private/src/client/public/${client}`);
+          switch (client) {
+            case 'mysql_test':
+              if (db) {
+                fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
+                fs.writeFileSync(
+                  `${rootClientPath}/index.php`,
+                  fs
+                    .readFileSync(`${rootClientPath}/index.php`, 'utf8')
+                    .replace('test_servername', 'localhost')
+                    .replace('test_username', db.user)
+                    .replace('test_password', db.password)
+                    .replace('test_dbname', db.name),
+                  'utf8',
+                );
+              }
+              break;
 
-          default:
-            break;
+            default:
+              break;
+          }
+          for (const dist of dists) {
+            if ('folder' in dist) {
+              logger.info('Build public js dist', dist.folder);
+              fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
+              fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+            }
+            if ('styles' in dist) {
+              logger.info('Build public css dist', dist.styles);
+              fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
+              fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
+            }
+          }
         }
       }
 
@@ -95,17 +110,6 @@ const buildClient = async () => {
             ),
             'utf8',
           );
-        }
-      }
-
-      for (const dist of dists) {
-        if ('folder' in dist) {
-          fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
-          fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
-        }
-        if ('styles' in dist) {
-          fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
-          fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
         }
       }
 
