@@ -60,17 +60,17 @@ const buildClient = async () => {
             default:
               break;
           }
-          for (const dist of dists) {
-            if ('folder' in dist) {
-              logger.info('Build public js dist', dist.folder);
-              fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
-              fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
-            }
-            if ('styles' in dist) {
-              logger.info('Build public css dist', dist.styles);
-              fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
-              fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
-            }
+        }
+        for (const dist of dists) {
+          if ('folder' in dist) {
+            logger.info('Build public js dist', dist.folder);
+            fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
+            fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+          }
+          if ('styles' in dist) {
+            logger.info('Build public css dist', dist.styles);
+            fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
+            fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
           }
         }
       }
