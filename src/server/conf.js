@@ -132,6 +132,7 @@ const Config = {
             'Router',
             'Account',
             'Auth',
+            'JoyStick',
           ],
           cyberia: [
             'Pixi',
