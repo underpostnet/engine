@@ -25,6 +25,7 @@ const Responsive = {
     }
   },
   Init: async function () {
+    this.resizeCallback();
     this.Observer = new ResizeObserver(this.resizeCallback);
     this.Observer.observe(document.documentElement);
     window.onresize = this.resizeCallback;
