@@ -141,7 +141,7 @@ const Config = {
             'TranslateCyberia',
             'Settings',
             'Bag',
-            'JoyStick',
+            'JoyStickCyberia',
             'Biome',
             'Tile',
             'CssCyberia',
@@ -259,8 +259,10 @@ const Config = {
             import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
           },
           {
-            folder: './node_modules/virtual-joystick',
-            public_folder: '/dist/virtual-joystick',
+            folder: './node_modules/joystick-controller/dist/es',
+            public_folder: '/dist/joystick-controller',
+            import_name: 'joystick-controller',
+            import_name_build: '/dist/joystick-controller/joystick-controller.js',
           },
           {
             folder: './node_modules/@loadingio/css-spinner/entries',
@@ -296,7 +298,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true,
+          disabledFullRebuild: true, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -311,7 +313,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true,
+          disabledFullRebuild: true, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

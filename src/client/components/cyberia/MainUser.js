@@ -8,20 +8,14 @@ import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
+import { append } from '../core/VanillaJs.js';
+import { JoyStickCyberia } from './JoyStickCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
 const MainUser = {
   Render: async function () {
-    setTimeout(() => {
-      const dataSkin = Elements.Data.user.main.components.skin.find((skin) => skin.enabled);
-      // displayId
-      // position
-
-      // s(`.main-user-content`).style.width = `${50}px`;
-      // s(`.main-user-content`).style.height = `${50}px`;
-    });
-    return html` <div class="abs center main-user-content"></div> `;
+    append('body', html` <div class="abs center main-user-content"></div> `);
   },
   Update: async function (options = { oldElement: {} }) {
     const type = 'user';
@@ -35,6 +29,7 @@ const MainUser = {
 
     Keyboard.Event[idEvent] = {
       ArrowLeft: () => {
+        if (JoyStickCyberia.joyDataSet) return;
         const x = Elements.Data[type][id].x - Elements.Data[type][id].vel;
         const y = Elements.Data[type][id].y;
         if (BiomeEngine.isCollision({ type, id, x, y })) return;
@@ -42,6 +37,7 @@ const MainUser = {
         Pixi.updatePosition({ type, id });
       },
       ArrowRight: () => {
+        if (JoyStickCyberia.joyDataSet) return;
         const x = Elements.Data[type][id].x + Elements.Data[type][id].vel;
         const y = Elements.Data[type][id].y;
         if (BiomeEngine.isCollision({ type, id, x, y })) return;
@@ -49,6 +45,7 @@ const MainUser = {
         Pixi.updatePosition({ type, id });
       },
       ArrowUp: () => {
+        if (JoyStickCyberia.joyDataSet) return;
         const x = Elements.Data[type][id].x;
         const y = Elements.Data[type][id].y - Elements.Data[type][id].vel;
         if (BiomeEngine.isCollision({ type, id, x, y })) return;
@@ -56,6 +53,7 @@ const MainUser = {
         Pixi.updatePosition({ type, id });
       },
       ArrowDown: () => {
+        if (JoyStickCyberia.joyDataSet) return;
         const x = Elements.Data[type][id].x;
         const y = Elements.Data[type][id].y + Elements.Data[type][id].vel;
         if (BiomeEngine.isCollision({ type, id, x, y })) return;
@@ -77,7 +75,12 @@ const MainUser = {
       clearInterval(Elements.Interval[type][id]['main-skin-sprite-controller']);
     Elements.Interval[type][id]['main-skin-sprite-controller'] = setInterval(() => {
       if (lastX !== Elements.Data[type][id].x || lastY !== Elements.Data[type][id].y) {
-        const direction = getDirection(lastX, lastY, Elements.Data[type][id].x, Elements.Data[type][id].y);
+        const direction = getDirection({
+          x1: lastX,
+          y1: lastY,
+          x2: Elements.Data[type][id].x,
+          y2: Elements.Data[type][id].y,
+        });
         lastX = newInstance(Elements.Data[type][id].x);
         lastY = newInstance(Elements.Data[type][id].y);
         const stopX = newInstance(lastX);

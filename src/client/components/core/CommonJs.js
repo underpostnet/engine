@@ -270,9 +270,10 @@ const endpointFactory = (meta) => {
   return path;
 };
 
-function getDirection(x1, y1, x2, y2) {
+function getDirection(options = { x1: 1, y1: 1, x2: 1, y2: 1, radians: 1 }) {
+  const { x1, y1, x2, y2, radians } = options;
   // Calculate the angle in radians
-  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const angle = radians !== undefined ? radians : Math.atan2(y2 - y1, x2 - x1);
 
   // Convert the angle to degrees
   let degrees = angle * (180 / Math.PI);
@@ -281,6 +282,9 @@ function getDirection(x1, y1, x2, y2) {
   if (degrees < 0) {
     degrees += 360;
   }
+
+  // 45 / 2 = 22.5
+  // formula -> 22.5 + (45*n)
 
   // Map the angle to one of the eight directions
   let direction;
