@@ -16,9 +16,12 @@ import { TranslateCore } from './components/core/Translate.js';
 import { Menu } from './components/cyberia/Menu.js';
 import { LoadRouter } from './components/core/Router.js';
 import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
+import { Css } from './components/core/Css.js';
+import { CssCyberia } from './components/cyberia/CssCyberia.js';
 
-await LoadingAnimation.bar.play('init-loading');
 window.eventCallbackTime = 45;
+await Css.Init(CssCyberia);
+await LoadingAnimation.bar.play('init-loading');
 const RouterInstance = RouterCyberia();
 await TranslateCore.Init();
 await TranslateCyberia.Init();

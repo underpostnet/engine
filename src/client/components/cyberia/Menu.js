@@ -14,7 +14,6 @@ import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Bag } from './Bag.js';
 import { BiomeEngine } from './Biome.js';
-import { CssCyberia } from './CssCyberia.js';
 import { Elements } from './Elements.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { Settings } from './Settings.js';
@@ -25,7 +24,7 @@ const Menu = {
   Render: async function () {
     const RouterInstance = RouterCyberia();
     const { NameApp } = RouterInstance;
-    const { barConfig } = await Css.Init(CssCyberia);
+    const { barConfig } = await Themes[Css.currentTheme]();
     await Modal.Render({
       id: 'modal-menu',
       html: html`
