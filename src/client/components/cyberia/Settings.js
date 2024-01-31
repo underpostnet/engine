@@ -1,6 +1,6 @@
 import { Css, Themes } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
-import { FullScreen } from '../core/FullScreen.js';
+import { Responsive } from '../core/Responsive.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { s, fullScreenIn, fullScreenOut, checkFullScreen } from '../core/VanillaJs.js';
@@ -8,7 +8,8 @@ import { s, fullScreenIn, fullScreenOut, checkFullScreen } from '../core/Vanilla
 const Settings = {
   Render: async function () {
     let fullScreenSwitch = checkFullScreen();
-    FullScreen.Event['full-screen-settings'] = (fullScreenMode) => {
+    Responsive.Event['full-screen-settings'] = () => {
+      let fullScreenMode = checkFullScreen();
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
         s('.fullscreen-toggle').click();
     };

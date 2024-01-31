@@ -13,7 +13,7 @@ import { s, append } from './components/core/VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 await TranslateCore.Init();
-await Responsive.Init({ globalTimeInterval: 100 });
+await Responsive.Init();
 
 const theme = 'bms';
 const { barConfig } = await Css.Init({ theme });

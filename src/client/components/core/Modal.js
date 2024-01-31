@@ -17,7 +17,7 @@ const Modal = {
       html: '',
       handleType: 'bar',
       mode: '' /* slide-menu */,
-      RouterOptions: {},
+      RouterInstance: {},
     },
   ) {
     const ResponsiveData = Responsive.getResponsiveData();
@@ -73,7 +73,7 @@ const Modal = {
               if (path !== newPath) {
                 console.warn('SET MODAL URI', newPath);
                 setURI(newPath);
-                setDocTitle({ ...options.RouterOptions, route: options.route });
+                setDocTitle({ ...options.RouterInstance, route: options.route });
               }
             })();
 
@@ -351,12 +351,12 @@ const Modal = {
                   console.warn('SET MODAL URI', newPath);
                   setURI(newPath);
                   s(`.${subIdModal}`).style.zIndex = '2';
-                  return setDocTitle({ ...options.RouterOptions, route: this.Data[subIdModal].options.route });
+                  return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }
               console.warn('SET MODAL URI', newPath);
               setURI(newPath);
-              return setDocTitle({ ...options.RouterOptions, route: '' });
+              return setDocTitle({ ...options.RouterInstance, route: '' });
             }
           })();
       }, 300);

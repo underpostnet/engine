@@ -5,11 +5,8 @@ import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 import { WorldManagement } from './World.js';
 import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
-import { Event } from './Event.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { LogIn } from '../core/LogIn.js';
-import { UserService } from '../../services/user/user.service.js';
 import { Account } from '../core/Account.js';
 
 const logger = loggerFactory(import.meta);
@@ -241,7 +238,7 @@ const MainUser = {
           }),
         );
       }
-    }, Event.Data.globalTimeInterval);
+    }, window.eventCallbackTime);
 
     if (Object.values(oldElement).length > 0) {
       await WorldManagement.Load();

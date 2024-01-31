@@ -6,7 +6,6 @@ import { Matrix } from './Matrix.js';
 import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
-import { Event } from './Event.js';
 import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -284,7 +283,7 @@ const Pixi = {
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
-                    interval: setInterval(callBack, Event.Data.globalTimeInterval * 10),
+                    interval: setInterval(callBack, window.eventCallbackTime * 10),
                   };
                 }
               }

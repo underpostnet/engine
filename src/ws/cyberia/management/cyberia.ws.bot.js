@@ -10,10 +10,12 @@ import pathfinding from 'pathfinding';
 
 const CyberiaWsBotManagement = {
   element: {},
+  localElementScope: {},
   pathfinding: {},
   worlds: [],
   instance: function (wsManagementId = '') {
     this.element[wsManagementId] = {};
+    this.localElementScope[wsManagementId] = {};
     this.pathfinding.finder = new pathfinding.AStarFinder({
       allowDiagonal: true, // enable diagonal
       dontCrossCorners: true, // corner of a solid
@@ -41,6 +43,9 @@ const CyberiaWsBotManagement = {
         bot.x = x;
         bot.y = y;
         const id = getId(this.element[wsManagementId], 'bot-');
+        this.localElementScope[wsManagementId][id] = {
+          initPosition: { x, y },
+        };
         this.element[wsManagementId][id] = bot;
       }
     })();

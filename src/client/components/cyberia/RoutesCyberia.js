@@ -1,5 +1,5 @@
 import { loggerFactory } from '../core/Logger.js';
-import { s } from '../core/VanillaJs.js';
+import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -38,4 +38,10 @@ const RoutesCyberia = () => {
   };
 };
 
-export { RoutesCyberia, NameApp };
+window.Routes = RoutesCyberia;
+
+const RouterCyberia = () => {
+  return { Routes: RoutesCyberia, proxyPath: getProxyPath(), NameApp };
+};
+
+export { RoutesCyberia, RouterCyberia, NameApp };

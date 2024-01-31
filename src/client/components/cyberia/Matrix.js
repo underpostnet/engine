@@ -1,7 +1,6 @@
 import { Responsive } from '../core/Responsive.js';
 import { s, append } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
-import { Event } from './Event.js';
 
 const Matrix = {
   Data: {
@@ -34,7 +33,7 @@ const Matrix = {
       await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
       Elements.Interval[type][id]['camera'] = setInterval(async () => {
         await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
-      }, Event.Data.globalTimeInterval);
+      }, window.eventCallbackTime);
     }
   },
   UpdateAdjacentLimit: function (params) {

@@ -6,7 +6,6 @@ import { loggerFactory } from '../core/Logger.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 import { BiomeEngine } from './Biome.js';
 import { Elements } from './Elements.js';
-import { Event } from './Event.js';
 import { Pixi } from './Pixi.js';
 
 const logger = loggerFactory(import.meta);
@@ -44,7 +43,7 @@ const JoyStick = {
           Elements.Data.user.main.y = y;
           Pixi.updatePosition({ type: 'user', id: 'main' });
         }
-      }, Event.Data.globalTimeInterval);
+      }, window.eventCallbackTime);
     });
     const width = 150;
     return html`

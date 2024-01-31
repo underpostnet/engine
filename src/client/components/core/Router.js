@@ -34,4 +34,9 @@ const Router = function (options = { Routes: () => {}, proxyPath: '/', e: {}, Na
   }
 };
 
-export { Router, setDocTitle };
+const LoadRouter = function (RouterInstance) {
+  Router(RouterInstance);
+  window.onpopstate = (e) => Router({ ...RouterInstance, e });
+};
+
+export { Router, setDocTitle, LoadRouter };

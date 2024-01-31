@@ -1,8 +1,7 @@
 const Keyboard = {
   ActiveKey: {},
   Event: {},
-  Init: async function (options) {
-    const { globalTimeInterval } = options;
+  Init: async function () {
     window.onkeydown = (e) => {
       this.ActiveKey[e.key] = true;
     };
@@ -15,7 +14,7 @@ const Keyboard = {
           if (activeKey in this.Event[key]) this.Event[key][activeKey]();
         });
       });
-    }, globalTimeInterval);
+    }, window.eventCallbackTime);
   },
 };
 

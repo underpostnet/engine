@@ -118,7 +118,6 @@ const Config = {
             'NotificationManager',
             'ToggleSwitch',
             'DropDown',
-            'FullScreen',
             'LoadingAnimation',
             'EventsUI',
             'AgGrid',
@@ -136,7 +135,6 @@ const Config = {
           cyberia: [
             'Pixi',
             'Matrix',
-            'Event',
             'Elements',
             'Menu',
             'TranslateCyberia',
