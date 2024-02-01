@@ -1,6 +1,3 @@
-// https://dondido.github.io/virtual-joystick/
-// https://github.com/dondido/virtual-joystick
-
 import JoystickController from 'joystick-controller';
 import { getDirection, getId } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
