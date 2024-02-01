@@ -3,7 +3,7 @@
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 import { loggerFactory } from './logger.js';
-import { titleFormatted } from '../client/components/core/CommonJs.js';
+import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
 
 // Static Site Generation (SSG)
 
@@ -11,14 +11,22 @@ const buildClient = async () => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled, disabledRebuild, disabledFullRebuild, db } = confServer[host][path];
+      const { client, directory, disabled, disabledRebuild, disabledFullRebuild, minifyBuild, db } =
+        confServer[host][path];
       if (disabled || disabledRebuild || !client) continue;
 
-      const { components, dists, views, services } = confClient[client];
+      const { components, dists, views, services, metadata } = confClient[client];
+
+      if (metadata) {
+        metadata.canonicalURL = `${host}${path}`;
+        if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
+      }
+
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
       if (!disabledFullRebuild) {
@@ -128,12 +136,33 @@ const buildClient = async () => {
           'utf8',
         );
 
+        const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
+          view.title ? `| ${view.title}` : view.path !== '/' ? `| ${titleFormatted(view.path)}` : ''
+        }`;
+
+        let ssrHeadComponents = ``;
+        let ssrBodyComponents = ``;
+
+        if (metadata && 'ssr' in view) {
+          for (const ssrHeadComponent of confSSR[view.ssr].head) {
+            let SrrComponent;
+            eval(srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')));
+            ssrHeadComponents += SrrComponent({ title, ...metadata });
+          }
+        }
+
         let ViewRender;
         eval(srcFormatted(fs.readFileSync(`./src/client/ssr/${view.ssr ? view.ssr : 'ViewRender'}.js`, 'utf8')));
 
         fs.writeFileSync(
           `${buildPath}index.html`,
-          ViewRender({ title: view.title ? view.title : titleFormatted(view.path), path, buildId }),
+          ViewRender({
+            title,
+            path,
+            buildId,
+            ssrHeadComponents,
+            ssrBodyComponents,
+          }),
           'utf8',
         );
       });

@@ -102,6 +102,15 @@ const Config = {
         ],
       },
       cyberia: {
+        metadata: {
+          title: `CYBERIA`,
+          description: `Browser massively multiplayer online role-playing game. Immerse yourself in an exciting
+          cyberpunk world with our pixel art MMORPG. Explore a dynamic online universe right from your browser.`,
+          keywords: ['cyberia, MMORPG, browser, free, MMO'],
+          author: 'https://github.com/underpostnet',
+          thumbnail: 'assets/splash/CYBERIA.jpg',
+          themeColor: '#1a1a1a',
+        },
         components: {
           core: [
             'CommonJs',
@@ -281,6 +290,13 @@ const Config = {
         services: ['core', 'file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
       },
     },
+    ssr: {
+      Cyberia: {
+        head: ['Seo'],
+        body: [],
+      },
+    },
+    pwa: {},
     server: {
       'www.example1.com': {
         '/': {
@@ -299,7 +315,8 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true, // true false
+          minifyBuild: false,
+          disabledFullRebuild: false, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -314,7 +331,8 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true, // true false
+          minifyBuild: true,
+          disabledFullRebuild: false, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

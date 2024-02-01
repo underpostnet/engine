@@ -1,11 +1,12 @@
-ViewRender = (data) => html`
+ViewRender = ({ title, path, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>
-      <title>CYBERIA | ${data.title}</title>
-      <link rel="icon" type="image/x-icon" href="${data.path !== '/' ? `${data.path}/` : '/'}favicon.ico" />
+      <title>${title}</title>
+      <link rel="icon" type="image/x-icon" href="${path !== '/' ? `${path}/` : '/'}favicon.ico" />
       <meta charset="UTF-8" />
       <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+      ${ssrHeadComponents}
     </head>
     <body>
       <div class="ssr-background" style="opacity: 1">
@@ -119,8 +120,8 @@ ViewRender = (data) => html`
           <span class="loading-progress">0%</span>
         </div>
       </div>
-
-      <script async type="module" src="./${data.buildId}.js"></script>
+      ${ssrBodyComponents}
+      <script async type="module" src="./${buildId}.js"></script>
     </body>
   </html>
 `;
