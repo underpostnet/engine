@@ -4,6 +4,8 @@ import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
 import { loggerFactory } from './logger.js';
 import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
+import UglifyJS from 'uglify-js';
+import { minify } from 'html-minifier-terser';
 
 // Static Site Generation (SSG)
 
@@ -85,15 +87,16 @@ const buildClient = async () => {
           fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
 
         components[module].map((component) => {
+          const jsSrc = componentFormatted(
+            srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
+            module,
+            dists,
+            path,
+            'components',
+          );
           fs.writeFileSync(
             `${rootClientPath}/components/${module}/${component}.js`,
-            componentFormatted(
-              srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
-              module,
-              dists,
-              path,
-              'components',
-            ),
+            minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc,
             'utf8',
           );
         });
@@ -104,15 +107,16 @@ const buildClient = async () => {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
 
+          const jsSrc = componentFormatted(
+            srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
+            module,
+            dists,
+            path,
+            'services',
+          );
           fs.writeFileSync(
             `${rootClientPath}/services/${module}/${module}.service.js`,
-            componentFormatted(
-              srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
-              module,
-              dists,
-              path,
-              'services',
-            ),
+            minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc,
             'utf8',
           );
         }
@@ -120,7 +124,7 @@ const buildClient = async () => {
 
       const buildId = `index.${client}`;
 
-      views.map((view) => {
+      for (const view of views) {
         const buildPath = `${
           rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
         }${pathViewFormatted(view.path)}`;
@@ -129,11 +133,17 @@ const buildClient = async () => {
 
         logger.info('View build', buildPath);
 
-        fs.writeFileSync(
-          `${buildPath}${buildId}.js`,
-          viewFormatted(srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')), dists, path),
-          'utf8',
+        const jsSrc = viewFormatted(
+          srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')),
+          dists,
+          path,
         );
+
+        const minifyJsSrc = UglifyJS.minify(jsSrc);
+
+        // console.log(minifyJsSrc);
+
+        fs.writeFileSync(`${buildPath}${buildId}.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
 
         const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
           view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
@@ -159,18 +169,28 @@ const buildClient = async () => {
         let ViewRender;
         eval(srcFormatted(fs.readFileSync(`./src/client/ssr/${view.ssr ? view.ssr : 'ViewRender'}.js`, 'utf8')));
 
+        const htmlSrc = ViewRender({
+          title,
+          buildId,
+          ssrPath,
+          ssrHeadComponents,
+          ssrBodyComponents,
+        });
+
         fs.writeFileSync(
           `${buildPath}index.html`,
-          ViewRender({
-            title,
-            buildId,
-            ssrPath,
-            ssrHeadComponents,
-            ssrBodyComponents,
-          }),
+          minifyBuild
+            ? await minify(htmlSrc, {
+                minifyCSS: true,
+                minifyJS: true,
+                collapseBooleanAttributes: true,
+                collapseInlineTagWhitespace: true,
+                collapseWhitespace: true,
+              })
+            : htmlSrc,
           'utf8',
         );
-      });
+      }
     }
   }
 };

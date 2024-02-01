@@ -318,8 +318,8 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          minifyBuild: false,
-          disabledFullRebuild: true, // true false
+          minifyBuild: true,
+          disabledFullRebuild: false, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -334,8 +334,8 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          minifyBuild: true,
-          disabledFullRebuild: true, // true false
+          minifyBuild: false,
+          disabledFullRebuild: false, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -348,7 +348,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true, // true false
+          disabledFullRebuild: false, // true false
           proxy: [80, 443],
         },
       },
