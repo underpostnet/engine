@@ -454,7 +454,7 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
-  mobileModal: () => window.innerWidth < 600,
+  mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
 };
 
 export { Modal };
