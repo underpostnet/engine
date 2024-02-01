@@ -1,6 +1,3 @@
-// https://dondido.github.io/virtual-joystick/
-// https://github.com/dondido/virtual-joystick
-
 import { newInstance } from '../core/CommonJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { loggerFactory } from '../core/Logger.js';
