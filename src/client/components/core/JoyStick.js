@@ -5,6 +5,7 @@ import JoystickController from 'joystick-controller';
 import { getDirection, getId } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
+import { CyberiaParams } from '../cyberia/CommonCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -67,7 +68,7 @@ const JoyStick = {
     setInterval(() => {
       if (!this.Tokens[id].joyDataSet || !this.Tokens[id].joyDataSet.direction) return;
       this.Tokens[id].callback({ joyDataSet: this.Tokens[id].joyDataSet });
-    }, window.eventCallbackTime);
+    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
   },
 };
 

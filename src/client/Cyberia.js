@@ -18,9 +18,7 @@ import { LoadRouter } from './components/core/Router.js';
 import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Css } from './components/core/Css.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
-import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 
-window.eventCallbackTime = CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME;
 await Css.Init(CssCyberia);
 await LoadingAnimation.bar.play('init-loading');
 const RouterInstance = RouterCyberia();

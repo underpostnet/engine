@@ -9,6 +9,7 @@ import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
+import { CyberiaParams } from './CommonCyberia.js';
 
 const Pixi = {
   MetaData: {
@@ -283,7 +284,7 @@ const Pixi = {
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
-                    interval: setInterval(callBack, window.eventCallbackTime * 10),
+                    interval: setInterval(callBack, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
                   };
                 }
               }

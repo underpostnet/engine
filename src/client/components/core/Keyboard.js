@@ -1,3 +1,5 @@
+import { CyberiaParams } from '../cyberia/CommonCyberia.js';
+
 const Keyboard = {
   ActiveKey: {},
   Event: {},
@@ -14,7 +16,7 @@ const Keyboard = {
           if (activeKey in this.Event[key]) this.Event[key][activeKey]();
         });
       });
-    }, window.eventCallbackTime);
+    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
   },
 };
 

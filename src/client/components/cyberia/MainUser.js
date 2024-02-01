@@ -10,6 +10,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
 import { append } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
+import { CyberiaParams } from './CommonCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -241,7 +242,7 @@ const MainUser = {
           }),
         );
       }
-    }, window.eventCallbackTime);
+    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
 
     if (Object.values(oldElement).length > 0) {
       await WorldManagement.Load();

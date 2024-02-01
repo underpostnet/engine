@@ -1,5 +1,6 @@
 import { Responsive } from '../core/Responsive.js';
 import { s, append } from '../core/VanillaJs.js';
+import { CyberiaParams } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 
 const Matrix = {
@@ -33,7 +34,7 @@ const Matrix = {
       await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
       Elements.Interval[type][id]['camera'] = setInterval(async () => {
         await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
-      }, window.eventCallbackTime);
+      }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
     }
   },
   UpdateAdjacentLimit: function (params) {
