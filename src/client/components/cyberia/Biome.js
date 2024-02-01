@@ -787,8 +787,8 @@ const BiomeEngine = {
     }
 
     setTimeout(() =>
-      Object.keys(Biome).map((biome) => {
-        const validators = Validator.instance([{ id: `input-name-${biome}`, rules: [{ type: 'emptyField' }] }]);
+      Object.keys(Biome).map(async (biome) => {
+        const validators = await Validator.instance([{ id: `input-name-${biome}`, rules: [{ type: 'isEmpty' }] }]);
 
         EventsUI.onClick(`.btn-generate-biome-${biome}`, async () => {
           await this.generateBiome(biome);
@@ -797,8 +797,8 @@ const BiomeEngine = {
           downloadFile(BiomeScope.Keys[biome].imageFile, `${biome}.png`),
         );
         EventsUI.onClick(`.btn-upload-biome-${biome}`, async () => {
-          const { error, errorMessage } = await validators();
-          if (error) return;
+          const { errorMessage } = await validators();
+          if (errorMessage) return;
 
           if (!BiomeScope.Keys[biome])
             return NotificationManager.Push({

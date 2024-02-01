@@ -11,13 +11,21 @@ const Account = {
   UpdateEvent: {},
   Render: async function (options = { user: {} }) {
     const { user } = options;
-    setTimeout(() => {
+    setTimeout(async () => {
       const formData = [
-        { model: 'username', id: `account-username`, rules: [{ type: 'emptyField' }] },
-        { model: 'email', id: `account-email`, rules: [{ type: 'emptyField' }, { type: 'validEmail' }] },
-        { model: 'password', id: `account-password`, rules: [{ type: 'emptyField' }] },
+        {
+          model: 'username',
+          id: `account-username`,
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+        },
+        { model: 'email', id: `account-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
+        {
+          model: 'password',
+          id: `account-password`,
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+        },
       ];
-      const validators = Validator.instance(formData);
+      const validators = await Validator.instance(formData);
 
       for (const inputData of formData) {
         s(`.${inputData.id}`).value = user[inputData.model];
@@ -25,8 +33,8 @@ const Account = {
 
       EventsUI.onClick(`.btn-account`, async (e) => {
         e.preventDefault();
-        const { error, errorMessage } = await validators();
-        if (error) return;
+        const { errorMessage } = await validators();
+        if (errorMessage) return;
         const body = {};
         for (const inputData of formData) {
           if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;

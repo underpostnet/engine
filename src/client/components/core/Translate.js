@@ -41,13 +41,17 @@ const TranslateCore = {
     if (localStorage.getItem('lang')) s('html').lang = localStorage.getItem('lang');
     Translate.Data = {
       ...Translate.Data,
-      emptyField: {
+      isEmpty: {
         es: 'Este campo no puede estar vacío',
         en: 'This field cannot be empty',
       },
-      validEmail: {
+      isEmail: {
         es: 'Por favor, introduce una dirección de correo electrónico válida',
         en: 'Please enter a valid email address',
+      },
+      isLength: {
+        es: 'Mínimo 5 caracteres, máximo 20 caracteres',
+        en: 'Minimum 5 characters, maximum 20 characters',
       },
       passwordMismatch: {
         es: 'Las contraseñas no coinciden',

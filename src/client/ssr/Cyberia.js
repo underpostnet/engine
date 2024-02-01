@@ -1,12 +1,13 @@
-ViewRender = ({ title, path, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
+ViewRender = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>
       <title>${title}</title>
-      <link rel="icon" type="image/x-icon" href="${path !== '/' ? `${path}/` : '/'}favicon.ico" />
+      <link rel="icon" type="image/x-icon" href="${ssrPath}favicon.ico" />
       <meta charset="UTF-8" />
       <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
       ${ssrHeadComponents}
+      <script type="text/javascript" src="${ssrPath}dist/validator/validator.min.js"></script>
     </head>
     <body>
       <div class="ssr-background" style="opacity: 1">

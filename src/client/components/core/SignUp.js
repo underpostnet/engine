@@ -10,22 +10,30 @@ import { s } from './VanillaJs.js';
 
 const SignUp = {
   Render: async function () {
-    setTimeout(() => {
+    setTimeout(async () => {
       const formData = [
-        { model: 'username', id: `sign-up-username`, rules: [{ type: 'emptyField' }] },
-        { model: 'email', id: `sign-up-email`, rules: [{ type: 'emptyField' }, { type: 'validEmail' }] },
-        { model: 'password', id: `sign-up-password`, rules: [{ type: 'emptyField' }] },
+        {
+          model: 'username',
+          id: `sign-up-username`,
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+        },
+        { model: 'email', id: `sign-up-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
+        {
+          model: 'password',
+          id: `sign-up-password`,
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+        },
         {
           id: `sign-up-repeat-password`,
-          rules: [{ type: 'emptyField' }, { type: 'passwordMismatch', match: `sign-up-password` }],
+          rules: [{ type: 'isEmpty' }, { type: 'passwordMismatch', options: `sign-up-password` }],
         },
       ];
-      const validators = Validator.instance(formData);
+      const validators = await Validator.instance(formData);
 
       EventsUI.onClick(`.btn-sign-up`, async (e) => {
         e.preventDefault();
-        const { error, errorMessage } = await validators();
-        if (error) return;
+        const { errorMessage } = await validators();
+        if (errorMessage) return;
         const body = {};
         for (const inputData of formData) {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;

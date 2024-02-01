@@ -1,4 +1,3 @@
-import { CommonValidationRules } from './CommonValidationRules.js';
 import { renderStatus } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
@@ -7,56 +6,61 @@ import { htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const Validator = {
+  renderErrorMessage: function (rule) {
+    return html` <div class="in">
+      ${renderStatus('error', { class: 'inl' })} &nbsp
+      <span style="color: red">${Translate.Render(rule.type)}</span>
+    </div>`;
+  },
   instance: function (validators) {
     const validatorFunction = {};
-    for (const validator of validators) {
-      validatorFunction[validator.id] = async () => {
-        logger.warn(validator.id, s(`.${validator.id}`).value);
-        let error = false;
+    for (const validatorData of validators) {
+      validatorFunction[validatorData.id] = async () => {
+        logger.warn(validatorData.id, s(`.${validatorData.id}`).value);
         let errorMessage = '';
-        for (const rule of validator.rules) {
-          let options;
+        for (const rule of validatorData.rules) {
           switch (rule.type) {
-            case 'passwordMismatch':
-              options = s(`.${rule.match}`).value;
+            case 'isEmpty':
+              if (validator.isEmpty(s(`.${validatorData.id}`).value, { ignore_whitespace: true }))
+                errorMessage += this.renderErrorMessage(rule);
               break;
-
+            case 'isEmail':
+              if (!validator.isEmail(s(`.${validatorData.id}`).value)) errorMessage += this.renderErrorMessage(rule);
+              break;
+            case 'passwordMismatch':
+              if (!validator.equals(s(`.${validatorData.id}`).value, s(`.${rule.options}`).value))
+                errorMessage += this.renderErrorMessage(rule);
+              break;
+            case 'isLength':
+              if (!validator.isLength(s(`.${validatorData.id}`).value, rule.options))
+                errorMessage += this.renderErrorMessage(rule);
+              break;
             default:
               break;
           }
-          if (!CommonValidationRules[rule.type](s(`.${validator.id}`).value, options)) {
-            errorMessage += html` <div class="in">
-              ${renderStatus('error', { class: 'inl' })} &nbsp
-              <span style="color: red">${Translate.Render(rule.type)}</span>
-            </div>`;
-
-            error = true;
-          }
         }
 
-        if (!error)
+        if (!errorMessage)
           htmls(
-            `.input-info-${validator.id}`,
+            `.input-info-${validatorData.id}`,
             html` ${renderStatus('success', { class: 'inl' })} &nbsp
               <span style="color: green">ok</span>`,
           );
-        else htmls(`.input-info-${validator.id}`, errorMessage);
-        return { error, errorMessage };
+        else htmls(`.input-info-${validatorData.id}`, errorMessage);
+        return { errorMessage };
       };
 
-      s(`.${validator.id}`).oninput = validatorFunction[validator.id];
-      s(`.${validator.id}`).onblur = validatorFunction[validator.id];
+      s(`.${validatorData.id}`).oninput = validatorFunction[validatorData.id];
+      s(`.${validatorData.id}`).onblur = validatorFunction[validatorData.id];
     }
 
     return async () => {
-      let error = false;
       let errorMessage = '';
-      for (const validator of Object.keys(validatorFunction)) {
-        const result = await validatorFunction[validator]();
+      for (const validatorKey of Object.keys(validatorFunction)) {
+        const result = await validatorFunction[validatorKey]();
         errorMessage += result.errorMessage;
-        if (!error && result.error) error = true;
       }
-      return { error, errorMessage };
+      return { errorMessage };
     };
   },
 };

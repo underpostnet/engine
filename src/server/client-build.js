@@ -23,7 +23,6 @@ const buildClient = async () => {
       const { components, dists, views, services, metadata } = confClient[client];
 
       if (metadata) {
-        metadata.canonicalURL = `${host}${path}`;
         if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
       }
 
@@ -137,17 +136,23 @@ const buildClient = async () => {
         );
 
         const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
-          view.title ? `| ${view.title}` : view.path !== '/' ? `| ${titleFormatted(view.path)}` : ''
+          view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
         }`;
 
         let ssrHeadComponents = ``;
         let ssrBodyComponents = ``;
+        const canonicalURL = `https://${host}${path}${
+          view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
+        }`;
+        const ssrPath = path === '/' ? path : `${path}/`;
 
         if (metadata && 'ssr' in view) {
+          // https://metatags.io/
+
           for (const ssrHeadComponent of confSSR[view.ssr].head) {
             let SrrComponent;
             eval(srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')));
-            ssrHeadComponents += SrrComponent({ title, ...metadata });
+            ssrHeadComponents += SrrComponent({ title, canonicalURL, ...metadata });
           }
         }
 
@@ -158,8 +163,8 @@ const buildClient = async () => {
           `${buildPath}index.html`,
           ViewRender({
             title,
-            path,
             buildId,
+            ssrPath,
             ssrHeadComponents,
             ssrBodyComponents,
           }),

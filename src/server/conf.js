@@ -114,7 +114,6 @@ const Config = {
         components: {
           core: [
             'CommonJs',
-            'CommonValidationRules',
             'VanillaJs',
             'Responsive',
             'Keyboard',
@@ -275,6 +274,10 @@ const Config = {
             import_name_build: '/dist/joystick-controller/joystick-controller.js',
           },
           {
+            folder: './node_modules/validator',
+            public_folder: '/dist/validator',
+          },
+          {
             folder: './node_modules/@loadingio/css-spinner/entries',
             public_folder: '/dist/loadingio',
           },
@@ -316,7 +319,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          disabledFullRebuild: false, // true false
+          disabledFullRebuild: true, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -332,7 +335,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: true,
-          disabledFullRebuild: false, // true false
+          disabledFullRebuild: true, // true false
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -345,7 +348,7 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          disabledFullRebuild: true,
+          disabledFullRebuild: true, // true false
           proxy: [80, 443],
         },
       },

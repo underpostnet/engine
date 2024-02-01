@@ -13,17 +13,17 @@ const LogIn = {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
   },
   Render: async function () {
-    setTimeout(() => {
+    setTimeout(async () => {
       const formData = [
-        { model: 'email', id: `log-in-email`, rules: [{ type: 'emptyField' }, { type: 'validEmail' }] },
-        { model: 'password', id: `log-in-password`, rules: [{ type: 'emptyField' }] },
+        { model: 'email', id: `log-in-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
+        { model: 'password', id: `log-in-password`, rules: [{ type: 'isEmpty' }] },
       ];
-      const validators = Validator.instance(formData);
+      const validators = await Validator.instance(formData);
 
       EventsUI.onClick(`.btn-log-in`, async (e) => {
         e.preventDefault();
-        const { error, errorMessage } = await validators();
-        if (error) return;
+        const { errorMessage } = await validators();
+        if (errorMessage) return;
         const body = {};
         for (const inputData of formData) {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
