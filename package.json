@@ -21,8 +21,7 @@
     "engine",
     "server",
     "proxy",
-    "client",
-    "underpost"
+    "client"
   ],
   "author": "https://github.com/underpostnet",
   "license": "MIT",
