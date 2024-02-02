@@ -319,7 +319,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          enabledLightBuild: true, // mandatory
+          lightBuild: true, // mandatory
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -335,7 +335,6 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          enabledLightBuild: false,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -348,7 +347,6 @@ const Config = {
           runtime: 'nodejs',
           origins: [],
           disabled: false,
-          enabledLightBuild: false,
           proxy: [80, 443],
         },
       },

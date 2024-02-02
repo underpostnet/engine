@@ -9,6 +9,68 @@ import { minify } from 'html-minifier-terser';
 
 // Static Site Generation (SSG)
 
+const fullBuild = async ({
+  logger,
+  host,
+  publicPath,
+  client,
+  directory,
+  db,
+  dists,
+  rootClientPath,
+  acmeChallengePath,
+}) => {
+  logger.warn('Full build', rootClientPath);
+
+  fs.removeSync(rootClientPath);
+  fs.mkdirSync(rootClientPath, { recursive: true });
+  fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
+    recursive: true,
+  });
+  if (fs.existsSync(`./src/client/public/${client}`)) {
+    fs.copySync(
+      `./src/client/public/${client}`,
+      rootClientPath /* {
+          filter: function (name) {
+            console.log(name);
+            return true;
+          },
+        } */,
+    );
+  } else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
+    switch (client) {
+      case 'mysql_test':
+        if (db) {
+          fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
+          fs.writeFileSync(
+            `${rootClientPath}/index.php`,
+            fs
+              .readFileSync(`${rootClientPath}/index.php`, 'utf8')
+              .replace('test_servername', 'localhost')
+              .replace('test_username', db.user)
+              .replace('test_password', db.password)
+              .replace('test_dbname', db.name),
+            'utf8',
+          );
+        }
+        break;
+
+      default:
+        break;
+    }
+  }
+  for (const dist of dists) {
+    if ('folder' in dist) {
+      fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
+      fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+    }
+    if ('styles' in dist) {
+      fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
+      fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
+    }
+  }
+};
+
 const buildClient = async () => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
@@ -18,69 +80,16 @@ const buildClient = async () => {
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled, disabledRebuild, enabledLightBuild, minifyBuild, db } =
-        confServer[host][path];
+      const { client, directory, disabled, disabledRebuild, minifyBuild, db } = confServer[host][path];
       if (disabled || disabledRebuild || !client) continue;
-
       const { components, dists, views, services, metadata } = confClient[client];
-
       if (metadata) {
         if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
       }
-
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      if (!(confServer[host][path].enabledLightBuild || enabledLightBuild)) {
-        logger.info('Full build', rootClientPath);
-
-        fs.removeSync(rootClientPath);
-        fs.mkdirSync(rootClientPath, { recursive: true });
-        fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
-          recursive: true,
-        });
-        if (fs.existsSync(`./src/client/public/${client}`)) {
-          fs.copySync(
-            `./src/client/public/${client}`,
-            rootClientPath /* {
-          filter: function (name) {
-            console.log(name);
-            return true;
-          },
-        } */,
-          );
-        } else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
-          switch (client) {
-            case 'mysql_test':
-              if (db) {
-                fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
-                fs.writeFileSync(
-                  `${rootClientPath}/index.php`,
-                  fs
-                    .readFileSync(`${rootClientPath}/index.php`, 'utf8')
-                    .replace('test_servername', 'localhost')
-                    .replace('test_username', db.user)
-                    .replace('test_password', db.password)
-                    .replace('test_dbname', db.name),
-                  'utf8',
-                );
-              }
-              break;
-
-            default:
-              break;
-          }
-        }
-        for (const dist of dists) {
-          if ('folder' in dist) {
-            fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
-            fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
-          }
-          if ('styles' in dist) {
-            fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });
-            fs.copySync(dist.styles, `${rootClientPath}${dist.public_styles_folder}`);
-          }
-        }
-      }
+      if (!(confServer[host]['/'] && confServer[host]['/'].lightBuild))
+        await fullBuild({ logger, host, publicPath, client, directory, db, dists, rootClientPath, acmeChallengePath });
 
       Object.keys(components).map((module) => {
         if (!fs.existsSync(`${rootClientPath}/components/${module}`))
