@@ -21,7 +21,7 @@ const Translate = {
   Render: function (keyLang) {
     if (!(keyLang in this.Data)) {
       // TODO: add translate package or library for this case
-      logger.error('translate key lang does not exist: ', keyLang);
+      logger.warn('translate key lang does not exist: ', keyLang);
       return keyLang;
     }
     keyLang = this.Data[keyLang];
