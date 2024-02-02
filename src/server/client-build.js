@@ -30,7 +30,7 @@ const buildClient = async () => {
 
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      if (!disabledFullRebuild) {
+      if (!confServer[host][path].disabledFullRebuild || !disabledFullRebuild) {
         logger.info('Full build', rootClientPath);
 
         fs.removeSync(rootClientPath);
