@@ -6,6 +6,7 @@ import { Responsive } from '../core/Responsive.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { s, fullScreenIn, fullScreenOut, checkFullScreen } from '../core/VanillaJs.js';
+import { Worker } from '../core/Worker.js';
 
 const Settings = {
   Render: async function () {
@@ -18,9 +19,11 @@ const Settings = {
     setTimeout(() => {
       EventsUI.onClick(`.btn-install-service-controller`, async (e) => {
         e.preventDefault();
+        const result = await Worker.install();
       });
       EventsUI.onClick(`.btn-uninstall-service-controller`, async (e) => {
         e.preventDefault();
+        const result = await Worker.uninstall();
       });
       EventsUI.onClick(`.btn-reload`, async (e) => {
         e.preventDefault();

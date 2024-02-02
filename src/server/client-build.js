@@ -158,14 +158,14 @@ const buildClient = async () => {
           view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
         }`;
 
-        let ssrHeadComponents = ``;
-        let ssrBodyComponents = ``;
         const canonicalURL = `https://${host}${path}${
           view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
         }`;
         const ssrPath = path === '/' ? path : `${path}/`;
 
-        if (metadata && 'ssr' in view) {
+        let ssrHeadComponents = ``;
+        let ssrBodyComponents = ``;
+        if ('ssr' in view) {
           // https://metatags.io/
 
           for (const ssrHeadComponent of confSSR[view.ssr].head) {
@@ -175,6 +175,7 @@ const buildClient = async () => {
             switch (ssrHeadComponent) {
               case 'Pwa':
                 if (
+                  metadata &&
                   path === '/' &&
                   view.path === '/' &&
                   fs.existsSync(`./src/client/sw/${client}.sw.js`) &&
@@ -203,7 +204,9 @@ const buildClient = async () => {
 
                 break;
               case 'Seo':
-                ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                if (metadata) {
+                  ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                }
                 break;
               case 'Microdata':
                 if (
@@ -214,16 +217,26 @@ const buildClient = async () => {
                   const microdata = JSON.parse(fs.readFileSync(`./src/client/public/${client}/microdata.json`, 'utf8'));
                   ssrHeadComponents += SrrComponent({ microdata });
                 }
+                break;
+              case 'CyberiaScripts':
+                ssrHeadComponents += SrrComponent({ ssrPath });
+                break;
               default:
                 break;
             }
           }
+
+          for (const ssrBodyComponent of confSSR[view.ssr].body) {
+            let SrrComponent;
+            eval(srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')));
+            ssrBodyComponents += SrrComponent();
+          }
         }
 
-        let ViewRender;
-        eval(srcFormatted(fs.readFileSync(`./src/client/ssr/${view.ssr ? view.ssr : 'ViewRender'}.js`, 'utf8')));
+        let Render = () => '';
+        eval(srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
-        const htmlSrc = ViewRender({
+        const htmlSrc = Render({
           title,
           buildId,
           ssrPath,

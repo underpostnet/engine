@@ -1,4 +1,4 @@
-ViewRender = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
+Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>

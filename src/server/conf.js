@@ -296,8 +296,8 @@ const Config = {
     },
     ssr: {
       Cyberia: {
-        head: ['Seo', 'Pwa', 'Microdata'],
-        body: [],
+        head: ['Seo', 'Pwa', 'Microdata', 'CyberiaScripts'],
+        body: ['CyberiaSplashScreen'],
       },
     },
     server: {
@@ -319,7 +319,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          lightBuild: true,
+          lightBuild: true, //
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
