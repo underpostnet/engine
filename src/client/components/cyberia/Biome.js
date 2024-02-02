@@ -940,7 +940,7 @@ const BiomeEngine = {
   },
   generateBiome: async function (biome) {
     const BiomeMatrix = await Biome[biome]();
-    BiomeScope.Keys[biome] = { ...BiomeMatrix, biome };
+    BiomeScope.Keys[biome] = { dimPaintByCell: Matrix.Data.dimPaintByCell, ...BiomeMatrix, biome };
     BiomeScope.CurrentKey = biome;
     Pixi.setBiome(BiomeMatrix);
     setTimeout(
