@@ -18,7 +18,7 @@ const buildClient = async () => {
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabled, disabledRebuild, disabledFullRebuild, minifyBuild, db } =
+      const { client, directory, disabled, disabledRebuild, enabledLightBuild, minifyBuild, db } =
         confServer[host][path];
       if (disabled || disabledRebuild || !client) continue;
 
@@ -30,7 +30,7 @@ const buildClient = async () => {
 
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      if (!confServer[host][path].disabledFullRebuild || !disabledFullRebuild) {
+      if (!(confServer[host][path].enabledLightBuild || enabledLightBuild)) {
         logger.info('Full build', rootClientPath);
 
         fs.removeSync(rootClientPath);
