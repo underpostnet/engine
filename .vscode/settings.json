@@ -11,6 +11,7 @@
   },
   "cSpell.words": [
     "ANAME",
+    "browserconfig",
     "certbot",
     "certonly",
     "cryptokoyn",
@@ -25,7 +26,10 @@
     "fortawesome",
     "htdocs",
     "htmls",
+    "jsonld",
+    "loadingio",
     "Longname",
+    "Microdata",
     "minami",
     "MMORPG",
     "mysqldump",
@@ -47,5 +51,8 @@
   },
   "[php]": {
     "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
+  },
+  "[xml]": {
+    "editor.defaultFormatter": "redhat.vscode-xml"
   }
 }

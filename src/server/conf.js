@@ -141,6 +141,7 @@ const Config = {
             'Account',
             'Auth',
             'JoyStick',
+            'Worker',
           ],
           cyberia: [
             'Pixi',
@@ -295,11 +296,10 @@ const Config = {
     },
     ssr: {
       Cyberia: {
-        head: ['Seo'],
+        head: ['Seo', 'Pwa', 'Microdata'],
         body: [],
       },
     },
-    pwa: {},
     server: {
       'www.example1.com': {
         '/': {
@@ -319,7 +319,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          lightBuild: true, // mandatory
+          lightBuild: true,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

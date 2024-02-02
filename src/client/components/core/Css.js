@@ -230,13 +230,6 @@ scrollbar-width: none;
           background: gray;
           transition: 0.3s;
         }
-
-        .section-row {
-          cursor: default;
-          padding: 15px 0px 15px 0px;
-          border-bottom: 2px solid #bbbbbb;
-          max-width: 450px;
-        }
         .slide-menu-top-bar {
           width: 100%;
           height: 50px;
@@ -318,13 +311,6 @@ scrollbar-width: none;
           width: 20px;
           background: gray;
           transition: 0.3s;
-        }
-
-        .section-row {
-          cursor: default;
-          padding: 15px 0px 15px 0px;
-          border-bottom: 2px solid #bbbbbb;
-          max-width: 450px;
         }
         .slide-menu-top-bar {
           width: 100%;
@@ -411,12 +397,6 @@ scrollbar-width: none;
           transition: 0.3s;
         }
 
-        .section-row {
-          cursor: default;
-          padding: 15px 0px 15px 0px;
-          border-bottom: 2px solid yellow;
-          max-width: 450px;
-        }
         .slide-menu-top-bar {
           width: 100%;
           height: 50px;
@@ -506,12 +486,7 @@ scrollbar-width: none;
           background: gray;
           transition: 0.3s;
         }
-        .section-row {
-          cursor: default;
-          padding: 15px 0px 15px 0px;
-          border-bottom: 2px solid #313131;
-          /* max-width: 450px; */
-        }
+
         @keyframes diagonal-lines {
           0% {
             background-position: initial;

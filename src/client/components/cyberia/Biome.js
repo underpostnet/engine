@@ -735,7 +735,7 @@ const BiomeEngine = {
                 BiomeScope.CurrentKey = biomeKey;
 
                 for (const biome of Object.keys(Biome))
-                  s(`.section-row-${biome}`).style.display = biomeKey === biome ? 'block' : 'none';
+                  s(`.row-${biome}`).style.display = biomeKey === biome ? 'block' : 'none';
               },
             };
           }),
@@ -745,7 +745,7 @@ const BiomeEngine = {
     // let render = '';
     for (const biome of Object.keys(Biome)) {
       configBiomeFormRender += html`
-        <div class="in section-row-${biome}" style="display: none">
+        <div class="in row-${biome}" style="display: none">
           ${await Input.Render({
             id: `input-name-${biome}`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,

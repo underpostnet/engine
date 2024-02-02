@@ -14,7 +14,7 @@ const LogOut = {
     return html` <div class="in warn-logout">${Translate.Render('confirm-logout')}</div>
       <div class="in warn-logout">
         ${await BtnIcon.Render({
-          class: 'main-btn modal-btn-log-out',
+          class: 'btn-custom modal-btn-log-out',
           label: Translate.Render('log-out'),
         })}
       </div>`;

@@ -171,7 +171,52 @@ const buildClient = async () => {
           for (const ssrHeadComponent of confSSR[view.ssr].head) {
             let SrrComponent;
             eval(srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')));
-            ssrHeadComponents += SrrComponent({ title, canonicalURL, ...metadata });
+
+            switch (ssrHeadComponent) {
+              case 'Pwa':
+                if (
+                  path === '/' &&
+                  view.path === '/' &&
+                  fs.existsSync(`./src/client/sw/${client}.sw.js`) &&
+                  fs.existsSync(`./src/client/public/${client}/browserconfig.xml`) &&
+                  fs.existsSync(`./src/client/public/${client}/site.webmanifest`)
+                ) {
+                  // build webmanifest
+                  fs.writeFileSync(
+                    `${buildPath}site.webmanifest`,
+                    fs.readFileSync(`./src/client/public/${client}/site.webmanifest`, 'utf8'),
+                    'utf8',
+                  );
+                  // build browserconfig
+                  fs.writeFileSync(
+                    `${buildPath}browserconfig.xml`,
+                    fs.readFileSync(`./src/client/public/${client}/browserconfig.xml`, 'utf8'),
+                    'utf8',
+                  );
+                  // build service worker
+                  const jsSrc = fs.readFileSync(`./src/client/sw/${client}.sw.js`, 'utf8');
+                  const minifyJsSrc = UglifyJS.minify(jsSrc);
+                  fs.writeFileSync(`${buildPath}sw.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
+
+                  ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                }
+
+                break;
+              case 'Seo':
+                ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                break;
+              case 'Microdata':
+                if (
+                  fs.existsSync(`./src/client/public/${client}/microdata.json`) &&
+                  path === '/' &&
+                  view.path === '/'
+                ) {
+                  const microdata = JSON.parse(fs.readFileSync(`./src/client/public/${client}/microdata.json`, 'utf8'));
+                  ssrHeadComponents += SrrComponent({ microdata });
+                }
+              default:
+                break;
+            }
           }
         }
 
