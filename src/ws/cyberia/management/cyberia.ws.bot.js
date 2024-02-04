@@ -1,6 +1,14 @@
 import { CyberiaBiomeModel } from '../../../api/cyberia-biome/cyberia-biome.model.js';
 import { CyberiaWorldModel } from '../../../api/cyberia-world/cyberia-world.model.js';
-import { getId, random, range } from '../../../client/components/core/CommonJs.js';
+import {
+  getId,
+  insertTransitionCoordinates,
+  objectEquals,
+  random,
+  range,
+  round10,
+  timer,
+} from '../../../client/components/core/CommonJs.js';
 import {
   BaseElement,
   CyberiaParams,
@@ -9,6 +17,8 @@ import {
   isCollision,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
+import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
+import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
 
 const CyberiaWsBotManagement = {
   element: {},
@@ -39,44 +49,78 @@ const CyberiaWsBotManagement = {
         bot.y = y;
         const id = getId(this.element[wsManagementId], 'bot-');
         this.localElementScope[wsManagementId][id] = {
-          initPosition: { x, y },
-          cellRadiusMovement: 3,
-          movementPath: [],
-          movementInterval: setInterval(() => {
-            if (this.localElementScope[wsManagementId][id].movementPath.length === 0) {
+          movement: {
+            InitPosition: { x, y },
+            CellRadius: 3,
+            Path: [],
+            Callback: async () => {
               let x;
               let y;
               while (
                 !x ||
                 !y ||
-                isCollision({ biomeData: biome, element: bot, x, y })
+                isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
                 // ||
                 // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
               ) {
                 x =
-                  this.element[wsManagementId][id].x +
+                  this.localElementScope[wsManagementId][id].movement.InitPosition.x +
                   random(
-                    -1 * this.localElementScope[wsManagementId][id].cellRadiusMovement,
-                    this.localElementScope[wsManagementId][id].cellRadiusMovement,
+                    -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                    this.localElementScope[wsManagementId][id].movement.CellRadius,
                   );
                 y =
-                  this.element[wsManagementId][id].y +
+                  this.localElementScope[wsManagementId][id].movement.InitPosition.y +
                   random(
-                    -1 * this.localElementScope[wsManagementId][id].cellRadiusMovement,
-                    this.localElementScope[wsManagementId][id].cellRadiusMovement,
+                    -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                    this.localElementScope[wsManagementId][id].movement.CellRadius,
                   );
               }
-              this.localElementScope[wsManagementId][id].movementPath = this.pathfinding.findPath(
-                this.element[wsManagementId][id].x,
-                this.element[wsManagementId][id].y,
+              this.localElementScope[wsManagementId][id].movement.Path = this.pathfinding.findPath(
+                round10(this.element[wsManagementId][id].x),
+                round10(this.element[wsManagementId][id].y),
                 x,
                 y,
                 new pathfinding.Grid(biome.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1)))),
               );
-            }
-          }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME),
+
+              const transitionFactor = 4;
+              this.localElementScope[wsManagementId][id].movement.Path = insertTransitionCoordinates(
+                this.localElementScope[wsManagementId][id].movement.Path,
+                transitionFactor,
+              );
+
+              for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
+                this.element[wsManagementId][id].x = point[0];
+                this.element[wsManagementId][id].y = point[1];
+
+                for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                  if (
+                    objectEquals(
+                      CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                      this.element[wsManagementId][id].model.world,
+                    )
+                  ) {
+                    CyberiaWsBotChannel.client[clientId].emit(
+                      CyberiaWsBotChannel.channel,
+                      JSON.stringify({
+                        status: 'update-position',
+                        id,
+                        element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
+                      }),
+                    );
+                  }
+                }
+
+                await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+              }
+              this.localElementScope[wsManagementId][id].movement.Callback();
+            },
+          },
         };
+
         this.element[wsManagementId][id] = bot;
+        this.localElementScope[wsManagementId][id].movement.Callback();
       }
     })();
   },
