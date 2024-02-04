@@ -6,6 +6,7 @@ import {
   objectEquals,
   random,
   range,
+  reduceMatrix,
   round10,
   timer,
 } from '../../../client/components/core/CommonJs.js';
@@ -19,6 +20,9 @@ import {
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
+import { loggerFactory } from '../../../server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const CyberiaWsBotManagement = {
   element: {},
@@ -48,6 +52,26 @@ const CyberiaWsBotManagement = {
         bot.x = x;
         bot.y = y;
         const id = getId(this.element[wsManagementId], 'bot-');
+
+        const collisionMatrix = reduceMatrix(
+          biome.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1))),
+          3,
+        ).map((y, iY) =>
+          y.map((x, iX) =>
+            x === 0 &&
+            !isCollision({
+              biomeData: biome,
+              element: bot,
+              x: iX,
+              y: iY,
+            })
+              ? 0
+              : 1,
+          ),
+        );
+
+        // logger.info('Load bot', { wsManagementId, indexBot, face: bot.model.world.face });
+
         this.localElementScope[wsManagementId][id] = {
           movement: {
             InitPosition: { x, y },
@@ -81,7 +105,7 @@ const CyberiaWsBotManagement = {
                 round10(this.element[wsManagementId][id].y),
                 x,
                 y,
-                new pathfinding.Grid(biome.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1)))),
+                new pathfinding.Grid(collisionMatrix),
               );
 
               const transitionFactor = 4;

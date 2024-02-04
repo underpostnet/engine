@@ -14,7 +14,7 @@ import { Xampp } from '../runtime/xampp/Xampp.js';
 dotenv.config();
 
 const buildRuntime = async () => {
-  const ipInstance = await ip.public.ipv4();
+  const ipInstance = ''; // await ip.public.ipv4();
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of Object.keys(confServer)) {

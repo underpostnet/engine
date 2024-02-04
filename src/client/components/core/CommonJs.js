@@ -353,6 +353,45 @@ const amplifyMatrix = (matrix, factor) => {
   return amplifiedMatrix;
 };
 
+// Function to reduce a matrix by a factor in horizontal and vertical directions
+const reduceMatrix = (matrix, factor) => {
+  // Get the original dimensions of the matrix
+  const rows = matrix.length;
+  const cols = matrix[0].length;
+
+  // Calculate the dimensions of the reduced matrix
+  const reducedRows = Math.ceil(rows / factor);
+  const reducedCols = Math.ceil(cols / factor);
+
+  // Create a new reduced matrix filled with zeros
+  const reducedMatrix = Array.from({ length: reducedRows }, () => Array(reducedCols).fill(0));
+
+  // Iterate over the original matrix
+  for (let i = 0; i < reducedRows; i++) {
+    for (let j = 0; j < reducedCols; j++) {
+      // Calculate the sum of values in the corresponding block of the original matrix
+      let sum = 0;
+
+      for (let x = 0; x < factor; x++) {
+        for (let y = 0; y < factor; y++) {
+          // Safely access the original matrix considering the boundaries
+          const rowIndex = i * factor + x;
+          const colIndex = j * factor + y;
+
+          if (rowIndex < rows && colIndex < cols) {
+            sum += matrix[rowIndex][colIndex];
+          }
+        }
+      }
+
+      // Calculate the average value for the reduced matrix
+      reducedMatrix[i][j] = sum / Math.min(factor * factor, rows * cols);
+    }
+  }
+
+  return reducedMatrix;
+};
+
 const mergeMatrices = (input) => {
   const rows = Object.keys(input).reduce((acc, key) => {
     const rowData = Object.keys(input[key]).reduce((rowAcc, subKey) => {
@@ -419,6 +458,7 @@ export {
   endpointFactory,
   getDirection,
   amplifyMatrix,
+  reduceMatrix,
   mergeMatrices,
   titleFormatted,
 };

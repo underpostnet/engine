@@ -11,6 +11,7 @@ const IoCreateChannel = (
 ) => {
   const logger = loggerFactory(IoInterface.meta);
   return {
+    channel: IoInterface.channel,
     client: {},
     connection: function (socket, wsManagementId) {
       this.client[socket.id] = socket;

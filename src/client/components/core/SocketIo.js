@@ -50,7 +50,7 @@ const SocketIo = {
       logger.info(`load chanel`, type);
       this.Event[type] = {};
       this.socket.on(type, (...args) => {
-        logger.info(`event: ${type} | ${JSON.stringify(args, null, 4)}`);
+        // logger.info(`event: ${type} | ${JSON.stringify(args, null, 4)}`);
         Object.keys(this.Event[type]).map((keyEvent) => this.Event[type][keyEvent](args));
       });
     });
