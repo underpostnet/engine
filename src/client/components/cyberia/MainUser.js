@@ -10,7 +10,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
 import { append } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
-import { CyberiaParams } from './CommonCyberia.js';
+import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -168,71 +168,8 @@ const MainUser = {
           logger.info('New direction', direction);
         } else if (Elements.Data[type][id].components.skin.find((skin) => skin.position[0] === '1')) return;
 
-        switch (direction) {
-          case 'n':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '12';
-                return component;
-              });
-            break;
-          case 's':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '18';
-                return component;
-              });
-            break;
-          case 'e':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '16';
-                return component;
-              });
-            break;
-          case 'se':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '16';
-                return component;
-              });
-            break;
-          case 'ne':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '16';
-                return component;
-              });
-            break;
-          case 'w':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '14';
-                return component;
-              });
-            break;
-          case 'sw':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '14';
-                return component;
-              });
-            break;
-          case 'nw':
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '14';
-                return component;
-              });
-            break;
-          default:
-            if (Elements.Data[type][id].components.skin)
-              Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((component) => {
-                component.position = '18';
-                return component;
-              });
-            break;
-        }
+        Elements.Data[type][id] = updateMovementDirection({ direction, element: Elements.Data[type][id] });
+
         Pixi.triggerUpdateSkinPosition({ type, id });
         SocketIo.socket.emit(
           type,

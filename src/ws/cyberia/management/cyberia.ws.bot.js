@@ -1,6 +1,7 @@
 import { CyberiaBiomeModel } from '../../../api/cyberia-biome/cyberia-biome.model.js';
 import { CyberiaWorldModel } from '../../../api/cyberia-world/cyberia-world.model.js';
 import {
+  getDirection,
   getId,
   insertTransitionCoordinates,
   objectEquals,
@@ -16,6 +17,7 @@ import {
   WorldType,
   getRandomAvailablePosition,
   isCollision,
+  updateMovementDirection,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
@@ -70,10 +72,11 @@ const CyberiaWsBotManagement = {
           ),
         );
 
-        // logger.info('Load bot', { wsManagementId, indexBot, face: bot.model.world.face });
+        logger.info(`${wsManagementId} Load bot`, indexBot);
 
         this.localElementScope[wsManagementId][id] = {
           movement: {
+            Direction: undefined,
             InitPosition: { x, y },
             CellRadius: 3,
             Path: [],
@@ -115,6 +118,17 @@ const CyberiaWsBotManagement = {
               );
 
               for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
+                let newDirection = false;
+                const direction = getDirection({
+                  x1: this.element[wsManagementId][id].x,
+                  y1: this.element[wsManagementId][id].y,
+                  x2: point[0],
+                  y2: point[1],
+                });
+                if (direction != this.localElementScope[wsManagementId][id].movement.Direction) {
+                  this.localElementScope[wsManagementId][id].movement.Direction = direction;
+                  newDirection = true;
+                }
                 this.element[wsManagementId][id].x = point[0];
                 this.element[wsManagementId][id].y = point[1];
 
@@ -133,6 +147,21 @@ const CyberiaWsBotManagement = {
                         element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
                       }),
                     );
+                    if (newDirection) {
+                      this.element[wsManagementId][id] = updateMovementDirection({
+                        direction,
+                        element: this.element[wsManagementId][id],
+                      });
+
+                      CyberiaWsBotChannel.client[clientId].emit(
+                        CyberiaWsBotChannel.channel,
+                        JSON.stringify({
+                          status: 'update-skin-position',
+                          id,
+                          element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                        }),
+                      );
+                    }
                   }
                 }
 

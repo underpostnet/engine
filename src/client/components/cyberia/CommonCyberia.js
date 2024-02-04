@@ -114,6 +114,75 @@ const WorldType = {
   },
 };
 
+const updateMovementDirection = ({ direction, element }) => {
+  switch (direction) {
+    case 'n':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '12';
+          return component;
+        });
+      break;
+    case 's':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '18';
+          return component;
+        });
+      break;
+    case 'e':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '16';
+          return component;
+        });
+      break;
+    case 'se':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '16';
+          return component;
+        });
+      break;
+    case 'ne':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '16';
+          return component;
+        });
+      break;
+    case 'w':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '14';
+          return component;
+        });
+      break;
+    case 'sw':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '14';
+          return component;
+        });
+      break;
+    case 'nw':
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '14';
+          return component;
+        });
+      break;
+    default:
+      if (element.components.skin)
+        element.components.skin = element.components.skin.map((component) => {
+          component.position = '18';
+          return component;
+        });
+      break;
+  }
+  return element;
+};
+
 const CyberiaParams = {
   CYBERIA_EVENT_CALLBACK_TIME: 45,
 };
@@ -127,4 +196,5 @@ export {
   isCollision,
   WorldType,
   CyberiaParams,
+  updateMovementDirection,
 };

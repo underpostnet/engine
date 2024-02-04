@@ -31,7 +31,7 @@ const SocketIoCyberia = {
               break;
           }
 
-          logger.info('ws on event', args);
+          // logger.info('ws on event', args);
           const { id, element, status } = args;
 
           switch (status) {
