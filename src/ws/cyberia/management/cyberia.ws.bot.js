@@ -127,6 +127,10 @@ const CyberiaWsBotManagement = {
                 });
                 if (direction != this.localElementScope[wsManagementId][id].movement.Direction) {
                   this.localElementScope[wsManagementId][id].movement.Direction = direction;
+                  this.element[wsManagementId][id] = updateMovementDirection({
+                    direction,
+                    element: this.element[wsManagementId][id],
+                  });
                   newDirection = true;
                 }
                 this.element[wsManagementId][id].x = point[0];
@@ -147,12 +151,7 @@ const CyberiaWsBotManagement = {
                         element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
                       }),
                     );
-                    if (newDirection) {
-                      this.element[wsManagementId][id] = updateMovementDirection({
-                        direction,
-                        element: this.element[wsManagementId][id],
-                      });
-
+                    if (newDirection)
                       CyberiaWsBotChannel.client[clientId].emit(
                         CyberiaWsBotChannel.channel,
                         JSON.stringify({
@@ -161,7 +160,6 @@ const CyberiaWsBotManagement = {
                           element: { components: { skin: this.element[wsManagementId][id].components.skin } },
                         }),
                       );
-                    }
                   }
                 }
 
