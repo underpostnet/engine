@@ -15,17 +15,17 @@ const IoCreateChannel = (
     client: {},
     connection: function (socket, wsManagementId) {
       this.client[socket.id] = socket;
-      logger.info(`on connection`, { id: socket.id });
+      // logger.info(`on connection`, { id: socket.id });
       socket.on(IoInterface.channel, (args) => this.controller(socket, args, wsManagementId));
       IoInterface.connection(socket, this.client, wsManagementId);
     },
     controller: function (socket, args, wsManagementId) {
       args = JSON.parse(args);
-      logger.info(`on controller`, { id: socket.id, args });
+      // logger.info(`on controller`, { id: socket.id, args });
       IoInterface.controller(socket, this.client, args, wsManagementId);
     },
     disconnect: function (socket, reason, wsManagementId) {
-      logger.info(`on disconnect`, { id: socket.id, reason });
+      // logger.info(`on disconnect`, { id: socket.id, reason });
       IoInterface.disconnect(socket, this.client, reason, wsManagementId);
       delete this.client[socket.id];
     },

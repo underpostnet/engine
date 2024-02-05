@@ -1,5 +1,6 @@
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
+import { CoreWsEmit } from '../core.ws.emit.js';
 
 const channel = 'chat';
 const meta = { url: `ws-core-${channel}` };
@@ -11,7 +12,7 @@ const CoreWsChatController = {
   controller: function (socket, client, args, wsManagementId) {
     for (const socketId of Object.keys(client)) {
       if (socketId !== socket.id) {
-        client[socketId].emit(channel, JSON.stringify({ id: socket.id, ...args }));
+        CoreWsEmit(channel, client[socketId], { id: socket.id, ...args });
       }
     }
   },

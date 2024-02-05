@@ -1,6 +1,7 @@
 import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
+import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsBotManagement } from '../management/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 
@@ -17,14 +18,11 @@ const CyberiaWsBotController = {
       case 'update-world-face':
         for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
           if (objectEquals(CyberiaWsBotManagement.element[wsManagementId][botId].model.world, element.model.world)) {
-            client[socket.id].emit(
-              channel,
-              JSON.stringify({
-                status: 'connection',
-                id: botId,
-                element: CyberiaWsBotManagement.element[wsManagementId][botId],
-              }),
-            );
+            CyberiaWsEmit(channel, client[socket.id], {
+              status: 'connection',
+              id: botId,
+              element: CyberiaWsBotManagement.element[wsManagementId][botId],
+            });
           }
         }
         break;
@@ -40,14 +38,11 @@ const CyberiaWsBotController = {
           CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
         )
       ) {
-        client[socket.id].emit(
-          channel,
-          JSON.stringify({
-            status: 'connection',
-            id: botId,
-            element: CyberiaWsBotManagement.element[wsManagementId][botId],
-          }),
-        );
+        CyberiaWsEmit(channel, client[socket.id], {
+          status: 'connection',
+          id: botId,
+          element: CyberiaWsBotManagement.element[wsManagementId][botId],
+        });
       }
     }
   },

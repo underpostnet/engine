@@ -11,6 +11,13 @@ const SocketIo = {
     disconnect: {},
   },
   socket: {},
+  Emit: function (channel = '', payload = {}) {
+    try {
+      this.socket.emit(channel, JSON.stringify(payload));
+    } catch (error) {
+      logger.error(error);
+    }
+  },
   Init: async function (options) {
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;

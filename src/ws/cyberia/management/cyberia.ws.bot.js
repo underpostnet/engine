@@ -23,6 +23,7 @@ import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
 import { loggerFactory } from '../../../server/logger.js';
+import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -143,23 +144,17 @@ const CyberiaWsBotManagement = {
                       this.element[wsManagementId][id].model.world,
                     )
                   ) {
-                    CyberiaWsBotChannel.client[clientId].emit(
-                      CyberiaWsBotChannel.channel,
-                      JSON.stringify({
-                        status: 'update-position',
-                        id,
-                        element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
-                      }),
-                    );
+                    CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                      status: 'update-position',
+                      id,
+                      element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
+                    });
                     if (newDirection)
-                      CyberiaWsBotChannel.client[clientId].emit(
-                        CyberiaWsBotChannel.channel,
-                        JSON.stringify({
-                          status: 'update-skin-position',
-                          id,
-                          element: { components: { skin: this.element[wsManagementId][id].components.skin } },
-                        }),
-                      );
+                      CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                        status: 'update-skin-position',
+                        id,
+                        element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                      });
                   }
                 }
 

@@ -325,13 +325,10 @@ const Pixi = {
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
 
     if (type === 'user' && id === 'main') {
-      SocketIo.socket.emit(
-        type,
-        JSON.stringify({
-          status: 'update-position',
-          element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
-        }),
-      );
+      SocketIo.Emit(type, {
+        status: 'update-position',
+        element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
+      });
     }
   },
   removeElement: function (options = { type: 'user', id: 'main' }) {

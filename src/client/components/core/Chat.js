@@ -22,12 +22,9 @@ const Chat = {
         e.preventDefault();
         if (!s(`.input-chat`).value) return;
         this.appendChatBox({ id: SocketIo.socket.id, message: s(`.input-chat`).value });
-        SocketIo.socket.emit(
-          'chat',
-          JSON.stringify({
-            message: s(`.input-chat`).value,
-          }),
-        );
+        SocketIo.Emit('chat', {
+          message: s(`.input-chat`).value,
+        });
         s(`.input-chat`).value = '';
       };
     });

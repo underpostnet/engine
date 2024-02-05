@@ -228,13 +228,10 @@ const WorldManagement = {
           delete Elements.Data[elementType][elementId];
         }
       }
-      SocketIo.socket.emit(
-        elementType,
-        JSON.stringify({
-          status: 'update-world-face',
-          element: { model: { world: Elements.Data[type][id].model.world } },
-        }),
-      );
+      SocketIo.Emit(elementType, {
+        status: 'update-world-face',
+        element: { model: { world: Elements.Data[type][id].model.world } },
+      });
     }
   },
   Load: async function (options = { type: 'user', id: 'main' }) {

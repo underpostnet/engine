@@ -153,13 +153,10 @@ const MainUser = {
                   });
                 break;
             }
-            SocketIo.socket.emit(
-              type,
-              JSON.stringify({
-                status: 'update-skin-position',
-                element: { components: { skin: Elements.Data[type][id].components.skin } },
-              }),
-            );
+            SocketIo.Emit(type, {
+              status: 'update-skin-position',
+              element: { components: { skin: Elements.Data[type][id].components.skin } },
+            });
           }
         }, 500);
 
@@ -171,13 +168,10 @@ const MainUser = {
         Elements.Data[type][id] = updateMovementDirection({ direction, element: Elements.Data[type][id] });
 
         Pixi.triggerUpdateSkinPosition({ type, id });
-        SocketIo.socket.emit(
-          type,
-          JSON.stringify({
-            status: 'update-skin-position',
-            element: { components: { skin: Elements.Data[type][id].components.skin } },
-          }),
-        );
+        SocketIo.Emit(type, {
+          status: 'update-skin-position',
+          element: { components: { skin: Elements.Data[type][id].components.skin } },
+        });
       }
     }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
 
@@ -188,20 +182,14 @@ const MainUser = {
         WorldManagement.EmitNewWorldFace({ type, id });
 
       if (oldElement.x !== Elements.Data[type][id].x || oldElement.y !== Elements.Data[type][id].y)
-        SocketIo.socket.emit(
-          type,
-          JSON.stringify({
-            status: 'update-position',
-            element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
-          }),
-        );
-      SocketIo.socket.emit(
-        type,
-        JSON.stringify({
-          status: 'update-skin-position',
-          element: { components: { skin: Elements.Data[type][id].components.skin } },
-        }),
-      );
+        SocketIo.Emit(type, {
+          status: 'update-position',
+          element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
+        });
+      SocketIo.Emit(type, {
+        status: 'update-skin-position',
+        element: { components: { skin: Elements.Data[type][id].components.skin } },
+      });
     }
 
     Account.UpdateEvent[idEvent] = (options) => {
