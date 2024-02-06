@@ -2,6 +2,7 @@ import { CyberiaBiomeModel } from '../../../api/cyberia-biome/cyberia-biome.mode
 import { CyberiaWorldModel } from '../../../api/cyberia-world/cyberia-world.model.js';
 import {
   getDirection,
+  getDistance,
   getId,
   insertTransitionCoordinates,
   objectEquals,
@@ -44,7 +45,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 12)) {
+      for (const indexBot of range(0, 0)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -73,52 +74,130 @@ const CyberiaWsBotManagement = {
           ),
         );
 
-        logger.info(`${wsManagementId} Load bot`, indexBot);
+        logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face });
 
         this.localElementScope[wsManagementId][id] = {
+          target: {
+            Interval: 12, // detector target check time (ms)
+            Radius: 3,
+            Active: false,
+            IndexPoint: -1,
+            Element: {
+              type: '',
+              id: '',
+            },
+          },
           movement: {
             Direction: undefined,
             InitPosition: { x, y },
             CellRadius: 3,
             Path: [],
+            TransitionFactor: 4,
             Callback: async () => {
               let x;
               let y;
-              while (
-                !x ||
-                !y ||
-                isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
-                // ||
-                // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
-              ) {
-                x =
-                  this.localElementScope[wsManagementId][id].movement.InitPosition.x +
-                  random(
-                    -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
-                    this.localElementScope[wsManagementId][id].movement.CellRadius,
-                  );
-                y =
-                  this.localElementScope[wsManagementId][id].movement.InitPosition.y +
-                  random(
-                    -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
-                    this.localElementScope[wsManagementId][id].movement.CellRadius,
-                  );
+              if (!this.localElementScope[wsManagementId][id].target.Active) {
+                while (
+                  !x ||
+                  !y ||
+                  isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
+                  // ||
+                  // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
+                ) {
+                  x =
+                    this.localElementScope[wsManagementId][id].movement.InitPosition.x +
+                    random(
+                      -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                      this.localElementScope[wsManagementId][id].movement.CellRadius,
+                    );
+                  y =
+                    this.localElementScope[wsManagementId][id].movement.InitPosition.y +
+                    random(
+                      -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                      this.localElementScope[wsManagementId][id].movement.CellRadius,
+                    );
+                }
+                const Path = insertTransitionCoordinates(
+                  this.pathfinding.findPath(
+                    round10(this.element[wsManagementId][id].x),
+                    round10(this.element[wsManagementId][id].y),
+                    x,
+                    y,
+                    new pathfinding.Grid(collisionMatrix),
+                  ),
+                  this.localElementScope[wsManagementId][id].movement.TransitionFactor,
+                );
+                this.localElementScope[wsManagementId][id].movement.Path = Path;
               }
-              this.localElementScope[wsManagementId][id].movement.Path = this.pathfinding.findPath(
-                round10(this.element[wsManagementId][id].x),
-                round10(this.element[wsManagementId][id].y),
-                x,
-                y,
-                new pathfinding.Grid(collisionMatrix),
-              );
-
-              const transitionFactor = 4;
-              this.localElementScope[wsManagementId][id].movement.Path = insertTransitionCoordinates(
-                this.localElementScope[wsManagementId][id].movement.Path,
-                transitionFactor,
-              );
 
               for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
+                let foundNewTargetPath = false;
+                this.localElementScope[wsManagementId][id].target.IndexPoint++;
+                if (
+                  this.localElementScope[wsManagementId][id].target.IndexPoint ===
+                  this.localElementScope[wsManagementId][id].target.Interval
+                ) {
+                  this.localElementScope[wsManagementId][id].target.IndexPoint = -1;
+                  foundNewTargetPath = (() => {
+                    const xBot = round10(this.element[wsManagementId][id].x);
+                    const yBot = round10(this.element[wsManagementId][id].y);
+                    for (const yTarget of range(
+                      yBot - this.localElementScope[wsManagementId][id].target.Radius,
+                      yBot + this.localElementScope[wsManagementId][id].target.Radius,
+                    )) {
+                      for (const xTarget of range(
+                        xBot - this.localElementScope[wsManagementId][id].target.Radius,
+                        xBot + this.localElementScope[wsManagementId][id].target.Radius,
+                      )) {
+                        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                          if (
+                            objectEquals(
+                              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                              this.element[wsManagementId][id].model.world,
+                            ) &&
+                            yTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y) &&
+                            xTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x)
+                          ) {
+                            this.localElementScope[wsManagementId][id].target.Element.type = 'user';
+                            this.localElementScope[wsManagementId][id].target.Element.id = clientId;
+
+                            console.log(
+                              'recalculate',
+                              xBot,
+                              yBot,
+                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
+                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
+                            );
+
+                            const Path = insertTransitionCoordinates(
+                              this.pathfinding.findPath(
+                                xBot,
+                                yBot,
+                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
+                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
+                                new pathfinding.Grid(collisionMatrix),
+                              ),
+                              this.localElementScope[wsManagementId][id].movement.TransitionFactor,
+                            );
+
+                            if (!objectEquals(Path, this.localElementScope[wsManagementId][id].movement.Path)) {
+                              this.localElementScope[wsManagementId][id].movement.Path = Path;
+                              this.localElementScope[wsManagementId][id].target.Active = true;
+                              console.log('path break');
+                              return true;
+                            }
+                            return false;
+                          }
+                        }
+                      }
+                    }
+
+                    this.localElementScope[wsManagementId][id].target.Active = false;
+                    return false;
+                  })();
+                }
+                if (foundNewTargetPath) break;
+
                 let newDirection = false;
                 const direction = getDirection({
                   x1: this.element[wsManagementId][id].x,
