@@ -1,6 +1,8 @@
 ### ENGINE
 
-Runtime controller inside container, and engine for Dev, build, and deploy GUI and API.
+Container App.
+
+Dev, build, and deploy GUI and API.
 
 #### Installation
 
