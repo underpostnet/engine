@@ -18,13 +18,15 @@ const LoadingAnimation = {
         html` <div class="fix progress-bar diagonal-bar-background-animation ${id}" style="left: -100%"></div> `,
       );
       for (const frame of [
-        { time: 500, value: '-35%', numberValue: 35 },
-        { time: 1250, value: '-15%', numberValue: 15 },
+        { time: 500, value: 35 },
+        { time: 1250, value: 15 },
+        { time: 3000, value: 2 },
+        { time: 5000, value: 1 },
       ])
         setTimeout(() => {
           if (this.tokens[container] === idEvent && s(`.${id}`)) {
-            s(`.${id}`).style.left = frame.value;
-            if (s('.loading-progress')) htmls('.loading-progress', html`${100 - frame.numberValue}%`);
+            s(`.${id}`).style.left = `-${frame.value}%`;
+            if (s('.loading-progress')) htmls('.loading-progress', html`${100 - frame.value}%`);
           }
         }, frame.time);
     },
