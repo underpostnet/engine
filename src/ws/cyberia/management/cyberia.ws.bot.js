@@ -132,6 +132,12 @@ const CyberiaWsBotManagement = {
                   this.localElementScope[wsManagementId][id].movement.Path = Path;
                 }
 
+                if (this.localElementScope[wsManagementId][id].movement.Path.length === 0) {
+                  this.localElementScope[wsManagementId][id].target.Active = false;
+                  this.localElementScope[wsManagementId][id].movement.Path = [
+                    [this.element[wsManagementId][id].x, this.element[wsManagementId][id].y],
+                  ];
+                }
                 for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
                   let foundNewTargetPath = false;
                   this.localElementScope[wsManagementId][id].target.IndexPoint++;
