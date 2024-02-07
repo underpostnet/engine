@@ -45,7 +45,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 0)) {
+      for (const indexBot of range(0, 12)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -78,10 +78,11 @@ const CyberiaWsBotManagement = {
 
         this.localElementScope[wsManagementId][id] = {
           target: {
-            Interval: 12, // detector target check time (ms)
-            Radius: 3,
+            Interval: 8, // detector target check time (ms)
+            Radius: 4,
             Active: false,
             IndexPoint: -1,
+            Direction: 'n',
             Element: {
               type: '',
               id: '',
@@ -94,150 +95,204 @@ const CyberiaWsBotManagement = {
             Path: [],
             TransitionFactor: 4,
             Callback: async () => {
-              let x;
-              let y;
-              if (!this.localElementScope[wsManagementId][id].target.Active) {
-                while (
-                  !x ||
-                  !y ||
-                  isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
-                  // ||
-                  // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
-                ) {
-                  x =
-                    this.localElementScope[wsManagementId][id].movement.InitPosition.x +
-                    random(
-                      -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
-                      this.localElementScope[wsManagementId][id].movement.CellRadius,
-                    );
-                  y =
-                    this.localElementScope[wsManagementId][id].movement.InitPosition.y +
-                    random(
-                      -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
-                      this.localElementScope[wsManagementId][id].movement.CellRadius,
-                    );
+              try {
+                let x;
+                let y;
+                if (!this.localElementScope[wsManagementId][id].target.Active) {
+                  while (
+                    !x ||
+                    !y ||
+                    isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
+                    // ||
+                    // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
+                  ) {
+                    x =
+                      this.localElementScope[wsManagementId][id].movement.InitPosition.x +
+                      random(
+                        -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                        this.localElementScope[wsManagementId][id].movement.CellRadius,
+                      );
+                    y =
+                      this.localElementScope[wsManagementId][id].movement.InitPosition.y +
+                      random(
+                        -1 * this.localElementScope[wsManagementId][id].movement.CellRadius,
+                        this.localElementScope[wsManagementId][id].movement.CellRadius,
+                      );
+                  }
+                  const Path = insertTransitionCoordinates(
+                    this.pathfinding.findPath(
+                      round10(this.element[wsManagementId][id].x),
+                      round10(this.element[wsManagementId][id].y),
+                      x,
+                      y,
+                      new pathfinding.Grid(collisionMatrix),
+                    ),
+                    this.localElementScope[wsManagementId][id].movement.TransitionFactor,
+                  );
+                  this.localElementScope[wsManagementId][id].movement.Path = Path;
                 }
-                const Path = insertTransitionCoordinates(
-                  this.pathfinding.findPath(
-                    round10(this.element[wsManagementId][id].x),
-                    round10(this.element[wsManagementId][id].y),
-                    x,
-                    y,
-                    new pathfinding.Grid(collisionMatrix),
-                  ),
-                  this.localElementScope[wsManagementId][id].movement.TransitionFactor,
-                );
-                this.localElementScope[wsManagementId][id].movement.Path = Path;
-              }
 
-              for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
-                let foundNewTargetPath = false;
-                this.localElementScope[wsManagementId][id].target.IndexPoint++;
-                if (
-                  this.localElementScope[wsManagementId][id].target.IndexPoint ===
-                  this.localElementScope[wsManagementId][id].target.Interval
-                ) {
-                  this.localElementScope[wsManagementId][id].target.IndexPoint = -1;
-                  foundNewTargetPath = (() => {
-                    const xBot = round10(this.element[wsManagementId][id].x);
-                    const yBot = round10(this.element[wsManagementId][id].y);
-                    for (const yTarget of range(
-                      yBot - this.localElementScope[wsManagementId][id].target.Radius,
-                      yBot + this.localElementScope[wsManagementId][id].target.Radius,
-                    )) {
-                      for (const xTarget of range(
-                        xBot - this.localElementScope[wsManagementId][id].target.Radius,
-                        xBot + this.localElementScope[wsManagementId][id].target.Radius,
+                for (const point of this.localElementScope[wsManagementId][id].movement.Path) {
+                  let foundNewTargetPath = false;
+                  this.localElementScope[wsManagementId][id].target.IndexPoint++;
+                  if (
+                    this.localElementScope[wsManagementId][id].target.IndexPoint ===
+                    this.localElementScope[wsManagementId][id].target.Interval
+                  ) {
+                    this.localElementScope[wsManagementId][id].target.IndexPoint = -1;
+                    foundNewTargetPath = (() => {
+                      const xBot = round10(this.element[wsManagementId][id].x);
+                      const yBot = round10(this.element[wsManagementId][id].y);
+                      for (const yTarget of range(
+                        yBot - this.localElementScope[wsManagementId][id].target.Radius,
+                        yBot + this.localElementScope[wsManagementId][id].target.Radius,
                       )) {
-                        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-                          if (
-                            objectEquals(
-                              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-                              this.element[wsManagementId][id].model.world,
-                            ) &&
-                            yTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y) &&
-                            xTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x)
-                          ) {
-                            this.localElementScope[wsManagementId][id].target.Element.type = 'user';
-                            this.localElementScope[wsManagementId][id].target.Element.id = clientId;
+                        for (const xTarget of range(
+                          xBot - this.localElementScope[wsManagementId][id].target.Radius,
+                          xBot + this.localElementScope[wsManagementId][id].target.Radius,
+                        )) {
+                          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                            if (
+                              objectEquals(
+                                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                                this.element[wsManagementId][id].model.world,
+                              ) &&
+                              yTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y) &&
+                              xTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x)
+                            ) {
+                              this.localElementScope[wsManagementId][id].target.Element.type = 'user';
+                              this.localElementScope[wsManagementId][id].target.Element.id = clientId;
 
-                            console.log(
-                              'recalculate',
-                              xBot,
-                              yBot,
-                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
-                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
-                            );
+                              const Path = insertTransitionCoordinates(
+                                this.pathfinding.findPath(
+                                  xBot,
+                                  yBot,
+                                  round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
+                                  round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
+                                  new pathfinding.Grid(collisionMatrix),
+                                ),
+                                this.localElementScope[wsManagementId][id].movement.TransitionFactor,
+                              );
 
-                            const Path = insertTransitionCoordinates(
-                              this.pathfinding.findPath(
-                                xBot,
-                                yBot,
-                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
-                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
-                                new pathfinding.Grid(collisionMatrix),
-                              ),
-                              this.localElementScope[wsManagementId][id].movement.TransitionFactor,
-                            );
-
-                            if (!objectEquals(Path, this.localElementScope[wsManagementId][id].movement.Path)) {
-                              this.localElementScope[wsManagementId][id].movement.Path = Path;
-                              this.localElementScope[wsManagementId][id].target.Active = true;
-                              console.log('path break');
-                              return true;
+                              if (
+                                getDistance(
+                                  this.localElementScope[wsManagementId][id].movement.Path[
+                                    this.localElementScope[wsManagementId][id].movement.Path.length - 1
+                                  ][0],
+                                  this.localElementScope[wsManagementId][id].movement.Path[
+                                    this.localElementScope[wsManagementId][id].movement.Path.length - 1
+                                  ][1],
+                                  Path[Path.length - 1][0],
+                                  Path[Path.length - 1][1],
+                                ) > 1.5
+                              ) {
+                                Path.pop();
+                                Path.pop();
+                                Path.pop();
+                                this.localElementScope[wsManagementId][id].movement.Path = Path;
+                                this.localElementScope[wsManagementId][id].target.Active = true;
+                                return true;
+                              }
+                              return false;
                             }
-                            return false;
                           }
                         }
                       }
-                    }
 
-                    this.localElementScope[wsManagementId][id].target.Active = false;
-                    return false;
-                  })();
-                }
-                if (foundNewTargetPath) break;
+                      this.localElementScope[wsManagementId][id].target.Active = false;
+                      return false;
+                    })();
+                  }
+                  if (foundNewTargetPath) break;
 
-                let newDirection = false;
-                const direction = getDirection({
-                  x1: this.element[wsManagementId][id].x,
-                  y1: this.element[wsManagementId][id].y,
-                  x2: point[0],
-                  y2: point[1],
-                });
-                if (direction != this.localElementScope[wsManagementId][id].movement.Direction) {
-                  this.localElementScope[wsManagementId][id].movement.Direction = direction;
-                  this.element[wsManagementId][id] = updateMovementDirection({
-                    direction,
-                    element: this.element[wsManagementId][id],
+                  let newDirection = false;
+                  const direction = getDirection({
+                    x1: this.element[wsManagementId][id].x,
+                    y1: this.element[wsManagementId][id].y,
+                    x2: point[0],
+                    y2: point[1],
                   });
-                  newDirection = true;
-                }
-                this.element[wsManagementId][id].x = point[0];
-                this.element[wsManagementId][id].y = point[1];
-
-                for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
                   if (
+                    !this.localElementScope[wsManagementId][id].target.Active &&
+                    direction != this.localElementScope[wsManagementId][id].movement.Direction
+                  ) {
+                    this.localElementScope[wsManagementId][id].movement.Direction = direction;
+                    this.element[wsManagementId][id] = updateMovementDirection({
+                      direction,
+                      element: this.element[wsManagementId][id],
+                    });
+                    newDirection = true;
+                  }
+                  this.element[wsManagementId][id].x = point[0];
+                  this.element[wsManagementId][id].y = point[1];
+
+                  for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                    if (
+                      objectEquals(
+                        CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                        this.element[wsManagementId][id].model.world,
+                      )
+                    ) {
+                      CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                        status: 'update-position',
+                        id,
+                        element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
+                      });
+                      if (newDirection)
+                        CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                          status: 'update-skin-position',
+                          id,
+                          element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                        });
+                    }
+                  }
+
+                  await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+                  if (
+                    this.localElementScope[wsManagementId][id].target.Active &&
+                    this.localElementScope[wsManagementId][id].target.Element.type === 'user' &&
                     objectEquals(
-                      CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-                      this.element[wsManagementId][id].model.world,
+                      point,
+                      this.localElementScope[wsManagementId][id].movement.Path[
+                        this.localElementScope[wsManagementId][id].movement.Path.length - 1
+                      ],
                     )
                   ) {
-                    CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
-                      status: 'update-position',
-                      id,
-                      element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
+                    this.localElementScope[wsManagementId][id].movement.Path = [
+                      [this.element[wsManagementId][id].x, this.element[wsManagementId][id].y],
+                    ];
+                    const clientId = this.localElementScope[wsManagementId][id].target.Element.id;
+                    const direction = getDirection({
+                      x1: this.element[wsManagementId][id].x,
+                      y1: this.element[wsManagementId][id].y,
+                      x2: CyberiaWsUserManagement.element[wsManagementId][clientId].x,
+                      y2: CyberiaWsUserManagement.element[wsManagementId][clientId].y,
                     });
-                    if (newDirection)
-                      CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
-                        status: 'update-skin-position',
-                        id,
-                        element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                    if (this.localElementScope[wsManagementId][id].target.Direction !== direction) {
+                      this.localElementScope[wsManagementId][id].target.Direction = direction;
+                      this.element[wsManagementId][id] = updateMovementDirection({
+                        direction,
+                        element: this.element[wsManagementId][id],
                       });
+                      for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                        if (
+                          objectEquals(
+                            CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                            this.element[wsManagementId][id].model.world,
+                          )
+                        ) {
+                          CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                            status: 'update-skin-position',
+                            id,
+                            element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                          });
+                        }
+                      }
+                    }
                   }
                 }
-
-                await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+              } catch (error) {
+                logger.error(error, error.stack);
               }
               this.localElementScope[wsManagementId][id].movement.Callback();
             },
