@@ -1,6 +1,6 @@
 ### ENGINE
 
-Developing and deployment web clients graphical user interface and APIs RESTful.
+Runtime controller inside container, and engine for Dev, build, and deploy GUI and API.
 
 #### Installation
 
