@@ -319,7 +319,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          lightBuild: true, //
+          lightBuild: false, //
           proxy: [80, 443],
           db: {
             provider: 'mongoose',
@@ -333,7 +333,7 @@ const Config = {
           wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           minifyBuild: false,
           proxy: [80, 443],
           db: {
@@ -346,7 +346,7 @@ const Config = {
           client: 'bms',
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           proxy: [80, 443],
         },
       },
