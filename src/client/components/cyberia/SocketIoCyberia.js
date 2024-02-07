@@ -36,12 +36,14 @@ const SocketIoCyberia = {
 
           switch (status) {
             case 'update-position':
+              if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].x = element.x;
               Elements.Data[type][id].y = element.y;
               Pixi.updatePosition({ type, id });
               break;
 
             case 'update-skin-position':
+              if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].components.skin = element.components.skin;
               Pixi.triggerUpdateSkinPosition({ type, id });
               break;
