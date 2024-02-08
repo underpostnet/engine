@@ -243,10 +243,11 @@ const SkillType = {
       displayId: 'red-power',
       position: '08',
       positions: [{ positionId: '08', frames: 2 }],
+      velFrame: 50,
       enabled: true,
     },
-    vel: 750,
-    timeLife: 2500,
+    cooldown: 750,
+    timeLife: 300,
   },
 };
 

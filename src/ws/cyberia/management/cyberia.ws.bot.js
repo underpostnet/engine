@@ -47,7 +47,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 100)) {
+      for (const indexBot of range(0, 99)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -323,7 +323,7 @@ const CyberiaWsBotManagement = {
         skill.Callback = setInterval(() => {
           if (this.localElementScope[wsManagementId][id].target.Active)
             CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' });
-        }, skill.keys[basicSkillKey].vel);
+        }, skill.keys[basicSkillKey].cooldown);
         this.localElementScope[wsManagementId][id].skill = skill;
       }
     })();

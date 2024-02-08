@@ -207,7 +207,7 @@ const Pixi = {
         case 'skin':
           index = 0;
           for (const component of Elements.Data[type][id].components[componentType]) {
-            const { displayId, position, enabled, positions } = component;
+            const { displayId, position, enabled, positions, velFrame } = component;
             if (!enabled) {
               index++;
               continue;
@@ -228,10 +228,24 @@ const Pixi = {
                     `,
                   );
                 const componentInstance = Sprite.from(src);
-                componentInstance.x = 0;
-                componentInstance.y = 0;
-                componentInstance.width = dim * Elements.Data[type][id].dim;
-                componentInstance.height = dim * Elements.Data[type][id].dim;
+                switch (displayId) {
+                  case 'green-power':
+                  case 'red-power':
+                    componentInstance.width = dim * Elements.Data[type][id].dim * 0.5;
+                    componentInstance.height = dim * Elements.Data[type][id].dim * 0.5;
+                    componentInstance.x =
+                      (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                    componentInstance.y =
+                      (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                    break;
+
+                  default:
+                    componentInstance.width = dim * Elements.Data[type][id].dim;
+                    componentInstance.height = dim * Elements.Data[type][id].dim;
+                    componentInstance.x = 0;
+                    componentInstance.y = 0;
+                    break;
+                }
                 componentInstance.visible = id === 'main' ? false : position === positionId && frame === 0;
                 if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
                 this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
@@ -263,7 +277,10 @@ const Pixi = {
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
-                    interval: setInterval(callBack, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
+                    interval: setInterval(
+                      callBack,
+                      velFrame ? velFrame : CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10,
+                    ),
                   };
                 }
               }
