@@ -22,16 +22,19 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { getRandomAvailablePosition, isCollision } from './CommonCyberia.js';
+import { CyberiaBaseMatrix, getRandomAvailablePosition, isCollision } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
+import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const logger = loggerFactory(import.meta);
 
+const BiomeParamsScope = CyberiaBaseMatrix();
+
 const Biome = {
   city: async function () {
-    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
     const buildingStyles = [
       {
         name: 'blue',
@@ -53,7 +56,11 @@ const Biome = {
     // seeds
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
-        if (x % Matrix.Data.dimPaintByCell === 0 && y % Matrix.Data.dimPaintByCell === 0 && random(0, 700) < 10) {
+        if (
+          x % BiomeParamsScope.dimPaintByCell === 0 &&
+          y % BiomeParamsScope.dimPaintByCell === 0 &&
+          random(0, 700) < 10
+        ) {
           colorCell = buildingStyles[random(0, buildingStyles.length - 1)].body[0];
         } else {
           const probPavement = random(0, 700);
@@ -87,8 +94,8 @@ const Biome = {
             // body
             const xFactor = random(4, 8);
             const yFactor = random(3, 10);
-            const buildLimitX = Matrix.Data.dimPaintByCell * xFactor - 1;
-            const buildLimitY = Matrix.Data.dimPaintByCell * yFactor - 1;
+            const buildLimitX = BiomeParamsScope.dimPaintByCell * xFactor - 1;
+            const buildLimitY = BiomeParamsScope.dimPaintByCell * yFactor - 1;
 
             if (!buildLimitStorage[x]) buildLimitStorage[x] = {};
             buildLimitStorage[x][y] = {
@@ -149,7 +156,7 @@ const Biome = {
             const dimDoor = 2;
             const xDoorPadding = 2;
             const xDoorCords = range(x + xDoorPadding, x + buildLimitX - xDoorPadding - dimDoor).filter(
-              (n) => n % Matrix.Data.dimPaintByCell === 0,
+              (n) => n % BiomeParamsScope.dimPaintByCell === 0,
             );
             const xDoor = xDoorCords[random(0, xDoorCords.length - 1)];
             const yDoor = y + buildLimitY;
@@ -200,7 +207,7 @@ const Biome = {
     return BiomeMatrix;
   },
   forest: async function () {
-    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
 
     // phenotypes
     const treePhenotype = [
@@ -356,7 +363,7 @@ const Biome = {
     return BiomeMatrix;
   },
   space: async function () {
-    const dim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+    const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
 
     const validateMatrixLimit = (x, y) => x >= 0 && y >= 0 && x <= dim - 1 && y <= dim - 1;
 
@@ -397,6 +404,9 @@ const Biome = {
       setBiome: [],
       container: 'seed-city',
       timeOut: 1000,
+      dim: 16 * 7,
+      dimPaintByCell: 3,
+      dimAmplitude: 1,
     };
     const mapData = [
       {
@@ -525,7 +535,7 @@ const Biome = {
       },
     ];
     // 7x6 (16*3)
-    const dim = 16 * 3 * 10; // this.MetaData.dim * 0.17;
+    const dim = BiomeEngine.PixiBiomeDim / 7; // 16 * 3 * 10; // this.MetaData.dim * 0.17;
     const sumFactor = 1;
     const solid = {};
     for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
@@ -536,14 +546,14 @@ const Biome = {
         );
 
         let src;
-        if (dataSection) src = `${getProxyPath()}assets/seed-city/${dataSection.name_map}.PNG`;
-        else src = `${getProxyPath()}assets/seed-city/void.PNG`;
+        if (dataSection) src = `${getProxyPath()}assets/custom-biome/seed-city/${dataSection.name_map}.PNG`;
+        else src = `${getProxyPath()}assets/custom-biome/seed-city/void.PNG`;
 
         let sectionSolidMatrix;
         if (dataSection) {
           const allData = JSON.parse(
             await CoreService.getRaw({
-              url: `${getProxyPath()}assets/seed-city/${dataSection.name_map}.metadata.json`,
+              url: `${getProxyPath()}assets/custom-biome/seed-city/${dataSection.name_map}.metadata.json`,
             }),
           );
 
@@ -576,10 +586,10 @@ const Biome = {
       // setBiome: [],
       // timeOut: 1000,
     };
-    for (const y of range(0, Matrix.Data.dim * Matrix.Data.dimPaintByCell - 1)) {
+    for (const y of range(0, BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell - 1)) {
       BiomeMatrix.color[y] = {};
       BiomeMatrix.solid[y] = {};
-      for (const x of range(0, Matrix.Data.dim * Matrix.Data.dimPaintByCell - 1)) {
+      for (const x of range(0, BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell - 1)) {
         BiomeMatrix.solid[y][x] = 0;
         BiomeMatrix.color[y][x] = randomHexColor();
       }
@@ -622,8 +632,11 @@ class LoadBiomeRenderer {
 
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
-        if (!BiomeScope.Data[rowId]) await this.loadScope(params);
-        await this.load(params);
+        if (!BiomeScope.Data[rowId]) await this.loadData(params);
+        BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
+        BiomeScope.CurrentKey = params.data.biome;
+
+        await BiomeEngine.renderPixiBiome(BiomeScope.Data[rowId]);
         s(`.input-name-${params.data.biome}`).value = BiomeScope.Data[rowId].name;
         s(`.dropdown-option-${params.data.biome}`).click();
       });
@@ -663,7 +676,7 @@ class LoadBiomeRenderer {
     return true;
   }
 
-  async loadScope(params) {
+  async loadData(params) {
     const rowId = this.idFactory(params);
 
     if (!(rowId in BiomeScope.Data)) {
@@ -702,17 +715,18 @@ class LoadBiomeRenderer {
 
   async load(params) {
     const rowId = this.idFactory(params);
-    BiomeScope.CurrentKey = BiomeScope.Data[rowId].biome;
 
     Matrix.Data.dim = BiomeScope.Data[rowId].dim;
     Matrix.Data.dimPaintByCell = BiomeScope.Data[rowId].dimPaintByCell;
+    Matrix.Data.biomeDataId = rowId;
     // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
-    BiomeScope.Keys[params.data.biome] = BiomeScope.Data[rowId];
     Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
   }
 }
 
 const BiomeEngine = {
+  PixiBiomeDim: 0,
+  PixiBiome: Application,
   Render: async function (options) {
     const resultBiome = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
@@ -786,6 +800,19 @@ const BiomeEngine = {
       `;
     }
 
+    setTimeout(() => {
+      this.PixiBiomeDim = 1600;
+      this.PixiBiome = new Application({
+        width: this.PixiBiomeDim,
+        height: this.PixiBiomeDim,
+        background: 'gray',
+      });
+
+      this.PixiBiome.view.classList.add('in');
+      this.PixiBiome.view.classList.add('pixi-canvas-biome');
+
+      s('.biome-pixi-container').appendChild(this.PixiBiome.view);
+    });
     setTimeout(() =>
       Object.keys(Biome).map(async (biome) => {
         const validators = await Validator.instance([{ id: `input-name-${biome}`, rules: [{ type: 'isEmpty' }] }]);
@@ -829,7 +856,7 @@ const BiomeEngine = {
             await (async () => {
               if (color) color = Object.values(color).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
-              const { dim, dimPaintByCell, dimAmplitude } = Matrix.Data;
+              const { dim, dimPaintByCell, dimAmplitude } = BiomeScope.Keys[biome];
               const { status, data } = await CyberiaBiomeService.post({
                 body: {
                   fileId,
@@ -861,7 +888,7 @@ const BiomeEngine = {
             id: `modal-image-biome-${biome}`,
             barConfig,
             title: ` ${Translate.Render(`biome-image`)} - ${biome}`,
-            html: html`<img src="${BiomeScope.Keys[biome].imageSrc}" />`,
+            html: html`<img class="in" style="width: 100%" src="${BiomeScope.Keys[biome].imageSrc}" />`,
             mode: 'view',
             slideMenu: 'modal-menu',
           });
@@ -903,6 +930,12 @@ const BiomeEngine = {
         </div>
         <div class="in fll biome-col-b">
           <div class="in section-mp">
+            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
+          </div>
+          <div class="in section-mp">
+            <div class="in biome-pixi-container"></div>
+          </div>
+          <div class="in section-mp">
             <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
           </div>
           <div class="in section-mp">
@@ -930,22 +963,22 @@ const BiomeEngine = {
   },
   getRandomAvailablePosition: function (options) {
     const { type, id } = options;
-    const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
+    const biomeData = options.biome ? options.biome : BiomeScope.Data[Matrix.Data.biomeDataId];
     return getRandomAvailablePosition({ element: Elements.Data[type][id], biomeData });
   },
   isCollision: function (options) {
     const { type, id, x, y } = options;
-    const biomeData = options.biome ? options.biome : BiomeScope.Keys[BiomeScope.CurrentKey];
+    const biomeData = options.biome ? options.biome : BiomeScope.Data[Matrix.Data.biomeDataId];
     return isCollision({ element: Elements.Data[type][id], biomeData, x, y });
   },
   generateBiome: async function (biome) {
     const BiomeMatrix = await Biome[biome]();
-    BiomeScope.Keys[biome] = { dimPaintByCell: Matrix.Data.dimPaintByCell, ...BiomeMatrix, biome };
+    BiomeScope.Keys[biome] = { biome, ...BiomeParamsScope, ...BiomeMatrix };
     BiomeScope.CurrentKey = biome;
-    Pixi.setBiome(BiomeMatrix);
+    await this.renderPixiBiome(BiomeScope.Keys[biome]);
     setTimeout(
       async () => {
-        const biomeImg = await Pixi.App.renderer.extract.image(Pixi.Data.biome[Pixi.currentBiomeContainer]);
+        const biomeImg = await this.PixiBiome.renderer.extract.image(this.PixiBiome.stage);
         BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
         const res = await fetch(BiomeScope.Keys[biome].imageSrc);
         const blob = await res.blob();
@@ -953,6 +986,43 @@ const BiomeEngine = {
       },
       BiomeMatrix.timeOut ? BiomeMatrix.timeOut : 0,
     );
+  },
+  renderPixiBiome: async function (BiomeMatrix) {
+    this.PixiBiome.stage.removeChildren();
+
+    if (BiomeMatrix.biome === 'seed-city' && !BiomeMatrix.setBiome) {
+      const biomeData = await Biome['seed-city']();
+      BiomeMatrix.setBiome = biomeData.setBiome;
+    }
+
+    if (BiomeMatrix.setBiome) {
+      for (const cellData of BiomeMatrix.setBiome) {
+        const { src, dim, x, y } = cellData;
+        const cell = Sprite.from(src);
+        cell.x = dim * x;
+        cell.y = dim * y;
+        cell.width = dim;
+        cell.height = dim;
+        this.PixiBiome.stage.addChild(cell);
+      }
+      return;
+    }
+
+    const rangeBiome = range(0, BiomeMatrix.dim * BiomeMatrix.dimPaintByCell - 1);
+    const dim = this.PixiBiomeDim / rangeBiome.length;
+
+    for (const y of rangeBiome)
+      for (const x of rangeBiome) {
+        if (BiomeMatrix.color[y] && BiomeMatrix.color[y][x]) {
+          const cell = new Sprite(Texture.WHITE);
+          cell.x = dim * x;
+          cell.y = dim * y;
+          cell.width = dim;
+          cell.height = dim;
+          cell.tint = BiomeMatrix.color[y][x];
+          this.PixiBiome.stage.addChild(cell);
+        }
+      }
   },
 };
 

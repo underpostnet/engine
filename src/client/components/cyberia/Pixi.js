@@ -89,20 +89,12 @@ const Pixi = {
     };
 
     // biome containers
-
     this.Data.biome['seed-city'] = new Container();
     this.Data.biome['seed-city'].width = this.MetaData.dim;
     this.Data.biome['seed-city'].height = this.MetaData.dim;
     this.Data.biome['seed-city'].x = 0;
     this.Data.biome['seed-city'].y = 0;
     this.App.stage.addChild(this.Data.biome['seed-city']);
-
-    this.Data.biome.container = new Container();
-    this.Data.biome.container.width = this.MetaData.dim;
-    this.Data.biome.container.height = this.MetaData.dim;
-    this.Data.biome.container.x = 0;
-    this.Data.biome.container.y = 0;
-    this.App.stage.addChild(this.Data.biome.container);
 
     this.Data.biome.floorContainer = new Container();
     this.Data.biome.floorContainer.width = this.MetaData.dim;
@@ -112,7 +104,8 @@ const Pixi = {
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
     // channels container
-    for (const channelType of ['user', 'bot', 'skill']) {
+
+    for (const channelType of Object.keys(Elements.Data)) {
       this.Data[channelType].container = new Container();
       this.Data[channelType].container.width = this.MetaData.dim;
       this.Data[channelType].container.height = this.MetaData.dim;

@@ -1,13 +1,12 @@
 import { Responsive } from '../core/Responsive.js';
 import { s, append } from '../core/VanillaJs.js';
-import { CyberiaParams } from './CommonCyberia.js';
+import { CyberiaBaseMatrix, CyberiaParams } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 
 const Matrix = {
   Data: {
-    dim: 16 * 1,
-    dimPaintByCell: 3,
-    dimAmplitude: 1, // 8,
+    ...CyberiaBaseMatrix(),
+    biomeDataId: '',
   },
   Render: {
     'matrix-center-square': function (container) {

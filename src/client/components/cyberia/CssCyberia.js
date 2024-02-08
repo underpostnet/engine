@@ -223,6 +223,9 @@ const CssCyberia = {
         padding-top: 50px;
         padding-bottom: 50px;
       }
+      .pixi-canvas-biome {
+        width: 100%;
+      }
     `,
 };
 

@@ -319,6 +319,14 @@ const updateMovementDirection = ({ direction, element }) => {
   return element;
 };
 
+const CyberiaBaseMatrix = () => {
+  return {
+    dim: 16 * 1,
+    dimPaintByCell: 3,
+    dimAmplitude: 1, // 8,
+  };
+};
+
 const CyberiaParams = {
   CYBERIA_EVENT_CALLBACK_TIME: 45,
 };
@@ -335,4 +343,5 @@ export {
   SkillType,
   CyberiaParams,
   updateMovementDirection,
+  CyberiaBaseMatrix,
 };

@@ -179,7 +179,7 @@ const WorldManagement = {
   },
   EmitNewWorldFace: (options) => {
     const { type, id } = options;
-    for (const elementType of ['user', 'bot', 'skill']) {
+    for (const elementType of Object.keys(Elements.Data)) {
       for (const elementId of Object.keys(Elements.Data[elementType])) {
         if (elementId !== 'main') {
           Pixi.removeElement({ type: elementType, id: elementId });
@@ -210,12 +210,12 @@ const WorldManagement = {
 
       if (Elements.Data.user.main.model.world.face - 1 === indexFace) {
         await this.biomeRender.load({
-          data: await this.biomeRender.loadScope({
+          data: await this.biomeRender.loadData({
             data: { _id },
           }),
         });
       } else
-        await this.biomeRender.loadScope({
+        await this.biomeRender.loadData({
           data: { _id },
         });
       this.LoadAdjacentFaces(type, id);
