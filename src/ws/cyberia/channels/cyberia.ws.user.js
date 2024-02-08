@@ -3,7 +3,9 @@ import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
+import { CyberiaWsSkillManagement } from '../management/cyberia.ws.skill.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
+import { CyberiaWsSkillChannel } from './cyberia.ws.skill.js';
 
 const channel = 'user';
 const meta = { url: `ws-cyberia-${channel}` };
@@ -69,6 +71,20 @@ const CyberiaWsUserController = {
                 element: CyberiaWsUserManagement.element[wsManagementId][elementId],
               });
             }
+          }
+        }
+        for (const elementId of Object.keys(CyberiaWsSkillManagement.element[wsManagementId])) {
+          if (
+            objectEquals(
+              CyberiaWsSkillManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
+          ) {
+            CyberiaWsEmit(CyberiaWsSkillChannel.channel, socket, {
+              status: 'connection',
+              id: elementId,
+              element: CyberiaWsSkillManagement.element[wsManagementId][elementId],
+            });
           }
         }
         break;

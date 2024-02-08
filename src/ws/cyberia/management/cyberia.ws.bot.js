@@ -15,6 +15,7 @@ import {
 import {
   BaseElement,
   CyberiaParams,
+  SkillType,
   WorldType,
   getRandomAvailablePosition,
   isCollision,
@@ -25,6 +26,7 @@ import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
+import { CyberiaWsSkillManagement } from './cyberia.ws.skill.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -45,7 +47,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 5)) {
+      for (const indexBot of range(0, 100)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -307,6 +309,22 @@ const CyberiaWsBotManagement = {
 
         this.element[wsManagementId][id] = bot;
         this.localElementScope[wsManagementId][id].movement.Callback();
+
+        const basicSkillKey = this.element[wsManagementId][id].skill.basic;
+        const skill = { keys: {} };
+        for (const skillKey of Object.keys(this.element[wsManagementId][id].skill.keys)) {
+          if (
+            this.element[wsManagementId][id].skill.keys[skillKey] &&
+            SkillType[this.element[wsManagementId][id].skill.keys[skillKey]]
+          ) {
+            skill.keys[skillKey] = SkillType[this.element[wsManagementId][id].skill.keys[skillKey]];
+          }
+        }
+        skill.Callback = setInterval(() => {
+          if (this.localElementScope[wsManagementId][id].target.Active)
+            CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' });
+        }, skill.keys[basicSkillKey].vel);
+        this.localElementScope[wsManagementId][id].skill = skill;
       }
     })();
   },

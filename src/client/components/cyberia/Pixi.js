@@ -111,21 +111,15 @@ const Pixi = {
     this.Data.biome.floorContainer.y = 0;
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
-    // user container
-    this.Data.user.container = new Container();
-    this.Data.user.container.width = this.MetaData.dim;
-    this.Data.user.container.height = this.MetaData.dim;
-    this.Data.user.container.x = 0;
-    this.Data.user.container.y = 0;
-    this.App.stage.addChild(this.Data.user.container);
-
-    // bot container
-    this.Data.bot.container = new Container();
-    this.Data.bot.container.width = this.MetaData.dim;
-    this.Data.bot.container.height = this.MetaData.dim;
-    this.Data.bot.container.x = 0;
-    this.Data.bot.container.y = 0;
-    this.App.stage.addChild(this.Data.bot.container);
+    // channels container
+    for (const channelType of ['user', 'bot', 'skill']) {
+      this.Data[channelType].container = new Container();
+      this.Data[channelType].container.width = this.MetaData.dim;
+      this.Data[channelType].container.height = this.MetaData.dim;
+      this.Data[channelType].container.x = 0;
+      this.Data[channelType].container.y = 0;
+      this.App.stage.addChild(this.Data[channelType].container);
+    }
   },
   currentBiomeContainer: String,
   clearBiomeContainers: function () {
@@ -216,34 +210,26 @@ const Pixi = {
 
           break;
 
+        case 'skill':
         case 'skin':
           index = 0;
           for (const component of Elements.Data[type][id].components[componentType]) {
-            const { displayId, position, enabled } = component;
+            const { displayId, position, enabled, positions } = component;
             if (!enabled) {
               index++;
               continue;
             }
-            for (const positionData of [
-              { positionId: '02', frames: 1 },
-              { positionId: '04', frames: 1 },
-              { positionId: '06', frames: 1 },
-              { positionId: '08', frames: 1 },
-              { positionId: '12', frames: 2 },
-              { positionId: '14', frames: 2 },
-              { positionId: '16', frames: 2 },
-              { positionId: '18', frames: 2 },
-            ]) {
+            for (const positionData of positions) {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
-                const src = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${frame}.png`;
-                if (id === 'main' && !s(`.skin-${id}-${displayId}-${positionId}-${frame}`))
+                const src = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${frame}.png`;
+                if (id === 'main' && !s(`.${componentType}-${id}-${displayId}-${positionId}-${frame}`))
                   append(
                     '.main-user-content',
                     html`
                       <img
                         src="${src}"
-                        class="abs main-user-avatar-img skin-${id}-${displayId}-${positionId}-${frame}"
+                        class="abs main-user-avatar-img ${componentType}-${id}-${displayId}-${positionId}-${frame}"
                         style="display: ${position === positionId && frame === 0 ? 'block' : 'none'};"
                       />
                     `,
@@ -266,20 +252,20 @@ const Pixi = {
                   const callBack = () => {
                     const { position } = Elements.Data[type][id].components[componentType][currentIndex];
 
-                    currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
+                    currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
                     if (id === 'main')
-                      s(`.skin-${id}-${displayId}-${positionId}-${currentFrame}`).style.display = 'none';
+                      s(`.${componentType}-${id}-${displayId}-${positionId}-${currentFrame}`).style.display = 'none';
 
                     currentFrame++;
                     if (currentFrame === frames) currentFrame = 0;
 
-                    currentSrc = `${getProxyPath()}assets/skin/${displayId}/${positionId}/${currentFrame}.png`;
+                    currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
                       id === 'main' ? false : position === positionId ? true : false;
 
                     if (id === 'main')
-                      s(`.skin-${id}-${displayId}-${positionId}-${currentFrame}`).style.display =
+                      s(`.${componentType}-${id}-${displayId}-${positionId}-${currentFrame}`).style.display =
                         position === positionId ? 'block' : 'none';
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
@@ -333,7 +319,7 @@ const Pixi = {
   },
   removeElement: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    if (!this.Data[type][id]) return; // error case -> type: bot, id: main
+    if (!this.Data[type][id]) return; // error case -> type: bot, skill, id: main
     for (const componentType of Object.keys(this.Data[type][id].intervals)) {
       for (const keyIntervalInstance of Object.keys(this.Data[type][id].intervals[componentType])) {
         if (this.Data[type][id].intervals[componentType][keyIntervalInstance].interval)

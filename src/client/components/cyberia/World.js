@@ -15,7 +15,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
-import { WorldType } from './CommonCyberia.js';
+import { WorldLimit, WorldType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -87,48 +87,6 @@ class LoadWorldRenderer {
     return true;
   }
 }
-
-const WorldLimit = (options = { type: undefined }) => {
-  const { type } = options;
-  return {
-    6: {
-      top: [2, 'bottom'],
-      bottom: [4, 'top'],
-      left: [1, 'right'],
-      right: [3, 'left'],
-    },
-    5: {
-      top: [2, 'bottom'],
-      bottom: [4, 'top'],
-      left: [3, 'right'],
-      right: [1, 'left'],
-    },
-    4: {
-      top: [1, 'bottom'],
-      bottom: [3, 'top'],
-      left: [5, 'right'],
-      right: [6, 'left'],
-    },
-    3: {
-      top: [4, 'bottom'],
-      bottom: [2, 'top'],
-      left: [type === 'width' ? 6 : 5, 'right'],
-      right: [type === 'width' ? 5 : 6, 'left'],
-    },
-    2: {
-      top: [3, 'bottom'],
-      bottom: [1, 'top'],
-      left: [5, 'right'],
-      right: [6, 'left'],
-    },
-    1: {
-      top: [2, 'bottom'],
-      bottom: [4, 'top'],
-      left: [5, 'right'],
-      right: [6, 'left'],
-    },
-  };
-};
 
 const WorldManagement = {
   biomeRender: new LoadBiomeRenderer(),
@@ -221,7 +179,7 @@ const WorldManagement = {
   },
   EmitNewWorldFace: (options) => {
     const { type, id } = options;
-    for (const elementType of ['user', 'bot']) {
+    for (const elementType of ['user', 'bot', 'skill']) {
       for (const elementId of Object.keys(Elements.Data[elementType])) {
         if (elementId !== 'main') {
           Pixi.removeElement({ type: elementType, id: elementId });

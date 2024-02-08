@@ -6,6 +6,7 @@ import { CyberiaWsConnection } from './cyberia.ws.connection.js';
 import { CoreWsChatManagement } from '../core/management/core.ws.chat.js';
 import { CyberiaWsBotManagement } from './management/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './management/cyberia.ws.user.js';
+import { CyberiaWsSkillManagement } from './management/cyberia.ws.skill.js';
 
 import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
@@ -20,6 +21,7 @@ const createIoServer = async (httpServer, options) => {
 
   CyberiaWsUserManagement.instance(wsManagementId);
   CyberiaWsBotManagement.instance(wsManagementId);
+  CyberiaWsSkillManagement.instance(wsManagementId);
   CoreWsChatManagement.instance(wsManagementId);
   return IoServer(httpServer, options, (socket) => CyberiaWsConnection(socket, wsManagementId));
 };

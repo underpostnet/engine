@@ -24,8 +24,36 @@ const ComponentElement = {
       components: {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [
-          { displayId: 'anon', position: '08', enabled: true },
-          { displayId: 'eiri', position: '08', enabled: false },
+          {
+            displayId: 'anon',
+            position: '08',
+            positions: [
+              { positionId: '02', frames: 1 },
+              { positionId: '04', frames: 1 },
+              { positionId: '06', frames: 1 },
+              { positionId: '08', frames: 1 },
+              { positionId: '12', frames: 2 },
+              { positionId: '14', frames: 2 },
+              { positionId: '16', frames: 2 },
+              { positionId: '18', frames: 2 },
+            ],
+            enabled: true,
+          },
+          {
+            displayId: 'eiri',
+            position: '08',
+            positions: [
+              { positionId: '02', frames: 1 },
+              { positionId: '04', frames: 1 },
+              { positionId: '06', frames: 1 },
+              { positionId: '08', frames: 1 },
+              { positionId: '12', frames: 2 },
+              { positionId: '14', frames: 2 },
+              { positionId: '16', frames: 2 },
+              { positionId: '18', frames: 2 },
+            ],
+            enabled: false,
+          },
         ],
       },
     };
@@ -34,13 +62,41 @@ const ComponentElement = {
     return {
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skin: [{ displayId: 'purple', position: '08', enabled: true }],
+        skin: [
+          {
+            displayId: 'purple',
+            position: '08',
+            positions: [
+              { positionId: '02', frames: 1 },
+              { positionId: '04', frames: 1 },
+              { positionId: '06', frames: 1 },
+              { positionId: '08', frames: 1 },
+              { positionId: '12', frames: 2 },
+              { positionId: '14', frames: 2 },
+              { positionId: '16', frames: 2 },
+              { positionId: '18', frames: 2 },
+            ],
+            enabled: true,
+          },
+        ],
+      },
+    };
+  },
+  skill: () => {
+    return {
+      parent: {
+        type: '',
+        id: '',
+      },
+      components: {
+        background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
+        skill: [],
       },
     };
   },
 };
 
-const PlayerElement = () => {
+const MatrixElement = () => {
   return {
     x: 1, // Matrix.Data.dim / 2 - 0.5,
     y: 1, // Matrix.Data.dim / 2 - 0.5,
@@ -49,10 +105,25 @@ const PlayerElement = () => {
   };
 };
 
+const PlayerElement = () => {
+  return {
+    skill: {
+      basic: 'q',
+      keys: {
+        q: 'red-power',
+        w: null,
+        e: null,
+        r: null,
+      },
+    },
+  };
+};
+
 const BaseElement = () => {
   return {
     user: {
       main: {
+        ...MatrixElement(),
         ...PlayerElement(),
         ...ComponentElement.user(),
         model: {
@@ -63,8 +134,18 @@ const BaseElement = () => {
     },
     bot: {
       main: {
+        ...MatrixElement(),
         ...PlayerElement(),
         ...ComponentElement.bot(),
+        model: {
+          ...ModelElement.world(),
+        },
+      },
+    },
+    skill: {
+      main: {
+        ...MatrixElement(),
+        ...ComponentElement.skill(),
         model: {
           ...ModelElement.world(),
         },
@@ -111,6 +192,61 @@ const WorldType = {
   height: {
     worldFaces: [1, 2, 3, 4],
     spaceFace: [5, 6],
+  },
+};
+
+const WorldLimit = (options = { type: undefined }) => {
+  const { type } = options;
+  return {
+    6: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [1, 'right'],
+      right: [3, 'left'],
+    },
+    5: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [3, 'right'],
+      right: [1, 'left'],
+    },
+    4: {
+      top: [1, 'bottom'],
+      bottom: [3, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+    3: {
+      top: [4, 'bottom'],
+      bottom: [2, 'top'],
+      left: [type === 'width' ? 6 : 5, 'right'],
+      right: [type === 'width' ? 5 : 6, 'left'],
+    },
+    2: {
+      top: [3, 'bottom'],
+      bottom: [1, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+    1: {
+      top: [2, 'bottom'],
+      bottom: [4, 'top'],
+      left: [5, 'right'],
+      right: [6, 'left'],
+    },
+  };
+};
+
+const SkillType = {
+  'red-power': {
+    component: {
+      displayId: 'red-power',
+      position: '08',
+      positions: [{ positionId: '08', frames: 2 }],
+      enabled: true,
+    },
+    vel: 750,
+    timeLife: 2500,
   },
 };
 
@@ -189,12 +325,14 @@ const CyberiaParams = {
 
 export {
   BaseElement,
-  PlayerElement,
+  MatrixElement,
   ModelElement,
   ComponentElement,
   getRandomAvailablePosition,
   isCollision,
+  WorldLimit,
   WorldType,
+  SkillType,
   CyberiaParams,
   updateMovementDirection,
 };

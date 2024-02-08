@@ -1,6 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { CoreWsChatChannel } from '../core/channels/core.ws.chat.js';
 import { CyberiaWsBotChannel } from './channels/cyberia.ws.bot.js';
+import { CyberiaWsSkillChannel } from './channels/cyberia.ws.skill.js';
 import { CyberiaWsUserChannel } from './channels/cyberia.ws.user.js';
 
 const meta = { url: `ws-cyberia-connection` };
@@ -15,6 +16,7 @@ const CyberiaWsConnection = function (socket, wsManagementId) {
 
   CyberiaWsUserChannel.connection(socket, wsManagementId);
   CyberiaWsBotChannel.connection(socket, wsManagementId);
+  CyberiaWsSkillChannel.connection(socket, wsManagementId);
 
   CoreWsChatChannel.connection(socket, wsManagementId);
 
@@ -23,6 +25,7 @@ const CyberiaWsConnection = function (socket, wsManagementId) {
 
     CyberiaWsUserChannel.disconnect(socket, reason, wsManagementId);
     CyberiaWsBotChannel.disconnect(socket, reason, wsManagementId);
+    CyberiaWsSkillChannel.disconnect(socket, reason, wsManagementId);
 
     CoreWsChatChannel.disconnect(socket, reason, wsManagementId);
   });
