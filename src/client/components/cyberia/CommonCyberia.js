@@ -104,8 +104,6 @@ const MatrixElement = () => {
     y: 1, // Matrix.Data.dim / 2 - 0.5,
     dim: 1,
     vel: 0.5,
-    maxLife: 150,
-    life: 150,
   };
 };
 
@@ -120,6 +118,9 @@ const PlayerElement = () => {
         r: null,
       },
     },
+    maxLife: 150,
+    life: 150,
+    deadTime: 3000,
   };
 };
 

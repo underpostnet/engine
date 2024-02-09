@@ -1,4 +1,4 @@
-import { objectEquals } from '../../../client/components/core/CommonJs.js';
+import { newInstance, objectEquals } from '../../../client/components/core/CommonJs.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 
@@ -22,6 +22,10 @@ const CyberiaWsUserManagement = {
           element: { life: this.element[wsManagementId][id].life },
         });
     }
+    if (life < 0)
+      setTimeout(() => {
+        this.updateLife({ ...args, life: newInstance(this.element[wsManagementId][id].maxLife) });
+      }, this.element[wsManagementId][id].deadTime);
   },
 };
 
