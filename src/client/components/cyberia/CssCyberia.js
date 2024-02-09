@@ -270,6 +270,14 @@ const CssCyberia = {
       .dynamic-joystick-container-cyberia-joystick {
         cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
+      .main-skill-cooldown {
+        width: 60%;
+        height: 60%;
+        background: rgba(0, 0, 0, 0.5);
+        transition: 0.35;
+        border-radius: 10px;
+        ${borderChar(2, 'black')}
+      }
     `,
 };
 

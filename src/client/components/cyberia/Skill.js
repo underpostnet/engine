@@ -1,6 +1,7 @@
-import { range } from '../core/CommonJs.js';
+import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { SkillType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 
 const Skill = {
@@ -17,6 +18,12 @@ const Skill = {
                     class="abs center main-skill-background-img main-skill-background-img-${i}"
                     src="${getProxyPath()}assets/joy/btn.png"
                   />
+                  <div class="main-skill-img-container-${i}"></div>
+                  <div class="abs center main-skill-cooldown main-skill-cooldown-${i}" style="display: none;">
+                    <div
+                      class="abs center main-skill-cooldown-delay-time-text main-skill-cooldown-delay-time-text-${i}"
+                    ></div>
+                  </div>
                   <div class="abs center main-skill-key-text main-skill-key-text-${i}"></div>
                 </div>
               `,
@@ -25,15 +32,17 @@ const Skill = {
         </div>
       `,
     );
-    let indexSkill = -1;
+    let indexSkillIteration = -1;
     for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys)) {
-      indexSkill++;
+      indexSkillIteration++;
+      const indexSkill = indexSkillIteration;
       let triggerSkill = () => null;
+      let cooldownActive = false;
       htmls(`.main-skill-key-text-${indexSkill}`, skillKey);
       if (Elements.Data.user.main.skill.keys[skillKey]) {
         if (!s(`.main-skill-img-${indexSkill}`))
           append(
-            `.main-skill-slot-${indexSkill}`,
+            `.main-skill-img-container-${indexSkill}`,
             html` <img class="abs center main-skill-img main-skill-img-${indexSkill}" /> `,
           );
         s(`.main-skill-img-${indexSkill}`).src = `${getProxyPath()}assets/skill/${
@@ -41,10 +50,30 @@ const Skill = {
         }/animation.gif`;
         triggerSkill = (e) => {
           e.preventDefault();
-          SocketIo.Emit('skill', {
-            status: 'create',
-            skillKey,
-          });
+          if (!cooldownActive) {
+            cooldownActive = true;
+            SocketIo.Emit('skill', {
+              status: 'create',
+              skillKey,
+            });
+            let currentCooldown = newInstance(SkillType[Elements.Data.user.main.skill.keys[skillKey]].cooldown);
+            s(`.main-skill-cooldown-${indexSkill}`).style.display = 'block';
+            const reduceCooldown = async () => {
+              const cooldownDisplayValue = currentCooldown / 1000;
+              htmls(
+                `.main-skill-cooldown-delay-time-text-${indexSkill}`,
+                `${setPad(floatRound(cooldownDisplayValue, 3), '0', 4, true)} s`,
+              );
+              await timer(50);
+              currentCooldown -= 50;
+              if (currentCooldown > 0) reduceCooldown();
+              else {
+                cooldownActive = false;
+                s(`.main-skill-cooldown-${indexSkill}`).style.display = 'none';
+              }
+            };
+            reduceCooldown();
+          }
         };
       }
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;

@@ -114,7 +114,7 @@ const CyberiaWsUserController = {
   connection: function (socket, client, wsManagementId) {
     CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement()[channel].main;
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
-      direction: 'n',
+      direction: 's',
     };
     for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (

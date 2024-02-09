@@ -126,6 +126,12 @@ const getDistance = (x1, y1, x2, y2) => {
   return Math.sqrt(disX * disX + disY * disY);
 };
 
+const setPad = (num, padValue, targetLength, endPad) => {
+  let str = String(num);
+  while (str.length < targetLength) endPad ? (str = str + padValue) : (str = padValue + str);
+  return str;
+};
+
 /**
  * Decimal setting of a number.
  *
@@ -154,7 +160,7 @@ const decimalAdjust = (type, value, exp) => {
   // https://developer.mozilla.org/es/docs/Web/JavaScript/Reference/Global_Objects/Math/round
 };
 
-const floatFixed = (v, d) => parseFloat(v).toFixed(d);
+const floatRound = (v, d) => parseFloat(parseFloat(v).toFixed(d));
 
 // Decimal round
 
@@ -447,7 +453,7 @@ export {
   JSONmatrix,
   getRandomPoint,
   objectEquals,
-  floatFixed,
+  floatRound,
   getId,
   insertTransitionCoordinates,
   randomHexColor,
@@ -461,4 +467,5 @@ export {
   reduceMatrix,
   mergeMatrices,
   titleFormatted,
+  setPad,
 };
