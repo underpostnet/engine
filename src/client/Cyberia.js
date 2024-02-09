@@ -20,6 +20,7 @@ import { LoadRouter } from './components/core/Router.js';
 import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Css } from './components/core/Css.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
+import { Skill } from './components/cyberia/Skill.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -39,6 +40,7 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
   LoadRouter(RouterInstance);
   disableOptionsClick('html', ['drag', 'select']);
   s(`.btn-menu-modal-menu`).click();
+  await Skill.renderMainKeysSlots();
   await Keyboard.Init();
   await JoyStickCyberia.Render();
 })();

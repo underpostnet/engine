@@ -172,7 +172,7 @@ const WorldManagement = {
       await this.biomeRender.load({
         data: newBiome,
       });
-      this.LoadAdjacentFaces(type, id, newFace);
+      this.LoadAdjacentFaces(type, id);
       htmls('.display-current-face', newFace);
       this.EmitNewWorldFace({ type, id });
     }

@@ -77,10 +77,10 @@ const Pixi = {
         s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
       }
 
-      s('.main-user-content').style.width = `${
+      s('.main-skin-container').style.width = `${
         (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
       }px`;
-      s('.main-user-content').style.height = `${
+      s('.main-skin-container').style.height = `${
         (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
       }px`;
       // const ResponsiveData = Responsive.getResponsiveData();
@@ -218,7 +218,7 @@ const Pixi = {
                 const src = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${frame}.png`;
                 if (id === 'main' && !s(`.${componentType}-${id}-${displayId}-${positionId}-${frame}`))
                   append(
-                    '.main-user-content',
+                    '.main-skin-container',
                     html`
                       <img
                         src="${src}"

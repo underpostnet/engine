@@ -16,7 +16,7 @@ const logger = loggerFactory(import.meta);
 
 const MainUser = {
   Render: async function () {
-    append('body', html` <div class="abs center main-user-content"></div> `);
+    append('body', html` <div class="abs center main-skin-container"></div>`);
   },
   Update: async function (options = { oldElement: {} }) {
     const type = 'user';

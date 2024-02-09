@@ -61,7 +61,7 @@ const SocketIoCyberia = {
                   s('.ssr-background').style.opacity = 0;
                   setTimeout(async () => {
                     s('.ssr-background').style.display = 'none';
-                    s(`.main-user-content`).style.display = 'block';
+                    s(`.main-skin-container`).style.display = 'block';
                     LoadingAnimation.bar.stop('init-loading');
                   }, 300);
                 });
@@ -74,7 +74,7 @@ const SocketIoCyberia = {
       SocketIo.Event.disconnect[s4()] = async (reason) => {
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
-        s(`.main-user-content`).style.display = 'none';
+        s(`.main-skin-container`).style.display = 'none';
         LoadingAnimation.bar.play('init-loading');
         Pixi.removeAll();
         Elements.removeAll();

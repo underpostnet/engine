@@ -163,6 +163,7 @@ const Config = {
             'LogInCyberia',
             'LogOutCyberia',
             'RoutesCyberia',
+            'Skill',
           ],
           test: ['Test'],
         },
@@ -319,7 +320,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          lightBuild: true, //
+          lightBuild: false, //
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

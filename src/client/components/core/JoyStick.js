@@ -18,15 +18,20 @@ const JoyStick = {
         <style>
           .dynamic-joystick-container-${id} {
             /* border: 2px solid red; */
-            left: 0px;
-            bottom: 0px;
-            height: 260px;
-            width: 260px;
+            left: 5px;
+            bottom: 5px;
+            height: 200px;
+            width: 200px;
           }
           .joy-img-background-${id} {
-            width: 70%;
-            height: 70%;
-            opacity: 0.5;
+            width: 93%;
+            height: 93%;
+            opacity: 0.8;
+          }
+          .dynamic-joystick-container-${id}:hover .joy-img-background-${id} {
+            width: 97%;
+            height: 97%;
+            opacity: 1;
           }
         </style>
         <div class="abs dynamic-joystick-container-${id}">

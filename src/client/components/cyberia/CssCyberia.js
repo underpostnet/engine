@@ -1,3 +1,6 @@
+import { borderChar } from '../core/Css.js';
+import { getProxyPath } from '../core/VanillaJs.js';
+
 const CssCyberia = {
   theme: 'cyberia',
   render: async () =>
@@ -188,7 +191,7 @@ const CssCyberia = {
         width: 100%;
         height: 100%;
       }
-      .main-user-content {
+      .main-skin-container {
         /* border: 2px solid red; */
         z-index: 1;
       }
@@ -226,6 +229,46 @@ const CssCyberia = {
       .pixi-canvas-biome {
         width: 100%;
         max-width: 600px;
+      }
+
+      .main-skill-container {
+        bottom: 5px;
+        right: 5px;
+        /* border: 2px solid red; */
+        box-sizing: border-box;
+        width: 200px;
+        height: 200px;
+        z-index: 1;
+        cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
+      }
+      .main-skill-slot {
+        /* border: 2px solid blue; */
+        box-sizing: border-box;
+        width: 50%;
+        height: 50%;
+      }
+      .main-skill-background-img {
+        width: 90%;
+        height: 90%;
+      }
+      /* + ~ > */
+      .main-skill-slot:hover .main-skill-background-img {
+        width: 95%;
+        height: 95%;
+      }
+      .main-skill-key-text {
+        top: 20%;
+        left: 20%;
+        font-size: 50px;
+        color: #ffcc00;
+        ${borderChar(2, 'black')}
+      }
+      .main-skill-img {
+        width: 50%;
+        height: 50%;
+      }
+      .dynamic-joystick-container-cyberia-joystick {
+        cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
     `,
 };
