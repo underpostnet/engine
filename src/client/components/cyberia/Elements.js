@@ -1,5 +1,6 @@
 import { loggerFactory } from '../core/Logger.js';
 import { BaseElement } from './CommonCyberia.js';
+import { WorldManagement } from './World.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -26,6 +27,7 @@ const Elements = {
     }
     this.Interval = {};
     this.Data = BaseElement();
+    WorldManagement.Data = {};
   },
 };
 
