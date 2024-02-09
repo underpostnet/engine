@@ -24,7 +24,8 @@ const CyberiaWsUserManagement = {
     }
     if (life < 0)
       setTimeout(() => {
-        this.updateLife({ ...args, life: newInstance(this.element[wsManagementId][id].maxLife) });
+        if (this.element[wsManagementId][id])
+          this.updateLife({ ...args, life: newInstance(this.element[wsManagementId][id].maxLife) });
       }, this.element[wsManagementId][id].deadTime);
   },
 };

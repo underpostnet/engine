@@ -152,6 +152,7 @@ const CyberiaWsUserController = {
         });
     }
     delete CyberiaWsUserManagement.element[wsManagementId][socket.id];
+    delete CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id];
   },
 };
 
