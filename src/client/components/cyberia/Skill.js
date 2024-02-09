@@ -1,4 +1,5 @@
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
+import { Keyboard } from '../core/Keyboard.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { SkillType } from './CommonCyberia.js';
@@ -33,6 +34,7 @@ const Skill = {
       `,
     );
     let indexSkillIteration = -1;
+    Keyboard.Event['main-skill'] = {};
     for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys)) {
       indexSkillIteration++;
       const indexSkill = indexSkillIteration;
@@ -49,7 +51,7 @@ const Skill = {
           Elements.Data.user.main.skill.keys[skillKey]
         }/animation.gif`;
         triggerSkill = (e) => {
-          e.preventDefault();
+          if (e) e.preventDefault();
           if (!cooldownActive) {
             cooldownActive = true;
             SocketIo.Emit('skill', {
@@ -77,6 +79,8 @@ const Skill = {
         };
       }
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;
+      Keyboard.Event['main-skill'][skillKey.toLowerCase()] = triggerSkill;
+      Keyboard.Event['main-skill'][skillKey.toUpperCase()] = triggerSkill;
     }
   },
 };

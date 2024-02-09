@@ -61,12 +61,6 @@ const MainUser = {
         Elements.Data[type][id].y = y;
         Pixi.updatePosition({ type, id });
       },
-      q: () => {
-        logger.info('On Keyboard', 'q');
-      },
-      Q: () => {
-        logger.info('On Keyboard', 'Q');
-      },
     };
 
     let lastX = newInstance(Elements.Data[type][id].x);
