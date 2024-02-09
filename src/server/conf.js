@@ -320,7 +320,7 @@ const Config = {
           origins: [],
           disabled: false,
           minifyBuild: false,
-          lightBuild: false, //
+          lightBuild: true, //
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

@@ -90,6 +90,7 @@ const CyberiaWsUserController = {
         break;
       case 'update-skin-position':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].components.skin = element.components.skin;
+        CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].direction = args.direction;
         for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
             elementId !== socket.id &&
@@ -112,6 +113,9 @@ const CyberiaWsUserController = {
   },
   connection: function (socket, client, wsManagementId) {
     CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement()[channel].main;
+    CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
+      direction: 'n',
+    };
     for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (
         objectEquals(

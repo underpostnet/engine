@@ -21,6 +21,7 @@ const CyberiaWsSkillManagement = {
     switch (parent.type) {
       case 'user':
         parentElement = newInstance(CyberiaWsUserManagement.element[wsManagementId][parent.id]);
+        direction = `${CyberiaWsUserManagement.localElementScope[wsManagementId][parent.id].direction}`;
         break;
       case 'bot':
         parentElement = newInstance(CyberiaWsBotManagement.element[wsManagementId][parent.id]);

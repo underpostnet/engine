@@ -156,6 +156,7 @@ const MainUser = {
             SocketIo.Emit(type, {
               status: 'update-skin-position',
               element: { components: { skin: Elements.Data[type][id].components.skin } },
+              direction: lastDirection,
             });
           }
         }, 500);
@@ -171,6 +172,7 @@ const MainUser = {
         SocketIo.Emit(type, {
           status: 'update-skin-position',
           element: { components: { skin: Elements.Data[type][id].components.skin } },
+          direction: lastDirection,
         });
       }
     }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
@@ -189,6 +191,7 @@ const MainUser = {
       SocketIo.Emit(type, {
         status: 'update-skin-position',
         element: { components: { skin: Elements.Data[type][id].components.skin } },
+        direction: lastDirection,
       });
     }
 

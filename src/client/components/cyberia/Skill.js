@@ -1,4 +1,5 @@
 import { range } from '../core/CommonJs.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 
@@ -25,22 +26,25 @@ const Skill = {
       `,
     );
     let indexSkill = -1;
-    for (const keySkill of Object.keys(Elements.Data.user.main.skill.keys)) {
+    for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys)) {
       indexSkill++;
       let triggerSkill = () => null;
-      htmls(`.main-skill-key-text-${indexSkill}`, keySkill);
-      if (Elements.Data.user.main.skill.keys[keySkill]) {
+      htmls(`.main-skill-key-text-${indexSkill}`, skillKey);
+      if (Elements.Data.user.main.skill.keys[skillKey]) {
         if (!s(`.main-skill-img-${indexSkill}`))
           append(
             `.main-skill-slot-${indexSkill}`,
             html` <img class="abs center main-skill-img main-skill-img-${indexSkill}" /> `,
           );
         s(`.main-skill-img-${indexSkill}`).src = `${getProxyPath()}assets/skill/${
-          Elements.Data.user.main.skill.keys[keySkill]
+          Elements.Data.user.main.skill.keys[skillKey]
         }/animation.gif`;
         triggerSkill = (e) => {
           e.preventDefault();
-          console.warn('trigger skill slot', keySkill);
+          SocketIo.Emit('skill', {
+            status: 'create',
+            skillKey,
+          });
         };
       }
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;
