@@ -1,8 +1,6 @@
 ### ENGINE
 
-Container App.
-
-Dev, build, and deploy GUI and API.
+Container App and DevOps CI/CD Tools.
 
 #### Installation
 
