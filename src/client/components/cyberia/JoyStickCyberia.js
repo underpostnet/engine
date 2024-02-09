@@ -34,7 +34,7 @@ const JoyStickCyberia = {
               break;
           }
         });
-        if (BiomeEngine.isCollision({ type: 'user', id: 'main', x, y })) return;
+        if (BiomeEngine.isBiomeCollision({ type: 'user', id: 'main', x, y })) return;
         Elements.Data.user.main.x = x;
         Elements.Data.user.main.y = y;
         Pixi.updatePosition({ type: 'user', id: 'main' });

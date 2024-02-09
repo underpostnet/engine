@@ -18,7 +18,7 @@ import {
   SkillType,
   WorldType,
   getRandomAvailablePosition,
-  isCollision,
+  isBiomeCollision,
   updateMovementDirection,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
@@ -65,7 +65,7 @@ const CyberiaWsBotManagement = {
         ).map((y, iY) =>
           y.map((x, iX) =>
             x === 0 &&
-            !isCollision({
+            !isBiomeCollision({
               biomeData: biome,
               element: bot,
               x: iX,
@@ -104,7 +104,7 @@ const CyberiaWsBotManagement = {
                   while (
                     !x ||
                     !y ||
-                    isCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
+                    isBiomeCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
                     // ||
                     // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
                   ) {

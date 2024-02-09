@@ -22,7 +22,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaBaseMatrix, getRandomAvailablePosition, isCollision } from './CommonCyberia.js';
+import { CyberiaBaseMatrix, getRandomAvailablePosition, isBiomeCollision } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -966,10 +966,10 @@ const BiomeEngine = {
     const biomeData = options.biome ? options.biome : BiomeScope.Data[Matrix.Data.biomeDataId];
     return getRandomAvailablePosition({ element: Elements.Data[type][id], biomeData });
   },
-  isCollision: function (options) {
+  isBiomeCollision: function (options) {
     const { type, id, x, y } = options;
     const biomeData = options.biome ? options.biome : BiomeScope.Data[Matrix.Data.biomeDataId];
-    return isCollision({ element: Elements.Data[type][id], biomeData, x, y });
+    return isBiomeCollision({ element: Elements.Data[type][id], biomeData, x, y });
   },
   generateBiome: async function (biome) {
     const BiomeMatrix = await Biome[biome]();

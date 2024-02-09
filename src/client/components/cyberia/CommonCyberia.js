@@ -156,7 +156,7 @@ const BaseElement = () => {
   };
 };
 
-const isCollision = function (options = { biomeData: {}, element: {}, x: 1, y: 1 }) {
+const isBiomeCollision = function (options = { biomeData: {}, element: {}, x: 1, y: 1 }) {
   let { biomeData, element, x, y } = newInstance(options);
   if (!biomeData || !biomeData.solid) return false;
   x = x * biomeData.dimPaintByCell;
@@ -177,7 +177,7 @@ const getRandomAvailablePosition = function (options = { biomeData: {}, element:
   const { biomeData } = options;
   let x, y;
   const dim = biomeData.dim * biomeData.dimPaintByCell;
-  while (x === undefined || y === undefined || isCollision({ ...options, x, y })) {
+  while (x === undefined || y === undefined || isBiomeCollision({ ...options, x, y })) {
     x = random(0, dim - 1);
     y = random(0, dim - 1);
   }
@@ -338,7 +338,7 @@ export {
   ModelElement,
   ComponentElement,
   getRandomAvailablePosition,
-  isCollision,
+  isBiomeCollision,
   WorldLimit,
   WorldType,
   SkillType,

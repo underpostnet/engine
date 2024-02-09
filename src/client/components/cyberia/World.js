@@ -162,7 +162,7 @@ const WorldManagement = {
         default:
           break;
       }
-      if (BiomeEngine.isCollision({ type, id, x: newX, y: newY, biome: newBiome })) return;
+      if (BiomeEngine.isBiomeCollision({ type, id, x: newX, y: newY, biome: newBiome })) return;
       console.warn('newBiome', newBiome);
       console.warn('initDirection', initDirection);
 

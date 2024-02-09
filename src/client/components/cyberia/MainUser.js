@@ -33,7 +33,7 @@ const MainUser = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = Elements.Data[type][id].x - Elements.Data[type][id].vel;
         const y = Elements.Data[type][id].y;
-        if (BiomeEngine.isCollision({ type, id, x, y })) return;
+        if (BiomeEngine.isBiomeCollision({ type, id, x, y })) return;
         Elements.Data[type][id].x = x;
         Pixi.updatePosition({ type, id });
       },
@@ -41,7 +41,7 @@ const MainUser = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = Elements.Data[type][id].x + Elements.Data[type][id].vel;
         const y = Elements.Data[type][id].y;
-        if (BiomeEngine.isCollision({ type, id, x, y })) return;
+        if (BiomeEngine.isBiomeCollision({ type, id, x, y })) return;
         Elements.Data[type][id].x = x;
         Pixi.updatePosition({ type, id });
       },
@@ -49,7 +49,7 @@ const MainUser = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = Elements.Data[type][id].x;
         const y = Elements.Data[type][id].y - Elements.Data[type][id].vel;
-        if (BiomeEngine.isCollision({ type, id, x, y })) return;
+        if (BiomeEngine.isBiomeCollision({ type, id, x, y })) return;
         Elements.Data[type][id].y = y;
         Pixi.updatePosition({ type, id });
       },
@@ -57,7 +57,7 @@ const MainUser = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = Elements.Data[type][id].x;
         const y = Elements.Data[type][id].y + Elements.Data[type][id].vel;
-        if (BiomeEngine.isCollision({ type, id, x, y })) return;
+        if (BiomeEngine.isBiomeCollision({ type, id, x, y })) return;
         Elements.Data[type][id].y = y;
         Pixi.updatePosition({ type, id });
       },
