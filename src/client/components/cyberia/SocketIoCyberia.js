@@ -35,6 +35,11 @@ const SocketIoCyberia = {
           const { id, element, status } = args;
 
           switch (status) {
+            case 'update-life':
+              if (!Elements.Data[type][id]) return;
+              Elements.Data[type][id].life = element.life;
+              Pixi.updateLife({ type, id });
+              break;
             case 'update-position':
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].x = element.x;
@@ -61,7 +66,7 @@ const SocketIoCyberia = {
                   s('.ssr-background').style.opacity = 0;
                   setTimeout(async () => {
                     s('.ssr-background').style.display = 'none';
-                    s(`.main-skin-container`).style.display = 'block';
+                    s(`.main-user-container`).style.display = 'block';
                     LoadingAnimation.bar.stop('init-loading');
                   }, 300);
                 });
@@ -74,7 +79,7 @@ const SocketIoCyberia = {
       SocketIo.Event.disconnect[s4()] = async (reason) => {
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
-        s(`.main-skin-container`).style.display = 'none';
+        s(`.main-user-container`).style.display = 'none';
         LoadingAnimation.bar.play('init-loading');
         Pixi.removeAll();
         Elements.removeAll();

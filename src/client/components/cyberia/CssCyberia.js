@@ -191,7 +191,7 @@ const CssCyberia = {
         width: 100%;
         height: 100%;
       }
-      .main-skin-container {
+      .main-user-container {
         /* border: 2px solid red; */
         z-index: 1;
       }
@@ -277,6 +277,10 @@ const CssCyberia = {
         transition: 0.35;
         border-radius: 10px;
         ${borderChar(2, 'black')}
+      }
+
+      .user-lifeBar {
+        left: 0px;
       }
     `,
 };

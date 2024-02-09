@@ -55,6 +55,7 @@ const ComponentElement = {
             enabled: false,
           },
         ],
+        lifeBar: {},
       },
     };
   },
@@ -79,6 +80,7 @@ const ComponentElement = {
             enabled: true,
           },
         ],
+        lifeBar: {},
       },
     };
   },
@@ -102,6 +104,8 @@ const MatrixElement = () => {
     y: 1, // Matrix.Data.dim / 2 - 0.5,
     dim: 1,
     vel: 0.5,
+    maxLife: 150,
+    life: 150,
   };
 };
 
@@ -170,6 +174,22 @@ const isBiomeCollision = function (options = { biomeData: {}, element: {}, x: 1,
       )
         return true;
     }
+  return false;
+};
+
+const isElementCollision = function (
+  args = { A: { x: 1, y: 1, dim: 1 }, B: { x: 1, y: 1, dim: 1 }, dimPaintByCell: 3 },
+) {
+  const { A, B, dimPaintByCell } = args;
+  for (const aSumX of range(0, A.dim * dimPaintByCell))
+    for (const aSumY of range(0, A.dim * dimPaintByCell))
+      for (const bSumX of range(0, B.dim * dimPaintByCell))
+        for (const bSumY of range(0, B.dim * dimPaintByCell))
+          if (
+            round10(A.x * dimPaintByCell + aSumX) === round10(B.x * dimPaintByCell + bSumX) &&
+            round10(A.y * dimPaintByCell + aSumY) === round10(B.y * dimPaintByCell + bSumY)
+          )
+            return true;
   return false;
 };
 
@@ -248,6 +268,7 @@ const SkillType = {
     },
     cooldown: 750,
     timeLife: 300,
+    damage: 10,
   },
 };
 
@@ -339,6 +360,7 @@ export {
   ComponentElement,
   getRandomAvailablePosition,
   isBiomeCollision,
+  isElementCollision,
   WorldLimit,
   WorldType,
   SkillType,

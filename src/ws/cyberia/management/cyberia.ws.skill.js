@@ -1,5 +1,11 @@
 import { getId, newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
-import { BaseElement, CyberiaParams, SkillType } from '../../../client/components/cyberia/CommonCyberia.js';
+import {
+  BaseElement,
+  CyberiaBaseMatrix,
+  CyberiaParams,
+  SkillType,
+  isElementCollision,
+} from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsSkillChannel } from '../channels/cyberia.ws.skill.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
@@ -11,6 +17,7 @@ const logger = loggerFactory(import.meta);
 const CyberiaWsSkillManagement = {
   element: {},
   localElementScope: {},
+  matrixData: CyberiaBaseMatrix(),
   instance: function (wsManagementId = '') {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
@@ -90,6 +97,52 @@ const CyberiaWsSkillManagement = {
               id,
               element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
             });
+            switch (parent.type) {
+              case 'user':
+              case 'bot':
+                if (
+                  isElementCollision({
+                    A: this.element[wsManagementId][id],
+                    B: CyberiaWsUserManagement.element[wsManagementId][clientId],
+                    dimPaintByCell: this.matrixData.dimPaintByCell,
+                  })
+                )
+                  if (!(parent.type === 'user' && parent.id === clientId))
+                    CyberiaWsUserManagement.updateLife({
+                      wsManagementId,
+                      id: clientId,
+                      life: CyberiaWsUserManagement.element[wsManagementId][clientId].life - skillData.damage,
+                    });
+                break;
+
+              default:
+                break;
+            }
+          }
+        }
+        for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
+          if (
+            objectEquals(parentElement.model.world, CyberiaWsBotManagement.element[wsManagementId][botId].model.world)
+          ) {
+            switch (parent.type) {
+              case 'user':
+                if (
+                  isElementCollision({
+                    A: this.element[wsManagementId][id],
+                    B: CyberiaWsBotManagement.element[wsManagementId][botId],
+                    dimPaintByCell: this.matrixData.dimPaintByCell,
+                  })
+                )
+                  CyberiaWsBotManagement.updateLife({
+                    wsManagementId,
+                    id: botId,
+                    life: CyberiaWsBotManagement.element[wsManagementId][botId].life - skillData.damage,
+                  });
+                break;
+
+              default:
+                break;
+            }
           }
         }
         this.localElementScope[wsManagementId][id].movement.Callback();

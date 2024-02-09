@@ -328,6 +328,23 @@ const CyberiaWsBotManagement = {
       }
     })();
   },
+  updateLife: function (args = { wsManagementId: '', id: '', life: 1 }) {
+    const { wsManagementId, id, life } = args;
+    this.element[wsManagementId][id].life = life < 0 ? 0 : life;
+    for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+      if (
+        objectEquals(
+          this.element[wsManagementId][id].model.world,
+          CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+        )
+      )
+        CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+          status: 'update-life',
+          id,
+          element: { life: this.element[wsManagementId][id].life },
+        });
+    }
+  },
 };
 
 export { CyberiaWsBotManagement };

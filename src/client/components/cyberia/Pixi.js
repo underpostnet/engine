@@ -77,10 +77,10 @@ const Pixi = {
         s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
       }
 
-      s('.main-skin-container').style.width = `${
+      s('.main-user-container').style.width = `${
         (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
       }px`;
-      s('.main-skin-container').style.height = `${
+      s('.main-user-container').style.height = `${
         (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
       }px`;
       // const ResponsiveData = Responsive.getResponsiveData();
@@ -178,6 +178,7 @@ const Pixi = {
     let index;
     this.Data[type].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(Elements.Data[type][id].components)) {
+      if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
       switch (componentType) {
         case 'background':
           index = 0;
@@ -195,12 +196,43 @@ const Pixi = {
             componentInstance.height = dim * Elements.Data[type][id].dim;
             componentInstance.tint = tint;
             componentInstance.visible = visible;
-            if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
             this.Data[type][id].components[componentType][`${index}`] = componentInstance;
             this.Data[type][id].addChild(componentInstance);
             index++;
           }
 
+          break;
+
+        case 'lifeBar':
+          const componentInstance = new Sprite(Texture.WHITE);
+          componentInstance.x = 0;
+          componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.2;
+
+          // maxLife -> 100%
+          // life -> x%
+          componentInstance.width =
+            dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
+
+          componentInstance.height = dim * Elements.Data[type][id].dim * 0.2;
+          componentInstance.tint = '#00e622ff';
+          componentInstance.visible = !(id === 'main' && type === 'user');
+          this.Data[type][id].components[componentType] = componentInstance;
+          this.Data[type][id].addChild(componentInstance);
+
+          if (id === 'main' && type === 'user' && !s(`.user-lifeBar`)) {
+            append(
+              '.main-user-container-lifeBar',
+              html`
+                <div
+                  class="abs user-lifeBar"
+                  style="width: ${100 * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife)}%"
+                ></div>
+              `,
+            );
+            s('.user-lifeBar').style.background = '#00e622ff';
+            s('.user-lifeBar').style.top = '-20%';
+            s('.user-lifeBar').style.height = '20%';
+          }
           break;
 
         case 'skill':
@@ -218,7 +250,7 @@ const Pixi = {
                 const src = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${frame}.png`;
                 if (id === 'main' && !s(`.${componentType}-${id}-${displayId}-${positionId}-${frame}`))
                   append(
-                    '.main-skin-container',
+                    '.main-user-container-skin',
                     html`
                       <img
                         src="${src}"
@@ -247,7 +279,6 @@ const Pixi = {
                     break;
                 }
                 componentInstance.visible = id === 'main' ? false : position === positionId && frame === 0;
-                if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
                 this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
                 this.Data[type][id].addChild(componentInstance);
                 if (frame === 0) {
@@ -293,6 +324,14 @@ const Pixi = {
           break;
       }
     }
+  },
+  updateLife: function (options) {
+    const { type, id } = options;
+    const dim = this.MetaData.dim / Matrix.Data.dim;
+    this.Data[type][id].components['lifeBar'].width =
+      dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
+    if (id === 'main' && type === 'user')
+      s(`.user-lifeBar`).style.width = `${100 * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife)}%`;
   },
   updatePosition: function (options) {
     const { type, id } = options;
