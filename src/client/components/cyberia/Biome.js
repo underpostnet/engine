@@ -909,6 +909,15 @@ const BiomeEngine = {
       }),
     );
 
+    setTimeout(() => {
+      const updateDim = () => (BiomeParamsScope.dim = parseInt(s(`.biome-dim`).value));
+      const updateDimPaintByCell = () => (BiomeParamsScope.dimPaintByCell = parseInt(s(`.biome-dimPaintByCell`).value));
+      s(`.biome-dim`).oninput = updateDim;
+      s(`.biome-dim`).onblur = updateDim;
+      s(`.biome-dimPaintByCell`).oninput = updateDimPaintByCell;
+      s(`.biome-dimPaintByCell`).onblur = updateDimPaintByCell;
+    });
+
     return html`
       <style>
         ${css`
@@ -927,6 +936,24 @@ const BiomeEngine = {
             </div>
           </div>
           ${configBiomeFormRender}
+          ${await Input.Render({
+            id: `biome-dim`,
+            label: html`<i class="fa-solid fa-ruler"></i> dim`,
+            containerClass: 'inl section-mp container-component input-container',
+            type: 'number',
+            min: 0,
+            placeholder: true,
+            value: 16,
+          })}
+          ${await Input.Render({
+            id: `biome-dimPaintByCell`,
+            label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
+            containerClass: 'inl section-mp container-component input-container',
+            type: 'number',
+            min: 0,
+            placeholder: true,
+            value: 3,
+          })}
         </div>
         <div class="in fll biome-col-b">
           <div class="in section-mp">
