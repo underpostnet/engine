@@ -391,6 +391,7 @@ const Config = {
     fs.removeSync('./conf');
     shellExec(`node bin/util update-conf-client`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
+    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
     for (const confType of Object.keys(this.default)) {
       if (false && fs.existsSync(`./engine-private/conf/conf.${confType}.private.json`))
         fs.writeFileSync(

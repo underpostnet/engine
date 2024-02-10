@@ -1,6 +1,7 @@
 import { CyberiaBiomeModel } from '../../../api/cyberia-biome/cyberia-biome.model.js';
 import { CyberiaWorldModel } from '../../../api/cyberia-world/cyberia-world.model.js';
 import {
+  JSONmatrix,
   getDirection,
   getDistance,
   getId,
@@ -28,6 +29,7 @@ import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsSkillManagement } from './cyberia.ws.skill.js';
+import fs from 'fs-extra';
 
 const logger = loggerFactory(import.meta);
 
@@ -48,7 +50,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 4)) {
+      for (const indexBot of range(0, 39)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -60,24 +62,34 @@ const CyberiaWsBotManagement = {
         bot.y = y;
         const id = getId(this.element[wsManagementId], 'bot-');
 
-        const collisionMatrix = reduceMatrix(
-          biome.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1))),
-          3,
-        ).map((y, iY) =>
-          y.map((x, iX) =>
-            x === 0 &&
-            !isBiomeCollision({
-              biomeData: biome,
-              element: bot,
-              x: iX,
-              y: iY,
-            })
-              ? 0
-              : 1,
-          ),
-        );
+        if (!fs.existsSync(`./tmp/${biome._id.toString()}.json`)) {
+          fs.writeFileSync(
+            `./tmp/${biome._id.toString()}.json`,
+            JSONmatrix(
+              reduceMatrix(
+                biome.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1))),
+                3,
+              ).map((y, iY) =>
+                y.map((x, iX) =>
+                  x === 0 &&
+                  !isBiomeCollision({
+                    biomeData: biome,
+                    element: bot,
+                    x: iX,
+                    y: iY,
+                  })
+                    ? 0
+                    : 1,
+                ),
+              ),
+            ),
+            'utf8',
+          );
+        }
 
-        logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face });
+        const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${biome._id.toString()}.json`, 'utf8'));
+
+        logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face, x, y });
 
         this.localElementScope[wsManagementId][id] = {
           target: {
@@ -122,6 +134,7 @@ const CyberiaWsBotManagement = {
                         this.localElementScope[wsManagementId][id].movement.CellRadius,
                       );
                   }
+                  // TODO: rounding generates undefined index 0
                   const Path = insertTransitionCoordinates(
                     this.pathfinding.findPath(
                       round10(this.element[wsManagementId][id].x),
@@ -135,7 +148,10 @@ const CyberiaWsBotManagement = {
                   this.localElementScope[wsManagementId][id].movement.Path = Path;
                 }
 
-                if (this.localElementScope[wsManagementId][id].movement.Path.length === 0) {
+                if (
+                  this.localElementScope[wsManagementId][id].movement.Path.length === 0 ||
+                  !this.localElementScope[wsManagementId][id].movement.Path[0]
+                ) {
                   this.localElementScope[wsManagementId][id].target.Active = false;
                   this.localElementScope[wsManagementId][id].movement.Path = [
                     [this.element[wsManagementId][id].x, this.element[wsManagementId][id].y],

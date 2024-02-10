@@ -1,10 +1,19 @@
 import { newInstance, random, range, round10 } from '../core/CommonJs.js';
 
+const CyberiaBaseMatrix = () => {
+  return {
+    dim: 16 * 2,
+    dimPaintByCell: 3,
+    dimAmplitude: 2, // 8,
+  };
+};
+
 const ModelElement = {
   world: () => {
     return {
       world: {
-        _id: '65a8783937c1183be094ccb0', // '65a820d4cc37f11f003a4082'  '65a8783937c1183be094ccb0'
+        _id: '65c78ae12194e65297a8a371', // '65a820d4cc37f11f003a4082'  '65a8783937c1183be094ccb0'
+        // 65c774c6efaaea9445bb6e74 (3)   65c78ae12194e65297a8a371 (2)
         face: 1,
       },
     };
@@ -342,14 +351,6 @@ const updateMovementDirection = ({ direction, element }) => {
       break;
   }
   return element;
-};
-
-const CyberiaBaseMatrix = () => {
-  return {
-    dim: 16 * 1,
-    dimPaintByCell: 3,
-    dimAmplitude: 1, // 8,
-  };
 };
 
 const CyberiaParams = {
