@@ -50,7 +50,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
-      for (const indexBot of range(0, 39)) {
+      for (const indexBot of range(0, 9)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];

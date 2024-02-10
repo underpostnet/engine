@@ -22,6 +22,7 @@ const JoyStick = {
             bottom: 5px;
             height: 200px;
             width: 200px;
+            z-index: 2;
           }
           .joy-img-background-${id} {
             width: 93%;

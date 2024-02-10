@@ -238,7 +238,7 @@ const CssCyberia = {
         box-sizing: border-box;
         width: 200px;
         height: 200px;
-        z-index: 1;
+        z-index: 2;
         cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
       .main-skill-slot {

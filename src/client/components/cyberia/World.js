@@ -92,7 +92,9 @@ const WorldManagement = {
   biomeRender: new LoadBiomeRenderer(),
   Data: {},
   LoadSingleFace: function (selector, src) {
-    for (const element of s(selector).children) element.style.display = 'none';
+    for (const element of s(selector).children) {
+      if (!element.classList.contains('adjacent-map-background')) element.style.display = 'none';
+    }
     const adjacentMapDisplay = Array.from(s(selector).children).find((e) => e.src === src);
     adjacentMapDisplay
       ? (adjacentMapDisplay.style.display = 'block')
@@ -220,6 +222,18 @@ const WorldManagement = {
         });
       this.LoadAdjacentFaces(type, id);
       htmls('.display-current-face', Elements.Data.user.main.model.world.face);
+    }
+
+    if (this.Data[type][id].model.world.type === 'height') {
+      s(`.adjacent-map-background-top`).style.background = `rgba(0,0,0,0.5)`;
+      s(`.adjacent-map-background-bottom`).style.background = `rgba(0,0,0,0.5)`;
+      s(`.adjacent-map-background-left`).style.background = null;
+      s(`.adjacent-map-background-right`).style.background = null;
+    } else if (this.Data[type][id].model.world.type === 'width') {
+      s(`.adjacent-map-background-top`).style.background = null;
+      s(`.adjacent-map-background-bottom`).style.background = null;
+      s(`.adjacent-map-background-left`).style.background = `rgba(0,0,0,0.5)`;
+      s(`.adjacent-map-background-right`).style.background = `rgba(0,0,0,0.5)`;
     }
   },
 };

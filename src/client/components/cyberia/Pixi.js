@@ -32,12 +32,27 @@ const Pixi = {
           .adjacent-map {
             /* border: 2px solid #ff0000; */
           }
+          .adjacent-map-background {
+            width: 100%;
+            height: 100%;
+            top: 0px;
+            left: 0px;
+            z-index: 1;
+          }
         </style>
         <div class="abs pixi-container">
-          <div class="abs adjacent-map adjacent-map-limit-top"></div>
-          <div class="abs adjacent-map adjacent-map-limit-bottom"></div>
-          <div class="abs adjacent-map adjacent-map-limit-left"></div>
-          <div class="abs adjacent-map adjacent-map-limit-right"></div>
+          <div class="abs adjacent-map adjacent-map-limit-top">
+            <div class="abs adjacent-map-background adjacent-map-background-top"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom">
+            <div class="abs adjacent-map-background adjacent-map-background-bottom"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-left">
+            <div class="abs adjacent-map-background adjacent-map-background-left"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-right">
+            <div class="abs adjacent-map-background adjacent-map-background-right"></div>
+          </div>
 
           <div class="abs adjacent-map adjacent-map-limit-top-left"></div>
           <div class="abs adjacent-map adjacent-map-limit-top-right"></div>
@@ -78,10 +93,12 @@ const Pixi = {
       }
 
       s('.main-user-container').style.width = `${
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim +
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim * 0
       }px`;
       s('.main-user-container').style.height = `${
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim +
+        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim * 0
       }px`;
       // const ResponsiveData = Responsive.getResponsiveData();
       // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
