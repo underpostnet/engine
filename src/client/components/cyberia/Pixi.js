@@ -5,7 +5,7 @@ import { Responsive } from '../core/Responsive.js';
 import { Matrix } from './Matrix.js';
 import { Elements } from './Elements.js';
 
-import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
+import { Application, BaseTexture, Container, Sprite, Text, Texture } from 'pixi.js';
 import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -232,6 +232,54 @@ const Pixi = {
             s('.user-lifeBar').style.background = '#00e622ff';
             s('.user-lifeBar').style.top = '-20%';
             s('.user-lifeBar').style.height = '20%';
+          }
+
+          break;
+        case 'lifeIndicator':
+          {
+            const componentInstance = new Container();
+            componentInstance.x = 0;
+            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.6;
+            componentInstance.width = dim * Elements.Data[type][id].dim;
+            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            this.Data[type][id].components[componentType].container = componentInstance;
+            this.Data[type][id].addChild(componentInstance);
+          }
+          {
+            const componentInstance = new Sprite(); // Texture.WHITE
+            componentInstance.x = 0;
+            componentInstance.y = 0;
+            componentInstance.width = dim * Elements.Data[type][id].dim;
+            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            // componentInstance.tint = '#000000ff';
+            componentInstance.visible = true;
+            this.Data[type][id].components[componentType].background = componentInstance;
+            this.Data[type][id].components[componentType].container.addChild(componentInstance);
+          }
+          {
+            let lastLife = newInstance(Elements.Data[type][id].life);
+            const callBack = () => {
+              if (Elements.Data[type][id].life !== lastLife) {
+                let diffLife = Elements.Data[type][id].life - lastLife;
+                lastLife = newInstance(Elements.Data[type][id].life);
+                if (diffLife > 0) diffLife = '+' + diffLife;
+                diffLife = diffLife + ' ♥';
+                const componentInstance = new Text(`${diffLife}`, {
+                  fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
+                  fontFamily: 'retro-font', // Impact
+                  fontSize: 100 * (1 / Matrix.Data.dimAmplitude),
+                });
+                this.Data[type][id].components[componentType].container.addChild(componentInstance);
+                setTimeout(() => {
+                  componentInstance.destroy();
+                }, 450);
+              }
+            };
+            if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
+            this.Data[type][id].intervals[componentType]['text-interval'] = {
+              callBack,
+              interval: setInterval(callBack, 500),
+            };
           }
           break;
 

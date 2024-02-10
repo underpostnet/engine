@@ -4,7 +4,7 @@ const ModelElement = {
   world: () => {
     return {
       world: {
-        _id: '65a820d4cc37f11f003a4082', // '65a820d4cc37f11f003a4082'  '65a8783937c1183be094ccb0'
+        _id: '65a8783937c1183be094ccb0', // '65a820d4cc37f11f003a4082'  '65a8783937c1183be094ccb0'
         face: 1,
       },
     };
@@ -56,6 +56,7 @@ const ComponentElement = {
           },
         ],
         lifeBar: {},
+        lifeIndicator: {},
       },
     };
   },
@@ -81,6 +82,7 @@ const ComponentElement = {
           },
         ],
         lifeBar: {},
+        lifeIndicator: {},
       },
     };
   },
