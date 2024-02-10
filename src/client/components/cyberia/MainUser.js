@@ -8,9 +8,10 @@ import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
-import { append } from '../core/VanillaJs.js';
+import { append, s } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
+import { Application } from 'pixi.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -21,8 +22,22 @@ const MainUser = {
       html` <div class="abs center main-user-container">
         <div class="main-user-container-skin"></div>
         <div class="main-user-container-lifeBar"></div>
+        <canvas class="abs main-user-pixi-container"></canvas>
       </div>`,
     );
+
+    this.PixiMainUserDim = 500;
+    this.PixiMainUser = new Application({
+      view: s(`.main-user-pixi-container`),
+      width: this.PixiMainUserDim,
+      height: this.PixiMainUserDim,
+      backgroundAlpha: 0,
+    });
+
+    // this.PixiMainUser.view.classList.add('abs');
+    // this.PixiMainUser.view.classList.add('main-user-pixi-container');
+    // this.PixiMainUser.view.style.background = 'none';
+    // s('.main-user-container').appendChild(this.PixiMainUser.view);
   },
   Update: async function (options = { oldElement: {} }) {
     const type = 'user';

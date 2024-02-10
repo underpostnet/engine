@@ -87,7 +87,7 @@ const Modal = {
               position: 'absolute',
               height: `${window.innerHeight - 50}px`,
               width: '320px',
-              'z-index': 2,
+              'z-index': 3,
               resize: 'none',
               top: '50px',
             };

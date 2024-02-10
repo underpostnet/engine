@@ -66,9 +66,9 @@ const Pixi = {
       height: this.MetaData.dim,
       background: '#c7c7c7',
     });
+    this.App.view.classList.add('abs');
+    this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
-    s('canvas').classList.add('abs');
-    s('canvas').classList.add('pixi-canvas');
     append('.pixi-container', html` <div class="abs display-current-face" style="${borderChar(2, 'black')}"></div> `);
 
     // Matrix.Render['matrix-center-square']('.pixi-container');
