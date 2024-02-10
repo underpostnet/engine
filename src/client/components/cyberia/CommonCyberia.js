@@ -4,7 +4,7 @@ const CyberiaBaseMatrix = () => {
   return {
     dim: 16 * 2,
     dimPaintByCell: 3,
-    dimAmplitude: 2, // 8,
+    dimAmplitude: 3, // 8,
   };
 };
 
