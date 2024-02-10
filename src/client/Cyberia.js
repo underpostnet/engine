@@ -38,7 +38,7 @@ import { Skill } from './components/cyberia/Skill.js';
   await LogOutCyberia();
   await LogInCyberia();
   LoadRouter(RouterInstance);
-  disableOptionsClick('html', ['drag', 'select']);
+  disableOptionsClick('html', ['drag', 'select', 'menu']);
   s(`.btn-menu-modal-menu`).click();
   await Skill.renderMainKeysSlots();
   await Keyboard.Init();
