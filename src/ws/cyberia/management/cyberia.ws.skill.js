@@ -101,6 +101,7 @@ const CyberiaWsSkillManagement = {
               case 'user':
               case 'bot':
                 if (
+                  CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                   isElementCollision({
                     A: this.element[wsManagementId][id],
                     B: CyberiaWsUserManagement.element[wsManagementId][clientId],
@@ -127,6 +128,7 @@ const CyberiaWsSkillManagement = {
             switch (parent.type) {
               case 'user':
                 if (
+                  CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
                   isElementCollision({
                     A: this.element[wsManagementId][id],
                     B: CyberiaWsBotManagement.element[wsManagementId][botId],
