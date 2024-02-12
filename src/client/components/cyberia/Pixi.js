@@ -10,6 +10,7 @@ import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CyberiaParams } from './CommonCyberia.js';
+import { MainUser } from './MainUser.js';
 
 const Pixi = {
   MetaData: {
@@ -75,6 +76,7 @@ const Pixi = {
 
     Responsive.Event['pixi-container'] = () => {
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
+      const ResponsiveData = Responsive.getResponsiveData();
       s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
 
@@ -92,14 +94,8 @@ const Pixi = {
         s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
       }
 
-      s('.main-user-container').style.width = `${
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim +
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim * 0
-      }px`;
-      s('.main-user-container').style.height = `${
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim +
-        (ResponsiveDataAmplitude.minValue / Matrix.Data.dim) * Elements.Data.user.main.dim * 0
-      }px`;
+      s('.main-user-container').style.width = `${ResponsiveData.minValue}px`;
+      s('.main-user-container').style.height = `${ResponsiveData.minValue}px`;
       // const ResponsiveData = Responsive.getResponsiveData();
       // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
       // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
@@ -184,7 +180,8 @@ const Pixi = {
   },
   setComponents: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    const dim = this.MetaData.dim / Matrix.Data.dim;
+    let dim = this.MetaData.dim / Matrix.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
     this.Data[type][id] = new Container();
     this.Data[type][id].width = dim * Elements.Data[type][id].dim;
     this.Data[type][id].height = dim * Elements.Data[type][id].dim;
@@ -193,7 +190,11 @@ const Pixi = {
     this.Data[type][id].components = {};
     this.Data[type][id].intervals = {};
     let index;
-    this.Data[type].container.addChild(this.Data[type][id]);
+    if (type === 'user' && id === 'main') {
+      this.Data[type][id].x = this.MetaData.dim / 2 - dim * Elements.Data[type][id].x * 0.5;
+      this.Data[type][id].y = this.MetaData.dim / 2 - dim * Elements.Data[type][id].y * 0.5;
+      MainUser.PixiMainUser.stage.addChild(this.Data[type][id]);
+    } else this.Data[type].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(Elements.Data[type][id].components)) {
       if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
       switch (componentType) {
@@ -232,24 +233,9 @@ const Pixi = {
 
           componentInstance.height = dim * Elements.Data[type][id].dim * 0.2;
           componentInstance.tint = '#00e622ff';
-          componentInstance.visible = !(id === 'main' && type === 'user');
+          componentInstance.visible = true;
           this.Data[type][id].components[componentType] = componentInstance;
           this.Data[type][id].addChild(componentInstance);
-
-          if (id === 'main' && type === 'user' && !s(`.user-lifeBar`)) {
-            append(
-              '.main-user-container-lifeBar',
-              html`
-                <div
-                  class="abs user-lifeBar"
-                  style="width: ${100 * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife)}%"
-                ></div>
-              `,
-            );
-            s('.user-lifeBar').style.background = '#00e622ff';
-            s('.user-lifeBar').style.top = '-20%';
-            s('.user-lifeBar').style.height = '20%';
-          }
 
           break;
         case 'lifeIndicator':
@@ -284,7 +270,7 @@ const Pixi = {
                 const componentInstance = new Text(`${diffLife}`, {
                   fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
                   fontFamily: 'retro-font', // Impact
-                  fontSize: 100 * (1 / Matrix.Data.dimAmplitude),
+                  fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
                 });
                 this.Data[type][id].components[componentType].container.addChild(componentInstance);
                 setTimeout(() => {
@@ -313,17 +299,6 @@ const Pixi = {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
                 const src = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${frame}.png`;
-                if (id === 'main' && !s(`.${componentType}-${id}-${displayId}-${positionId}-${frame}`))
-                  append(
-                    '.main-user-container-skin',
-                    html`
-                      <img
-                        src="${src}"
-                        class="abs main-user-avatar-img ${componentType}-${id}-${displayId}-${positionId}-${frame}"
-                        style="display: ${position === positionId && frame === 0 ? 'block' : 'none'};"
-                      />
-                    `,
-                  );
                 const componentInstance = Sprite.from(src);
                 switch (displayId) {
                   case 'green-power':
@@ -343,7 +318,7 @@ const Pixi = {
                     componentInstance.y = 0;
                     break;
                 }
-                componentInstance.visible = id === 'main' ? false : position === positionId && frame === 0;
+                componentInstance.visible = position === positionId && frame === 0;
                 this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
                 this.Data[type][id].addChild(componentInstance);
                 if (frame === 0) {
@@ -357,19 +332,13 @@ const Pixi = {
 
                     currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
-                    if (id === 'main')
-                      s(`.${componentType}-${id}-${displayId}-${positionId}-${currentFrame}`).style.display = 'none';
 
                     currentFrame++;
                     if (currentFrame === frames) currentFrame = 0;
 
                     currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
-                      id === 'main' ? false : position === positionId ? true : false;
-
-                    if (id === 'main')
-                      s(`.${componentType}-${id}-${displayId}-${positionId}-${currentFrame}`).style.display =
-                        position === positionId ? 'block' : 'none';
+                      position === positionId;
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
@@ -395,8 +364,6 @@ const Pixi = {
     const dim = this.MetaData.dim / Matrix.Data.dim;
     this.Data[type][id].components['lifeBar'].width =
       dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
-    if (id === 'main' && type === 'user')
-      s(`.user-lifeBar`).style.width = `${100 * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife)}%`;
   },
   updatePosition: function (options) {
     const { type, id } = options;
@@ -420,15 +387,15 @@ const Pixi = {
       }
     }
 
-    const dim = this.MetaData.dim / Matrix.Data.dim;
-    this.Data[type][id].x = dim * Elements.Data[type][id].x;
-    this.Data[type][id].y = dim * Elements.Data[type][id].y;
-
     if (type === 'user' && id === 'main') {
       SocketIo.Emit(type, {
         status: 'update-position',
         element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
       });
+    } else {
+      const dim = this.MetaData.dim / Matrix.Data.dim;
+      this.Data[type][id].x = dim * Elements.Data[type][id].x;
+      this.Data[type][id].y = dim * Elements.Data[type][id].y;
     }
   },
   removeElement: function (options = { type: 'user', id: 'main' }) {

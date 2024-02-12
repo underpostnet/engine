@@ -16,28 +16,21 @@ import { Application } from 'pixi.js';
 const logger = loggerFactory(import.meta);
 
 const MainUser = {
+  PixiMainUser: {},
   Render: async function () {
     append(
       'body',
-      html` <div class="abs center main-user-container">
-        <div class="main-user-container-skin"></div>
-        <div class="main-user-container-lifeBar"></div>
+      html` <div class="fix center main-user-container">
         <canvas class="abs main-user-pixi-container"></canvas>
       </div>`,
     );
 
-    this.PixiMainUserDim = 500;
     this.PixiMainUser = new Application({
       view: s(`.main-user-pixi-container`),
-      width: this.PixiMainUserDim,
-      height: this.PixiMainUserDim,
+      width: Pixi.MetaData.dim,
+      height: Pixi.MetaData.dim,
       backgroundAlpha: 0,
     });
-
-    // this.PixiMainUser.view.classList.add('abs');
-    // this.PixiMainUser.view.classList.add('main-user-pixi-container');
-    // this.PixiMainUser.view.style.background = 'none';
-    // s('.main-user-container').appendChild(this.PixiMainUser.view);
   },
   Update: async function (options = { oldElement: {} }) {
     const type = 'user';
