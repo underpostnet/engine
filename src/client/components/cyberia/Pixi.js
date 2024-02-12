@@ -41,7 +41,7 @@ const Pixi = {
             z-index: 1;
           }
         </style>
-        <div class="abs pixi-container">
+        <div class="fix pixi-container">
           <div class="abs adjacent-map adjacent-map-limit-top">
             <div class="abs adjacent-map-background adjacent-map-background-top"></div>
           </div>
