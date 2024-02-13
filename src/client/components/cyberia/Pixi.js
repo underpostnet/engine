@@ -291,10 +291,6 @@ const Pixi = {
           index = 0;
           for (const component of Elements.Data[type][id].components[componentType]) {
             const { displayId, position, enabled, positions, velFrame } = component;
-            if (!enabled) {
-              index++;
-              continue;
-            }
             for (const positionData of positions) {
               const { positionId, frames } = positionData;
               for (const frame of range(0, frames - 1)) {
@@ -318,7 +314,7 @@ const Pixi = {
                     componentInstance.y = 0;
                     break;
                 }
-                componentInstance.visible = position === positionId && frame === 0;
+                componentInstance.visible = position === positionId && frame === 0 && enabled;
                 this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
                 this.Data[type][id].addChild(componentInstance);
                 if (frame === 0) {
@@ -337,8 +333,10 @@ const Pixi = {
                     if (currentFrame === frames) currentFrame = 0;
 
                     currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;
+
+                    const enabledSkin = Elements.Data[type][id].components[componentType].find((s) => s.enabled);
                     this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
-                      position === positionId;
+                      position === positionId && enabledSkin && enabledSkin.displayId === displayId;
                   };
                   this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                     callBack,
@@ -361,7 +359,8 @@ const Pixi = {
   },
   updateLife: function (options) {
     const { type, id } = options;
-    const dim = this.MetaData.dim / Matrix.Data.dim;
+    let dim = this.MetaData.dim / Matrix.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
     this.Data[type][id].components['lifeBar'].width =
       dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
   },

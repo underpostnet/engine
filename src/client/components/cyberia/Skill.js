@@ -52,6 +52,7 @@ const Skill = {
         }/animation.gif`;
         triggerSkill = (e) => {
           if (e) e.preventDefault();
+          if (Elements.Data.user.main.life <= 0) return;
           if (!cooldownActive) {
             cooldownActive = true;
             SocketIo.Emit('skill', {

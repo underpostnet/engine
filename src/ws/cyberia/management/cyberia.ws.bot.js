@@ -166,6 +166,7 @@ const CyberiaWsBotManagement = {
                   ) {
                     this.localElementScope[wsManagementId][id].target.IndexPoint = -1;
                     foundNewTargetPath = (() => {
+                      if (this.element[wsManagementId][id].life <= 0) return false;
                       const xBot = round10(this.element[wsManagementId][id].x);
                       const yBot = round10(this.element[wsManagementId][id].y);
                       for (const yTarget of range(
@@ -178,6 +179,7 @@ const CyberiaWsBotManagement = {
                         )) {
                           for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
                             if (
+                              CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                               objectEquals(
                                 CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
                                 this.element[wsManagementId][id].model.world,
@@ -347,6 +349,7 @@ const CyberiaWsBotManagement = {
   },
   updateLife: function (args = { wsManagementId: '', id: '', life: 1 }) {
     const { wsManagementId, id, life } = args;
+    if (!this.element[wsManagementId][id]) return;
     this.element[wsManagementId][id].life = life < 0 ? 0 : life;
     for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (
@@ -361,10 +364,50 @@ const CyberiaWsBotManagement = {
           element: { life: this.element[wsManagementId][id].life },
         });
     }
-    if (life <= 0)
+    if (life <= 0) {
+      if (!this.element[wsManagementId][id]) return;
+      this.localElementScope[wsManagementId][id].target.Active = false;
+
+      this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
+        s.enabled = s.displayId === 'ghost';
+        return s;
+      });
+
+      for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+        if (
+          objectEquals(
+            this.element[wsManagementId][id].model.world,
+            CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+          )
+        )
+          CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+            status: 'update-skin-position',
+            id,
+            element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+          });
+      }
+
       setTimeout(() => {
         this.updateLife({ ...args, life: newInstance(this.element[wsManagementId][id].maxLife) });
+        this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
+          s.enabled = s.current === true;
+          return s;
+        });
+        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+          if (
+            objectEquals(
+              this.element[wsManagementId][id].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+            )
+          )
+            CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+              status: 'update-skin-position',
+              id,
+              element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+            });
+        }
       }, this.element[wsManagementId][id].deadTime);
+    }
   },
 };
 

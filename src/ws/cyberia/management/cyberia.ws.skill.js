@@ -37,6 +37,7 @@ const CyberiaWsSkillManagement = {
       default:
         break;
     }
+    if (parentElement.life <= 0) return;
     if (!parentElement) return logger.error('Not found skill caster parent', parent);
 
     const id = getId(this.element[wsManagementId], 'skill-');
