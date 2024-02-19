@@ -6,7 +6,7 @@ import { s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const EventsUI = {
-  onClick: (id, logic) => {
+  onClick: (id = '', logic = function (e = new PointerEvent()) {}) => {
     let complete = true;
     s(id).onclick = async function (e) {
       if (complete) {

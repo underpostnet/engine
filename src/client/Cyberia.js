@@ -21,6 +21,7 @@ import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Css } from './components/core/Css.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Skill } from './components/cyberia/Skill.js';
+import { PointAndClickMovement } from './components/cyberia/PointAndClickMovement.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -33,6 +34,7 @@ import { Skill } from './components/cyberia/Skill.js';
   await Responsive.Init();
   await Menu.Render();
   await NotificationManager.RenderBoard();
+  await PointAndClickMovement.Render();
   await SocketIo.Init({ channels: Elements.Data });
   await SocketIoCyberia.Init();
   await LogOutCyberia();

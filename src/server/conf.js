@@ -164,6 +164,7 @@ const Config = {
             'LogOutCyberia',
             'RoutesCyberia',
             'Skill',
+            'PointAndClickMovement',
           ],
           test: ['Test'],
         },

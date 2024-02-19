@@ -244,7 +244,7 @@ const CssCyberia = {
         box-sizing: border-box;
         width: 200px;
         height: 200px;
-        z-index: 2;
+        z-index: 3;
         cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
       .main-skill-slot {
@@ -287,6 +287,11 @@ const CssCyberia = {
 
       .user-lifeBar {
         left: 0px;
+      }
+      .PointAndClickMovement-container {
+        z-index: 2;
+        top: 54px;
+        background: rgba(0, 34, 255, 0.5);
       }
     `,
 };

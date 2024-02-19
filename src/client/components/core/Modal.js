@@ -36,10 +36,10 @@ const Modal = {
           setTimeout(() => {
             Object.keys(this.Data).map((_idModal) => {
               if (this.Data[_idModal].options.mode === 'view' && s(`.${_idModal}`))
-                s(`.${_idModal}`).style.zIndex = '2';
+                s(`.${_idModal}`).style.zIndex = '3';
             });
             const setTopModal = () => {
-              if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '3';
+              if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '4';
               else setTimeout(setTopModal, 100);
             };
             setTopModal();
@@ -87,7 +87,7 @@ const Modal = {
               position: 'absolute',
               height: `${window.innerHeight - 50}px`,
               width: '320px',
-              'z-index': 3,
+              'z-index': 4,
               resize: 'none',
               top: '50px',
             };
@@ -350,7 +350,7 @@ const Modal = {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
                   console.warn('SET MODAL URI', newPath);
                   setURI(newPath);
-                  s(`.${subIdModal}`).style.zIndex = '3';
+                  s(`.${subIdModal}`).style.zIndex = '4';
                   return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }

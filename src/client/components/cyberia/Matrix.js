@@ -30,16 +30,16 @@ const Matrix = {
   InitCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
     if (!Elements.Interval[type][id]['camera']) {
-      await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
+      await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id], true);
+      await this.UpdateCamera('.PointAndClickMovement-container', Elements.Data[type][id]);
       Elements.Interval[type][id]['camera'] = setInterval(async () => {
-        await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id]);
+        await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id], true);
+        await this.UpdateCamera('.PointAndClickMovement-container', Elements.Data[type][id]);
       }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
     }
   },
   UpdateAdjacentLimit: function (params) {
-    const { gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;
-    s(gridId).style.left = `${leftDimValue}px`;
-    s(gridId).style.top = `${topDimValue}px`;
+    const { leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;
     for (const limitType of [
       'top',
       'bottom',
@@ -88,36 +88,37 @@ const Matrix = {
       }
     }
   },
-  UpdateCamera: async function (gridId, element) {
+  UpdateCamera: async function (gridId, element, adjacent = false) {
     const ResponsiveData = Responsive.getResponsiveData();
     const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: this.Data.dimAmplitude });
     const { x, y } = element;
-
+    let leftDimValue, topDimValue;
     if (ResponsiveData.minType === 'height') {
-      const leftDimValue =
+      leftDimValue =
         ResponsiveData.maxValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * x -
         ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
         (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim);
-      const topDimValue =
+      topDimValue =
         ResponsiveData.minValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * y -
         ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
         (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim);
-      this.UpdateAdjacentLimit({ gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude });
     } else {
-      const leftDimValue =
+      leftDimValue =
         ResponsiveData.minValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * x -
         ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
         (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim);
-      const topDimValue =
+      topDimValue =
         ResponsiveData.maxValue / 2 -
         (ResponsiveDataAmplitude.minValue / this.Data.dim) * y -
         ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
         (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim);
-      this.UpdateAdjacentLimit({ gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude });
     }
+    s(gridId).style.left = `${leftDimValue}px`;
+    s(gridId).style.top = `${topDimValue}px`;
+    if (adjacent) this.UpdateAdjacentLimit({ gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude });
   },
 };
 
