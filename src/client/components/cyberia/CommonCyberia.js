@@ -1,4 +1,4 @@
-import { newInstance, random, range, round10 } from '../core/CommonJs.js';
+import { newInstance, random, range, reduceMatrix, round10 } from '../core/CommonJs.js';
 
 const CyberiaBaseMatrix = () => {
   return {
@@ -248,6 +248,27 @@ const getRandomAvailablePosition = function (options = { biomeData: {}, element:
   return { x, y };
 };
 
+const getCollisionMatrix = (biome, element) => {
+  let biomeData = newInstance(biome);
+  if (!Array.isArray(biome.solid)) biomeData.solid = Object.values(biome.solid).map((row) => Object.values(row));
+  return reduceMatrix(
+    biomeData.solid.map((y) => y.map((x) => (x === 0 ? 0 : 1))),
+    3,
+  ).map((y, iY) =>
+    y.map((x, iX) =>
+      x === 0 &&
+      !isBiomeCollision({
+        biomeData,
+        element,
+        x: iX,
+        y: iY,
+      })
+        ? 0
+        : 1,
+    ),
+  );
+};
+
 const WorldType = {
   width: {
     worldFaces: [1, 6, 3, 5],
@@ -387,6 +408,7 @@ const updateMovementDirection = ({ direction, element }) => {
 
 const CyberiaParams = {
   CYBERIA_EVENT_CALLBACK_TIME: 45,
+  MOVEMENT_TRANSITION_FACTOR: 4,
 };
 
 export {
@@ -403,4 +425,5 @@ export {
   CyberiaParams,
   updateMovementDirection,
   CyberiaBaseMatrix,
+  getCollisionMatrix,
 };

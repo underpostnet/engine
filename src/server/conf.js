@@ -277,6 +277,12 @@ const Config = {
             import_name_build: '/dist/joystick-controller/joystick-controller.js',
           },
           {
+            folder: './node_modules/pathfinding/visual/lib',
+            public_folder: '/dist/pathfinding',
+            import_name: 'pathfinding',
+            import_name_build: '/dist/pathfinding/pathfinding-browser.min.js',
+          },
+          {
             folder: './node_modules/validator',
             public_folder: '/dist/validator',
           },

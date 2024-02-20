@@ -22,7 +22,12 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaBaseMatrix, getRandomAvailablePosition, isBiomeCollision } from './CommonCyberia.js';
+import {
+  CyberiaBaseMatrix,
+  getCollisionMatrix,
+  getRandomAvailablePosition,
+  isBiomeCollision,
+} from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
@@ -707,6 +712,7 @@ class LoadBiomeRenderer {
         ...biomeData,
         imageFile,
         imageSrc,
+        mainUserCollisionMatrix: getCollisionMatrix(biomeData, Elements.Data.user.main),
       };
     }
 
