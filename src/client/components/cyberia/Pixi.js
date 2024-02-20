@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { newInstance, range } from '../core/CommonJs.js';
+import { getId, newInstance, range, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
@@ -420,6 +420,59 @@ const Pixi = {
         this.removeElement({ type, id });
       }
     }
+  },
+  markers: {},
+  renderMarker: async function ({ x, y }) {
+    const id = getId(this.markers, 'marker-');
+
+    this.markers[id] = { x, y };
+
+    const dim = this.MetaData.dim / Matrix.Data.dim;
+    const container = new Container();
+    container.width = dim;
+    container.height = dim;
+    container.x = dim * x;
+    container.y = dim * y;
+
+    const sprites = {};
+
+    for (const frame of range(0, 3)) {
+      const src = `${getProxyPath()}assets/icons/pointer/${frame}.png`;
+      sprites[frame] = Sprite.from(src);
+      sprites[frame].width = dim / 2;
+      sprites[frame].height = dim / 2;
+      sprites[frame].x = 0;
+      sprites[frame].y = 0;
+      sprites[frame].visible = frame === 0;
+      container.addChild(sprites[frame]);
+    }
+    this.App.stage.addChild(container);
+
+    await timer(30);
+    sprites[0].visible = false;
+    sprites[1].visible = true;
+    await timer(30);
+    sprites[1].visible = false;
+    sprites[2].visible = true;
+    await timer(30);
+    sprites[2].visible = false;
+    sprites[3].visible = true;
+    await timer(750);
+    sprites[3].visible = false;
+    sprites[2].visible = true;
+    await timer(10);
+    sprites[3].visible = false;
+    sprites[2].visible = true;
+    await timer(10);
+    sprites[2].visible = false;
+    sprites[1].visible = true;
+    await timer(10);
+    sprites[1].visible = false;
+    sprites[0].visible = true;
+    await timer(10);
+
+    container.destroy();
+    delete this.markers[id];
   },
 };
 

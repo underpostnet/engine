@@ -291,7 +291,7 @@ const CssCyberia = {
       .PointAndClickMovement-container {
         z-index: 2;
         top: 54px;
-        background: rgba(0, 34, 255, 0.5);
+        cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
     `,
 };

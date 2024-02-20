@@ -1,10 +1,11 @@
-import { JSONmatrix, insertTransitionCoordinates, round10 } from '../core/CommonJs.js';
+import { JSONmatrix, insertTransitionCoordinates, round10, s4, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 import { append, s } from '../core/VanillaJs.js';
 import { BiomeScope } from './Biome.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
+import { Pixi } from './Pixi.js';
 
 const PointAndClickMovement = {
   callback: null,
@@ -28,8 +29,11 @@ const PointAndClickMovement = {
       heuristic: pathfinding.Heuristic.chebyshev,
     });
 
-    s(`.${id}-container`).onclick = (e = new PointerEvent()) => {
+    let idPath;
+    s(`.${id}-container`).onclick = async (e = new PointerEvent()) => {
       console.log(e);
+      idPath = s4() + s4();
+      const currentIdPath = idPath;
 
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
 
@@ -52,10 +56,23 @@ const PointAndClickMovement = {
           round10(y),
           new pathfinding.Grid(collisionMatrix.length, collisionMatrix.length, collisionMatrix),
         ),
-        CyberiaParams.MOVEMENT_TRANSITION_FACTOR,
+        CyberiaParams.MOVEMENT_TRANSITION_FACTOR / 2,
       );
 
       console.log(Path);
+
+      Pixi.renderMarker({ x, y });
+
+      if (Path[0])
+        for (const point of Path) {
+          await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+          if (currentIdPath === idPath) {
+            Elements.Data.user.main.x = point[0];
+            Elements.Data.user.main.y = point[1];
+            Pixi.updatePosition({ type: 'user', id: 'main' });
+          }
+        }
+      return;
 
       append(
         `.${id}-container`,
