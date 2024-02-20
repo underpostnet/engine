@@ -116,9 +116,11 @@ const Matrix = {
         ResponsiveDataAmplitude.minValue / this.Data.dim / 2 +
         (ResponsiveDataAmplitude.minValue / this.Data.dim / 2) * (1 - element.dim);
     }
-    s(gridId).style.left = `${leftDimValue}px`;
-    s(gridId).style.top = `${topDimValue}px`;
-    if (adjacent) this.UpdateAdjacentLimit({ gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude });
+    if (s(gridId)) {
+      s(gridId).style.left = `${leftDimValue}px`;
+      s(gridId).style.top = `${topDimValue}px`;
+      if (adjacent) this.UpdateAdjacentLimit({ gridId, leftDimValue, topDimValue, ResponsiveDataAmplitude });
+    }
   },
 };
 
