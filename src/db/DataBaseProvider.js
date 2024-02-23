@@ -22,7 +22,7 @@ const DataBaseProvider = {
       }
       return this.instance[`${host}${path}`][db.provider];
     } catch (error) {
-      logger.info(error, { error: error.stack, options });
+      logger.error(error, { error: error.stack, options });
       return undefined;
     }
   },
