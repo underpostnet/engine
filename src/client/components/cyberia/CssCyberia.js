@@ -183,9 +183,17 @@ const CssCyberia = {
       .tile-object-container {
         font-size: 8px;
       }
-      .toggle-switch-input-container {
+      .sub-container {
         background: #232323;
-        padding: 5px;
+        border: 2px solid #313131;
+        transition: 0.3s;
+      }
+      .sub-container:hover {
+        background: #191919;
+        border: 2px solid #313131;
+      }
+      .inside-input-btn {
+        text-align: left;
       }
       .face-world-img {
         width: 100%;

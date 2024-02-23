@@ -5,10 +5,9 @@ import { loggerFactory } from '../../server/logger.js';
 const logger = loggerFactory(import.meta);
 
 const MongooseDB = {
-  connect: (host, endpoint, dbName) => {
-    // ${endpoint}
-    const uri = `${host}/${dbName}`;
-    logger.info('MongooseDB connect', { host, endpoint, dbName, uri });
+  connect: (host, name) => {
+    const uri = `${host}/${name}`;
+    logger.info('MongooseDB connect', { host, name, uri });
     return new Promise((resolve, reject) =>
       mongoose
         .connect(
@@ -23,7 +22,7 @@ const MongooseDB = {
           return resolve(db);
         })
         .catch((err) => {
-          logger.error(err, { host, endpoint, dbName, error: err.stack });
+          logger.error(err, { host, name, error: err.stack });
           // return reject(err);
           return resolve(undefined);
         }),

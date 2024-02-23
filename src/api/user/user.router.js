@@ -11,6 +11,16 @@ const logger = loggerFactory(meta);
 const UserRouter = (options) => {
   const router = express.Router();
 
+  router.post(
+    `${endpoint}/mailer/:id`,
+    authMiddleware,
+    async (req, res) => await UserController.post(req, res, { uri: '/mailer', ...options }),
+  );
+  router.get(
+    `${endpoint}/mailer/:id`,
+    async (req, res) => await UserController.get(req, res, { uri: '/mailer', ...options }),
+  );
+
   router.post(`${endpoint}/:id`, async (req, res) => await UserController.post(req, res, options));
   router.post(`${endpoint}`, async (req, res) => await UserController.post(req, res, options));
 

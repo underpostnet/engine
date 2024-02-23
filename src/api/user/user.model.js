@@ -13,6 +13,7 @@ const UserSchema = new Schema({
     validate: [validator.isEmail, 'Please fill a valid email address'],
     // match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address'],
   },
+  emailConfirmed: { type: Boolean, default: false },
   password: { type: String, trim: true, required: 'Password is required' },
   username: { type: String, trim: true, unique: true, required: 'Username is required' },
   role: { type: String, enum: ['admin', 'moderator', 'user', 'guest'], default: 'guest' },

@@ -1,5 +1,4 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
-import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
 import { loggerFactory } from '../../server/logger.js';
 import { FileService } from './file.service.js';
@@ -8,15 +7,9 @@ const endpoint = endpointFactory(import.meta);
 
 const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 
-const DataBaseProvider = {};
-
 const FileController = {
   post: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       const results = await FileService.post(req, res, options);
       if (results.length === 0)
         return res.status(400).json({
@@ -37,10 +30,6 @@ const FileController = {
   },
   get: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       return res.status(200).json({
         status: 'success',
         data: await FileService.get(req, res, options),
@@ -55,10 +44,6 @@ const FileController = {
   },
   delete: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       const result = await FileService.delete(req, res, options);
       if (!result)
         return res.status(400).json({

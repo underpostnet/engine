@@ -1,5 +1,4 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
-import { ProviderFactoryDB } from '../../db/ProviderFactoryDB.js';
 
 import { loggerFactory } from '../../server/logger.js';
 import { UserService } from './user.service.js';
@@ -8,15 +7,9 @@ const endpoint = endpointFactory(import.meta);
 
 const logger = loggerFactory({ url: `api-${endpoint}-controller` });
 
-const DataBaseProvider = {};
-
 const UserController = {
   post: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       const result = await UserService.post(req, res, options);
       if (!result) {
         return res.status(401).json({
@@ -38,11 +31,6 @@ const UserController = {
   },
   get: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
-
       // throw { message: 'error test' };
       return res.status(200).json({
         status: 'success',
@@ -59,10 +47,6 @@ const UserController = {
   },
   delete: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       const result = await UserService.delete(req, res, options);
       if (!result)
         return res.status(400).json({
@@ -85,10 +69,6 @@ const UserController = {
   },
   put: async (req, res, options) => {
     try {
-      const { host, path } = options;
-      await ProviderFactoryDB(options, endpoint, DataBaseProvider);
-      const db = DataBaseProvider[`${host}${path}`];
-      if (db) logger.info('success get db provider', options.db);
       const result = await UserService.put(req, res, options);
       if (!result)
         return res.status(400).json({

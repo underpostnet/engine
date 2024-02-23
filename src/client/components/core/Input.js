@@ -22,6 +22,7 @@ const Input = {
         />
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
+      ${options?.footer ? options.footer : ''}
     </div>`;
   },
   parseJsonEval: (selector) => {

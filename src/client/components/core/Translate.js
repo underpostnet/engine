@@ -130,6 +130,10 @@ const TranslateCore = {
     Translate.Data['error-update-user'] = { en: 'error update user', es: 'error al actualizar el usuario' };
 
     Translate.Data['edit'] = { en: 'Edit', es: 'Editar' };
+    Translate.Data['unconfirmed'] = { en: 'unconfirmed', es: 'No confirmado' };
+    Translate.Data['confirmed'] = { en: 'confirmed', es: 'Confirmado' };
+    Translate.Data['confirm'] = { en: 'confirm', es: 'confirmar' };
+    Translate.Data['verify-email'] = { en: 'Verify email', es: 'email de verificacion' };
   },
 };
 

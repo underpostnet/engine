@@ -334,6 +334,22 @@ const Config = {
             host: 'mongodb://127.0.0.1:27017',
             name: 'example2-cyberia',
           },
+          mailer: {
+            sender: {
+              email: '',
+              name: '',
+            },
+            transport: {
+              host: 'mail.net', // smtp host
+              port: 465,
+              secure: true, // true for 465, false for other ports
+              auth: {
+                user: '', // generated ethereal user
+                pass: '', // generated ethereal password
+              },
+            },
+            templates: [''],
+          },
         },
         '/game': {
           client: 'cyberia',

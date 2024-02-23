@@ -7,9 +7,9 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-const validatePassword = (plaintextPassword, hash) =>
+const tokenVerify = (plaintext, hash) =>
   new Promise((resolve) => {
-    bcrypt.compare(plaintextPassword, hash, function (error, result) {
+    bcrypt.compare(plaintext, hash, function (error, result) {
       if (!error && result) resolve(result); // true or false
       else resolve(false);
     });
@@ -32,12 +32,14 @@ const getPasswordHash = (password, saltRounds = 10) =>
     }
   });
 
+const jwtVerify = (token = '') => jwt.verify(token, process.env.SECRET);
+
 const authMiddleware = (req, res, next) => {
   try {
     const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7, authHeader.length);
-      const response = jwt.verify(token, process.env.SECRET);
+      const response = jwtVerify(token);
       if (!('exp' in response) || response.exp * 1000 <= +new Date())
         return res.status(401).json({
           status: 'error',
@@ -59,4 +61,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-export { authMiddleware, getPasswordHash, validatePassword, getToken };
+export { authMiddleware, getPasswordHash, tokenVerify, getToken, jwtVerify };

@@ -1,5 +1,6 @@
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
+import { renderStatus } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -57,6 +58,11 @@ const Account = {
           }
         }
       });
+
+      EventsUI.onClick(`.btn-confirm-email`, async (e) => {
+        e.preventDefault();
+        const result = await UserService.post({ id: 'mailer/verify-email' });
+      });
     });
     return html`
       <form class="in">
@@ -79,7 +85,23 @@ const Account = {
             placeholder: true,
             autocomplete: 'email',
             disabled: false,
+            footer: html``,
           })}
+        </div>
+        <div class="in">
+          <div class="in section-mp container-component sub-container">
+            <div class="in">
+              ${renderStatus(user.emailConfirmed ? 'success' : 'error', { class: 'inl' })} ${Translate.Render('email')}
+              ${Translate.Render(user.emailConfirmed ? 'confirmed' : 'unconfirmed')}
+            </div>
+            ${!user.emailConfirmed
+              ? await BtnIcon.Render({
+                  class: 'in inside-input-btn btn-confirm-email',
+                  label: html`<i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                    ${Translate.Render('verify-email')}`,
+                })
+              : ''}
+          </div>
         </div>
         <div class="in">
           ${await Input.Render({

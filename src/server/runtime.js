@@ -10,6 +10,8 @@ import { network, listenPortController, ip } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
+import { MailerProvider } from '../mailer/MailerProvider.js';
+import { DataBaseProvider } from '../db/DataBaseProvider.js';
 
 dotenv.config();
 
@@ -21,7 +23,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, db, origins, disabled, directory, wss } = confServer[host][path];
+      const { runtime, port, client, apis, origins, disabled, directory, wss, mailer, db } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
       const logger = loggerFactory(meta);
       const runningData = {
@@ -101,13 +103,27 @@ const buildRuntime = async () => {
           // cors
           app.use(cors({ origin: origins }));
 
+          // services providers
+          let mailerInstance, dbInstance;
+
+          if (db) dbInstance = await DataBaseProvider.load({ host, path, db });
+
+          if (mailer)
+            mailerInstance = MailerProvider.instance[`${host}${path}`] = await MailerProvider.load({
+              id: `${host}${path}`,
+              meta: `mailer-${host}${path}`,
+              host,
+              path,
+              ...mailer,
+            });
+
           if (apis)
             for (const api of apis)
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
                 const apiPath = `${path === '/' ? '' : path}/api`;
                 logger.info('Load api router', { host, path: apiPath, api });
-                app.use(apiPath, ApiRouter({ host, path: apiPath, db }));
+                app.use(apiPath, ApiRouter({ host, path, apiPath, mailer, db }));
               })();
 
           // instance server

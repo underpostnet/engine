@@ -207,7 +207,7 @@ const Tile = {
           ${await Input.Render({
             id: `tile-solid`,
             label: html`<i class="fa-solid fa-ruler"></i> matrix object
-              <div class="in toggle-switch-input-container">
+              <div class="in sub-container">
                 ${await ToggleSwitch.Render({
                   id: 'solid-toggle',
                   checked: solidMode,
