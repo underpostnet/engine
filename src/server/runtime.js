@@ -109,7 +109,7 @@ const buildRuntime = async () => {
           if (db) dbInstance = await DataBaseProvider.load({ host, path, db });
 
           if (mailer)
-            mailerInstance = MailerProvider.instance[`${host}${path}`] = await MailerProvider.load({
+            mailerInstance = await MailerProvider.load({
               id: `${host}${path}`,
               meta: `mailer-${host}${path}`,
               host,
