@@ -2,9 +2,9 @@ import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
 import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
-import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
+import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
@@ -23,10 +23,7 @@ const LogOutCyberia = function () {
 
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
-    // webhook
-    SocketIo.Emit('mailer', {
-      status: 'unregister-user',
-    });
+    Webhook.unregister();
     Auth.deleteToken();
     await MainUser.Update({ oldElement });
 

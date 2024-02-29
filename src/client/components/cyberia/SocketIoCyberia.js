@@ -5,6 +5,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
+import { Webhook } from '../core/Webhook.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
 import { Pixi } from './Pixi.js';
@@ -68,10 +69,8 @@ const SocketIoCyberia = {
                     s('.ssr-background').style.display = 'none';
                     s(`.main-user-container`).style.display = 'block';
                     LoadingAnimation.bar.stop('init-loading');
-                    // webhook
                     if (Elements.Data.user.main.model.user._id)
-                      SocketIo.Emit('mailer', {
-                        status: 'register-user',
+                      Webhook.register({
                         user: {
                           _id: Elements.Data.user.main.model.user._id,
                         },
@@ -91,10 +90,8 @@ const SocketIoCyberia = {
           }
         };
       SocketIo.Event.connect[s4()] = async (reason) => {
-        // webhook
         if (Elements.Data.user.main.model.user._id)
-          SocketIo.Emit('mailer', {
-            status: 'register-user',
+          Webhook.register({
             user: {
               _id: Elements.Data.user.main.model.user._id,
             },
@@ -107,10 +104,7 @@ const SocketIoCyberia = {
         LoadingAnimation.bar.play('init-loading');
         Pixi.removeAll();
         Elements.removeAll();
-        // webhook
-        SocketIo.Emit('mailer', {
-          status: 'uregister-user',
-        });
+        Webhook.unregister();
       };
     });
   },

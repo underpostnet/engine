@@ -142,6 +142,7 @@ const Config = {
             'Auth',
             'JoyStick',
             'Worker',
+            'Webhook',
           ],
           cyberia: [
             'Pixi',

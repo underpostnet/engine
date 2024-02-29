@@ -1,9 +1,9 @@
 import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
-import { newInstance, objectEquals } from '../core/CommonJs.js';
+import { newInstance } from '../core/CommonJs.js';
 import { LogIn } from '../core/LogIn.js';
-import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
+import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
@@ -27,13 +27,7 @@ const LogInCyberia = async function () {
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
     Elements.Data[type][id].model.user = user;
-    // webhook
-    SocketIo.Emit('mailer', {
-      status: 'register-user',
-      user: {
-        _id: user._id,
-      },
-    });
+    Webhook.register({ user });
     Auth.setToken(token);
     await MainUser.Update({ oldElement });
   };
