@@ -1,3 +1,4 @@
+import { Account } from '../core/Account.js';
 import { Chat } from '../core/Chat.js';
 import { s4 } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
@@ -61,21 +62,44 @@ const SocketIoCyberia = {
               Pixi.setComponents({ type, id });
               if (type === 'user' && id === 'main') {
                 await MainUser.Update();
-                resolve();
                 setTimeout(() => {
                   s('.ssr-background').style.opacity = 0;
                   setTimeout(async () => {
                     s('.ssr-background').style.display = 'none';
                     s(`.main-user-container`).style.display = 'block';
                     LoadingAnimation.bar.stop('init-loading');
+                    // webhook
+                    if (Elements.Data.user.main.model.user._id)
+                      SocketIo.Emit('mailer', {
+                        status: 'register-user',
+                        user: {
+                          _id: Elements.Data.user.main.model.user._id,
+                        },
+                      });
+                    resolve();
                   }, 300);
                 });
               }
+              break;
+            case 'email-confirmed':
+              const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
+              Account.renderVerifyEmailStatus(newUser);
+              Account.triggerUpdateEvent({ user: newUser });
               break;
             default:
               break;
           }
         };
+      SocketIo.Event.connect[s4()] = async (reason) => {
+        // webhook
+        if (Elements.Data.user.main.model.user._id)
+          SocketIo.Emit('mailer', {
+            status: 'register-user',
+            user: {
+              _id: Elements.Data.user.main.model.user._id,
+            },
+          });
+      };
       SocketIo.Event.disconnect[s4()] = async (reason) => {
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
@@ -83,6 +107,10 @@ const SocketIoCyberia = {
         LoadingAnimation.bar.play('init-loading');
         Pixi.removeAll();
         Elements.removeAll();
+        // webhook
+        SocketIo.Emit('mailer', {
+          status: 'uregister-user',
+        });
       };
     });
   },

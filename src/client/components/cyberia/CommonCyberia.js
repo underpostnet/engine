@@ -201,6 +201,7 @@ const BaseElement = () => {
     },
     biome: {},
     chat: {},
+    mailer: {},
   };
 };
 

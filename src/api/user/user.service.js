@@ -3,6 +3,10 @@ import { UserModel } from './user.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { getPasswordHash, getToken, jwtVerify, tokenVerify } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
+import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
+import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
+import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
+import validator from 'validator';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -22,13 +26,24 @@ const UserService = {
           switch (req.params.id) {
             case 'verify-email':
               {
-                const token = getToken({ email: req.auth.user.email });
+                if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
+
+                const token = getToken({ email: req.body.email });
                 const id = `${options.host}${options.path}`;
+                const user = await UserModel.findById(req.auth.user._id);
+
+                if (user.email !== req.body.email) {
+                  req.body.emailConfirmed = false;
+
+                  const result = await UserModel.findByIdAndUpdate(req.auth.user._id, req.body, {
+                    runValidators: true,
+                  });
+                }
 
                 const sendResult = await MailerProvider.send({
                   id,
                   sendOptions: {
-                    to: req.auth.user.email, // list of receivers
+                    to: req.body.email, // req.auth.user.email, // list of receivers
                     subject: 'Email Confirmed', // Subject line
                     text: 'Email Confirmed', // plain text body
                     html: MailerProvider.instance[id].templates['CyberiaVerifyEmail'].replace('{{TOKEN}}', token), // html body
@@ -101,6 +116,14 @@ const UserService = {
                 if (user) {
                   user.emailConfirmed = true;
                   result = await UserModel.findByIdAndUpdate(user._id.toString(), user, { runValidators: true });
+                  const userWsId = CoreWsMailerManagement.getUserWsId(
+                    `${options.host}${options.path}`,
+                    user._id.toString(),
+                  );
+                  CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
+                    status: 'email-confirmed',
+                    id: userWsId,
+                  });
                   result = { message: 'email confirmed' };
                 } else throw { message: 'email user not found' };
               }

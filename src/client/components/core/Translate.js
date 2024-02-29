@@ -134,6 +134,8 @@ const TranslateCore = {
     Translate.Data['confirmed'] = { en: 'confirmed', es: 'Confirmado' };
     Translate.Data['confirm'] = { en: 'confirm', es: 'confirmar' };
     Translate.Data['verify-email'] = { en: 'Verify email', es: 'email de verificacion' };
+
+    Translate.Data[`email send`] = { en: 'email send', es: 'email enviado' };
   },
 };
 
