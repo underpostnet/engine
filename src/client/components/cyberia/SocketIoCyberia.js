@@ -7,7 +7,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { Elements } from './Elements.js';
-import { MainUser } from './MainUser.js';
+import { LogInCyberia } from './LogInCyberia.js';
 import { Pixi } from './Pixi.js';
 
 const logger = loggerFactory(import.meta);
@@ -62,7 +62,7 @@ const SocketIoCyberia = {
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
               if (type === 'user' && id === 'main') {
-                await MainUser.Update();
+                await LogInCyberia();
                 setTimeout(() => {
                   s('.ssr-background').style.opacity = 0;
                   setTimeout(async () => {

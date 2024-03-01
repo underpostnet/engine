@@ -163,6 +163,7 @@ const Config = {
             'SocketIoCyberia',
             'LogInCyberia',
             'LogOutCyberia',
+            'SignUpCyberia',
             'RoutesCyberia',
             'Skill',
             'PointAndClickMovement',
@@ -300,7 +301,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+        services: ['core', 'file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
       },
     },
     ssr: {
@@ -322,7 +323,7 @@ const Config = {
       'www.cyberiaonline.com': {
         '/': {
           client: 'cyberia',
-          apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          apis: ['file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],
@@ -354,7 +355,7 @@ const Config = {
         },
         '/game': {
           client: 'cyberia',
-          apis: ['file', 'user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          apis: ['file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],

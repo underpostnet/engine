@@ -13,7 +13,6 @@ import { MainUser } from './components/cyberia/MainUser.js';
 import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
-import { LogInCyberia } from './components/cyberia/LogInCyberia.js';
 import { TranslateCore } from './components/core/Translate.js';
 import { Menu } from './components/cyberia/Menu.js';
 import { LoadRouter } from './components/core/Router.js';
@@ -22,6 +21,7 @@ import { Css } from './components/core/Css.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Skill } from './components/cyberia/Skill.js';
 import { PointAndClickMovement } from './components/cyberia/PointAndClickMovement.js';
+import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -38,7 +38,7 @@ import { PointAndClickMovement } from './components/cyberia/PointAndClickMovemen
   await SocketIo.Init({ channels: Elements.Data });
   await SocketIoCyberia.Init();
   await LogOutCyberia();
-  await LogInCyberia();
+  await SignUpCyberia();
   LoadRouter(RouterInstance);
   disableOptionsClick('html', ['drag', 'select', 'menu']);
   s(`.btn-menu-modal-menu`).click();

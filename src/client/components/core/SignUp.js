@@ -9,6 +9,10 @@ import { Validator } from './Validator.js';
 import { s } from './VanillaJs.js';
 
 const SignUp = {
+  Event: {},
+  Trigger: async function (options) {
+    for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
+  },
   Render: async function () {
     setTimeout(async () => {
       const formData = [
@@ -43,7 +47,10 @@ const SignUp = {
           html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-user`),
           status: result.status,
         });
-        if (result.status === 'success') LogIn.Trigger(result.data);
+        if (result.status === 'success') {
+          await this.Trigger(result.data);
+          await LogIn.Trigger(result.data);
+        }
       });
     });
     return html`

@@ -1,3 +1,4 @@
+import { CyberiaUserService } from '../../services/cyberia-user/cyberia-user.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
@@ -25,10 +26,13 @@ const LogInCyberia = async function () {
     if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
     const oldElement = newInstance(Elements.Data[type][id]);
-    Elements.Data[type][id] = BaseElement()[type][id];
+    // Elements.Data[type][id] = BaseElement()[type][id];
     Elements.Data[type][id].model.user = user;
     Webhook.register({ user });
     Auth.setToken(token);
+    const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
+    if (resultUserCyberia.status === 'success')
+      Elements.Data[type][id] = { ...Elements.Data[type][id], ...resultUserCyberia.data };
     await MainUser.Update({ oldElement });
   };
   const token = localStorage.getItem('jwt');
