@@ -40,6 +40,24 @@ const Slot = {
       return indexBag;
     },
   },
+  skill: {
+    render: ({ bagId, indexBag }) => {
+      for (const skillId of uniqueArray(Elements.Data.user.main.skill.tree)) {
+        const count = Elements.Data.user.main.skill.tree.filter((s) => s === skillId).length;
+        htmls(
+          `.${bagId}-${indexBag}`,
+          html` <div class="abs bag-slot-count">
+              <div class="abs center" style="${borderChar(2, 'black')}">
+                x<span class="bag-slot-value-${indexBag}">${count}</span>
+              </div>
+            </div>
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${skillId}/animation.gif" />`,
+        );
+        indexBag++;
+      }
+      return indexBag;
+    },
+  },
 };
 
 const Bag = {
@@ -100,6 +118,7 @@ const Bag = {
       let indexBag = 0;
       indexBag = await Slot.coin.render({ bagId, indexBag });
       indexBag = await Slot.skin.render({ bagId, indexBag });
+      indexBag = await Slot.skill.render({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">
