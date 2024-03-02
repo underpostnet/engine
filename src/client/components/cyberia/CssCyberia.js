@@ -223,6 +223,7 @@ const CssCyberia = {
         top: 50px;
         right: 50px;
         font-size: 60px;
+        z-index: 2;
       }
       .drop-down-option-info {
         color: #ffcc00;
