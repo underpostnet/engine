@@ -71,8 +71,10 @@ const SocketIoCyberia = {
               Account.triggerUpdateEvent({ user: newUser });
               break;
             case 'update-coin':
-              Elements.Data[type][id].coin = element.coin;
-              if (s(`.bag-slot-value-0`)) htmls(`.bag-slot-value-0`, element.coin);
+              if (type === 'user' && id === 'main') {
+                Elements.Data[type][id].coin = element.coin;
+                if (s(`.bag-slot-value-cyberia-bag-0`)) htmls(`.bag-slot-value-cyberia-bag-0`, element.coin);
+              }
               break;
             default:
               break;

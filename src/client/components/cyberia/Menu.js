@@ -78,7 +78,7 @@ const Menu = {
         route: 'bag',
         barConfig,
         title: Translate.Render('bag'),
-        html: async () => await Bag.Render(),
+        html: async () => await Bag.Render({ id: 'cyberia-bag' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

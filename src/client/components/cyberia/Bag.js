@@ -12,11 +12,13 @@ const Slot = {
       htmls(
         `.${bagId}-${indexBag}`,
         html` <div class="abs bag-slot-count">
-            <div class="abs center" style="${borderChar(2, 'black')}">
-              x<span class="bag-slot-value-${indexBag}">${Elements.Data.user.main.coin}</span>
+            <div class="abs center">
+              x<span class="bag-slot-value-${bagId}-${indexBag}">${Elements.Data.user.main.coin}</span>
             </div>
           </div>
-          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />`,
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
+          <div class="in bag-slot-type-text">currency</div>
+          <div class="in bag-slot-name-text">coin</div>`,
       );
       indexBag++;
       return indexBag;
@@ -28,12 +30,14 @@ const Slot = {
         const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === skinId).length;
         htmls(
           `.${bagId}-${indexBag}`,
-          html` <div class="abs bag-slot-count">
-              <div class="abs center" style="${borderChar(2, 'black')}">
-                x<span class="bag-slot-value-${indexBag}">${count}</span>
-              </div>
+          html`
+            <div class="abs bag-slot-count">
+              <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span></div>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${skinId}/08/0.png" />`,
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${skinId}/08/0.png" />
+            <div class="in bag-slot-type-text">skin</div>
+            <div class="in bag-slot-name-text">${skinId}</div>
+          `,
         );
         indexBag++;
       }
@@ -46,12 +50,14 @@ const Slot = {
         const count = Elements.Data.user.main.skill.tree.filter((s) => s === skillId).length;
         htmls(
           `.${bagId}-${indexBag}`,
-          html` <div class="abs bag-slot-count">
-              <div class="abs center" style="${borderChar(2, 'black')}">
-                x<span class="bag-slot-value-${indexBag}">${count}</span>
-              </div>
+          html`
+            <div class="abs bag-slot-count">
+              <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span></div>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${skillId}/animation.gif" />`,
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${skillId}/animation.gif" />
+            <div class="in bag-slot-type-text">skill</div>
+            <div class="in bag-slot-name-text">${skillId}</div>
+          `,
         );
         indexBag++;
       }

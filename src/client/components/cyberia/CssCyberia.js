@@ -311,6 +311,19 @@ const CssCyberia = {
         height: 30px;
         top: 5px;
         right: 5px;
+        ${borderChar(2, 'black')}
+      }
+      .bag-slot-type-text {
+        padding-top: 70%;
+        color: yellow;
+        font-size: 16px;
+        text-align: center;
+        ${borderChar(2, 'black')}
+      }
+      .bag-slot-name-text {
+        font-size: 20px;
+        text-align: center;
+        ${borderChar(2, 'black')}
       }
     `,
 };
