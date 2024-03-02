@@ -33,6 +33,8 @@ const Skill = {
         </div>
       `,
     );
+  },
+  setMainKeysSkill: function () {
     let indexSkillIteration = -1;
     Keyboard.Event['main-skill'] = {};
     for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys)) {
@@ -42,11 +44,10 @@ const Skill = {
       let cooldownActive = false;
       htmls(`.main-skill-key-text-${indexSkill}`, skillKey);
       if (Elements.Data.user.main.skill.keys[skillKey]) {
-        if (!s(`.main-skill-img-${indexSkill}`))
-          append(
-            `.main-skill-img-container-${indexSkill}`,
-            html` <img class="abs center main-skill-img main-skill-img-${indexSkill}" /> `,
-          );
+        htmls(
+          `.main-skill-img-container-${indexSkill}`,
+          html` <img class="abs center main-skill-img main-skill-img-${indexSkill}" /> `,
+        );
         s(`.main-skill-img-${indexSkill}`).src = `${getProxyPath()}assets/skill/${
           Elements.Data.user.main.skill.keys[skillKey]
         }/animation.gif`;
@@ -78,7 +79,10 @@ const Skill = {
             reduceCooldown();
           }
         };
+      } else {
+        htmls(`.main-skill-img-container-${indexSkill}`, '');
       }
+
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;
       Keyboard.Event['main-skill'][skillKey.toLowerCase()] = triggerSkill;
       Keyboard.Event['main-skill'][skillKey.toUpperCase()] = triggerSkill;

@@ -301,6 +301,17 @@ const CssCyberia = {
         top: 54px;
         cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
       }
+      .bag-slot-img {
+        width: 80%;
+        height: 80%;
+      }
+      .bag-slot-count {
+        color: white;
+        width: 30px;
+        height: 30px;
+        top: 5px;
+        right: 5px;
+      }
     `,
 };
 

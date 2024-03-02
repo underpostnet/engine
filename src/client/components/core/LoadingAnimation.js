@@ -69,5 +69,15 @@ const LoadingAnimation = {
       s(`.${id}`).remove();
     },
   },
+  removeSplashScreen: function () {
+    setTimeout(() => {
+      s('.ssr-background').style.opacity = 0;
+      setTimeout(async () => {
+        s('.ssr-background').style.display = 'none';
+        s(`.main-user-container`).style.display = 'block';
+        this.bar.stop('init-loading');
+      }, 300);
+    });
+  },
 };
 export { LoadingAnimation };

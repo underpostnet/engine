@@ -13,6 +13,7 @@ import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 import { Application } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { Skill } from './Skill.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -209,17 +210,8 @@ const MainUser = {
       Elements.Data.user.main.model.user = user;
     };
 
-    this.endFirstLoad();
-  },
-  endFirstLoad: function () {
-    setTimeout(() => {
-      s('.ssr-background').style.opacity = 0;
-      setTimeout(async () => {
-        s('.ssr-background').style.display = 'none';
-        s(`.main-user-container`).style.display = 'block';
-        LoadingAnimation.bar.stop('init-loading');
-      }, 300);
-    });
+    Skill.setMainKeysSkill();
+    LoadingAnimation.removeSplashScreen();
   },
 };
 

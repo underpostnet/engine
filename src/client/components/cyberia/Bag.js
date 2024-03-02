@@ -2,6 +2,7 @@ import Sortable from 'sortablejs';
 import { getId, range } from '../core/CommonJs.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
+import { borderChar } from '../core/Css.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -10,7 +11,12 @@ const Slot = {
     render: ({ bagId }) => {
       htmls(
         `.${bagId}-${0}`,
-        html` ${Elements.Data.user.main.coin} <img src="${getProxyPath()}assets/coin/animation.gif" />`,
+        html` <div class="abs bag-slot-count">
+            <div class="abs center" style="${borderChar(2, 'black')}">
+              x<span class="bag-slot-coin-value">${Elements.Data.user.main.coin}</span>
+            </div>
+          </div>
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />`,
       );
     },
   },
