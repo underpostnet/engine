@@ -81,6 +81,7 @@ const ComponentElement = {
         ],
         lifeBar: {},
         lifeIndicator: {},
+        coinIndicator: {},
       },
     };
   },

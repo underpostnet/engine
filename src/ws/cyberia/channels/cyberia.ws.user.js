@@ -47,13 +47,13 @@ const CyberiaWsUserController = {
                 id: socket.id,
                 element: { life: user.life },
               });
-              CyberiaWsEmit(channel, client[clientId], {
-                status: 'update-coin',
-                id: socket.id,
-                element: { coin: user.coin },
-              });
             }
           }
+          CyberiaWsEmit(channel, socket, {
+            status: 'update-coin',
+            id: socket.id,
+            element: { coin: user.coin },
+          });
           if (user.life <= 0) CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
         }
         break;

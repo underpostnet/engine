@@ -238,6 +238,54 @@ const Pixi = {
           this.Data[type][id].addChild(componentInstance);
 
           break;
+
+        case 'coinIndicator':
+          {
+            const componentInstance = new Container();
+            componentInstance.x = 0;
+            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.6;
+            componentInstance.width = dim * Elements.Data[type][id].dim;
+            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            this.Data[type][id].components[componentType].container = componentInstance;
+            this.Data[type][id].addChild(componentInstance);
+          }
+          {
+            const componentInstance = new Sprite(); // Texture.WHITE
+            componentInstance.x = 0;
+            componentInstance.y = 0;
+            componentInstance.width = dim * Elements.Data[type][id].dim;
+            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            // componentInstance.tint = '#000000ff';
+            componentInstance.visible = true;
+            this.Data[type][id].components[componentType].background = componentInstance;
+            this.Data[type][id].components[componentType].container.addChild(componentInstance);
+          }
+          {
+            let lastCoin = newInstance(Elements.Data[type][id].coin);
+            const callBack = () => {
+              if (Elements.Data[type][id].coin !== lastCoin) {
+                let diffCoin = Elements.Data[type][id].coin - lastCoin;
+                lastCoin = newInstance(Elements.Data[type][id].coin);
+                if (diffCoin > 0) diffCoin = '+' + diffCoin;
+                diffCoin = '$ ' + diffCoin;
+                const componentInstance = new Text(`${diffCoin}`, {
+                  fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
+                  fontFamily: 'retro-font', // Impact
+                  fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+                });
+                this.Data[type][id].components[componentType].container.addChild(componentInstance);
+                setTimeout(() => {
+                  componentInstance.destroy();
+                }, 450);
+              }
+            };
+            if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
+            this.Data[type][id].intervals[componentType]['coinIndicator-interval'] = {
+              callBack,
+              interval: setInterval(callBack, 500),
+            };
+          }
+          break;
         case 'lifeIndicator':
           {
             const componentInstance = new Container();
@@ -279,7 +327,7 @@ const Pixi = {
               }
             };
             if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
-            this.Data[type][id].intervals[componentType]['text-interval'] = {
+            this.Data[type][id].intervals[componentType]['lifeIndicator-interval'] = {
               callBack,
               interval: setInterval(callBack, 500),
             };
