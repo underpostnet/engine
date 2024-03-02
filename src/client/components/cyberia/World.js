@@ -282,6 +282,7 @@ const World = {
               value: biome._id,
               onClick: async () => {
                 this.WorldScope.face[index] = biome;
+                s(`.btn-generate-world`).click();
               },
             };
           }),

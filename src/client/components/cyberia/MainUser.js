@@ -14,6 +14,7 @@ import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 import { Application } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Skill } from './Skill.js';
+import { Slot } from './Bag.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -211,6 +212,7 @@ const MainUser = {
     };
 
     Skill.setMainKeysSkill();
+    Slot.coin.update({ bagId: 'cyberia-bag', type, id });
     LoadingAnimation.removeSplashScreen();
   },
 };

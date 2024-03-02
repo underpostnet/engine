@@ -6,6 +6,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
+import { Slot } from './Bag.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { LogInCyberia } from './LogInCyberia.js';
@@ -73,7 +74,7 @@ const SocketIoCyberia = {
             case 'update-coin':
               if (type === 'user' && id === 'main') {
                 Elements.Data[type][id].coin = element.coin;
-                if (s(`.bag-slot-value-cyberia-bag-0`)) htmls(`.bag-slot-value-cyberia-bag-0`, element.coin);
+                Slot.coin.update({ bagId: 'cyberia-bag', type, id });
               }
               break;
             default:

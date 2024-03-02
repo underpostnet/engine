@@ -23,6 +23,9 @@ const Slot = {
       indexBag++;
       return indexBag;
     },
+    update: ({ bagId, type, id }) => {
+      if (s(`.bag-slot-value-${bagId}-0`)) htmls(`.bag-slot-value-${bagId}-0`, Elements.Data[type][id].coin);
+    },
   },
   skin: {
     render: ({ bagId, indexBag }) => {
@@ -141,4 +144,4 @@ const Bag = {
   },
 };
 
-export { Bag };
+export { Bag, Slot };
