@@ -10,6 +10,7 @@ const CyberiaUserSchema = new Schema({
   maxLife: { type: Number },
   life: { type: Number },
   deadTime: { type: Number },
+  coin: { type: Number },
   skill: {
     basic: { type: String },
     keys: {
@@ -18,6 +19,7 @@ const CyberiaUserSchema = new Schema({
       e: { type: String },
       r: { type: String },
     },
+    tree: { type: [String], default: ['red-power'] },
   },
   model: {
     user: {

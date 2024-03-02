@@ -159,10 +159,12 @@ const PlayerElement = () => {
         e: null,
         r: null,
       },
+      tree: ['red-power'],
     },
     maxLife: 150,
     life: 150,
     deadTime: 3000,
+    coin: 0,
   };
 };
 

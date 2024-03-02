@@ -1,8 +1,20 @@
 import Sortable from 'sortablejs';
 import { getId, range } from '../core/CommonJs.js';
-import { s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { Elements } from './Elements.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
+
+const Slot = {
+  coin: {
+    render: ({ bagId }) => {
+      htmls(
+        `.${bagId}-${0}`,
+        html` ${Elements.Data.user.main.coin} <img src="${getProxyPath()}assets/coin/animation.gif" />`,
+      );
+    },
+  },
+};
 
 const Bag = {
   Tokens: {},
@@ -10,7 +22,7 @@ const Bag = {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
     const totalSlots = 10;
     this.Tokens[bagId] = {};
-    setTimeout(() => {
+    setTimeout(async () => {
       this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
         animation: 150,
         group: `bag-sortable`,
@@ -58,10 +70,12 @@ const Bag = {
           // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
         },
       });
+
+      await Slot.coin.render({ bagId });
     });
     return html`
       <div class="fl ${bagId}">
-        ${range(1, totalSlots)
+        ${range(0, totalSlots - 1)
           .map((slot) => {
             setTimeout(() => {
               s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);

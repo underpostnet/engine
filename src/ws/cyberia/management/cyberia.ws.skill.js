@@ -1,4 +1,4 @@
-import { getId, newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
+import { getId, newInstance, objectEquals, random, timer } from '../../../client/components/core/CommonJs.js';
 import {
   BaseElement,
   CyberiaBaseMatrix,
@@ -135,12 +135,19 @@ const CyberiaWsSkillManagement = {
                     B: CyberiaWsBotManagement.element[wsManagementId][botId],
                     dimPaintByCell: this.matrixData.dimPaintByCell,
                   })
-                )
+                ) {
+                  const newLife = CyberiaWsBotManagement.element[wsManagementId][botId].life - skillData.damage;
                   CyberiaWsBotManagement.updateLife({
                     wsManagementId,
                     id: botId,
-                    life: CyberiaWsBotManagement.element[wsManagementId][botId].life - skillData.damage,
+                    life: newLife,
                   });
+                  if (newLife <= 0)
+                    CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
+                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
+                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
+                    );
+                }
                 break;
 
               default:

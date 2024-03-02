@@ -70,6 +70,11 @@ const CyberiaWsBotManagement = {
         logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face, x, y });
 
         this.localElementScope[wsManagementId][id] = {
+          drop: {
+            coin: {
+              range: [5, 40],
+            },
+          },
           target: {
             Interval: 8, // detector target check time (ms)
             Radius: 4,
