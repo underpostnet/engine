@@ -372,6 +372,7 @@ const Pixi = {
                   if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
 
                   const callBack = () => {
+                    if (!Elements.Data[type][id]) return this.removeElement({ type, id });
                     const { position } = Elements.Data[type][id].components[componentType][currentIndex];
 
                     currentSrc = `${getProxyPath()}assets/${componentType}/${displayId}/${positionId}/${currentFrame}.png`;

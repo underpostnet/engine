@@ -258,7 +258,9 @@ const CyberiaWsBotManagement = {
                   }
 
                   await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+                  const clientId = this.localElementScope[wsManagementId][id].target.Element.id;
                   if (
+                    CyberiaWsUserManagement.element[wsManagementId][clientId] &&
                     this.localElementScope[wsManagementId][id].target.Active &&
                     this.localElementScope[wsManagementId][id].target.Element.type === 'user' &&
                     objectEquals(
@@ -271,7 +273,7 @@ const CyberiaWsBotManagement = {
                     this.localElementScope[wsManagementId][id].movement.Path = [
                       [this.element[wsManagementId][id].x, this.element[wsManagementId][id].y],
                     ];
-                    const clientId = this.localElementScope[wsManagementId][id].target.Element.id;
+
                     const direction = getDirection({
                       x1: this.element[wsManagementId][id].x,
                       y1: this.element[wsManagementId][id].y,

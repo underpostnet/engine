@@ -72,7 +72,7 @@ const SocketIoCyberia = {
               break;
             case 'update-coin':
               Elements.Data[type][id].coin = element.coin;
-              if (s(`.bag-slot-coin-value`)) htmls(`.bag-slot-coin-value`, element.coin);
+              if (s(`.bag-slot-value-0`)) htmls(`.bag-slot-value-0`, element.coin);
               break;
             default:
               break;

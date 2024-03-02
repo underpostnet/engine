@@ -1,5 +1,5 @@
 import Sortable from 'sortablejs';
-import { getId, range } from '../core/CommonJs.js';
+import { getId, range, uniqueArray } from '../core/CommonJs.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import { borderChar } from '../core/Css.js';
@@ -8,16 +8,36 @@ import { borderChar } from '../core/Css.js';
 
 const Slot = {
   coin: {
-    render: ({ bagId }) => {
+    render: ({ bagId, indexBag }) => {
       htmls(
-        `.${bagId}-${0}`,
+        `.${bagId}-${indexBag}`,
         html` <div class="abs bag-slot-count">
             <div class="abs center" style="${borderChar(2, 'black')}">
-              x<span class="bag-slot-coin-value">${Elements.Data.user.main.coin}</span>
+              x<span class="bag-slot-value-${indexBag}">${Elements.Data.user.main.coin}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />`,
       );
+      indexBag++;
+      return indexBag;
+    },
+  },
+  skin: {
+    render: ({ bagId, indexBag }) => {
+      for (const skinId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
+        const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === skinId).length;
+        htmls(
+          `.${bagId}-${indexBag}`,
+          html` <div class="abs bag-slot-count">
+              <div class="abs center" style="${borderChar(2, 'black')}">
+                x<span class="bag-slot-value-${indexBag}">${count}</span>
+              </div>
+            </div>
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${skinId}/08/0.png" />`,
+        );
+        indexBag++;
+      }
+      return indexBag;
     },
   },
 };
@@ -77,7 +97,9 @@ const Bag = {
         },
       });
 
-      await Slot.coin.render({ bagId });
+      let indexBag = 0;
+      indexBag = await Slot.coin.render({ bagId, indexBag });
+      indexBag = await Slot.skin.render({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">
