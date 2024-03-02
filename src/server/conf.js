@@ -167,6 +167,7 @@ const Config = {
             'RoutesCyberia',
             'Skill',
             'PointAndClickMovement',
+            'CyberiaWebhook',
           ],
           test: ['Test'],
         },

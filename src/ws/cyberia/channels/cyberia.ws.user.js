@@ -1,3 +1,4 @@
+import { CyberiaUserModel } from '../../../api/cyberia-user/cyberia-user.model.js';
 import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
@@ -14,9 +15,60 @@ const logger = loggerFactory(meta);
 const CyberiaWsUserController = {
   channel,
   meta,
-  controller: function (socket, client, args, wsManagementId) {
-    const { status, element } = args;
+  controller: async function (socket, client, args, wsManagementId) {
+    const { status, element, user } = args;
     switch (status) {
+      case 'register-user':
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
+        break;
+      case 'unregister-user':
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = '';
+        break;
+      case 'register-cyberia-user':
+        {
+          const userDoc = await CyberiaUserModel.findById(args.user._id);
+          const user = userDoc._doc;
+          user.model.user._id = user.model.user._id.toString();
+          user.model.world._id = user.model.world._id.toString();
+          user._id = user._id.toString();
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = {
+            ...CyberiaWsUserManagement.element[wsManagementId][socket.id],
+            ...user,
+          };
+          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+            if (
+              objectEquals(
+                CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+              )
+            )
+              CyberiaWsEmit(channel, client[clientId], {
+                status: 'update-life',
+                id: socket.id,
+                element: { life: user.life },
+              });
+          }
+          if (user.life <= 0) CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
+        }
+        break;
+      case 'unregister-cyberia-user':
+        {
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement().user.main;
+          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+            if (
+              objectEquals(
+                CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+              )
+            )
+              CyberiaWsEmit(channel, client[clientId], {
+                status: 'update-life',
+                id: socket.id,
+                element: { life: CyberiaWsUserManagement.element[wsManagementId][socket.id].life },
+              });
+          }
+        }
+        break;
       case 'update-position':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].x = element.x;
         CyberiaWsUserManagement.element[wsManagementId][socket.id].y = element.y;

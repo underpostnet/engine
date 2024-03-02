@@ -6,6 +6,7 @@ import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
+import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
 
@@ -24,6 +25,7 @@ const LogOutCyberia = function () {
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
     Webhook.unregister();
+    CyberiaWebhook.unregister();
     Auth.deleteToken();
     await MainUser.Update({ oldElement });
 

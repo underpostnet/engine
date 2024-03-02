@@ -50,6 +50,7 @@ const CyberiaWsBotManagement = {
     (async () => {
       this.worlds = await CyberiaWorldModel.find();
       this.biomes = await CyberiaBiomeModel.find();
+      if (this.worlds.length === 0 || this.biomes.length === 0) return;
       for (const indexBot of range(0, 39)) {
         const bot = BaseElement().bot.main;
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
@@ -186,8 +187,8 @@ const CyberiaWsBotManagement = {
                                   this.localElementScope[wsManagementId][id].movement.Path[
                                     this.localElementScope[wsManagementId][id].movement.Path.length - 1
                                   ][1],
-                                  Path[Path.length - 1][0],
-                                  Path[Path.length - 1][1],
+                                  Path[Path.length - 1] ? ([0] ? Path[Path.length - 1][0] : undefined) : undefined,
+                                  Path[Path.length - 1] ? ([1] ? Path[Path.length - 1][1] : undefined) : undefined,
                                 ) > 1.5
                               ) {
                                 Path.pop();

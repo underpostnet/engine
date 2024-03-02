@@ -7,9 +7,16 @@ const Webhook = {
       status: 'register-user',
       user,
     });
+    SocketIo.Emit('user', {
+      status: 'register-user',
+      user,
+    });
   },
   unregister: async function () {
     SocketIo.Emit('mailer', {
+      status: 'unregister-user',
+    });
+    SocketIo.Emit('user', {
       status: 'unregister-user',
     });
   },

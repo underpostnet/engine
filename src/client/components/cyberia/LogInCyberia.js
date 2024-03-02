@@ -6,6 +6,7 @@ import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
+import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { MainUser } from './MainUser.js';
 
@@ -27,12 +28,15 @@ const LogInCyberia = async function () {
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
     const oldElement = newInstance(Elements.Data[type][id]);
     // Elements.Data[type][id] = BaseElement()[type][id];
-    Elements.Data[type][id].model.user = user;
     Webhook.register({ user });
     Auth.setToken(token);
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
-    if (resultUserCyberia.status === 'success')
+    if (resultUserCyberia.status === 'success') {
       Elements.Data[type][id] = { ...Elements.Data[type][id], ...resultUserCyberia.data };
+      CyberiaWebhook.register({ user: resultUserCyberia.data });
+    }
+    Elements.Data[type][id].model.user = user;
+
     await MainUser.Update({ oldElement });
   };
   const token = localStorage.getItem('jwt');
@@ -46,7 +50,7 @@ const LogInCyberia = async function () {
         user,
       });
     } else localStorage.removeItem('jwt');
-  }
+  } else MainUser.Update(); // anon
 };
 
 export { LogInCyberia };

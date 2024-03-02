@@ -1,13 +1,29 @@
-import { newInstance, objectEquals } from '../../../client/components/core/CommonJs.js';
+import { CyberiaUserModel } from '../../../api/cyberia-user/cyberia-user.model.js';
+import { newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 
 const CyberiaWsUserManagement = {
   element: {},
   localElementScope: {},
+  updateCyberiaUser: async function (wsManagementId, timeInterval) {
+    await timer(timeInterval);
+    for (const elementId of Object.keys(this.element[wsManagementId])) {
+      const element = this.element[wsManagementId][elementId];
+      element?._id
+        ? (async () => {
+            const result = await CyberiaUserModel.findByIdAndUpdate(element._id, element, {
+              runValidators: true,
+            });
+          })()
+        : null;
+    }
+    this.updateCyberiaUser(wsManagementId, timeInterval);
+  },
   instance: function (wsManagementId = '') {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
+    this.updateCyberiaUser(wsManagementId, 1500);
   },
   updateLife: function (args = { wsManagementId: '', id: '', life: 1 }) {
     const { wsManagementId, id, life } = args;
@@ -23,12 +39,34 @@ const CyberiaWsUserManagement = {
           element: { life: this.element[wsManagementId][id].life },
         });
     }
-    if (life <= 0) {
+    if (life <= 0) this.setDeadState(wsManagementId, id);
+  },
+  setDeadState: function (wsManagementId, id) {
+    this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
+      s.enabled = s.displayId === 'ghost';
+      return s;
+    });
+
+    for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+      if (
+        objectEquals(
+          this.element[wsManagementId][id].model.world,
+          CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+        )
+      )
+        CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[clientId], {
+          status: 'update-skin-position',
+          id,
+          element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+        });
+    }
+    setTimeout(() => {
+      if (!this.element[wsManagementId][id]) return;
+      this.updateLife({ wsManagementId, id, life: newInstance(this.element[wsManagementId][id].maxLife) });
       this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
-        s.enabled = s.displayId === 'ghost';
+        s.enabled = s.current === true;
         return s;
       });
-
       for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
         if (
           objectEquals(
@@ -42,28 +80,7 @@ const CyberiaWsUserManagement = {
             element: { components: { skin: this.element[wsManagementId][id].components.skin } },
           });
       }
-      setTimeout(() => {
-        if (!this.element[wsManagementId][id]) return;
-        this.updateLife({ ...args, life: newInstance(this.element[wsManagementId][id].maxLife) });
-        this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
-          s.enabled = s.current === true;
-          return s;
-        });
-        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-          if (
-            objectEquals(
-              this.element[wsManagementId][id].model.world,
-              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-            )
-          )
-            CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[clientId], {
-              status: 'update-skin-position',
-              id,
-              element: { components: { skin: this.element[wsManagementId][id].components.skin } },
-            });
-        }
-      }, this.element[wsManagementId][id].deadTime);
-    }
+    }, this.element[wsManagementId][id].deadTime);
   },
 };
 

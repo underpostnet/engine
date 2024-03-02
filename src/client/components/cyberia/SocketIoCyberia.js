@@ -6,6 +6,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
+import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { LogInCyberia } from './LogInCyberia.js';
 import { Pixi } from './Pixi.js';
@@ -61,24 +62,8 @@ const SocketIoCyberia = {
             case 'connection':
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
-              if (type === 'user' && id === 'main') {
-                await LogInCyberia();
-                setTimeout(() => {
-                  s('.ssr-background').style.opacity = 0;
-                  setTimeout(async () => {
-                    s('.ssr-background').style.display = 'none';
-                    s(`.main-user-container`).style.display = 'block';
-                    LoadingAnimation.bar.stop('init-loading');
-                    if (Elements.Data.user.main.model.user._id)
-                      Webhook.register({
-                        user: {
-                          _id: Elements.Data.user.main.model.user._id,
-                        },
-                      });
-                    resolve();
-                  }, 300);
-                });
-              }
+              if (type === 'user' && id === 'main') await LogInCyberia();
+              resolve();
               break;
             case 'email-confirmed':
               const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
@@ -89,14 +74,7 @@ const SocketIoCyberia = {
               break;
           }
         };
-      SocketIo.Event.connect[s4()] = async (reason) => {
-        if (Elements.Data.user.main.model.user._id)
-          Webhook.register({
-            user: {
-              _id: Elements.Data.user.main.model.user._id,
-            },
-          });
-      };
+      SocketIo.Event.connect[s4()] = async (reason) => {};
       SocketIo.Event.disconnect[s4()] = async (reason) => {
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
@@ -105,6 +83,7 @@ const SocketIoCyberia = {
         Pixi.removeAll();
         Elements.removeAll();
         Webhook.unregister();
+        CyberiaWebhook.unregister();
       };
     });
   },

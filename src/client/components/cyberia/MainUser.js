@@ -12,6 +12,7 @@ import { append, s } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 import { Application } from 'pixi.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -207,6 +208,18 @@ const MainUser = {
       const { user } = options;
       Elements.Data.user.main.model.user = user;
     };
+
+    this.endFirstLoad();
+  },
+  endFirstLoad: function () {
+    setTimeout(() => {
+      s('.ssr-background').style.opacity = 0;
+      setTimeout(async () => {
+        s('.ssr-background').style.display = 'none';
+        s(`.main-user-container`).style.display = 'block';
+        LoadingAnimation.bar.stop('init-loading');
+      }, 300);
+    });
   },
 };
 

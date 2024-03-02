@@ -12,8 +12,7 @@ const ModelElement = {
   world: () => {
     return {
       world: {
-        _id: '65c78ae12194e65297a8a371', // '65a820d4cc37f11f003a4082'  '65a8783937c1183be094ccb0'
-        // 65c774c6efaaea9445bb6e74 (3)   65c78ae12194e65297a8a371 (2)
+        _id: '65e21650056a675e15a280b4',
         face: 1,
       },
     };
