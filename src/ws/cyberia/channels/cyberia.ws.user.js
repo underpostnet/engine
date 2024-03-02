@@ -41,12 +41,18 @@ const CyberiaWsUserController = {
                 CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
                 CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
               )
-            )
+            ) {
               CyberiaWsEmit(channel, client[clientId], {
                 status: 'update-life',
                 id: socket.id,
                 element: { life: user.life },
               });
+              CyberiaWsEmit(channel, client[clientId], {
+                status: 'update-coin',
+                id: socket.id,
+                element: { coin: user.coin },
+              });
+            }
           }
           if (user.life <= 0) CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
         }
@@ -54,19 +60,6 @@ const CyberiaWsUserController = {
       case 'unregister-cyberia-user':
         {
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement().user.main;
-          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-            if (
-              objectEquals(
-                CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
-                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-              )
-            )
-              CyberiaWsEmit(channel, client[clientId], {
-                status: 'update-life',
-                id: socket.id,
-                element: { life: CyberiaWsUserManagement.element[wsManagementId][socket.id].life },
-              });
-          }
         }
         break;
       case 'update-position':

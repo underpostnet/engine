@@ -8,6 +8,7 @@ import {
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsSkillChannel } from '../channels/cyberia.ws.skill.js';
+import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsBotManagement } from './cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
@@ -142,11 +143,19 @@ const CyberiaWsSkillManagement = {
                     id: botId,
                     life: newLife,
                   });
-                  if (newLife <= 0)
+                  if (newLife <= 0) {
                     CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
                       CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
                       CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
                     );
+                    CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
+                      status: 'update-coin',
+                      id: parent.id,
+                      element: {
+                        coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
+                      },
+                    });
+                  }
                 }
                 break;
 

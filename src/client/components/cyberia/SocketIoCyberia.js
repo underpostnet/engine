@@ -4,7 +4,7 @@ import { s4 } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
@@ -69,6 +69,10 @@ const SocketIoCyberia = {
               const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
               Account.renderVerifyEmailStatus(newUser);
               Account.triggerUpdateEvent({ user: newUser });
+              break;
+            case 'update-coin':
+              Elements.Data[type][id].coin = element.coin;
+              if (s(`.bag-slot-coin-value`)) htmls(`.bag-slot-coin-value`, element.coin);
               break;
             default:
               break;
