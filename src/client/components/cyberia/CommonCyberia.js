@@ -34,6 +34,13 @@ const SkinComponent = {
     life: 150,
     deadTime: 3000,
   },
+  purple: {
+    dim: 2,
+    vel: 0.5,
+    maxLife: 150,
+    life: 150,
+    deadTime: 3000,
+  },
 };
 
 const ComponentElement = {
