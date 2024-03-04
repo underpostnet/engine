@@ -153,14 +153,19 @@ const ComponentElement = {
     };
   },
   skill: () => {
-    return {
+    let base = {
       parent: {
         type: '',
         id: '',
       },
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
+        skill: [{ ...SkillType['red-power'].component, current: true }],
       },
+    };
+    return {
+      ...base,
+      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
     };
   },
 };
