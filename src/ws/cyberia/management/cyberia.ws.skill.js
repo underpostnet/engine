@@ -44,13 +44,11 @@ const CyberiaWsSkillManagement = {
     const id = getId(this.element[wsManagementId], 'skill-');
     if (!skillKey) skillKey = parentElement.skill.basic;
     const skillData = SkillType[parentElement.skill.keys[skillKey]];
-
     this.element[wsManagementId][id] = BaseElement().skill.main;
     this.element[wsManagementId][id].x = parentElement.x;
     this.element[wsManagementId][id].y = parentElement.y;
     this.element[wsManagementId][id].parent = parent;
     this.element[wsManagementId][id].model.world = parentElement.model.world;
-    this.element[wsManagementId][id].components.skill.push(skillData.component);
     this.element[wsManagementId][id].vel = 0.2;
     this.localElementScope[wsManagementId][id] = {};
 

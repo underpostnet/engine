@@ -38,7 +38,9 @@ const CyberiaWsSkillController = {
       }
     }
   },
-  disconnect: function (socket, client, reason, wsManagementId) {},
+  disconnect: function (socket, client, reason, wsManagementId) {
+    delete CyberiaWsSkillManagement.element[wsManagementId][socket.id];
+  },
 };
 
 const CyberiaWsSkillChannel = IoCreateChannel(CyberiaWsSkillController);

@@ -26,9 +26,19 @@ const ModelElement = {
   },
 };
 
+const SkinComponent = {
+  anon: {
+    dim: 2,
+    vel: 0.5,
+    maxLife: 150,
+    life: 150,
+    deadTime: 3000,
+  },
+};
+
 const ComponentElement = {
   user: () => {
-    return {
+    let base = {
       components: {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [
@@ -84,9 +94,13 @@ const ComponentElement = {
         coinIndicator: {},
       },
     };
+    return {
+      ...base,
+      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
+    };
   },
   bot: () => {
-    return {
+    let base = {
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
         skin: [
@@ -126,6 +140,10 @@ const ComponentElement = {
         lifeIndicator: {},
       },
     };
+    return {
+      ...base,
+      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
+    };
   },
   skill: () => {
     return {
@@ -135,7 +153,6 @@ const ComponentElement = {
       },
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skill: [],
       },
     };
   },
