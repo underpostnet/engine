@@ -28,14 +28,14 @@ const ModelElement = {
 
 const SkinComponent = {
   anon: {
-    dim: 2,
+    dim: 1,
     vel: 0.5,
     maxLife: 150,
     life: 150,
     deadTime: 3000,
   },
   purple: {
-    dim: 2,
+    dim: 1,
     vel: 0.5,
     maxLife: 150,
     life: 150,
