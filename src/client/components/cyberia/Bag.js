@@ -136,7 +136,7 @@ const Bag = {
             setTimeout(() => {
               s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);
             });
-            return html` <div class="in fll slot ${bagId}-${slot}" data-id="${slot}">slot ${slot}</div> `;
+            return html` <div class="in fll slot ${bagId}-${slot}" data-id="${slot}"><!-- slot ${slot} --></div> `;
           })
           .join('')}
       </div>

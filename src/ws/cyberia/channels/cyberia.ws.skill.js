@@ -30,7 +30,7 @@ const CyberiaWsSkillController = {
           CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
         )
       ) {
-        CyberiaWsEmit(channel, client, {
+        CyberiaWsEmit(channel, client[skillId], {
           status: 'connection',
           id: skillId,
           element: CyberiaWsSkillManagement.element[wsManagementId][skillId],
