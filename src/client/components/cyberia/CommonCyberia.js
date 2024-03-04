@@ -165,7 +165,7 @@ const ComponentElement = {
     };
     return {
       ...base,
-      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
+      ...SkinComponent[base.components.skill.find((s) => s.current).displayId],
     };
   },
 };
