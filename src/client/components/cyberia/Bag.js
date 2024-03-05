@@ -67,6 +67,20 @@ const Slot = {
       return indexBag;
     },
   },
+  xp: {
+    render: ({ bagId, indexBag }) => {
+      htmls(
+        `.${bagId}-${indexBag}`,
+        html` <div class="abs bag-slot-count">
+            <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">0</span></div>
+          </div>
+          <div class="abs center xp-icon">XP</div>
+          <div class="in bag-slot-type-text">experience</div>
+          <div class="in bag-slot-name-text">level 0</div>`,
+      );
+      indexBag++;
+    },
+  },
 };
 
 const Bag = {
@@ -128,6 +142,7 @@ const Bag = {
       indexBag = await Slot.coin.render({ bagId, indexBag });
       indexBag = await Slot.skin.render({ bagId, indexBag });
       indexBag = await Slot.skill.render({ bagId, indexBag });
+      indexBag = await Slot.xp.render({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">

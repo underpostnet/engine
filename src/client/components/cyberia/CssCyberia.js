@@ -326,6 +326,11 @@ const CssCyberia = {
         text-align: center;
         ${borderChar(2, 'black')}
       }
+      .xp-icon {
+        font-size: 70px;
+        color: black;
+        ${borderChar(2, 'yellow')}
+      }
     `,
 };
 
