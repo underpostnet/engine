@@ -12,6 +12,7 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
+import { Wallet } from '../core/Wallet.js';
 import { Bag } from './Bag.js';
 import { BiomeEngine } from './Biome.js';
 import { Elements } from './Elements.js';
@@ -34,6 +35,7 @@ const Menu = {
         ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
         ${await BtnIcon.Render({ class: 'main-btn main-btn-log-in', label: Translate.Render('log-in') })}
         ${await BtnIcon.Render({ class: 'main-btn main-btn-sign-up', label: Translate.Render('sign-up') })}
+        ${await BtnIcon.Render({ class: 'main-btn main-btn-wallet', label: Translate.Render('wallet') })}
         ${await BtnIcon.Render({
           class: 'main-btn main-btn-log-out',
           label: Translate.Render('log-out'),
@@ -249,6 +251,22 @@ const Menu = {
         barConfig,
         title: Translate.Render('account'),
         html: async () => await Account.Render({ idModal: 'modal-account', user: Elements.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-wallet`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-wallet',
+        route: 'wallet',
+        barConfig,
+        title: 'Wallet',
+        html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

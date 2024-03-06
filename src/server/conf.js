@@ -143,6 +143,7 @@ const Config = {
             'JoyStick',
             'Worker',
             'Webhook',
+            'Wallet',
           ],
           cyberia: [
             'Pixi',
@@ -239,6 +240,11 @@ const Config = {
             ssr: 'Cyberia',
           },
           {
+            path: '/wallet',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
             path: '/test',
             title: 'Test',
             client: 'Test',
@@ -302,7 +308,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+        services: ['core', 'file', 'user', 'crypto', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
       },
     },
     ssr: {
@@ -324,7 +330,7 @@ const Config = {
       'www.cyberiaonline.com': {
         '/': {
           client: 'cyberia',
-          apis: ['file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          apis: ['file', 'user', 'crypto', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],
@@ -356,7 +362,7 @@ const Config = {
         },
         '/game': {
           client: 'cyberia',
-          apis: ['file', 'user', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
+          apis: ['file', 'user', 'crypto', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
           wss: ['cyberia'],
           runtime: 'nodejs',
           origins: [],
