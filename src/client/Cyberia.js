@@ -42,7 +42,7 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
   await SignUpCyberia();
   LoadRouter(RouterInstance);
   disableOptionsClick('html', ['drag', 'select', 'menu']);
-  s(`.btn-menu-modal-menu`).click();
+  // s(`.btn-menu-modal-menu`).click();
   await Keyboard.Init();
   await JoyStickCyberia.Render();
 })();
