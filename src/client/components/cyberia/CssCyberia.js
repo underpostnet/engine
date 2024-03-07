@@ -338,6 +338,46 @@ const CssCyberia = {
       .keys-display {
         font-size: 18px;
       }
+
+      .character-container {
+        width: 330px;
+        height: 400px;
+        border: 2px solid #313131;
+      }
+      .character-slot {
+        width: 80px;
+        height: 80px;
+        border: 2px solid #313131;
+      }
+      .character-slot-type-text {
+        font-size: 12px;
+        color: #ffcc00;
+        text-align: center;
+        padding: 5px;
+      }
+
+      .character-slot-faction-symbol {
+        top: 24%;
+      }
+      .character-slot-weapon {
+        left: 20%;
+        top: 65%;
+      }
+      .character-slot-breastplate {
+        left: 80%;
+        top: 65%;
+      }
+      .character-slot-legs {
+        top: 76%;
+      }
+      .character-slot-helmet {
+        left: 80%;
+        top: 40%;
+      }
+      .character-slot-talisman {
+        left: 20%;
+        top: 40%;
+      }
     `,
 };
 

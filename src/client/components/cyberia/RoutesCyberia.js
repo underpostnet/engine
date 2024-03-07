@@ -19,6 +19,7 @@ const RoutesCyberia = () => {
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
     '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(), translateTitle: false },
+    '/character': { title: 'character', render: () => s(`.main-btn-character`).click(), translateTitle: true },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),

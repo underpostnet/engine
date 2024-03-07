@@ -438,6 +438,16 @@ const updateMovementDirection = ({ direction, element }) => {
   return element;
 };
 
+const CharacterSlotType = {
+  'faction-symbol': {},
+  weapon: {},
+  breastplate: {},
+  legs: {},
+  helmet: {},
+  talisman: {},
+  skin: {},
+};
+
 const CyberiaParams = {
   CYBERIA_EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
@@ -458,4 +468,5 @@ export {
   updateMovementDirection,
   CyberiaBaseMatrix,
   getCollisionMatrix,
+  CharacterSlotType,
 };

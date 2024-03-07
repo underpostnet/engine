@@ -15,6 +15,7 @@ import { s } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
 import { Bag } from './Bag.js';
 import { BiomeEngine } from './Biome.js';
+import { Character } from './Character.js';
 import { Elements } from './Elements.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { Settings } from './Settings.js';
@@ -30,6 +31,7 @@ const Menu = {
       id: 'modal-menu',
       html: html`
         ${await BtnIcon.Render({ class: 'main-btn main-btn-home', label: 'Home' })}
+        ${await BtnIcon.Render({ class: 'main-btn main-btn-character', label: Translate.Render('character') })}
         ${await BtnIcon.Render({ class: 'main-btn main-btn-bag', label: Translate.Render('bag') })}
         ${await BtnIcon.Render({ class: 'main-btn main-btn-colors', label: Translate.Render('pallet-colors') })}
         ${await BtnIcon.Render({ class: 'main-btn main-btn-settings', label: Translate.Render('settings') })}
@@ -267,6 +269,22 @@ const Menu = {
         barConfig,
         title: 'Wallet',
         html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-character`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-character',
+        route: 'character',
+        barConfig,
+        title: 'character',
+        html: async () => await Character.Render({ idModal: 'modal-character' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

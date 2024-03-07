@@ -144,6 +144,8 @@ const TranslateCore = {
     Translate.Data['keys'] = { en: 'Keys', es: 'Llaves' };
 
     Translate.Data['success-copy-data'] = { es: '¡Datos copiados con éxito!', en: 'Data copied successfully!' };
+
+    Translate.Data['character'] = { es: 'Personaje', en: 'Character' };
   },
 };
 

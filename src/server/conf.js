@@ -169,6 +169,7 @@ const Config = {
             'Skill',
             'PointAndClickMovement',
             'CyberiaWebhook',
+            'Character',
           ],
           test: ['Test'],
         },
@@ -241,6 +242,11 @@ const Config = {
           },
           {
             path: '/wallet',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/character',
             client: 'Cyberia',
             ssr: 'Cyberia',
           },
