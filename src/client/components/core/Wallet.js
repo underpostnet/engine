@@ -54,7 +54,8 @@ const Wallet = {
         NotificationManager.Push({
           // html: Translate.Render(`${result.status}-generate-keys`),
           html: Translate.Render(`success-generate-keys`),
-          status: result.status,
+          // status: result.status,
+          status: 'success',
         });
 
         EventsUI.onClick(`.btn-copy-keys-${id}`, async (e) => {
