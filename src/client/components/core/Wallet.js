@@ -52,7 +52,8 @@ const Wallet = {
         });
 
         NotificationManager.Push({
-          html: Translate.Render(`${result.status}-generate-keys`),
+          // html: Translate.Render(`${result.status}-generate-keys`),
+          html: Translate.Render(`success-generate-keys`),
           status: result.status,
         });
 
