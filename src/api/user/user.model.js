@@ -17,6 +17,13 @@ const UserSchema = new Schema({
   password: { type: String, trim: true, required: 'Password is required' },
   username: { type: String, trim: true, unique: true, required: 'Username is required' },
   role: { type: String, enum: ['admin', 'moderator', 'user', 'guest'], default: 'guest' },
+  publicKey: [
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'Crypto',
+      unique: true,
+    },
+  ],
 });
 
 const UserModel = model('User', UserSchema);

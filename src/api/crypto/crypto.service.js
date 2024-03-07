@@ -2,14 +2,11 @@ import { loggerFactory } from '../../server/logger.js';
 import { CryptoModel } from './crypto.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
+import { UserModel } from '../user/user.model.js';
 
 const endpoint = endpointFactory(import.meta);
 
 const logger = loggerFactory({ url: `api-${endpoint}-service` });
-
-const select = {
-  ids: { _id: 1 },
-};
 
 const CryptoService = {
   post: async (req, res, options) => {
@@ -47,6 +44,14 @@ const CryptoService = {
         }
         break;
       default:
+        result = await new CryptoModel(req.body).save();
+        const user = await UserModel.findById(req.auth.user._id);
+        user.publicKey.push(result._id);
+        {
+          const result = await UserModel.findByIdAndUpdate(req.auth.user._id, user, {
+            runValidators: true,
+          });
+        }
         break;
     }
     return result;

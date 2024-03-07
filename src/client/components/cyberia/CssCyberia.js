@@ -331,6 +331,13 @@ const CssCyberia = {
         color: black;
         ${borderChar(2, 'yellow')}
       }
+      .sub-head-sub-title-modal {
+        color: #ffcc00;
+        font-size: 18px;
+      }
+      .keys-display {
+        font-size: 18px;
+      }
     `,
 };
 

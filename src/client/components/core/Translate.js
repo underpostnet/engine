@@ -136,6 +136,14 @@ const TranslateCore = {
     Translate.Data['verify-email'] = { en: 'Verify email', es: 'email de verificacion' };
 
     Translate.Data[`email send`] = { en: 'email send', es: 'email enviado' };
+
+    Translate.Data['success-generate-keys'] = { en: 'Keys generated successfully.', es: 'Llaves generadas con éxito.' };
+    Translate.Data['error-generate-keys'] = { en: 'Error generating keys.', es: 'Error al generar las llaves.' };
+
+    Translate.Data['copy'] = { en: 'Copy', es: 'Copiar' };
+    Translate.Data['keys'] = { en: 'Keys', es: 'Llaves' };
+
+    Translate.Data['success-copy-data'] = { es: '¡Datos copiados con éxito!', en: 'Data copied successfully!' };
   },
 };
 
