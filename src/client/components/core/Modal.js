@@ -332,7 +332,10 @@ const Modal = {
       if (options && 'barConfig' in options && options.barConfig.buttons.close.onClick)
         return options.barConfig.buttons.close.onClick();
       s(`.${idModal}`).style.opacity = '0';
-      if (this.Data[idModal].observer) this.Data[idModal].observer.disconnect();
+      if (this.Data[idModal].observer) {
+        this.Data[idModal].observer.disconnect();
+        // this.Data[idModal].observer.unobserve();
+      }
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
         s(`.${idModal}`).remove();
@@ -436,15 +439,18 @@ const Modal = {
       this.Data[idModal].observerEvent = {};
       this.Data[idModal].observerCallBack = () => {
         logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
-        Object.keys(this.Data[idModal].observerEvent).map((eventKey) =>
-          this.Data[idModal].observerEvent[eventKey]({
-            width: s(`.${idModal}`).offsetWidth,
-            height: s(`.${idModal}`).offsetHeight,
-          }),
-        );
+        if (this.Data[idModal] && this.Data[idModal].observerEvent)
+          Object.keys(this.Data[idModal].observerEvent).map((eventKey) =>
+            this.Data[idModal].observerEvent[eventKey]({
+              width: s(`.${idModal}`).offsetWidth,
+              height: s(`.${idModal}`).offsetHeight,
+            }),
+          );
+        else console.warn('observer not found', idModal);
       };
       this.Data[idModal].observer = new ResizeObserver(this.Data[idModal].observerCallBack);
       this.Data[idModal].observer.observe(s(`.${idModal}`));
+      setTimeout(this.Data[idModal].observerCallBack);
     }
     // cancel: [cancel1, cancel2]
     return {

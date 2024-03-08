@@ -17,7 +17,6 @@ const Chat = {
         const { width, height } = options;
         s(`.chat-box`).style.height = `${height * 0.5}px`;
       };
-      Modal.Data[idModal].observerCallBack();
       s(`.btn-send-chat`).onclick = (e) => {
         e.preventDefault();
         if (!s(`.input-chat`).value) return;

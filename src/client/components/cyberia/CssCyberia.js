@@ -340,9 +340,16 @@ const CssCyberia = {
       }
 
       .character-container {
-        width: 330px;
-        height: 400px;
         border: 2px solid #313131;
+      }
+
+      .character-equip-container {
+        width: 330px;
+        height: 300px;
+      }
+      .character-skill-container {
+        width: 330px;
+        height: 200px;
       }
       .character-slot {
         width: 80px;
@@ -357,26 +364,60 @@ const CssCyberia = {
       }
 
       .character-slot-faction-symbol {
-        top: 24%;
+        top: 17%;
       }
       .character-slot-weapon {
         left: 20%;
-        top: 65%;
+        top: 70%;
       }
       .character-slot-breastplate {
         left: 80%;
-        top: 65%;
+        top: 70%;
       }
       .character-slot-legs {
-        top: 76%;
+        top: 83%;
       }
       .character-slot-helmet {
         left: 80%;
-        top: 40%;
+        top: 37%;
       }
       .character-slot-talisman {
         left: 20%;
-        top: 40%;
+        top: 37%;
+      }
+      .main-btn-square-menu {
+        width: 80px;
+        height: 80px;
+        transition: none;
+      }
+      .main-btn-square-menu:hover .img-btn-square-menu {
+        width: 90%;
+        height: 90%;
+      }
+      .img-btn-square-menu {
+        width: 80%;
+        height: 80%;
+      }
+      .main-btn-menu-text {
+        font-size: 14px;
+        color: #ffcc00;
+        ${borderChar(2, 'black')}
+        top: 80%;
+      }
+      .menu-btn-container {
+        width: 270px;
+        margin: auto;
+        margin-top: 10px;
+      }
+      .img-btn-square-view-title {
+        width: 60px;
+        height: 60px;
+        top: -30px;
+        left: -1px;
+      }
+      .text-btn-square-view-title {
+        padding-left: 60px;
+        ${borderChar(2, 'black')}
       }
     `,
 };
