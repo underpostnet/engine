@@ -21,6 +21,7 @@ const LogOutCyberia = function () {
     s(`.main-btn-log-in`).style.display = null;
     s(`.main-btn-sign-up`).style.display = null;
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
+    if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
     const oldElement = newInstance(Elements.Data[type][id]);
     Elements.Data[type][id] = BaseElement()[type][id];
