@@ -386,8 +386,8 @@ const CssCyberia = {
         top: 37%;
       }
       .main-btn-square-menu {
-        width: 80px;
-        height: 80px;
+        width: 93px;
+        height: 93px;
         transition: none;
       }
       .main-btn-square-menu:hover .img-btn-square-menu {
@@ -405,9 +405,8 @@ const CssCyberia = {
         top: 80%;
       }
       .menu-btn-container {
-        width: 270px;
+        width: 310px;
         margin: auto;
-        margin-top: 10px;
       }
       .img-btn-square-view-title {
         width: 60px;
