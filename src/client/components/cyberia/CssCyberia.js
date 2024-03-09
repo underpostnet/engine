@@ -349,7 +349,7 @@ const CssCyberia = {
       }
       .character-skill-container {
         width: 330px;
-        height: 200px;
+        height: 100px;
       }
       .character-slot {
         width: 80px;
@@ -417,6 +417,23 @@ const CssCyberia = {
       .text-btn-square-view-title {
         padding-left: 60px;
         ${borderChar(2, 'black')}
+      }
+      .character-slot-skill {
+        width: 50px;
+        height: 50px;
+        border: 2px solid #313131;
+      }
+      .character-slot-skill-0 {
+        left: 20%;
+      }
+      .character-slot-skill-1 {
+        left: 40%;
+      }
+      .character-slot-skill-2 {
+        left: 60%;
+      }
+      .character-slot-skill-3 {
+        left: 80%;
       }
     `,
 };
