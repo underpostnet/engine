@@ -429,6 +429,10 @@ const CssCyberia = {
       .character-slot-skill-3 {
         left: 80%;
       }
+      .display-current-face {
+        font-size: 20px;
+        color: white;
+      }
     `,
 };
 

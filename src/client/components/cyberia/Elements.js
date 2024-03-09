@@ -1,4 +1,5 @@
 import { loggerFactory } from '../core/Logger.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { BaseElement } from './CommonCyberia.js';
 import { WorldManagement } from './World.js';
 
@@ -16,6 +17,15 @@ const Elements = {
     };
     if (!this.Interval[type]) this.Interval[type] = {};
     if (!this.Interval[type][id]) this.Interval[type][id] = {};
+  },
+  getDisplayName: ({ type, id }) => {
+    const displayName =
+      type === 'user' && Elements.Data[type][id].model.user.username
+        ? Elements.Data[type][id].model.user.username
+        : type === 'user' && id === 'main'
+        ? SocketIo.socket.id
+        : id;
+    return displayName.replace(`${type}-`, '').slice(0, 7);
   },
   removeAll: function () {
     for (const type of Object.keys(this.Data)) {

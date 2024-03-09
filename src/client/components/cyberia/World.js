@@ -17,6 +17,7 @@ import { append, htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
 import { WorldLimit, WorldType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
+import { InteractionPanel } from './InteractionPanel.js';
 import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 
@@ -175,7 +176,7 @@ const WorldManagement = {
         data: newBiome,
       });
       this.LoadAdjacentFaces(type, id);
-      htmls('.display-current-face', newFace);
+      InteractionPanel.PanelRender.map({ face: newFace });
       this.EmitNewWorldFace({ type, id });
     }
   },
@@ -221,7 +222,7 @@ const WorldManagement = {
           data: { _id },
         });
       this.LoadAdjacentFaces(type, id);
-      htmls('.display-current-face', Elements.Data.user.main.model.world.face);
+      InteractionPanel.PanelRender.map({ face: Elements.Data.user.main.model.world.face });
     }
 
     if (this.Data[type][id].model.world.type === 'height') {

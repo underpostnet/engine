@@ -9,6 +9,7 @@ import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
+import { InteractionPanel } from './InteractionPanel.js';
 import { MainUser } from './MainUser.js';
 
 const LogInCyberia = async function () {
@@ -61,6 +62,7 @@ const LogInCyberia = async function () {
       status: 'propagate',
     });
   }
+  InteractionPanel.PanelRender.element({ type: 'user', id: 'main' });
 };
 
 export { LogInCyberia };

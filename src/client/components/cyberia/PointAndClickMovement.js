@@ -8,6 +8,7 @@ import { Matrix } from './Matrix.js';
 import { Pixi } from './Pixi.js';
 
 const PointAndClickMovement = {
+  Event: {},
   callback: null,
   Render: async function () {
     const id = `PointAndClickMovement`;
@@ -42,11 +43,13 @@ const PointAndClickMovement = {
       const x = (matrixDim * e.offsetX) / ResponsiveDataAmplitude.minValue;
       const y = (matrixDim * e.offsetY) / ResponsiveDataAmplitude.minValue;
 
-      console.log({ x, y, e: Elements.Data.user.main });
+      for (const eventKey of Object.keys(this.Event)) this.Event[eventKey]({ x, y });
+
+      // console.log({ x, y, e: Elements.Data.user.main });
 
       const collisionMatrix = BiomeScope.Data[Matrix.Data.biomeDataId].mainUserCollisionMatrix;
 
-      console.log(JSONmatrix(collisionMatrix));
+      // console.log(JSONmatrix(collisionMatrix));
 
       const Path = insertTransitionCoordinates(
         this.pathfinding.findPath(

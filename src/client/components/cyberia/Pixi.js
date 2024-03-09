@@ -540,12 +540,7 @@ const Pixi = {
     }
     {
       const componentInstance = new Text(
-        (type === 'user' && Elements.Data[type][id].model.user.username
-          ? Elements.Data[type][id].model.user.username
-          : type === 'user' && id === 'main'
-          ? SocketIo.socket.id
-          : id
-        ).slice(0, 7),
+        Elements.getDisplayName({ type, id }),
         new TextStyle({
           fill: '#dcdcdc',
           fontFamily: 'retro-font',
