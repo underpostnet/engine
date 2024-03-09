@@ -402,7 +402,7 @@ const CssCyberia = {
         font-size: 14px;
         color: #ffcc00;
         ${borderChar(2, 'black')}
-        top: 80%;
+        top: 90%;
       }
       .menu-btn-container {
         width: 310px;

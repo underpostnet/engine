@@ -150,16 +150,16 @@ const WorldManagement = {
       let newY = newInstance(Elements.Data[type][id].y);
       switch (initDirection) {
         case 'left':
-          newX = 0;
+          newX = 0.5;
           break;
         case 'right':
-          newX = Matrix.Data.dim - Elements.Data[type][id].dim;
+          newX = Matrix.Data.dim - Elements.Data[type][id].dim - 0.5;
           break;
         case 'bottom':
-          newY = Matrix.Data.dim - Elements.Data[type][id].dim;
+          newY = Matrix.Data.dim - Elements.Data[type][id].dim - 0.5;
           break;
         case 'top':
-          newY = 0;
+          newY = 0.5;
           break;
         default:
           break;

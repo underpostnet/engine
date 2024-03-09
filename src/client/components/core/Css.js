@@ -884,6 +884,15 @@ const borderChar = (px, color) => html`
   ${px}px ${px}px ${px}px ${color};
 `;
 
+const boxShadow = ({ selector }) => css`
+  .${selector} {
+    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+  }
+  .${selector}:hover {
+    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+  }
+`;
+
 const renderMediaQuery = (mediaData) => {
   //  first limit should be '0'
   return html`
@@ -969,4 +978,5 @@ export {
   renderStatus,
   dynamicCol,
   dynamicColTokens,
+  boxShadow,
 };
