@@ -69,8 +69,10 @@ const SocketIoCyberia = {
             case 'connection':
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
-              if (type === 'user' && id === 'main') await LogInCyberia();
-              Pixi.setUsername({ type, id });
+              if (type === 'user' && id === 'main' && !Elements.Data[type][id].model.user._id) await LogInCyberia();
+              if (type === 'user') {
+                Pixi.setUsername({ type, id });
+              }
               if (type === 'user' && id === 'main') resolve();
               break;
             case 'email-confirmed':

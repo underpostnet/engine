@@ -2,6 +2,7 @@ import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
 import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
@@ -33,6 +34,10 @@ const LogOutCyberia = function () {
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
       status: 'success',
+    });
+
+    SocketIo.Emit('user', {
+      status: 'propagate',
     });
   };
 };

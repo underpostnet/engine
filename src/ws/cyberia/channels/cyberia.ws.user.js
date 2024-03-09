@@ -18,27 +18,31 @@ const CyberiaWsUserController = {
   controller: async function (socket, client, args, wsManagementId) {
     const { status, element, user } = args;
     switch (status) {
-      case 'register-user':
-        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
-        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.username = user.username;
-        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+      case 'propagate':
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
-            socket.id !== clientId &&
+            socket.id !== elementId &&
             objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
               CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
-              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
             )
           ) {
-            CyberiaWsEmit(channel, client[clientId], {
-              status: 'update-model-user',
+            CyberiaWsEmit(channel, client[elementId], {
+              status: 'connection',
               id: socket.id,
-              element: { model: { user: { username: user.username } } },
+              element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
             });
           }
         }
+        if (CyberiaWsUserManagement.element[wsManagementId][socket.id].life <= 0)
+          CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
+        break;
+      case 'register-user':
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.username = user.username;
         break;
       case 'unregister-user':
-        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = '';
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user = { _id: '' };
         break;
       case 'register-cyberia-user':
         {
@@ -51,26 +55,6 @@ const CyberiaWsUserController = {
             ...CyberiaWsUserManagement.element[wsManagementId][socket.id],
             ...user,
           };
-          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-            if (
-              objectEquals(
-                CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
-                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-              )
-            ) {
-              CyberiaWsEmit(channel, client[clientId], {
-                status: 'update-life',
-                id: socket.id,
-                element: { life: user.life },
-              });
-            }
-          }
-          CyberiaWsEmit(channel, socket, {
-            status: 'update-coin',
-            id: socket.id,
-            element: { coin: user.coin },
-          });
-          if (user.life <= 0) CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
         }
         break;
       case 'unregister-cyberia-user':
@@ -177,6 +161,11 @@ const CyberiaWsUserController = {
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
       direction: 's',
     };
+    CyberiaWsEmit(channel, socket, {
+      status: 'connection',
+      id: socket.id,
+      element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
+    });
     for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (
         objectEquals(
@@ -184,11 +173,6 @@ const CyberiaWsUserController = {
           CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
         )
       ) {
-        CyberiaWsEmit(channel, client[elementId], {
-          status: 'connection',
-          id: socket.id,
-          element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
-        });
         if (elementId !== socket.id)
           CyberiaWsEmit(channel, socket, {
             status: 'connection',

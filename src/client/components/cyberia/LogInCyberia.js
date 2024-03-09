@@ -3,6 +3,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
 import { LogIn } from '../core/LogIn.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
@@ -38,6 +39,9 @@ const LogInCyberia = async function () {
     Elements.Data[type][id].model.user = user;
 
     await MainUser.Update({ oldElement });
+    SocketIo.Emit('user', {
+      status: 'propagate',
+    });
   };
   const token = localStorage.getItem('jwt');
   if (token) {
@@ -50,7 +54,13 @@ const LogInCyberia = async function () {
         user,
       });
     } else localStorage.removeItem('jwt');
-  } else MainUser.Update(); // anon
+  } else {
+    // Anon
+    await MainUser.Update();
+    SocketIo.Emit('user', {
+      status: 'propagate',
+    });
+  }
 };
 
 export { LogInCyberia };

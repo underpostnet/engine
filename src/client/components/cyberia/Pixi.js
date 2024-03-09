@@ -182,6 +182,7 @@ const Pixi = {
     const { type, id } = options;
     let dim = this.MetaData.dim / Matrix.Data.dim;
     if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    if (this.Data[type][id]) this.removeElement({ type, id });
     this.Data[type][id] = new Container();
     this.Data[type][id].width = dim * Elements.Data[type][id].dim;
     this.Data[type][id].height = dim * Elements.Data[type][id].dim;

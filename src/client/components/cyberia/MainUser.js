@@ -213,6 +213,9 @@ const MainUser = {
 
     Skill.setMainKeysSkill();
     Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+    Pixi.updateLife({ type, id });
+    Pixi.setUsername({ type, id });
+
     LoadingAnimation.removeSplashScreen();
   },
 };
