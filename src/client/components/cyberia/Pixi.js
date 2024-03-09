@@ -5,7 +5,7 @@ import { Responsive } from '../core/Responsive.js';
 import { Matrix } from './Matrix.js';
 import { Elements } from './Elements.js';
 
-import { Application, BaseTexture, Container, Sprite, Text, Texture } from 'pixi.js';
+import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import { WorldManagement } from './World.js';
 import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -522,6 +522,45 @@ const Pixi = {
 
     container.destroy();
     delete this.markers[id];
+  },
+  setUsername: function ({ type, id }) {
+    // https://pixijs.io/pixi-text-style/#
+    const componentType = 'username';
+    let dim = this.MetaData.dim / Matrix.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    {
+      if (this.Data[type][id].components[componentType] && this.Data[type][id].components[componentType].container)
+        this.Data[type][id].components[componentType].container.destroy();
+      const componentInstance = new Container();
+      componentInstance.x = 0;
+      componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.5;
+      componentInstance.width = dim * Elements.Data[type][id].dim;
+      componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+      this.Data[type][id].components[componentType].container = componentInstance;
+      this.Data[type][id].addChild(componentInstance);
+    }
+    {
+      const componentInstance = new Text(
+        (type === 'user' && Elements.Data[type][id].model.user.username
+          ? Elements.Data[type][id].model.user.username
+          : type === 'user' && id === 'main'
+          ? SocketIo.socket.id
+          : id
+        ).slice(0, 7),
+        new TextStyle({
+          fill: '#dcdcdc',
+          fontFamily: 'retro-font',
+          fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+          // fontWeight: 'bold',
+          dropShadow: true,
+          dropShadowAngle: 1,
+          dropShadowBlur: 3,
+          dropShadowColor: '#121212',
+          dropShadowDistance: 1,
+        }),
+      );
+      this.Data[type][id].components[componentType].container.addChild(componentInstance);
+    }
   },
 };
 

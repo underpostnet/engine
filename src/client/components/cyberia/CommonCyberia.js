@@ -99,6 +99,7 @@ const ComponentElement = {
         lifeBar: {},
         lifeIndicator: {},
         coinIndicator: {},
+        username: {},
       },
     };
     return {
@@ -145,6 +146,7 @@ const ComponentElement = {
         ],
         lifeBar: {},
         lifeIndicator: {},
+        username: {},
       },
     };
     return {

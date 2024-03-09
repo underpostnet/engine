@@ -50,7 +50,13 @@ const SocketIoCyberia = {
               Elements.Data[type][id].y = element.y;
               Pixi.updatePosition({ type, id });
               break;
-
+            case 'update-model-user':
+              Elements.Data[type][id].model.user = {
+                ...Elements.Data[type][id].model.user,
+                ...element.model.user,
+              };
+              if (element.model.user.username) Pixi.setUsername({ type, id });
+              break;
             case 'update-skin-position':
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].components.skin = element.components.skin;
@@ -63,10 +69,9 @@ const SocketIoCyberia = {
             case 'connection':
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
-              if (type === 'user' && id === 'main') {
-                await LogInCyberia();
-                resolve();
-              }
+              if (type === 'user' && id === 'main') await LogInCyberia();
+              Pixi.setUsername({ type, id });
+              if (type === 'user' && id === 'main') resolve();
               break;
             case 'email-confirmed':
               const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };

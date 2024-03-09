@@ -20,6 +20,21 @@ const CyberiaWsUserController = {
     switch (status) {
       case 'register-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
+        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+          if (
+            socket.id !== clientId &&
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+            )
+          ) {
+            CyberiaWsEmit(channel, client[clientId], {
+              status: 'update-model-user',
+              id: socket.id,
+              element: { model: { user: { username: user.username } } },
+            });
+          }
+        }
         break;
       case 'unregister-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = '';
