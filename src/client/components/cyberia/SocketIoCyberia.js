@@ -70,7 +70,7 @@ const SocketIoCyberia = {
               Elements.Init({ type, id, element });
               Pixi.setComponents({ type, id });
               if (type === 'user' && id === 'main' && !Elements.Data[type][id].model.user._id) await LogInCyberia();
-              if (type === 'user') {
+              if (type === 'user' || type === 'bot') {
                 Pixi.setUsername({ type, id });
               }
               if (type === 'user' && id === 'main') resolve();
