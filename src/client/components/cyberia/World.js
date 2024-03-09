@@ -59,7 +59,7 @@ class LoadWorldRenderer {
         s(`.world-name`).value = World.WorldScope.name;
         if (s(`.dropdown-option-${World.WorldScope.type}`)) s(`.dropdown-option-${World.WorldScope.type}`).click();
 
-        await World.renderAllFace();
+        // await World.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
         const worldDeleteResult = await CyberiaWorldService.delete({ id: params.data._id });
@@ -300,7 +300,7 @@ const World = {
       EventsUI.onClick(`.btn-generate-random-world`, async () => {
         for (const index of range(0, 5)) {
           s(`.dropdown-option-face-${index}-${resultBiome.data[random(0, resultBiome.data.length - 1)]._id}`).click();
-          await this.renderFace(index);
+          // await this.renderFace(index);
         }
       });
       EventsUI.onClick(`.btn-upload-world`, async () => {
@@ -354,7 +354,7 @@ const World = {
                 })}
               </div>
               ${await BtnIcon.Render({
-                class: `inl section-mp btn-custom btn-generate-world`,
+                class: `inl section-mp btn-custom btn-generate-world hide`,
                 label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
               })}
               ${await BtnIcon.Render({
