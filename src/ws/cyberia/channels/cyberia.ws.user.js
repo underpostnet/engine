@@ -44,7 +44,7 @@ const CyberiaWsUserController = {
         {
           const userDoc = await CyberiaUserModel.findById(args.user._id);
           const user = userDoc._doc;
-          user.model.user._id = user.model.user._id.toString();
+          user.model.user = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user;
           user.model.world._id = user.model.world._id.toString();
           user._id = user._id.toString();
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = {

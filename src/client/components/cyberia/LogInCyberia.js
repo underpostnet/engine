@@ -29,14 +29,13 @@ const LogInCyberia = async function () {
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
     const oldElement = newInstance(Elements.Data[type][id]);
     // Elements.Data[type][id] = BaseElement()[type][id];
-
+    Webhook.register({ user });
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
     if (resultUserCyberia.status === 'success') {
       Elements.Data[type][id] = { ...Elements.Data[type][id], ...resultUserCyberia.data };
       CyberiaWebhook.register({ user: resultUserCyberia.data });
     }
     Elements.Data[type][id].model.user = user;
-    Webhook.register({ user });
 
     await MainUser.Update({ oldElement });
   };
