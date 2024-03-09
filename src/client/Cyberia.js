@@ -1,5 +1,3 @@
-'use strict';
-
 import { SocketIo } from './components/core/SocketIo.js';
 import { Responsive } from './components/core/Responsive.js';
 import { Keyboard } from './components/core/Keyboard.js';
@@ -22,6 +20,7 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Skill } from './components/cyberia/Skill.js';
 import { PointAndClickMovement } from './components/cyberia/PointAndClickMovement.js';
 import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
+import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -36,6 +35,8 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
   await Skill.renderMainKeysSlots();
   await NotificationManager.RenderBoard();
   await PointAndClickMovement.Render();
+  await InteractionPanel.Render({ id: 'map-interaction-panel' });
+  await InteractionPanel.Render({ id: 'user-interaction-panel' });
   await SocketIo.Init({ channels: Elements.Data });
   await SocketIoCyberia.Init();
   await LogOutCyberia();

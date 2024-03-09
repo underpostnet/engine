@@ -170,6 +170,7 @@ const Config = {
             'PointAndClickMovement',
             'CyberiaWebhook',
             'Character',
+            'InteractionPanel',
           ],
           test: ['Test'],
         },

@@ -7,7 +7,6 @@ import { Elements } from './Elements.js';
 
 import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import { WorldManagement } from './World.js';
-import { borderChar } from '../core/Css.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { MainUser } from './MainUser.js';
@@ -70,7 +69,6 @@ const Pixi = {
     this.App.view.classList.add('abs');
     this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
-    append('.pixi-container', html` <div class="abs display-current-face" style="${borderChar(2, 'black')}"></div> `);
 
     // Matrix.Render['matrix-center-square']('.pixi-container');
 
