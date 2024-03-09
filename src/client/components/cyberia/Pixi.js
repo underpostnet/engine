@@ -267,11 +267,19 @@ const Pixi = {
                 lastCoin = newInstance(Elements.Data[type][id].coin);
                 if (diffCoin > 0) diffCoin = '+' + diffCoin;
                 diffCoin = '$ ' + diffCoin;
-                const componentInstance = new Text(`${diffCoin}`, {
-                  fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
-                  fontFamily: 'retro-font', // Impact
-                  fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
-                });
+                const componentInstance = new Text(
+                  `${diffCoin}`,
+                  new TextStyle({
+                    fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
+                    fontFamily: 'retro-font', // Impact
+                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+                    dropShadow: true,
+                    dropShadowAngle: 1,
+                    dropShadowBlur: 3,
+                    dropShadowColor: '#121212',
+                    dropShadowDistance: 1,
+                  }),
+                );
                 this.Data[type][id].components[componentType].container.addChild(componentInstance);
                 setTimeout(() => {
                   componentInstance.destroy();
@@ -314,11 +322,19 @@ const Pixi = {
                 lastLife = newInstance(Elements.Data[type][id].life);
                 if (diffLife > 0) diffLife = '+' + diffLife;
                 diffLife = diffLife + ' ♥';
-                const componentInstance = new Text(`${diffLife}`, {
-                  fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
-                  fontFamily: 'retro-font', // Impact
-                  fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
-                });
+                const componentInstance = new Text(
+                  `${diffLife}`,
+                  new TextStyle({
+                    fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
+                    fontFamily: 'retro-font', // Impact
+                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+                    dropShadow: true,
+                    dropShadowAngle: 1,
+                    dropShadowBlur: 3,
+                    dropShadowColor: '#121212',
+                    dropShadowDistance: 1,
+                  }),
+                );
                 this.Data[type][id].components[componentType].container.addChild(componentInstance);
                 setTimeout(() => {
                   componentInstance.destroy();
