@@ -20,6 +20,7 @@ const CyberiaWsUserController = {
     switch (status) {
       case 'register-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.username = user.username;
         for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
             socket.id !== clientId &&
