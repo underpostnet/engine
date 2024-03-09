@@ -242,7 +242,7 @@ const Pixi = {
           {
             const componentInstance = new Container();
             componentInstance.x = 0;
-            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.6;
+            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.8;
             componentInstance.width = dim * Elements.Data[type][id].dim;
             componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
@@ -289,7 +289,7 @@ const Pixi = {
           {
             const componentInstance = new Container();
             componentInstance.x = 0;
-            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.6;
+            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.8;
             componentInstance.width = dim * Elements.Data[type][id].dim;
             componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;

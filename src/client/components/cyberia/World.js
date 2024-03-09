@@ -128,6 +128,8 @@ const WorldManagement = {
   ChangeFace: async function (options = { type: 'user', id: 'main', direction: '' }) {
     const { type, id, direction } = options;
 
+    if (Elements.LocalDataScope[type][id].path.length > 1) return;
+
     if (this.Data[type][id].model.world.type === 'height' && (direction === 'right' || direction === 'left')) return;
     if (this.Data[type][id].model.world.type === 'width' && (direction === 'top' || direction === 'bottom')) return;
 

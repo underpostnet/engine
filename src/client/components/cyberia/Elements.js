@@ -8,6 +8,7 @@ const logger = loggerFactory(import.meta);
 const Elements = {
   Data: BaseElement(),
   Interval: {},
+  LocalDataScope: {},
   Init: function (options = { type: 'user', id: 'main', element: {} }) {
     const { type, id, element } = options;
     this.Data[type][id] = {
@@ -17,6 +18,11 @@ const Elements = {
     };
     if (!this.Interval[type]) this.Interval[type] = {};
     if (!this.Interval[type][id]) this.Interval[type][id] = {};
+    if (!this.LocalDataScope[type]) this.LocalDataScope[type] = {};
+    if (!this.LocalDataScope[type][id])
+      this.LocalDataScope[type][id] = {
+        path: [],
+      };
   },
   getDisplayName: ({ type, id }) => {
     const displayName =
