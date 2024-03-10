@@ -65,7 +65,7 @@ const InteractionPanel = {
         break;
       case 'map-interaction-panel':
         style.top = '130px';
-        const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†'];
+        // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†'];
         render = async () => html`
           <div class="in hide">Face <span class="display-current-face" style="${borderChar(2, 'black')}"></span></div>
           <div class="fl">
@@ -74,7 +74,7 @@ const InteractionPanel = {
                 (v, i) =>
                   html` <div class="in fll map-face-slot-container">
                     <div class="abs center map-face-slot map-face-slot-${i + 1} map-face-slot-${v}">
-                      <div class="abs center map-face-symbol-text">${displaySymbol[i]}</div>
+                      <div class="abs center map-face-symbol-text">${v}</div>
                     </div>
                   </div>`,
               )
