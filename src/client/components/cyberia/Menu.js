@@ -1,4 +1,5 @@
 import { Account } from '../core/Account.js';
+import { BlockChainManagement } from '../core/Blockchain.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
 import { ColorPalette } from '../core/ColorPalette.js';
@@ -112,6 +113,11 @@ const Menu = {
             class: 'in fll main-btn-square-menu main-btn-world',
             label: this.renderMenuLabel({ img: 'engine.png', text: 'World Engine' }),
             attrs: `data-id="14"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-blockchain',
+            label: this.renderMenuLabel({ img: 'engine.png', text: 'Blockchain Engine' }),
+            attrs: `data-id="15"`,
           })}
         </div>
       `,
@@ -378,6 +384,22 @@ const Menu = {
         barConfig,
         title: this.renderViewTile({ img: 'wallet.png', text: 'Wallet' }),
         html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-blockchain`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-blockchain',
+        route: 'blockchain',
+        barConfig,
+        title: this.renderViewTile({ img: 'engine.png', text: 'blockchain' }),
+        html: async () => await BlockChainManagement.Render({ idModal: 'modal-blockchain' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

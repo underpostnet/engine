@@ -37,6 +37,7 @@ const RoutesCyberia = () => {
     '/tile': { title: 'Tile Engine', render: () => s(`.main-btn-tile`).click() },
     '/3d': { title: '3D Engine', render: () => s(`.main-btn-3d`).click() },
     '/world': { title: 'World Engine', render: () => s(`.main-btn-world`).click() },
+    '/blockchain': { title: 'Blockchain Engine', render: () => s(`.main-btn-blockchain`).click() },
   };
 };
 
