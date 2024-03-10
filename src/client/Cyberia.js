@@ -36,7 +36,7 @@ import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
   await NotificationManager.RenderBoard();
   await PointAndClickMovement.Render();
   await InteractionPanel.Render({ id: 'map-interaction-panel' });
-  await InteractionPanel.Render({ id: 'user-interaction-panel' });
+  await InteractionPanel.Render({ id: 'element-interaction-panel' });
   await SocketIo.Init({ channels: Elements.Data });
   await SocketIoCyberia.Init();
   await LogOutCyberia();

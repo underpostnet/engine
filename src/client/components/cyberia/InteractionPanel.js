@@ -35,7 +35,7 @@ const InteractionPanel = {
     };
     let render = async () => html`${id}`;
     switch (id) {
-      case 'user-interaction-panel':
+      case 'element-interaction-panel':
         style.top = '60px';
 
         render = async () => html`<span class="display-current-element" style="${borderChar(2, 'black')}"></span>`;
