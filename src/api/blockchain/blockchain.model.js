@@ -55,7 +55,6 @@ const BlockChainSchema = new Schema({
     hash: { type: String, immutable: true },
     // The format of the hash output, such as hex.
     digest: { type: String, required: true, immutable: true },
-    // js example: const hash = crypto.createHash('sha256').update('data').digest('hex');
   },
 });
 
