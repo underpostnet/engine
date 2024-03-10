@@ -144,6 +144,7 @@ const Config = {
             'Worker',
             'Webhook',
             'Wallet',
+            'Blockchain',
           ],
           cyberia: [
             'Pixi',
@@ -248,6 +249,11 @@ const Config = {
           },
           {
             path: '/character',
+            client: 'Cyberia',
+            ssr: 'Cyberia',
+          },
+          {
+            path: '/blockchain',
             client: 'Cyberia',
             ssr: 'Cyberia',
           },
