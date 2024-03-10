@@ -433,6 +433,21 @@ const CssCyberia = {
         font-size: 20px;
         color: white;
       }
+      .map-face-slot-container {
+        width: 25%;
+        height: 30px;
+      }
+      .map-face-slot {
+        width: 25px;
+        height: 25px;
+        background: #80751980; /* #f5dd11d9 */
+        border: 2px solid #313131;
+        transition: 0.3s;
+      }
+      .map-face-symbol-text {
+        color: white;
+        ${borderChar(2, 'black')}
+      }
     `,
 };
 
