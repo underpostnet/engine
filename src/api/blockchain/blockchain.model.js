@@ -4,23 +4,32 @@ import { Schema, model, Types } from 'mongoose';
 
 const TransactionSchema = new Schema({
   transaction: {
+    // The sender public key of the transaction.
+    // In a reward transaction the sender is null.
     sender: { type: String, required: true, immutable: true },
+    // The recipient public key  of the transaction.
     recipient: { type: String, required: true, immutable: true },
+    // The value of the transaction, which can be an amount of currencies or array ipfs cid.
     // TODO: reward algorithm
     value: { type: String, required: true, immutable: true },
+    // The timestamp of the transaction.
     timestamp: { type: Number, required: true, immutable: true },
   },
+  // The signature of the transaction, which validates the sender and the value.
+  // In a reward transaction the signature is null.
   signature: { type: String, required: true, immutable: true },
 });
 
 const BlockSchema = new Schema({
+  // The hash of the previous block in the blockchain.
+  // If it is the first block previousHash is null
   previousHash: { type: String, required: true, immutable: true },
-  nonce: { type: String, required: true, immutable: true }, // random value to miner
+  // A random value used in the mining process.
+  nonce: { type: String, required: true, immutable: true },
+  // The target hash for the block, which determines the difficulty of mining.
   // TODO: difficulty algorithm
-  target: { type: String, required: true, immutable: true }, // initial hash characters (start with) (difficulty)
-  // There should only be one transaction with a
-  // signature and sender whose value is hash of the blockchain.
-  // Timestamp block is timestamp reward transaction.
+  target: { type: String, required: true, immutable: true },
+  // A list of transactions included in the block.
   transactions: { type: [TransactionSchema], required: true, immutable: true },
 });
 
@@ -30,8 +39,9 @@ const BlockChainSchema = new Schema({
   //    - transaction key format
   //    - sort timestamp transactions and validate with last transaction timestamp of last block
 
+  // A list of blocks in the blockchain.
   blocks: [BlockSchema],
-  // valid sender and recipient transaction key format
+  // The format of the transaction key, which specifies how sender and recipient addresses are encoded.
   transactionKeyFormat: {
     format: { type: String, required: true, immutable: true },
     algorithm: {
@@ -40,16 +50,12 @@ const BlockChainSchema = new Schema({
       hash: { type: String, required: true, immutable: true },
     },
   },
-  // blockchain creation timestamp,
-  // validate first block transactions timestamp
-  timestamp: { type: Number, required: true, immutable: true },
-  // genesis previous hash
-  // example: salt, plain text, protocol name, json, ...
-  hash: { type: String, immutable: true },
   hashingBlockAlgorithm: {
-    // js example: const hash = crypto.createHash('sha256').update('data').digest('hex');
+    // The hash function used, such as SHA-256.
     hash: { type: String, immutable: true },
-    digest: { type: String, immutable: true }, // previousHash display format
+    // The format of the hash output, such as hex.
+    digest: { type: String, required: true, immutable: true },
+    // js example: const hash = crypto.createHash('sha256').update('data').digest('hex');
   },
 });
 
