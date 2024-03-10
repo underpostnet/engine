@@ -41,7 +41,7 @@ const BlockChainSchema = new Schema({
 
   // A list of blocks in the blockchain.
   blocks: [BlockSchema],
-  // The format of the transaction key, which specifies how sender and recipient addresses are encoded.
+  // The format of the transaction public keys, such as JWK.
   transactionKeyFormat: {
     format: { type: String, required: true, immutable: true },
     algorithm: {
