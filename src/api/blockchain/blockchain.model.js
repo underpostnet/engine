@@ -19,16 +19,16 @@ const BlockSchema = new Schema({
   // TODO: difficulty algorithm
   target: { type: String, required: true, immutable: true }, // initial hash characters (start with) (difficulty)
   // There should only be one transaction with a
-  // signature and sender whose value is hash of the blockchain
-  // reward transaction is a timestamp block
+  // signature and sender whose value is hash of the blockchain.
+  // Timestamp block is timestamp reward transaction.
   transactions: { type: [TransactionSchema], required: true, immutable: true },
 });
 
 const BlockChainSchema = new Schema({
-  // validate:
-  //    - transactions last block timestamp consistency
+  // TODO: if add closed block to chain, validate:
+  //    - previousHash with hashing block algorithm defined
   //    - transaction key format
-  //    - previousHash
+  //    - sort timestamp transactions and validate with last transaction timestamp of last block
 
   blocks: [BlockSchema],
   // valid sender and recipient transaction key format
@@ -47,7 +47,7 @@ const BlockChainSchema = new Schema({
   // example: salt, plain text, protocol name, json, ...
   hash: { type: String, immutable: true },
   hashingBlockAlgorithm: {
-    // const hash = crypto.createHash('sha256').update('data').digest('hex');
+    // js example: const hash = crypto.createHash('sha256').update('data').digest('hex');
     hash: { type: String, immutable: true },
     digest: { type: String, immutable: true }, // previousHash display format
   },
