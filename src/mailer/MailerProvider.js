@@ -37,7 +37,7 @@ const MailerProvider = {
       // create reusable transporter object using the default SMTP transport
       const transporter = nodemailer.createTransport(options.transport);
 
-      console.log('load logger', { url: options.meta });
+      // console.log('load logger', { url: options.meta });
       this.instance[id] = {
         ...options,
         transporter,
