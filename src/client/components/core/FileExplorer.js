@@ -12,6 +12,10 @@ const FileExplorer = {
   Render: async function () {
     let formBodyFiles;
     setTimeout(async () => {
+      {
+        const { status, data } = await BucketService.get();
+      }
+
       const formData = [
         {
           model: 'location',

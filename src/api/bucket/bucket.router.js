@@ -15,7 +15,7 @@ const BucketRouter = (options) => {
   router.post(`${endpoint}/:id`, async (req, res) => await BucketController.post(req, res, options));
   router.post(`${endpoint}`, authMiddleware, async (req, res) => await BucketController.post(req, res, options));
   router.get(`${endpoint}/:id`, async (req, res) => await BucketController.get(req, res, options));
-  router.get(`${endpoint}`, async (req, res) => await BucketController.get(req, res, options));
+  router.get(`${endpoint}`, authMiddleware, async (req, res) => await BucketController.get(req, res, options));
   router.delete(`${endpoint}/:id`, async (req, res) => await BucketController.delete(req, res, options));
   router.delete(`${endpoint}`, async (req, res) => await BucketController.delete(req, res, options));
   return router;

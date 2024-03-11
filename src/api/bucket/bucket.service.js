@@ -22,6 +22,15 @@ const BucketService = {
     let result = {};
     switch (req.params.id) {
       default:
+        // .populate('files')
+        result = await BucketModel.find({ userId: req.auth.user._id, name: 'storage' }).populate({
+          path: 'files',
+          populate: {
+            path: 'fileId',
+            model: 'File',
+            select: '_id name mimetype',
+          },
+        });
         break;
     }
     return result;
