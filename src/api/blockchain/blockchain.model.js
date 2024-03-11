@@ -31,6 +31,8 @@ const BlockSchema = new Schema({
   target: { type: String, required: true, immutable: true },
   // A list of transactions included in the block.
   transactions: { type: [TransactionSchema], required: true, immutable: true },
+  // The timestamp of the block
+  timestamp: { type: Number, required: true, immutable: true },
 });
 
 const BlockChainSchema = new Schema({
@@ -38,6 +40,7 @@ const BlockChainSchema = new Schema({
   //    - previousHash with hashing block algorithm defined
   //    - transaction key format
   //    - sort timestamp transactions and validate with last transaction timestamp of last block
+  //    - block timestamp with last block
 
   // A list of blocks in the blockchain.
   blocks: [BlockSchema],
