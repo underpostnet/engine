@@ -239,14 +239,14 @@ import { s, append } from './components/core/VanillaJs.js';
       ${await Input.Render({
         id: `input-login-user`,
         label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-        containerClass: 'inl section-mp container-component input-container',
+        containerClass: 'inl section-mp width-mini-box input-container',
         placeholder: true,
       })}
       ${await Input.Render({
         id: `input-login-pass`,
         label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('pass')}`,
         type: 'password',
-        containerClass: 'inl section-mp container-component input-container',
+        containerClass: 'inl section-mp width-mini-box input-container',
         placeholder: true,
       })}
       <div class="in">

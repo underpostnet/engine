@@ -43,7 +43,7 @@ const LogIn = {
             id: `log-in-email`,
             type: 'email',
             label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
           })}
@@ -54,7 +54,7 @@ const LogIn = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>

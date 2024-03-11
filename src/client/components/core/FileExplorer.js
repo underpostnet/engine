@@ -210,7 +210,7 @@ const FileExplorer = {
             id: `file-explorer-location`,
             type: 'text',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('file-path')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>

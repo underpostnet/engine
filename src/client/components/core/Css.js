@@ -680,10 +680,10 @@ scrollbar-width: none;
           min-height: 90px;
         }
 
-        .container-component {
+        .width-mini-box {
           width: 250px;
         }
-        .container-component:hover {
+        .width-mini-box:hover {
           color: #f1f1f1;
           background: #313131;
         }

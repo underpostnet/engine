@@ -60,7 +60,7 @@ const SignUp = {
             id: `sign-up-username`,
             type: 'text',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>
@@ -69,7 +69,7 @@ const SignUp = {
             id: `sign-up-email`,
             type: 'email',
             label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
           })}
@@ -80,7 +80,7 @@ const SignUp = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>
@@ -90,7 +90,7 @@ const SignUp = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('repeat')} ${Translate.Render('password')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
         </div>

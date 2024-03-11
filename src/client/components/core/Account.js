@@ -84,7 +84,7 @@ const Account = {
             id: `account-username`,
             type: 'text',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: false,
           })}
@@ -94,7 +94,7 @@ const Account = {
             id: `account-email`,
             type: 'email',
             label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
             disabled: false,
@@ -102,7 +102,7 @@ const Account = {
           })}
         </div>
         <div class="in">
-          <div class="in section-mp container-component sub-container">
+          <div class="in section-mp width-mini-box sub-container">
             <div class="in verify-email-status"></div>
             ${await BtnIcon.Render({
               class: `in inside-input-btn btn-confirm-email`,
@@ -118,7 +118,7 @@ const Account = {
             type: 'password',
             autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-            containerClass: 'inl section-mp container-component input-container',
+            containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: true,
           })}

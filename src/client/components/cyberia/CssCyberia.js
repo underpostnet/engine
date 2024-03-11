@@ -120,14 +120,14 @@ const CssCyberia = {
       .btn-custom {
         width: 253px;
       }
-      .container-component {
+      .width-mini-box {
         width: 250px;
       }
-      .container-component:hover {
+      .width-mini-box:hover {
         color: #ffcc00;
         background: #313131;
       }
-      .container-component-hover:hover {
+      .width-mini-box-hover:hover {
         color: #ffcc00;
         background: #313131;
       }
