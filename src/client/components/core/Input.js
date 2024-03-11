@@ -34,4 +34,11 @@ const Input = {
   },
 };
 
-export { Input };
+const InputFile = {
+  Render: async function () {
+    // drag drop multi file
+    return html`input cloud file`;
+  },
+};
+
+export { Input, InputFile };

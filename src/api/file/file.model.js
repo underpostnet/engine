@@ -9,6 +9,7 @@ const FileSchema = new Schema({
   truncated: { type: Boolean },
   mimetype: { type: String },
   md5: { type: String },
+  ipfsCid: { type: String, unique: true },
 });
 
 const FileModel = model('File', FileSchema);

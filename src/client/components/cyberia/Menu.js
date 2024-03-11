@@ -1,11 +1,12 @@
 import { Account } from '../core/Account.js';
-import { BlockChainManagement } from '../core/Blockchain.js';
+import { BlockChainManagement } from '../core/BlockChain.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
 import { ColorPalette } from '../core/ColorPalette.js';
 import { getId, newInstance } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { FileExplorer } from '../core/FileExplorer.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
@@ -116,8 +117,13 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-blockchain',
-            label: this.renderMenuLabel({ img: 'engine.png', text: 'Blockchain Engine' }),
+            label: this.renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
             attrs: `data-id="15"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-cloud',
+            label: this.renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
+            attrs: `data-id="16"`,
           })}
         </div>
       `,
@@ -127,53 +133,55 @@ const Menu = {
       mode: 'slide-menu',
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
-      animation: 150,
-      group: `menu-sortable`,
-      forceFallback: true,
-      fallbackOnBody: true,
-      store: {
-        /**
-         * Get the order of elements. Called once during initialization.
-         * @param   {Sortable}  sortable
-         * @returns {Array}
-         */
-        get: function (sortable) {
-          const order = localStorage.getItem(sortable.options.group.name);
-          return order ? order.split('|') : [];
-        },
+    this.Data[id].sortable = Modal.mobileModal()
+      ? null
+      : new Sortable(s(`.menu-btn-container`), {
+          animation: 150,
+          group: `menu-sortable`,
+          forceFallback: true,
+          fallbackOnBody: true,
+          store: {
+            /**
+             * Get the order of elements. Called once during initialization.
+             * @param   {Sortable}  sortable
+             * @returns {Array}
+             */
+            get: function (sortable) {
+              const order = localStorage.getItem(sortable.options.group.name);
+              return order ? order.split('|') : [];
+            },
 
-        /**
-         * Save the order of elements. Called onEnd (when the item is dropped).
-         * @param {Sortable}  sortable
-         */
-        set: function (sortable) {
-          const order = sortable.toArray();
-          localStorage.setItem(sortable.options.group.name, order.join('|'));
-        },
-      },
-      // chosenClass: 'css-class',
-      // ghostClass: 'css-class',
-      // Element dragging ended
-      onEnd: function (/**Event*/ evt) {
-        // console.log('Sortable onEnd', evt);
-        // console.log('evt.oldIndex', evt.oldIndex);
-        // console.log('evt.newIndex', evt.newIndex);
-        const slotId = Array.from(evt.item.classList).pop();
-        // console.log('slotId', slotId);
-        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+            /**
+             * Save the order of elements. Called onEnd (when the item is dropped).
+             * @param {Sortable}  sortable
+             */
+            set: function (sortable) {
+              const order = sortable.toArray();
+              localStorage.setItem(sortable.options.group.name, order.join('|'));
+            },
+          },
+          // chosenClass: 'css-class',
+          // ghostClass: 'css-class',
+          // Element dragging ended
+          onEnd: function (/**Event*/ evt) {
+            // console.log('Sortable onEnd', evt);
+            // console.log('evt.oldIndex', evt.oldIndex);
+            // console.log('evt.newIndex', evt.newIndex);
+            const slotId = Array.from(evt.item.classList).pop();
+            // console.log('slotId', slotId);
+            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
 
-        // var itemEl = evt.item; // dragged HTMLElement
-        // evt.to; // target list
-        // evt.from; // previous list
-        // evt.oldIndex; // element's old index within old parent
-        // evt.newIndex; // element's new index within new parent
-        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-        // evt.clone; // the clone element
-        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-      },
-    });
+            // var itemEl = evt.item; // dragged HTMLElement
+            // evt.to; // target list
+            // evt.from; // previous list
+            // evt.oldIndex; // element's old index within old parent
+            // evt.newIndex; // element's new index within new parent
+            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+            // evt.clone; // the clone element
+            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+          },
+        });
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
@@ -416,6 +424,22 @@ const Menu = {
         barConfig,
         title: this.renderViewTile({ img: 'character.png', text: 'character' }),
         html: async () => await Character.Render({ idModal: 'modal-character' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cloud`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cloud',
+        route: 'cloud',
+        barConfig,
+        title: this.renderViewTile({ img: 'cloud.png', text: 'cloud' }),
+        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
