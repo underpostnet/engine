@@ -546,7 +546,7 @@ scrollbar-width: none;
         }
         @font-face {
           font-family: 'retro-font';
-          src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+          src: URL('${proxyPath}assets/fonts/VT323-Regular.ttf') format('truetype');
         }
       `,
     ),
