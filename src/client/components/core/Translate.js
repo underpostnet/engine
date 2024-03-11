@@ -145,9 +145,11 @@ const TranslateCore = {
 
     Translate.Data['success-copy-data'] = { es: '¡Datos copiados con éxito!', en: 'Data copied successfully!' };
 
-    Translate.Data['character'] = { es: 'Personaje', en: 'Character' };
-    Translate.Data['file-path'] = { es: 'file path', en: 'ruta de archivo' };
-    Translate.Data['drop-file'] = { es: 'drop file', en: 'soltar archivo' };
+    Translate.Data['character'] = { en: 'Personaje', es: 'Character' };
+    Translate.Data['file-path'] = { en: 'file path', es: 'ruta de archivo' };
+    Translate.Data['drop-file'] = { en: 'drop file', es: 'soltar archivo' };
+    Translate.Data['current-path'] = { en: 'current path', es: 'ruta actual' };
+    Translate.Data['go'] = { en: 'go', es: 'ir' };
   },
 };
 

@@ -12,9 +12,10 @@ import { s } from './VanillaJs.js';
 
 const FileExplorer = {
   Render: async function () {
-    const gridId = 'file-explorer-grid';
+    const gridFolderId = 'folder-explorer-grid';
+    const gridFileId = 'file-explorer-grid';
     let formBodyFiles;
-    let root = '/';
+    let location = '/';
     let files, folders, bucketId;
 
     {
@@ -22,13 +23,13 @@ const FileExplorer = {
         status,
         data: [bucket],
       } = await BucketService.get();
-      const format = this.bucketDataFormat({ bucket });
+      const format = this.bucketDataFormat({ bucket, location });
       files = format.files;
       bucketId = format.bucketId;
       folders = format.folders;
     }
 
-    console.log({ root, bucketId, folders, files });
+    console.log({ location, bucketId, folders, files });
 
     setTimeout(async () => {
       const formData = [
@@ -65,29 +66,80 @@ const FileExplorer = {
               }),
             },
           });
-          const format = this.bucketDataFormat({ bucket });
+          const format = this.bucketDataFormat({ bucket, location });
           files = format.files;
           folders = format.folders;
+          AgGrid.grids[gridFileId].setGridOption('rowData', files);
+          AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
           NotificationManager.Push({
             html: Translate.Render(`${status}-upload-file`),
             status,
           });
         }
       });
+
+      EventsUI.onClick(`.btn-input-go-explorer`, async (e) => {
+        e.preventDefault();
+      });
     });
     return html`
-      <div class="in">
-        ${await AgGrid.Render({
-          id: gridId,
-          darkTheme: true,
-          // style: {
-          //   height: '200px',
-          // },
-          gridOptions: {
-            rowData: folders,
-            columnDefs: [{ field: 'folder', headerName: 'Folder' }],
-          },
-        })}
+      <form>
+        <div class="in">
+          ${await Input.Render({
+            id: `file-explorer-query-nav`,
+            type: 'text',
+            label: html`<i class="fab fa-wpexplorer"></i> ${Translate.Render('current-path')}`,
+            containerClass: 'in section-mp input-container',
+            placeholder: true,
+            value: location,
+          })}
+        </div>
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'in main-btn btn-input-go-explorer',
+            label: html`<i class="fas fa-sync-alt"></i> ${Translate.Render('go')}`,
+            type: 'submit',
+          })}
+        </div>
+      </form>
+      <div class="fl">
+        <div class="in fll explorer-file-col">
+          <div class="in explorer-file-sub-col">
+            <div class="in">
+              ${await AgGrid.Render({
+                id: gridFolderId,
+                darkTheme: true,
+                // style: {
+                //   height: '200px',
+                // },
+                gridOptions: {
+                  rowData: folders,
+                  columnDefs: [{ field: 'location', headerName: 'Folder' }],
+                },
+              })}
+            </div>
+          </div>
+        </div>
+        <div class="in fll explorer-file-col">
+          <div class="in explorer-file-sub-col">
+            <div class="in">
+              ${await AgGrid.Render({
+                id: gridFileId,
+                darkTheme: true,
+                // style: {
+                //   height: '200px',
+                // },
+                gridOptions: {
+                  rowData: files,
+                  columnDefs: [
+                    { field: 'name', headerName: 'File' },
+                    { field: 'mimetype', headerName: 'Type' },
+                  ],
+                },
+              })}
+            </div>
+          </div>
+        </div>
       </div>
       <form>
         <div class="in">
@@ -125,18 +177,24 @@ const FileExplorer = {
       </form>
     `;
   },
-  bucketDataFormat: ({ bucket }) => {
+  bucketDataFormat: ({ bucket, location }) => {
     let files = bucket.files.map((f) => {
       if (f.location[0] !== '/') f.location = `/${f.location}`;
       if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
-      return f;
+      return {
+        location: f.location,
+        name: f.fileId.name,
+        mimetype: f.fileId.mimetype,
+      };
     });
     let bucketId = bucket._id;
     let folders = uniqueArray(['/'].concat(files.map((f) => `/${f.location.split('/')[1]}`))).map((folder) => {
       return {
-        folder,
+        location: folder,
       };
     });
+    folders = folders.filter((f) => f.location.startsWith(location));
+    files = files.filter((f) => f.location === location);
     return { files, bucketId, folders };
   },
 };
