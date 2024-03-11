@@ -1,3 +1,4 @@
+import { AgGrid } from './AgGrid.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
@@ -40,10 +41,12 @@ const Input = {
 const InputFile = {
   Render: async function ({ id, multiple }, on = { change: () => {}, clear: () => {} }) {
     // drag drop multi file
+    const gridId = `ag-grid-input-file-${id}`;
     setTimeout(() => {
       s(`.btn-clear-input-file-${id}`).onclick = (e) => {
         e.preventDefault();
         s(`.${id}`).value = null;
+        AgGrid.grids[gridId].setGridOption('rowData', []);
         if (on && typeof on.clear === 'function') on.clear();
       };
 
@@ -95,6 +98,7 @@ const InputFile = {
 
       s(`.${id}`).onchange = (e) => {
         // logger.info('e', e);
+        const fileGridData = [];
         Object.keys(e.target.files).forEach((fileKey, index) => {
           const file = e.target.files[fileKey];
           logger.info('Load file', file);
@@ -104,8 +108,9 @@ const InputFile = {
           // read.onloadend = () => {
           //   console.log('Load File', e.target.files[fileKey], { fileKey, index }, read.result);
           // };
+          fileGridData.push(file);
         });
-
+        AgGrid.grids[gridId].setGridOption('rowData', fileGridData);
         if (on && on.change === 'function') on.change(e);
       };
     });
@@ -113,7 +118,24 @@ const InputFile = {
       <div class="in fll input-file-col">
         <div class="in section-mp input-file-sub-col">
           <input class="${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
-          <button class="btn-clear-input-file-${id}">${Translate.Render('clear')}</button>
+          <div class="in"><button class="btn-clear-input-file-${id}">${Translate.Render('clear')}</button></div>
+          <div class="in">
+            ${await AgGrid.Render({
+              id: gridId,
+              darkTheme: true,
+              style: {
+                height: '200px',
+              },
+              gridOptions: {
+                rowData: [],
+                columnDefs: [
+                  // { field: '_id', headerName: 'ID' },
+                  { field: 'name', headerName: 'Name' },
+                  { field: 'type', headerName: 'Type' },
+                ],
+              },
+            })}
+          </div>
         </div>
       </div>
       <div class="in fll input-file-col">

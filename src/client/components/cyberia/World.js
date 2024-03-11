@@ -184,7 +184,7 @@ const WorldManagement = {
   },
   EmitNewWorldFace: (options) => {
     const { type, id } = options;
-    for (const elementType of Object.keys(Elements.Data)) {
+    for (const elementType of ['user', 'bot']) {
       for (const elementId of Object.keys(Elements.Data[elementType])) {
         if (elementId !== 'main') {
           Pixi.removeElement({ type: elementType, id: elementId });

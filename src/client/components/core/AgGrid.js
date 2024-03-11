@@ -36,6 +36,7 @@ const AgGrid = {
           filter: true,
           autoHeight: true,
         },
+        // domLayout: 'autoHeight', || 'normal'
         // Column Definitions: Defines & controls grid columns.
         columnDefs: options?.gridOptions?.rowData?.[0]
           ? Object.keys(options.gridOptions.rowData[0]).map((field) => {
@@ -50,7 +51,14 @@ const AgGrid = {
       this.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
       // myGridElement.style.setProperty('width', '100%');
     });
-    return html` <div class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}" style="height: 500px"></div> `;
+    return html`
+      <div
+        class="${id} ${this.theme}${options?.darkTheme ? `-dark` : ''}"
+        style="${options?.style
+          ? Object.keys(options.style).map((styleKey) => `${styleKey}: ${options.style[styleKey]}; `)
+          : 'height: 500px'}"
+      ></div>
+    `;
   },
 };
 
