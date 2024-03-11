@@ -8,14 +8,15 @@ import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, s } from './VanillaJs.js';
+import { copyData, getQueryParams, s } from './VanillaJs.js';
 
 const FileExplorer = {
   Render: async function () {
     const gridFolderId = 'folder-explorer-grid';
     const gridFileId = 'file-explorer-grid';
     let formBodyFiles;
-    let location = '/';
+    const query = getQueryParams();
+    let location = query?.location ? this.locationFormat({ f: query }) : '/';
     let files = [];
     let folders = [];
     let bucketId = '';
