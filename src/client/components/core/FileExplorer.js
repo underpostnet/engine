@@ -1,5 +1,6 @@
 import { BucketService } from '../../services/bucket/bucket.service.js';
 import { FileService } from '../../services/file/file.service.js';
+import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { uniqueArray } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
@@ -11,35 +12,30 @@ import { s } from './VanillaJs.js';
 
 const FileExplorer = {
   Render: async function () {
+    const gridId = 'file-explorer-grid';
     let formBodyFiles;
+    let root = '/';
+    let files, folders, bucketId;
+
+    {
+      const {
+        status,
+        data: [bucket],
+      } = await BucketService.get();
+      const format = this.bucketDataFormat({ bucket });
+      files = format.files;
+      bucketId = format.bucketId;
+      folders = format.folders;
+    }
+
+    console.log({ root, bucketId, folders, files });
+
     setTimeout(async () => {
-      let root = '/';
-      let files = [];
-      let folders = [];
-      let bucketId;
-
-      {
-        const {
-          status,
-          data: [bucket],
-        } = await BucketService.get();
-        files = bucket.files.map((f) => {
-          if (f.location[0] !== '/') f.location = `/${f.location}`;
-          if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
-          return f;
-        });
-        bucketId = bucket._id;
-      }
-
-      folders = uniqueArray(files.map((f) => f.location));
-
-      console.log({ root, bucketId, folders, files });
-
       const formData = [
         {
           model: 'location',
           id: `file-explorer-location`,
-          rules: [{ type: 'isEmpty' }],
+          rules: [], // { type: 'isEmpty' }
         },
       ];
       const validators = await Validator.instance(formData);
@@ -58,7 +54,7 @@ const FileExplorer = {
           for (const inputData of formData) {
             if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
           }
-          const { status, data } = await BucketService.put({
+          const { status, data: bucket } = await BucketService.put({
             id: bucketId,
             body: {
               files: fileData.map((file) => {
@@ -69,6 +65,9 @@ const FileExplorer = {
               }),
             },
           });
+          const format = this.bucketDataFormat({ bucket });
+          files = format.files;
+          folders = format.folders;
           NotificationManager.Push({
             html: Translate.Render(`${status}-upload-file`),
             status,
@@ -77,6 +76,19 @@ const FileExplorer = {
       });
     });
     return html`
+      <div class="in">
+        ${await AgGrid.Render({
+          id: gridId,
+          darkTheme: true,
+          // style: {
+          //   height: '200px',
+          // },
+          gridOptions: {
+            rowData: folders,
+            columnDefs: [{ field: 'folder', headerName: 'Folder' }],
+          },
+        })}
+      </div>
       <form>
         <div class="in">
           ${await Input.Render({
@@ -112,6 +124,20 @@ const FileExplorer = {
         )}
       </form>
     `;
+  },
+  bucketDataFormat: ({ bucket }) => {
+    let files = bucket.files.map((f) => {
+      if (f.location[0] !== '/') f.location = `/${f.location}`;
+      if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
+      return f;
+    });
+    let bucketId = bucket._id;
+    let folders = uniqueArray(['/'].concat(files.map((f) => `/${f.location.split('/')[1]}`))).map((folder) => {
+      return {
+        folder,
+      };
+    });
+    return { files, bucketId, folders };
   },
 };
 

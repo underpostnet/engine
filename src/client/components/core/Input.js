@@ -141,7 +141,8 @@ const InputFile = {
       <div class="in fll input-file-col">
         <div class="in section-mp input-file-sub-col drop-zone-${id}">
           <div class="abs center">
-            <i class="fas fa-cloud"></i>
+            <i class="fas fa-cloud" style="font-size: 30px"></i><br />
+            ${Translate.Render('drop-file')}
           </div>
         </div>
       </div>

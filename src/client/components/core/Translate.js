@@ -147,6 +147,7 @@ const TranslateCore = {
 
     Translate.Data['character'] = { es: 'Personaje', en: 'Character' };
     Translate.Data['file-path'] = { es: 'file path', en: 'ruta de archivo' };
+    Translate.Data['drop-file'] = { es: 'drop file', en: 'soltar archivo' };
   },
 };
 
