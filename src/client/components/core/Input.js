@@ -17,7 +17,7 @@ const Input = {
         <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
         <input
           type="${options?.type ? options.type : 'text'}"
-          class="in ${id}"
+          class="in wfa ${id}"
           ${options?.min !== undefined ? `min="${options.min}"` : ''}
           placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
           ${options?.value !== undefined ? `value="${options.value}"` : ''}
@@ -117,7 +117,7 @@ const InputFile = {
     return html` <div class="fl">
       <div class="in fll input-file-col">
         <div class="in section-mp input-file-sub-col">
-          <input class="${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
+          <input class="wfa ${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
           <div class="in"><button class="btn-clear-input-file-${id}">${Translate.Render('clear')}</button></div>
           <div class="in">
             ${await AgGrid.Render({

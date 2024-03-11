@@ -65,6 +65,10 @@ const Css = {
               position: sticky;
             }
 
+            .wfa {
+              width: -webkit-fill-available;
+            }
+
             .center {
               transform: translate(-50%, -50%);
               top: 50%;
@@ -676,9 +680,6 @@ scrollbar-width: none;
           min-height: 90px;
         }
 
-        .btn-custom {
-          width: -webkit-fill-available;
-        }
         .container-component {
           width: 250px;
         }
@@ -701,7 +702,6 @@ scrollbar-width: none;
           background: none;
           color: #313131;
           background: #e7e7e7;
-          width: -webkit-fill-available;
         }
         .input-label {
         }

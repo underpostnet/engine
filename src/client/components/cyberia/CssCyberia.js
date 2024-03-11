@@ -32,10 +32,6 @@ const CssCyberia = {
         color: #ffcc00;
       }
 
-      .main-btn {
-        width: -webkit-fill-available;
-      }
-
       i {
         margin: 10px;
       }
@@ -151,8 +147,8 @@ const CssCyberia = {
         background: none;
         color: white;
         background: #1a1a1a;
-        width: -webkit-fill-available;
       }
+
       .input-label {
       }
       .input-info {
