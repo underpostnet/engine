@@ -11,7 +11,8 @@ const FileService = {
     const results = [];
     if (Array.isArray(req.files.file))
       for (const file of req.files.file) results.push(await new FileModel(file).save());
-    else if (req.files.file) results.push(await new FileModel(req.files.file).save());
+    else if (Object.keys(req.files).length > 0)
+      for (const keyFile of Object.keys(req.files)) results.push(await new FileModel(req.files[keyFile]).save());
     return results;
   },
   get: async (req, res, options) => {

@@ -111,7 +111,7 @@ const InputFile = {
           fileGridData.push(file);
         });
         AgGrid.grids[gridId].setGridOption('rowData', fileGridData);
-        if (on && on.change === 'function') on.change(e);
+        if (on && typeof on.change === 'function') on.change(e);
       };
     });
     return html` <div class="fl">

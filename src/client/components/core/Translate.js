@@ -146,6 +146,7 @@ const TranslateCore = {
     Translate.Data['success-copy-data'] = { es: '¡Datos copiados con éxito!', en: 'Data copied successfully!' };
 
     Translate.Data['character'] = { es: 'Personaje', en: 'Character' };
+    Translate.Data['file-path'] = { es: 'file path', en: 'ruta de archivo' };
   },
 };
 
