@@ -60,6 +60,28 @@ const BucketController = {
       });
     }
   },
+  put: async (req, res, options) => {
+    try {
+      const result = await BucketService.put(req, res, options);
+      if (!result)
+        return res.status(400).json({
+          status: 'error',
+          message: 'item not found',
+        });
+
+      return res.status(200).json({
+        status: 'success',
+        data: result,
+        message: 'success-update',
+      });
+    } catch (error) {
+      logger.error(error, error.stack);
+      return res.status(500).json({
+        status: 'error',
+        message: error.message,
+      });
+    }
+  },
 };
 
 export { BucketController };

@@ -75,6 +75,28 @@ const BucketService = {
           return reject(error);
         }),
     ),
+  put: (options = { id: '', body: {} }) =>
+    new Promise((resolve, reject) =>
+      fetch(ApiBase({ id: options.id, endpoint }), {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: Auth.getJWT(),
+        },
+        body: JSON.stringify(options.body),
+      })
+        .then(async (res) => {
+          return await res.json();
+        })
+        .then((res) => {
+          logger.info(res);
+          return resolve(res);
+        })
+        .catch((error) => {
+          logger.error(error);
+          return reject(error);
+        }),
+    ),
 };
 
 export { BucketService };

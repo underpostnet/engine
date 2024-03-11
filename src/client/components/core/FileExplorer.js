@@ -1,6 +1,7 @@
 import { BucketService } from '../../services/bucket/bucket.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from './BtnIcon.js';
+import { uniqueArray } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -12,9 +13,27 @@ const FileExplorer = {
   Render: async function () {
     let formBodyFiles;
     setTimeout(async () => {
+      let root = '/';
+      let files = [];
+      let folders = [];
+      let bucketId;
+
       {
-        const { status, data } = await BucketService.get();
+        const {
+          status,
+          data: [bucket],
+        } = await BucketService.get();
+        files = bucket.files.map((f) => {
+          if (f.location[0] !== '/') f.location = `/${f.location}`;
+          if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
+          return f;
+        });
+        bucketId = bucket._id;
       }
+
+      folders = uniqueArray(files.map((f) => f.location));
+
+      console.log({ root, bucketId, folders, files });
 
       const formData = [
         {
@@ -39,7 +58,8 @@ const FileExplorer = {
           for (const inputData of formData) {
             if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
           }
-          const { status, data } = await BucketService.post({
+          const { status, data } = await BucketService.put({
+            id: bucketId,
             body: {
               files: fileData.map((file) => {
                 return {
