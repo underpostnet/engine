@@ -13,6 +13,12 @@ const FileService = {
       for (const file of req.files.file) results.push(await new FileModel(file).save());
     else if (Object.keys(req.files).length > 0)
       for (const keyFile of Object.keys(req.files)) results.push(await new FileModel(req.files[keyFile]).save());
+    let index = -1;
+    for (const file of results) {
+      index++;
+      const [result] = await FileModel.find({ _id: file._id }).select({ _id: 1, name: 1, mimetype: 1 });
+      results[index] = result;
+    }
     return results;
   },
   get: async (req, res, options) => {

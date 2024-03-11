@@ -1,3 +1,4 @@
+import { BucketService } from '../../services/bucket/bucket.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
@@ -5,6 +6,7 @@ import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
+import { s } from './VanillaJs.js';
 
 const FileExplorer = {
   Render: async function () {
@@ -23,21 +25,31 @@ const FileExplorer = {
         e.preventDefault();
         const { errorMessage } = await validators();
         if (errorMessage) return;
-
+        let fileData;
         {
           const { status, data } = await FileService.post({ body: formBodyFiles });
+          fileData = data;
         }
-        // {
-        //   const body = {};
-        //   for (const inputData of formData) {
-        //     if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
-        //   }
-        // }
-
-        // NotificationManager.Push({
-        //   html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-user`),
-        //   status: result.status,
-        // });
+        {
+          const body = {};
+          for (const inputData of formData) {
+            if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
+          }
+          const { status, data } = await BucketService.post({
+            body: {
+              files: fileData.map((file) => {
+                return {
+                  fileId: file._id,
+                  location: body.location,
+                };
+              }),
+            },
+          });
+          NotificationManager.Push({
+            html: Translate.Render(`${status}-upload-file`),
+            status,
+          });
+        }
       });
     });
     return html`

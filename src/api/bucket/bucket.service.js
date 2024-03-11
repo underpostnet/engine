@@ -11,6 +11,9 @@ const BucketService = {
     let result = {};
     switch (req.params.id) {
       default:
+        if (!req.body.name) req.body.name = 'storage';
+        req.body.userId = req.auth.user._id;
+        result = await new BucketModel(req.body).save();
         break;
     }
     return result;
