@@ -1,4 +1,7 @@
+import { loggerFactory } from './Logger.js';
+import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
+const logger = loggerFactory(import.meta);
 
 const Input = {
   Render: async function (options) {
@@ -35,9 +38,92 @@ const Input = {
 };
 
 const InputFile = {
-  Render: async function () {
+  Render: async function ({ id, multiple }, on = { change: () => {}, clear: () => {} }) {
     // drag drop multi file
-    return html`input cloud file`;
+    setTimeout(() => {
+      s(`.btn-clear-input-file-${id}`).onclick = (e) => {
+        e.preventDefault();
+        s(`.${id}`).value = null;
+        if (on && typeof on.clear === 'function') on.clear();
+      };
+
+      ['drag', 'dragstart', 'dragend', 'dragover', 'dragenter', 'dragleave', 'drop'].forEach(function (event) {
+        s(`.drop-zone-${id}`).addEventListener(event, function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+        });
+      });
+      s(`.drop-zone-${id}`).addEventListener(
+        'dragover',
+        function (e) {
+          this.classList.add('sub-container');
+        },
+        false,
+      );
+
+      s(`.drop-zone-${id}`).addEventListener(
+        'dragleave',
+        function (e) {
+          this.classList.remove('sub-container');
+        },
+        false,
+      );
+      s(`.drop-zone-${id}`).addEventListener(
+        'drop',
+        function (e) {
+          this.classList.remove('sub-container');
+          const files = e.dataTransfer.files;
+          const dataTransfer = new DataTransfer();
+
+          let countFiles = 0;
+          Array.prototype.forEach.call(files, (file) => {
+            // logger.info(file);
+            if (!multiple && countFiles == 1) return;
+            dataTransfer.items.add(file);
+            countFiles++;
+          });
+
+          s(`.${id}`).files = dataTransfer.files;
+          s(`.${id}`).onchange({ target: s(`.${id}`) });
+        },
+        false,
+      );
+
+      s(`.drop-zone-${id}`).addEventListener('click', function (e) {
+        s(`.${id}`).click();
+      });
+
+      s(`.${id}`).onchange = (e) => {
+        // logger.info('e', e);
+        Object.keys(e.target.files).forEach((fileKey, index) => {
+          const file = e.target.files[fileKey];
+          logger.info('Load file', file);
+          // Get raw:
+          // const read = new FileReader();
+          // read.readAsBinaryString(file);
+          // read.onloadend = () => {
+          //   console.log('Load File', e.target.files[fileKey], { fileKey, index }, read.result);
+          // };
+        });
+
+        if (on && on.change === 'function') on.change(e);
+      };
+    });
+    return html` <div class="fl">
+      <div class="in fll input-file-col">
+        <div class="in section-mp input-file-sub-col">
+          <input class="${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
+          <button class="btn-clear-input-file-${id}">${Translate.Render('clear')}</button>
+        </div>
+      </div>
+      <div class="in fll input-file-col">
+        <div class="in section-mp input-file-sub-col drop-zone-${id}">
+          <div class="abs center">
+            <i class="fas fa-cloud"></i>
+          </div>
+        </div>
+      </div>
+    </div>`;
   },
 };
 

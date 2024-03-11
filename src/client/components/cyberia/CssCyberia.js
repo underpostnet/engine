@@ -448,6 +448,13 @@ const CssCyberia = {
         color: white;
         ${borderChar(2, 'black')}
       }
+      .input-file-col {
+        width: 50%;
+      }
+      .input-file-sub-col {
+        min-height: 300px;
+        border: 2px solid #313131;
+      }
     `,
 };
 
