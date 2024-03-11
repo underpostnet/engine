@@ -184,17 +184,18 @@ const WorldManagement = {
   },
   EmitNewWorldFace: (options) => {
     const { type, id } = options;
-    for (const elementType of ['user', 'bot']) {
+    for (const elementType of Object.keys(Elements.Data)) {
       for (const elementId of Object.keys(Elements.Data[elementType])) {
         if (elementId !== 'main') {
           Pixi.removeElement({ type: elementType, id: elementId });
           delete Elements.Data[elementType][elementId];
         }
       }
-      SocketIo.Emit(elementType, {
-        status: 'update-world-face',
-        element: { model: { world: Elements.Data[type][id].model.world } },
-      });
+      if (['user', 'bot', 'skill'].includes(elementType))
+        SocketIo.Emit(elementType, {
+          status: 'update-world-face',
+          element: { model: { world: Elements.Data[type][id].model.world } },
+        });
     }
   },
   Load: async function (options = { type: 'user', id: 'main' }) {
