@@ -27,7 +27,7 @@ const InteractionPanel = {
     const id = options?.id ? options.id : getId(this.Data, 'interaction-panel-');
     this.Data[id] = {};
     const style = {
-      height: '60px',
+      height: '40px',
       width: '180px',
       'z-index': 3,
       'font-size': '18px',
@@ -64,7 +64,7 @@ const InteractionPanel = {
         };
         break;
       case 'map-interaction-panel':
-        style.top = '130px';
+        style.top = '111px';
         // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†'];
         render = async () => html`
           <div class="in hide">Face <span class="display-current-face" style="${borderChar(2, 'black')}"></span></div>
