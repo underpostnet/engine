@@ -118,7 +118,11 @@ const InputFile = {
       <div class="in fll input-file-col">
         <div class="in section-mp input-file-sub-col">
           <input class="wfa ${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
-          <div class="in"><button class="btn-clear-input-file-${id}">${Translate.Render('clear')}</button></div>
+          <div class="in">
+            <button class="wfa btn-clear-input-file-${id}">
+              <i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}
+            </button>
+          </div>
           <div class="in">
             ${await AgGrid.Render({
               id: gridId,

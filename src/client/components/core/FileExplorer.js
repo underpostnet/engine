@@ -56,7 +56,7 @@ const FileExplorer = {
       const formData = [
         {
           model: 'location',
-          id: `file-explorer-location`,
+          id: `file-explorer-query-nav`,
           rules: [], // { type: 'isEmpty' }
         },
       ];
@@ -72,17 +72,18 @@ const FileExplorer = {
           fileData = data;
         }
         {
-          const body = {};
-          for (const inputData of formData) {
-            if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
-          }
+          // const body = {};
+          // for (const inputData of formData) {
+          //   if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
+          // }
+          location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
           const { status, data: bucket } = await BucketService.put({
             id: bucketId,
             body: {
               files: fileData.map((file) => {
                 return {
                   fileId: file._id,
-                  location: body.location,
+                  location,
                 };
               }),
             },
@@ -97,6 +98,7 @@ const FileExplorer = {
             html: Translate.Render(`${status}-upload-file`),
             status,
           });
+          if (status === 'success') s(`.btn-input-home-directory`).click();
         }
       });
 
@@ -115,9 +117,12 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
-        const newLocation = '/';
-        if (newLocation === location) return;
-        location = newLocation;
+        let newLocation = '/';
+        if (s(`.file-explorer-uploader`).style.display !== 'none') {
+          s(`.file-explorer-uploader`).style.display = 'none';
+          s(`.file-explorer-nav`).style.display = 'block';
+        } else if (newLocation === location) return;
+        else location = newLocation;
         setURI(`${getURI()}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
@@ -134,16 +139,23 @@ const FileExplorer = {
           status: 'success',
         });
       });
+      EventsUI.onClick(`.btn-input-back-explorer`, async (e) => {
+        e.preventDefault();
+        window.history.back();
+      });
+      EventsUI.onClick(`.btn-input-forward-explorer`, async (e) => {
+        e.preventDefault();
+        window.history.forward();
+      });
+      EventsUI.onClick(`.btn-input-upload-file`, async (e) => {
+        e.preventDefault();
+        s(`.file-explorer-nav`).style.display = 'none';
+        s(`.file-explorer-uploader`).style.display = 'block';
+      });
     });
     return html`
       <form>
         <div class="in">
-          ${await BtnIcon.Render({
-            class: 'inl btn-input-go-explorer',
-            label: html`<i class="fas fa-sync-alt"></i>
-              <!-- ${Translate.Render('go')} -->`,
-            type: 'submit',
-          })}
           ${await BtnIcon.Render({
             class: 'inl btn-input-home-directory',
             label: html`<i class="fas fa-home"></i>
@@ -151,8 +163,32 @@ const FileExplorer = {
             type: 'button',
           })}
           ${await BtnIcon.Render({
+            class: 'inl btn-input-back-explorer',
+            label: html` <i class="fa-solid fa-circle-left"></i>
+              <!-- ${Translate.Render('go')} -->`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: 'inl btn-input-forward-explorer',
+            label: html` <i class="fa-solid fa-circle-right"></i>
+              <!-- ${Translate.Render('go')} -->`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: 'inl btn-input-go-explorer',
+            label: html`<i class="fas fa-sync-alt"></i>
+              <!-- ${Translate.Render('go')} -->`,
+            type: 'submit',
+          })}
+          ${await BtnIcon.Render({
             class: 'inl btn-input-copy-directory',
             label: html`<i class="fas fa-copy"></i>
+              <!-- ${Translate.Render('home-directory')} -->`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: 'inl btn-input-upload-file',
+            label: html`<i class="fa-solid fa-cloud-arrow-up"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
           })}
@@ -168,7 +204,7 @@ const FileExplorer = {
           })}
         </div>
       </form>
-      <div class="fl">
+      <div class="fl file-explorer-nav">
         <div class="in fll explorer-file-col">
           <div class="in explorer-file-sub-col">
             <div class="in">
@@ -249,20 +285,11 @@ const FileExplorer = {
           </div>
         </div>
       </div>
-      <form>
-        <div class="in">
-          ${await Input.Render({
-            id: `file-explorer-location`,
-            type: 'text',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('file-path')}`,
-            containerClass: 'inl section-mp width-mini-box input-container',
-            placeholder: true,
-          })}
-        </div>
+      <form class="file-explorer-uploader" style="display: none">
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'btn-input-file-explorer',
-            label: Translate.Render('upload'),
+            class: 'wfa btn-input-file-explorer',
+            label: html`<i class="fas fa-upload"></i> ${Translate.Render('upload')}`,
             type: 'submit',
           })}
         </div>
