@@ -326,6 +326,7 @@ const World = {
       });
       EventsUI.onClick(`.btn-reset-world`, async () => {
         for (const index of range(0, 5)) s(`.dropdown-option-face-${index}-reset`).click();
+        s(`.btn-generate-world`).click();
       });
     });
     return html`
