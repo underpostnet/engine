@@ -81,6 +81,10 @@ const Css = {
               outline: none !important;
               border: none;
             }
+            input::file-selector-button {
+              outline: none !important;
+              border: none;
+            }
 
             .hide {
               display: none !important;

@@ -453,6 +453,18 @@ const CssCyberia = {
         min-height: 300px;
         border: 2px solid #313131;
       }
+      input::file-selector-button {
+        background: #232323;
+        font-family: 'retro-font';
+        transition: 0.3s;
+        cursor: pointer;
+        padding: 3px;
+        color: #dddddd;
+      }
+      input::file-selector-button:hover {
+        background: #191919;
+        color: #ffcc00;
+      }
     `,
 };
 
