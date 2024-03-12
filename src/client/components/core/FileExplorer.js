@@ -102,7 +102,9 @@ const FileExplorer = {
 
       EventsUI.onClick(`.btn-input-go-explorer`, async (e) => {
         e.preventDefault();
-        location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
+        const newLocation = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
+        if (newLocation === location) return;
+        location = newLocation;
         setURI(`${getURI()}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
@@ -113,7 +115,9 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
-        location = '/';
+        const newLocation = '/';
+        if (newLocation === location) return;
+        location = newLocation;
         setURI(`${getURI()}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
@@ -175,27 +179,50 @@ const FileExplorer = {
                 //   height: '200px',
                 // },
                 gridOptions: {
+                  defaultColDef: {
+                    editable: false,
+                    minWidth: 100,
+                    filter: true,
+                    autoHeight: true,
+                  },
                   rowData: folders,
                   columnDefs: [
                     {
                       field: 'location',
                       headerName: 'Folder',
+                      minWidth: 200,
+                      flex: 1,
                       cellStyle: function (params) {
                         return { cursor: 'pointer' };
                       },
-                      onCellClicked: (event) => {
-                        // console.warn('onCellClicked', event);
-                        location = event.data.location;
-                        setURI(`${getURI()}?location=${location}`);
-                        s(`.file-explorer-query-nav`).value = location;
-                        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
-                        files = format.files;
-                        folders = format.folders;
-                        AgGrid.grids[gridFileId].setGridOption('rowData', files);
-                        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-                      },
+                      // onCellClicked: (event) => {
+                      //   // console.warn('onCellClicked', event);
+                      //   location = event.data.location;
+                      // },
+                    },
+                    {
+                      field: 'files',
+                      headerName: '#',
+                      width: 100,
                     },
                   ],
+                  rowSelection: 'single',
+                  onSelectionChanged: (event) => {
+                    const selectedRows = AgGrid.grids[gridFolderId].getSelectedRows();
+                    console.log('selectedRows', { event, selectedRows });
+                    if (selectedRows[0]) {
+                      const newLocation = selectedRows[0].location;
+                      if (newLocation === location) return;
+                      location = newLocation;
+                      setURI(`${getURI()}?location=${location}`);
+                      s(`.file-explorer-query-nav`).value = location;
+                      const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+                      files = format.files;
+                      folders = format.folders;
+                      AgGrid.grids[gridFileId].setGridOption('rowData', files);
+                      AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+                    }
+                  },
                 },
               })}
             </div>
@@ -213,7 +240,7 @@ const FileExplorer = {
                 gridOptions: {
                   rowData: files,
                   columnDefs: [
-                    { field: 'name', headerName: 'File' },
+                    { field: 'name', headerName: 'Name' },
                     { field: 'mimetype', headerName: 'Type' },
                   ],
                 },
@@ -280,8 +307,13 @@ const FileExplorer = {
         location: f,
       };
     });
-    folders = folders.filter((f) => f.location.startsWith(location));
     files = files.filter((f) => f.location === location);
+    folders = folders
+      .filter((f) => f.location.startsWith(location))
+      .map((f) => {
+        f.files = bucket.files.filter((file) => file.location === f.location).length;
+        return f;
+      });
     return { files, bucketId, folders };
   },
 };

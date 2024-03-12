@@ -32,7 +32,7 @@ const AgGrid = {
         defaultColDef: {
           editable: false,
           flex: 1,
-          minWidth: 100,
+          minWidth: 50,
           filter: true,
           autoHeight: true,
         },
