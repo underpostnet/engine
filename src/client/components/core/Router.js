@@ -13,6 +13,8 @@ const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => 
   htmls('title', html`${NameApp} | ${title}`);
 };
 
+const RouterEvents = {};
+
 const Router = function (options = { Routes: () => {}, proxyPath: '/', e: {}, NameApp: '' }) {
   const { proxyPath, e, Routes, NameApp } = options;
   let path = getURI();
@@ -25,7 +27,11 @@ const Router = function (options = { Routes: () => {}, proxyPath: '/', e: {}, Na
     if (path[path.length - 1] !== '/') path = `${path}/`;
     if (pushPath[pushPath.length - 1] !== '/') pushPath = `${pushPath}/`;
 
-    logger.info({ path, pushPath, proxyPath, route });
+    const routerEvent = { path, pushPath, proxyPath, route };
+
+    logger.info(routerEvent);
+
+    for (const event of Object.keys(RouterEvents)) RouterEvents[event](routerEvent);
 
     if (path === pushPath) {
       setDocTitle({ Routes, route, NameApp });
@@ -39,4 +45,4 @@ const LoadRouter = function (RouterInstance) {
   window.onpopstate = (e) => Router({ ...RouterInstance, e });
 };
 
-export { Router, setDocTitle, LoadRouter };
+export { Router, setDocTitle, LoadRouter, RouterEvents };

@@ -6,9 +6,10 @@ import { uniqueArray } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
+import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, getQueryParams, s } from './VanillaJs.js';
+import { copyData, getQueryParams, getURI, s, setURI } from './VanillaJs.js';
 
 const FileExplorer = {
   Render: async function () {
@@ -21,6 +22,19 @@ const FileExplorer = {
     let folders = [];
     let bucketId = '';
     let bucketInstance = {};
+
+    RouterEvents['file-explorer'] = ({ path, pushPath, proxyPath, route }) => {
+      if (route === 'cloud') {
+        const query = getQueryParams();
+        location = query?.location ? this.locationFormat({ f: query }) : '/';
+        s(`.file-explorer-query-nav`).value = location;
+        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+        files = format.files;
+        folders = format.folders;
+        AgGrid.grids[gridFileId].setGridOption('rowData', files);
+        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+      }
+    };
 
     try {
       const {
@@ -89,6 +103,7 @@ const FileExplorer = {
       EventsUI.onClick(`.btn-input-go-explorer`, async (e) => {
         e.preventDefault();
         location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
+        setURI(`${getURI()}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
         files = format.files;
@@ -99,6 +114,7 @@ const FileExplorer = {
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
         location = '/';
+        setURI(`${getURI()}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
         files = format.files;
@@ -170,6 +186,7 @@ const FileExplorer = {
                       onCellClicked: (event) => {
                         // console.warn('onCellClicked', event);
                         location = event.data.location;
+                        setURI(`${getURI()}?location=${location}`);
                         s(`.file-explorer-query-nav`).value = location;
                         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
                         files = format.files;
