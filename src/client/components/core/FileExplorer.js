@@ -88,14 +88,17 @@ const FileExplorer = {
 
     RouterEvents['file-explorer'] = ({ path, pushPath, proxyPath, route }) => {
       if (route === 'cloud') {
-        const query = getQueryParams();
-        location = query?.location ? this.locationFormat({ f: query }) : '/';
-        s(`.file-explorer-query-nav`).value = location;
-        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
-        files = format.files;
-        folders = format.folders;
-        AgGrid.grids[gridFileId].setGridOption('rowData', files);
-        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+        setTimeout(() => {
+          const query = getQueryParams();
+          location = query?.location ? this.locationFormat({ f: query }) : '/';
+          if (!s(`.file-explorer-query-nav`)) return;
+          s(`.file-explorer-query-nav`).value = location;
+          const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+          files = format.files;
+          folders = format.folders;
+          AgGrid.grids[gridFileId].setGridOption('rowData', files);
+          AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+        });
       }
     };
 
