@@ -15,6 +15,7 @@ import { Application } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Skill } from './Skill.js';
 import { Slot } from './Bag.js';
+import { InteractionPanel } from './InteractionPanel.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -215,6 +216,7 @@ const MainUser = {
     Slot.coin.update({ bagId: 'cyberia-bag', type, id });
     Pixi.updateLife({ type, id });
     Pixi.setUsername({ type, id });
+    InteractionPanel.PanelRender.element({ type, id });
 
     LoadingAnimation.removeSplashScreen();
   },

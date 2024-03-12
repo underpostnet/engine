@@ -9,7 +9,6 @@ import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
-import { InteractionPanel } from './InteractionPanel.js';
 import { MainUser } from './MainUser.js';
 
 const LogOutCyberia = function () {
@@ -31,7 +30,6 @@ const LogOutCyberia = function () {
     CyberiaWebhook.unregister();
     Auth.deleteToken();
     await MainUser.Update({ oldElement });
-    InteractionPanel.PanelRender.element({ type, id });
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
