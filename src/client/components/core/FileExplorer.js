@@ -292,6 +292,66 @@ const FileExplorer = {
       }
     }
 
+    class LoadFolderActionsRenderer {
+      eGui;
+
+      async init(params) {
+        console.log('LoadFolderActionsRenderer created', params);
+        // params.data._id
+        const id = params.data.location.replaceAll('/', '-');
+
+        this.eGui = document.createElement('div');
+        this.eGui.innerHTML = html`
+          ${await BtnIcon.Render({
+            class: `in btn-folder-delete-${id}`,
+            label: html` <i class="fa-solid fa-circle-xmark"></i>`,
+            type: 'button',
+          })}
+        `;
+
+        setTimeout(() => {
+          EventsUI.onClick(`.btn-folder-delete-${id}`, async (e) => {
+            e.preventDefault();
+            const idFilesDelete = [];
+            for (const files of bucketInstance.files.filter(
+              (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
+            )) {
+              {
+                const { data, status, message } = await FileService.delete({
+                  id: files.fileId._id,
+                });
+              }
+              {
+                idFilesDelete.push(files._id);
+                const { data, status, message } = await BucketService.delete({
+                  id: `${bucketId}/${files._id}`,
+                });
+              }
+            }
+            NotificationManager.Push({
+              html: Translate.Render('success-delete'),
+              status: 'success',
+            });
+            bucketInstance.files = bucketInstance.files.filter((f) => !idFilesDelete.includes(f._id));
+            const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
+            files = format.files;
+            folders = format.folders;
+            AgGrid.grids[gridFileId].setGridOption('rowData', files);
+            AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+          });
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        console.log('LoadFolderActionsRenderer refreshed', params);
+        return true;
+      }
+    }
+
     return html`
       <form>
         <div class="in">
@@ -371,26 +431,40 @@ const FileExplorer = {
                         return { cursor: 'pointer' };
                       },
                       cellRenderer: LoadFolderRenderer,
-                      // onCellClicked: (event) => {
-                      //   // console.warn('onCellClicked', event);
-                      //   location = event.data.location;
-                      // },
+                      onCellClicked: (event) => {
+                        // console.warn('onCellClicked', event);
+                        const newLocation = event.data.location;
+                        if (newLocation === location) return;
+                        location = newLocation;
+                        setURI(`${getURI()}?location=${location}`);
+                        s(`.file-explorer-query-nav`).value = location;
+                        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+                        files = format.files;
+                        folders = format.folders;
+                        AgGrid.grids[gridFileId].setGridOption('rowData', files);
+                        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+                      },
                     },
                     {
                       // suppressHeaderMenuButton: true,
                       // sortable: false,
                       field: 'files',
                       headerName: '🗎',
-                      width: 100,
+                      width: 60,
+                      cellStyle: function (params) {
+                        return { cursor: 'pointer' };
+                      },
                       // headerComponent: FolderHeaderComp,
                       // headerComponentParams: {
                       //   menuIcon: 'fa-bars',
                       //   template: `test`,
                       // },
                     },
+                    { headerName: '', width: 60, cellRenderer: LoadFolderActionsRenderer },
                   ],
                   rowSelection: 'single',
                   onSelectionChanged: (event) => {
+                    return;
                     const selectedRows = AgGrid.grids[gridFolderId].getSelectedRows();
                     console.log('selectedRows', { event, selectedRows });
                     if (selectedRows[0]) {
@@ -496,7 +570,8 @@ const FileExplorer = {
       .map((f) => {
         f.files = bucket.files.filter((file) => file.location === f.location).length;
         return f;
-      });
+      })
+      .filter((f) => f.files > 0);
     return { files, bucketId, folders };
   },
 };

@@ -41,7 +41,11 @@ const MainUser = {
     const id = 'main';
     const { oldElement } = options;
 
-    await WorldManagement.Load({ type, id });
+    try {
+      await WorldManagement.Load({ type, id });
+    } catch (error) {
+      console.error(error);
+    }
     Matrix.InitCamera({ type, id });
 
     const idEvent = `${type}.${id}`;
