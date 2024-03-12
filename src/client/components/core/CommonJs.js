@@ -431,6 +431,12 @@ const mergeMatrices = (input) => {
 
 const titleFormatted = (str) => cap(str.trim().replaceAll('/', '').replaceAll('-', ' '));
 
+const getSubpaths = (path) =>
+  path
+    .split('/')
+    .filter(Boolean)
+    .map((_, i, segments) => `/${segments.slice(0, i + 1).join('/')}`);
+
 export {
   s4,
   range,
@@ -468,4 +474,5 @@ export {
   mergeMatrices,
   titleFormatted,
   setPad,
+  getSubpaths,
 };

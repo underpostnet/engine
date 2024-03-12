@@ -2,7 +2,7 @@ import { BucketService } from '../../services/bucket/bucket.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
-import { uniqueArray } from './CommonJs.js';
+import { getSubpaths, uniqueArray } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -124,7 +124,7 @@ const FileExplorer = {
       });
       EventsUI.onClick(`.btn-input-copy-directory`, async (e) => {
         e.preventDefault();
-        await copyData(location);
+        await copyData(window.location.href);
         NotificationManager.Push({
           html: Translate.Render('success-copy-data'),
           status: 'success',
@@ -272,9 +272,12 @@ const FileExplorer = {
       };
     });
     let bucketId = bucket._id;
-    let folders = uniqueArray(['/'].concat(files.map((f) => f.location))).map((folder) => {
+    let folders = [];
+    for (const folderPath of uniqueArray(files.map((f) => f.location)))
+      folders = ['/'].concat(folders.concat(getSubpaths(folderPath)));
+    folders = uniqueArray(folders).map((f) => {
       return {
-        location: folder,
+        location: f,
       };
     });
     folders = folders.filter((f) => f.location.startsWith(location));
