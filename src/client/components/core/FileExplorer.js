@@ -9,7 +9,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, getQueryParams, getURI, s, setURI } from './VanillaJs.js';
+import { copyData, downloadFile, getQueryParams, getURI, s, setURI } from './VanillaJs.js';
 
 class LoadFolderRenderer {
   eGui;
@@ -32,11 +32,51 @@ class LoadFolderRenderer {
   }
 }
 
-class LoadFileRenderer {
+class LoadFileDownloadRenderer {
   eGui;
 
   async init(params) {
-    console.log('LoadFileRenderer created', params);
+    console.log('LoadFileDownloadRenderer created', params);
+    // params.data._id
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`
+      ${await BtnIcon.Render({
+        class: `inl btn-file-download-${params.data._id}`,
+        label: html` <i class="fas fa-download"></i>`,
+        type: 'button',
+      })}
+    `;
+
+    setTimeout(() => {
+      EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
+        e.preventDefault();
+        console.log(params);
+        const {
+          data: [file],
+          status,
+        } = await FileService.get({ id: params.data._id });
+
+        downloadFile(new Blob([new Uint8Array(file.data.data)], { type: params.data.mimetype }), params.data.name);
+      });
+    });
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadFileDownloadRenderer refreshed', params);
+    return true;
+  }
+}
+
+class LoadFileNameRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadFileNameRenderer created', params);
     // params.data._id
 
     this.eGui = document.createElement('div');
@@ -48,7 +88,7 @@ class LoadFileRenderer {
   }
 
   refresh(params) {
-    console.log('LoadFileRenderer refreshed', params);
+    console.log('LoadFileNameRenderer refreshed', params);
     return true;
   }
 }
@@ -345,10 +385,17 @@ const FileExplorer = {
                 //   height: '200px',
                 // },
                 gridOptions: {
+                  defaultColDef: {
+                    editable: false,
+                    minWidth: 100,
+                    filter: true,
+                    autoHeight: true,
+                  },
                   rowData: files,
                   columnDefs: [
-                    { field: 'name', headerName: 'Name', cellRenderer: LoadFileRenderer },
-                    { field: 'mimetype', headerName: 'Type' },
+                    { field: 'name', flex: 2, headerName: 'Name', cellRenderer: LoadFileNameRenderer },
+                    { field: 'mimetype', flex: 1, headerName: 'Type' },
+                    { headerName: '', width: 80, cellRenderer: LoadFileDownloadRenderer },
                   ],
                 },
               })}
@@ -394,6 +441,7 @@ const FileExplorer = {
         location: this.locationFormat({ f }),
         name: f.fileId.name,
         mimetype: f.fileId.mimetype,
+        _id: f.fileId._id,
       };
     });
     let bucketId = bucket._id;
