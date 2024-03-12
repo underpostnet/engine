@@ -11,19 +11,45 @@ const Input = {
     setTimeout(() => {
       s(`.input-container-${id}`).onclick = () =>
         ['color'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
+
+      if (s(`.btn-eye-${id}`))
+        s(`.btn-eye-${id}`).onclick = () => {
+          if (s(`.fa-eye-slash-${id}`).style.display === 'none') {
+            s(`.fa-eye-${id}`).style.display = 'none';
+            s(`.fa-eye-slash-${id}`).style.display = null;
+            s(`.${id}`).type = 'text';
+            return;
+          }
+          s(`.fa-eye-slash-${id}`).style.display = 'none';
+          s(`.fa-eye-${id}`).style.display = null;
+          s(`.${id}`).type = 'password';
+        };
     });
+
+    const inputElement = html` <input
+      type="${options?.type ? options.type : 'text'}"
+      class="in wfa ${id}"
+      ${options?.min !== undefined ? `min="${options.min}"` : ''}
+      placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
+      ${options?.value !== undefined ? `value="${options.value}"` : ''}
+      ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
+      ${options?.disabled ? `disabled` : ''}
+    />`;
+
     return html` <div class="${options?.containerClass ? options.containerClass : ''} input-container-${id}">
       <div class="in">
         <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
-        <input
-          type="${options?.type ? options.type : 'text'}"
-          class="in wfa ${id}"
-          ${options?.min !== undefined ? `min="${options.min}"` : ''}
-          placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
-          ${options?.value !== undefined ? `value="${options.value}"` : ''}
-          ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
-          ${options?.disabled ? `disabled` : ''}
-        />
+        ${options.type === 'password'
+          ? html`
+              <div class="fl">
+                <div class="in fll" style="width: 80%;">${inputElement}</div>
+                <div class="in fll btn-eye-password btn-eye-${id}" style="width: 20%;">
+                  <i class="fas fa-eye fa-eye-${id} eye-password"></i>
+                  <i class="fas fa-eye-slash fa-eye-slash-${id} eye-password" style="display: none"></i>
+                </div>
+              </div>
+            `
+          : inputElement}
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
       ${options?.footer ? options.footer : ''}

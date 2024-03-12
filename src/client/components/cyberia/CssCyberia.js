@@ -465,6 +465,15 @@ const CssCyberia = {
         background: #191919;
         color: #ffcc00;
       }
+      .eye-password {
+        font-size: 15px;
+        position: relative;
+        margin: 5px;
+      }
+      .btn-eye-password {
+        background: #191919;
+        color: #717171;
+      }
     `,
 };
 
