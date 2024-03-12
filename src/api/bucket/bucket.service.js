@@ -46,6 +46,21 @@ const BucketService = {
     let result = {};
     switch (req.params.id) {
       default:
+        if (req.params.filesId) {
+          // https://www.mongodb.com/docs/manual/reference/operator/
+          // db.profiles.insertOne({ _id: 1, votes: [3, 5, 6, 7, 7, 8] });
+          // The following operation will remove all items from the votes array that are greater than or equal to ( $gte ) 6:
+          // db.profiles.updateOne({ _id: 1 }, { $pull: { votes: { $gte: 6 } } });
+          // After the update operation, the document only has values less than 6:
+          // { _id: 1, votes: [  3,  5 ] }
+          result = await BucketModel.updateOne(
+            { _id: req.params.id },
+            { $pull: { files: { _id: req.params.filesId } } },
+            { runValidators: true },
+          );
+          const find = await BucketModel.find({ _id: req.params.id }).populate(select.get);
+          result = find[0];
+        }
         break;
     }
     return result;

@@ -19,6 +19,11 @@ const BucketRouter = (options) => {
   router.put(`${endpoint}/:id`, authMiddleware, async (req, res) => await BucketController.put(req, res, options));
   router.put(`${endpoint}`, authMiddleware, async (req, res) => await BucketController.put(req, res, options));
   router.delete(
+    `${endpoint}/:id/:filesId`,
+    authMiddleware,
+    async (req, res) => await BucketController.delete(req, res, options),
+  );
+  router.delete(
     `${endpoint}/:id`,
     authMiddleware,
     async (req, res) => await BucketController.delete(req, res, options),

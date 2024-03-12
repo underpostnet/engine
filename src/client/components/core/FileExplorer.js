@@ -32,46 +32,6 @@ class LoadFolderRenderer {
   }
 }
 
-class LoadFileDownloadRenderer {
-  eGui;
-
-  async init(params) {
-    console.log('LoadFileDownloadRenderer created', params);
-    // params.data._id
-
-    this.eGui = document.createElement('div');
-    this.eGui.innerHTML = html`
-      ${await BtnIcon.Render({
-        class: `inl btn-file-download-${params.data._id}`,
-        label: html` <i class="fas fa-download"></i>`,
-        type: 'button',
-      })}
-    `;
-
-    setTimeout(() => {
-      EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
-        e.preventDefault();
-        console.log(params);
-        const {
-          data: [file],
-          status,
-        } = await FileService.get({ id: params.data._id });
-
-        downloadFile(new Blob([new Uint8Array(file.data.data)], { type: params.data.mimetype }), params.data.name);
-      });
-    });
-  }
-
-  getGui() {
-    return this.eGui;
-  }
-
-  refresh(params) {
-    console.log('LoadFileDownloadRenderer refreshed', params);
-    return true;
-  }
-}
-
 class LoadFileNameRenderer {
   eGui;
 
@@ -256,6 +216,82 @@ const FileExplorer = {
         s(`.file-explorer-uploader`).style.display = 'block';
       });
     });
+
+    class LoadFileActionsRenderer {
+      eGui;
+
+      async init(params) {
+        console.log('LoadFileActionsRenderer created', params);
+        // params.data._id
+
+        this.eGui = document.createElement('div');
+        this.eGui.innerHTML = html`
+          ${await BtnIcon.Render({
+            class: `in btn-file-download-${params.data._id}`,
+            label: html` <i class="fas fa-download"></i>`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: `in btn-file-delete-${params.data._id}`,
+            label: html` <i class="fa-solid fa-circle-xmark"></i>`,
+            type: 'button',
+          })}
+        `;
+
+        setTimeout(() => {
+          EventsUI.onClick(`.btn-file-download-${params.data._id}`, async (e) => {
+            e.preventDefault();
+            console.log(params);
+            const {
+              data: [file],
+              status,
+            } = await FileService.get({ id: params.data.fileId });
+
+            downloadFile(new Blob([new Uint8Array(file.data.data)], { type: params.data.mimetype }), params.data.name);
+          });
+          EventsUI.onClick(`.btn-file-delete-${params.data._id}`, async (e) => {
+            e.preventDefault();
+            {
+              const { data, status, message } = await FileService.delete({
+                id: params.data.fileId,
+              });
+              NotificationManager.Push({
+                html: status === 'success' ? Translate.Render(message) : message,
+                status,
+              });
+              if (status === 'error') return;
+            }
+            const { data, status, message } = await BucketService.delete({
+              id: `${bucketId}/${params.data._id}`,
+            });
+            NotificationManager.Push({
+              html: status === 'success' ? Translate.Render(message) : message,
+              status,
+            });
+            if (status === 'error') return;
+
+            bucketInstance.files = bucketInstance.files.filter((f) => f._id !== params.data._id);
+            const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
+            files = format.files;
+            folders = format.folders;
+            // AgGrid.grids[gridFileId].setGridOption('rowData', files);
+            // const selectedData = gridApi.getSelectedRows();
+            AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
+            AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+          });
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        console.log('LoadFileActionsRenderer refreshed', params);
+        return true;
+      }
+    }
+
     return html`
       <form>
         <div class="in">
@@ -395,7 +431,7 @@ const FileExplorer = {
                   columnDefs: [
                     { field: 'name', flex: 2, headerName: 'Name', cellRenderer: LoadFileNameRenderer },
                     { field: 'mimetype', flex: 1, headerName: 'Type' },
-                    { headerName: '', width: 80, cellRenderer: LoadFileDownloadRenderer },
+                    { headerName: '', width: 80, cellRenderer: LoadFileActionsRenderer },
                   ],
                 },
               })}
@@ -441,7 +477,8 @@ const FileExplorer = {
         location: this.locationFormat({ f }),
         name: f.fileId.name,
         mimetype: f.fileId.mimetype,
-        _id: f.fileId._id,
+        fileId: f.fileId._id,
+        _id: f._id,
       };
     });
     let bucketId = bucket._id;

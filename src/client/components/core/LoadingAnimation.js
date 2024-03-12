@@ -33,6 +33,7 @@ const LoadingAnimation = {
     stop: function (container) {
       const id = this.getId(container);
       delete this.tokens[container];
+      if (!s(`.${id}`)) return;
       s(`.${id}`).style.left = '0%';
       s(`.${id}`).style.opacity = 1;
       setTimeout(() => (s(`.${id}`).style.opacity = 0));
@@ -66,6 +67,7 @@ const LoadingAnimation = {
     },
     stop: function (container) {
       const id = this.getId(container);
+      if (!s(`.${id}`)) return;
       s(`.${id}`).remove();
     },
   },
