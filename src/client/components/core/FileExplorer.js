@@ -11,6 +11,69 @@ import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { copyData, getQueryParams, getURI, s, setURI } from './VanillaJs.js';
 
+class LoadFolderRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadFolderRenderer created', params);
+    // params.data._id
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`<i class="fas fa-folder"></i> ${params.data.location}`;
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadFolderRenderer refreshed', params);
+    return true;
+  }
+}
+
+class LoadFileRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadFileRenderer created', params);
+    // params.data._id
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`<i class="fas fa-file"></i> ${params.data.name}`;
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadFileRenderer refreshed', params);
+    return true;
+  }
+}
+
+class FolderHeaderComp {
+  eGui;
+
+  async init(params) {
+    console.log('FolderHeaderComp created', params);
+    // params.data._id
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`<i class="fas fa-file"></i>`;
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('FolderHeaderComp refreshed', params);
+    return true;
+  }
+}
+
 const FileExplorer = {
   Render: async function () {
     const gridFolderId = 'folder-explorer-grid';
@@ -231,15 +294,23 @@ const FileExplorer = {
                       cellStyle: function (params) {
                         return { cursor: 'pointer' };
                       },
+                      cellRenderer: LoadFolderRenderer,
                       // onCellClicked: (event) => {
                       //   // console.warn('onCellClicked', event);
                       //   location = event.data.location;
                       // },
                     },
                     {
+                      // suppressHeaderMenuButton: true,
+                      // sortable: false,
                       field: 'files',
-                      headerName: '#',
+                      headerName: '🗎',
                       width: 100,
+                      // headerComponent: FolderHeaderComp,
+                      // headerComponentParams: {
+                      //   menuIcon: 'fa-bars',
+                      //   template: `test`,
+                      // },
                     },
                   ],
                   rowSelection: 'single',
@@ -276,7 +347,7 @@ const FileExplorer = {
                 gridOptions: {
                   rowData: files,
                   columnDefs: [
-                    { field: 'name', headerName: 'Name' },
+                    { field: 'name', headerName: 'Name', cellRenderer: LoadFileRenderer },
                     { field: 'mimetype', headerName: 'Type' },
                   ],
                 },
