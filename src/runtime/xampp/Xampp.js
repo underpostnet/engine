@@ -13,8 +13,8 @@ const Xampp = {
       'utf8',
     );
     fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, Xampp.router || '', 'utf8');
-    // cmd = `C:/xampp/xampp_stop.exe`;
-    // shellExec(cmd);
+    cmd = `C:/xampp/xampp_stop.exe`;
+    shellExec(cmd);
     await network.port.portClean(3306);
     for (const port of Xampp.ports) await network.port.portClean(port);
     cmd = `C:/xampp/xampp_start.exe`;

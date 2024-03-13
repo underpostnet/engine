@@ -83,23 +83,24 @@ const buildProxy = async () => {
     app.use(loggerMiddleware(meta));
 
     // parse requests of content-type - application/json
-    app.use(express.json({ limit: '100MB' }));
+    // app.use(express.json({ limit: '100MB' }));
 
     // parse requests of content-type - application/x-www-form-urlencoded
-    app.use(express.urlencoded({ extended: true, limit: '100MB' }));
+    // app.use(express.urlencoded({ extended: true, limit: '100MB' }));
 
     // json formatted response
-    app.set('json spaces', 2);
+    // app.set('json spaces', 2);
 
     // instance proxy options
     // https://github.com/chimurai/http-proxy-middleware/tree/v2.0.4#readme
     const options = {
       ws: true,
       // changeOrigin: true,
-      autoRewrite: true,
+      // autoRewrite: false,
       target: `http://localhost:${defaultTargetPort}`,
       router: {},
-      xfwd: true,
+      xfwd: true, // adds x-forward headers
+      // preserveHeaderKeyCase: true,
       // secure: true, warn validator
       pathRewrite: {
         // only add path
@@ -126,10 +127,15 @@ const buildProxy = async () => {
       if (redirect) redirects[host] = redirect;
       if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
+      options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
+      options.router[`127.0.0.1:${port}/${host.split('/')[1]}`] = target;
+      // options.pathRewrite[`/${host.split('/')[1]}`] = '/';
     });
 
+    if (Object.keys(options.router).length === 0) continue;
+
     // instance proxy server
-    logger.info(`options`, options);
+    // logger.info(`options`, options);
 
     const filter = false
       ? (pathname, req) => {
@@ -152,8 +158,8 @@ const buildProxy = async () => {
         }
       });
 
-      if (server) await listenPortController(server, port, () => logger.info(`Proxy running on`, port));
-    } else await listenPortController(app, port, () => logger.info(`Proxy running on`, port));
+      if (server) await listenPortController(server, port, { port, options });
+    } else await listenPortController(app, port, { port, options });
   }
   // logger.info('Force SSL', forceSSL);
   // logger.info('Redirects', redirects);

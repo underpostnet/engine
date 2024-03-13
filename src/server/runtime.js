@@ -44,9 +44,9 @@ const buildRuntime = async () => {
         Listen ${port}
 
         <VirtualHost *:${port}>            
-            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
+            DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
             ServerName ${host}:${port}          
-            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
+            <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
               Options Indexes FollowSymLinks MultiViews
               AllowOverride All
               Require all granted

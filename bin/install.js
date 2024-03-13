@@ -46,7 +46,7 @@ try {
               '8.0.28':
                 'https://sitsa.dl.sourceforge.net/project/xampp/XAMPP%20Windows/8.0.28/xampp-windows-x64-8.0.28-0-VS16-installer.exe',
             };
-            const urlDownload = versions['7.4.13-0'];
+            const urlDownload = versions['7.4.13-1'];
             const folderPath = `./engine-private/setup`;
             if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
             const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
@@ -109,7 +109,7 @@ try {
         const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
         logger.info('destination', fullPath);
         if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
-        const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/conf.server.private.json`, 'utf8'));
+        const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
         const { directory } = confServer[host][`/${path}`];
         logger.info('client found', confServer[host][`/${path}`]);
         const zipTargetPath = directory ? directory : `./public/${path ? `${host}/${path}` : host}`;

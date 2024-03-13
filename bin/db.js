@@ -16,7 +16,7 @@ const [host, path = ''] = hostPath.split('/');
 
 try {
   let cmd;
-  const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/conf.server.private.json`, 'utf8'));
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const { provider, name, user, password = '', backupPath = '' } = confServer[host][`/${path}`].db;
   switch (provider) {
     case 'mariadb':

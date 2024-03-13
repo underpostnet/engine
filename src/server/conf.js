@@ -349,13 +349,25 @@ const Config = {
       },
     },
     server: {
-      'www.example1.com': {
-        '/': {
-          client: 'cyberia',
-          runtime: 'nodejs',
+      'example.com': {
+        '/wp': {
+          client: 'wordpress',
+          runtime: 'xampp',
           origins: [],
-          disabled: true,
-          proxy: [80, 443],
+          forceSSL: false,
+          disabled: false,
+          directory: '/htdocs/wp',
+          disabledRebuild: true,
+          db: {
+            provider: 'mariadb',
+            host: null,
+            name: '',
+            user: '',
+            password: '',
+            backupPath: '',
+          },
+          redirect: null,
+          proxy: [33],
         },
       },
       'www.cyberiaonline.com': {
@@ -461,7 +473,7 @@ const Config = {
   },
   build: async function () {
     // fs.removeSync('./public');
-    fs.removeSync('./logs');
+    // fs.removeSync('./logs');
     fs.removeSync('./conf');
     shellExec(`node bin/util update-conf-client`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
