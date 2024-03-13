@@ -78,7 +78,7 @@ const Settings = {
         ${await DropDown.Render({
           value: Css.currentTheme,
           label: html`${Translate.Render('theme')}`,
-          data: Object.keys(Themes).map((theme) => {
+          data: Object.keys({ cyberia: {} }).map((theme) => {
             return {
               display: html`<i class="fa-solid fa-brush"></i> ${theme}`,
               value: theme,
