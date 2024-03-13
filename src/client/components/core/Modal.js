@@ -126,9 +126,6 @@ const Modal = {
               // s(`.title-modal-${idModal}`).style.display = 'none';
               Responsive.Event[`slide-menu-${idModal}`]();
             };
-            setTimeout(() => {
-              s(`.${idModal}`).style.width = '320px';
-            });
             transition += `, width 0.3s`;
 
             append('body', html`<div class="fix modal slide-menu-top-bar"></div>`);

@@ -218,6 +218,7 @@ const buildClient = async () => {
                   ssrHeadComponents += SrrComponent({ microdata });
                 }
                 break;
+              case 'NexodevScripts':
               case 'CyberiaScripts':
                 ssrHeadComponents += SrrComponent({ ssrPath });
                 break;
