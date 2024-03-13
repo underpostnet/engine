@@ -19,6 +19,7 @@ const MariaDB = {
       result = await conn.query(query, { supportBigNumbers: true, bigNumberStrings: true });
       logger.info(query, result);
     } catch (error) {
+      if (error.stack.startsWith('TypeError: Do not know how to serialize a BigInt')) return;
       logger.error(error, error.stack);
     } finally {
       if (conn) conn.release(); //release to pool

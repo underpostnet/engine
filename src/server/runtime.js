@@ -16,13 +16,12 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 dotenv.config();
 
 const buildRuntime = async () => {
-  const ipInstance = ''; // await ip.public.ipv4();
-  let currentPort = parseInt(process.env.PORT) - 1;
+  const ipInstance = await ip.public.ipv4();
+  let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of Object.keys(confServer)) {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
-      currentPort++;
       confServer[host][path].port = newInstance(currentPort);
       const { runtime, port, client, apis, origins, disabled, directory, wss, mailer, db } = confServer[host][path];
       const meta = { url: `app-${client}-${port}` };
@@ -152,6 +151,7 @@ const buildRuntime = async () => {
         default:
           break;
       }
+      currentPort++;
     }
   }
   if (Xampp.enabled() && Xampp.router) await Xampp.initService();

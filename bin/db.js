@@ -5,6 +5,7 @@ import fs from 'fs';
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
+import { Xampp } from '../src/runtime/xampp/Xampp.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -20,8 +21,10 @@ try {
   switch (provider) {
     case 'mariadb':
       switch (operator) {
-        case 'show':
+        case 'show-all':
           await MariaDB.query({ user, password, query: `SHOW DATABASES` });
+          break;
+        case 'show':
           await MariaDB.query({ user, password, query: `SHOW TABLES FROM ${name}` });
           break;
         case 'create':
@@ -38,7 +41,9 @@ try {
           cmd = `mysql -u ${user} -p ${name} < ${backupPath}`;
           shellExec(cmd);
           break;
-
+        case 'init-service':
+          await Xampp.initService();
+          break;
         default:
           break;
       }
