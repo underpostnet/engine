@@ -301,7 +301,7 @@ const FileExplorer = {
       async init(params) {
         console.log('LoadFolderActionsRenderer created', params);
         // params.data._id
-        const id = params.data.location.replaceAll('/', '-');
+        const id = params.data.location.replaceAll('/', '-').replaceAll(' ', '-');
 
         this.eGui = document.createElement('div');
         this.eGui.innerHTML = html`

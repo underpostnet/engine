@@ -477,6 +477,9 @@ const CssCyberia = {
         color: #717171;
         text-align: center;
       }
+      .display-current-element {
+        font-family: 'retro-font-sensitive';
+      }
     `,
 };
 
