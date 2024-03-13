@@ -105,7 +105,6 @@ const Polyhedron = {
       -->
 
       ${dynamicCol({ containerSelector: options.idModal, id: `polyhedron-${id}` })}
-      <style class="style-polyhedron-${id}-col"></style>
       <div class="fl">
         <div class="in fll polyhedron-${id}-col-a">
           <div class="in section-mp">

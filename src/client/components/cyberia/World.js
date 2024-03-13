@@ -331,7 +331,6 @@ const World = {
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: 'world' })}
-      <style class="style-world-col"></style>
       <div class="fl">
         <div class="in fll world-col-a">
           <div class="in section-mp">

@@ -70,7 +70,6 @@ const Wallet = {
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: `wallet-${id}` })}
-      <style class="style-wallet-${id}-col"></style>
       <div class="fl">
         <div class="in fll wallet-${id}-col-a">
           <div class="in section-mp">

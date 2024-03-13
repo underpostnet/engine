@@ -933,7 +933,6 @@ const BiomeEngine = {
         `}
       </style>
       ${dynamicCol({ containerSelector: options.idModal, id: 'biome' })}
-      <style class="style-biome-col"></style>
       <div class="fl">
         <div class="in fll biome-col-a">
           <div class="in section-mp">
