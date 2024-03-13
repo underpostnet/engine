@@ -108,7 +108,7 @@ const CssCyberia = {
   
         --ag-font-size: 17px;
         */
-        --ag-font-family: 'retro-font';
+        --ag-font-family: 'retro-font-sensitive';
         --ag-font-size: 24px;
       }
       .ag-btn-renderer {
@@ -147,6 +147,7 @@ const CssCyberia = {
         background: none;
         color: white;
         background: #1a1a1a;
+        font-family: 'retro-font-sensitive';
       }
 
       .input-label {
@@ -225,6 +226,7 @@ const CssCyberia = {
       .chat-box {
         border: 2px solid #313131;
         overflow: auto;
+        font-family: 'retro-font-sensitive';
       }
       .warn-logout {
         text-align: center;
@@ -466,7 +468,7 @@ const CssCyberia = {
         color: #ffcc00;
       }
       .eye-password {
-        font-size: 15px;
+        font-size: 16px;
         position: relative;
         margin: 5px;
       }

@@ -555,21 +555,23 @@ const Pixi = {
       this.Data[type][id].addChild(componentInstance);
     }
     {
-      const componentInstance = new Text(
-        Elements.getDisplayName({ type, id }),
-        new TextStyle({
-          fill: '#dcdcdc',
-          fontFamily: 'retro-font',
-          fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
-          // fontWeight: 'bold',
-          dropShadow: true,
-          dropShadowAngle: 1,
-          dropShadowBlur: 3,
-          dropShadowColor: '#121212',
-          dropShadowDistance: 1,
-        }),
-      );
-      this.Data[type][id].components[componentType].container.addChild(componentInstance);
+      setTimeout(() => {
+        const componentInstance = new Text(
+          Elements.getDisplayName({ type, id }),
+          new TextStyle({
+            fill: '#dcdcdc',
+            fontFamily: 'retro-font-sensitive',
+            fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+            // fontWeight: 'bold',
+            dropShadow: true,
+            dropShadowAngle: 1,
+            dropShadowBlur: 3,
+            dropShadowColor: '#121212',
+            dropShadowDistance: 1,
+          }),
+        );
+        this.Data[type][id].components[componentType].container.addChild(componentInstance);
+      });
     }
   },
 };

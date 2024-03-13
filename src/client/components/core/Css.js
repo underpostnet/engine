@@ -3,6 +3,7 @@ import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
 let proxyPath;
 // https://www.fontspace.com/
+// https://www.1001fonts.com/
 
 const Css = {
   Init: async function (options) {
@@ -554,6 +555,10 @@ scrollbar-width: none;
         }
         @font-face {
           font-family: 'retro-font';
+          src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+        }
+        @font-face {
+          font-family: 'retro-font-sensitive';
           src: URL('${proxyPath}assets/fonts/VT323-Regular.ttf') format('truetype');
         }
       `,
