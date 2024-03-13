@@ -571,7 +571,7 @@ const Pixi = {
           }),
         );
         this.Data[type][id].components[componentType].container.addChild(componentInstance);
-      });
+      }, 100);
     }
   },
 };
