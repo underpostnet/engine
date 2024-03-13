@@ -16,7 +16,7 @@ const CyberiaTileController = {
       });
     } catch (error) {
       logger.error(error, error.stack);
-      return res.status(500).json({
+      return res.status(400).json({
         status: 'error',
         message: error.message,
       });
@@ -32,7 +32,7 @@ const CyberiaTileController = {
       });
     } catch (error) {
       logger.error(error, error.stack);
-      return res.status(500).json({
+      return res.status(400).json({
         status: 'error',
         message: error.message,
       });
@@ -54,7 +54,7 @@ const CyberiaTileController = {
       });
     } catch (error) {
       logger.error(error, error.stack);
-      return res.status(500).json({
+      return res.status(400).json({
         status: 'error',
         message: error.message,
       });
