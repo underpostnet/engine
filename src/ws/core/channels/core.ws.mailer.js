@@ -3,12 +3,10 @@ import { IoCreateChannel } from '../../IoInterface.js';
 import { CoreWsMailerManagement } from '../management/core.ws.mailer.js';
 
 const channel = 'mailer';
-const meta = { url: `ws-core-${channel}` };
-const logger = loggerFactory(meta);
+const logger = loggerFactory(import.meta);
 
 const CoreWsMailerController = {
   channel,
-  meta,
   controller: function (socket, client, args, wsManagementId) {
     switch (args.status) {
       case 'register-user':

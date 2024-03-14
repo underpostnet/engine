@@ -6,12 +6,10 @@ import { CyberiaWsBotManagement } from '../management/cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 
 const channel = 'bot';
-const meta = { url: `ws-cyberia-${channel}` };
-const logger = loggerFactory(meta);
+const logger = loggerFactory(import.meta);
 
 const CyberiaWsBotController = {
   channel,
-  meta,
   controller: function (socket, client, args, wsManagementId) {
     const { status, element } = args;
     switch (status) {

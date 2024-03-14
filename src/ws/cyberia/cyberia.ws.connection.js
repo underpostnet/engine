@@ -5,8 +5,7 @@ import { CyberiaWsBotChannel } from './channels/cyberia.ws.bot.js';
 import { CyberiaWsSkillChannel } from './channels/cyberia.ws.skill.js';
 import { CyberiaWsUserChannel } from './channels/cyberia.ws.user.js';
 
-const meta = { url: `ws-cyberia-connection` };
-const logger = loggerFactory(meta);
+const logger = loggerFactory(import.meta);
 
 const CyberiaWsConnection = function (socket, wsManagementId) {
   // const headers = socket.handshake.headers;

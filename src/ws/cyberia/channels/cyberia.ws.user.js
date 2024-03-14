@@ -9,12 +9,10 @@ import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 import { CyberiaWsSkillChannel } from './cyberia.ws.skill.js';
 
 const channel = 'user';
-const meta = { url: `ws-cyberia-${channel}` };
-const logger = loggerFactory(meta);
+const logger = loggerFactory(import.meta);
 
 const CyberiaWsUserController = {
   channel,
-  meta,
   controller: async function (socket, client, args, wsManagementId) {
     const { status, element, user } = args;
     switch (status) {

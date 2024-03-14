@@ -7,6 +7,8 @@ import { loggerFactory } from './Logger.js';
 import { renderStatus } from './Css.js';
 import { setDocTitle } from './Router.js';
 
+const logger = loggerFactory(import.meta);
+
 const Modal = {
   Data: {},
   Render: async function (
@@ -27,7 +29,6 @@ const Modal = {
     let left = `${ResponsiveData.width / 2 - width / 2}px`;
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
-    const logger = loggerFactory({ url: `.${idModal}` });
     this.Data[idModal] = { options };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};

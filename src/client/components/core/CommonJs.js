@@ -248,8 +248,6 @@ const getIsoDate = (date) => date.toISOString().slice(0, -5).replace('T', ' ');
 
 const clearTerminalStringColor = (str) => str.replace(/\x1b\[[0-9;]*m/g, '');
 
-const getIdModule = (meta) => meta.url.split(`/`).pop();
-
 function getValueFromJoinString(obj, path, join = '.') {
   // Split the path string into an array of attribute names
   const attributes = path.split(join);
@@ -456,7 +454,6 @@ export {
   getId,
   insertTransitionCoordinates,
   randomHexColor,
-  getIdModule,
   clearTerminalStringColor,
   getIsoDate,
   getValueFromJoinString,

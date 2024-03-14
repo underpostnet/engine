@@ -5,7 +5,7 @@ import winston from 'winston';
 import morgan from 'morgan';
 import colorize from 'json-colorizer';
 import colors from 'colors';
-import { clearTerminalStringColor, getIdModule } from '../client/components/core/CommonJs.js';
+import { clearTerminalStringColor } from '../client/components/core/CommonJs.js';
 
 colors.enable();
 dotenv.config();
@@ -42,7 +42,7 @@ winston.addColors({
 });
 
 // Chose the aspect of your log customizing the log format.
-const format = (project) =>
+const format = (meta) =>
   winston.format.combine(
     // winston.format.errors({ stack: true }),
     // Add the message timestamp with the preferred format
@@ -52,7 +52,7 @@ const format = (project) =>
     // Define the format of the message showing the timestamp, the level and the message
     winston.format.printf((info) => {
       const symbols = Object.getOwnPropertySymbols(info);
-      return `${`[${project}]`.green} ${info.timestamp} ${info.level} ${
+      return `${`[${meta}]`.green} ${info.timestamp} ${info.level} ${
         symbols[1]
           ? `${clearTerminalStringColor(info.message)}: ${colorize(JSON.stringify(info[symbols[1]][0], null, 4), {
               colors: {
@@ -67,7 +67,7 @@ const format = (project) =>
   );
 
 const loggerFactory = (meta) => {
-  const project = getIdModule(meta);
+  meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
   // In this example, we are using three different transports
   const transports = [
@@ -75,12 +75,12 @@ const loggerFactory = (meta) => {
     new winston.transports.Console(),
     // Allow to print all the error level messages inside the error.log file
     new winston.transports.File({
-      filename: `logs/${project}/error.log`,
+      filename: `logs/${meta}/error.log`,
       level: 'error',
     }),
     // Allow to print all the error message inside the all.log file
     // (also the error log that are also printed inside the error.log(
-    new winston.transports.File({ filename: `logs/${project}/all.log` }),
+    new winston.transports.File({ filename: `logs/${meta}/all.log` }),
   ];
 
   // Create the logger instance that has to be exported
@@ -88,7 +88,7 @@ const loggerFactory = (meta) => {
   return winston.createLogger({
     level: level(),
     levels,
-    format: format(project),
+    format: format(meta),
     transports,
     // exceptionHandlers: [new winston.transports.File({ filename: 'exceptions.log' })],
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
@@ -96,10 +96,10 @@ const loggerFactory = (meta) => {
   });
 };
 
-const loggerMiddleware = (project) => {
+const loggerMiddleware = (meta) => {
   const stream = {
     // Use the http severity
-    write: (message) => loggerFactory(project).http(message),
+    write: (message) => loggerFactory(meta).http(message),
   };
 
   const skip = (req, res) => process.env.NODE_ENV === 'production';

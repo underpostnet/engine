@@ -15,6 +15,8 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 
 dotenv.config();
 
+const logger = loggerFactory(import.meta);
+
 const buildRuntime = async () => {
   const ipInstance = await ip.public.ipv4();
   let currentPort = parseInt(process.env.PORT) + 1;
@@ -24,8 +26,6 @@ const buildRuntime = async () => {
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
       const { runtime, port, client, apis, origins, disabled, directory, wss, mailer, db } = confServer[host][path];
-      const meta = { url: `app-${client}-${port}` };
-      const logger = loggerFactory(meta);
       const runningData = {
         runtime,
         client,
@@ -83,7 +83,7 @@ const buildRuntime = async () => {
           });
 
           // set logger
-          app.use(loggerMiddleware(meta));
+          app.use(loggerMiddleware(import.meta));
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));

@@ -75,12 +75,10 @@ const buildProxy = async () => {
 
   for (let port of Object.keys(proxyRouter)) {
     port = parseInt(port);
-    const meta = { url: `proxy-${port}` };
     const app = express();
-    const logger = loggerFactory(meta);
 
     // set logger
-    app.use(loggerMiddleware(meta));
+    app.use(loggerMiddleware(import.meta));
 
     // instance proxy options
     // https://github.com/chimurai/http-proxy-middleware/tree/v2.0.4#readme
