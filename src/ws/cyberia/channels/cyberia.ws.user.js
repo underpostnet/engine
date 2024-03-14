@@ -1,6 +1,6 @@
-import { CyberiaUserModel } from '../../../api/cyberia-user/cyberia-user.model.js';
 import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { BaseElement } from '../../../client/components/cyberia/CommonCyberia.js';
+import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
@@ -46,7 +46,9 @@ const CyberiaWsUserController = {
         break;
       case 'register-cyberia-user':
         {
-          const userDoc = await CyberiaUserModel.findById(args.user._id);
+          const userDoc = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser.findById(
+            args.user._id,
+          );
           const user = userDoc._doc;
           user.model.user = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user;
           user.model.world._id = user.model.world._id.toString();

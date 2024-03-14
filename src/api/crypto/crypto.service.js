@@ -1,5 +1,4 @@
 import { loggerFactory } from '../../server/logger.js';
-import { CryptoModel } from './crypto.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
@@ -44,7 +43,7 @@ const CryptoService = {
         }
         break;
       default:
-        result = await new CryptoModel(req.body).save();
+        result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Crypto(req.body).save();
         const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findById(
           req.auth.user._id,
         );

@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
-import { CyberiaUserModel } from './cyberia-user.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 // import { Types } from 'mongoose';
 // new Types.ObjectId()
@@ -12,7 +12,9 @@ const logger = loggerFactory({ url: `api-${endpoint}-service` });
 const CyberiaUserService = {
   post: async (req, res, options) => {
     let result = {};
-    result = await new CyberiaUserModel(req.body).save();
+    result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser(
+      req.body,
+    ).save();
     return result;
   },
   get: async (req, res, options) => {
@@ -20,7 +22,9 @@ const CyberiaUserService = {
     switch (req.params.id) {
       case 'auth':
         {
-          const user = await CyberiaUserModel.find({ 'model.user._id': req.auth.user._id });
+          const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser.find({
+            'model.user._id': req.auth.user._id,
+          });
           if (user[0]) result = user[0];
         }
         break;

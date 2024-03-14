@@ -1,5 +1,5 @@
-import { CyberiaUserModel } from '../../../api/cyberia-user/cyberia-user.model.js';
 import { newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
+import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 
@@ -12,9 +12,13 @@ const CyberiaWsUserManagement = {
       const element = this.element[wsManagementId][elementId];
       element?._id
         ? (async () => {
-            const result = await CyberiaUserModel.findByIdAndUpdate(element._id, element, {
-              runValidators: true,
-            });
+            const result = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser.findByIdAndUpdate(
+              element._id,
+              element,
+              {
+                runValidators: true,
+              },
+            );
           })()
         : null;
     }
