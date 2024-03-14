@@ -5,9 +5,10 @@ import { loggerFactory } from '../../server/logger.js';
 const logger = loggerFactory(import.meta);
 
 const MongooseDB = {
-  connect: (host, name) => {
+  connect: async (host, name) => {
     const uri = `${host}/${name}`;
     logger.info('MongooseDB connect', { host, name, uri });
+    return await mongoose.createConnection(uri).asPromise();
     return new Promise((resolve, reject) =>
       mongoose
         .connect(

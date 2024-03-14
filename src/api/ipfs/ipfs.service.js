@@ -1,5 +1,4 @@
 import { loggerFactory } from '../../server/logger.js';
-import { PinSchema } from './ipfs.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import pinataSDK from '@pinata/sdk';
 import dotenv from 'dotenv';

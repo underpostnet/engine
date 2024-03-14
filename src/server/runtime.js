@@ -103,13 +103,10 @@ const buildRuntime = async () => {
           // cors
           app.use(cors({ origin: origins }));
 
-          // services providers
-          let mailerInstance, dbInstance;
-
-          if (db) dbInstance = await DataBaseProvider.load({ host, path, db });
+          if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
 
           if (mailer)
-            mailerInstance = await MailerProvider.load({
+            await MailerProvider.load({
               id: `${host}${path}`,
               meta: `mailer-${host}${path}`,
               host,
