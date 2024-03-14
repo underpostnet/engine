@@ -2,7 +2,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { CryptoModel } from './crypto.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
-import { UserModel } from '../user/user.model.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -45,10 +45,14 @@ const CryptoService = {
         break;
       default:
         result = await new CryptoModel(req.body).save();
-        const user = await UserModel.findById(req.auth.user._id);
+        const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findById(
+          req.auth.user._id,
+        );
         user.publicKey.push(result._id);
         {
-          const result = await UserModel.findByIdAndUpdate(req.auth.user._id, user, {
+          const result = await DataBaseProvider.instance[
+            `${options.host}${options.path}`
+          ].mongoose.User.findByIdAndUpdate(req.auth.user._id, user, {
             runValidators: true,
           });
         }

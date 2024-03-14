@@ -1,5 +1,4 @@
 import { loggerFactory } from '../../server/logger.js';
-import { UserModel } from './user.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { getPasswordHash, getToken, jwtVerify, tokenVerify } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
@@ -7,6 +6,7 @@ import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.
 import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -30,12 +30,16 @@ const UserService = {
 
                 const token = getToken({ email: req.body.email });
                 const id = `${options.host}${options.path}`;
-                const user = await UserModel.findById(req.auth.user._id);
+                const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findById(
+                  req.auth.user._id,
+                );
 
                 if (user.email !== req.body.email) {
                   req.body.emailConfirmed = false;
 
-                  const result = await UserModel.findByIdAndUpdate(req.auth.user._id, req.body, {
+                  const result = await DataBaseProvider.instance[
+                    `${options.host}${options.path}`
+                  ].mongoose.User.findByIdAndUpdate(req.auth.user._id, req.body, {
                     runValidators: true,
                   });
                 }
@@ -73,10 +77,14 @@ const UserService = {
     }
     switch (req.params.id) {
       case 'auth':
-        user = await UserModel.find({ email: req.body.email });
+        user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+          email: req.body.email,
+        });
         if (user[0]) {
           login = await tokenVerify(req.body.password, user[0].password);
-          find = await UserModel.find({ _id: user[0]._id.toString() }).select(select['auth']);
+          find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+            _id: user[0]._id.toString(),
+          }).select(select['auth']);
           user = find[0];
           if (login === true) {
             result = {
@@ -90,9 +98,11 @@ const UserService = {
       default:
         req.body.password = await getPasswordHash(req.body.password);
         req.body.role = 'user';
-        save = await new UserModel(req.body).save();
+        save = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User(req.body).save();
         _id = save._id;
-        find = await UserModel.find({ _id }).select(select['auth']);
+        find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({ _id }).select(
+          select['auth'],
+        );
         user = find[0];
         result = {
           token: getToken({ user }),
@@ -111,11 +121,15 @@ const UserService = {
             default:
               {
                 result = await jwtVerify(req.params.id);
-                const [user] = await UserModel.find({ email: result.email });
+                const [user] = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+                  email: result.email,
+                });
 
                 if (user) {
                   user.emailConfirmed = true;
-                  result = await UserModel.findByIdAndUpdate(user._id.toString(), user, { runValidators: true });
+                  result = await DataBaseProvider.instance[
+                    `${options.host}${options.path}`
+                  ].mongoose.User.findByIdAndUpdate(user._id.toString(), user, { runValidators: true });
                   const userWsId = CoreWsMailerManagement.getUserWsId(
                     `${options.host}${options.path}`,
                     user._id.toString(),
@@ -138,16 +152,22 @@ const UserService = {
     }
     switch (req.params.id) {
       case 'all':
-        result = await UserModel.find().select(select['all-name']);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find().select(
+          select['all-name'],
+        );
         // User.findById(id).select("_id, isActive").then(...)
         break;
 
       case 'auth':
-        result = await UserModel.find({ _id: req.auth.user._id }).select(select['auth']);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+          _id: req.auth.user._id,
+        }).select(select['auth']);
         break;
 
       default:
-        result = await UserModel.find({ _id: req.params.id });
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+          _id: req.params.id,
+        });
         break;
     }
     return result;
@@ -159,7 +179,9 @@ const UserService = {
         break;
 
       default:
-        result = await UserModel.findByIdAndDelete(req.params.id);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findByIdAndDelete(
+          req.params.id,
+        );
         break;
     }
     return result;
@@ -170,8 +192,14 @@ const UserService = {
       default:
         if (req.body.password) req.body.password = await getPasswordHash(req.body.password);
         if (req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
-        result = await UserModel.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
-        find = await UserModel.find({ _id: result._id.toString() }).select(select['auth']);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findByIdAndUpdate(
+          req.params.id,
+          req.body,
+          { runValidators: true },
+        );
+        find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
+          _id: result._id.toString(),
+        }).select(select['auth']);
         result = find[0];
         break;
     }
