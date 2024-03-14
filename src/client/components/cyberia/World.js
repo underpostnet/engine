@@ -57,7 +57,7 @@ class LoadWorldRenderer {
           else s(`.dropdown-option-face-${index}-reset`).click();
         }
         s(`.world-name`).value = World.WorldScope.name;
-        if (s(`.dropdown-option-${World.WorldScope.type}`)) s(`.dropdown-option-${World.WorldScope.type}`).click();
+        // if (s(`.dropdown-option-${World.WorldScope.type}`)) s(`.dropdown-option-${World.WorldScope.type}`).click();
 
         // await World.renderAllFace();
       });
