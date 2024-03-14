@@ -82,15 +82,6 @@ const buildProxy = async () => {
     // set logger
     app.use(loggerMiddleware(meta));
 
-    // parse requests of content-type - application/json
-    // app.use(express.json({ limit: '100MB' }));
-
-    // parse requests of content-type - application/x-www-form-urlencoded
-    // app.use(express.urlencoded({ extended: true, limit: '100MB' }));
-
-    // json formatted response
-    // app.set('json spaces', 2);
-
     // instance proxy options
     // https://github.com/chimurai/http-proxy-middleware/tree/v2.0.4#readme
     const options = {
@@ -135,7 +126,6 @@ const buildProxy = async () => {
     if (Object.keys(options.router).length === 0) continue;
 
     // instance proxy server
-    // logger.info(`options`, options);
 
     const filter = false
       ? (pathname, req) => {
