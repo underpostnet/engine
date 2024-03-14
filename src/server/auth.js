@@ -7,15 +7,15 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-const tokenVerify = (plaintext, hash) =>
+// password
+
+const passwordVerify = (plaintext, hash) =>
   new Promise((resolve) => {
     bcrypt.compare(plaintext, hash, function (error, result) {
       if (!error && result) resolve(result); // true or false
       else resolve(false);
     });
   });
-
-const getToken = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: `${process.env.EXPIRE}h` });
 
 const getPasswordHash = (password, saltRounds = 10) =>
   new Promise((resolve, reject) => {
@@ -31,6 +31,10 @@ const getPasswordHash = (password, saltRounds = 10) =>
       reject(error);
     }
   });
+
+// jwt middleware
+
+const getToken = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: `${process.env.EXPIRE}h` });
 
 const jwtVerify = (token = '') => jwt.verify(token, process.env.SECRET);
 
@@ -61,4 +65,4 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-export { authMiddleware, getPasswordHash, tokenVerify, getToken, jwtVerify };
+export { authMiddleware, getPasswordHash, passwordVerify, getToken, jwtVerify };

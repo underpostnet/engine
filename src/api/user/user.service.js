@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
-import { getPasswordHash, getToken, jwtVerify, tokenVerify } from '../../server/auth.js';
+import { getPasswordHash, getToken, jwtVerify, passwordVerify } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
 import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
@@ -81,7 +81,7 @@ const UserService = {
           email: req.body.email,
         });
         if (user[0]) {
-          login = await tokenVerify(req.body.password, user[0].password);
+          login = await passwordVerify(req.body.password, user[0].password);
           find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.find({
             _id: user[0]._id.toString(),
           }).select(select['auth']);
