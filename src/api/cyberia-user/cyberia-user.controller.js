@@ -1,11 +1,6 @@
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
-
 import { loggerFactory } from '../../server/logger.js';
 import { CyberiaUserService } from './cyberia-user.service.js';
-
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-controller` });
+const logger = loggerFactory(import.meta);
 
 const CyberiaUserController = {
   post: async (req, res, options) => {

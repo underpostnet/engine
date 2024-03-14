@@ -1,13 +1,9 @@
 import { loggerFactory } from '../../server/logger.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 // import { Types } from 'mongoose';
 // new Types.ObjectId()
-
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const CyberiaUserService = {
   post: async (req, res, options) => {

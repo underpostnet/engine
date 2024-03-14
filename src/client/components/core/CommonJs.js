@@ -269,13 +269,6 @@ function getValueFromJoinString(obj, path, join = '.') {
   return value;
 }
 
-const endpointFactory = (meta) => {
-  const data = meta.url.split('/');
-  let path = `/${data[data.length - 2]}`;
-  if (path === '/') path = '';
-  return path;
-};
-
 function getDirection(options = { x1: 1, y1: 1, x2: 1, y2: 1, radians: 1 }) {
   const { x1, y1, x2, y2, radians } = options;
   // Calculate the angle in radians
@@ -467,7 +460,6 @@ export {
   clearTerminalStringColor,
   getIsoDate,
   getValueFromJoinString,
-  endpointFactory,
   getDirection,
   amplifyMatrix,
   reduceMatrix,

@@ -1,11 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import crypto from 'crypto';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const CryptoService = {
   post: async (req, res, options) => {

@@ -1,13 +1,9 @@
 import { loggerFactory } from '../../server/logger.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import pinataSDK from '@pinata/sdk';
 import dotenv from 'dotenv';
 
 dotenv.config();
-
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const IPFSService = {
   post: async (req, res, options) => {

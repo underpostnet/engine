@@ -1,13 +1,11 @@
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const FileService = {
   post: async (req, res, options) => {
     const results = [];
+    if (!req.files) throw { message: 'not file found' };
     if (Array.isArray(req.files.file))
       for (const file of req.files.file)
         results.push(await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File(file).save());

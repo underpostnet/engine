@@ -1,10 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { BlockChainModel } from './blockchain.model.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const BlockChainService = {
   post: async (req, res, options) => {

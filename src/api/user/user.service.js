@@ -1,5 +1,4 @@
 import { loggerFactory } from '../../server/logger.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { getPasswordHash, getToken, jwtVerify, passwordVerify } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
@@ -8,9 +7,7 @@ import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const select = {
   'all-name': { _id: 1, name: 1 },

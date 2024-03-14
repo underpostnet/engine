@@ -1,13 +1,12 @@
 import { Auth } from '../../components/core/Auth.js';
-import { endpointFactory } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { ApiBase } from '../core/core.service.js';
 
-const logger = loggerFactory({ url: `${endpointFactory(import.meta)}-service` });
-
-const endpoint = endpointFactory(import.meta);
+const logger = loggerFactory(import.meta);
 
 logger.info('Load service');
+
+const endpoint = 'bucket';
 
 const BucketService = {
   post: (options = { id: '', body: {} }) =>

@@ -1,10 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
-import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-
-const endpoint = endpointFactory(import.meta);
-
-const logger = loggerFactory({ url: `api-${endpoint}-service` });
+const logger = loggerFactory(import.meta);
 
 const select = {
   'all-name': { _id: 1, name: 1, face: 1 },

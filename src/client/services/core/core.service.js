@@ -1,15 +1,16 @@
-import { endpointFactory } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getProxyPath } from '../../components/core/VanillaJs.js';
 
-const logger = loggerFactory({ url: `${endpointFactory(import.meta)}-service` });
+const logger = loggerFactory(import.meta);
 
 const ApiBase = (options = { id: '', endpoint: '' }) =>
-  `${window.location.protocol}//${location.host}${getProxyPath()}api${options?.endpoint ? options.endpoint : ''}${
+  `${window.location.protocol}//${location.host}${getProxyPath()}api/${options?.endpoint ? options.endpoint : ''}${
     options?.id ? `/${options.id}` : ''
   }`;
 
 logger.info('Load service');
+
+const endpoint = 'core';
 
 const CoreService = {
   getRaw: (options = { url: '' }) =>
