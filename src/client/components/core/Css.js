@@ -208,7 +208,6 @@ scrollbar-width: none;
         .title-modal {
           padding: 5px;
           margin: 5px;
-          text-transform: capitalize;
           cursor: default;
           font-size: 20px;
         }
@@ -289,7 +288,6 @@ scrollbar-width: none;
         .title-modal {
           padding: 5px;
           margin: 5px;
-          text-transform: capitalize;
           cursor: default;
           font-size: 20px;
         }
@@ -372,7 +370,6 @@ scrollbar-width: none;
         .title-modal {
           padding: 5px;
           margin: 5px;
-          text-transform: capitalize;
           cursor: default;
           font-size: 20px;
           color: yellow;
@@ -462,7 +459,6 @@ scrollbar-width: none;
         .title-modal {
           padding: 5px;
           margin: 5px;
-          text-transform: capitalize;
           cursor: default;
           font-size: 20px;
           color: yellow;
