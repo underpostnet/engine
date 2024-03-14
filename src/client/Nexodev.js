@@ -1,6 +1,7 @@
 'use strict';
 
 import { Css } from './components/core/Css.js';
+import { NotificationManager } from './components/core/NotificationManager.js';
 import { Responsive } from './components/core/Responsive.js';
 import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
@@ -13,5 +14,6 @@ import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
   await TranslateCore.Init();
   await Responsive.Init();
   await Menu.Render();
+  await NotificationManager.RenderBoard();
   LoadRouter(RouterInstance);
 })();
