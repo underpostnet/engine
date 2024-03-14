@@ -1,7 +1,5 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../server/logger.js';
-import { FileModel } from './file.model.js';
-
 const endpoint = endpointFactory(import.meta);
 
 const logger = loggerFactory({ url: `api-${endpoint}-service` });
@@ -10,13 +8,21 @@ const FileService = {
   post: async (req, res, options) => {
     const results = [];
     if (Array.isArray(req.files.file))
-      for (const file of req.files.file) results.push(await new FileModel(file).save());
+      for (const file of req.files.file)
+        results.push(await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File(file).save());
     else if (Object.keys(req.files).length > 0)
-      for (const keyFile of Object.keys(req.files)) results.push(await new FileModel(req.files[keyFile]).save());
+      for (const keyFile of Object.keys(req.files))
+        results.push(
+          await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File(
+            req.files[keyFile],
+          ).save(),
+        );
     let index = -1;
     for (const file of results) {
       index++;
-      const [result] = await FileModel.find({ _id: file._id }).select({ _id: 1, name: 1, mimetype: 1 });
+      const [result] = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File.find({
+        _id: file._id,
+      }).select({ _id: 1, name: 1, mimetype: 1 });
       results[index] = result;
     }
     return results;
@@ -25,11 +31,13 @@ const FileService = {
     let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await FileModel.find();
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File.find();
         break;
 
       default:
-        result = await FileModel.find({ _id: req.params.id });
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File.find({
+          _id: req.params.id,
+        });
         break;
     }
     return result;
@@ -41,7 +49,9 @@ const FileService = {
         break;
 
       default:
-        result = await FileModel.findByIdAndDelete(req.params.id);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File.findByIdAndDelete(
+          req.params.id,
+        );
         break;
     }
     return result;
