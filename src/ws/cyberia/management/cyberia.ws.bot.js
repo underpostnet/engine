@@ -1,5 +1,3 @@
-import { CyberiaBiomeModel } from '../../../api/cyberia-biome/cyberia-biome.model.js';
-import { CyberiaWorldModel } from '../../../api/cyberia-world/cyberia-world.model.js';
 import {
   JSONmatrix,
   getDirection,
@@ -30,6 +28,7 @@ import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsSkillManagement } from './cyberia.ws.skill.js';
 import fs from 'fs-extra';
+import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -48,8 +47,8 @@ const CyberiaWsBotManagement = {
       heuristic: pathfinding.Heuristic.chebyshev,
     });
     (async () => {
-      this.worlds = await CyberiaWorldModel.find();
-      this.biomes = await CyberiaBiomeModel.find();
+      this.worlds = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld.find();
+      this.biomes = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome.find();
       if (this.worlds.length === 0 || this.biomes.length === 0) return;
       for (const indexBot of range(0, 39)) {
         const bot = BaseElement().bot.main;
