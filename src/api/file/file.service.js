@@ -1,4 +1,5 @@
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 const endpoint = endpointFactory(import.meta);
 

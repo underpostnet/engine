@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
-import { BucketModel } from './bucket.model.js';
 import { endpointFactory } from '../../client/components/core/CommonJs.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 const endpoint = endpointFactory(import.meta);
 
@@ -24,7 +24,7 @@ const BucketService = {
       default:
         if (!req.body.name) req.body.name = 'storage';
         req.body.userId = req.auth.user._id;
-        result = await new BucketModel(req.body).save();
+        result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket(req.body).save();
         break;
     }
     return result;
@@ -34,9 +34,18 @@ const BucketService = {
     switch (req.params.id) {
       default:
         // .populate('files')
-        result = await BucketModel.find({ userId: req.auth.user._id, name: 'storage' }).populate(select.get);
+        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.find({
+          userId: req.auth.user._id,
+          name: 'storage',
+        }).populate(select.get);
         if (!result[0])
-          result = [await new BucketModel({ files: [], name: 'storage', userId: req.auth.user._id }).save()];
+          result = [
+            await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket({
+              files: [],
+              name: 'storage',
+              userId: req.auth.user._id,
+            }).save(),
+          ];
 
         break;
     }
@@ -53,12 +62,14 @@ const BucketService = {
           // db.profiles.updateOne({ _id: 1 }, { $pull: { votes: { $gte: 6 } } });
           // After the update operation, the document only has values less than 6:
           // { _id: 1, votes: [  3,  5 ] }
-          result = await BucketModel.updateOne(
+          result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.updateOne(
             { _id: req.params.id },
             { $pull: { files: { _id: req.params.filesId } } },
             { runValidators: true },
           );
-          const find = await BucketModel.find({ _id: req.params.id }).populate(select.get);
+          const find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.find({
+            _id: req.params.id,
+          }).populate(select.get);
           result = find[0];
         }
         break;
@@ -70,13 +81,15 @@ const BucketService = {
     switch (req.params.id) {
       default:
         {
-          // result = await BucketModel.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
-          result = await BucketModel.updateOne(
+          // result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
+          result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.updateOne(
             { _id: req.params.id },
             { $push: { files: { $each: req.body.files } } },
             { runValidators: true },
           );
-          const find = await BucketModel.find({ _id: req.params.id }).populate(select.get);
+          const find = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.find({
+            _id: req.params.id,
+          }).populate(select.get);
           result = find[0];
         }
         break;
