@@ -49,29 +49,29 @@ const DataBaseProvider = {
                   this.instance[`${host}${path}`][db.provider].Bucket = conn.model('Bucket', BucketSchema);
                   break;
                 case 'blockchain':
-                  this.instance[`${host}${path}`][db.provider].File = conn.model('BlockChain', BlockChainSchema);
+                  this.instance[`${host}${path}`][db.provider].BlockChain = conn.model('BlockChain', BlockChainSchema);
                   break;
                 case 'cyberia-user':
                   this.instance[`${host}${path}`][db.provider].CyberiaUser = conn.model(
-                    'BlockChain',
+                    'CyberiaUser',
                     CyberiaUserSchema,
                   );
                   break;
                 case 'cyberia-biome':
                   this.instance[`${host}${path}`][db.provider].CyberiaBiome = conn.model(
-                    'BlockChain',
+                    'CyberiaBiome',
                     CyberiaBiomeSchema,
                   );
                   break;
                 case 'cyberia-tile':
                   this.instance[`${host}${path}`][db.provider].CyberiaTile = conn.model(
-                    'BlockChain',
+                    'CyberiaTile',
                     CyberiaTileSchema,
                   );
                   break;
                 case 'cyberia-world':
                   this.instance[`${host}${path}`][db.provider].CyberiaWorld = conn.model(
-                    'BlockChain',
+                    'CyberiaWorld',
                     CyberiaWorldSchema,
                   );
                   break;
