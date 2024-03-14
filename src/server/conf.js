@@ -451,6 +451,23 @@ const Config = {
       },
     },
     server: {
+      'www.nexodev.org': {
+        '/': {
+          client: 'nexodev',
+          runtime: 'nodejs',
+          apis: ['user'],
+          origins: [],
+          minifyBuild: false,
+          lightBuild: true, //
+          disabled: false,
+          proxy: [],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'nexodev',
+          },
+        },
+      },
       'example.com': {
         '/wp': {
           client: 'wordpress',
