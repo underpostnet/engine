@@ -84,7 +84,7 @@ const FileExplorer = {
     let files = [];
     let folders = [];
     let bucketId = '';
-    let bucketInstance = {};
+    let bucketInstance = [];
 
     RouterEvents['file-explorer'] = ({ path, pushPath, proxyPath, route }) => {
       if (route === 'cloud') {
@@ -103,10 +103,7 @@ const FileExplorer = {
     };
 
     try {
-      const {
-        status,
-        data: [bucket],
-      } = await BucketService.get();
+      const { status, data: bucket } = await BucketService.get();
       const format = this.bucketDataFormat({ bucket, location });
       files = format.files;
       bucketId = format.bucketId;
@@ -143,21 +140,20 @@ const FileExplorer = {
           //   if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
           // }
           location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
-          const { status, data: bucket } = await BucketService.put({
-            id: bucketId,
-            body: {
-              files: fileData.map((file) => {
-                return {
-                  fileId: file._id,
-                  location,
-                };
-              }),
-            },
-          });
-          const format = this.bucketDataFormat({ bucket, location });
+          let status = 'success';
+          for (const file of fileData) {
+            const result = await BucketService.post({
+              body: {
+                fileId: file._id,
+                location,
+              },
+            });
+            if (result.status === 'success') bucketInstance.push({ ...result.data, fileId: file });
+            else if (status !== 'error') status = 'error';
+          }
+          const format = this.bucketDataFormat({ bucket: bucketInstance, location });
           files = format.files;
           folders = format.folders;
-          bucketInstance = bucket;
           AgGrid.grids[gridFileId].setGridOption('rowData', files);
           AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
           NotificationManager.Push({
@@ -265,7 +261,7 @@ const FileExplorer = {
               if (status === 'error') return;
             }
             const { data, status, message } = await BucketService.delete({
-              id: `${bucketId}/${params.data._id}`,
+              id: params.data._id,
             });
             NotificationManager.Push({
               html: status === 'success' ? Translate.Render(message) : message,
@@ -273,7 +269,7 @@ const FileExplorer = {
             });
             if (status === 'error') return;
 
-            bucketInstance.files = bucketInstance.files.filter((f) => f._id !== params.data._id);
+            bucketInstance = bucketInstance.filter((f) => f._id !== params.data._id);
             const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
             files = format.files;
             folders = format.folders;
@@ -301,7 +297,7 @@ const FileExplorer = {
       async init(params) {
         console.log('LoadFolderActionsRenderer created', params);
         // params.data._id
-        const id = params.data.location.replaceAll('/', '-').replaceAll(' ', '-');
+        const id = params.data.locationId;
 
         this.eGui = document.createElement('div');
         this.eGui.innerHTML = html`
@@ -316,18 +312,18 @@ const FileExplorer = {
           EventsUI.onClick(`.btn-folder-delete-${id}`, async (e) => {
             e.preventDefault();
             const idFilesDelete = [];
-            for (const files of bucketInstance.files.filter(
+            for (const file of bucketInstance.filter(
               (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
             )) {
               {
                 const { data, status, message } = await FileService.delete({
-                  id: files.fileId._id,
+                  id: file.fileId._id,
                 });
               }
               {
-                idFilesDelete.push(files._id);
+                idFilesDelete.push(file._id);
                 const { data, status, message } = await BucketService.delete({
-                  id: `${bucketId}/${files._id}`,
+                  id: file._id,
                 });
               }
             }
@@ -335,7 +331,7 @@ const FileExplorer = {
               html: Translate.Render('success-delete'),
               status: 'success',
             });
-            bucketInstance.files = bucketInstance.files.filter((f) => !idFilesDelete.includes(f._id));
+            bucketInstance = bucketInstance.filter((f) => !idFilesDelete.includes(f._id));
             const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
             files = format.files;
             folders = format.folders;
@@ -451,7 +447,7 @@ const FileExplorer = {
                     {
                       // suppressHeaderMenuButton: true,
                       // sortable: false,
-                      field: 'files',
+                      field: 'fileCount',
                       headerName: '🗎',
                       width: 60,
                       cellStyle: function (params) {
@@ -549,7 +545,7 @@ const FileExplorer = {
     return f.location;
   },
   bucketDataFormat: function ({ bucket, location }) {
-    let files = bucket.files.map((f) => {
+    let files = bucket.map((f) => {
       return {
         location: this.locationFormat({ f }),
         name: f.fileId.name,
@@ -562,19 +558,20 @@ const FileExplorer = {
     let folders = [];
     for (const folderPath of uniqueArray(files.map((f) => f.location)))
       folders = ['/'].concat(folders.concat(getSubpaths(folderPath)));
-    folders = uniqueArray(folders).map((f) => {
+    folders = uniqueArray(folders).map((f, i) => {
       return {
         location: f,
+        locationId: `loc-${i}`,
       };
     });
     files = files.filter((f) => f.location === location);
     folders = folders
       .filter((f) => f.location.startsWith(location))
       .map((f) => {
-        f.files = bucket.files.filter((file) => file.location === f.location).length;
+        f.fileCount = bucket.filter((file) => file.location === f.location).length;
         return f;
       })
-      .filter((f) => f.files > 0);
+      .filter((f) => f.fileCount > 0);
     return { files, bucketId, folders };
   },
 };
