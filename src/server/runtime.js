@@ -25,7 +25,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, disabled, directory, wss, mailer, db } = confServer[host][path];
+      const { runtime, port, client, apis, origins, disabled, directory, ws, mailer, db } = confServer[host][path];
       const runningData = {
         runtime,
         client,
@@ -126,20 +126,19 @@ const buildRuntime = async () => {
           // instance server
           const server = createServer({}, app);
 
-          if (wss)
-            for (const ws of wss)
-              await (async () => {
-                const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
-                logger.info('Load socket.io ws router', { host, ws });
-                // start socket.io
-                const ioServer = createIoServer(server, {
-                  host,
-                  path,
-                  db,
-                  port,
-                  origins,
-                });
-              })();
+          if (ws)
+            await (async () => {
+              const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
+              logger.info('Load socket.io ws router', { host, ws });
+              // start socket.io
+              const ioServer = createIoServer(server, {
+                host,
+                path,
+                db,
+                port,
+                origins,
+              });
+            })();
 
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);

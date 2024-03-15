@@ -513,7 +513,7 @@ const Config = {
             'cyberia-tile',
             'cyberia-world',
           ],
-          wss: ['cyberia'],
+          ws: 'cyberia',
           runtime: 'nodejs',
           origins: [],
           disabled: false,
@@ -545,7 +545,7 @@ const Config = {
         '/game': {
           client: 'cyberia',
           apis: ['file', 'user', 'crypto', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
-          wss: ['cyberia'],
+          ws: 'cyberia',
           runtime: 'nodejs',
           origins: [],
           disabled: true,
