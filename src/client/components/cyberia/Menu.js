@@ -39,7 +39,7 @@ const Menu = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-home',
-            label: 'Home',
+            label: Translate.Render('home'),
             style: 'display: none',
             attrs: `data-id="0"`,
           })}
