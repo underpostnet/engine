@@ -19,6 +19,113 @@ const Config = {
         views: [],
         dists: [],
       },
+      dogmadual: {
+        components: {
+          core: [
+            'CommonJs',
+            'VanillaJs',
+            'Responsive',
+            'Keyboard',
+            'Translate',
+            'Modal',
+            'BtnIcon',
+            'Logger',
+            'Css',
+            'NotificationManager',
+            'ToggleSwitch',
+            'DropDown',
+            'LoadingAnimation',
+            'EventsUI',
+            'AgGrid',
+            'Input',
+            'Validator',
+            'SignUp',
+            'LogIn',
+            'LogOut',
+            'Router',
+            'Account',
+            'Auth',
+          ],
+          dogmadual: [
+            'Menu',
+            'RoutesDogmadual',
+            'Elements',
+            'CommonDogmadual',
+            'CssDogmadual',
+            'LogInDogmadual',
+            'LogOutDogmadual',
+            'SignUpDogmadual',
+          ],
+        },
+        views: [
+          {
+            path: '/',
+            title: 'dogmadual.com',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+          {
+            path: '/settings',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+          {
+            path: '/log-in',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+          {
+            path: '/sign-up',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+          {
+            path: '/log-out',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+          {
+            path: '/account',
+            client: 'Dogmadual',
+            ssr: 'Dogmadual',
+          },
+        ],
+        dists: [
+          {
+            folder: './node_modules/@neodrag/vanilla/dist/min',
+            public_folder: '/dist/@neodrag-vanilla',
+            import_name: '@neodrag/vanilla',
+            import_name_build: '/dist/@neodrag-vanilla/index.js',
+          },
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
+          {
+            folder: './node_modules/sortablejs/modular',
+            public_folder: '/dist/sortablejs',
+            import_name: 'sortablejs',
+            import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
+          },
+          {
+            folder: './node_modules/validator',
+            public_folder: '/dist/validator',
+          },
+          {
+            folder: './node_modules/@loadingio/css-spinner/entries',
+            public_folder: '/dist/loadingio',
+          },
+          {
+            import_name: 'ag-grid-community',
+            import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+            folder: './node_modules/ag-grid-community/dist',
+            public_folder: '/dist/ag-grid-community',
+            styles: './node_modules/ag-grid-community/styles',
+            public_styles_folder: '/styles/ag-grid-community',
+          },
+        ],
+        services: ['core', 'user'],
+      },
       nexodev: {
         components: {
           core: [
@@ -458,8 +565,29 @@ const Config = {
         head: ['NexodevScripts'],
         body: [],
       },
+      Dogmadual: {
+        head: ['DogmadualScripts'],
+        body: [],
+      },
     },
     server: {
+      'www.dogmadual.org': {
+        '/': {
+          client: 'dogmadual',
+          runtime: 'nodejs',
+          apis: ['user'],
+          origins: [],
+          minifyBuild: false,
+          lightBuild: false, //
+          disabled: true,
+          proxy: [],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'dogmadual',
+          },
+        },
+      },
       'www.nexodev.org': {
         '/': {
           client: 'nexodev',
@@ -468,7 +596,7 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: true, //
-          disabled: false,
+          disabled: true,
           proxy: [],
           db: {
             provider: 'mongoose',
@@ -483,7 +611,7 @@ const Config = {
           runtime: 'xampp',
           origins: [],
           forceSSL: false,
-          disabled: false,
+          disabled: true,
           directory: '/htdocs/wp',
           disabledRebuild: true,
           db: {
@@ -516,7 +644,7 @@ const Config = {
           ws: 'cyberia',
           runtime: 'nodejs',
           origins: [],
-          disabled: false,
+          disabled: true,
           minifyBuild: false,
           lightBuild: true, //
           proxy: [80, 443],

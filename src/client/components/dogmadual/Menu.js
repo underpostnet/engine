@@ -11,14 +11,14 @@ import { Translate } from '../core/Translate.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
-import { RouterNexodev } from './RoutesNexodev.js';
+import { RouterDogmadual } from './RoutesDogmadual.js';
 
 const Menu = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
-    const RouterInstance = RouterNexodev();
+    const RouterInstance = RouterDogmadual();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const slideTop = 52;
@@ -75,10 +75,11 @@ const Menu = {
       title: NameApp,
       // titleClass: 'hide',
       titleRender: () => html`<img
-          class="abs nexodev-title-logo"
-          src="${getProxyPath()}assets/logo/nexodev-white-t.png"
+          class="abs dogmadual-title-logo"
+          src="${getProxyPath()}assets/logo/dogmadual-white-t.png"
         />
-        &nbsp &nbsp <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
+        &nbsp &nbsp <span class="inl dogmadual-title-text-a">DOGMADUAL</span
+        ><span class="inl dogmadual-title-text-b">.com</span>`,
       mode: 'slide-menu',
       slideTop,
     });

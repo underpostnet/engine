@@ -884,6 +884,18 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+  dogmadual: async (options) => {
+    const htmlRender = Css.currentTheme !== 'dogmadual';
+    if (options) Css.dogmadual = async () => append('.theme', await options.render());
+    if (htmlRender) {
+      Css.currentTheme = 'dogmadual';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css.dogmadual();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
   cryptokoyn: async () => {
     const htmlRender = Css.currentTheme !== 'cryptokoyn';
     if (htmlRender) {
