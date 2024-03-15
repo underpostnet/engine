@@ -61,7 +61,8 @@ const Modal = {
 
           Responsive.Event[`view-${idModal}`] = () => {
             if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
-            if (this.Data[idModal].slideMenu) s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
+            if (this.Data[idModal].slideMenu)
+              s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
           };
 
           // Router
@@ -86,11 +87,11 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${window.innerHeight - 50}px`,
+              height: `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`,
               width: '320px',
               'z-index': 4,
               resize: 'none',
-              top: '50px',
+              top: `${options.slideTop ? options.slideTop : 52}px`,
             };
             options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
 
@@ -107,7 +108,7 @@ const Modal = {
                 if (this.Data[_idModal].slideMenu && this.Data[_idModal].slideMenu.id === idModal)
                   this.Data[_idModal].slideMenu.callBack();
               }
-              s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
+              s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
             };
             barConfig.buttons.menu.onClick = () => {
               this.Data[idModal][options.mode].width = 320;
@@ -269,7 +270,7 @@ const Modal = {
             <div
               class="inl title-modal-${idModal} ${options && options.titleClass ? options.titleClass : 'title-modal'}"
             >
-              ${options && options.title ? options.title : ''}
+              ${options && options.titleRender ? options.titleRender() : options.title ? options.title : ''}
             </div>
           </div>
 
@@ -414,8 +415,8 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
-        s(`.${idModal}`).style.height = `${window.innerHeight - 50}px`;
-        s(`.${idModal}`).style.top = `50px`;
+        s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
+        s(`.${idModal}`).style.top = `${options.slideTop ? options.slideTop : 52}px`;
       } else {
         s(`.${idModal}`).style.width = '100%';
         s(`.${idModal}`).style.height = '100%';

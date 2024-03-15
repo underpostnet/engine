@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { s } from '../core/VanillaJs.js';
+import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
@@ -21,35 +21,51 @@ const Menu = {
     const RouterInstance = RouterNexodev();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
+    const slideTop = 52;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-menu main-btn-home',
-            label: 'Home',
+            class: 'wfa main-btn-menu main-btn-home',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-home"></i>`,
+              text: html`${Translate.Render('home')}`,
+            }),
             // style: 'display: none',
             attrs: `data-id="0"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-menu main-btn-log-in',
-            label: this.renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
+            class: 'wfa main-btn-menu main-btn-log-in',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-sign-in-alt"></i>`,
+              text: html`${Translate.Render('log-in')}`,
+            }),
             attrs: `data-id="1"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-menu main-btn-sign-up',
-            label: this.renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
+            class: 'wfa main-btn-menu main-btn-sign-up',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-user-plus"></i>`,
+              text: html`${Translate.Render('sign-up')}`,
+            }),
             attrs: `data-id="2"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-menu main-btn-log-out',
-            label: this.renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
+            class: 'wfa main-btn-menu main-btn-log-out',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-sign-out-alt"></i>`,
+              text: html`${Translate.Render('log-out')}`,
+            }),
             attrs: `data-id="3"`,
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-menu main-btn-account',
-            label: this.renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
+            class: 'wfa main-btn-menu main-btn-account',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-user-circle"></i>`,
+              text: html`${Translate.Render('account')}`,
+            }),
             style: 'display: none',
             attrs: `data-id="4"`,
           })}
@@ -58,7 +74,14 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
+      titleRender: () => html`<img
+          class="abs nexodev-title-logo"
+          src="${getProxyPath()}assets/logo/nexodev-white-t.png"
+          class="nexodev-title-logo"
+        />
+        &nbsp &nbsp <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
       mode: 'slide-menu',
+      slideTop,
     });
 
     this.Data[id].sortable = Modal.mobileModal()
@@ -117,13 +140,17 @@ const Menu = {
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
-        title: this.renderViewTile({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
+        title: this.renderViewTitle({
+          icon: html`<i class="fas fa-user-plus"></i>`,
+          text: Translate.Render('sign-up'),
+        }),
         html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        slideTop,
       });
     });
 
@@ -133,13 +160,17 @@ const Menu = {
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
-        title: this.renderViewTile({ img: 'log-out.png', text: Translate.Render('log-out') }),
+        title: this.renderViewTitle({
+          icon: html`<i class="fas fa-sign-out-alt"></i>`,
+          text: Translate.Render('log-out'),
+        }),
         html: async () => await LogOut.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        slideTop,
       });
     });
 
@@ -149,13 +180,17 @@ const Menu = {
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
-        title: this.renderViewTile({ img: 'log-in.png', text: Translate.Render('log-in') }),
+        title: this.renderViewTitle({
+          icon: html`<i class="fas fa-sign-in-alt"></i>`,
+          text: Translate.Render('log-in'),
+        }),
         html: async () => await LogIn.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        slideTop,
       });
     });
 
@@ -165,13 +200,22 @@ const Menu = {
         id: 'modal-account',
         route: 'account',
         barConfig,
-        title: this.renderViewTile({ img: 'account.png', text: Translate.Render('account') }),
-        html: async () => await Account.Render({ idModal: 'modal-account', user: Elements.Data.user.main.model.user }),
+        title: this.renderViewTitle({
+          icon: html`<i class="fas fa-user-circle"></i>`,
+          text: Translate.Render('account'),
+        }),
+        html: async () =>
+          await Account.Render({
+            idModal: 'modal-account',
+            user: Elements.Data.user.main.model.user,
+            disabled: ['emailConfirm'],
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        slideTop,
       });
     });
 
@@ -182,19 +226,9 @@ const Menu = {
       s(`.btn-close-modal-menu`).click();
     };
   },
-  renderMenuLabel: ({ img, text }) => text,
-  // html`<img
-  //     class="abs center img-btn-square-menu"
-  //     src="${getProxyPath()}assets/ui-icons/${img}"
-  //   />
-  //   <div class="abs center main-btn-menu-text">${text}</div>`,
+  renderMenuLabel: ({ icon, text }) => html`<span class="menu-btn-icon">${icon}</span> ${text}`,
 
-  renderViewTile: ({ img, text }) => text,
-  // html`<img
-  //     class="abs img-btn-square-view-title"
-  //     src="${getProxyPath()}assets/ui-icons/${img}"
-  //   />
-  //   <div class="in text-btn-square-view-title">${text}</div>`,
+  renderViewTitle: ({ icon, text }) => html`<span class="view-title-icon">${icon}</span> ${text}`,
 };
 
 export { Menu };

@@ -101,7 +101,7 @@ const Account = {
             footer: html``,
           })}
         </div>
-        <div class="in">
+        <div class="in ${options.disabled ? (options.disabled.includes('emailConfirm') ? 'hide' : '') : ''}">
           <div class="in section-mp width-mini-box sub-container">
             <div class="in verify-email-status"></div>
             ${await BtnIcon.Render({
@@ -124,7 +124,11 @@ const Account = {
           })}
         </div>
         <div class="in">
-          ${await BtnIcon.Render({ class: 'btn-account', label: Translate.Render('update'), type: 'submit' })}
+          ${await BtnIcon.Render({
+            class: 'btn-custom btn-account',
+            label: Translate.Render('update'),
+            type: 'submit',
+          })}
         </div>
       </form>
     `;

@@ -46,7 +46,16 @@ const Config = {
             'Account',
             'Auth',
           ],
-          nexodev: ['Menu', 'RoutesNexodev', 'Elements', 'CommonNexodev'],
+          nexodev: [
+            'Menu',
+            'RoutesNexodev',
+            'Elements',
+            'CommonNexodev',
+            'CssNexodev',
+            'LogInNexodev',
+            'LogOutNexodev',
+            'SignUpNexodev',
+          ],
         },
         views: [
           {

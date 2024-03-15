@@ -872,6 +872,18 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+  nexodev: async (options) => {
+    const htmlRender = Css.currentTheme !== 'nexodev';
+    if (options) Css.nexodev = async () => append('.theme', await options.render());
+    if (htmlRender) {
+      Css.currentTheme = 'nexodev';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css.nexodev();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
   cryptokoyn: async () => {
     const htmlRender = Css.currentTheme !== 'cryptokoyn';
     if (htmlRender) {

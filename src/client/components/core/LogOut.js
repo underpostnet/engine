@@ -9,12 +9,12 @@ const LogOut = {
   },
   Render: async function () {
     setTimeout(() => {
-      s('.modal-btn-log-out').onclick = () => LogOut.Trigger();
+      s('.btn-log-out').onclick = () => LogOut.Trigger();
     });
     return html` <div class="in warn-logout">${Translate.Render('confirm-logout')}</div>
       <div class="in warn-logout">
         ${await BtnIcon.Render({
-          class: 'btn-custom modal-btn-log-out',
+          class: 'btn-custom btn-log-out',
           label: Translate.Render('log-out'),
         })}
       </div>`;
