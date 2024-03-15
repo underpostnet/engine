@@ -480,6 +480,10 @@ const CssCyberia = {
       .display-current-element {
         font-family: 'retro-font-sensitive';
       }
+      .btn-default-modal-container. {
+        text-align: right;
+        padding-right: 3px;
+      }
     `,
 };
 
