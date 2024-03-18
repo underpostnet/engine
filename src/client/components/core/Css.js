@@ -896,15 +896,17 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
-  cryptokoyn: async () => {
+  cryptokoyn: async (options) => {
     const htmlRender = Css.currentTheme !== 'cryptokoyn';
+    if (options) Css.cryptokoyn = async () => append('.theme', await options.render());
     if (htmlRender) {
       Css.currentTheme = 'cryptokoyn';
       htmls('.theme', '');
       await Css.fontawesome();
+      await Css['dark-light']();
       await Css.cryptokoyn();
     }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'default', htmlRender }) };
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
 };
 

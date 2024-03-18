@@ -218,6 +218,7 @@ const buildClient = async () => {
                   ssrHeadComponents += SrrComponent({ microdata });
                 }
                 break;
+              case 'CryptokoynScripts':
               case 'DogmadualScripts':
               case 'NexodevScripts':
               case 'CyberiaScripts':

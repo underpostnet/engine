@@ -19,6 +19,113 @@ const Config = {
         views: [],
         dists: [],
       },
+      cryptokoyn: {
+        components: {
+          core: [
+            'CommonJs',
+            'VanillaJs',
+            'Responsive',
+            'Keyboard',
+            'Translate',
+            'Modal',
+            'BtnIcon',
+            'Logger',
+            'Css',
+            'NotificationManager',
+            'ToggleSwitch',
+            'DropDown',
+            'LoadingAnimation',
+            'EventsUI',
+            'AgGrid',
+            'Input',
+            'Validator',
+            'SignUp',
+            'LogIn',
+            'LogOut',
+            'Router',
+            'Account',
+            'Auth',
+          ],
+          cryptokoyn: [
+            'Menu',
+            'RoutesCryptokoyn',
+            'Elements',
+            'CommonCryptokoyn',
+            'CssCryptokoyn',
+            'LogInCryptokoyn',
+            'LogOutCryptokoyn',
+            'SignUpCryptokoyn',
+          ],
+        },
+        views: [
+          {
+            path: '/',
+            title: 'CryptoKoyn',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+          {
+            path: '/settings',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+          {
+            path: '/log-in',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+          {
+            path: '/sign-up',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+          {
+            path: '/log-out',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+          {
+            path: '/account',
+            client: 'Cryptokoyn',
+            ssr: 'Cryptokoyn',
+          },
+        ],
+        dists: [
+          {
+            folder: './node_modules/@neodrag/vanilla/dist/min',
+            public_folder: '/dist/@neodrag-vanilla',
+            import_name: '@neodrag/vanilla',
+            import_name_build: '/dist/@neodrag-vanilla/index.js',
+          },
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
+          {
+            folder: './node_modules/sortablejs/modular',
+            public_folder: '/dist/sortablejs',
+            import_name: 'sortablejs',
+            import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
+          },
+          {
+            folder: './node_modules/validator',
+            public_folder: '/dist/validator',
+          },
+          {
+            folder: './node_modules/@loadingio/css-spinner/entries',
+            public_folder: '/dist/loadingio',
+          },
+          {
+            import_name: 'ag-grid-community',
+            import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+            folder: './node_modules/ag-grid-community/dist',
+            public_folder: '/dist/ag-grid-community',
+            styles: './node_modules/ag-grid-community/styles',
+            public_styles_folder: '/styles/ag-grid-community',
+          },
+        ],
+        services: ['core', 'user'],
+      },
       dogmadual: {
         components: {
           core: [
@@ -60,7 +167,7 @@ const Config = {
         views: [
           {
             path: '/',
-            title: 'dogmadual.com',
+            title: 'DOGMADUAL.com',
             client: 'Dogmadual',
             ssr: 'Dogmadual',
           },
@@ -569,9 +676,30 @@ const Config = {
         head: ['DogmadualScripts'],
         body: [],
       },
+      Cryptokoyn: {
+        head: ['CryptokoynScripts'],
+        body: [],
+      },
     },
     server: {
-      'www.dogmadual.org': {
+      'cryptokoyn.net': {
+        '/': {
+          client: 'cryptokoyn',
+          runtime: 'nodejs',
+          apis: ['user'],
+          origins: [],
+          minifyBuild: false,
+          lightBuild: true, //
+          disabled: false,
+          proxy: [],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'cryptokoyn',
+          },
+        },
+      },
+      'www.dogmadual.com': {
         '/': {
           client: 'dogmadual',
           runtime: 'nodejs',
@@ -579,7 +707,7 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: false, //
-          disabled: true,
+          disabled: false,
           proxy: [],
           db: {
             provider: 'mongoose',
@@ -596,7 +724,7 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: true, //
-          disabled: true,
+          disabled: false,
           proxy: [],
           db: {
             provider: 'mongoose',
