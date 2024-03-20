@@ -1,5 +1,5 @@
-const CssCryptokoyn = {
-  theme: 'cryptokoyn',
+const CssUnderpost = {
+  theme: 'underpost',
   render: async () => css`
     html {
       overflow: hidden;
@@ -8,16 +8,6 @@ const CssCryptokoyn = {
     body {
       /*  color: #bdbdbd; */
       font-size: 20px;
-    }
-    .cryptokoyn-title-logo {
-      width: 40px;
-      height: 35px;
-      left: -3px;
-      top: 0px;
-    }
-    .cryptokoyn-text-logo {
-      left: 14px;
-      top: 3px;
     }
     .html-modal-menu {
       padding: 0px;
@@ -113,7 +103,22 @@ const CssCryptokoyn = {
       text-align: right;
       padding-right: 3px;
     }
+    .underpost-title-logo {
+      width: 35px;
+      height: 32px;
+      top: 2px;
+      left: -4px;
+    }
+    .underpost-title-text-a {
+      top: 5px;
+      font-weight: bold;
+      left: 10px;
+    }
+    .underpost-title-text-b {
+      top: 5px;
+      left: 10px;
+    }
   `,
 };
 
-export { CssCryptokoyn };
+export { CssUnderpost };

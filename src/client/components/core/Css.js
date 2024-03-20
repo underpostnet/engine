@@ -908,6 +908,18 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+  underpost: async (options) => {
+    const htmlRender = Css.currentTheme !== 'underpost';
+    if (options) Css.underpost = async () => append('.theme', await options.render());
+    if (htmlRender) {
+      Css.currentTheme = 'underpost';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css.underpost();
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
 };
 
 const borderChar = (px, color) => html`

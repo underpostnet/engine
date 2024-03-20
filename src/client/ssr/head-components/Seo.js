@@ -2,7 +2,7 @@ SrrComponent = ({ title, author, keywords, description, themeColor, ssrPath, can
   <link rel="canonical" href="${canonicalURL}" />
 
   <meta name="author" content="${author}" />
-  <meta name="keywords" content="${keywords}" />
+  <meta name="keywords" content="${keywords.join(',')}" />
   <meta name="description" content="${description}" />
   <meta name="theme-color" content="${themeColor}" />
 

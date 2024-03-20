@@ -19,7 +19,120 @@ const Config = {
         views: [],
         dists: [],
       },
+      underpost: {
+        metadata: {
+          title: 'underpost.net',
+        },
+        components: {
+          core: [
+            'CommonJs',
+            'VanillaJs',
+            'Responsive',
+            'Keyboard',
+            'Translate',
+            'Modal',
+            'BtnIcon',
+            'Logger',
+            'Css',
+            'NotificationManager',
+            'ToggleSwitch',
+            'DropDown',
+            'LoadingAnimation',
+            'EventsUI',
+            'AgGrid',
+            'Input',
+            'Validator',
+            'SignUp',
+            'LogIn',
+            'LogOut',
+            'Router',
+            'Account',
+            'Auth',
+          ],
+          underpost: [
+            'Menu',
+            'RoutesUnderpost',
+            'Elements',
+            'CommonUnderpost',
+            'CssUnderpost',
+            'LogInUnderpost',
+            'LogOutUnderpost',
+            'SignUpUnderpost',
+          ],
+        },
+        views: [
+          {
+            path: '/',
+            title: 'Home',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/settings',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/log-in',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/sign-up',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/log-out',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/account',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+        ],
+        dists: [
+          {
+            folder: './node_modules/@neodrag/vanilla/dist/min',
+            public_folder: '/dist/@neodrag-vanilla',
+            import_name: '@neodrag/vanilla',
+            import_name_build: '/dist/@neodrag-vanilla/index.js',
+          },
+          {
+            folder: './node_modules/@fortawesome/fontawesome-free',
+            public_folder: '/dist/fontawesome',
+          },
+          {
+            folder: './node_modules/sortablejs/modular',
+            public_folder: '/dist/sortablejs',
+            import_name: 'sortablejs',
+            import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
+          },
+          {
+            folder: './node_modules/validator',
+            public_folder: '/dist/validator',
+          },
+          {
+            folder: './node_modules/@loadingio/css-spinner/entries',
+            public_folder: '/dist/loadingio',
+          },
+          {
+            import_name: 'ag-grid-community',
+            import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
+            folder: './node_modules/ag-grid-community/dist',
+            public_folder: '/dist/ag-grid-community',
+            styles: './node_modules/ag-grid-community/styles',
+            public_styles_folder: '/styles/ag-grid-community',
+          },
+        ],
+        services: ['core', 'user'],
+      },
       cryptokoyn: {
+        metadata: {
+          title: 'Cryptokoyn',
+        },
         components: {
           core: [
             'CommonJs',
@@ -60,7 +173,7 @@ const Config = {
         views: [
           {
             path: '/',
-            title: 'CryptoKoyn',
+            title: 'Home',
             client: 'Cryptokoyn',
             ssr: 'Cryptokoyn',
           },
@@ -127,6 +240,9 @@ const Config = {
         services: ['core', 'user'],
       },
       dogmadual: {
+        metadata: {
+          title: 'DOGMADUAL.com',
+        },
         components: {
           core: [
             'CommonJs',
@@ -167,7 +283,7 @@ const Config = {
         views: [
           {
             path: '/',
-            title: 'DOGMADUAL.com',
+            title: 'Home',
             client: 'Dogmadual',
             ssr: 'Dogmadual',
           },
@@ -234,6 +350,9 @@ const Config = {
         services: ['core', 'user'],
       },
       nexodev: {
+        metadata: {
+          title: `nexodev.org`,
+        },
         components: {
           core: [
             'CommonJs',
@@ -274,7 +393,7 @@ const Config = {
         views: [
           {
             path: '/',
-            title: 'nexodev.org',
+            title: 'Home',
             client: 'Nexodev',
             ssr: 'Nexodev',
           },
@@ -427,7 +546,7 @@ const Config = {
           title: `CYBERIA`,
           description: `Browser massively multiplayer online role-playing game. Immerse yourself in an exciting
           cyberpunk world with our pixel art MMORPG. Explore a dynamic online universe right from your browser.`,
-          keywords: ['cyberia, MMORPG, browser, free, MMO'],
+          keywords: ['cyberia', 'MMORPG', 'browser', 'free', 'MMO'],
           author: 'https://github.com/underpostnet',
           thumbnail: 'assets/splash/CYBERIA.jpg',
           themeColor: '#1a1a1a',
@@ -680,8 +799,29 @@ const Config = {
         head: ['CryptokoynScripts'],
         body: [],
       },
+      Underpost: {
+        head: ['UnderpostScripts'],
+        body: [],
+      },
     },
     server: {
+      'underpost.net': {
+        '/': {
+          client: 'underpost',
+          runtime: 'nodejs',
+          apis: ['user'],
+          origins: [],
+          minifyBuild: false,
+          lightBuild: true, //
+          disabled: false,
+          proxy: [],
+          db: {
+            provider: 'mongoose',
+            host: 'mongodb://127.0.0.1:27017',
+            name: 'underpost',
+          },
+        },
+      },
       'cryptokoyn.net': {
         '/': {
           client: 'cryptokoyn',
@@ -690,7 +830,7 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: true, //
-          disabled: false,
+          disabled: true,
           proxy: [],
           db: {
             provider: 'mongoose',
@@ -706,7 +846,7 @@ const Config = {
           apis: ['user'],
           origins: [],
           minifyBuild: false,
-          lightBuild: false, //
+          lightBuild: true, //
           disabled: false,
           proxy: [],
           db: {
@@ -724,7 +864,7 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: true, //
-          disabled: false,
+          disabled: true,
           proxy: [],
           db: {
             provider: 'mongoose',

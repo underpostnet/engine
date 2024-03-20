@@ -11,7 +11,7 @@ const RoutesNexodev = () => {
     '/': {
       title: 'Home',
       render: () => s(`.main-btn-home`).click(),
-      upperCase: true,
+      upperCase: false,
     },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },

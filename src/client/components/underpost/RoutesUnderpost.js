@@ -3,10 +3,10 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`CryptoKoyn`;
+const NameApp = html`underpost.net`;
 
 // Router
-const RoutesCryptokoyn = () => {
+const RoutesUnderpost = () => {
   return {
     '/': {
       title: 'Home',
@@ -30,10 +30,10 @@ const RoutesCryptokoyn = () => {
   };
 };
 
-window.Routes = RoutesCryptokoyn;
+window.Routes = RoutesUnderpost;
 
-const RouterCryptokoyn = () => {
-  return { Routes: RoutesCryptokoyn, proxyPath: getProxyPath(), NameApp };
+const RouterUnderpost = () => {
+  return { Routes: RoutesUnderpost, proxyPath: getProxyPath(), NameApp };
 };
 
-export { RoutesCryptokoyn, RouterCryptokoyn, NameApp };
+export { RoutesUnderpost, RouterUnderpost, NameApp };

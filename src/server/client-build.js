@@ -221,6 +221,7 @@ const buildClient = async () => {
               case 'CryptokoynScripts':
               case 'DogmadualScripts':
               case 'NexodevScripts':
+              case 'UnderpostScripts':
               case 'CyberiaScripts':
                 ssrHeadComponents += SrrComponent({ ssrPath });
                 break;
