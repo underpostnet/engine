@@ -11,7 +11,7 @@ const RoutesCyberia = () => {
     '/': {
       title: 'MMORPG',
       render: () => s(`.main-btn-home`).click(),
-      upperCase: false,
+      upperCase: true,
     },
     '/bag': { title: 'bag', render: () => s(`.main-btn-bag`).click(), translateTitle: true },
     '/colors': { title: 'pallet-colors', render: () => s(`.main-btn-colors`).click(), translateTitle: true },

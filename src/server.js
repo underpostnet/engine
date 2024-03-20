@@ -3,6 +3,7 @@
 // https://nodejs.org/api
 // https://expressjs.com/en/4x/api.html
 
+import v8 from 'v8';
 import dotenv from 'dotenv';
 import isAdmin from 'is-admin';
 
@@ -13,6 +14,7 @@ import { buildProxy } from './server/proxy.js';
 import { Dns } from './server/dns.js';
 import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
+import { formatBytes } from './client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -23,6 +25,9 @@ const logger = loggerFactory(import.meta);
 logger.info('argv', process.argv);
 logger.info('env', process.env.NODE_ENV);
 logger.info('admin', await isAdmin());
+logger.info('--max-old-space-size', {
+  total_available_size: formatBytes(v8.getHeapStatistics().total_available_size),
+});
 
 await buildClient();
 await buildRuntime();

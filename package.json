@@ -6,7 +6,8 @@
   "description": "engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node src/server",
-    "pm2": "pm2 kill && env-cmd -f .env.production pm2 start src/server.js --name engine && pm2 logs",
+    "pm2": "env-cmd -f .env.production pm2 start src/server.js --node-args=\"--max-old-space-size=8192\" --name engine && pm2 logs",
+    "pm2-delete": "pm2 delete engine",
     "dev": "env-cmd -f .env.development nodemon src/server",
     "docs": "jsdoc -c jsdoc.json",
     "install": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier",
