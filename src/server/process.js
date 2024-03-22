@@ -45,9 +45,9 @@ const ProcessController = {
   },
 };
 
-const shellExec = (cmd) => {
+const shellExec = (cmd, options = { silent: false, async: false, stdout: false }) => {
   logger.info(`cmd`, cmd);
-  return shell.exec(cmd);
+  return options.stdout ? shell.exec(cmd, options).stdout : shell.exec(cmd, options);
 };
 
 const shellCd = (cd) => {
