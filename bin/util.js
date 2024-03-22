@@ -82,6 +82,7 @@ try {
       {
         const baseFrom = process.argv[3];
         const baseTo = process.argv[4];
+        if (fs.existsSync(baseTo)) fs.removeSync(baseTo);
         shellCd(baseFrom);
         const output = shellExec('git status', { silent: true, stdout: true })
           .split(`to discard changes in working directory)`)[1]
