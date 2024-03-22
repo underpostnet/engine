@@ -5,7 +5,7 @@
   "version": "2.0.0",
   "description": "engine server",
   "scripts": {
-    "start": "env-cmd -f .env.production node src/server",
+    "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
     "pm2": "env-cmd -f .env.production pm2 start src/server.js --node-args=\"--max-old-space-size=8192\" --name engine && pm2 logs",
     "pm2-delete": "pm2 delete engine",
     "dev": "env-cmd -f .env.development nodemon src/server",

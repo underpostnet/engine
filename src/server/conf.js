@@ -812,169 +812,14 @@ const Config = {
           apis: ['user'],
           origins: [],
           minifyBuild: false,
-          lightBuild: true, //
+          lightBuild: false,
           disabled: false,
-          proxy: [],
+          proxy: [80, 443],
           db: {
             provider: 'mongoose',
             host: 'mongodb://127.0.0.1:27017',
             name: 'underpost',
           },
-        },
-      },
-      'cryptokoyn.net': {
-        '/': {
-          client: 'cryptokoyn',
-          runtime: 'nodejs',
-          apis: ['user'],
-          origins: [],
-          minifyBuild: false,
-          lightBuild: true, //
-          disabled: true,
-          proxy: [],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'cryptokoyn',
-          },
-        },
-      },
-      'www.dogmadual.com': {
-        '/': {
-          client: 'dogmadual',
-          runtime: 'nodejs',
-          apis: ['user'],
-          origins: [],
-          minifyBuild: false,
-          lightBuild: true, //
-          disabled: false,
-          proxy: [],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'dogmadual',
-          },
-        },
-      },
-      'www.nexodev.org': {
-        '/': {
-          client: 'nexodev',
-          runtime: 'nodejs',
-          apis: ['user'],
-          origins: [],
-          minifyBuild: false,
-          lightBuild: true, //
-          disabled: true,
-          proxy: [],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'nexodev',
-          },
-        },
-      },
-      'example.com': {
-        '/wp': {
-          client: 'wordpress',
-          runtime: 'xampp',
-          origins: [],
-          forceSSL: false,
-          disabled: true,
-          directory: '/htdocs/wp',
-          disabledRebuild: true,
-          db: {
-            provider: 'mariadb',
-            host: null,
-            name: '',
-            user: '',
-            password: '',
-            backupPath: '',
-          },
-          redirect: null,
-          proxy: [33],
-        },
-      },
-      'www.cyberiaonline.com': {
-        '/': {
-          client: 'cyberia',
-          apis: [
-            'file',
-            'user',
-            'crypto',
-            'blockchain',
-            'ipfs',
-            'bucket',
-            'cyberia-user',
-            'cyberia-biome',
-            'cyberia-tile',
-            'cyberia-world',
-          ],
-          ws: 'cyberia',
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          minifyBuild: false,
-          lightBuild: true, //
-          proxy: [80, 443],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'example2-cyberia',
-          },
-          mailer: {
-            sender: {
-              email: '',
-              name: '',
-            },
-            transport: {
-              host: 'mail.net', // smtp host
-              port: 465,
-              secure: true, // true for 465, false for other ports
-              auth: {
-                user: '', // generated ethereal user
-                pass: '', // generated ethereal password
-              },
-            },
-            templates: [''],
-          },
-        },
-        '/game': {
-          client: 'cyberia',
-          apis: ['file', 'user', 'crypto', 'cyberia-user', 'cyberia-biome', 'cyberia-tile', 'cyberia-world'],
-          ws: 'cyberia',
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          minifyBuild: false,
-          proxy: [80, 443],
-          db: {
-            provider: 'mongoose',
-            host: 'mongodb://127.0.0.1:27017',
-            name: 'example2-cyberia',
-          },
-        },
-        '/bms': {
-          client: 'bms',
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
-        },
-      },
-      'example1.com': {
-        '/': {
-          client: 'test',
-          runtime: 'nodejs',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
-        },
-        '/docs': {
-          client: 'doc',
-          runtime: 'xampp',
-          origins: [],
-          disabled: true,
-          proxy: [80, 443],
         },
       },
     },
@@ -999,7 +844,7 @@ const Config = {
     // fs.removeSync('./public');
     // fs.removeSync('./logs');
     fs.removeSync('./conf');
-    shellExec(`node bin/util update-conf-client`);
+    // shellExec(`node bin/util update-conf-client`);
     if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
     for (const confType of Object.keys(this.default)) {
