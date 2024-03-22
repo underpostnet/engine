@@ -3,7 +3,7 @@ import merge from 'deepmerge';
 import si from 'systeminformation';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { shellExec } from '../src/server/process.js';
+import { shellCd, shellExec } from '../src/server/process.js';
 import { range } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
@@ -76,6 +76,26 @@ try {
           'utf8',
         );
       })();
+      break;
+
+    case 'export-git-changes':
+      {
+        const baseFrom = process.argv[3];
+        const baseTo = process.argv[4];
+        shellCd(baseFrom);
+        const output = shellExec('git status', { silent: true, stdout: true })
+          .split(`to discard changes in working directory)`)[1]
+          .split('modified:')
+          .map((c) => c.trim().replaceAll(`\n`, ''));
+        output[output.length - 1] = output[output.length - 1].split('no changes added to commit')[0];
+        output.shift();
+        for (const fromPath of output) {
+          const from = `${baseFrom}/${fromPath}`;
+          const to = `${baseTo}/${fromPath}`;
+          logger.info('Copy path', { from, to });
+          fs.copySync(from, to);
+        }
+      }
       break;
     default:
       break;
