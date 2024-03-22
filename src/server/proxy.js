@@ -54,8 +54,8 @@ const buildProxy = async () => {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
         proxyRouter[port][`${host}${path}`] = {
           // target: `http://${host}:${confServer[host][path].port}${path}`,
-          // target: `http://localhost:${confServer[host][path].port}`,
-          target: `http://127.0.0.1:${confServer[host][path].port}`,
+          target: `http://localhost:${confServer[host][path].port}`,
+          // target: `http://127.0.0.1:${confServer[host][path].port}`,
           disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
@@ -82,6 +82,9 @@ const buildProxy = async () => {
 
     // instance proxy options
     // https://github.com/chimurai/http-proxy-middleware/tree/v2.0.4#readme
+
+    // proxy middleware options
+    /** @type {import('http-proxy-middleware/dist/types').Options} */
     const options = {
       ws: true,
       // changeOrigin: true,
@@ -116,8 +119,8 @@ const buildProxy = async () => {
       if (redirect) redirects[host] = redirect;
       if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
-      options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
-      options.router[`127.0.0.1:${port}/${host.split('/')[1]}`] = target;
+      // options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
+      // options.router[`127.0.0.1:${port}/${host.split('/')[1]}`] = target;
       // options.pathRewrite[`/${host.split('/')[1]}`] = '/';
     });
 
