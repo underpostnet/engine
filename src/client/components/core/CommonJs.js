@@ -440,6 +440,22 @@ function formatBytes(bytes, decimals = 2) {
   return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
 }
 
+function getDirname(path) {
+  // Split the path based on the path separator
+  const parts = path.split(/[/|\\]/);
+
+  // Remove the last element (filename)
+  parts.pop();
+
+  // If the path ends with a separator, remove the empty element
+  if (parts[parts.length - 1] === '') {
+    parts.pop();
+  }
+
+  // Join the remaining parts to get the directory path
+  return parts.join('/'); // Adjust separator if needed for Windows ('\')
+}
+
 export {
   s4,
   range,
@@ -477,4 +493,5 @@ export {
   setPad,
   getSubpaths,
   formatBytes,
+  getDirname,
 };
