@@ -26,7 +26,7 @@ const Xampp = {
   daemon: async function () {
     await timer(1000 * 60 * 2); // 2 minutes
     for (const port of this.ports) {
-      const [portStatus] = await network.status([port]);
+      const [portStatus] = await network.port.status([port]);
       if (!portStatus.open) return await this.initService();
     }
     return await this.daemon();
