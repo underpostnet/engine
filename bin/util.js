@@ -64,20 +64,6 @@ try {
         }
       })();
       break;
-    case 'update-conf-client':
-      (() => {
-        let origin = {};
-        const overwriteMerge = (destinationArray, sourceArray, options) => sourceArray;
-        if (!fs.existsSync(`./engine-private/conf`)) fs.mkdirSync(`./engine-private/conf`, { recursive: true });
-        else origin = JSON.parse(fs.readFileSync('./engine-private/conf/conf.client.private.json', 'utf8'));
-        fs.writeFileSync(
-          './engine-private/conf/conf.client.private.json',
-          JSON.stringify(merge(origin, Config.default.client, { arrayMerge: overwriteMerge }), null, 4),
-          'utf8',
-        );
-      })();
-      break;
-
     case 'export-git-changes':
       {
         const baseFrom = process.argv[3];
