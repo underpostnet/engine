@@ -3,6 +3,8 @@ import { getProxyPath } from '../../components/core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
+// https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+
 const ApiBase = (options = { id: '', endpoint: '' }) =>
   `${window.location.protocol}//${location.host}${getProxyPath()}api/${options?.endpoint ? options.endpoint : ''}${
     options?.id ? `/${options.id}` : ''
