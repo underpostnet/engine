@@ -21,20 +21,15 @@ const Xampp = {
     cmd = `C:/xampp/xampp_start.exe`;
     fs.writeFileSync(`./tmp/xampp-router.conf`, Xampp.router, 'utf-8');
     shellExec(cmd);
-    this.daemon();
-    return;
+    return await this.daemon();
   },
   daemon: async function () {
     await timer(1000 * 60 * 2); // 2 minutes
     for (const port of this.ports) {
       const [portStatus] = await network.status([port]);
-      if (!portStatus.open) {
-        this.initService();
-        return;
-      }
+      if (!portStatus.open) return await this.initService();
     }
-    this.daemon();
-    return;
+    return await this.daemon();
   },
   enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
   appendRouter: function (render) {
