@@ -827,6 +827,7 @@ const Config = {
       ipDaemon: {
         ip: null,
         minutesTimeInterval: 3,
+        disabled: true,
       },
       records: {
         A: [
@@ -840,22 +841,19 @@ const Config = {
       },
     },
   },
-  build: async function () {
-    // fs.removeSync('./public');
-    // fs.removeSync('./logs');
-    fs.removeSync('./conf');
-    // shellExec(`node bin/util update-conf-client`);
-    if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
-    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`);
+  build: async function (options = { folder: '' }) {
+    if (!options || !options.folder)
+      options = {
+        ...options,
+        folder: `./conf`,
+      };
+    if (!fs.existsSync(options.folder)) fs.mkdirSync(options.folder, { recursive: true });
     for (const confType of Object.keys(this.default)) {
-      if (false && fs.existsSync(`./engine-private/conf/conf.${confType}.private.json`))
-        fs.writeFileSync(
-          `./conf/conf.${confType}.json`,
-          fs.readFileSync(`./engine-private/conf/conf.${confType}.private.json`, 'utf8'),
-          'utf8',
-        );
-      else if (!fs.existsSync(`./conf/conf.${confType}.json`))
-        fs.writeFileSync(`./conf/conf.${confType}.json`, JSON.stringify(this.default[confType], null, 4), 'utf8');
+      fs.writeFileSync(
+        `${options.folder}/conf.${confType}.json`,
+        JSON.stringify(this.default[confType], null, 4),
+        'utf8',
+      );
     }
   },
 };

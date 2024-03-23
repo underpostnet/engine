@@ -32,14 +32,15 @@ const ProcessController = {
     onListen: function () {
       return this.data.map((sig) =>
         process.on(sig, (...args) => {
-          logger.info(`process on ${sig}`, args);
+          this.logger.info(`process on ${sig}`, args);
         }),
       );
     },
   },
-  init: function () {
+  init: function (logger) {
+    this.logger = logger;
     process.on('exit', (...args) => {
-      logger.info(`process on exit`, args);
+      this.logger.info(`process on exit`, args);
     });
     this.SIG.onListen();
   },

@@ -19,6 +19,7 @@ const Dns = {
     // open ports to LAN IPv4
     const confDnsPath = './conf/conf.dns.json';
     let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
+    if (confDnsData.ipDaemon.disabled) return;
     this.ip = confDnsData.ipDaemon.ip;
     logger.info(`Current ip`, this.ip);
     if (this.ipDaemon) clearInterval(this.ipDaemon);

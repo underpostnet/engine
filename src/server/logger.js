@@ -5,7 +5,9 @@ import winston from 'winston';
 import morgan from 'morgan';
 import colorize from 'json-colorizer';
 import colors from 'colors';
-import { clearTerminalStringColor } from '../client/components/core/CommonJs.js';
+import v8 from 'v8';
+import isAdmin from 'is-admin';
+import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
 
 colors.enable();
 dotenv.config();
@@ -85,7 +87,7 @@ const loggerFactory = (meta) => {
 
   // Create the logger instance that has to be exported
   // and used to log messages.
-  return winston.createLogger({
+  const logger = winston.createLogger({
     level: level(),
     levels,
     format: format(meta),
@@ -94,6 +96,15 @@ const loggerFactory = (meta) => {
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
     // exitOnError: false,
   });
+  logger.setUpInfo = async () => {
+    logger.info('argv', process.argv);
+    logger.info('env', process.env.NODE_ENV);
+    logger.info('admin', await isAdmin());
+    logger.info('--max-old-space-size', {
+      total_available_size: formatBytes(v8.getHeapStatistics().total_available_size),
+    });
+  };
+  return logger;
 };
 
 const loggerMiddleware = (meta) => {
