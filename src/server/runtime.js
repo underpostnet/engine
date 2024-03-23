@@ -73,6 +73,12 @@ const buildRuntime = async () => {
             }
         </VirtualHost>
           `);
+          // ERR too many redirects:
+          // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
+          // Check: wp-config.php
+          // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          //   $_SERVER['HTTPS'] = 'on';
+          // }
           await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
           break;
         case 'nodejs':
