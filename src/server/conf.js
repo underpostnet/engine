@@ -869,4 +869,18 @@ const Config = {
   },
 };
 
-export { Config };
+const loadConf = (deployId) => {
+  const folder = `./engine-private/conf/${deployId}`;
+  if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
+  for (const typeConf of Object.keys(Config.default))
+    fs.writeFileSync(
+      `./conf/conf.${typeConf}.json`,
+      fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8'),
+      'utf8',
+    );
+  fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
+  fs.writeFileSync(`./package.json`, fs.readFileSync(`${folder}/package.json`, 'utf8'), 'utf8');
+  return { folder, deployId };
+};
+
+export { Config, loadConf };

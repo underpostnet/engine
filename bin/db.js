@@ -6,18 +6,21 @@ import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
+import { loadConf } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, hostPath = '', operator] = process.argv;
+const [exe, dir, hostPath = '', operator, deployId] = process.argv;
 const [host, path = ''] = hostPath.split('/');
 
 try {
   let cmd;
+  if (deployId) loadConf(deployId);
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const { provider, name, user, password = '', backupPath = '' } = confServer[host][`/${path}`].db;
+  logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
     case 'mariadb':
       switch (operator) {
@@ -50,9 +53,36 @@ try {
 
       break;
 
+    case 'mongoose':
+      // MongoDB App Services CLI
+      switch (operator) {
+        case 'show-all':
+          break;
+        case 'show':
+          break;
+        case 'create':
+          break;
+        case 'delete':
+          break;
+        case 'export':
+          // mongodump -d <database_name> -o <directory_backup>
+          shellExec(`mongodump -d ${name} -o ./engine-private/mongodb-backup/`);
+          break;
+        case 'import':
+          // mongorestore -d <database_name> <directory_backup>
+          break;
+        case 'init-service':
+          break;
+        default:
+          break;
+      }
+      break;
+
     default:
       break;
   }
+
+  shellExec(`git checkout .`);
 
   // logger.info(`Run the following command`, cmd);
   // await ncp.copy(cmd);
