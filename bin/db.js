@@ -70,6 +70,7 @@ try {
           break;
         case 'import':
           // mongorestore -d <database_name> <directory_backup>
+          shellExec(`mongorestore -d ${name} ./engine-private/mongodb-backup/${name}`);
           break;
         case 'init-service':
           break;
