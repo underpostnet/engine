@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import { network } from '../../server/network.js';
 import { shellExec } from '../../server/process.js';
+import { timer } from '../../client/components/core/CommonJs.js';
 
 const Xampp = {
   ports: [],
@@ -20,6 +21,20 @@ const Xampp = {
     cmd = `C:/xampp/xampp_start.exe`;
     fs.writeFileSync(`./tmp/xampp-router.conf`, Xampp.router, 'utf-8');
     shellExec(cmd);
+    this.daemon();
+    return;
+  },
+  daemon: async function () {
+    await timer(1000 * 60 * 2); // 2 minutes
+    for (const port of this.ports) {
+      const [portStatus] = await network.status([port]);
+      if (!portStatus.open) {
+        this.initService();
+        return;
+      }
+    }
+    this.daemon();
+    return;
   },
   enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
   appendRouter: function (render) {
