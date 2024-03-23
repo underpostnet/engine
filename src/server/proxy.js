@@ -49,6 +49,7 @@ const buildProxy = async () => {
         default:
           break;
       }
+      if (confServer[host][path].disabled) continue;
       confServer[host][path].port = newInstance(currentPort);
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
@@ -56,14 +57,18 @@ const buildProxy = async () => {
           // target: `http://${host}:${confServer[host][path].port}${path}`,
           target: `http://localhost:${confServer[host][path].port}`,
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
-          disabled: confServer[host][path].disabled,
+          // disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
         if (confServer[host][path].redirect)
           proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
+        if (confServer[host][path].internalRedirect)
+          proxyRouter[port][`${host}${path}`].target = `http://localhost:${
+            confServer[confServer[host][path].internalRedirect.host][confServer[host][path].internalRedirect.path].port
+          }`;
         if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
-      if (!confServer[host][path].disabled) currentPort++;
+      currentPort++;
     }
 
   // logger.info('Proxy router', proxyRouter);
@@ -114,8 +119,8 @@ const buildProxy = async () => {
     // build router
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((host) => {
-      const { disabled, target, proxy, redirect } = hosts[host];
-      if (disabled || !target || !proxy.includes(port)) return;
+      const { target, proxy, redirect } = hosts[host];
+      if (!proxy.includes(port)) return;
       if (redirect) redirects[host] = redirect;
       if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
