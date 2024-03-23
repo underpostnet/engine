@@ -266,6 +266,7 @@ RewriteRule . /index.php [L]
       switch (os) {
         case 'windows':
           await (async () => {
+            // env export import
             // https://www.mongodb.com/try/download/database-tools
             const urlDownload = `https://fastdl.mongodb.org/tools/db/mongodb-database-tools-windows-x86_64-100.9.3.msi`;
             const folderPath = `./engine-private/setup`;
