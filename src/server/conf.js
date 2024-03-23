@@ -841,6 +841,7 @@ const Config = {
     },
   },
   build: async function (options = { folder: '' }) {
+    if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     if (process.argv[2] === 'deploy') return;
     if (!options || !options.folder)
       options = {
