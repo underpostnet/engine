@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import { shellExec } from './process.js';
 
 const Config = {
   default: {
@@ -842,6 +841,7 @@ const Config = {
     },
   },
   build: async function (options = { folder: '' }) {
+    if (process.argv[2] === 'deploy') return;
     if (!options || !options.folder)
       options = {
         ...options,
