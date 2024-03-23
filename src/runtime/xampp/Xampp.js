@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import { network } from '../../server/network.js';
 import { shellExec } from '../../server/process.js';
 
@@ -18,12 +18,21 @@ const Xampp = {
     await network.port.portClean(3306);
     for (const port of Xampp.ports) await network.port.portClean(port);
     cmd = `C:/xampp/xampp_start.exe`;
+    fs.writeFileSync(`./tmp/xampp-router.conf`, Xampp.router, 'utf-8');
     shellExec(cmd);
   },
   enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
   appendRouter: function (render) {
-    if (!this.router) return (this.router = render);
+    if (!this.router) {
+      if (fs.existsSync(`./tmp/xampp-router.conf`))
+        return (this.router = fs.readFileSync(`./tmp/xampp-router.conf`, 'utf-8')) + render;
+      return (this.router = render);
+    }
     return (this.router += render);
+  },
+  removeRouter: function () {
+    this.router = undefined;
+    if (fs.existsSync(`./tmp/xampp-router.conf`)) fs.rmSync(`./tmp/xampp-router.conf`);
   },
 };
 

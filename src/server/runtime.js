@@ -39,6 +39,7 @@ const buildRuntime = async () => {
         case 'xampp':
           if (!Xampp.enabled()) continue;
           if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
+          if (confServer[host][path].resetRouter) Xampp.removeRouter();
           Xampp.appendRouter(`
             
         Listen ${port}
