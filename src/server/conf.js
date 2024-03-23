@@ -843,6 +843,16 @@ const Config = {
   build: async function (options = { folder: '' }) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     if (process.argv[2] === 'deploy') return;
+    if (process.argv[2] === 'proxy') {
+      this.default.server = {};
+      for (const deployId of process.argv[3].split(',')) {
+        const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        this.default.server = {
+          ...this.default.server,
+          ...serverConf,
+        };
+      }
+    }
     if (!options || !options.folder)
       options = {
         ...options,
