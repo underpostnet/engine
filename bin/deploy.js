@@ -16,7 +16,7 @@ const [exe, dir, operator] = process.argv;
 
 try {
   switch (operator) {
-    case 'save-conf':
+    case 'save':
       {
         const deployId = process.argv[3];
         const folder = `./engine-private/conf/${deployId}`;
@@ -26,7 +26,7 @@ try {
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
       }
       break;
-    case 'exec':
+    case 'run':
       {
         const deployId = process.argv[3];
         const folder = `./engine-private/conf/${deployId}`;
@@ -40,6 +40,7 @@ try {
         fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
         fs.writeFileSync(`./package.json`, fs.readFileSync(`${folder}/package.json`, 'utf8'), 'utf8');
         shellExec('npm start');
+        shellExec('git checkout .');
       }
       break;
 
