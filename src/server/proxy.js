@@ -122,6 +122,7 @@ const buildProxy = async () => {
       const { target, proxy, redirect } = hosts[host];
       if (!proxy.includes(port)) return;
       if (redirect) redirects[host] = redirect;
+      if (host[host.length - 1] === '/') host = host.slice(0, -1);
       if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
       // options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
