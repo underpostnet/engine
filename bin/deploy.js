@@ -39,7 +39,7 @@ try {
           );
         fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
         fs.writeFileSync(`./package.json`, fs.readFileSync(`${folder}/package.json`, 'utf8'), 'utf8');
-        shellExec('npm start', { async: true });
+        shellExec('npm start');
       }
       break;
 
