@@ -4,7 +4,6 @@
 // https://expressjs.com/en/4x/api.html
 
 import dotenv from 'dotenv';
-
 import { loggerFactory } from './server/logger.js';
 import { buildClient } from './server/client-build.js';
 import { buildRuntime } from './server/runtime.js';
