@@ -18,6 +18,9 @@ const BlogContraculturaCyberpunk = {
           top: 0px !important;
           height: 100% !important;
         }
+        .modal {
+          border: none;
+        }
       </style>`;
       setTimeout(() => {
         s(`.bar-default-modal-modal-contracultura-cyberpunk`).classList.add('hide');
