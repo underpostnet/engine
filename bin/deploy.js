@@ -45,8 +45,8 @@ try {
         }
         fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');
         await buildClient();
-        shellExec(`pm2 delete ${deployId}`);
-        shellExec('git checkout .');
+        // shellExec(`pm2 delete ${deployId}`);
+        // shellExec('git checkout .');
       }
       break;
     default:
