@@ -407,7 +407,7 @@ const Modal = {
           s(`.${idModal}`).style.width = `${window.innerWidth - this.Data[options.slideMenu][idSlide].width}px`;
           s(`.${idModal}`).style.left =
             idSlide === 'slide-menu-right' ? `0px` : `${this.Data[options.slideMenu][idSlide].width}px`;
-          setTimeout(() => (s(`.${idModal}`).style.transition = transition), 300);
+          setTimeout(() => (s(`.${idModal}`) ? (s(`.${idModal}`).style.transition = transition) : null), 300);
         };
 
         callBack();
