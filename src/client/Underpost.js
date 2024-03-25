@@ -11,11 +11,13 @@ import { LogOutUnderpost } from './components/underpost/LogOutUnderpost.js';
 import { SignUpUnderpost } from './components/underpost/SignUpUnderpost.js';
 import { Menu } from './components/underpost/Menu.js';
 import { RouterUnderpost } from './components/underpost/RoutesUnderpost.js';
+import { TranslateUnderpost } from './components/underpost/TranslateUnderpost.js';
 
 (async function () {
   await Css.Init(CssUnderpost);
   const RouterInstance = RouterUnderpost();
   await TranslateCore.Init();
+  await TranslateUnderpost.Init();
   await Responsive.Init();
   await Menu.Render();
   await NotificationManager.RenderBoard();

@@ -13,6 +13,7 @@ import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
 import { LabGallery } from './LabGallery.js';
+import { BlogContraculturaCyberpunk } from './BlogContraculturaCyberpunk.js';
 
 const Menu = {
   Data: {},
@@ -27,6 +28,15 @@ const Menu = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-contracultura-cyberpunk',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fa-brands fa-blogger"></i>`,
+              text: html`${Translate.Render('contracultura-cyberpunk')}`,
+            }),
+            // style: 'display: none',
+            attrs: `data-id="6"`,
+          })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-lab-gallery',
             label: this.renderMenuLabel({
@@ -215,6 +225,26 @@ const Menu = {
           text: Translate.Render('lab-gallery'),
         }),
         html: async () => await LabGallery.Render(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-contracultura-cyberpunk`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-contracultura-cyberpunk',
+        route: 'contracultura-cyberpunk',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html`<i class="fa-brands fa-blogger"></i>`,
+          text: Translate.Render('contracultura-cyberpunk'),
+        }),
+        html: async () => await BlogContraculturaCyberpunk.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
