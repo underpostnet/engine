@@ -6,6 +6,9 @@ import { loggerFactory } from './logger.js';
 import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // Static Site Generation (SSG)
 
