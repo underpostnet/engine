@@ -1,4 +1,4 @@
-import { getQueryParams, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, s } from '../core/VanillaJs.js';
 
 const BlogContraculturaCyberpunk = {
   Render: async function () {
@@ -887,7 +887,7 @@ const BlogContraculturaCyberpunk = {
 </div>
 
     <br />
-    <img class='in' style="width: 280px; height: auto; margin: auto;" src="https://underpost.net/img/gbe.png" /><br /><br /><br /><br /><br />
+    <img class='in' style="width: 280px; height: auto; margin: auto;" src="${getProxyPath()}assets/img/gbe.png" /><br /><br /><br /><br /><br />
     <br />
     <br /><br />
     `;
