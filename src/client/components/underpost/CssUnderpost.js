@@ -118,6 +118,19 @@ const CssUnderpost = {
       top: 5px;
       left: 10px;
     }
+    .btn-lab-gallery {
+      font-weight: bold;
+      margin: 2px;
+      padding: 10px;
+      font-weight: bold;
+      text-align: left;
+    }
+    .iframe-gallery {
+      width: 100%;
+      min-height: 500px;
+      border: none;
+      margin: 2px;
+    }
   `,
 };
 

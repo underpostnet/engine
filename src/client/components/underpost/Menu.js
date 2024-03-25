@@ -12,6 +12,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
+import { LabGallery } from './LabGallery.js';
 
 const Menu = {
   Data: {},
@@ -26,6 +27,15 @@ const Menu = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-lab-gallery',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fa-solid fa-photo-film"></i>`,
+              text: html`${Translate.Render('lab-gallery')}`,
+            }),
+            // style: 'display: none',
+            attrs: `data-id="5"`,
+          })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
             label: this.renderMenuLabel({
@@ -185,6 +195,26 @@ const Menu = {
           text: Translate.Render('log-in'),
         }),
         html: async () => await LogIn.Render(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-lab-gallery`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-lab-gallery',
+        route: 'lab-gallery',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html`<i class="fa-solid fa-photo-film"></i>`,
+          text: Translate.Render('lab-gallery'),
+        }),
+        html: async () => await LabGallery.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

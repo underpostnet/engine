@@ -13,6 +13,7 @@ const RoutesUnderpost = () => {
       render: () => s(`.main-btn-home`).click(),
       upperCase: false,
     },
+    '/lab-gallery': { title: 'lab-gallery', render: () => s(`.main-btn-lab-gallery`).click(), translateTitle: false },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
     '/log-out': {
