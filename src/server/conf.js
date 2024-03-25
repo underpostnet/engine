@@ -1,5 +1,7 @@
 import fs from 'fs-extra';
 
+// monitoring: https://app.pm2.io/
+
 const Config = {
   default: {
     client: {
