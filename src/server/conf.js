@@ -159,6 +159,7 @@ const Config = {
   },
   build: async function (options = { folder: '' }) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
+    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) return loadConf(process.argv[2]);
     if (process.argv[2] === 'deploy') return;
     if (process.argv[2] === 'proxy') {
       this.default.server = {};
