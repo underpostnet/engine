@@ -1,5 +1,13 @@
 const BtnIcon = {
-  Render: async function (options) {
+  Render: async function (
+    options = {
+      class: '',
+      type: '',
+      style: '',
+      attrs: '',
+      label: '',
+    },
+  ) {
     return html`<button
       ${options?.class ? `class="${options.class}"` : ''}
       ${options?.type ? `type="${options.type}"` : ''}
