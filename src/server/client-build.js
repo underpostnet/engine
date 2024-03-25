@@ -91,7 +91,7 @@ const buildClient = async () => {
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      if (process.env.NODE_ENV !== 'development' || !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
+      if (process.env.NODE_ENV !== 'development' && !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
         await fullBuild({ logger, host, publicPath, client, directory, db, dists, rootClientPath, acmeChallengePath });
 
       Object.keys(components).map((module) => {
