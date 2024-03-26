@@ -25,7 +25,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, disabled, directory, ws, mailer, db } = confServer[host][path];
+      const { runtime, port, client, apis, origins, directory, ws, mailer, db } = confServer[host][path];
       const runningData = {
         runtime,
         client,
@@ -33,7 +33,6 @@ const buildRuntime = async () => {
         host: `http://${host}:${port}${path}`,
         local: `http://localhost:${port}${path}`,
       };
-      if (disabled) continue;
 
       switch (runtime) {
         case 'xampp':

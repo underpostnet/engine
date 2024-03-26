@@ -131,7 +131,6 @@ const Config = {
           origins: [],
           minifyBuild: false,
           lightBuild: false,
-          disabled: false,
           proxy: [80, 443],
           db: {
             provider: 'mongoose',

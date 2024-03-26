@@ -49,7 +49,6 @@ const buildProxy = async () => {
         default:
           break;
       }
-      if (confServer[host][path].disabled) continue;
       confServer[host][path].port = newInstance(currentPort);
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
@@ -57,7 +56,6 @@ const buildProxy = async () => {
           // target: `http://${host}:${confServer[host][path].port}${path}`,
           target: `http://localhost:${confServer[host][path].port}`,
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
-          // disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
       }
@@ -123,7 +121,6 @@ const buildProxy = async () => {
     await network.port.portClean(port);
     if (port === 443) {
       Object.keys(hosts).map((host) => {
-        if (hosts[host].disabled) return;
         const [hostSSL, path = ''] = host.split('/');
         if (validateSecureContext(hostSSL)) {
           if (!('key' in OptionSSL)) {
