@@ -2,14 +2,22 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
 import { Modal } from '../core/Modal.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { RouterEvents } from '../core/Router.js';
+import { s, setURI, getURI, getProxyPath, getQueryParams } from '../core/VanillaJs.js';
 import { Menu } from './Menu.js';
+
+const setQueryPath = (options = { path: '', queryPath: '' }) => {
+  const { queryPath, path } = options;
+  const newUri = `${getProxyPath()}${path}${queryPath ? `/?p=${queryPath}` : ''}`;
+  const currentUri = `${getURI()}${location.search}`;
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) setURI(newUri);
+};
 
 const LabGallery = {
   Tokens: {},
   View: [
-    { title: 'UNDERPOST CUBE', path: 'cube.php' },
     { title: '3D PLOT DEMO', path: '3dplotdemo' },
+    { title: 'UNDERPOST CUBE', path: 'cube.php' },
     { title: 'PATH FINDING', path: 'pathfinding' },
     { title: 'SURVIVAL BALL GAME', path: 'survival' },
     { title: 'INFINITE LEVELS LABYRYNTH', path: 'laberinto' },
@@ -27,14 +35,19 @@ const LabGallery = {
       const viewLabId = `${id}-${i}`;
       setTimeout(() => {
         s(`.btn-${viewLabId}`).onclick = async () => {
+          const ModalId = `modal-${viewLabId}`;
           const { barConfig } = await Themes[Css.currentTheme]();
+          barConfig.buttons.close.onClick = () => {
+            setQueryPath({ path: 'lab-gallery' });
+            Modal.removeModal(ModalId);
+          };
           await Modal.Render({
             barConfig,
             title: Menu.renderViewTitle({
               icon: html`<i class="fa-solid fa-photo-film"></i>`,
               text: view.title,
             }),
-            id: `modal-${viewLabId}`,
+            id: ModalId,
             html: async () => {
               const url = `https://underpost.net/${view.path}`;
               return html` <iframe class="wfa iframe-gallery" src="${url}"> </iframe> `;
@@ -43,6 +56,7 @@ const LabGallery = {
             mode: 'view',
             slideMenu: 'modal-menu',
           });
+          setQueryPath({ path: 'lab-gallery', queryPath: view.path });
         };
       });
       render += html`
@@ -55,6 +69,23 @@ const LabGallery = {
         <div class="in iframe-${viewLabId} hide"></div>
       `;
     }
+    RouterEvents[id] = ({ path, pushPath, proxyPath, route }) => {
+      if (route === 'lab-gallery') {
+        setTimeout(() => {
+          const path = getQueryParams().p;
+          if (path) {
+            const indexView = this.View.findIndex((view) => view.path === path);
+            if (indexView > -1) {
+              const viewLabId = `${id}-${indexView}`;
+              s(`.btn-${viewLabId}`).click();
+            }
+          }
+        });
+      }
+    };
+    setTimeout(() => {
+      RouterEvents[id]({ route: 'lab-gallery' });
+    });
     return render;
   },
 };

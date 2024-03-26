@@ -459,6 +459,14 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
+  removeModal: function (idModal) {
+    s(`.${idModal}`).style.opacity = '0';
+    setTimeout(() => {
+      s(`.${idModal}`).remove();
+      s(`.style-${idModal}`).remove();
+      delete this.Data[idModal];
+    });
+  },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
 };
 
