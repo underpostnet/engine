@@ -93,7 +93,7 @@ const buildRuntime = async () => {
           app.use(loggerMiddleware(import.meta));
 
           // instance public static
-          if (client) app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+          if (client || path === '/') app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));

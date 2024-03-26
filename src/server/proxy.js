@@ -59,7 +59,6 @@ const buildProxy = async () => {
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
           // disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
-          runtime: confServer[host][path].runtime,
         };
         if (confServer[host][path].redirect)
           proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
@@ -147,7 +146,7 @@ const buildProxy = async () => {
       Object.keys(hosts).map((host) => {
         if (hosts[host].disabled) return;
         const [hostSSL, path = ''] = host.split('/');
-        if (validateSecureContext(hostSSL) && hosts[host].runtime) {
+        if (validateSecureContext(hostSSL)) {
           if (!('key' in optionsSSL)) {
             optionsSSL = { ...buildSecureContext(hostSSL) };
             server = https.createServer(optionsSSL, app);
