@@ -77,7 +77,7 @@ const LabGallery = {
             const indexView = this.View.findIndex((view) => view.path === path);
             if (indexView > -1) {
               const viewLabId = `${id}-${indexView}`;
-              s(`.btn-${viewLabId}`).click();
+              if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
             }
           }
         });
