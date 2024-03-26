@@ -99,9 +99,8 @@ const buildProxy = async () => {
     // build router
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((host) => {
-      const { target, proxy, redirect } = hosts[host];
+      const { target, proxy } = hosts[host];
       if (!proxy.includes(port)) return;
-      if (host.split('/')[1] !== '' && redirect) return (redirects[host] = redirect);
       if (host[host.length - 1] === '/') host = host.slice(0, -1);
       if ([80, 443].includes(port)) options.router[host] = target;
       else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
