@@ -60,23 +60,14 @@ const buildProxy = async () => {
           // disabled: confServer[host][path].disabled,
           proxy: confServer[host][path].proxy,
         };
-        if (confServer[host][path].redirect)
-          proxyRouter[port][`${host}${path}`].redirect = confServer[host][path].redirect;
-        if (confServer[host][path].internalRedirect)
-          proxyRouter[port][`${host}${path}`].target = `http://localhost:${
-            confServer[confServer[host][path].internalRedirect.host][confServer[host][path].internalRedirect.path].port
-          }`;
-        if (port === 443) proxyRouter[port][`${host}${path}`].forceSSL = confServer[host][path].forceSSL;
       }
       currentPort++;
     }
 
   // logger.info('Proxy router', proxyRouter);
 
-  let server;
-  let optionsSSL = {};
-  let forceSSL = [];
-  let redirects = {};
+  let ServerSSL;
+  let OptionSSL = {};
 
   for (let port of Object.keys(proxyRouter)) {
     port = parseInt(port);
@@ -102,17 +93,6 @@ const buildProxy = async () => {
       pathRewrite: {
         // only add path
         // '^/target-path': '/',
-      },
-      onProxyReq: (proxyReq, req, res) => {
-        /* handle proxyReq */
-        // `[HPM][${req.method}][SSL:${req.secure}] ${req.headers.host}${req.url}
-        if (`${req.headers.host}/` in redirects) return res.redirect(`http://${redirects[`${req.headers.host}/`]}`);
-        if (req.headers.host in redirects) return res.redirect(`http://${redirects[req.headers.host]}`);
-        if (
-          !req.secure &&
-          forceSSL.find((forceData) => forceData.host === req.headers.host && req.url.startsWith(forceData.path))
-        )
-          return res.redirect(`https://${req.headers.host}${req.url}`);
       },
     };
 
@@ -147,19 +127,16 @@ const buildProxy = async () => {
         if (hosts[host].disabled) return;
         const [hostSSL, path = ''] = host.split('/');
         if (validateSecureContext(hostSSL)) {
-          if (!('key' in optionsSSL)) {
-            optionsSSL = { ...buildSecureContext(hostSSL) };
-            server = https.createServer(optionsSSL, app);
-          } else server.addContext(hostSSL, buildSecureContext(hostSSL));
-          if (hosts[host].forceSSL) forceSSL.push({ host: hostSSL, path: `/${path}` });
+          if (!('key' in OptionSSL)) {
+            OptionSSL = { ...buildSecureContext(hostSSL) };
+            ServerSSL = https.createServer(OptionSSL, app);
+          } else ServerSSL.addContext(hostSSL, buildSecureContext(hostSSL));
         }
       });
 
-      if (server) await listenPortController(server, port, { port, options });
+      if (ServerSSL) await listenPortController(ServerSSL, port, { port, options });
     } else await listenPortController(app, port, { port, options });
   }
-  // logger.info('Force SSL', forceSSL);
-  // logger.info('Redirects', redirects);
 };
 
 export { buildProxy };
