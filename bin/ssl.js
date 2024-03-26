@@ -4,15 +4,20 @@ import ncp from 'copy-paste';
 
 import { getRootDirectory } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
+import { loadConf } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, os, hosts] = process.argv;
+// usage
+// node bin/ssl windows <deploy-id> www.example.com
+
+const [exe, dir, os, deployId, hosts] = process.argv;
 
 try {
   let cmd;
+  await loadConf(deployId);
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of hosts.split(',')) {
     if (host in confServer) {
