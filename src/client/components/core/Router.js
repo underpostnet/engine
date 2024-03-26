@@ -15,7 +15,7 @@ const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => 
 
 const RouterEvents = {};
 
-const Router = function (options = { Routes: () => {}, proxyPath: '/', e: {}, NameApp: '' }) {
+const Router = function (options = { Routes: () => {}, proxyPath: '/', e: new PopStateEvent(), NameApp: '' }) {
   const { proxyPath, e, Routes, NameApp } = options;
   let path = getURI();
   logger.info(options);
