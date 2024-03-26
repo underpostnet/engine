@@ -153,6 +153,40 @@ const TranslateCore = {
     Translate.Data['home-directory'] = { en: 'Home directory', es: 'Directorio de inicio' };
     Translate.Data['create'] = { en: 'create', es: 'Crear' };
     Translate.Data['home'] = { en: 'Home', es: 'Inicio' };
+
+    Translate.Data = {
+      ...Translate.Data,
+      ...{
+        title: {
+          en: 'New Content Entry',
+          es: 'Nueva entrada de blog',
+        },
+        author: {
+          en: 'Author',
+          es: 'Autor',
+        },
+        date: {
+          en: 'Published on',
+          es: 'Publicado el',
+        },
+        content: {
+          en: 'This is the content of the new blog entry.',
+          es: 'Este es el contenido de la nueva entrada de blog.',
+        },
+        tags: {
+          en: 'Tags',
+          es: 'Etiquetas',
+        },
+        categories: {
+          en: 'Categories',
+          es: 'Categorías',
+        },
+        comments: {
+          en: 'Comments',
+          es: 'Comentarios',
+        },
+      },
+    };
   },
 };
 

@@ -12,6 +12,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
+import { Blog } from '../core/Blog.js';
 
 const Menu = {
   Data: {},
@@ -26,6 +27,14 @@ const Menu = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-blog',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fa-solid fa-file-invoice"></i>`,
+              text: html`${Translate.Render('blog')}`,
+            }),
+            attrs: `data-id="5"`,
+          })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
             label: this.renderMenuLabel({
@@ -184,6 +193,26 @@ const Menu = {
           text: Translate.Render('log-in'),
         }),
         html: async () => await LogIn.Render(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-blog`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-blog',
+        route: 'blog',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
+          text: Translate.Render('blog'),
+        }),
+        html: async () => await Blog.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
