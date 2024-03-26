@@ -181,7 +181,7 @@ const buildClient = async () => {
                   metadata &&
                   path === '/' &&
                   view.path === '/' &&
-                  fs.existsSync(`./src/client/sw/${client}.sw.js`) &&
+                  // fs.existsSync(`./src/client/sw/${client}.sw.js`) &&
                   fs.existsSync(`./src/client/public/${client}/browserconfig.xml`) &&
                   fs.existsSync(`./src/client/public/${client}/site.webmanifest`)
                 ) {
@@ -198,9 +198,11 @@ const buildClient = async () => {
                     'utf8',
                   );
                   // build service worker
-                  const jsSrc = fs.readFileSync(`./src/client/sw/${client}.sw.js`, 'utf8');
-                  const minifyJsSrc = UglifyJS.minify(jsSrc);
-                  fs.writeFileSync(`${buildPath}sw.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
+                  if (fs.existsSync(`./src/client/sw/${client}.sw.js`)) {
+                    const jsSrc = fs.readFileSync(`./src/client/sw/${client}.sw.js`, 'utf8');
+                    const minifyJsSrc = UglifyJS.minify(jsSrc);
+                    fs.writeFileSync(`${buildPath}sw.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
+                  }
 
                   ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
                 }
