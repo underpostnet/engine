@@ -7,6 +7,8 @@ import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
+import AdmZip from 'adm-zip';
+import * as dir from 'path';
 
 dotenv.config();
 
@@ -27,9 +29,13 @@ const fullBuild = async ({
 
   fs.removeSync(rootClientPath);
   fs.mkdirSync(rootClientPath, { recursive: true });
-  fs.mkdirSync(directory ? `${directory}${acmeChallengePath}` : `${publicPath}/${host}${acmeChallengePath}`, {
+  const fullPathChallengePath = directory
+    ? `${directory}${acmeChallengePath}`
+    : `${publicPath}/${host}${acmeChallengePath}`;
+  fs.mkdirSync(fullPathChallengePath, {
     recursive: true,
   });
+  fs.writeFileSync(`${fullPathChallengePath}/.gitkeep`, '', 'utf8');
   if (fs.existsSync(`./src/client/public/${client}`)) {
     fs.copySync(
       `./src/client/public/${client}`,
@@ -272,6 +278,28 @@ const buildClient = async () => {
             'utf8',
           );
         }
+      if (process.argv[2] === 'build-full-client') {
+        logger.warn('build zip', rootClientPath);
+
+        if (!fs.existsSync('./build')) fs.mkdirSync('./build');
+
+        const zip = new AdmZip();
+        const files = await fs.readdir(rootClientPath, { recursive: true });
+
+        for (const relativePath of files) {
+          const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
+          if (!fs.lstatSync(filePath).isDirectory()) {
+            const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
+            zip.addLocalFile(filePath, folder);
+          }
+        }
+
+        const buildId = `${host}-${path.replaceAll('/', '')}`;
+
+        logger.warn('write zip', `./build/${buildId}.zip`);
+
+        zip.writeZip(`./build/${buildId}.zip`);
+      }
     }
   }
 };
