@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
 import { Blog } from '../core/Blog.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
+import { DashboardNexodev } from './DashboardNexodev.js';
 
 const Menu = {
   Data: {},
@@ -43,6 +44,14 @@ const Menu = {
               text: html`${Translate.Render('calendar')}`,
             }),
             attrs: `data-id="6"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-dashboard',
+            label: this.renderMenuLabel({
+              icon: html` <i class="fa-solid fa-chart-line"></i>`,
+              text: html`${Translate.Render('dashboard')}`,
+            }),
+            attrs: `data-id="7"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -246,6 +255,29 @@ const Menu = {
             idModal: 'modal-account',
             user: Elements.Data.user.main.model.user,
             disabled: ['emailConfirm'],
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-dashboard`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-dashboard',
+        route: 'dashboard',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html`<i class="fa-solid fa-chart-line"></i>`,
+          text: Translate.Render('dashboard'),
+        }),
+        html: async () =>
+          await DashboardNexodev.Render({
+            idModal: 'modal-dashboard',
           }),
         handleType: 'bar',
         maximize: true,
