@@ -88,6 +88,7 @@ const buildProxy = async () => {
       xfwd: true, // adds x-forward headers
       // preserveHeaderKeyCase: true,
       // secure: true, warn validator
+      // onProxyReq: (proxyReq, req, res, options) => {},
       pathRewrite: {
         // only add path
         // '^/target-path': '/',
