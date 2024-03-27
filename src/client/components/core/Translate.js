@@ -153,6 +153,7 @@ const TranslateCore = {
     Translate.Data['home-directory'] = { en: 'Home directory', es: 'Directorio de inicio' };
     Translate.Data['create'] = { en: 'create', es: 'Crear' };
     Translate.Data['home'] = { en: 'Home', es: 'Inicio' };
+    Translate.Data['calendar'] = { es: 'Calendario', en: 'Calendar' };
 
     Translate.Data = {
       ...Translate.Data,

@@ -13,6 +13,7 @@ import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
 import { Blog } from '../core/Blog.js';
+import { CalendarNexodev } from './CalendarNexodev.js';
 
 const Menu = {
   Data: {},
@@ -34,6 +35,14 @@ const Menu = {
               text: html`${Translate.Render('blog')}`,
             }),
             attrs: `data-id="5"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-calendar',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-calendar-alt"></i>`,
+              text: html`${Translate.Render('calendar')}`,
+            }),
+            attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -237,6 +246,29 @@ const Menu = {
             idModal: 'modal-account',
             user: Elements.Data.user.main.model.user,
             disabled: ['emailConfirm'],
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-calendar`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-calendar',
+        route: 'calendar',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html` <i class="fas fa-calendar-alt"></i>`,
+          text: Translate.Render('calendar'),
+        }),
+        html: async () =>
+          await CalendarNexodev.Render({
+            idModal: 'modal-calendar',
           }),
         handleType: 'bar',
         maximize: true,
