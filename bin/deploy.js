@@ -34,6 +34,7 @@ try {
         shellExec('git checkout .');
       }
       break;
+    case 'build-full-client-zip':
     case 'build-full-client':
       {
         const { deployId, folder } = loadConf(process.argv[3]);

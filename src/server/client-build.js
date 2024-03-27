@@ -278,7 +278,7 @@ const buildClient = async () => {
             'utf8',
           );
         }
-      if (process.argv[2] === 'build-full-client') {
+      if (process.argv[2] === 'build-full-client-zip') {
         logger.warn('build zip', rootClientPath);
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');
