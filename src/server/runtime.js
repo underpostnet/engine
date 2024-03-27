@@ -43,7 +43,8 @@ const buildRuntime = async () => {
             
         Listen ${port}
 
-        <VirtualHost *:${port}>            
+        <VirtualHost *:${port}>    
+            ${redirect ? `Redirect 302 / ${redirect}` : ''}        
             DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
             ServerName ${host}:${port}          
             <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
