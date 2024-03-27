@@ -81,7 +81,6 @@ const buildRuntime = async () => {
           await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
           break;
         case 'nodejs':
-        default:
           const app = express();
 
           app.use((req, res, next) => {
@@ -93,7 +92,7 @@ const buildRuntime = async () => {
           app.use(loggerMiddleware(import.meta));
 
           // instance public static
-          if (client || path === '/') app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+          app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
 
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));
@@ -150,6 +149,8 @@ const buildRuntime = async () => {
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);
 
+          break;
+        default:
           break;
       }
       currentPort++;
