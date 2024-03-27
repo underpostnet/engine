@@ -25,7 +25,7 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, directory, ws, mailer, db } = confServer[host][path];
+      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect } = confServer[host][path];
       const runningData = {
         runtime,
         client,
@@ -84,9 +84,14 @@ const buildRuntime = async () => {
           const app = express();
 
           app.use((req, res, next) => {
-            // `[app-${client}][${req.method}] ${req.headers.host}${req.url}`
+            // const info = `${req.headers.host}${req.url}`;
             return next();
           });
+
+          if (redirect) {
+            app.use((req, res) => res.redirect(redirect));
+            break;
+          }
 
           // set logger
           app.use(loggerMiddleware(import.meta));
