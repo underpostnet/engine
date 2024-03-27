@@ -89,7 +89,7 @@ const buildRuntime = async () => {
           });
 
           if (redirect) {
-            app.use((req, res) => res.redirect(redirect));
+            app.get('*', (req, res) => res.redirect(redirect));
             break;
           }
 
