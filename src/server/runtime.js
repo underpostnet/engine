@@ -81,6 +81,7 @@ const buildRuntime = async () => {
           await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
           break;
         case 'nodejs':
+        default:
           const app = express();
 
           app.use((req, res, next) => {
@@ -149,8 +150,6 @@ const buildRuntime = async () => {
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);
 
-          break;
-        default:
           break;
       }
       currentPort++;
