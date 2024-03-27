@@ -12,6 +12,7 @@ import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
 import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { createProxyMiddleware } from 'http-proxy-middleware';
 
 dotenv.config();
 
@@ -101,7 +102,13 @@ const buildRuntime = async () => {
           app.use(loggerMiddleware(import.meta));
 
           if (redirect) {
-            app.get('*', (req, res) => res.redirect(redirect));
+            app.use(
+              '*',
+              createProxyMiddleware({
+                target: redirect,
+                changeOrigin: true,
+              }),
+            );
             await network.port.portClean(port);
             await listenPortController(app, port, runningData);
             break;
