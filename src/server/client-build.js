@@ -1,7 +1,7 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './formatted.js';
+import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';

@@ -1,4 +1,4 @@
-import { srcFormatted } from '../server/formatted.js';
+import { srcFormatted } from '../server/client-formatted.js';
 import fs from 'fs-extra';
 
 const EmailRender = {
