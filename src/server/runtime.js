@@ -94,7 +94,7 @@ const buildRuntime = async () => {
           if (redirect) {
             app.get('*', (req, res) => res.redirect(redirect));
             await network.port.portClean(port);
-            await listenPortController(server, port, runningData);
+            await listenPortController(app, port, runningData);
             break;
           }
 
