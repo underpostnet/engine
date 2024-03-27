@@ -86,6 +86,7 @@ const buildClient = async () => {
     for (const path of Object.keys(confServer[host])) {
       const { client, directory, disabledRebuild, minifyBuild, db } = confServer[host][path];
       if (disabledRebuild) continue;
+      if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata } = confClient[client];
       if (metadata) {
         if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
