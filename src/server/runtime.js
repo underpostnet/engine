@@ -88,13 +88,15 @@ const buildRuntime = async () => {
             return next();
           });
 
-          if (redirect) {
-            app.get('*', (req, res) => res.redirect(redirect));
-            break;
-          }
-
           // set logger
           app.use(loggerMiddleware(import.meta));
+
+          if (redirect) {
+            app.get('*', (req, res) => res.redirect(redirect));
+            await network.port.portClean(port);
+            await listenPortController(server, port, runningData);
+            break;
+          }
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
