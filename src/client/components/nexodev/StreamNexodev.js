@@ -16,6 +16,10 @@ const StreamNexodev = {
       const peer = Stream.createPeerServer({ id }).server;
       const channel = 'stream';
 
+      Modal.Data[options.idModal].onCloseListener[id] = () => {
+        Stream.removeMediaStream(stream);
+      };
+
       const myMediaElement = Stream.createMediaElement(mediaType);
 
       peer.on('open', (peerId) => {
@@ -63,10 +67,6 @@ const StreamNexodev = {
       SocketIo.socket.on(`${channel}-user-disconnected`, (userId) => {
         // If a user disconnected
       });
-
-      Modal.Data[options.idModal].onCloseListener[id] = () => {
-        Stream.removeMediaStream(stream);
-      };
     });
     return html`<div class="in media-stream-grid"></div>`;
   },
