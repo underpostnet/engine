@@ -1,16 +1,18 @@
+const token = Symbol('token');
+
 const Auth = {
-  token: '',
-  setToken: function (token) {
-    return (this.token = token);
+  [token]: null,
+  setToken: function (value = '') {
+    return (this[token] = value);
   },
   getToken: function () {
-    return this.token;
+    return this[token];
   },
   getJWT: function () {
-    return this.token ? `Bearer ${this.getToken()}` : undefined;
+    return `Bearer ${this.getToken()}`;
   },
   deleteToken: function () {
-    return (this.token = '');
+    return (this[token] = null);
   },
 };
 
