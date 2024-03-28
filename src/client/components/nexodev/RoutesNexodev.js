@@ -15,6 +15,7 @@ const RoutesNexodev = () => {
     },
     '/blog': { title: 'blog', render: () => s(`.main-btn-blog`).click(), translateTitle: true },
     '/dashboard': { title: 'dashboard', render: () => s(`.main-btn-dashboard`).click(), translateTitle: true },
+    '/stream': { title: 'stream', render: () => s(`.main-btn-stream`).click(), translateTitle: false },
     '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(), translateTitle: true },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },

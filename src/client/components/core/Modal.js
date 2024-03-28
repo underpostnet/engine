@@ -29,7 +29,7 @@ const Modal = {
     let left = `${ResponsiveData.width / 2 - width / 2}px`;
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
-    this.Data[idModal] = { options };
+    this.Data[idModal] = { options, onCloseListener: {} };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
@@ -73,7 +73,7 @@ const Modal = {
               const proxyPath = getProxyPath();
               const newPath = `${proxyPath}${options.route}`;
               if (path !== newPath) {
-                console.warn('SET MODAL URI', newPath);
+                // console.warn('SET MODAL URI', newPath);
                 setURI(newPath);
                 setDocTitle({ ...options.RouterInstance, route: options.route });
               }
@@ -328,6 +328,9 @@ const Modal = {
     setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
 
     const btnCloseEvent = () => {
+      Object.keys(this.Data[idModal].onCloseListener).map((keyListener) =>
+        this.Data[idModal].onCloseListener[keyListener](),
+      );
       if (options && 'barConfig' in options && options.barConfig.buttons.close.onClick)
         return options.barConfig.buttons.close.onClick();
       s(`.${idModal}`).style.opacity = '0';
@@ -350,13 +353,13 @@ const Modal = {
               for (const subIdModal of Object.keys(this.Data)) {
                 if (this.Data[subIdModal].options.route) {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
-                  console.warn('SET MODAL URI', newPath);
+                  // console.warn('SET MODAL URI', newPath);
                   setURI(newPath);
                   s(`.${subIdModal}`).style.zIndex = '4';
                   return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }
-              console.warn('SET MODAL URI', newPath);
+              // console.warn('SET MODAL URI', newPath);
               setURI(newPath);
               return setDocTitle({ ...options.RouterInstance, route: '' });
             }

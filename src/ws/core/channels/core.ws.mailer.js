@@ -7,12 +7,12 @@ const logger = loggerFactory(import.meta);
 
 const CoreWsMailerController = {
   channel,
-  controller: function (socket, client, args, wsManagementId) {
-    switch (args.status) {
+  controller: function (socket, client, payload, wsManagementId) {
+    switch (payload.status) {
       case 'register-user':
         CoreWsMailerManagement.element[wsManagementId][socket.id] = {
           model: {
-            user: args.user,
+            user: payload.user,
           },
         };
         break;

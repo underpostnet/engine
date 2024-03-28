@@ -10,10 +10,10 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaWsSkillController = {
   channel,
-  controller: function (socket, client, args, wsManagementId) {
-    switch (args.status) {
+  controller: function (socket, client, payload, wsManagementId) {
+    switch (payload.status) {
       case 'create':
-        CyberiaWsSkillManagement.createSkill(wsManagementId, { id: socket.id, type: 'user' }, args.skillKey);
+        CyberiaWsSkillManagement.createSkill(wsManagementId, { id: socket.id, type: 'user' }, payload.skillKey);
         break;
 
       default:

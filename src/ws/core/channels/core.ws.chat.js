@@ -7,10 +7,10 @@ const logger = loggerFactory(import.meta);
 
 const CoreWsChatController = {
   channel,
-  controller: function (socket, client, args, wsManagementId) {
+  controller: function (socket, client, payload, wsManagementId) {
     for (const socketId of Object.keys(client)) {
       if (socketId !== socket.id) {
-        CoreWsEmit(channel, client[socketId], { id: socket.id, ...args });
+        CoreWsEmit(channel, client[socketId], { id: socket.id, ...payload });
       }
     }
   },

@@ -15,12 +15,15 @@ const IoCreateChannel = (
     client: {},
     connection: function (socket, wsManagementId) {
       this.client[socket.id] = socket;
-      socket.on(IoInterface.channel, (args) => this.controller(socket, args, wsManagementId));
+      socket.on(IoInterface.channel, (...args) => this.controller(socket, args, wsManagementId));
       IoInterface.connection(socket, this.client, wsManagementId);
     },
     controller: function (socket, args, wsManagementId) {
-      args = JSON.parse(args);
-      IoInterface.controller(socket, this.client, args, wsManagementId);
+      let payload = args[0];
+      try {
+        payload = JSON.parse(args[0]);
+      } catch (error) {}
+      IoInterface.controller(socket, this.client, payload, wsManagementId, args);
     },
     disconnect: function (socket, reason, wsManagementId) {
       IoInterface.disconnect(socket, this.client, reason, wsManagementId);

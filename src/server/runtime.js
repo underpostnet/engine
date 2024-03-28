@@ -13,6 +13,7 @@ import { Xampp } from '../runtime/xampp/Xampp.js';
 import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { createProxyMiddleware } from 'http-proxy-middleware';
+import { createPeerServer } from './peer.js';
 
 dotenv.config();
 
@@ -26,7 +27,9 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect } = confServer[host][path];
+      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect, peer } =
+        confServer[host][path];
+
       const runningData = {
         runtime,
         client,
@@ -168,6 +171,8 @@ const buildRuntime = async () => {
                 origins,
               });
             })();
+
+          if (peer) createPeerServer({ port: peer.port });
 
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);

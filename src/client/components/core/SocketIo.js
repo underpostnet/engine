@@ -31,6 +31,10 @@ const SocketIo = {
       // query: {
       //   'my-key': 'my-value',
       // },
+      // forceNew: true,
+      // reconnectionAttempts: 'Infinity',
+      // timeout: 10000,
+      transports: ['websocket', 'polling', 'flashsocket'],
     };
     logger.info(`connect options:`, connectOptions);
     this.socket = io(this.host, connectOptions);

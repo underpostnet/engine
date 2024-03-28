@@ -10,8 +10,8 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaWsBotController = {
   channel,
-  controller: function (socket, client, args, wsManagementId) {
-    const { status, element } = args;
+  controller: function (socket, client, payload, wsManagementId) {
+    const { status, element } = payload;
     switch (status) {
       case 'update-world-face':
         for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
