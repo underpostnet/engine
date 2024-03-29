@@ -9,33 +9,26 @@ import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
+import { shellExec } from './process.js';
 
 dotenv.config();
 
 // Static Site Generation (SSG)
 
-const fullBuild = async ({
-  logger,
-  host,
-  publicPath,
-  client,
-  directory,
-  db,
-  dists,
-  rootClientPath,
-  acmeChallengePath,
-}) => {
+const buildAcmeChallengePath = (fullPathAcmeChallengePath = '') => {
+  fs.mkdirSync(fullPathAcmeChallengePath, {
+    recursive: true,
+  });
+  fs.writeFileSync(`${fullPathAcmeChallengePath}/.gitkeep`, '', 'utf8');
+};
+
+const fullBuild = async ({ logger, client, db, dists, rootClientPath, fullPathAcmeChallengePath }) => {
   logger.warn('Full build', rootClientPath);
 
   fs.removeSync(rootClientPath);
-  fs.mkdirSync(rootClientPath, { recursive: true });
-  const fullPathChallengePath = directory
-    ? `${directory}${acmeChallengePath}`
-    : `${publicPath}/${host}${acmeChallengePath}`;
-  fs.mkdirSync(fullPathChallengePath, {
-    recursive: true,
-  });
-  fs.writeFileSync(`${fullPathChallengePath}/.gitkeep`, '', 'utf8');
+
+  buildAcmeChallengePath(fullPathAcmeChallengePath);
+
   if (fs.existsSync(`./src/client/public/${client}`)) {
     fs.copySync(
       `./src/client/public/${client}`,
@@ -90,7 +83,7 @@ const buildClient = async () => {
   const publicPath = `./public`;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabledRebuild, minifyBuild, db } = confServer[host][path];
+      const { client, directory, disabledRebuild, minifyBuild, db, redirect } = confServer[host][path];
       if (disabledRebuild) continue;
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata } = confClient[client];
@@ -99,8 +92,23 @@ const buildClient = async () => {
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
 
-      if (process.env.NODE_ENV !== 'development' && !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
-        await fullBuild({ logger, host, publicPath, client, directory, db, dists, rootClientPath, acmeChallengePath });
+      const fullPathAcmeChallengePath = directory
+        ? `${directory}${acmeChallengePath}`
+        : `${publicPath}/${host}${acmeChallengePath}`;
+
+      buildAcmeChallengePath(fullPathAcmeChallengePath);
+
+      if (redirect) continue;
+
+      if (!(confServer[host]['/'] && confServer[host]['/'].lightBuild))
+        await fullBuild({
+          logger,
+          client,
+          db,
+          dists,
+          rootClientPath,
+          fullPathAcmeChallengePath,
+        });
 
       if (components)
         Object.keys(components).map((module) => {
@@ -278,6 +286,12 @@ const buildClient = async () => {
             'utf8',
           );
         }
+      if (process.argv[4] === 'docs') {
+        const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
+        jsDocsConfig.opts.destination = `./public/${host}${path}docs/`;
+        fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
+        shellExec(`npm run docs`);
+      }
       if (process.argv[2] === 'build-full-client-zip') {
         logger.warn('build zip', rootClientPath);
 

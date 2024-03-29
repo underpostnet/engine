@@ -63,5 +63,8 @@
   },
   "[xml]": {
     "editor.defaultFormatter": "redhat.vscode-xml"
-  }
+  },
+  "docwriter.style": "JSDoc",
+  "docwriter.progress.trackFunctions": false,
+  "docwriter.progress.trackMethods": false
 }

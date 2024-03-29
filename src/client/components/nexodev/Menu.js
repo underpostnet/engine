@@ -367,6 +367,7 @@ const Menu = {
             idModal: 'modal-docs',
           }),
         handleType: 'bar',
+        observer: true,
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
