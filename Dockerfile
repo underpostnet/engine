@@ -49,8 +49,6 @@ COPY . .
 
 RUN npm install
 
-RUN npm run docs
-
 VOLUME [ "/code/logs" ]
 
 EXPOSE 22 80 443
