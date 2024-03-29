@@ -53,6 +53,10 @@ const StreamNexodev = {
         });
       });
 
+      peer.on('close', (...args) => {
+        console.warn('on receive peer close', args);
+      });
+
       const userJoin = {};
 
       SocketIo.socket.on(`${channel}-user-connected`, (userId) => {
