@@ -16,19 +16,19 @@ dotenv.config();
 
 // Static Site Generation (SSG)
 
-const buildAcmeChallengePath = (fullPathAcmeChallengePath = '') => {
-  fs.mkdirSync(fullPathAcmeChallengePath, {
+const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
+  fs.mkdirSync(acmeChallengeFullPath, {
     recursive: true,
   });
-  fs.writeFileSync(`${fullPathAcmeChallengePath}/.gitkeep`, '', 'utf8');
+  fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
 };
 
-const fullBuild = async ({ logger, client, db, dists, rootClientPath, fullPathAcmeChallengePath }) => {
+const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath }) => {
   logger.warn('Full build', rootClientPath);
 
   fs.removeSync(rootClientPath);
 
-  buildAcmeChallengePath(fullPathAcmeChallengePath);
+  buildAcmeChallengePath(acmeChallengeFullPath);
 
   if (fs.existsSync(`./src/client/public/${client}`)) {
     fs.copySync(
@@ -96,11 +96,11 @@ const buildClient = async () => {
       const port = newInstance(currentPort);
       currentPort++;
 
-      const fullPathAcmeChallengePath = directory
+      const acmeChallengeFullPath = directory
         ? `${directory}${acmeChallengePath}`
         : `${publicPath}/${host}${acmeChallengePath}`;
 
-      buildAcmeChallengePath(fullPathAcmeChallengePath);
+      buildAcmeChallengePath(acmeChallengeFullPath);
 
       if (redirect) continue;
 
@@ -111,7 +111,7 @@ const buildClient = async () => {
           db,
           dists,
           rootClientPath,
-          fullPathAcmeChallengePath,
+          acmeChallengeFullPath,
         });
 
       if (components)
