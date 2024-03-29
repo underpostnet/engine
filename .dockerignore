@@ -5,5 +5,5 @@
 /tmp
 /bkt
 /logs
-.cache
-# *.md
+/build
+/.env
