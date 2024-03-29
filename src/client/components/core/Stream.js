@@ -11,9 +11,9 @@ const Stream = {
   createPeerServer: function ({ id }) {
     const peerOptions = {
       host: location.hostname, // '/'
-      port: 4015,
-      // path: getProxyPath(),
-      // secure: location.protocol === 'https:',
+      port: location.protocol === 'https:' ? 443 : 4015,
+      path: `${getProxyPath()}peer`,
+      secure: location.protocol === 'https:',
     };
     logger.info('peerOptions', peerOptions);
     this.Data[id] = {

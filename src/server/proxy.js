@@ -57,6 +57,7 @@ const buildProxy = async () => {
           target: `http://localhost:${confServer[host][path].port}`,
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
           proxy: confServer[host][path].proxy,
+          peer: confServer[host][path].peer,
         };
       }
       currentPort++;
@@ -98,11 +99,13 @@ const buildProxy = async () => {
     // build router
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((host) => {
-      const { target, proxy } = hosts[host];
+      const { target, proxy, peer } = hosts[host];
       if (!proxy.includes(port)) return;
       if (host[host.length - 1] === '/') host = host.slice(0, -1);
-      if ([80, 443].includes(port)) options.router[host] = target;
-      else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
+      if ([80, 443].includes(port)) {
+        options.router[host] = target;
+        if (peer) options.router[`${host}/peer`] = `http://localhost:${peer.port}`;
+      } else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
       // options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
       // options.router[`127.0.0.1:${port}/${host.split('/')[1]}`] = target;
       // options.pathRewrite[`/${host.split('/')[1]}`] = '/';

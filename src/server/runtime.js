@@ -36,6 +36,7 @@ const buildRuntime = async () => {
         public: `http://${ipInstance}:${port}${path}`,
         host: `http://${host}:${port}${path}`,
         local: `http://localhost:${port}${path}`,
+        peer: peer ? `http://localhost:${peer.port}` : undefined,
       };
 
       switch (runtime) {
@@ -172,7 +173,7 @@ const buildRuntime = async () => {
               });
             })();
 
-          if (peer) createPeerServer({ port: peer.port });
+          if (peer) createPeerServer({ port: peer.port, devPort: port, origins });
 
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);
