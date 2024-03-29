@@ -465,6 +465,10 @@ const Modal = {
   removeModal: function (idModal) {
     s(`.${idModal}`).style.opacity = '0';
     setTimeout(() => {
+      if (this.Data[idModal].observer) {
+        this.Data[idModal].observer.disconnect();
+        // this.Data[idModal].observer.unobserve();
+      }
       s(`.${idModal}`).remove();
       s(`.style-${idModal}`).remove();
       delete this.Data[idModal];

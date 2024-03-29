@@ -2,16 +2,9 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
 import { Modal } from '../core/Modal.js';
-import { RouterEvents } from '../core/Router.js';
-import { s, setURI, getURI, getProxyPath, getQueryParams } from '../core/VanillaJs.js';
+import { listenQueryPathInstance, setQueryPath } from '../core/Router.js';
+import { s } from '../core/VanillaJs.js';
 import { Menu } from './Menu.js';
-
-const setQueryPath = (options = { path: '', queryPath: '' }) => {
-  const { queryPath, path } = options;
-  const newUri = `${getProxyPath()}${path}${queryPath ? `/?p=${queryPath}` : ''}`;
-  const currentUri = `${getURI()}${location.search}`;
-  if (currentUri !== newUri && currentUri !== `${newUri}/`) setURI(newUri);
-};
 
 const LabGallery = {
   Tokens: {},
@@ -69,23 +62,18 @@ const LabGallery = {
         <div class="in iframe-${viewLabId} hide"></div>
       `;
     }
-    RouterEvents[id] = ({ path, pushPath, proxyPath, route }) => {
-      if (route === 'lab-gallery') {
-        setTimeout(() => {
-          const path = getQueryParams().p;
-          if (path) {
-            const indexView = this.View.findIndex((view) => view.path === path);
-            if (indexView > -1) {
-              const viewLabId = `${id}-${indexView}`;
-              if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
-            }
-          }
-        });
-      }
-    };
-    setTimeout(() => {
-      RouterEvents[id]({ route: 'lab-gallery' });
+    listenQueryPathInstance({
+      id,
+      routeId: 'lab-gallery',
+      event: (path) => {
+        const indexView = this.View.findIndex((view) => view.path === path);
+        if (indexView > -1) {
+          const viewLabId = `${id}-${indexView}`;
+          if (s(`.btn-${viewLabId}`)) s(`.btn-${viewLabId}`).click();
+        }
+      },
     });
+
     return render;
   },
 };

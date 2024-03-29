@@ -1,6 +1,6 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { getURI, htmls } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, getURI, htmls, setURI } from './VanillaJs.js';
 
 // Router
 
@@ -45,4 +45,25 @@ const LoadRouter = function (RouterInstance) {
   window.onpopstate = (e) => Router({ ...RouterInstance, e });
 };
 
-export { Router, setDocTitle, LoadRouter, RouterEvents };
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'p') => {
+  const { queryPath, path } = options;
+  const newUri = `${getProxyPath()}${path}${queryPath ? `/?${queryKey}=${queryPath}` : ''}`;
+  const currentUri = `${getURI()}${location.search}`;
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) setURI(newUri);
+};
+
+const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'p') => {
+  RouterEvents[id] = ({ path, pushPath, proxyPath, route }) => {
+    if (route === routeId) {
+      setTimeout(() => {
+        const path = getQueryParams()[queryKey];
+        if (path) event(path);
+      });
+    }
+  };
+  setTimeout(() => {
+    RouterEvents[id]({ route: routeId });
+  });
+};
+
+export { Router, setDocTitle, LoadRouter, RouterEvents, setQueryPath, listenQueryPathInstance };

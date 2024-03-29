@@ -1,7 +1,8 @@
 import { BtnIcon } from './BtnIcon.js';
 import { Modal } from './Modal.js';
+import { listenQueryPathInstance, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
-import { getProxyPath, htmls, s } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
 
 // https://mintlify.com/docs/quickstart
 
@@ -14,18 +15,35 @@ const Docs = {
   },
   Render: async function (options) {
     setTimeout(() => {
-      Modal.Data[options.idModal].observerEvent[options.idModal] = (args) => {
+      const responsive = (args) => {
         if (s(`.docs-iframe`)) s(`.docs-iframe`).style.height = `${args.height * 0.83}px`;
       };
+      Modal.Data[options.idModal].observerEvent[options.idModal] = responsive;
 
       s(`.btn-src-docs`).onclick = () => {
         htmls(`.docs-render`, this.RenderSrcDoc());
-        Modal.Data[options.idModal].observerCallBack();
+        responsive({
+          width: s(`.${options.idModal}`).offsetWidth,
+          height: s(`.${options.idModal}`).offsetHeight,
+        });
+        setQueryPath({ path: 'docs', queryPath: 'src' });
       };
       s(`.btn-api-docs`).onclick = () => {
         htmls(`.docs-render`, this.RenderApiDoc());
-        Modal.Data[options.idModal].observerCallBack();
+        responsive({
+          width: s(`.${options.idModal}`).offsetWidth,
+          height: s(`.${options.idModal}`).offsetHeight,
+        });
+        setQueryPath({ path: 'docs', queryPath: 'api' });
       };
+      if (!getQueryParams().p) s(`.btn-src-docs`).click();
+      listenQueryPathInstance({
+        id: options.idModal,
+        routeId: 'docs',
+        event: (path) => {
+          if (s(`.btn-${path}-docs`)) s(`.btn-${path}-docs`).click();
+        },
+      });
     });
 
     return html`
@@ -64,7 +82,7 @@ const Docs = {
           })}
         </div>
         <div class="in fll" style="width: 85%">
-          <div class="in docs-render">${this.RenderSrcDoc()}</div>
+          <div class="in docs-render"></div>
         </div>
       </div>
     `;
