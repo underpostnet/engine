@@ -50,7 +50,7 @@ const Stream = {
     for (let conns in this.Data[id].peer.server.connections) {
       this.Data[id].peer.server.connections[conns].forEach((conn, index, array) => {
         console.log(`closing ${conn.connectionId} peerConnection (${index + 1}/${array.length})`, conn.peerConnection);
-        conn.peerConnection.close();
+        if (conn.peerConnection && conn.peerConnection.close) conn.peerConnection.close();
 
         // close it using peerjs methods
         if (conn.close) conn.close();
