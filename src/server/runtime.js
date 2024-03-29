@@ -3,6 +3,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
+import swaggerUi from 'swagger-ui-express';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
@@ -136,6 +137,16 @@ const buildRuntime = async () => {
           // cors
           app.use(cors({ origin: origins }));
 
+          const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+          if (fs.existsSync(swaggerJsonPath)) {
+            logger.info('Build swagger serve', swaggerJsonPath);
+            app.use(
+              `${path === '/' ? `/api-docs` : `${path}/api-docs`}`,
+              swaggerUi.serve,
+              swaggerUi.setup(JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'))),
+            );
+          }
+
           if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
 
           if (mailer)
@@ -151,7 +162,7 @@ const buildRuntime = async () => {
             for (const api of apis)
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                const apiPath = `${path === '/' ? '' : path}/api`;
+                const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
                 logger.info('Load api router', { host, path: apiPath, api });
                 app.use(apiPath, ApiRouter({ host, path, apiPath, mailer, db }));
               })();

@@ -74,6 +74,7 @@
     "shelljs": "^0.8.5",
     "socket.io": "^4.7.2",
     "sortablejs": "^1.15.0",
+    "swagger-ui-express": "^5.0.0",
     "systeminformation": "^5.21.17",
     "tinymce": "6.1.0",
     "uglify-js": "^3.17.4",
@@ -82,6 +83,7 @@
   },
   "devDependencies": {
     "minami": "^1.2.3",
+    "swagger-autogen": "^2.23.7",
     "taffydb": "^2.7.3"
   }
 }

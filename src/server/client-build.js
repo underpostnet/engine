@@ -3,13 +3,14 @@
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
-import { cap, titleFormatted } from '../client/components/core/CommonJs.js';
+import { cap, newInstance, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
 import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import { shellExec } from './process.js';
+import swaggerAutoGen from 'swagger-autogen';
 
 dotenv.config();
 
@@ -81,9 +82,10 @@ const buildClient = async () => {
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
+  let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabledRebuild, minifyBuild, db, redirect } = confServer[host][path];
+      const { client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
       if (disabledRebuild) continue;
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata } = confClient[client];
@@ -91,6 +93,8 @@ const buildClient = async () => {
         if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
+      const port = newInstance(currentPort);
+      currentPort++;
 
       const fullPathAcmeChallengePath = directory
         ? `${directory}${acmeChallengePath}`
@@ -291,6 +295,29 @@ const buildClient = async () => {
         jsDocsConfig.opts.destination = `./public/${host}${path}docs/`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
         shellExec(`npm run docs`);
+
+        const doc = {
+          info: {
+            swagger: '2.0',
+            title: metadata?.title ? `${metadata.title}` : 'Api Docs',
+            description: metadata?.description ? metadata.description : undefined,
+          },
+          host:
+            process.env.NODE_ENV === 'development'
+              ? `localhost:${port}${path}${process.env.BASE_API}`
+              : `${host}${path}${process.env.BASE_API}`,
+        };
+
+        logger.warn('build swagger api docs', doc);
+
+        const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
+        const routes = [];
+        for (const api of apis) routes.push(`./src/api/${api}/${api}.router.js`);
+
+        /* NOTE: If you are using the express Router, you must pass in the 'routes' only the 
+root file where the route starts, such as index.js, app.js, routes.js, etc ... */
+
+        await swaggerAutoGen(outputFile, routes, doc);
       }
       if (process.argv[2] === 'build-full-client-zip') {
         logger.warn('build zip', rootClientPath);
