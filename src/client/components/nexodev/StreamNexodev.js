@@ -74,8 +74,8 @@ const StreamNexodev = {
 
       SocketIo.socket.on(`${channel}-user-disconnected`, (userId) => {
         // If a user disconnected
-        console.warn('user disconnected');
-        userJoin[userId].mediaElement.remove();
+        console.warn('user disconnected', userId);
+        if (userJoin[userId]) userJoin[userId].mediaElement.remove();
       });
     });
     return html`<div class="in media-stream-grid"></div>`;
