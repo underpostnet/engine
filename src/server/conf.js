@@ -73,11 +73,6 @@ const Config = {
             ssr: 'Underpost',
           },
           {
-            path: '/settings',
-            client: 'Underpost',
-            ssr: 'Underpost',
-          },
-          {
             path: '/log-in',
             client: 'Underpost',
             ssr: 'Underpost',
