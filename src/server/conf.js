@@ -9,6 +9,11 @@ const Config = {
       underpost: {
         metadata: {
           title: 'underpost.net',
+          description: 'Development javascript ecosystem virtual lab.',
+          keywords: ['javascript', 'Development', 'DevOps', 'Web'],
+          author: 'https://github.com/underpostnet',
+          thumbnail: 'assets/banner/underpost-social.jpg',
+          themeColor: '#b81414',
         },
         components: {
           core: [
@@ -45,12 +50,25 @@ const Config = {
             'LogInUnderpost',
             'LogOutUnderpost',
             'SignUpUnderpost',
+            'LabGallery',
+            'BlogContraculturaCyberpunk',
+            'TranslateUnderpost',
           ],
         },
         views: [
           {
             path: '/',
             title: 'Home',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/lab-gallery',
+            client: 'Underpost',
+            ssr: 'Underpost',
+          },
+          {
+            path: '/contracultura-cyberpunk',
             client: 'Underpost',
             ssr: 'Underpost',
           },
@@ -119,7 +137,7 @@ const Config = {
     },
     ssr: {
       Underpost: {
-        head: ['UnderpostScripts'],
+        head: ['Seo', 'Pwa', 'UnderpostScripts'],
         body: [],
       },
     },
