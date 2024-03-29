@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const CoreWsStreamController = {
   channel,
+  stream: true,
   controller: function (socket, client, payload, wsManagementId, args) {
     const [roomId, userId] = args;
     CoreWsStreamManagement.element[wsManagementId][socket.id] = args;

@@ -8,6 +8,7 @@ const IoCreateChannel = (
     connection: (socket = {}, client = {}, wsManagementId = '') => {},
     controller: (socket = {}, client = {}, args = '', wsManagementId = '') => {},
     disconnect: (socket = {}, client = {}, reason = '', wsManagementId = '') => {},
+    stream: false,
   },
 ) => {
   return {
@@ -19,10 +20,7 @@ const IoCreateChannel = (
       IoInterface.connection(socket, this.client, wsManagementId);
     },
     controller: function (socket, args, wsManagementId) {
-      let payload = args[0];
-      try {
-        payload = JSON.parse(args[0]);
-      } catch (error) {}
+      const payload = IoInterface.stream ? args[0] : JSON.parse(args[0]);
       IoInterface.controller(socket, this.client, payload, wsManagementId, args);
     },
     disconnect: function (socket, reason, wsManagementId) {
