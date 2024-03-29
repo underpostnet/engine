@@ -103,8 +103,8 @@ const buildProxy = async () => {
       if (!proxy.includes(port)) return;
       if (host[host.length - 1] === '/') host = host.slice(0, -1);
       if ([80, 443].includes(port)) {
-        options.router[host] = target;
         if (peer) options.router[`${host}/peer`] = `http://localhost:${peer.port}`;
+        options.router[host] = target;
       } else options.router[`${host.split('/')[0]}:${port}/${host.split('/')[1]}`] = target;
       // options.router[`localhost:${port}/${host.split('/')[1]}`] = target;
       // options.router[`127.0.0.1:${port}/${host.split('/')[1]}`] = target;
