@@ -37,9 +37,3 @@ docker build . -t engine
 # run image
 docker run --name engine-instance -p 41061:3001 engine
 ```
-
-Generate docs
-
-```bash
-npm run docs
-```
