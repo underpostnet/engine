@@ -154,6 +154,7 @@ const TranslateCore = {
     Translate.Data['create'] = { en: 'create', es: 'Crear' };
     Translate.Data['home'] = { en: 'Home', es: 'Inicio' };
     Translate.Data['calendar'] = { es: 'Calendario', en: 'Calendar' };
+    Translate.Data['docs'] = { es: 'Documentacion', en: 'Documentation' };
 
     Translate.Data = {
       ...Translate.Data,

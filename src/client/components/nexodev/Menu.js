@@ -16,6 +16,7 @@ import { Blog } from '../core/Blog.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
 import { DashboardNexodev } from './DashboardNexodev.js';
 import { StreamNexodev } from './StreamNexodev.js';
+import { Docs } from '../core/Docs.js';
 
 const Menu = {
   Data: {},
@@ -61,6 +62,14 @@ const Menu = {
               text: html`${Translate.Render('stream')}`,
             }),
             attrs: `data-id="8"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-docs',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-book"></i>`,
+              text: html`${Translate.Render('docs')}`,
+            }),
+            attrs: `data-id="9"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -333,6 +342,29 @@ const Menu = {
         html: async () =>
           await CalendarNexodev.Render({
             idModal: 'modal-calendar',
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html`<i class="fas fa-book"></i>`,
+          text: Translate.Render('docs'),
+        }),
+        html: async () =>
+          await Docs.Render({
+            idModal: 'modal-docs',
           }),
         handleType: 'bar',
         maximize: true,
