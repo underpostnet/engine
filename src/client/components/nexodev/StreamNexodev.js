@@ -18,6 +18,7 @@ const StreamNexodev = {
 
       Modal.Data[options.idModal].onCloseListener[id] = () => {
         Stream.removeMediaStream(stream);
+        Stream.handlePeerDisconnect({ id });
       };
 
       const myMediaElement = Stream.createMediaElement(mediaType);
@@ -40,8 +41,14 @@ const StreamNexodev = {
           // Display their audio/video to ourselves
           s(`.media-stream-grid`).append(Stream.renderElementStream(mediaElement, userMediaStream));
         });
-        // call.close();
+        call.on('close', (call) => {
+          console.warn('my peer close');
+          // Stream.handlePeerDisconnect();
+          // call.close();
+        });
       });
+
+      const userJoin = {};
 
       SocketIo.socket.on(`${channel}-user-connected`, (userId) => {
         // If a new user connect
@@ -57,15 +64,18 @@ const StreamNexodev = {
           },
           (mediaElement) => {
             // disconnected peer stream
-            s(`.media-stream-grid`).removeChild(mediaElement);
-            // mediaElement.remove();
+            // s(`.media-stream-grid`).removeChild(mediaElement);
+            mediaElement.remove();
           },
         );
+        userJoin[userId] = { mediaElement };
         // call.close();
       });
 
       SocketIo.socket.on(`${channel}-user-disconnected`, (userId) => {
         // If a user disconnected
+        console.warn('user disconnected');
+        userJoin[userId].mediaElement.remove();
       });
     });
     return html`<div class="in media-stream-grid"></div>`;

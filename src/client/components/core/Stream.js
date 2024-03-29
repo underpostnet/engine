@@ -45,6 +45,18 @@ const Stream = {
     });
     return { call, mediaElement };
   },
+  handlePeerDisconnect({ id }) {
+    // manually close the peer connections
+    for (let conns in this.Data[id].peer.server.connections) {
+      this.Data[id].peer.server.connections[conns].forEach((conn, index, array) => {
+        console.log(`closing ${conn.connectionId} peerConnection (${index + 1}/${array.length})`, conn.peerConnection);
+        conn.peerConnection.close();
+
+        // close it using peerjs methods
+        if (conn.close) conn.close();
+      });
+    }
+  },
   renderElementStream: function (mediaElement, stream) {
     mediaElement.srcObject = stream;
     mediaElement.addEventListener('loadedmetadata', () => {
@@ -80,7 +92,7 @@ const Stream = {
     switch (mediaType) {
       case 'audio-video':
         mediaElement = document.createElement('video'); // Create a new audio/video tag to show our audio/video
-        mediaElement.muted = true; // Mute ourselves on our end so there is no feedback loop
+        // mediaElement.muted = true; // Mute ourselves on our end so there is no feedback loop
 
         break;
 
