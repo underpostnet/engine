@@ -95,11 +95,12 @@ try {
       }
       break;
     case 'vs-extensions':
-      fs.readFileSync(`./vs-extensions.txt`, 'utf8')
-        .split(`\n`) // \r\n
-        .map((extension) => {
+      {
+        const extensions = JSON.parse(fs.readFileSync(`./.vscode/extensions.json`, 'utf8'));
+        extensions.recommendations.map((extension) => {
           if (extension) shellExec(`code --install-extension ${extension}`);
         });
+      }
       break;
     case 'wordpress':
       await (async () => {
