@@ -10,7 +10,7 @@
     "pm2-delete": "pm2 delete engine",
     "dev": "env-cmd -f .env.development nodemon src/server",
     "docs": "jsdoc -c jsdoc.json",
-    "install": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier",
+    "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier",
     "docker:start": "docker-compose up",
     "prettier": "prettier --write ."
   },

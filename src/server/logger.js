@@ -27,7 +27,7 @@ const levels = {
 // the current NODE_ENV: show all the log levels
 // if the server was run in development mode; otherwise,
 // if it was run in production, show only warn and error messages.
-const level = () => (process.env.NODE_ENV === 'development' ? 'debug' : 'warn');
+const level = () => (process.env.NODE_ENV || 'development' ? 'debug' : 'warn');
 
 // Define different colors for each level.
 // Colors make the log message more visible,
