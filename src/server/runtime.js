@@ -106,6 +106,7 @@ const buildRuntime = async () => {
           // set logger
           app.use(loggerMiddleware(import.meta));
           if (redirect) {
+            // TODO: proxy redirect
             // app.use(
             //   '*',
             //   createProxyMiddleware({
