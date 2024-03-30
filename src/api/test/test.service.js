@@ -1,5 +1,7 @@
+import validator from 'validator';
 import { loggerFactory } from '../../server/logger.js';
 import { TestModel } from './test.model.js';
+import { getYouTubeID } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -15,6 +17,12 @@ const TestService = {
   get: async (req, res, options) => {
     let result = {};
     switch (req.params.id) {
+      case 'verify-email':
+        result = validator.isEmail(req.params.email);
+        break;
+      case 'youtube-id':
+        result = getYouTubeID(req.params.url);
+        break;
       default:
         break;
     }

@@ -7,4 +7,6 @@
 /logs
 /build
 /.env
+/coverage
+.nyc_output
 .cache

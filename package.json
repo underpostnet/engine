@@ -11,8 +11,11 @@
     "dev": "env-cmd -f .env.development nodemon src/server",
     "docs": "jsdoc -c jsdoc.json",
     "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier",
+    "install-test": "npm install -g mocha && npm install -g c8 && npm install -g nyc npm install -g coveralls",
     "docker:start": "docker-compose up",
-    "prettier": "prettier --write ."
+    "prettier": "prettier --write .",
+    "coveralls": "nyc npm run test --reporter=text-lcov",
+    "test": "env-cmd -f .env.test c8 mocha"
   },
   "repository": {
     "type": "git",
@@ -83,6 +86,7 @@
   },
   "devDependencies": {
     "minami": "^1.2.3",
+    "mocha": "^10.4.0",
     "swagger-autogen": "^2.23.7",
     "taffydb": "^2.7.3"
   }

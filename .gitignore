@@ -6,5 +6,7 @@
 /bkt
 /logs
 /build
+/coverage
 /.env
 .cache
+.nyc_output

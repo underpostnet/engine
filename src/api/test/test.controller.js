@@ -21,11 +21,16 @@ const TestController = {
   get: async (req, res, options) => {
     try {
       // throw { message: 'error test' };
-      return res.status(200).json({
-        status: 'success',
-        message: 'success',
-        data: await TestService.get(req, res, options),
-      });
+      const result = await TestService.get(req, res, options);
+      if (result)
+        return res.status(200).json({
+          status: 'success',
+          data: result,
+        });
+      else
+        return res.status(400).json({
+          status: 'error',
+        });
     } catch (error) {
       logger.error(error, error.stack);
       return res.status(400).json({
