@@ -115,8 +115,7 @@ const buildRuntime = async () => {
             //   }),
             // );
             app.use(function (req, res) {
-              const target = new URL(redirect).hostname + req.originalUrl;
-              return res.status(302).redirect(target);
+              return res.status(302).redirect(redirect);
             });
             await network.port.portClean(port);
             await listenPortController(app, port, runningData);
