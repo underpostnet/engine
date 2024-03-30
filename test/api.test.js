@@ -1,38 +1,41 @@
 'use strict';
 
-import assert from 'assert';
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { expect } from 'chai';
+import { loggerFactory } from '../src/server/logger.js';
 
 dotenv.config();
 
-const PORT = process.env.PORT + 1;
+const PORT = parseInt(process.env.PORT) + 1;
 
-describe(' Main Test: ', () => {
-  describe('Test 1', () => {
-    it('emailValidator', async () => {
-      const emailTest = 'test@gmail.com';
-      axios
-        .get(`http://localhos:${PORT}/${process.env.BASE_API}/test/verify-email/?email=${emailTest}`)
-        .then((resp) => {
-          // actual, expected
-          assert.strictEqual(JSON.parse(resp).status, 'success');
-        });
-    });
-  });
+const logger = loggerFactory(import.meta);
 
-  describe('Test 2', () => {
-    it('getYouTubeID', async () => {
-      axios
-        .get(
-          `http://localhos:${PORT}/${process.env.BASE_API}/test/youtube-id?url=https://www.youtube.com/watch?v=o4f42SbyDMk`,
-        )
-        .then((resp) => {
-          // actual, expected
-          const result = JSON.parse(resp);
-          assert.strictEqual(result.status, 'success');
-          assert.strictEqual(result.data, 'o4f42SbyDMk');
-        });
+await logger.setUpInfo();
+
+const BASE_URL =
+  process.env.NODE_ENV === 'development'
+    ? `http://localhost:${PORT}/${process.env.BASE_API}`
+    : `https://www.nexodev.org/api`;
+
+describe(`GET 'Test' API Request `, async () => {
+  {
+    const url = `${BASE_URL}/test/youtube-id/?url=https://www.youtube.com/watch?v=o4f42SbyDMk`;
+    it(`youtube id from raw youtube url`, async () => {
+      // logger.info('request info', { url });
+      const res = await axios.get(url);
+      // logger.info('response', res.data);
+      return expect(res.data.data).equal('o4f42SbyDMk');
     });
-  });
+  }
+  {
+    const email = 'test@gmail.com';
+    const url = `${BASE_URL}/test/verify-email/?email=${email}`;
+    it(`valid format email`, async () => {
+      // logger.info('request info', { url });
+      const res = await axios.get(url);
+      // logger.info('response', res.data);
+      return expect(res.data.status).equal('success');
+    });
+  }
 });

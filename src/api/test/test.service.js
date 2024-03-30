@@ -18,10 +18,10 @@ const TestService = {
     let result = {};
     switch (req.params.id) {
       case 'verify-email':
-        result = validator.isEmail(req.params.email);
+        result = validator.isEmail(req.query.email);
         break;
       case 'youtube-id':
-        result = getYouTubeID(req.params.url);
+        result = getYouTubeID(req.query.url);
         break;
       default:
         break;

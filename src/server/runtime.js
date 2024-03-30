@@ -107,13 +107,17 @@ const buildRuntime = async () => {
           app.use(loggerMiddleware(import.meta));
 
           if (redirect) {
-            app.use(
-              '*',
-              createProxyMiddleware({
-                target: redirect,
-                changeOrigin: true,
-              }),
-            );
+            // app.use(
+            //   '*',
+            //   createProxyMiddleware({
+            //     target: redirect,
+            //     changeOrigin: true,
+            //   }),
+            // );
+            app.use(function (req, res) {
+              const target = new URL(redirect).hostname + req.originalUrl;
+              return res.status(302).redirect(target);
+            });
             await network.port.portClean(port);
             await listenPortController(app, port, runningData);
             break;

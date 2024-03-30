@@ -104,7 +104,7 @@ const buildClient = async () => {
 
       if (redirect) continue;
 
-      if (!(confServer[host]['/'] && confServer[host]['/'].lightBuild))
+      if (process.argv[2] !== 'l' && !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
         await fullBuild({
           logger,
           client,

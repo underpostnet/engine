@@ -141,7 +141,7 @@ const Config = {
         '/': {
           client: 'underpost',
           runtime: 'nodejs',
-          apis: ['user'],
+          apis: ['user', 'test'],
           origins: [],
           minifyBuild: false,
           lightBuild: false,
