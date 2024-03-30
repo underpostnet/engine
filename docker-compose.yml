@@ -1,0 +1,40 @@
+# https://docs.docker.com/compose/compose-file/compose-file-v3
+# https://docs.docker.com/engine/reference/commandline/compose/
+version: '3'
+services:
+  engine-container:
+    build:
+      dockerfile: ./Dockerfile
+      context: . # workdir path
+    image: engine-container
+    # container_name: <name> ignore for replicas
+    ports:
+      - '22'
+      - '80' # host port allocated dynamically, host ports are unique independent of replicas
+      - '443'
+      - '3000-3020'
+    volumes:
+      - ./logs:/code/logs
+    deploy:
+      mode: replicated
+      replicas: 3
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 50M
+        reservations:
+          cpus: '0.25'
+          memory: 20M
+    labels: # labels in Compose file instead of Dockerfile
+      engine.version: '2.0.0'
+    networks:
+      - load-balancer
+
+networks:
+  load-balancer:
+    driver: bridge

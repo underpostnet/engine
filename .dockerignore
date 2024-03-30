@@ -1,8 +1,10 @@
 /node_modules
-/package-lock.json
-/data
+/public
+/engine-private
+/conf
+/tmp
+/bkt
 /logs
-/underpost_modules
-/private-engine
-/builds
-/coverage
+/build
+/.env
+.cache

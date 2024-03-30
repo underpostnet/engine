@@ -1,0 +1,3 @@
+const Nginx = {};
+
+export { Nginx };

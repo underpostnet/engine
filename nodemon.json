@@ -1,11 +1,6 @@
 {
-  "watch": [
-    "./src",
-    "./data",
-    ".env",
-    "./private-engine/engine/src"
-  ],
-  "ext": "js,css",
+  "watch": ["./src"],
+  "ext": "js",
   "delay": "0",
   "ignore": []
 }
