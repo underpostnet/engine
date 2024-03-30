@@ -36,6 +36,9 @@ const Docs = {
         });
         setQueryPath({ path: 'docs', queryPath: 'api' });
       };
+      s(`.btn-api-repo`).onclick = () => {
+        location.href = 'https://github.com/underpostnet/engine/releases/tag/v2.0.0';
+      };
       if (!getQueryParams().p) s(`.btn-src-docs`).click();
       listenQueryPathInstance({
         id: options.idModal,
@@ -78,6 +81,13 @@ const Docs = {
             class: 'wfa btn-docs-menu btn-api-docs',
             label: html`<i class="fa-solid fa-arrows-turn-to-dots doc-fa-icon"></i><br />
               Api <br />Docs`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa btn-docs-menu btn-api-repo',
+            label: html`<i class="fab fa-github doc-fa-icon"></i><br />
+              Last <br />
+              Release`,
             type: 'button',
           })}
         </div>
