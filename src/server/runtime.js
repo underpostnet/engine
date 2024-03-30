@@ -52,42 +52,43 @@ const buildRuntime = async () => {
         <VirtualHost *:${port}>    
             DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
             ServerName ${host}:${port}
+
+            <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
+              Options Indexes FollowSymLinks MultiViews
+              AllowOverride All
+              Require all granted
+            </Directory>
+
             ${
               redirect
                 ? `
                 RewriteEngine on
-
+                
                 RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
                 RewriteRule ^(.*)$ /.well-known/acme-challenge [R=302,L]
                 RewriteRule ^(.*)$ ${redirect} [R=302,L]
             `
-                : `               
-                <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
-                  Options Indexes FollowSymLinks MultiViews
-                  AllowOverride All
-                  Require all granted
-                </Directory>
-                ${
-                  client === 'wordpress'
-                    ? `
-                # BEGIN WordPress
-                <IfModule mod_rewrite.c>
-                  RewriteEngine On
-                  RewriteRule ^index\.php$ - [L]
-                  RewriteCond $1 ^(index\.php)?$ [OR]
-                  # RewriteCond $1 \.(gif|jpg|png|ico|css|js|php)$ [NC,OR]
-                  RewriteCond $1 \.(.*) [NC,OR]
-                  RewriteCond %{REQUEST_FILENAME} -f [OR]
-                  RewriteCond %{REQUEST_FILENAME} -d
-                  RewriteRule ^(.*)$ - [S=1]
-                  RewriteRule . /index.php [L]
-                </IfModule>
-                # END wordpress
-                `
-                    : ''
-                }
-                `
-            }        
+                : ''
+            }
+            ${
+              client === 'wordpress'
+                ? `
+                  # BEGIN WordPress
+                  <IfModule mod_rewrite.c>
+                    RewriteEngine On
+                    RewriteRule ^index\.php$ - [L]
+                    RewriteCond $1 ^(index\.php)?$ [OR]
+                    # RewriteCond $1 \.(gif|jpg|png|ico|css|js|php)$ [NC,OR]
+                    RewriteCond $1 \.(.*) [NC,OR]
+                    RewriteCond %{REQUEST_FILENAME} -f [OR]
+                    RewriteCond %{REQUEST_FILENAME} -d
+                    RewriteRule ^(.*)$ - [S=1]
+                    RewriteRule . /index.php [L]
+                  </IfModule>
+                  # END wordpress
+            `
+                : ''
+            }
             </VirtualHost>
                           `);
           // ERR too many redirects:
