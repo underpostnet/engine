@@ -50,15 +50,18 @@ const buildRuntime = async () => {
         Listen ${port}
 
         <VirtualHost *:${port}>    
+            DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
+            ServerName ${host}:${port}
             ${
               redirect
                 ? `
-                RewriteEngine on 
+                RewriteEngine on
+
+                RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
+                RewriteRule ^(.*)$ /.well-known/acme-challenge [R=302,L]
                 RewriteRule ^(.*)$ ${redirect} [R=302,L]
             `
-                : `
-                DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
-                ServerName ${host}:${port}          
+                : `               
                 <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
                   Options Indexes FollowSymLinks MultiViews
                   AllowOverride All
