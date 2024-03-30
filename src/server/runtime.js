@@ -60,17 +60,6 @@ const buildRuntime = async () => {
             </Directory>
 
             ${
-              redirect
-                ? `
-                RewriteEngine on
-                
-                RewriteCond %{REQUEST_URI} ^/.well-known/acme-challenge
-                RewriteRule ^(.*)$ /.well-known/acme-challenge [R=302,L]
-                RewriteRule ^(.*)$ ${redirect} [R=302,L]
-            `
-                : ''
-            }
-            ${
               client === 'wordpress'
                 ? `
                   # BEGIN WordPress
@@ -90,6 +79,18 @@ const buildRuntime = async () => {
                 : ''
             }
             </VirtualHost>
+
+            ${
+              redirect
+                ? `
+                RewriteEngine on
+                
+                RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
+                RewriteRule ^(.*)$ ${redirect} [R=302,L]
+            `
+                : ''
+            }
+            
                           `);
           // ERR too many redirects:
           // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
