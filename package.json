@@ -14,7 +14,7 @@
     "install-test": "npm install -g mocha && npm install -g c8 && npm install -g nyc npm install -g coveralls",
     "docker:start": "docker-compose up",
     "prettier": "prettier --write .",
-    "coveralls": "nyc npm run test --reporter=text-lcov",
+    "coveralls": "nyc npm run test --reporter=text-lcov | coveralls",
     "test": "env-cmd -f .env.test c8 mocha"
   },
   "repository": {

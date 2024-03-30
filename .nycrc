@@ -1,15 +1,9 @@
 {
-    "all": false,
-    "exclude": [],
-    "include": [
-        "test"
-    ],
-    "output": "reports",
-    "reporter": [
-        "html",
-        "text",
-        "lcov",
-        "text-lcov",
-        "cobertura"
-    ]
+  "exclude": [],
+  "include": ["test"],
+  "output": "reports",
+  "reporter": ["html", "text", "lcov", "text-lcov", "cobertura"],
+  "sourceMap": false,
+  "instrument": false,
+  "all": true
 }
