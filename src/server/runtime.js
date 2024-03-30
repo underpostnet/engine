@@ -105,21 +105,21 @@ const buildRuntime = async () => {
 
           // set logger
           app.use(loggerMiddleware(import.meta));
-          // if (redirect) {
-          //   // app.use(
-          //   //   '*',
-          //   //   createProxyMiddleware({
-          //   //     target: redirect,
-          //   //     changeOrigin: true,
-          //   //   }),
-          //   // );
-          //   app.use(function (req, res) {
-          //     return res.status(302).redirect(redirect);
-          //   });
-          //   await network.port.portClean(port);
-          //   await listenPortController(app, port, runningData);
-          //   break;
-          // }
+          if (redirect) {
+            // app.use(
+            //   '*',
+            //   createProxyMiddleware({
+            //     target: redirect,
+            //     changeOrigin: true,
+            //   }),
+            // );
+            app.use(function (req, res) {
+              return res.status(302).redirect(redirect);
+            });
+            await network.port.portClean(port);
+            await listenPortController(app, port, runningData);
+            break;
+          }
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
