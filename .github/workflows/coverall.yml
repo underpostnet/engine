@@ -28,7 +28,7 @@ jobs:
         run: npm run test
 
       - name: Run coveralls
-        run: npm run coveralls # nyc npm run test --reporter=text-lcov | coveralls -v
+        run: coveralls -v # nyc npm run test --reporter=text-lcov | coveralls -v
 
       - name: Test token
         run: echo "${{ secrets.COVERALLS_REPO_TOKEN }}"
