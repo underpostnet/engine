@@ -58,6 +58,7 @@ const buildProxy = async () => {
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
           proxy: confServer[host][path].proxy,
           peer: confServer[host][path].peer,
+          redirect: confServer[host][path].redirect,
         };
       }
       currentPort++;
@@ -125,8 +126,9 @@ const buildProxy = async () => {
     await network.port.portClean(port);
     if (port === 443) {
       Object.keys(hosts).map((host) => {
+        const { redirect } = hosts[host];
         const [hostSSL, path = ''] = host.split('/');
-        if (validateSecureContext(hostSSL)) {
+        if (validateSecureContext(hostSSL) && !redirect) {
           if (!('key' in OptionSSL)) {
             OptionSSL = { ...buildSecureContext(hostSSL) };
             ServerSSL = https.createServer(OptionSSL, app);
