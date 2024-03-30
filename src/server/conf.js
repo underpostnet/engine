@@ -127,7 +127,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'user'],
+        services: ['core', 'user', 'test'],
       },
     },
     ssr: {
