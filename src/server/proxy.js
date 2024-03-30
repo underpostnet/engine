@@ -128,7 +128,7 @@ const buildProxy = async () => {
       Object.keys(hosts).map((host) => {
         const { redirect } = hosts[host];
         const [hostSSL, path = ''] = host.split('/');
-        if (validateSecureContext(hostSSL) && !redirect) {
+        if (validateSecureContext(hostSSL)) {
           if (!('key' in OptionSSL)) {
             OptionSSL = { ...buildSecureContext(hostSSL) };
             ServerSSL = https.createServer(OptionSSL, app);
