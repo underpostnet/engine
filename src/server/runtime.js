@@ -110,22 +110,6 @@ const buildRuntime = async () => {
 
           // set logger
           app.use(loggerMiddleware(import.meta));
-          if (redirect) {
-            // TODO: proxy redirect
-            // app.use(
-            //   '*',
-            //   createProxyMiddleware({
-            //     target: redirect,
-            //     changeOrigin: true,
-            //   }),
-            // );
-            app.use(function (req, res) {
-              return res.status(302).redirect(redirect);
-            });
-            await network.port.portClean(port);
-            await listenPortController(app, port, runningData);
-            break;
-          }
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
@@ -144,6 +128,22 @@ const buildRuntime = async () => {
 
           // cors
           app.use(cors({ origin: origins }));
+
+          if (redirect) {
+            app.use(function (req, res) {
+              if (!req.url.startsWith(`/.well-known/acme-challenge`)) return res.status(302).redirect(redirect);
+            });
+            // app.use(
+            //   '*',
+            //   createProxyMiddleware({
+            //     target: redirect,
+            //     changeOrigin: true,
+            //   }),
+            // );
+            await network.port.portClean(port);
+            await listenPortController(app, port, runningData);
+            break;
+          }
 
           const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
           if (fs.existsSync(swaggerJsonPath)) {
