@@ -40,6 +40,13 @@ const buildRuntime = async () => {
         peer: peer ? `http://localhost:${peer.port}` : undefined,
       };
 
+      let redirectUrl;
+      let redirectTarget;
+      if (redirect) {
+        redirectUrl = new URL(redirect);
+        redirectTarget = redirect[redirect.length - 1] === '/' ? redirect.slice(0, -1) : redirect;
+      }
+
       switch (runtime) {
         case 'xampp':
           if (!Xampp.enabled()) continue;
@@ -86,7 +93,7 @@ const buildRuntime = async () => {
                 RewriteEngine on
                 
                 RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
-                RewriteRule ^(.*)$ ${redirect} [R=302,L]
+                RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
             `
                 : ''
             }
@@ -130,8 +137,11 @@ const buildRuntime = async () => {
           app.use(cors({ origin: origins }));
 
           if (redirect) {
-            app.use(function (req, res) {
-              if (!req.url.startsWith(`/.well-known/acme-challenge`)) return res.status(302).redirect(redirect);
+            app.use(function (req, res, next) {
+              if (!req.url.startsWith(`/.well-known/acme-challenge`))
+                return res.status(302).redirect(redirectTarget + req.url);
+              // if (!req.url.startsWith(`/.well-known/acme-challenge`)) return res.status(302).redirect(redirect);
+              return next();
             });
             // app.use(
             //   '*',

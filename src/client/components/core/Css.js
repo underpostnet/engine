@@ -974,7 +974,7 @@ const renderStatus = (status, options) => {
 
 const dynamicColTokens = {};
 
-const dynamicCol = (options) => {
+const dynamicCol = (options = { containerSelector: '', id: '' }) => {
   const { containerSelector, id } = options;
   if (!(id in dynamicColTokens)) dynamicColTokens[id] = {};
   dynamicColTokens[id].options = options;

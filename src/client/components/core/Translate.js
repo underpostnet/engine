@@ -172,6 +172,10 @@ const TranslateCore = {
           es: 'Publicado el',
         },
         content: {
+          en: 'Content',
+          es: 'Contenido',
+        },
+        _content: {
           en: 'This is the content of the new blog entry.',
           es: 'Este es el contenido de la nueva entrada de blog.',
         },

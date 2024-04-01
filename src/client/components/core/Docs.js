@@ -1,4 +1,5 @@
 import { BtnIcon } from './BtnIcon.js';
+import { dynamicCol } from './Css.js';
 import { Modal } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
@@ -15,6 +16,8 @@ const Docs = {
   },
   Render: async function (options) {
     setTimeout(() => {
+      s(`.modal-docs`).style.overflow = 'auto';
+
       const responsive = (args) => {
         if (s(`.docs-iframe`)) s(`.docs-iframe`).style.height = `${args.height * 0.83}px`;
       };
@@ -67,32 +70,33 @@ const Docs = {
           margin: 5px;
         }
       </style>
-
-      <div class="fl">
-        <div class="in fll" style="width: 15%">
-          ${await BtnIcon.Render({
-            class: 'wfa btn-docs-menu btn-src-docs',
-            label: html`<i class="fa-brands fa-osi doc-fa-icon"></i><br />
-              Source<br />
-              Docs`,
-            type: 'button',
-          })}
-          ${await BtnIcon.Render({
-            class: 'wfa btn-docs-menu btn-api-docs',
-            label: html`<i class="fa-solid fa-arrows-turn-to-dots doc-fa-icon"></i><br />
-              Api <br />Docs`,
-            type: 'button',
-          })}
-          ${await BtnIcon.Render({
-            class: 'wfa btn-docs-menu btn-api-repo',
-            label: html`<i class="fab fa-github doc-fa-icon"></i><br />
-              Last <br />
-              Release`,
-            type: 'button',
-          })}
-        </div>
-        <div class="in fll" style="width: 85%">
-          <div class="in docs-render"></div>
+      <div class="in" style="min-width: 635px">
+        <div class="fl">
+          <div class="in fll" style="width: 15%">
+            ${await BtnIcon.Render({
+              class: 'wfa btn-docs-menu btn-src-docs',
+              label: html`<i class="fa-brands fa-osi doc-fa-icon"></i><br />
+                Source<br />
+                Docs`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: 'wfa btn-docs-menu btn-api-docs',
+              label: html`<i class="fa-solid fa-arrows-turn-to-dots doc-fa-icon"></i><br />
+                Api <br />Docs`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: 'wfa btn-docs-menu btn-api-repo',
+              label: html`<i class="fab fa-github doc-fa-icon"></i><br />
+                Last <br />
+                Release`,
+              type: 'button',
+            })}
+          </div>
+          <div class="in fll" style="width: 85%">
+            <div class="in docs-render"></div>
+          </div>
         </div>
       </div>
     `;

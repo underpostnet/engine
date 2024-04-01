@@ -2,11 +2,11 @@
 # https://docs.docker.com/engine/reference/commandline/compose/
 version: '3'
 services:
-  engine-container:
+  underpost-engine:
     build:
       dockerfile: ./Dockerfile
       context: . # workdir path
-    image: engine-container
+    image: underpost-engine
     # container_name: <name> ignore for replicas
     ports:
       - '22'
