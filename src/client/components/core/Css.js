@@ -425,7 +425,7 @@ scrollbar-width: none;
           background: #121212;
           color: white;
           font-family: arial;
-          border: 2px solid #313131;
+          /* border: 2px solid #313131; */
           /* border-radius: 10px; */
         }
         .bar-default-modal {

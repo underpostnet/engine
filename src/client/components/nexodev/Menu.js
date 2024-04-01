@@ -18,6 +18,7 @@ import { DashboardNexodev } from './DashboardNexodev.js';
 import { StreamNexodev } from './StreamNexodev.js';
 import { Docs } from '../core/Docs.js';
 import { Content } from '../core/Content.js';
+import { FileExplorer } from '../core/FileExplorer.js';
 
 const Menu = {
   Data: {},
@@ -27,7 +28,7 @@ const Menu = {
     const RouterInstance = RouterNexodev();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const slideTop = 52;
+    const slideTop = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -79,6 +80,14 @@ const Menu = {
               text: html`${Translate.Render('content')}`,
             }),
             attrs: `data-id="10"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-cloud',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-cloud"></i>`,
+              text: html`${Translate.Render('cloud')}`,
+            }),
+            attrs: `data-id="11"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -381,6 +390,25 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         slideTop,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cloud`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cloud',
+        route: 'cloud',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html` <i class="fas fa-cloud"></i>`,
+          text: Translate.Render('cloud'),
+        }),
+        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
       });
     });
 

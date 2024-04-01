@@ -87,11 +87,11 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`,
+              height: `${window.innerHeight - (options.slideTop ? options.slideTop : 50)}px`,
               width: '320px',
               'z-index': 4,
               resize: 'none',
-              top: `${options.slideTop ? options.slideTop : 52}px`,
+              top: `${options.slideTop ? options.slideTop : 50}px`,
             };
             options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
 
@@ -418,8 +418,8 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
-        s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
-        s(`.${idModal}`).style.top = `${options.slideTop ? options.slideTop : 52}px`;
+        s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 50)}px`;
+        s(`.${idModal}`).style.top = `${options.slideTop ? options.slideTop : 50}px`;
       } else {
         s(`.${idModal}`).style.width = '100%';
         s(`.${idModal}`).style.height = '100%';

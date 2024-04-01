@@ -34,11 +34,52 @@ const CssNexodev = {
       border: none;
       /* background: #1a1a1a; */
     }
+    .input-file-sub-col,
+    .explorer-file-sub-col {
+      min-height: 300px;
+      border: 2px solid #313131;
+    }
+    .input-file-col,
+    .explorer-file-col {
+      width: 50%;
+    }
+    .btn-input-file-explorer {
+      padding: 15px;
+    }
+    input::file-selector-button {
+      background: #232323;
+      transition: 0.3s;
+      cursor: pointer;
+      padding: 3px;
+      color: #dddddd;
+    }
+    input::file-selector-button:hover {
+      background: #191919;
+      /* color: #ffcc00; */
+    }
+    .sub-container {
+      background: #232323;
+      border: 2px solid #313131;
+      transition: 0.3s;
+    }
+    .sub-container:hover {
+      background: #191919;
+      border: 2px solid #313131;
+    }
+    .tool-btn-file-explorer {
+      min-height: 60px;
+      min-width: 60px;
+      font-size: 24px;
+      padding: 10px;
+    }
+    .file-explorer-nav {
+      padding: 5px;
+    }
     .input-container {
       cursor: pointer;
       border: 2px solid #313131;
       transition: 0.3s;
-      width: 280px;
+      min-width: 280px;
     }
     .input-container:hover {
       color: #ffffff;
@@ -69,6 +110,14 @@ const CssNexodev = {
       color: #c6c4c4;
       background: none;
     }
+    /*
+    .modal {
+      background: rgba(18, 18, 18, 0.9);
+    }
+    .bar-default-modal {
+      background: rgba(36, 36, 36, 0.75);
+    }
+    */
     .title-modal {
       color: #ffffff;
     }

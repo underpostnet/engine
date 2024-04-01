@@ -355,37 +355,37 @@ const FileExplorer = {
       <form>
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'inl btn-input-home-directory',
+            class: 'inl tool-btn-file-explorer btn-input-home-directory',
             label: html`<i class="fas fa-home"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl btn-input-back-explorer',
+            class: 'inl tool-btn-file-explorer btn-input-back-explorer',
             label: html` <i class="fa-solid fa-circle-left"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl btn-input-forward-explorer',
+            class: 'inl tool-btn-file-explorer btn-input-forward-explorer',
             label: html` <i class="fa-solid fa-circle-right"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl btn-input-go-explorer',
+            class: 'inl tool-btn-file-explorer btn-input-go-explorer',
             label: html`<i class="fas fa-sync-alt"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'submit',
           })}
           ${await BtnIcon.Render({
-            class: 'inl btn-input-copy-directory',
+            class: 'inl tool-btn-file-explorer btn-input-copy-directory',
             label: html`<i class="fas fa-copy"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl btn-input-upload-file',
+            class: 'inl tool-btn-file-explorer btn-input-upload-file',
             label: html`<i class="fa-solid fa-cloud-arrow-up"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',

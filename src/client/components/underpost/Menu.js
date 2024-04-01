@@ -23,7 +23,7 @@ const Menu = {
     const RouterInstance = RouterUnderpost();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const slideTop = 52;
+    const slideTop = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
