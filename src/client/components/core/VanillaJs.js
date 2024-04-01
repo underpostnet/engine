@@ -279,6 +279,19 @@ function downloadFile(fileInstance, fileName) {
   return URL.revokeObjectURL(url);
 }
 
+const getRawContentFile = (blob = new Buffer()) =>
+  new Promise((resolve) => {
+    {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.readAsText(blob);
+    }
+  });
+
+const getBlobFromJsonFile = (json) => {
+  return new Blob([new Uint8Array(json.data.data)], { type: json.mimetype });
+};
+
 // Router
 /**
  * The function `getProxyPath` returns a proxy path based on the current location pathname.
@@ -313,4 +326,6 @@ export {
   isElement,
   downloadFile,
   getProxyPath,
+  getRawContentFile,
+  getBlobFromJsonFile,
 };
