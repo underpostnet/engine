@@ -35,7 +35,15 @@ const Content = {
         }
       }
     });
-    return html` <div class="in content-render"></div>`;
+    return html` <style>
+        .content-render > a {
+          color: #b1a7a7;
+        }
+        .content-render > a:hover {
+          color: #ffffff;
+        }
+      </style>
+      <div class="in content-render"></div>`;
   },
 };
 
