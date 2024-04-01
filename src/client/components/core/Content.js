@@ -36,11 +36,15 @@ const Content = {
       }
     });
     return html` <style>
-        .content-render > a {
+        a {
           color: #b1a7a7;
         }
-        .content-render > a:hover {
+        a:hover {
           color: #ffffff;
+        }
+        .content-render {
+          font-size: 16px;
+          font-family: monospace;
         }
       </style>
       <div class="in content-render"></div>`;
