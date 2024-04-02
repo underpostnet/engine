@@ -12,20 +12,26 @@ const select = {
 
 const BucketService = {
   post: async (req, res, options) => {
+    /** @type {import('./bucket.model.js').BucketModel} */
+    const Bucket = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket;
+
     let result = {};
     switch (req.params.id) {
       default:
         req.body.userId = req.auth.user._id;
-        result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket(req.body).save();
+        result = await new Bucket(req.body).save();
         break;
     }
     return result;
   },
   get: async (req, res, options) => {
+    /** @type {import('./bucket.model.js').BucketModel} */
+    const Bucket = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket;
+
     let result = {};
     switch (req.params.id) {
       default:
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.find({
+        result = await Bucket.find({
           userId: req.auth.user._id,
         }).populate(select.get);
         break;
@@ -33,17 +39,21 @@ const BucketService = {
     return result;
   },
   delete: async (req, res, options) => {
+    /** @type {import('./bucket.model.js').BucketModel} */
+    const Bucket = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket;
+
     let result = {};
     switch (req.params.id) {
       default:
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket.findByIdAndDelete(
-          req.params.id,
-        );
+        result = await Bucket.findByIdAndDelete(req.params.id);
         break;
     }
     return result;
   },
   put: async (req, res, options) => {
+    /** @type {import('./bucket.model.js').BucketModel} */
+    const Bucket = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Bucket;
+
     let result = {};
     switch (req.params.id) {
       default:

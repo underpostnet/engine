@@ -5,6 +5,11 @@ const logger = loggerFactory(import.meta);
 
 const CryptoService = {
   post: async (req, res, options) => {
+    /** @type {import('./crypto.model.js').CryptoModel} */
+    const Crypto = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Crypto;
+    /** @type {import('../user/user.model.js').UserModel} */
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+
     let result = {};
     switch (req.params.id) {
       case 'verify':
@@ -39,15 +44,11 @@ const CryptoService = {
         }
         break;
       default:
-        result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Crypto(req.body).save();
-        const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User.findById(
-          req.auth.user._id,
-        );
+        result = await new Crypto(req.body).save();
+        const user = await User.findById(req.auth.user._id);
         user.publicKey.push(result._id);
         {
-          const result = await DataBaseProvider.instance[
-            `${options.host}${options.path}`
-          ].mongoose.User.findByIdAndUpdate(req.auth.user._id, user, {
+          const result = await User.findByIdAndUpdate(req.auth.user._id, user, {
             runValidators: true,
           });
         }

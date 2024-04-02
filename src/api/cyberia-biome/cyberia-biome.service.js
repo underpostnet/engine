@@ -8,29 +8,31 @@ const select = {
 
 const CyberiaBiomeService = {
   post: async (req, res, options) => {
-    const { _id } = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome(
-      req.body,
-    ).save();
-    const [result] = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome.find({
+    /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+
+    const { _id } = await new CyberiaBiome(req.body).save();
+    const [result] = await CyberiaBiome.find({
       _id,
     }).select(select['all-name']);
     return result;
   },
   get: async (req, res, options) => {
+    /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+
     let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome.find();
+        result = await CyberiaBiome.find();
         break;
       case 'all-name':
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome.find().select(
-          select['all-name'],
-        );
+        result = await CyberiaBiome.find().select(select['all-name']);
         // User.findById(id).select("_id, isActive").then(...)
         break;
 
       default:
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome.find({
+        result = await CyberiaBiome.find({
           _id: req.params.id,
         });
         break;
@@ -38,15 +40,16 @@ const CyberiaBiomeService = {
     return result;
   },
   delete: async (req, res, options) => {
+    /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+
     let result = {};
     switch (req.params.id) {
       case 'all':
         break;
 
       default:
-        result = await DataBaseProvider.instance[
-          `${options.host}${options.path}`
-        ].mongoose.CyberiaBiome.findByIdAndDelete(req.params.id);
+        result = await CyberiaBiome.findByIdAndDelete(req.params.id);
         break;
     }
     return result;
