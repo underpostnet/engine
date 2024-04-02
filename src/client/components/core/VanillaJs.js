@@ -279,6 +279,12 @@ function downloadFile(fileInstance, fileName) {
   return URL.revokeObjectURL(url);
 }
 
+/**
+ * The function `getRawContentFile` reads the raw content of a file using a FileReader in JavaScript.
+ * @param [blob] - The `blob` parameter in the `getRawContentFile` function is a Buffer object that
+ * represents raw binary data. It is used to read the content of a file as text using a FileReader in
+ * the browser environment.
+ */
 const getRawContentFile = (blob = new Buffer()) =>
   new Promise((resolve) => {
     {
@@ -288,7 +294,14 @@ const getRawContentFile = (blob = new Buffer()) =>
     }
   });
 
-const getBlobFromJsonFile = (json) => {
+/**
+ * The function `getBlobFromUint8ArrayFile` creates a Blob object from JSON data.
+ * @param json - The `json` parameter in the `getBlobFromUint8ArrayFile` function is an object that contains
+ * two properties:
+ * @returns A Blob object is being returned, created from the data and mimetype properties of the input
+ * JSON object.
+ */
+const getBlobFromUint8ArrayFile = (json) => {
   return new Blob([new Uint8Array(json.data.data)], { type: json.mimetype });
 };
 
@@ -327,5 +340,5 @@ export {
   downloadFile,
   getProxyPath,
   getRawContentFile,
-  getBlobFromJsonFile,
+  getBlobFromUint8ArrayFile,
 };

@@ -1,6 +1,6 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
-import { getBlobFromJsonFile, getQueryParams, getRawContentFile, htmls } from './VanillaJs.js';
+import { getBlobFromUint8ArrayFile, getQueryParams, getRawContentFile, htmls } from './VanillaJs.js';
 import { Menu } from '../nexodev/Menu.js';
 import { titleFormatted } from './CommonJs.js';
 
@@ -15,7 +15,7 @@ const Content = {
         } = await FileService.get({ id: queryParams.id });
 
         const ext = file.name.split('.')[file.name.split('.').length - 1];
-        const content = await getRawContentFile(getBlobFromJsonFile(file));
+        const content = await getRawContentFile(getBlobFromUint8ArrayFile(file));
         switch (ext) {
           case 'md':
             htmls(
