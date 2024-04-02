@@ -14,7 +14,8 @@ import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { Elements } from './components/nexodev/Elements.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
-import { append, getProxyPath, s } from './components/core/VanillaJs.js';
+import { getProxyPath } from './components/core/VanillaJs.js';
+import { HomeBackground } from './components/core/HomeBackground.js';
 
 (async function () {
   await Css.Init(CssNexodev);
@@ -29,15 +30,5 @@ import { append, getProxyPath, s } from './components/core/VanillaJs.js';
   await LogOutNexodev();
   await SignUpNexodev();
   LoadRouter(RouterInstance);
-
-  append('body', html` <img class="abs center home-background" src="${getProxyPath()}assets/background/earth.jpg" /> `);
-  Responsive.Event['home-background'] = () => {
-    if (Responsive.Data.minType === 'width') {
-      s(`.home-background`).style.height = `auto`;
-      s(`.home-background`).style.width = `${Responsive.Data.maxValue}px`;
-    }
-    s(`.home-background`).style.height = `${Responsive.Data.maxValue}px`;
-    s(`.home-background`).style.width = `auto`;
-  };
-  Responsive.Event['home-background']();
+  await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
 })();
