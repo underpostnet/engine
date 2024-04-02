@@ -153,24 +153,6 @@ const Config = {
           },
         },
       },
-      'wp.nexodev.org': {
-        '/': {
-          client: 'wordpress',
-          runtime: 'lampp',
-          origins: [],
-          disabledRebuild: false,
-          resetRouter: true,
-          db: {
-            provider: 'mariadb',
-            host: null,
-            name: 'wp_nexodev',
-            user: 'root',
-            password: '',
-            backupPath: '/code/engine-private/wp-backup/wp_nexodev.sql',
-          },
-          proxy: [80, 443],
-        },
-      },
     },
     dns: {
       ipDaemon: {
