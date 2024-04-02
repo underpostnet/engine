@@ -7,18 +7,20 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaUserService = {
   post: async (req, res, options) => {
+    /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
+    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
     let result = {};
-    result = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser(
-      req.body,
-    ).save();
+    result = await new CyberiaUser(req.body).save();
     return result;
   },
   get: async (req, res, options) => {
+    /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
+    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
     let result = {};
     switch (req.params.id) {
       case 'auth':
         {
-          const user = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser.find({
+          const user = await CyberiaUser.find({
             'model.user._id': req.auth.user._id,
           });
           if (user[0]) result = user[0];

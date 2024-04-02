@@ -15,10 +15,11 @@ const populateOptions = {
 
 const CyberiaWorldService = {
   post: async (req, res, options) => {
-    const { _id } = await new DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld(
-      req.body,
-    ).save();
-    const [result] = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld.find({
+    /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+
+    const { _id } = await new CyberiaWorld(req.body).save();
+    const [result] = await CyberiaWorld.find({
       _id,
     })
       .select(select['all-name'])
@@ -26,12 +27,12 @@ const CyberiaWorldService = {
     return result;
   },
   get: async (req, res, options) => {
+    /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
     let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await DataBaseProvider.instance[
-          `${options.host}${options.path}`
-        ].mongoose.CyberiaWorld.find().populate(
+        result = await CyberiaWorld.find().populate(
           populateOptions,
           // 'face',
           // {
@@ -43,7 +44,7 @@ const CyberiaWorldService = {
         break;
       case 'all-test':
         // preserveNullAndEmptyArrays
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld.aggregate([
+        result = await CyberiaWorld.aggregate([
           {
             $lookup: {
               from: 'cyberiabiomes', // collection name
@@ -82,14 +83,12 @@ const CyberiaWorldService = {
 
         break;
       case 'all-name':
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld.find().select(
-          select['all-name'],
-        );
+        result = await CyberiaWorld.find().select(select['all-name']);
         // User.findById(id).select("_id, isActive").then(...)
         break;
 
       default:
-        result = await DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld.find({
+        result = await CyberiaWorld.find({
           _id: req.params.id,
         });
         break;
@@ -97,15 +96,15 @@ const CyberiaWorldService = {
     return result;
   },
   delete: async (req, res, options) => {
+    /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
     let result = {};
     switch (req.params.id) {
       case 'all':
         break;
 
       default:
-        result = await DataBaseProvider.instance[
-          `${options.host}${options.path}`
-        ].mongoose.CyberiaWorld.findByIdAndDelete(req.params.id);
+        result = await CyberiaWorld.findByIdAndDelete(req.params.id);
         break;
     }
     return result;
