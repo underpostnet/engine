@@ -15,6 +15,7 @@ import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
+import { Lampp } from '../runtime/lampp/Lampp.js';
 
 dotenv.config();
 
@@ -48,6 +49,46 @@ const buildRuntime = async () => {
       }
 
       switch (runtime) {
+        case 'lampp':
+          if (!Lampp.enabled()) continue;
+          if (!Lampp.ports.includes(port)) Lampp.ports.push(port);
+          if (confServer[host][path].resetRouter) Lampp.removeRouter();
+          Lampp.appendRouter(`
+            
+        Listen ${port}
+
+        <VirtualHost *:${port}>    
+            DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
+            ServerName ${host}:${port}
+
+            <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
+              Options Indexes FollowSymLinks MultiViews
+              AllowOverride All
+              Require all granted
+            </Directory>
+
+              ${
+                redirect
+                  ? `
+                  RewriteEngine on
+                  
+                  RewriteCond %{REQUEST_URI} !^/.well-known/acme-challenge
+                  RewriteRule ^(.*)$ ${redirectTarget}%{REQUEST_URI} [R=302,L]
+              `
+                  : ''
+              }
+
+          </VirtualHost>
+            
+                          `);
+          // ERR too many redirects:
+          // Check: SELECT * FROM database.wp_options where option_name = 'siteurl' or option_name = 'home';
+          // Check: wp-config.php
+          // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
+          //   $_SERVER['HTTPS'] = 'on';
+          // }
+          await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
+          break;
         case 'xampp':
           if (!Xampp.enabled()) continue;
           if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
@@ -67,27 +108,6 @@ const buildRuntime = async () => {
             </Directory>
 
             ${
-              client === 'wordpress'
-                ? `
-                  # BEGIN WordPress
-                  <IfModule mod_rewrite.c>
-                    RewriteEngine On
-                    RewriteRule ^index\.php$ - [L]
-                    RewriteCond $1 ^(index\.php)?$ [OR]
-                    # RewriteCond $1 \.(gif|jpg|png|ico|css|js|php)$ [NC,OR]
-                    RewriteCond $1 \.(.*) [NC,OR]
-                    RewriteCond %{REQUEST_FILENAME} -f [OR]
-                    RewriteCond %{REQUEST_FILENAME} -d
-                    RewriteRule ^(.*)$ - [S=1]
-                    RewriteRule . /index.php [L]
-                  </IfModule>
-                  # END wordpress
-            `
-                : ''
-            }
-            </VirtualHost>
-
-            ${
               redirect
                 ? `
                 RewriteEngine on
@@ -97,6 +117,8 @@ const buildRuntime = async () => {
             `
                 : ''
             }
+
+          </VirtualHost>
             
                           `);
           // ERR too many redirects:
@@ -214,7 +236,8 @@ const buildRuntime = async () => {
       currentPort++;
     }
   }
-  if (Xampp.enabled() && Xampp.router) await Xampp.initService();
+  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
+  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
 };
 
 export { buildRuntime };

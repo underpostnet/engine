@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import AdmZip from 'adm-zip';
+import axios from 'axios';
 import { Downloader } from '../src/server/downloader.js';
 import { getRootDirectory, shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
@@ -111,7 +112,7 @@ try {
         logger.info('destination', fullPath);
         if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
         const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-        const { directory } = confServer[host][`/${path}`];
+        const { directory, db } = confServer[host][`/${path}`];
         logger.info('client found', confServer[host][`/${path}`]);
         const zipTargetPath = directory ? directory : `./public/${path ? `${host}/${path}` : host}`;
         if (!fs.existsSync(zipTargetPath)) fs.mkdirSync(zipTargetPath, { recursive: true });
@@ -184,11 +185,52 @@ RewriteRule . /index.php [L]
 `;
         }
         // fs.writeFileSync(`${zipTargetPath}/.htaccess`, htaccess, 'utf8');
+        const secretKeyResult = await axios.get(`https://api.wordpress.org/secret-key/1.1/salt/`);
+        logger.info('wordpress secret Key Result', secretKeyResult.data);
+        fs.writeFileSync(
+          `${zipTargetPath}/wp-config.php`,
+          fs
+            .readFileSync(`${zipTargetPath}/wp-config-sample.php`, 'utf8')
+            .replaceAll(`define( 'AUTH_KEY',         'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'SECURE_AUTH_KEY',  'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'LOGGED_IN_KEY',    'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'NONCE_KEY',        'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'AUTH_SALT',        'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'SECURE_AUTH_SALT', 'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'LOGGED_IN_SALT',   'put your unique phrase here' );`, '')
+            .replaceAll(`define( 'NONCE_SALT',       'put your unique phrase here' );`, '')
+            .replaceAll(
+              `/**#@-*/`,
+              `${secretKeyResult.data}
+              
+              /**#@-*/`,
+            )
+            .replaceAll('database_name_here', db.name)
+            .replaceAll('username_here', db.user)
+            .replaceAll('password_here', db.password)
+            .replaceAll(`$table_prefix = 'wp_';`, `$table_prefix = 'wp_${db.name}_';`),
+          'utf8',
+        );
         const rootDirectory = getRootDirectory();
         shellCd(zipTargetPath);
         shellExec(`git init && git add . && git commit -m "update"`);
         shellCd(rootDirectory);
         fs.rmSync(`./public/${tmpFolderExtract}`, { recursive: true, force: true });
+        const wpHtaccess = `
+                  # BEGIN WordPress
+                  <IfModule mod_rewrite.c>
+                    RewriteEngine On
+                    RewriteRule ^index\.php$ - [L]
+                    RewriteCond $1 ^(index\.php)?$ [OR]
+                    # RewriteCond $1 \.(gif|jpg|png|ico|css|js|php)$ [NC,OR]
+                    RewriteCond $1 \.(.*) [NC,OR]
+                    RewriteCond %{REQUEST_FILENAME} -f [OR]
+                    RewriteCond %{REQUEST_FILENAME} -d
+                    RewriteRule ^(.*)$ - [S=1]
+                    RewriteRule . /index.php [L]
+                  </IfModule>
+                  # END wordpress
+            `;
       })();
       break;
     case 'nginx':

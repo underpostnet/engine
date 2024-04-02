@@ -33,5 +33,5 @@ Run on `docker`
 docker build . -t engine
 
 # run image
-docker run --name engine-instance -p 41061:3001 engine
+docker run --name engine-instance -p 41061:3001 -p 41062:3002 engine
 ```

@@ -3,24 +3,19 @@ import { network } from '../../server/network.js';
 import { shellExec } from '../../server/process.js';
 import { timer } from '../../client/components/core/CommonJs.js';
 
-const Xampp = {
+const Lampp = {
   ports: [],
   initService: async function (options = { daemon: false }) {
     let cmd;
-    // windows
-    fs.writeFileSync(
-      `C:/xampp/apache/conf/httpd.conf`,
-      fs.readFileSync(`C:/xampp/apache/conf/httpd.template.conf`, 'utf8').replace(`Listen 80`, ``),
-      'utf8',
-    );
-    fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, Xampp.router || '', 'utf8');
-    cmd = `C:/xampp/xampp_stop.exe`;
+    // linux
+    fs.writeFileSync(`/opt/lampp/apache2/conf/httpd.conf`, this.router || '', 'utf8');
+    cmd = `sudo /opt/lampp/lampp stop`;
     shellExec(cmd);
     await network.port.portClean(3306);
-    for (const port of Xampp.ports) await network.port.portClean(port);
-    cmd = `C:/xampp/xampp_start.exe`;
-    fs.writeFileSync(`./tmp/xampp-router.conf`, Xampp.router, 'utf-8');
-    shellExec(cmd);
+    for (const port of this.ports) await network.port.portClean(port);
+    cmd = `sudo /opt/lampp/lampp start`;
+    fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
+    shellExec(cmd, { async: true });
     if (options && options.daemon) return await this.daemon();
   },
   daemon: async function () {
@@ -31,19 +26,19 @@ const Xampp = {
     }
     return await this.daemon();
   },
-  enabled: () => fs.existsSync(`C:/xampp/apache/conf/httpd.conf`),
+  enabled: () => fs.existsSync(`/opt/lampp/apache2/conf/httpd.conf`),
   appendRouter: function (render) {
     if (!this.router) {
-      if (fs.existsSync(`./tmp/xampp-router.conf`))
-        return (this.router = fs.readFileSync(`./tmp/xampp-router.conf`, 'utf-8')) + render;
+      if (fs.existsSync(`./tmp/lampp-router.conf`))
+        return (this.router = fs.readFileSync(`./tmp/lampp-router.conf`, 'utf-8')) + render;
       return (this.router = render);
     }
     return (this.router += render);
   },
   removeRouter: function () {
     this.router = undefined;
-    if (fs.existsSync(`./tmp/xampp-router.conf`)) fs.rmSync(`./tmp/xampp-router.conf`);
+    if (fs.existsSync(`./tmp/lampp-router.conf`)) fs.rmSync(`./tmp/lampp-router.conf`);
   },
 };
 
-export { Xampp };
+export { Lampp };

@@ -85,8 +85,7 @@ const buildClient = async () => {
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
-      if (disabledRebuild) continue;
+      const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata } = confClient[client];
       if (metadata) {
@@ -102,7 +101,13 @@ const buildClient = async () => {
 
       buildAcmeChallengePath(acmeChallengeFullPath);
 
-      if (redirect) continue;
+      if (redirect || disabledRebuild) continue;
+
+      if (runtime === 'lampp' && client === 'wordpress') {
+        shellExec(`node bin/install linux wordpress ${host}${path}`);
+        shellExec(`node bin/db ${host}${path} create`);
+        continue;
+      }
 
       if (process.argv[2] !== 'l' && !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
         await fullBuild({

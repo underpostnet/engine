@@ -6,6 +6,7 @@ import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
+import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { loadConf } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
@@ -44,8 +45,11 @@ try {
           cmd = `mysql -u ${user} -p ${name} < ${backupPath}`;
           shellExec(cmd);
           break;
-        case 'init-service':
+        case 'init-xampp-service':
           await Xampp.initService();
+          break;
+        case 'init-lampp-service':
+          await Lampp.initService();
           break;
         default:
           break;
