@@ -330,7 +330,7 @@ const buildClient = async () => {
       fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
       fs.writeFileSync(
         `${rootClientPath}/sitemap.xsl`,
-        fs.readFileSync(`${rootClientPath}/sitemap.xsl`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
+        fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
         'utf8',
       );
 
