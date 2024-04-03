@@ -50,6 +50,18 @@ try {
         // shellExec('git checkout .');
       }
       break;
+
+    case 'sync-package':
+      const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
+      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      for (const relativePath of files) {
+        const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
+        if (filePah.split('/').pop() === 'package.json') {
+          originPackage.scripts.start = JSON.parse(fs.readFileSync(filePah), 'utf8').scripts.start;
+          fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
+        }
+      }
+      break;
     default:
       break;
   }
