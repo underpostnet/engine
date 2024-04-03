@@ -76,6 +76,7 @@
     "read": "^2.1.0",
     "sharp": "^0.32.5",
     "shelljs": "^0.8.5",
+    "sitemap": "^7.1.1",
     "socket.io": "^4.7.2",
     "sortablejs": "^1.15.0",
     "swagger-ui-express": "^5.0.0",

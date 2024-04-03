@@ -11,6 +11,8 @@ import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import { shellExec } from './process.js';
 import swaggerAutoGen from 'swagger-autogen';
+import { SitemapStream, streamToPromise } from 'sitemap';
+import { Readable } from 'stream';
 
 dotenv.config();
 
@@ -160,6 +162,7 @@ const buildClient = async () => {
         }
 
       const buildId = `index.${client}`;
+      const siteMapLinks = [];
 
       if (views)
         for (const view of views) {
@@ -281,6 +284,14 @@ const buildClient = async () => {
             ssrBodyComponents,
           });
 
+          /** @type {import('sitemap').SitemapItem} */
+          const siteMapLink = {
+            url: `${path === '/' ? '' : path}${view.path}`,
+            changefreq: 'daily',
+            priority: 0.8,
+          };
+          siteMapLinks.push(siteMapLink);
+
           fs.writeFileSync(
             `${buildPath}index.html`,
             minifyBuild
@@ -295,6 +306,34 @@ const buildClient = async () => {
             'utf8',
           );
         }
+
+      // Create a stream to write to
+      /** @type {import('sitemap').SitemapStreamOptions} */
+      const sitemapOptions = { hostname: `https://${host}`, xslUrl: `${path === '/' ? '' : path}/sitemap.xsl` };
+
+      const siteMapStream = new SitemapStream(sitemapOptions);
+      let siteMapSrc = await new Promise((resolve) =>
+        streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
+      );
+      switch (client) {
+        case 'underpost':
+          siteMapSrc = siteMapSrc.replaceAll(
+            `</urlset>`,
+            `${fs.readFileSync(`./src/client/public/underpost/sitemap-template.txt`, 'utf8')} </urlset>`,
+          );
+          break;
+
+        default:
+          break;
+      }
+      // Return a promise that resolves with your XML string
+      fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
+      fs.writeFileSync(
+        `${rootClientPath}/sitemap.xsl`,
+        fs.readFileSync(`${rootClientPath}/sitemap.xsl`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
+        'utf8',
+      );
+
       if (process.argv[4] === 'docs') {
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path}docs/`;
