@@ -243,7 +243,7 @@ scrollbar-width: none;
           height: 50px;
           top: 0px;
           right: 0px;
-          z-index: 3;
+          z-index: 5;
         }
       `,
     ),
@@ -324,7 +324,7 @@ scrollbar-width: none;
           height: 50px;
           top: 0px;
           right: 0px;
-          z-index: 3;
+          z-index: 5;
         }
       `,
     ),
@@ -408,7 +408,7 @@ scrollbar-width: none;
           height: 50px;
           top: 0px;
           right: 0px;
-          z-index: 3;
+          z-index: 5;
         }
       `,
     ),
@@ -537,7 +537,7 @@ scrollbar-width: none;
           height: 50px;
           top: 0px;
           right: 0px;
-          z-index: 3;
+          z-index: 5;
         }
       `,
     ),
