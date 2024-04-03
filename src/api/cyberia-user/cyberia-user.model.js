@@ -21,6 +21,75 @@ const CyberiaUserSchema = new Schema({
     },
     tree: { type: [String], default: ['red-power'] },
   },
+  components: {
+    skin: {
+      type: [
+        {
+          displayId: { type: String },
+          current: { type: Boolean },
+          enabled: { type: Boolean },
+          position: { type: String },
+          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+        },
+      ],
+      default: [
+        {
+          displayId: 'anon',
+          position: '08',
+          positions: [
+            { positionId: '02', frames: 1 },
+            { positionId: '04', frames: 1 },
+            { positionId: '06', frames: 1 },
+            { positionId: '08', frames: 1 },
+            { positionId: '12', frames: 2 },
+            { positionId: '14', frames: 2 },
+            { positionId: '16', frames: 2 },
+            { positionId: '18', frames: 2 },
+          ],
+          enabled: true,
+          current: true,
+        },
+        {
+          displayId: 'eiri',
+          position: '08',
+          positions: [
+            { positionId: '02', frames: 1 },
+            { positionId: '04', frames: 1 },
+            { positionId: '06', frames: 1 },
+            { positionId: '08', frames: 1 },
+            { positionId: '12', frames: 2 },
+            { positionId: '14', frames: 2 },
+            { positionId: '16', frames: 2 },
+            { positionId: '18', frames: 2 },
+          ],
+          enabled: false,
+        },
+        {
+          displayId: 'ghost',
+          position: '08',
+          positions: [
+            { positionId: '02', frames: 8 },
+            { positionId: '04', frames: 8 },
+            { positionId: '06', frames: 8 },
+            { positionId: '08', frames: 8 },
+            { positionId: '12', frames: 8 },
+            { positionId: '14', frames: 8 },
+            { positionId: '16', frames: 8 },
+            { positionId: '18', frames: 8 },
+          ],
+          enabled: false,
+        },
+      ],
+    },
+    background: {
+      type: [{ pixi: { tint: { type: String }, visible: { type: Boolean } }, enabled: { type: Boolean } }],
+      default: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
+    },
+    lifeBar: { type: Object, default: {} },
+    lifeIndicator: { type: Object, default: {} },
+    coinIndicator: { type: Object, default: {} },
+    username: { type: Object, default: {} },
+  },
   model: {
     user: {
       _id: {

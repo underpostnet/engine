@@ -35,10 +35,6 @@ const LogOutCyberia = function () {
       html: Translate.Render(`success-logout`),
       status: 'success',
     });
-
-    SocketIo.Emit('user', {
-      status: 'propagate',
-    });
   };
 };
 

@@ -179,6 +179,7 @@ const MainUser = {
 
         if (lastDirection !== direction) {
           lastDirection = newInstance(direction);
+          Elements.LocalDataScope[type][id].lastDirection = lastDirection;
           logger.info('New direction', direction);
         } else if (Elements.Data[type][id].components.skin.find((skin) => skin.position[0] === '1')) return;
 

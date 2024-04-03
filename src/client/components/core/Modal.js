@@ -55,6 +55,7 @@ const Modal = {
 
           if (this.mobileModal()) {
             options.barConfig.buttons.restore.disabled = true;
+            options.barConfig.buttons.minimize.disabled = true;
             options.dragDisabled = true;
             options.style.resize = 'none';
           }

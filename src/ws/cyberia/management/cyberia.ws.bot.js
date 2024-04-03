@@ -46,9 +46,13 @@ const CyberiaWsBotManagement = {
       dontCrossCorners: true, // corner of a solid
       heuristic: pathfinding.Heuristic.chebyshev,
     });
+    /** @type {import('../../../api/cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome;
+    /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
     (async () => {
-      this.worlds = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld.find();
-      this.biomes = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome.find();
+      this.worlds = await CyberiaWorld.find();
+      this.biomes = await CyberiaBiome.find();
       if (this.worlds.length === 0 || this.biomes.length === 0) return;
       for (const indexBot of range(0, 39)) {
         const bot = BaseElement().bot.main;

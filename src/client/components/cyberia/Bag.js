@@ -8,6 +8,9 @@ import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
 import { SkinComponent } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
+import { BtnIcon } from '../core/BtnIcon.js';
+import { SocketIo } from '../core/SocketIo.js';
+import { Pixi } from './Pixi.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -15,9 +18,12 @@ const ItemModal = {
   Render: async function (options = { idModal: '', skin: { skinId: '' } }) {
     const { idModal, skin } = options;
     const id0 = `${idModal}-section-0`;
+    const id1 = `${idModal}-section-1`;
 
-    setTimeout(() => {
+    setTimeout(async () => {
       if (skin) {
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
         let statsRender = '';
         for (const statKey of Object.keys(SkinComponent[skin.skinId])) {
           statsRender += html` <div class="in fll stat-skin-table-cell stat-skin-table-cell-key">
@@ -36,8 +42,31 @@ const ItemModal = {
             </div>
             <div class="in section-mp"><div class="fl">${statsRender}</div></div>`,
         );
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
         htmls(
           `.${id0}-render-col-b`,
+          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-skin-${idModal}` })}`,
+        );
+        EventsUI.onClick(`.btn-equip-skin-${idModal}`, async () => {
+          const type = 'user';
+          const id = 'main';
+          Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
+            skinData.enabled = skinData.displayId === skin.skinId;
+            skinData.current = skinData.displayId === skin.skinId;
+            return skinData;
+          });
+          Pixi.triggerUpdateSkinPosition({ type, id });
+          SocketIo.Emit(type, {
+            status: 'update-skin-position',
+            element: { components: { skin: Elements.Data[type][id].components.skin } },
+            direction: Elements.LocalDataScope[type][id].lastDirection,
+          });
+        });
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id1}-render-col-a`,
           html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
         );
       }
@@ -50,6 +79,15 @@ const ItemModal = {
         </div>
         <div class="in fll ${id0}-col-b">
           <div class="in item-modal-section-cell section-mp ${id0}-render-col-b"></div>
+        </div>
+      </div>
+      ${dynamicCol({ containerSelector: id1, id: id1, type: 'a-50-b-50', limit: 500 })}
+      <div class="fl ${id1}">
+        <div class="in fll ${id1}-col-a">
+          <div class="in item-modal-section-cell section-mp ${id1}-render-col-a"></div>
+        </div>
+        <div class="in fll ${id1}-col-b">
+          <div class="in item-modal-section-cell section-mp ${id1}-render-col-b"></div>
         </div>
       </div>
     `;
@@ -105,6 +143,7 @@ const Slot = {
             html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, skin: { skinId } })}`,
             mode: 'view',
             slideMenu: 'modal-menu',
+            maximize: Modal.mobileModal(),
           });
         });
         indexBag++;

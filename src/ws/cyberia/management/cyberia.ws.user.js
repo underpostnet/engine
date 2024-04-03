@@ -7,18 +7,16 @@ const CyberiaWsUserManagement = {
   element: {},
   localElementScope: {},
   updateCyberiaUser: async function (wsManagementId, timeInterval) {
+    /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
+    const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
     await timer(timeInterval);
     for (const elementId of Object.keys(this.element[wsManagementId])) {
       const element = this.element[wsManagementId][elementId];
       element?._id
         ? (async () => {
-            const result = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser.findByIdAndUpdate(
-              element._id,
-              element,
-              {
-                runValidators: true,
-              },
-            );
+            const result = await CyberiaUser.findByIdAndUpdate(element._id, element, {
+              runValidators: true,
+            });
           })()
         : null;
     }

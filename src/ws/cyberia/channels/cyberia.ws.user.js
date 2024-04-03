@@ -15,25 +15,28 @@ const CyberiaWsUserController = {
   channel,
   controller: async function (socket, client, args, wsManagementId) {
     const { status, element, user } = args;
+    const propagate = () => {
+      for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+        if (
+          socket.id !== elementId &&
+          objectEquals(
+            CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+            CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+          )
+        ) {
+          CyberiaWsEmit(channel, client[elementId], {
+            status: 'connection',
+            id: socket.id,
+            element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
+          });
+        }
+      }
+      if (CyberiaWsUserManagement.element[wsManagementId][socket.id].life <= 0)
+        CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
+    };
     switch (status) {
       case 'propagate':
-        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-          if (
-            socket.id !== elementId &&
-            objectEquals(
-              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
-              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
-            )
-          ) {
-            CyberiaWsEmit(channel, client[elementId], {
-              status: 'connection',
-              id: socket.id,
-              element: CyberiaWsUserManagement.element[wsManagementId][socket.id],
-            });
-          }
-        }
-        if (CyberiaWsUserManagement.element[wsManagementId][socket.id].life <= 0)
-          CyberiaWsUserManagement.setDeadState(wsManagementId, socket.id);
+        propagate();
         break;
       case 'register-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
@@ -44,9 +47,9 @@ const CyberiaWsUserController = {
         break;
       case 'register-cyberia-user':
         {
-          const userDoc = await DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser.findById(
-            args.user._id,
-          );
+          /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
+          const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
+          const userDoc = await CyberiaUser.findById(args.user._id);
           const user = userDoc._doc;
           user.model.user = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user;
           user.model.world._id = user.model.world._id.toString();
@@ -55,11 +58,13 @@ const CyberiaWsUserController = {
             ...CyberiaWsUserManagement.element[wsManagementId][socket.id],
             ...user,
           };
+          propagate();
         }
         break;
       case 'unregister-cyberia-user':
         {
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement().user.main;
+          propagate();
         }
         break;
       case 'update-position':

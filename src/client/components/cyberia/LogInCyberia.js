@@ -40,9 +40,6 @@ const LogInCyberia = async function () {
     Elements.Data[type][id].model.user = user;
 
     await MainUser.Update({ oldElement });
-    SocketIo.Emit('user', {
-      status: 'propagate',
-    });
   };
   const token = localStorage.getItem('jwt');
   if (token) {
