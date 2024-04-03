@@ -334,6 +334,13 @@ const buildClient = async () => {
         'utf8',
       );
 
+      fs.writeFileSync(
+        `${rootClientPath}/robots.txt`,
+        `User-agent: *
+Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
+        'utf8',
+      );
+
       if (process.argv[4] === 'docs') {
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path}docs/`;
