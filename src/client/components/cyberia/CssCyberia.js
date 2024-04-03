@@ -502,7 +502,7 @@ const CssCyberia = {
       }
       .stat-skin-table-cell {
         width: 50%;
-        border: 2px solid #313131;
+        /*  border: 2px solid #313131; */
         box-sizing: border-box;
       }
       .stat-skin-table-cell-key {
@@ -513,6 +513,15 @@ const CssCyberia = {
         height: 30px;
         padding: 5px;
         top: 8px;
+      }
+      .sub-title-item-modal {
+        cursor: default;
+        /* background: #1a1a1a; */
+        margin-top: 10px;
+        /* background: #dcdcdc; */
+        /* background: #313131; */
+        /* border: 2px solid #313131; */
+        /* color: #ffcc00; */
       }
     `,
 };

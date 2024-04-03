@@ -89,7 +89,7 @@ const Modal = {
               position: 'absolute',
               height: `${window.innerHeight - (options.slideTop ? options.slideTop : 50)}px`,
               width: '320px',
-              'z-index': 4,
+              'z-index': 5,
               resize: 'none',
               top: `${options.slideTop ? options.slideTop : 50}px`,
             };

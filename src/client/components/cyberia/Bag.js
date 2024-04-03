@@ -7,6 +7,7 @@ import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
 import { SkinComponent } from './CommonCyberia.js';
+import { Menu } from './Menu.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -17,10 +18,6 @@ const ItemModal = {
 
     setTimeout(() => {
       if (skin) {
-        htmls(
-          `.${id0}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
-        );
         let statsRender = '';
         for (const statKey of Object.keys(SkinComponent[skin.skinId])) {
           statsRender += html` <div class="in fll stat-skin-table-cell stat-skin-table-cell-key">
@@ -31,13 +28,17 @@ const ItemModal = {
             </div>`;
         }
         htmls(
-          `.${id0}-render-col-b`,
+          `.${id0}-render-col-a`,
           html` <div class="in section-mp">
-              <div class="in sub-title-modal">
+              <div class="in sub-title-item-modal">
                 <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Stats
               </div>
             </div>
             <div class="in section-mp"><div class="fl">${statsRender}</div></div>`,
+        );
+        htmls(
+          `.${id0}-render-col-b`,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
         );
       }
     });
@@ -97,7 +98,10 @@ const Slot = {
           await Modal.Render({
             id: `modal-item-${slotId}`,
             barConfig,
-            title: html`${skinId}`,
+            title: Menu.renderViewTitle({
+              img: `${getProxyPath()}assets/skin/${skinId}/08/0.png`,
+              text: html`${skinId}`,
+            }),
             html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, skin: { skinId } })}`,
             mode: 'view',
             slideMenu: 'modal-menu',
