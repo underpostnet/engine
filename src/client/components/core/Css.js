@@ -974,8 +974,9 @@ const renderStatus = (status, options) => {
 
 const dynamicColTokens = {};
 
-const dynamicCol = (options = { containerSelector: '', id: '', type: '' }) => {
+const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 900 }) => {
   const { containerSelector, id } = options;
+  const limitCol = options?.limit ? options.limit : 900;
   if (!(id in dynamicColTokens)) dynamicColTokens[id] = {};
   dynamicColTokens[id].options = options;
   if (dynamicColTokens[id].observer) dynamicColTokens[id].observer.disconnect();
@@ -984,7 +985,7 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '' }) => {
       if (s(`.${containerSelector}`)) {
         switch (options.type) {
           case 'a-50-b-50':
-            if (s(`.${containerSelector}`).offsetWidth < 900)
+            if (s(`.${containerSelector}`).offsetWidth < limitCol)
               htmls(
                 `.style-${id}-col`,
                 css`

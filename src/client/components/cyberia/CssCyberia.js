@@ -492,8 +492,27 @@ const CssCyberia = {
         height: 90%;
       }
       .item-modal-section-cell {
-        border: 2px solid red;
-        min-height: 100px;
+        /* border: 2px solid red; 
+        min-height: 100px; */
+      }
+      .item-modal-img {
+        width: 80%;
+        height: auto;
+        margin: auto;
+      }
+      .stat-skin-table-cell {
+        width: 50%;
+        border: 2px solid #313131;
+        box-sizing: border-box;
+      }
+      .stat-skin-table-cell-key {
+        color: #ffcc00;
+      }
+      .header-icon-item-modal {
+        width: 30px;
+        height: 30px;
+        padding: 5px;
+        top: 8px;
       }
     `,
 };

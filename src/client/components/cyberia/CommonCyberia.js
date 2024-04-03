@@ -41,6 +41,20 @@ const SkinComponent = {
     life: 150,
     deadTime: 3000,
   },
+  ghost: {
+    dim: 1,
+    vel: 0.5,
+    maxLife: 150,
+    life: 150,
+    deadTime: 3000,
+  },
+  eiri: {
+    dim: 1,
+    vel: 0.5,
+    maxLife: 150,
+    life: 150,
+    deadTime: 3000,
+  },
 };
 
 const ComponentElement = {
@@ -471,4 +485,5 @@ export {
   CyberiaBaseMatrix,
   getCollisionMatrix,
   CharacterSlotType,
+  SkinComponent,
 };

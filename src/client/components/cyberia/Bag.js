@@ -6,21 +6,49 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
+import { SkinComponent } from './CommonCyberia.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
 const ItemModal = {
-  Render: async function (options = { idModal: '' }) {
-    const { idModal } = options;
+  Render: async function (options = { idModal: '', skin: { skinId: '' } }) {
+    const { idModal, skin } = options;
     const id0 = `${idModal}-section-0`;
+
+    setTimeout(() => {
+      if (skin) {
+        htmls(
+          `.${id0}-render-col-a`,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
+        );
+        let statsRender = '';
+        for (const statKey of Object.keys(SkinComponent[skin.skinId])) {
+          statsRender += html` <div class="in fll stat-skin-table-cell stat-skin-table-cell-key">
+              <div class="in section-mp">${statKey}</div>
+            </div>
+            <div class="in fll stat-skin-table-cell">
+              <div class="in section-mp">${SkinComponent[skin.skinId][statKey]}</div>
+            </div>`;
+        }
+        htmls(
+          `.${id0}-render-col-b`,
+          html` <div class="in section-mp">
+              <div class="in sub-title-modal">
+                <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Stats
+              </div>
+            </div>
+            <div class="in section-mp"><div class="fl">${statsRender}</div></div>`,
+        );
+      }
+    });
     return html`
-      ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50' })}
+      ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50', limit: 500 })}
       <div class="fl ${id0}">
         <div class="in fll ${id0}-col-a">
-          <div class="in item-modal-section-cell section-mp"></div>
+          <div class="in item-modal-section-cell section-mp ${id0}-render-col-a"></div>
         </div>
         <div class="in fll ${id0}-col-b">
-          <div class="in item-modal-section-cell section-mp"></div>
+          <div class="in item-modal-section-cell section-mp ${id0}-render-col-b"></div>
         </div>
       </div>
     `;
@@ -70,7 +98,7 @@ const Slot = {
             id: `modal-item-${slotId}`,
             barConfig,
             title: html`${skinId}`,
-            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}` })}`,
+            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, skin: { skinId } })}`,
             mode: 'view',
             slideMenu: 'modal-menu',
           });
