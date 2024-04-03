@@ -974,7 +974,7 @@ const renderStatus = (status, options) => {
 
 const dynamicColTokens = {};
 
-const dynamicCol = (options = { containerSelector: '', id: '' }) => {
+const dynamicCol = (options = { containerSelector: '', id: '', type: '' }) => {
   const { containerSelector, id } = options;
   if (!(id in dynamicColTokens)) dynamicColTokens[id] = {};
   dynamicColTokens[id].options = options;
@@ -982,27 +982,59 @@ const dynamicCol = (options = { containerSelector: '', id: '' }) => {
   setTimeout(() => {
     dynamicColTokens[id].observer = new ResizeObserver(() => {
       if (s(`.${containerSelector}`)) {
-        if (s(`.${containerSelector}`).offsetWidth < 900)
-          htmls(
-            `.style-${id}-col`,
-            css`
-              .${id}-col-a, .${id}-col-b {
-                width: 100%;
-              }
-            `,
-          );
-        else
-          htmls(
-            `.style-${id}-col`,
-            css`
-              .${id}-col-a {
-                width: 30%;
-              }
-              .${id}-col-b {
-                width: 70%;
-              }
-            `,
-          );
+        switch (options.type) {
+          case 'a-50-b-50':
+            if (s(`.${containerSelector}`).offsetWidth < 900)
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a, .${id}-col-b {
+                    width: 100%;
+                  }
+                `,
+              );
+            else
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a {
+                    width: 50%;
+                  }
+                  .${id}-col-b {
+                    width: 50%;
+                  }
+                `,
+              );
+            break;
+
+          default:
+            if (s(`.${containerSelector}`).offsetWidth < 900)
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a, .${id}-col-b {
+                    width: 100%;
+                  }
+                `,
+              );
+            else
+              htmls(
+                `.style-${id}-col`,
+                css`
+                  .${id}-col-a {
+                    width: 30%;
+                  }
+                  .${id}-col-b {
+                    width: 70%;
+                  }
+                `,
+              );
+            break;
+        }
+      } else {
+        dynamicColTokens[id].observer.disconnect();
+        delete dynamicColTokens[id];
+        if (s(`.style-${id}-col`)) s(`.style-${id}-col`).remove();
       }
     });
     dynamicColTokens[id].observer.observe(s(`.${containerSelector}`));

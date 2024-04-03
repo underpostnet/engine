@@ -56,14 +56,6 @@ const CssCyberia = {
         /* background: green; */
       }
 
-      .slot {
-        cursor: pointer;
-        width: 100px;
-        height: 100px;
-        border: 2px solid #313131;
-        margin: 5px;
-      }
-
       .notification-manager-date {
         font-size: 20px;
         color: #7a7a7a;
@@ -483,6 +475,25 @@ const CssCyberia = {
       .btn-default-modal-container {
         text-align: right;
         padding-right: 3px;
+      }
+      .bag-slot {
+        cursor: pointer;
+        width: 100px;
+        height: 100px;
+        border: 2px solid #313131;
+        margin: 5px;
+        /* box-sizing: border-box; */
+      }
+      .bag-slot:hover {
+        background: #313131;
+      }
+      .bag-slot:hover .bag-slot-img {
+        width: 90%;
+        height: 90%;
+      }
+      .item-modal-section-cell {
+        border: 2px solid red;
+        min-height: 100px;
       }
     `,
 };

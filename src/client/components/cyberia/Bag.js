@@ -2,9 +2,30 @@ import Sortable from 'sortablejs';
 import { getId, range, uniqueArray } from '../core/CommonJs.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
-import { borderChar } from '../core/Css.js';
+import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
+import { EventsUI } from '../core/EventsUI.js';
+import { Modal } from '../core/Modal.js';
+import { Translate } from '../core/Translate.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
+
+const ItemModal = {
+  Render: async function (options = { idModal: '' }) {
+    const { idModal } = options;
+    const id0 = `${idModal}-section-0`;
+    return html`
+      ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50' })}
+      <div class="fl ${id0}">
+        <div class="in fll ${id0}-col-a">
+          <div class="in item-modal-section-cell section-mp"></div>
+        </div>
+        <div class="in fll ${id0}-col-b">
+          <div class="in item-modal-section-cell section-mp"></div>
+        </div>
+      </div>
+    `;
+  },
+};
 
 const Slot = {
   coin: {
@@ -31,17 +52,29 @@ const Slot = {
     render: ({ bagId, indexBag }) => {
       for (const skinId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
         const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === skinId).length;
+        const slotId = `${bagId}-${indexBag}`;
         htmls(
-          `.${bagId}-${indexBag}`,
+          `.${slotId}`,
           html`
             <div class="abs bag-slot-count">
-              <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span></div>
+              <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
             </div>
             <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${skinId}/08/0.png" />
             <div class="in bag-slot-type-text">skin</div>
             <div class="in bag-slot-name-text">${skinId}</div>
           `,
         );
+        EventsUI.onClick(`.${slotId}`, async (e) => {
+          const { barConfig } = await Themes[Css.currentTheme]();
+          await Modal.Render({
+            id: `modal-item-${slotId}`,
+            barConfig,
+            title: html`${skinId}`,
+            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}` })}`,
+            mode: 'view',
+            slideMenu: 'modal-menu',
+          });
+        });
         indexBag++;
       }
       return indexBag;
@@ -149,9 +182,9 @@ const Bag = {
         ${range(0, totalSlots - 1)
           .map((slot) => {
             setTimeout(() => {
-              s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);
+              // s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);
             });
-            return html` <div class="in fll slot ${bagId}-${slot}" data-id="${slot}"><!-- slot ${slot} --></div> `;
+            return html` <div class="in fll bag-slot ${bagId}-${slot}" data-id="${slot}"><!-- slot ${slot} --></div> `;
           })
           .join('')}
       </div>
