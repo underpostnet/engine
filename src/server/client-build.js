@@ -306,40 +306,41 @@ const buildClient = async () => {
             'utf8',
           );
         }
+      if (siteMapLinks.length > 0) {
+        // Create a stream to write to
+        /** @type {import('sitemap').SitemapStreamOptions} */
+        const sitemapOptions = { hostname: `https://${host}`, xslUrl: `${path === '/' ? '' : path}/sitemap.xsl` };
 
-      // Create a stream to write to
-      /** @type {import('sitemap').SitemapStreamOptions} */
-      const sitemapOptions = { hostname: `https://${host}`, xslUrl: `${path === '/' ? '' : path}/sitemap.xsl` };
+        const siteMapStream = new SitemapStream(sitemapOptions);
+        let siteMapSrc = await new Promise((resolve) =>
+          streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
+        );
+        switch (client) {
+          case 'underpost':
+            siteMapSrc = siteMapSrc.replaceAll(
+              `</urlset>`,
+              `${fs.readFileSync(`./src/client/public/underpost/sitemap-template.txt`, 'utf8')} </urlset>`,
+            );
+            break;
 
-      const siteMapStream = new SitemapStream(sitemapOptions);
-      let siteMapSrc = await new Promise((resolve) =>
-        streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
-      );
-      switch (client) {
-        case 'underpost':
-          siteMapSrc = siteMapSrc.replaceAll(
-            `</urlset>`,
-            `${fs.readFileSync(`./src/client/public/underpost/sitemap-template.txt`, 'utf8')} </urlset>`,
-          );
-          break;
+          default:
+            break;
+        }
+        // Return a promise that resolves with your XML string
+        fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
+        fs.writeFileSync(
+          `${rootClientPath}/sitemap.xsl`,
+          fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
+          'utf8',
+        );
 
-        default:
-          break;
-      }
-      // Return a promise that resolves with your XML string
-      fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
-      fs.writeFileSync(
-        `${rootClientPath}/sitemap.xsl`,
-        fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
-        'utf8',
-      );
-
-      fs.writeFileSync(
-        `${rootClientPath}/robots.txt`,
-        `User-agent: *
+        fs.writeFileSync(
+          `${rootClientPath}/robots.txt`,
+          `User-agent: *
 Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
-        'utf8',
-      );
+          'utf8',
+        );
+      }
 
       if (process.argv[4] === 'docs') {
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
