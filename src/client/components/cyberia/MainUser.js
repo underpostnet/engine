@@ -14,7 +14,7 @@ import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 import { Application } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Skill } from './Skill.js';
-import { Slot } from './Bag.js';
+import { Bag, Slot } from './Bag.js';
 import { InteractionPanel } from './InteractionPanel.js';
 
 const logger = loggerFactory(import.meta);
@@ -218,7 +218,11 @@ const MainUser = {
     };
 
     Skill.setMainKeysSkill();
-    Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+    // Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+    await Bag.updateAll({ bagId: 'cyberia-bag', type, id });
+    // console.log(type, id, Elements.Data[type][id]);
+    // Pixi.setComponents({ type, id });
+    Pixi.setSkinComponent({ type, id });
     Pixi.updateLife({ type, id });
     Pixi.setUsername({ type, id });
     InteractionPanel.PanelRender.element({ type, id });

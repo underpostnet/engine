@@ -14,11 +14,13 @@ import {
 import {
   BaseElement,
   CyberiaParams,
+  PositionsComponent,
   SkillType,
   WorldType,
   getCollisionMatrix,
   getRandomAvailablePosition,
   isBiomeCollision,
+  setSkinStat,
   updateMovementDirection,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
@@ -54,8 +56,28 @@ const CyberiaWsBotManagement = {
       this.worlds = await CyberiaWorld.find();
       this.biomes = await CyberiaBiome.find();
       if (this.worlds.length === 0 || this.biomes.length === 0) return;
-      for (const indexBot of range(0, 39)) {
-        const bot = BaseElement().bot.main;
+      for (const indexBot of range(0, 50)) {
+        const skinId = ['kishins', 'purple'][random(0, 1)];
+
+        let bot = BaseElement().bot.main;
+
+        bot.components.skin = bot.components.skin.map((skinData) => {
+          skinData.current = false;
+          skinData.enabled = false;
+          return skinData;
+        });
+
+        bot.components.skin.push({
+          current: true,
+          enabled: true,
+          displayId: skinId,
+          position: '08',
+          positions: PositionsComponent.default(),
+          assetFolder: 'skin',
+        });
+
+        bot = setSkinStat(bot);
+
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
         const biome = this.biomes.find(
@@ -72,6 +94,12 @@ const CyberiaWsBotManagement = {
 
         logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face, x, y });
 
+        // fs.writeFileSync(
+        //   `./tmp/${skinId}.metadata.json`,
+        //   JSON.stringify({ index: indexBot, face: bot.model.world.face, x, y }, null, 4),
+        //   'utf8',
+        // );
+
         this.localElementScope[wsManagementId][id] = {
           drop: {
             coin: {
@@ -80,7 +108,7 @@ const CyberiaWsBotManagement = {
           },
           target: {
             Interval: 8, // detector target check time (ms)
-            Radius: 4,
+            Radius: 8,
             Active: false,
             IndexPoint: -1,
             Direction: 'n',

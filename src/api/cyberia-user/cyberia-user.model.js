@@ -30,6 +30,7 @@ const CyberiaUserSchema = new Schema({
           enabled: { type: Boolean },
           position: { type: String },
           positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+          assetFolder: { type: String },
         },
       ],
       default: [
@@ -48,6 +49,7 @@ const CyberiaUserSchema = new Schema({
           ],
           enabled: true,
           current: true,
+          assetFolder: 'skin',
         },
         {
           displayId: 'eiri',
@@ -63,6 +65,7 @@ const CyberiaUserSchema = new Schema({
             { positionId: '18', frames: 2 },
           ],
           enabled: false,
+          assetFolder: 'skin',
         },
         {
           displayId: 'ghost',
@@ -78,6 +81,7 @@ const CyberiaUserSchema = new Schema({
             { positionId: '18', frames: 8 },
           ],
           enabled: false,
+          assetFolder: 'skin',
         },
       ],
     },

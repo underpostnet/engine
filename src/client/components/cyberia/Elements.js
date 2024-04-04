@@ -16,6 +16,10 @@ const Elements = {
       ...this.Data[type][id],
       ...element,
     };
+    this.Data[type][id].components = {
+      ...BaseElement()[type].main.components,
+      ...this.Data[type][id].components,
+    };
     if (!this.Interval[type]) this.Interval[type] = {};
     if (!this.Interval[type][id]) this.Interval[type][id] = {};
     if (!this.LocalDataScope[type]) this.LocalDataScope[type] = {};

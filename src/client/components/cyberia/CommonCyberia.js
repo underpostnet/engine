@@ -26,35 +26,70 @@ const ModelElement = {
   },
 };
 
+const PositionsComponent = {
+  default: () => [
+    { positionId: '02', frames: 1 },
+    { positionId: '04', frames: 1 },
+    { positionId: '06', frames: 1 },
+    { positionId: '08', frames: 1 },
+    { positionId: '12', frames: 2 },
+    { positionId: '14', frames: 2 },
+    { positionId: '16', frames: 2 },
+    { positionId: '18', frames: 2 },
+  ],
+  ghost: () => [
+    { positionId: '02', frames: 8 },
+    { positionId: '04', frames: 8 },
+    { positionId: '06', frames: 8 },
+    { positionId: '08', frames: 8 },
+    { positionId: '12', frames: 8 },
+    { positionId: '14', frames: 8 },
+    { positionId: '16', frames: 8 },
+    { positionId: '18', frames: 8 },
+  ],
+};
+
 const SkinComponent = {
   anon: {
     dim: 1,
     vel: 0.5,
     maxLife: 150,
-    life: 150,
     deadTime: 3000,
   },
   purple: {
     dim: 1,
     vel: 0.5,
     maxLife: 150,
-    life: 150,
     deadTime: 3000,
   },
   ghost: {
     dim: 1,
     vel: 0.5,
     maxLife: 150,
-    life: 150,
     deadTime: 3000,
   },
   eiri: {
     dim: 1,
     vel: 0.5,
     maxLife: 150,
-    life: 150,
     deadTime: 3000,
   },
+  kishins: {
+    dim: 2.5,
+    vel: 0.8,
+    maxLife: 400,
+    deadTime: 5000,
+  },
+  'scp-2040': {
+    dim: 1.8,
+    vel: 0.2,
+    maxLife: 300,
+    deadTime: 8000,
+  },
+};
+
+const setSkinStat = (element) => {
+  return { ...element, ...SkinComponent[element.components.skin.find((s) => s.current).displayId] };
 };
 
 const ComponentElement = {
@@ -66,48 +101,31 @@ const ComponentElement = {
           {
             displayId: 'anon',
             position: '08',
-            positions: [
-              { positionId: '02', frames: 1 },
-              { positionId: '04', frames: 1 },
-              { positionId: '06', frames: 1 },
-              { positionId: '08', frames: 1 },
-              { positionId: '12', frames: 2 },
-              { positionId: '14', frames: 2 },
-              { positionId: '16', frames: 2 },
-              { positionId: '18', frames: 2 },
-            ],
+            positions: PositionsComponent.default(),
             enabled: true,
             current: true,
+            assetFolder: 'skin',
           },
           {
             displayId: 'eiri',
             position: '08',
-            positions: [
-              { positionId: '02', frames: 1 },
-              { positionId: '04', frames: 1 },
-              { positionId: '06', frames: 1 },
-              { positionId: '08', frames: 1 },
-              { positionId: '12', frames: 2 },
-              { positionId: '14', frames: 2 },
-              { positionId: '16', frames: 2 },
-              { positionId: '18', frames: 2 },
-            ],
+            positions: PositionsComponent.default(),
             enabled: false,
+            assetFolder: 'skin',
+          },
+          {
+            displayId: 'scp-2040',
+            position: '08',
+            positions: PositionsComponent.default(),
+            enabled: false,
+            assetFolder: 'skin',
           },
           {
             displayId: 'ghost',
             position: '08',
-            positions: [
-              { positionId: '02', frames: 8 },
-              { positionId: '04', frames: 8 },
-              { positionId: '06', frames: 8 },
-              { positionId: '08', frames: 8 },
-              { positionId: '12', frames: 8 },
-              { positionId: '14', frames: 8 },
-              { positionId: '16', frames: 8 },
-              { positionId: '18', frames: 8 },
-            ],
+            positions: PositionsComponent.ghost(),
             enabled: false,
+            assetFolder: 'skin',
           },
         ],
         lifeBar: {},
@@ -116,10 +134,7 @@ const ComponentElement = {
         username: {},
       },
     };
-    return {
-      ...base,
-      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
-    };
+    return setSkinStat(base);
   },
   bot: () => {
     let base = {
@@ -129,33 +144,17 @@ const ComponentElement = {
           {
             displayId: 'purple',
             position: '08',
-            positions: [
-              { positionId: '02', frames: 1 },
-              { positionId: '04', frames: 1 },
-              { positionId: '06', frames: 1 },
-              { positionId: '08', frames: 1 },
-              { positionId: '12', frames: 2 },
-              { positionId: '14', frames: 2 },
-              { positionId: '16', frames: 2 },
-              { positionId: '18', frames: 2 },
-            ],
+            positions: PositionsComponent.default(),
             enabled: true,
             current: true,
+            assetFolder: 'skin',
           },
           {
             displayId: 'ghost',
             position: '08',
-            positions: [
-              { positionId: '02', frames: 8 },
-              { positionId: '04', frames: 8 },
-              { positionId: '06', frames: 8 },
-              { positionId: '08', frames: 8 },
-              { positionId: '12', frames: 8 },
-              { positionId: '14', frames: 8 },
-              { positionId: '16', frames: 8 },
-              { positionId: '18', frames: 8 },
-            ],
+            positions: PositionsComponent.ghost(),
             enabled: false,
+            assetFolder: 'skin',
           },
         ],
         lifeBar: {},
@@ -163,10 +162,7 @@ const ComponentElement = {
         username: {},
       },
     };
-    return {
-      ...base,
-      ...SkinComponent[base.components.skin.find((s) => s.current).displayId],
-    };
+    return setSkinStat(base);
   },
   skill: () => {
     let base = {
@@ -176,13 +172,10 @@ const ComponentElement = {
       },
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skill: [{ ...SkillType['red-power'].component, current: true }],
+        skin: [{ ...SkillType['red-power'].skin, current: true }],
       },
     };
-    return {
-      ...base,
-      ...SkinComponent[base.components.skill.find((s) => s.current).displayId],
-    };
+    return setSkinStat(base);
   },
 };
 
@@ -273,10 +266,10 @@ const isElementCollision = function (
   args = { A: { x: 1, y: 1, dim: 1 }, B: { x: 1, y: 1, dim: 1 }, dimPaintByCell: 3 },
 ) {
   const { A, B, dimPaintByCell } = args;
-  for (const aSumX of range(0, A.dim * dimPaintByCell))
-    for (const aSumY of range(0, A.dim * dimPaintByCell))
-      for (const bSumX of range(0, B.dim * dimPaintByCell))
-        for (const bSumY of range(0, B.dim * dimPaintByCell))
+  for (const aSumX of range(0, round10(A.dim * dimPaintByCell)))
+    for (const aSumY of range(0, round10(A.dim * dimPaintByCell)))
+      for (const bSumX of range(0, round10(B.dim * dimPaintByCell)))
+        for (const bSumY of range(0, round10(B.dim * dimPaintByCell)))
           if (
             round10(A.x * dimPaintByCell + aSumX) === round10(B.x * dimPaintByCell + bSumX) &&
             round10(A.y * dimPaintByCell + aSumY) === round10(B.y * dimPaintByCell + bSumY)
@@ -372,12 +365,13 @@ const WorldLimit = (options = { type: undefined }) => {
 
 const SkillType = {
   'red-power': {
-    component: {
+    skin: {
       displayId: 'red-power',
       position: '08',
       positions: [{ positionId: '08', frames: 2 }],
       velFrame: 50,
       enabled: true,
+      assetFolder: 'skill',
     },
     cooldown: 750,
     timeLife: 300,
@@ -486,4 +480,6 @@ export {
   getCollisionMatrix,
   CharacterSlotType,
   SkinComponent,
+  PositionsComponent,
+  setSkinStat,
 };

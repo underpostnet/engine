@@ -7,6 +7,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { Slot } from './Bag.js';
+import { setSkinStat } from './CommonCyberia.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { LogInCyberia } from './LogInCyberia.js';
@@ -61,6 +62,10 @@ const SocketIoCyberia = {
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].components.skin = element.components.skin;
               Pixi.triggerUpdateSkinPosition({ type, id });
+              if (args.updateStat) {
+                Elements.Data[type][id] = setSkinStat(Elements.Data[type][id]);
+                Pixi.setSkinComponent({ type, id });
+              }
               break;
             case 'disconnect':
               Pixi.removeElement({ type, id });

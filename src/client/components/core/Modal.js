@@ -1,6 +1,6 @@
 import { getId } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setURI, getProxyPath, getURI } from './VanillaJs.js';
+import { append, s, prepend, setURI, getProxyPath, getURI, htmls } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -476,6 +476,7 @@ const Modal = {
     });
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
+  writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
 };
 
 export { Modal };

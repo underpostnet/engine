@@ -205,7 +205,7 @@ const Menu = {
         route: 'bag',
         barConfig,
         title: this.renderViewTitle({ 'ui-icon': 'bag.png', text: Translate.Render('bag') }),
-        html: async () => await Bag.Render({ id: 'cyberia-bag' }),
+        html: async () => await Bag.Render({ id: 'cyberia-bag', idModal: 'modal-bag' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

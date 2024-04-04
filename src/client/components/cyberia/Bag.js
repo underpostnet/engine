@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { SkinComponent } from './CommonCyberia.js';
+import { SkinComponent, setSkinStat } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -56,11 +56,14 @@ const ItemModal = {
             skinData.current = skinData.displayId === skin.skinId;
             return skinData;
           });
+          Elements.Data[type][id] = setSkinStat(Elements.Data[type][id]);
+          Pixi.setSkinComponent({ type, id });
           Pixi.triggerUpdateSkinPosition({ type, id });
           SocketIo.Emit(type, {
             status: 'update-skin-position',
             element: { components: { skin: Elements.Data[type][id].components.skin } },
             direction: Elements.LocalDataScope[type][id].lastDirection,
+            updateStat: true,
           });
         });
         // -----------------------------------------------------------
@@ -192,7 +195,7 @@ const Bag = {
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
     const totalSlots = 10;
-    this.Tokens[bagId] = {};
+    this.Tokens[bagId] = { ...options, bagId, totalSlots };
     setTimeout(async () => {
       this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
         animation: 150,
@@ -260,6 +263,16 @@ const Bag = {
           .join('')}
       </div>
     `;
+  },
+  updateAll: async function (options = { bagId: '', type: '', id: '' }) {
+    const { bagId, type, id } = options;
+    if (this.Tokens[bagId] && s(`.${this.Tokens[bagId].idModal}`)) {
+      this.Tokens[bagId].sortable.destroy();
+      Modal.writeHTML({
+        idModal: this.Tokens[bagId].idModal,
+        html: await this.Render(this.Tokens[bagId]),
+      });
+    }
   },
 };
 

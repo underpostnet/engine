@@ -34,7 +34,7 @@ const LogInCyberia = async function () {
     Webhook.register({ user });
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
     if (resultUserCyberia.status === 'success') {
-      Elements.Data[type][id] = { ...Elements.Data[type][id], ...resultUserCyberia.data };
+      Elements.Init({ type, id, element: resultUserCyberia.data });
       CyberiaWebhook.register({ user: resultUserCyberia.data });
     }
     Elements.Data[type][id].model.user = user;
