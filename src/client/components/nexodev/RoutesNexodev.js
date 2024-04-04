@@ -20,6 +20,7 @@ const RoutesNexodev = () => {
     '/stream': { title: 'stream', render: () => s(`.main-btn-stream`).click(), translateTitle: false },
     '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(), translateTitle: true },
     '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(), translateTitle: true },
+    '/chat': { title: 'chat', render: () => s(`.main-btn-chat`).click(), translateTitle: true },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
     '/log-out': {

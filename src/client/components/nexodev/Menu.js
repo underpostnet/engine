@@ -19,6 +19,7 @@ import { StreamNexodev } from './StreamNexodev.js';
 import { Docs } from '../core/Docs.js';
 import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
+import { Chat } from '../core/Chat.js';
 
 const Menu = {
   Data: {},
@@ -88,6 +89,14 @@ const Menu = {
               text: html`${Translate.Render('cloud')}`,
             }),
             attrs: `data-id="11"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-chat',
+            label: this.renderMenuLabel({
+              icon: html`<i class="far fa-comments"></i>`,
+              text: html`${Translate.Render('chat')}`,
+            }),
+            attrs: `data-id="12"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -406,6 +415,26 @@ const Menu = {
         html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-chat`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-chat',
+        route: 'chat',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html` <i class="far fa-comments"></i>`,
+          text: Translate.Render('chat'),
+        }),
+        html: async () => await Chat.Render({ idModal: 'modal-chat' }),
+        handleType: 'bar',
+        maximize: true,
+        observer: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,

@@ -161,6 +161,13 @@ const CssNexodev = {
       text-align: right;
       padding-right: 3px;
     }
+    .chat-message-header {
+      color: #cccccc;
+    }
+    .chat-box {
+      border: 2px solid #313131;
+      overflow: auto;
+    }
   `,
 };
 
