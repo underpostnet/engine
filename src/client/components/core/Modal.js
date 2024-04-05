@@ -189,40 +189,40 @@ const Modal = {
     }
     const render = html` <style class="style-${idModal}">
 
-        ${css`
-          .${idModal} {
-            width: ${width}px;
-            height: ${height}px;
-            top: ${top};
-            left: ${left};
-            overflow: auto; /* resizable required */
-            resize: auto; /* resizable required */
-            transition: ${transition};
-            opacity: 0;
-            z-index: 1;
-            ${options && options.style
-              ? Object.keys(options.style)
-                  .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
-                  .join('')
-              : ''}
-          }
-          .bar-default-modal-${idModal} {
-            top: 0px;
-            left: 0px;
-            z-index: 1;
-          }
 
-          .modal-html-${idModal} {
-          }
+        .${idModal} {
+          width: ${width}px;
+          height: ${height}px;
+          top: ${top};
+          left: ${left};
+          overflow: auto; /* resizable required */
+          resize: auto; /* resizable required */
+          transition: ${transition};
+          opacity: 0;
+          z-index: 1;
+          ${options && options.style
+          ? Object.keys(options.style)
+              .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
+              .join('')
+          : ''}
+        }
+        .bar-default-modal-${idModal} {
+          top: 0px;
+          left: 0px;
+          z-index: 1;
+        }
 
-          .btn-modal-default-${idModal} {
-          }
-          .modal-handle-${idModal} {
-            width: 90%;
-            height: 90%;
-            top: 5%;
-            left: 5%;
-          }`}
+        .modal-html-${idModal} {
+        }
+
+        .btn-modal-default-${idModal} {
+        }
+        .modal-handle-${idModal} {
+          width: 90%;
+          height: 90%;
+          top: 5%;
+          left: 5%;
+        }
       </style>
       <div class="${options && options.class ? options.class : 'fix'} modal box-shadow ${idModal}">
         <div class="abs modal-handle-${idModal}"></div>

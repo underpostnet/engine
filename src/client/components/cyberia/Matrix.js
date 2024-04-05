@@ -14,13 +14,11 @@ const Matrix = {
         container,
         html`
           <style>
-            ${css`
-              .matrix-center-square {
-                width: 30px;
-                height: 30px;
-                border: 2px solid red;
-              }
-            `}
+            .matrix-center-square {
+              width: 30px;
+              height: 30px;
+              border: 2px solid red;
+            }
           </style>
           <div class="abs center matrix-center-square"></div>
         `,

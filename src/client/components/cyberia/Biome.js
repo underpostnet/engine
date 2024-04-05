@@ -926,11 +926,9 @@ const BiomeEngine = {
 
     return html`
       <style>
-        ${css`
-          .biome-solid-matrix-preview {
-            font-size: 8px;
-          }
-        `}
+        .biome-solid-matrix-preview {
+          font-size: 8px;
+        }
       </style>
       ${dynamicCol({ containerSelector: options.idModal, id: 'biome' })}
       <div class="fl">

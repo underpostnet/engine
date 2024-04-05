@@ -10,17 +10,15 @@ const NotificationManager = {
       'body',
       html`
         <style>
-          ${css`
-            .notification-board-container {
-              right: 5px;
-              width: 300px;
-              bottom: 5px;
-              z-index: 5;
-            }
-            .notification-board-title {
-              padding: 5px;
-            }
-          `}
+          .notification-board-container {
+            right: 5px;
+            width: 300px;
+            bottom: 5px;
+            z-index: 5;
+          }
+          .notification-board-title {
+            padding: 5px;
+          }
         </style>
         <div class="fix notification-board-container"></div>
       `,
