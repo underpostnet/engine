@@ -125,12 +125,12 @@ const CssCyberia = {
           background: #313131;
         }
 
-        .input-container-chat {
+        .input-container-width {
           cursor: pointer;
           border: 2px solid #313131;
           transition: 0.3s;
         }
-        .input-container-chat:hover {
+        .input-container-width:hover {
           color: #ffcc00;
           background: #313131;
         }
@@ -452,10 +452,13 @@ const CssCyberia = {
         .explorer-file-col {
           width: 50%;
         }
-        .input-file-sub-col,
-        .explorer-file-sub-col {
-          min-height: 300px;
+        .input-file-sub-col {
           border: 2px solid #313131;
+          padding: 10px;
+          min-height: 300px;
+         }
+        .explorer-file-sub-col {
+
         }
         input::file-selector-button {
           background: #232323;
@@ -538,6 +541,15 @@ const CssCyberia = {
           font-size: 20px;
           padding: 10px;
           text-align: center;
+        }
+        .drop-zone-file-explorer {
+          min-height: 300px;
+        }
+        .box-option {
+          width: 231px;
+          font-size: 20px;
+          border: 2px solid #313131;
+          padding: 10px;
         }
       </style>
     `,

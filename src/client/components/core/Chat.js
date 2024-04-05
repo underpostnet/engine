@@ -33,7 +33,7 @@ const Chat = {
         ${await Input.Render({
           id: `input-chat`,
           label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('write')}`,
-          containerClass: 'in section-mp width-mini-box-hover input-container-chat',
+          containerClass: 'in section-mp width-mini-box-hover input-container-width',
           placeholder: true,
         })}
         <div class="in">

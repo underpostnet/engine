@@ -39,9 +39,9 @@ const CssUnderpost = {
       .btn-eye-password {
         text-align: center;
         background: #1a1a1a;
-        font-size: 14px;
-        padding-top: 8px;
-        padding-bottom: 8px;
+        font-size: 17px;
+        padding-top: 7px;
+        padding-bottom: 7px;
       }
 
       ::placeholder {

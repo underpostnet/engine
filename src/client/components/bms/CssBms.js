@@ -1,5 +1,5 @@
-const CssNexodev = {
-  theme: 'nexodev',
+const CssBms = {
+  theme: 'bms',
   render: async () => html`
     <style>
       html {
@@ -10,7 +10,7 @@ const CssNexodev = {
         /*  color: #bdbdbd; */
         font-size: 20px;
       }
-      .nexodev-title-logo {
+      .bms-title-logo {
         width: 40px;
         height: 35px;
         top: 2px;
@@ -19,7 +19,7 @@ const CssNexodev = {
       .html-modal-menu {
         padding: 0px;
       }
-      .nexodev-title-nexo {
+      .bms-title-nexo {
         font-size: 24px;
       }
       button:hover {
@@ -241,8 +241,8 @@ const CssNexodev = {
   `,
 };
 
-const CssNexodevLight = {
-  theme: 'nexodev-light',
+const CssBmsLight = {
+  theme: 'bms-light',
   render: async () => html`
     <style>
       html {
@@ -253,7 +253,7 @@ const CssNexodevLight = {
         /*  color: #bdbdbd; */
         font-size: 20px;
       }
-      .nexodev-title-logo {
+      .bms-title-logo {
         width: 40px;
         height: 35px;
         top: 2px;
@@ -262,7 +262,7 @@ const CssNexodevLight = {
       .html-modal-menu {
         padding: 0px;
       }
-      .nexodev-title-nexo {
+      .bms-title-nexo {
         font-size: 24px;
       }
       button:hover {
@@ -490,4 +490,4 @@ const CssNexodevLight = {
   `,
 };
 
-export { CssNexodev, CssNexodevLight };
+export { CssBms, CssBmsLight };

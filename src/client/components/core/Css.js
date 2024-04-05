@@ -567,194 +567,6 @@ scrollbar-width: none;
         </style>
       `,
     ),
-  bms: async () =>
-    append(
-      `.theme`,
-      html`
-        <style>
-          /*
-        html {
-          min-height: 100%;
-          display: flex;
-        }
-
-        body {
-          flex: 1;
-        }
-        */
-
-          body,
-          input,
-          .modal,
-          button {
-            font-family: arial;
-            font-size: 24px;
-          }
-
-          .btn-modal-default {
-            min-width: 40px;
-          }
-
-          button {
-            border-radius: 0px;
-            border: none;
-            color: #9ca8b6;
-          }
-
-          button:hover {
-            color: #f1f1f1;
-            background: #1aaf99;
-          }
-
-          i {
-            margin: 10px;
-          }
-
-          .title-modal {
-            color: #0e1621;
-            font-family: arial;
-          }
-
-          .sub-title-modal {
-            cursor: default;
-            background: none;
-            margin-top: 10px;
-            height: 50px;
-            padding: 10px;
-            color: #0e1621;
-            /* background: #dcdcdc; */
-            /* background: #313131; */
-            /* border: 2px solid #313131; */
-            /* color: #f1f1f1; */
-          }
-
-          .toggle-switch-active {
-            background: #f1f1f1;
-            /* background: green; */
-          }
-
-          .slot {
-            cursor: pointer;
-            width: 100px;
-            height: 100px;
-            border: 2px solid #313131;
-            margin: 5px;
-          }
-
-          .notification-manager-date {
-            font-size: 20px;
-            color: #7a7a7a;
-          }
-
-          .section-mp {
-            margin: 5px;
-            margin-top: 15px;
-            text-align: left;
-          }
-
-          .loading-animation-container {
-            text-align: center;
-          }
-          ::placeholder {
-            color: #c6c4c4;
-            opacity: 1;
-            /* Firefox */
-            background: none;
-          }
-
-          :-ms-input-placeholder {
-            /* Internet Explorer 10-11 */
-            color: #c6c4c4;
-            background: none;
-          }
-
-          ::-ms-input-placeholder {
-            /* Microsoft Edge */
-            color: #c6c4c4;
-            background: none;
-          }
-          .ag-theme-alpine,
-          .ag-theme-alpine-dark {
-            /*
-    --ag-foreground-color: rgb(126, 46, 132);
-    --ag-background-color: rgb(249, 245, 227);
-    --ag-header-foreground-color: rgb(204, 245, 172);
-    --ag-header-background-color: rgb(209, 64, 129);
-    --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
-    --ag-header-column-resize-handle-color: rgb(126, 46, 132);
-
-    --ag-font-size: 17px;
-    */
-            --ag-font-family: arial;
-            --ag-font-size: 20px;
-          }
-          .ag-btn-renderer {
-            font-size: 16px;
-            min-width: 90px;
-            min-height: 90px;
-          }
-
-          .width-mini-box {
-            width: 250px;
-          }
-          .width-mini-box:hover {
-            color: #f1f1f1;
-            background: #313131;
-          }
-
-          .input-container {
-            cursor: pointer;
-            transition: 0.3s;
-          }
-          .input-container:hover {
-            color: #f1f1f1;
-            background: #1aaf99;
-          }
-
-          input {
-            cursor: pointer;
-            background: none;
-            color: #313131;
-            background: #e7e7e7;
-          }
-          .input-label {
-          }
-          .input-info {
-          }
-
-          .dropdown-container {
-            border: 2px solid #313131;
-            transition: 0.3s;
-            cursor: pointer;
-          }
-          .dropdown-option {
-            width: 300px;
-          }
-          .dropdown-option:hover {
-            color: #f1f1f1;
-            background: #313131;
-          }
-          .tile-cell {
-            width: 10px;
-            height: 10px;
-            border: 1px solid gray;
-            box-sizing: border-box;
-            cursor: pointer;
-          }
-          .tile-cell:hover {
-            border: 1px solid yellow;
-          }
-          .bms-rank-dashboard-col-a {
-            background: #1c2939;
-            color: #868fa0;
-          }
-          .bms-rank-dashboard-col-b {
-            background: #e4e8eb;
-            /* color: #868fa0; */
-          }
-        </style>
-      `,
-    ),
   fontawesome: async () =>
     append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
 };
@@ -843,18 +655,6 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
   },
-  bms: async () => {
-    const htmlRender = Css.currentTheme !== 'bms';
-    if (htmlRender) {
-      Css.currentTheme = 'bms';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css.bms();
-      darkTheme = false;
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
   default: async () => {
     const htmlRender = Css.currentTheme !== 'default';
     if (htmlRender) {
@@ -913,6 +713,32 @@ const Themes = {
       await Css['nexodev-light']();
       darkTheme = false;
       if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
+  bms: async (options) => {
+    const htmlRender = Css.currentTheme !== 'bms';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'bms';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css.bms();
+      darkTheme = true;
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
+  'bms-light': async (options) => {
+    const htmlRender = Css.currentTheme !== 'bms-light';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'bms-light';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.default();
+      await Css['bms-light']();
+      darkTheme = false;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },

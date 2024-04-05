@@ -59,7 +59,7 @@ const PointAndClickMovement = {
           round10(y),
           new pathfinding.Grid(collisionMatrix.length, collisionMatrix.length, collisionMatrix),
         ),
-        CyberiaParams.MOVEMENT_TRANSITION_FACTOR / 2,
+        CyberiaParams.MOVEMENT_TRANSITION_FACTOR * (0.3 / Elements.Data.user.main.vel),
       );
 
       console.log(Path);

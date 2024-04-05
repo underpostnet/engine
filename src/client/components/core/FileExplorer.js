@@ -397,7 +397,7 @@ const FileExplorer = {
             id: `file-explorer-query-nav`,
             type: 'text',
             label: html`<i class="fab fa-wpexplorer"></i> ${Translate.Render('current-path')}`,
-            containerClass: 'in section-mp input-container',
+            containerClass: 'in section-mp input-container-width',
             placeholder: true,
             value: location,
           })}
@@ -405,7 +405,7 @@ const FileExplorer = {
       </form>
       <div class="fl file-explorer-nav">
         <div class="in fll explorer-file-col">
-          <div class="in explorer-file-sub-col">
+          <div class="in explorer-file-sub-col section-mp">
             <div class="in">
               ${await AgGrid.Render({
                 id: gridFolderId,
@@ -486,7 +486,7 @@ const FileExplorer = {
           </div>
         </div>
         <div class="in fll explorer-file-col">
-          <div class="in explorer-file-sub-col">
+          <div class="in explorer-file-sub-col section-mp">
             <div class="in">
               ${await AgGrid.Render({
                 id: gridFileId,
@@ -516,7 +516,7 @@ const FileExplorer = {
       <form class="file-explorer-uploader" style="display: none">
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'wfa btn-input-file-explorer',
+            class: 'wfa section-mp btn-input-file-explorer',
             label: html`<i class="fas fa-upload"></i> ${Translate.Render('upload')}`,
             type: 'submit',
           })}

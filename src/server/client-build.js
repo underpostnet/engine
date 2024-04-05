@@ -111,7 +111,8 @@ const buildClient = async () => {
         continue;
       }
 
-      if (process.argv[2] !== 'l' && !(confServer[host]['/'] && confServer[host]['/'].lightBuild))
+      if (process.argv[2] !== 'l' && !confServer[host][path].lightBuild)
+        //  !(confServer[host]['/'] && confServer[host]['/'].lightBuild)
         await fullBuild({
           logger,
           client,
@@ -257,6 +258,7 @@ const buildClient = async () => {
                 case 'CryptokoynScripts':
                 case 'DogmadualScripts':
                 case 'NexodevScripts':
+                case 'BmsScripts':
                 case 'UnderpostScripts':
                 case 'CyberiaScripts':
                   ssrHeadComponents += SrrComponent({ ssrPath });
@@ -344,7 +346,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
 
       if (process.argv[4] === 'docs') {
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
-        jsDocsConfig.opts.destination = `./public/${host}${path}docs/`;
+        jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
         shellExec(`npm run docs`);
 
@@ -356,7 +358,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
             version: '2.0.0',
           },
           schemes: ['https', 'http'], // by default: ['http']
-          basePath: `${process.env.BASE_API}`,
+          basePath: `${path === '/' ? '' : '/'}${process.env.BASE_API}`,
           host: process.env.NODE_ENV === 'development' ? `localhost:${port}${path}` : `${host}${path}`,
         };
 

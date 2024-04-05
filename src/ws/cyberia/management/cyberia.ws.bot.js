@@ -56,7 +56,7 @@ const CyberiaWsBotManagement = {
       this.worlds = await CyberiaWorld.find();
       this.biomes = await CyberiaBiome.find();
       if (this.worlds.length === 0 || this.biomes.length === 0) return;
-      for (const indexBot of range(0, 50)) {
+      for (const indexBot of range(0, 0)) {
         const skinId = ['kishins', 'purple'][random(0, 1)];
 
         let bot = BaseElement().bot.main;

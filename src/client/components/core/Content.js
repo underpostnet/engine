@@ -1,11 +1,11 @@
 import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
 import { getBlobFromUint8ArrayFile, getQueryParams, getRawContentFile, htmls } from './VanillaJs.js';
-import { Menu } from '../nexodev/Menu.js';
 import { titleFormatted } from './CommonJs.js';
 
 const Content = {
-  Render: async function (options = { location: '' }) {
+  Render: async function (options = { location: '', Menu: {} }) {
+    const { Menu } = options;
     setTimeout(async () => {
       const queryParams = getQueryParams();
       if (queryParams.id) {

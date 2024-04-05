@@ -11,23 +11,27 @@ import { Translate } from '../core/Translate.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
-import { RouterNexodev } from './RoutesNexodev.js';
+import { RouterBms } from './RoutesBms.js';
 import { Blog } from '../core/Blog.js';
-import { CalendarNexodev } from './CalendarNexodev.js';
-import { DashboardNexodev } from './DashboardNexodev.js';
-import { StreamNexodev } from './StreamNexodev.js';
+import { CalendarBms } from './CalendarBms.js';
+import { DashboardBms } from './DashboardBms.js';
+import { StreamBms } from './StreamBms.js';
 import { Docs } from '../core/Docs.js';
 import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
 import { Settings } from './Settings.js';
+import { DropDown } from '../core/DropDown.js';
+import { loggerFactory } from '../core/Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Menu = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
-    const RouterInstance = RouterNexodev();
+    const RouterInstance = RouterBms();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const slideTop = 50;
@@ -155,11 +159,7 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html`<img
-          class="abs nexodev-title-logo"
-          src="${getProxyPath()}assets/logo/nexodev-white-t.png"
-        />
-        &nbsp &nbsp <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
+      titleRender: () => html`<strong>BMS</strong>`,
       mode: 'slide-menu',
       slideTop,
     });
@@ -224,7 +224,27 @@ const Menu = {
           icon: html`<i class="fas fa-user-plus"></i>`,
           text: Translate.Render('sign-up'),
         }),
-        html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
+        html: async () =>
+          await SignUp.Render({
+            idModal: 'modal-sign-up',
+            footerRender: html` <div class="in section-mp">
+              ${await DropDown.Render({
+                label: html`${Translate.Render('select-role')}`,
+                type: 'checkbox',
+                data: ['broker', 'owner'].map((dKey) => {
+                  return {
+                    value: dKey,
+                    data: dKey,
+                    checked: true,
+                    display: html`${Translate.Render(dKey)}`,
+                    onClick: function () {
+                      logger.info('DropDown onClick', this.checked);
+                    },
+                  };
+                }),
+              })}
+            </div>`,
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -330,7 +350,7 @@ const Menu = {
           text: Translate.Render('dashboard'),
         }),
         html: async () =>
-          await DashboardNexodev.Render({
+          await DashboardBms.Render({
             idModal: 'modal-dashboard',
           }),
         handleType: 'bar',
@@ -353,7 +373,7 @@ const Menu = {
           text: Translate.Render('stream'),
         }),
         html: async () =>
-          await StreamNexodev.Render({
+          await StreamBms.Render({
             idModal: 'modal-stream',
           }),
         handleType: 'bar',
@@ -376,7 +396,7 @@ const Menu = {
           text: Translate.Render('calendar'),
         }),
         html: async () =>
-          await CalendarNexodev.Render({
+          await CalendarBms.Render({
             idModal: 'modal-calendar',
           }),
         handleType: 'bar',

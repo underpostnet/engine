@@ -16,6 +16,10 @@ const Settings = {
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
         s('.fullscreen-toggle').click();
     };
+    const localThemes = {
+      bms: { displayName: 'Dark' },
+      'bms-light': { displayName: 'Light' },
+    };
     setTimeout(() => {
       EventsUI.onClick(`.btn-install-service-controller`, async (e) => {
         e.preventDefault();
@@ -34,7 +38,7 @@ const Settings = {
       <div class="in section-mp box-option">
         <div class="fl ">
           <div class="in fll" style="width: 70%">
-            <div class="in">${Translate.Render('fullscreen')}</div>
+            <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('fullscreen')}</div>
           </div>
           <div class="in fll" style="width: 30%">
             ${await ToggleSwitch.Render({
@@ -76,9 +80,9 @@ const Settings = {
         ${await DropDown.Render({
           value: Css.currentTheme,
           label: html`${Translate.Render('theme')}`,
-          data: Object.keys({ cyberia: {} }).map((theme) => {
+          data: Object.keys(localThemes).map((theme) => {
             return {
-              display: html`<i class="fa-solid fa-brush"></i> ${theme}`,
+              display: html`<i class="fa-solid fa-brush"></i> ${localThemes[theme].displayName}`,
               value: theme,
               onClick: async () => await Themes[theme](),
             };
