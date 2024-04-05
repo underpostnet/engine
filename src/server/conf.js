@@ -180,10 +180,22 @@ const Config = {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
         const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
-        this.default.server = {
-          ...this.default.server,
-          ...serverConf,
-        };
+        // this.default.server = {
+        //   ...this.default.server,
+        //   ...serverConf,
+        // };
+        for (const host of Object.keys(serverConf)) {
+          if (serverConf[host]['/'])
+            this.default.server[host] = {
+              ...this.default.server[host],
+              ...serverConf[host],
+            };
+          else
+            this.default.server[host] = {
+              ...serverConf[host],
+              ...this.default.server[host],
+            };
+        }
       }
     }
     if (!options || !options.folder)

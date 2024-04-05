@@ -7,6 +7,14 @@ let proxyPath;
 // https://www.1001fonts.com/
 
 const Css = {
+  loadThemes: async function (themes) {
+    for (const themeOptions of themes) {
+      if (localStorage.getItem('theme') && themeOptions.theme === localStorage.getItem('theme'))
+        await this.Init(themeOptions);
+      else addTheme(themeOptions);
+    }
+    if (!localStorage.getItem('theme')) await this.Init(themes[0]);
+  },
   Init: async function (options) {
     if (!proxyPath) proxyPath = getProxyPath();
     if (!options) options = { theme: 'default' };

@@ -84,7 +84,10 @@ const Settings = {
             return {
               display: html`<i class="fa-solid fa-brush"></i> ${localThemes[theme].displayName}`,
               value: theme,
-              onClick: async () => await Themes[theme](),
+              onClick: async () => {
+                localStorage.setItem('theme', theme);
+                await Themes[theme]();
+              },
             };
           }),
         })}
