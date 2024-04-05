@@ -256,6 +256,13 @@ scrollbar-width: none;
             right: 0px;
             z-index: 5;
           }
+          .modal-icon-container {
+            width: 40px;
+            height: 40px;
+            top: 5px;
+            left: 5px;
+            /* border: 2px solid black; */
+          }
         </style>
       `,
     ),

@@ -79,6 +79,7 @@ const FileExplorer = {
   Render: async function () {
     const gridFolderId = 'folder-explorer-grid';
     const gridFileId = 'file-explorer-grid';
+    const idDropFileInput = 'file-explorer';
     let formBodyFiles;
     const query = getQueryParams();
     let location = query?.location ? this.locationFormat({ f: query }) : '/';
@@ -129,6 +130,11 @@ const FileExplorer = {
       EventsUI.onClick(`.btn-input-file-explorer`, async (e) => {
         e.preventDefault();
         const { errorMessage } = await validators();
+        if (!formBodyFiles)
+          return NotificationManager.Push({
+            html: Translate.Render(`warning-upload-no-selects-file`),
+            status: 'warning',
+          });
         if (errorMessage) return;
         let fileData;
         {
@@ -161,7 +167,10 @@ const FileExplorer = {
             html: Translate.Render(`${status}-upload-file`),
             status,
           });
-          if (status === 'success') s(`.btn-input-home-directory`).click();
+          if (status === 'success') {
+            s(`.btn-input-home-directory`).click();
+            s(`.btn-clear-input-file-${idDropFileInput}`).click();
+          }
         }
       });
 
@@ -523,11 +532,14 @@ const FileExplorer = {
         </div>
         ${await InputFile.Render(
           {
-            id: 'file-explorer',
+            id: idDropFileInput,
             multiple: true,
           },
           {
-            clear: () => console.log('file explorer clear file'),
+            clear: () => {
+              console.log('file explorer clear file');
+              formBodyFiles = undefined;
+            },
             change: (e) => {
               console.log('file explorer change file', e);
               formBodyFiles = new FormData();

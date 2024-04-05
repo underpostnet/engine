@@ -193,6 +193,10 @@ const TranslateCore = {
         },
       },
     };
+    Translate.Data['warning-upload-no-selects-file'] = {
+      es: 'No ha seleccionado ningún archivo para subir.',
+      en: 'No file selected for upload.',
+    };
   },
 };
 
