@@ -75,6 +75,15 @@ const CssNexodev = {
     .file-explorer-nav {
       padding: 5px;
     }
+    .input-container-chat {
+      cursor: pointer;
+      border: 2px solid #313131;
+      transition: 0.3s;
+    }
+    .input-container-chat:hover {
+      color: #ffffff;
+      background: #313131;
+    }
     .input-container {
       cursor: pointer;
       border: 2px solid #313131;
