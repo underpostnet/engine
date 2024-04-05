@@ -14,125 +14,124 @@ const Css = {
       'body',
       html`
         <style>
-          ${css`
-            html {
-              scroll-behavior: smooth;
-            }
+          html {
+            scroll-behavior: smooth;
+          }
 
-            body {
-              /* overscroll-behavior: contain; */
-              /* box-sizing: border-box; */
-              padding: 0px;
-              margin: 0px;
-            }
+          body {
+            /* overscroll-behavior: contain; */
+            /* box-sizing: border-box; */
+            padding: 0px;
+            margin: 0px;
+          }
 
-            .fl {
-              position: relative;
-              display: flow-root;
-            }
+          .fl {
+            position: relative;
+            display: flow-root;
+          }
 
-            .abs,
-            .in {
-              display: block;
-            }
+          .abs,
+          .in {
+            display: block;
+          }
 
-            .fll {
-              float: left;
-            }
+          .fll {
+            float: left;
+          }
 
-            .flr {
-              float: right;
-            }
+          .flr {
+            float: right;
+          }
 
-            .abs {
-              position: absolute;
-            }
+          .abs {
+            position: absolute;
+          }
 
-            .in,
-            .inl {
-              position: relative;
-            }
+          .in,
+          .inl {
+            position: relative;
+          }
 
-            .inl {
-              display: inline-table;
-            }
+          .inl {
+            display: inline-table;
+          }
 
-            .fix {
-              position: fixed;
-              display: block;
-            }
+          .fix {
+            position: fixed;
+            display: block;
+          }
 
-            .stq {
-              position: sticky;
-            }
+          .stq {
+            position: sticky;
+          }
 
-            .wfa {
-              width: -webkit-fill-available;
-            }
+          .wfa {
+            width: -webkit-fill-available;
+          }
 
-            .center {
-              transform: translate(-50%, -50%);
-              top: 50%;
-              left: 50%;
-              width: 100%;
-              text-align: center;
-            }
+          .center {
+            transform: translate(-50%, -50%);
+            top: 50%;
+            left: 50%;
+            width: 100%;
+            text-align: center;
+          }
 
-            input {
-              outline: none !important;
-              border: none;
-            }
-            input::file-selector-button {
-              outline: none !important;
-              border: none;
-            }
+          input {
+            outline: none !important;
+            border: none;
+          }
+          input::file-selector-button {
+            outline: none !important;
+            border: none;
+          }
 
-            .hide {
-              display: none !important;
-            }
-            /*
+          .hide {
+            display: none !important;
+          }
+          /*
 
 placeholder
 
 */
 
-            ::placeholder {
-              color: black;
-              opacity: 1;
-              /* Firefox */
-              background: none;
-            }
+          ::placeholder {
+            color: black;
+            opacity: 1;
+            /* Firefox */
+            background: none;
+          }
 
-            :-ms-input-placeholder {
-              /* Internet Explorer 10-11 */
-              color: black;
-              background: none;
-            }
+          :-ms-input-placeholder {
+            /* Internet Explorer 10-11 */
+            color: black;
+            background: none;
+          }
 
-            ::-ms-input-placeholder {
-              /* Microsoft Edge */
-              color: black;
-              background: none;
-            }
+          ::-ms-input-placeholder {
+            /* Microsoft Edge */
+            color: black;
+            background: none;
+          }
 
-            /*
+          /*
 
 selection
 
 */
 
-            ::-moz-selection {
-              /* Code for Firefox */
-              color: black;
-              background: rgb(208, 208, 208);
-            }
+          ::-moz-selection {
+            /* Code for Firefox */
+            color: black;
+            background: rgb(208, 208, 208);
+          }
 
-            ::selection {
-              color: black;
-              background: rgb(208, 208, 208);
-            }
+          ::selection {
+            color: black;
+            background: rgb(208, 208, 208);
+          }
 
-            /*
+          /*
 
 scrollbar
 
@@ -148,27 +147,26 @@ scrollbar-width: none;
 
 */
 
-            ::-webkit-scrollbar {
-              width: 10px;
-            }
+          ::-webkit-scrollbar {
+            width: 10px;
+          }
 
-            /* Track */
-            ::-webkit-scrollbar-track {
-              background: #f1f1f1;
-            }
+          /* Track */
+          ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+          }
 
-            /* Handle */
-            ::-webkit-scrollbar-thumb {
-              background: #888;
-            }
+          /* Handle */
+          ::-webkit-scrollbar-thumb {
+            background: #888;
+          }
 
-            /* Handle on hover */
-            ::-webkit-scrollbar-thumb:hover {
-              background: #555;
-            }
-          `}
+          /* Handle on hover */
+          ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+          }
         </style>
-        <style class="theme"></style>
+        <div class="theme"></div>
       `,
     );
     return await Themes[theme](options);
@@ -176,331 +174,338 @@ scrollbar-width: none;
   default: async () =>
     append(
       '.theme',
-      css`
-        .modal {
-          background: white;
-          color: black;
-          font-family: arial;
-          border-radius: 10px;
-        }
-        .bar-default-modal {
-          background: #dfdfdf;
-          color: black;
-        }
-        .html-modal-content {
-          padding: 5px;
-        }
-        button {
-          background: none;
-          outline: none;
-          border: none;
-          cursor: pointer;
-          transition: 0.3s;
-          font-size: 15px;
-          color: black;
-          margin: 5px;
-          padding: 5px;
-          border-radius: 5px;
-          border: 2px solid #bbbbbb;
-          min-height: 30px;
-          min-width: 30px;
-        }
-        .title-modal {
-          padding: 5px;
-          margin: 5px;
-          cursor: default;
-          font-size: 20px;
-        }
-        button:hover {
-          background: #bbbbbb;
-        }
-        .box-shadow {
-          box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-        }
-        .box-shadow:hover {
-          box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-        }
-        .toggle-switch-content-border {
-          border: 2px solid #bbbbbb;
-          padding: 5px;
-          transition: 0.3s;
-          cursor: pointer;
-        }
-        .toggle-switch-content-border:hover {
-          background: #bbbbbb;
-        }
-        .toggle-switch-content {
-          width: 60px;
-        }
-        .toggle-switch-circle {
-          height: 20px;
-          width: 20px;
-          background: gray;
-          transition: 0.3s;
-        }
-        .slide-menu-top-bar {
-          width: 100%;
-          height: 50px;
-          top: 0px;
-          right: 0px;
-          z-index: 5;
-        }
+      html`
+        <style>
+          .modal {
+            background: white;
+            color: black;
+            font-family: arial;
+            border-radius: 10px;
+          }
+          .bar-default-modal {
+            background: #dfdfdf;
+            color: black;
+          }
+          .html-modal-content {
+            padding: 5px;
+          }
+          button {
+            background: none;
+            outline: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+            color: black;
+            margin: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 2px solid #bbbbbb;
+            min-height: 30px;
+            min-width: 30px;
+          }
+          .title-modal {
+            padding: 5px;
+            margin: 5px;
+            cursor: default;
+            font-size: 20px;
+          }
+          button:hover {
+            background: #bbbbbb;
+          }
+          .box-shadow {
+            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+          }
+          .box-shadow:hover {
+            box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+          }
+          .toggle-switch-content-border {
+            border: 2px solid #bbbbbb;
+            padding: 5px;
+            transition: 0.3s;
+            cursor: pointer;
+          }
+          .toggle-switch-content-border:hover {
+            background: #bbbbbb;
+          }
+          .toggle-switch-content {
+            width: 60px;
+          }
+          .toggle-switch-circle {
+            height: 20px;
+            width: 20px;
+            background: gray;
+            transition: 0.3s;
+          }
+          .slide-menu-top-bar {
+            width: 100%;
+            height: 50px;
+            top: 0px;
+            right: 0px;
+            z-index: 5;
+          }
+        </style>
       `,
     ),
   dark: async () =>
     append(
       '.theme',
-      css`
-        html {
-          background: black;
-          color: white;
-        }
-        .modal {
-          /* background: #242124; */
-          background: #121212;
-          color: white;
-          font-family: arial;
-          border-radius: 10px;
-        }
-        .bar-default-modal {
-          /* background: #242124; */
-          background: #242424;
-          color: white;
-        }
-        .html-modal-content {
-          padding: 5px;
-        }
-        button {
-          background: none;
-          outline: none;
-          border: none;
-          cursor: pointer;
-          transition: 0.3s;
-          font-size: 15px;
-          color: white;
-          margin: 5px;
-          padding: 5px;
-          border-radius: 5px;
-          border: 2px solid #bbbbbb;
-          min-height: 30px;
-          min-width: 30px;
-        }
-        .title-modal {
-          padding: 5px;
-          margin: 5px;
-          cursor: default;
-          font-size: 20px;
-        }
-        button:hover {
-          background: #bbbbbb;
-          color: black;
-        }
-        .box-shadow {
-          box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
-        }
-        .box-shadow:hover {
-          box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
-        }
-        .toggle-switch-content-border {
-          border: 2px solid #bbbbbb;
-          padding: 5px;
-          transition: 0.3s;
-          cursor: pointer;
-        }
-        .toggle-switch-content-border:hover {
-          background: #bbbbbb;
-        }
-        .toggle-switch-content {
-          width: 60px;
-        }
-        .toggle-switch-circle {
-          height: 20px;
-          width: 20px;
-          background: gray;
-          transition: 0.3s;
-        }
-        .slide-menu-top-bar {
-          width: 100%;
-          height: 50px;
-          top: 0px;
-          right: 0px;
-          z-index: 5;
-        }
+      html`
+        <style>
+          html {
+            background: black;
+            color: white;
+          }
+          .modal {
+            /* background: #242124; */
+            background: #121212;
+            color: white;
+            font-family: arial;
+            border-radius: 10px;
+          }
+          .bar-default-modal {
+            /* background: #242124; */
+            background: #242424;
+            color: white;
+          }
+          .html-modal-content {
+            padding: 5px;
+          }
+          button {
+            background: none;
+            outline: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+            color: white;
+            margin: 5px;
+            padding: 5px;
+            border-radius: 5px;
+            border: 2px solid #bbbbbb;
+            min-height: 30px;
+            min-width: 30px;
+          }
+          .title-modal {
+            padding: 5px;
+            margin: 5px;
+            cursor: default;
+            font-size: 20px;
+          }
+          button:hover {
+            background: #bbbbbb;
+            color: black;
+          }
+          .box-shadow {
+            box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
+          }
+          .box-shadow:hover {
+            box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
+          }
+          .toggle-switch-content-border {
+            border: 2px solid #bbbbbb;
+            padding: 5px;
+            transition: 0.3s;
+            cursor: pointer;
+          }
+          .toggle-switch-content-border:hover {
+            background: #bbbbbb;
+          }
+          .toggle-switch-content {
+            width: 60px;
+          }
+          .toggle-switch-circle {
+            height: 20px;
+            width: 20px;
+            background: gray;
+            transition: 0.3s;
+          }
+          .slide-menu-top-bar {
+            width: 100%;
+            height: 50px;
+            top: 0px;
+            right: 0px;
+            z-index: 5;
+          }
+        </style>
       `,
     ),
   cryptokoyn: async () =>
     append(
       '.theme',
-      css`
-        html {
-          background: black;
-          color: white;
-        }
-        .modal {
-          /* background: #242124; */
-          background: #121212;
-          color: white;
-          font-family: arial;
-          border: 2px solid yellow;
-          /* border-radius: 10px; */
-        }
-        .bar-default-modal {
-          /* background: #242124; */
-          background: #242424;
-          color: white;
-        }
-        .html-modal-content {
-          padding: 5px;
-        }
-        button {
-          background: none;
-          outline: none;
-          border: none;
-          cursor: pointer;
-          transition: 0.3s;
-          font-size: 15px;
-          color: white;
-          margin: 5px;
-          padding: 5px;
-          /* border-radius: 5px; */
-          border: 2px solid yellow;
-          min-height: 30px;
-          min-width: 30px;
-        }
-        .title-modal {
-          padding: 5px;
-          margin: 5px;
-          cursor: default;
-          font-size: 20px;
-          color: yellow;
-        }
-        button:hover {
-          background: yellow;
-          color: black;
-        }
-        .box-shadow {
-          /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-        }
-        .box-shadow:hover {
-          /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-        }
-        .toggle-switch-content-border {
-          border: 2px solid yellow;
-          padding: 5px;
-          transition: 0.3s;
-          cursor: pointer;
-        }
-        .toggle-switch-content-border:hover {
-          background: yellow;
-        }
-        .toggle-switch-content {
-          width: 60px;
-        }
-        .toggle-switch-circle {
-          height: 20px;
-          width: 20px;
-          background: gray;
-          transition: 0.3s;
-        }
+      html`
+        <style>
+          html {
+            background: black;
+            color: white;
+          }
+          .modal {
+            /* background: #242124; */
+            background: #121212;
+            color: white;
+            font-family: arial;
+            border: 2px solid yellow;
+            /* border-radius: 10px; */
+          }
+          .bar-default-modal {
+            /* background: #242124; */
+            background: #242424;
+            color: white;
+          }
+          .html-modal-content {
+            padding: 5px;
+          }
+          button {
+            background: none;
+            outline: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+            color: white;
+            margin: 5px;
+            padding: 5px;
+            /* border-radius: 5px; */
+            border: 2px solid yellow;
+            min-height: 30px;
+            min-width: 30px;
+          }
+          .title-modal {
+            padding: 5px;
+            margin: 5px;
+            cursor: default;
+            font-size: 20px;
+            color: yellow;
+          }
+          button:hover {
+            background: yellow;
+            color: black;
+          }
+          .box-shadow {
+            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+          }
+          .box-shadow:hover {
+            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+          }
+          .toggle-switch-content-border {
+            border: 2px solid yellow;
+            padding: 5px;
+            transition: 0.3s;
+            cursor: pointer;
+          }
+          .toggle-switch-content-border:hover {
+            background: yellow;
+          }
+          .toggle-switch-content {
+            width: 60px;
+          }
+          .toggle-switch-circle {
+            height: 20px;
+            width: 20px;
+            background: gray;
+            transition: 0.3s;
+          }
 
-        .slide-menu-top-bar {
-          width: 100%;
-          height: 50px;
-          top: 0px;
-          right: 0px;
-          z-index: 5;
-        }
+          .slide-menu-top-bar {
+            width: 100%;
+            height: 50px;
+            top: 0px;
+            right: 0px;
+            z-index: 5;
+          }
+        </style>
       `,
     ),
   'dark-light': async () =>
     append(
       '.theme',
-      css`
-        html {
-          background: black;
-          color: white;
-        }
-        .modal {
-          /* background: #242124; */
-          background: #121212;
-          color: white;
-          font-family: arial;
-          /* border: 2px solid #313131; */
-          /* border-radius: 10px; */
-        }
-        .bar-default-modal {
-          /* background: #242124; */
-          background: #242424;
-          color: white;
-        }
-        .bar-default-modal-icon {
-          /* background: #242124; */
-          width: 15px;
-          height: 15px;
-        }
-        .html-modal-content {
-          padding: 5px;
-        }
-        button {
-          background: none;
-          outline: none;
-          border: none;
-          cursor: pointer;
-          transition: 0.3s;
-          font-size: 15px;
-          color: white;
-          margin: 5px;
-          padding: 5px;
-          /* border-radius: 5px; */
-          border: 2px solid #313131;
-          min-height: 30px;
-          min-width: 30px;
-        }
-        .title-modal {
-          padding: 5px;
-          margin: 5px;
-          cursor: default;
-          font-size: 20px;
-          color: yellow;
-        }
-        button:hover {
-          background: #313131;
-          color: yellow;
-        }
-        .box-shadow {
-          /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-        }
-        .box-shadow:hover {
-          /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-        }
-        .toggle-switch-content-border {
-          border: 2px solid #313131;
-          padding: 5px;
-          transition: 0.3s;
-          cursor: pointer;
-        }
-        .toggle-switch-content-border:hover {
-          background: #313131;
-        }
-        .toggle-switch-content {
-          width: 60px;
-        }
-        .toggle-switch-circle {
-          height: 20px;
-          width: 20px;
-          background: gray;
-          transition: 0.3s;
-        }
+      html`
+        <style>
+          html {
+            background: black;
+            color: white;
+          }
+          .modal {
+            /* background: #242124; */
+            background: #121212;
+            color: white;
+            font-family: arial;
+            /* border: 2px solid #313131; */
+            /* border-radius: 10px; */
+          }
+          .bar-default-modal {
+            /* background: #242124; */
+            background: #242424;
+            color: white;
+          }
+          .bar-default-modal-icon {
+            /* background: #242124; */
+            width: 15px;
+            height: 15px;
+          }
+          .html-modal-content {
+            padding: 5px;
+          }
+          button {
+            background: none;
+            outline: none;
+            border: none;
+            cursor: pointer;
+            transition: 0.3s;
+            font-size: 15px;
+            color: white;
+            margin: 5px;
+            padding: 5px;
+            /* border-radius: 5px; */
+            border: 2px solid #313131;
+            min-height: 30px;
+            min-width: 30px;
+          }
+          .title-modal {
+            padding: 5px;
+            margin: 5px;
+            cursor: default;
+            font-size: 20px;
+            color: yellow;
+          }
+          button:hover {
+            background: #313131;
+            color: yellow;
+          }
+          .box-shadow {
+            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
+          }
+          .box-shadow:hover {
+            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
+          }
+          .toggle-switch-content-border {
+            border: 2px solid #313131;
+            padding: 5px;
+            transition: 0.3s;
+            cursor: pointer;
+          }
+          .toggle-switch-content-border:hover {
+            background: #313131;
+          }
+          .toggle-switch-content {
+            width: 60px;
+          }
+          .toggle-switch-circle {
+            height: 20px;
+            width: 20px;
+            background: gray;
+            transition: 0.3s;
+          }
 
-        @keyframes diagonal-lines {
-          0% {
-            background-position: initial;
+          @keyframes diagonal-lines {
+            0% {
+              background-position: initial;
+            }
+            100% {
+              background-position: 100px 0px;
+            }
           }
-          100% {
-            background-position: 100px 0px;
-          }
-        }
-        /*
+          /*
         .progress-bar {
           top: 0px;
           left: 0px;
@@ -512,58 +517,62 @@ scrollbar-width: none;
           animation: diagonal-lines 2s linear infinite;
         }
         */
-        .progress-bar {
-          top: 0px;
-          left: 0px;
-          transition: 0.3s;
-          height: 10px;
-          width: 100%;
-          z-index: 11;
-        }
-        .diagonal-bar-background-animation {
-          background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);
-          background-size: 100px 100px;
-          animation: diagonal-lines 2s linear infinite;
-        }
-        .modal-icon-container {
-          width: 40px;
-          height: 40px;
-          top: 5px;
-          left: 5px;
-          /* border: 2px solid black; */
-        }
-        .slide-menu-top-bar {
-          width: 100%;
-          height: 50px;
-          top: 0px;
-          right: 0px;
-          z-index: 5;
-        }
+          .progress-bar {
+            top: 0px;
+            left: 0px;
+            transition: 0.3s;
+            height: 10px;
+            width: 100%;
+            z-index: 11;
+          }
+          .diagonal-bar-background-animation {
+            background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);
+            background-size: 100px 100px;
+            animation: diagonal-lines 2s linear infinite;
+          }
+          .modal-icon-container {
+            width: 40px;
+            height: 40px;
+            top: 5px;
+            left: 5px;
+            /* border: 2px solid black; */
+          }
+          .slide-menu-top-bar {
+            width: 100%;
+            height: 50px;
+            top: 0px;
+            right: 0px;
+            z-index: 5;
+          }
+        </style>
       `,
     ),
   retro: async () =>
     append(
       '.theme',
-      css`
-        @font-face {
-          font-family: 'retro-font-title';
-          src: URL('${proxyPath}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
-        }
-        @font-face {
-          font-family: 'retro-font';
-          src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
-        }
-        @font-face {
-          font-family: 'retro-font-sensitive';
-          src: URL('${proxyPath}assets/fonts/VT323-Regular.ttf') format('truetype');
-        }
+      html`
+        <style>
+          @font-face {
+            font-family: 'retro-font-title';
+            src: URL('${proxyPath}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+          }
+          @font-face {
+            font-family: 'retro-font';
+            src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+          }
+          @font-face {
+            font-family: 'retro-font-sensitive';
+            src: URL('${proxyPath}assets/fonts/VT323-Regular.ttf') format('truetype');
+          }
+        </style>
       `,
     ),
   bms: async () =>
     append(
       `.theme`,
-      css`
-        /*
+      html`
+        <style>
+          /*
         html {
           min-height: 100%;
           display: flex;
@@ -574,99 +583,99 @@ scrollbar-width: none;
         }
         */
 
-        body,
-        input,
-        .modal,
-        button {
-          font-family: arial;
-          font-size: 24px;
-        }
+          body,
+          input,
+          .modal,
+          button {
+            font-family: arial;
+            font-size: 24px;
+          }
 
-        .btn-modal-default {
-          min-width: 40px;
-        }
+          .btn-modal-default {
+            min-width: 40px;
+          }
 
-        button {
-          border-radius: 0px;
-          border: none;
-          color: #9ca8b6;
-        }
+          button {
+            border-radius: 0px;
+            border: none;
+            color: #9ca8b6;
+          }
 
-        button:hover {
-          color: #f1f1f1;
-          background: #1aaf99;
-        }
+          button:hover {
+            color: #f1f1f1;
+            background: #1aaf99;
+          }
 
-        i {
-          margin: 10px;
-        }
+          i {
+            margin: 10px;
+          }
 
-        .title-modal {
-          color: #0e1621;
-          font-family: arial;
-        }
+          .title-modal {
+            color: #0e1621;
+            font-family: arial;
+          }
 
-        .sub-title-modal {
-          cursor: default;
-          background: none;
-          margin-top: 10px;
-          height: 50px;
-          padding: 10px;
-          color: #0e1621;
-          /* background: #dcdcdc; */
-          /* background: #313131; */
-          /* border: 2px solid #313131; */
-          /* color: #f1f1f1; */
-        }
+          .sub-title-modal {
+            cursor: default;
+            background: none;
+            margin-top: 10px;
+            height: 50px;
+            padding: 10px;
+            color: #0e1621;
+            /* background: #dcdcdc; */
+            /* background: #313131; */
+            /* border: 2px solid #313131; */
+            /* color: #f1f1f1; */
+          }
 
-        .toggle-switch-active {
-          background: #f1f1f1;
-          /* background: green; */
-        }
+          .toggle-switch-active {
+            background: #f1f1f1;
+            /* background: green; */
+          }
 
-        .slot {
-          cursor: pointer;
-          width: 100px;
-          height: 100px;
-          border: 2px solid #313131;
-          margin: 5px;
-        }
+          .slot {
+            cursor: pointer;
+            width: 100px;
+            height: 100px;
+            border: 2px solid #313131;
+            margin: 5px;
+          }
 
-        .notification-manager-date {
-          font-size: 20px;
-          color: #7a7a7a;
-        }
+          .notification-manager-date {
+            font-size: 20px;
+            color: #7a7a7a;
+          }
 
-        .section-mp {
-          margin: 5px;
-          margin-top: 15px;
-          text-align: left;
-        }
+          .section-mp {
+            margin: 5px;
+            margin-top: 15px;
+            text-align: left;
+          }
 
-        .loading-animation-container {
-          text-align: center;
-        }
-        ::placeholder {
-          color: #c6c4c4;
-          opacity: 1;
-          /* Firefox */
-          background: none;
-        }
+          .loading-animation-container {
+            text-align: center;
+          }
+          ::placeholder {
+            color: #c6c4c4;
+            opacity: 1;
+            /* Firefox */
+            background: none;
+          }
 
-        :-ms-input-placeholder {
-          /* Internet Explorer 10-11 */
-          color: #c6c4c4;
-          background: none;
-        }
+          :-ms-input-placeholder {
+            /* Internet Explorer 10-11 */
+            color: #c6c4c4;
+            background: none;
+          }
 
-        ::-ms-input-placeholder {
-          /* Microsoft Edge */
-          color: #c6c4c4;
-          background: none;
-        }
-        .ag-theme-alpine,
-        .ag-theme-alpine-dark {
-          /*
+          ::-ms-input-placeholder {
+            /* Microsoft Edge */
+            color: #c6c4c4;
+            background: none;
+          }
+          .ag-theme-alpine,
+          .ag-theme-alpine-dark {
+            /*
     --ag-foreground-color: rgb(126, 46, 132);
     --ag-background-color: rgb(249, 245, 227);
     --ag-header-foreground-color: rgb(204, 245, 172);
@@ -676,73 +685,74 @@ scrollbar-width: none;
 
     --ag-font-size: 17px;
     */
-          --ag-font-family: arial;
-          --ag-font-size: 20px;
-        }
-        .ag-btn-renderer {
-          font-size: 16px;
-          min-width: 90px;
-          min-height: 90px;
-        }
+            --ag-font-family: arial;
+            --ag-font-size: 20px;
+          }
+          .ag-btn-renderer {
+            font-size: 16px;
+            min-width: 90px;
+            min-height: 90px;
+          }
 
-        .width-mini-box {
-          width: 250px;
-        }
-        .width-mini-box:hover {
-          color: #f1f1f1;
-          background: #313131;
-        }
+          .width-mini-box {
+            width: 250px;
+          }
+          .width-mini-box:hover {
+            color: #f1f1f1;
+            background: #313131;
+          }
 
-        .input-container {
-          cursor: pointer;
-          transition: 0.3s;
-        }
-        .input-container:hover {
-          color: #f1f1f1;
-          background: #1aaf99;
-        }
+          .input-container {
+            cursor: pointer;
+            transition: 0.3s;
+          }
+          .input-container:hover {
+            color: #f1f1f1;
+            background: #1aaf99;
+          }
 
-        input {
-          cursor: pointer;
-          background: none;
-          color: #313131;
-          background: #e7e7e7;
-        }
-        .input-label {
-        }
-        .input-info {
-        }
+          input {
+            cursor: pointer;
+            background: none;
+            color: #313131;
+            background: #e7e7e7;
+          }
+          .input-label {
+          }
+          .input-info {
+          }
 
-        .dropdown-container {
-          border: 2px solid #313131;
-          transition: 0.3s;
-          cursor: pointer;
-        }
-        .dropdown-option {
-          width: 300px;
-        }
-        .dropdown-option:hover {
-          color: #f1f1f1;
-          background: #313131;
-        }
-        .tile-cell {
-          width: 10px;
-          height: 10px;
-          border: 1px solid gray;
-          box-sizing: border-box;
-          cursor: pointer;
-        }
-        .tile-cell:hover {
-          border: 1px solid yellow;
-        }
-        .bms-rank-dashboard-col-a {
-          background: #1c2939;
-          color: #868fa0;
-        }
-        .bms-rank-dashboard-col-b {
-          background: #e4e8eb;
-          /* color: #868fa0; */
-        }
+          .dropdown-container {
+            border: 2px solid #313131;
+            transition: 0.3s;
+            cursor: pointer;
+          }
+          .dropdown-option {
+            width: 300px;
+          }
+          .dropdown-option:hover {
+            color: #f1f1f1;
+            background: #313131;
+          }
+          .tile-cell {
+            width: 10px;
+            height: 10px;
+            border: 1px solid gray;
+            box-sizing: border-box;
+            cursor: pointer;
+          }
+          .tile-cell:hover {
+            border: 1px solid yellow;
+          }
+          .bms-rank-dashboard-col-a {
+            background: #1c2939;
+            color: #868fa0;
+          }
+          .bms-rank-dashboard-col-b {
+            background: #e4e8eb;
+            /* color: #868fa0; */
+          }
+        </style>
       `,
     ),
   fontawesome: async () =>
@@ -820,7 +830,7 @@ const renderDefaultWindowsModalButtonContent = (options) => {
 let darkTheme = true;
 const Themes = {
   cyberia: async (options) => {
-    if (options) Css.cyberia = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     const htmlRender = Css.currentTheme !== 'cyberia';
     if (htmlRender) {
       Css.currentTheme = 'cyberia';
@@ -880,7 +890,7 @@ const Themes = {
   },
   nexodev: async (options) => {
     const htmlRender = Css.currentTheme !== 'nexodev';
-    if (options) Css.nexodev = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     if (htmlRender) {
       Css.currentTheme = 'nexodev';
       htmls('.theme', '');
@@ -894,7 +904,7 @@ const Themes = {
   },
   'nexodev-light': async (options) => {
     const htmlRender = Css.currentTheme !== 'nexodev-light';
-    if (options) Css['nexodev-light'] = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     if (htmlRender) {
       Css.currentTheme = 'nexodev-light';
       htmls('.theme', '');
@@ -908,7 +918,7 @@ const Themes = {
   },
   dogmadual: async (options) => {
     const htmlRender = Css.currentTheme !== 'dogmadual';
-    if (options) Css.dogmadual = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     if (htmlRender) {
       Css.currentTheme = 'dogmadual';
       htmls('.theme', '');
@@ -921,7 +931,7 @@ const Themes = {
   },
   cryptokoyn: async (options) => {
     const htmlRender = Css.currentTheme !== 'cryptokoyn';
-    if (options) Css.cryptokoyn = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     if (htmlRender) {
       Css.currentTheme = 'cryptokoyn';
       htmls('.theme', '');
@@ -934,7 +944,7 @@ const Themes = {
   },
   underpost: async (options) => {
     const htmlRender = Css.currentTheme !== 'underpost';
-    if (options) Css.underpost = async () => append('.theme', await options.render());
+    if (options) addTheme(options);
     if (htmlRender) {
       Css.currentTheme = 'underpost';
       htmls('.theme', '');
@@ -966,17 +976,17 @@ const boxShadow = ({ selector }) => css`
 const renderMediaQuery = (mediaData) => {
   //  first limit should be '0'
   return html`
-    <style>
-      ${mediaData
-        .map(
-          (mediaState) => css`
+    ${mediaData
+      .map(
+        (mediaState) => html`
+          <style>
             @media only screen and (min-width: ${mediaState.limit}px) {
               ${mediaState.css}
             }
-          `,
-        )
-        .join('')}
-    </style>
+          </style>
+        `,
+      )
+      .join('')}
   `;
 };
 
