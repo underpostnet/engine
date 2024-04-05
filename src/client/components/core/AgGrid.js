@@ -6,6 +6,12 @@ import * as agGrid from 'ag-grid-community';
 
 const AgGrid = {
   grids: {},
+  changeTheme: function ({ darkTheme }) {
+    for (const idGrid of Object.keys(this.grids)) {
+      s(`.${idGrid}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
+      s(`.${idGrid}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
+    }
+  },
   Render: async function (options) {
     let { id } = options;
     if (!this.theme) {

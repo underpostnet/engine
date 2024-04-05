@@ -1,3 +1,4 @@
+import { AgGrid } from './AgGrid.js';
 import { Modal } from './Modal.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
@@ -652,6 +653,7 @@ const Themes = {
       await Css.retro();
       await Css.cyberia();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
   },
@@ -663,6 +665,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.default();
       darkTheme = false;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -674,6 +677,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -685,6 +689,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.dark();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -698,6 +703,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.nexodev();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
       if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-white-t.png`;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
@@ -712,6 +718,7 @@ const Themes = {
       await Css.default();
       await Css['nexodev-light']();
       darkTheme = false;
+      AgGrid.changeTheme({ darkTheme });
       if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
@@ -726,6 +733,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.bms();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -739,6 +747,7 @@ const Themes = {
       await Css.default();
       await Css['bms-light']();
       darkTheme = false;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -752,6 +761,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.dogmadual();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -765,6 +775,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.cryptokoyn();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -778,6 +789,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.underpost();
       darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
