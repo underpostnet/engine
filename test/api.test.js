@@ -22,9 +22,9 @@ describe(`GET 'Test' API Request `, async () => {
   {
     const url = `${BASE_URL}/test/youtube-id/?url=https://www.youtube.com/watch?v=o4f42SbyDMk`;
     it(`youtube id from raw youtube url`, async () => {
-      // logger.info('request info', { url });
+      logger.info('request info', { url });
       const res = await axios.get(url);
-      // logger.info('response', res.data);
+      logger.info('response', res.data);
       return expect(res.data.data).equal('o4f42SbyDMk');
     });
   }
@@ -32,10 +32,10 @@ describe(`GET 'Test' API Request `, async () => {
     const email = 'test@gmail.com';
     const url = `${BASE_URL}/test/verify-email/?email=${email}`;
     it(`valid format email`, async () => {
-      // logger.info('request info', { url });
+      logger.info('request info', { url });
       const res = await axios.get(url);
-      // logger.info('response', res.data);
-      return expect(res.data.status).equal('success');
+      logger.info('response', res.data);
+      return expect(res.data.data).equal(true);
     });
   }
 });

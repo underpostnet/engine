@@ -137,6 +137,15 @@ const buildRuntime = async () => {
             return next();
           });
 
+          app.use((req, res, next) => {
+            // internal redirect
+            if (req.url.startsWith(`/${process.env.BASE_API}/$`))
+              return res.redirect(
+                decodeURIComponent(`${req.url.replaceAll(`/${process.env.BASE_API}/$`, `/${process.env.BASE_API}/`)}`),
+              );
+            return next();
+          });
+
           // set logger
           app.use(loggerMiddleware(import.meta));
 

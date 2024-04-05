@@ -168,6 +168,30 @@ const CssNexodev = {
       border: 2px solid #313131;
       overflow: auto;
     }
+    .ag-cell-data-changed {
+      background-color: rgba(209, 209, 209, 1) !important;
+      background: rgba(209, 209, 209, 1) !important;
+      color: #2e2e2e !important;
+    }
+    .ag-cell-data-changed-animation {
+      background-color: rgba(209, 209, 209, 1) !important;
+      background: rgba(209, 209, 209, 1) !important;
+      color: #2e2e2e !important;
+    }
+    .sub-title-modal {
+      cursor: default;
+      background: none;
+      margin-top: 10px;
+      padding: 10px;
+      color: white;
+      /* background: #dcdcdc; */
+      /* background: #313131; */
+      /* border: 2px solid #313131; */
+      /* color: #f1f1f1; */
+    }
+    .sub-title-icon {
+      font-size: 30px;
+    }
   `,
 };
 

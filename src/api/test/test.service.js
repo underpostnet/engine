@@ -24,6 +24,7 @@ const TestService = {
         result = getYouTubeID(req.query.url);
         break;
       default:
+        result = false;
         break;
     }
     return result;

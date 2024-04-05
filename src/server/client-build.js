@@ -353,11 +353,11 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
             swagger: '2.0',
             title: metadata?.title ? `${metadata.title}` : 'Api Docs',
             description: metadata?.description ? metadata.description : undefined,
+            version: '2.0.0',
           },
-          host:
-            process.env.NODE_ENV === 'development'
-              ? `localhost:${port}${path}${process.env.BASE_API}`
-              : `${host}${path}${process.env.BASE_API}`,
+          schemes: ['https', 'http'], // by default: ['http']
+          basePath: `${process.env.BASE_API}`,
+          host: process.env.NODE_ENV === 'development' ? `localhost:${port}${path}` : `${host}${path}`,
         };
 
         logger.warn('build swagger api docs', doc);
