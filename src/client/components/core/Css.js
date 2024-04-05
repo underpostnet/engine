@@ -8,12 +8,13 @@ let proxyPath;
 
 const Css = {
   loadThemes: async function (themes) {
-    for (const themeOptions of themes) {
-      if (localStorage.getItem('theme') && themeOptions.theme === localStorage.getItem('theme'))
-        await this.Init(themeOptions);
-      else addTheme(themeOptions);
+    for (const themeOptions of themes) addTheme(themeOptions);
+    const localStorageTheme = localStorage.getItem('theme');
+    if (localStorageTheme && Themes[localStorageTheme]) {
+      const themeOption = themes.find((t) => t.theme === localStorageTheme);
+      if (themeOption) return await this.Init(themeOption);
     }
-    if (!localStorage.getItem('theme')) await this.Init(themes[0]);
+    await this.Init(themes ? themes[0] : undefined);
   },
   Init: async function (options) {
     if (!proxyPath) proxyPath = getProxyPath();
