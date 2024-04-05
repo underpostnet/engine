@@ -1,11 +1,11 @@
 'use strict';
 
-import { Css } from './components/core/Css.js';
+import { Css, addTheme } from './components/core/Css.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { Responsive } from './components/core/Responsive.js';
 import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
-import { CssNexodev } from './components/nexodev/CssNexodev.js';
+import { CssNexodev, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { LogInNexodev } from './components/nexodev/LogInNexodev.js';
 import { LogOutNexodev } from './components/nexodev/LogOutNexodev.js';
 import { SignUpNexodev } from './components/nexodev/SignUpNexodev.js';
@@ -19,6 +19,7 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 
 (async function () {
   await Css.Init(CssNexodev);
+  addTheme(CssNexodevLight);
   const RouterInstance = RouterNexodev();
   await TranslateCore.Init();
   await Responsive.Init();

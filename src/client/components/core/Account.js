@@ -125,7 +125,7 @@ const Account = {
         </div>
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'btn-custom btn-account',
+            class: 'section-mp form-button btn-account',
             label: Translate.Render('update'),
             type: 'submit',
           })}

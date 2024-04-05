@@ -222,8 +222,7 @@ const CssCyberia = {
       }
       .warn-logout {
         text-align: center;
-        padding-top: 50px;
-        padding-bottom: 50px;
+        padding: 10px;
       }
       .pixi-canvas-biome {
         width: 100%;
@@ -522,6 +521,12 @@ const CssCyberia = {
         /* background: #313131; */
         /* border: 2px solid #313131; */
         /* color: #ffcc00; */
+      }
+      .form-button {
+        width: 254px;
+        font-size: 20px;
+        padding: 10px;
+        text-align: center;
       }
     `,
 };

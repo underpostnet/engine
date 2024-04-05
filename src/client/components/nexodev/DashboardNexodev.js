@@ -1,5 +1,5 @@
 import { AgGrid } from '../core/AgGrid.js';
-import { dynamicCol } from '../core/Css.js';
+import { darkTheme, dynamicCol } from '../core/Css.js';
 import { D3Chart } from '../core/D3Chart.js';
 import { newInstance, random, range } from '../core/CommonJs.js';
 
@@ -177,7 +177,7 @@ const DashboardNexodev = {
             ${await AgGrid.Render({
               id: `ag-grid-${idModal}`,
               enableCellChangeFlash: true,
-              darkTheme: true,
+              darkTheme,
               valueFormatter: (params) => {
                 return params.value;
               },

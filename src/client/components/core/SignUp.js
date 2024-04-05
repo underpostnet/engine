@@ -96,7 +96,7 @@ const SignUp = {
         </div>
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'btn-custom btn-sign-up',
+            class: 'section-mp form-button btn-sign-up',
             label: Translate.Render('sign-up'),
             type: 'submit',
           })}

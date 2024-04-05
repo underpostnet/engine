@@ -35,11 +35,6 @@ const D3Chart = {
       });
     });
     return html`
-      <style>
-        .chart-container {
-          background: #232323;
-        }
-      </style>
       <div class="in chart-container"></div>
       <div class="in chart-panel"></div>
     `;

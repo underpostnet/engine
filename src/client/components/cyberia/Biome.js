@@ -12,7 +12,7 @@ import {
   randomHexColor,
   range,
 } from '../core/CommonJs.js';
-import { Css, Themes, dynamicCol } from '../core/Css.js';
+import { Css, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -973,7 +973,7 @@ const BiomeEngine = {
           <div class="in section-mp">
             ${await AgGrid.Render({
               id: `ag-grid-biome-files`,
-              darkTheme: true,
+              darkTheme,
               gridOptions: {
                 rowData: BiomeScope.Grid,
                 columnDefs: [

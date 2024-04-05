@@ -4,7 +4,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { newInstance, random, range } from '../core/CommonJs.js';
-import { borderChar, dynamicCol } from '../core/Css.js';
+import { borderChar, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
@@ -405,7 +405,7 @@ const World = {
         <div class="in">
           ${await AgGrid.Render({
             id: `ag-grid-world`,
-            darkTheme: true,
+            darkTheme,
             gridOptions: {
               rowData: this.getGridData(),
               columnDefs: [

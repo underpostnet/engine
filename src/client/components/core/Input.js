@@ -1,4 +1,5 @@
 import { AgGrid } from './AgGrid.js';
+import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
 import { s } from './VanillaJs.js';
@@ -152,7 +153,7 @@ const InputFile = {
           <div class="in">
             ${await AgGrid.Render({
               id: gridId,
-              darkTheme: true,
+              darkTheme,
               style: {
                 height: '200px',
               },

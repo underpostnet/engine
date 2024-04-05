@@ -3,6 +3,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
+import { darkTheme } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { Input, InputFile } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -408,7 +409,7 @@ const FileExplorer = {
             <div class="in">
               ${await AgGrid.Render({
                 id: gridFolderId,
-                darkTheme: true,
+                darkTheme,
                 // style: {
                 //   height: '200px',
                 // },
@@ -489,7 +490,7 @@ const FileExplorer = {
             <div class="in">
               ${await AgGrid.Render({
                 id: gridFileId,
-                darkTheme: true,
+                darkTheme,
                 // style: {
                 //   height: '200px',
                 // },

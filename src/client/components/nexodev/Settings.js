@@ -18,7 +18,7 @@ const Settings = {
     };
     const localThemes = {
       nexodev: { displayName: 'Dark' },
-      bms: { displayName: 'Light' },
+      'nexodev-light': { displayName: 'Light' },
     };
     setTimeout(() => {
       EventsUI.onClick(`.btn-install-service-controller`, async (e) => {

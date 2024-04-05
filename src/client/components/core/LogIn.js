@@ -59,7 +59,11 @@ const LogIn = {
           })}
         </div>
         <div class="in">
-          ${await BtnIcon.Render({ class: 'btn-custom btn-log-in', label: Translate.Render('log-in'), type: 'submit' })}
+          ${await BtnIcon.Render({
+            class: 'section-mp form-button btn-log-in',
+            label: Translate.Render('log-in'),
+            type: 'submit',
+          })}
         </div>
       </form>
     `;

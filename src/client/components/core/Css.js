@@ -817,6 +817,7 @@ const renderDefaultWindowsModalButtonContent = (options) => {
   return { barConfig: barConfigInstance };
 };
 
+let darkTheme = true;
 const Themes = {
   cyberia: async (options) => {
     if (options) Css.cyberia = async () => append('.theme', await options.render());
@@ -828,6 +829,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.retro();
       await Css.cyberia();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
   },
@@ -839,6 +841,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.default();
       await Css.bms();
+      darkTheme = false;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -849,6 +852,7 @@ const Themes = {
       htmls('.theme', '');
       await Css.fontawesome();
       await Css.default();
+      darkTheme = false;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -859,6 +863,7 @@ const Themes = {
       htmls('.theme', '');
       await Css.fontawesome();
       await Css['dark-light']();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -869,6 +874,7 @@ const Themes = {
       htmls('.theme', '');
       await Css.fontawesome();
       await Css.dark();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -881,6 +887,22 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.nexodev();
+      darkTheme = true;
+      if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-white-t.png`;
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
+  'nexodev-light': async (options) => {
+    const htmlRender = Css.currentTheme !== 'nexodev-light';
+    if (options) Css['nexodev-light'] = async () => append('.theme', await options.render());
+    if (htmlRender) {
+      Css.currentTheme = 'nexodev-light';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.default();
+      await Css['nexodev-light']();
+      darkTheme = false;
+      if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -893,6 +915,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.dogmadual();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -905,6 +928,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.cryptokoyn();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -917,10 +941,13 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.underpost();
+      darkTheme = true;
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
 };
+
+const addTheme = (options) => (Css[options.theme] = async () => append('.theme', await options.render()));
 
 const borderChar = (px, color) => html`
   text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px ${color},
@@ -1055,4 +1082,6 @@ export {
   dynamicCol,
   dynamicColTokens,
   boxShadow,
+  addTheme,
+  darkTheme,
 };
