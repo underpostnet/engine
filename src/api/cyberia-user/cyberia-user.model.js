@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { PositionsComponent } from '../../client/components/cyberia/CommonCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -37,16 +38,7 @@ const CyberiaUserSchema = new Schema({
         {
           displayId: 'anon',
           position: '08',
-          positions: [
-            { positionId: '02', frames: 1 },
-            { positionId: '04', frames: 1 },
-            { positionId: '06', frames: 1 },
-            { positionId: '08', frames: 1 },
-            { positionId: '12', frames: 2 },
-            { positionId: '14', frames: 2 },
-            { positionId: '16', frames: 2 },
-            { positionId: '18', frames: 2 },
-          ],
+          positions: PositionsComponent.default(),
           enabled: true,
           current: true,
           assetFolder: 'skin',
@@ -54,32 +46,14 @@ const CyberiaUserSchema = new Schema({
         {
           displayId: 'eiri',
           position: '08',
-          positions: [
-            { positionId: '02', frames: 1 },
-            { positionId: '04', frames: 1 },
-            { positionId: '06', frames: 1 },
-            { positionId: '08', frames: 1 },
-            { positionId: '12', frames: 2 },
-            { positionId: '14', frames: 2 },
-            { positionId: '16', frames: 2 },
-            { positionId: '18', frames: 2 },
-          ],
+          positions: PositionsComponent.default(),
           enabled: false,
           assetFolder: 'skin',
         },
         {
           displayId: 'ghost',
           position: '08',
-          positions: [
-            { positionId: '02', frames: 8 },
-            { positionId: '04', frames: 8 },
-            { positionId: '06', frames: 8 },
-            { positionId: '08', frames: 8 },
-            { positionId: '12', frames: 8 },
-            { positionId: '14', frames: 8 },
-            { positionId: '16', frames: 8 },
-            { positionId: '18', frames: 8 },
-          ],
+          positions: PositionsComponent.ghost(),
           enabled: false,
           assetFolder: 'skin',
         },
