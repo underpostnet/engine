@@ -1,14 +1,14 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
@@ -155,14 +155,11 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html`<img
-          class="abs nexodev-title-logo"
-          src="${getProxyPath()}assets/logo/nexodev-white-t.png"
-        />
-        &nbsp &nbsp <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
+      // titleRender: () => '',
       mode: 'slide-menu',
       slideTop,
     });
+    this.renderTopBartTitleLogo();
 
     this.Data[id].sortable = Modal.mobileModal()
       ? null
@@ -504,6 +501,20 @@ const Menu = {
   renderMenuLabel: ({ icon, text }) => html`<span class="menu-btn-icon">${icon}</span> ${text}`,
 
   renderViewTitle: ({ icon, text }) => html`<span class="view-title-icon">${icon}</span> ${text}`,
+
+  renderTopBartTitleLogo: () => {
+    const idModal = 'modal-menu';
+    if (!s(`.title-modal-${idModal}`)) return;
+    const srcLogo = darkTheme
+      ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
+      : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
+    console.log('render logo', srcLogo);
+    htmls(
+      `.title-modal-${idModal}`,
+      html`<img class="abs nexodev-title-logo" src="${srcLogo}" /> &nbsp &nbsp
+        <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
+    );
+  },
 };
 
 export { Menu };

@@ -3,11 +3,13 @@ import { Modal } from './Modal.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
 let proxyPath;
+let Menu;
 // https://www.fontspace.com/
 // https://www.1001fonts.com/
 
 const Css = {
-  loadThemes: async function (themes) {
+  loadThemes: async function (themes, MenuLoad) {
+    Menu = MenuLoad;
     for (const themeOptions of themes) addTheme(themeOptions);
     const localStorageTheme = localStorage.getItem('theme');
     if (localStorageTheme && Themes[localStorageTheme]) {
@@ -713,7 +715,7 @@ const Themes = {
       await Css.nexodev();
       darkTheme = true;
       AgGrid.changeTheme({ darkTheme });
-      if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-white-t.png`;
+      if (Menu) Menu.renderTopBartTitleLogo();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -728,7 +730,7 @@ const Themes = {
       await Css['nexodev-light']();
       darkTheme = false;
       AgGrid.changeTheme({ darkTheme });
-      if (s(`.nexodev-title-logo`)) s(`.nexodev-title-logo`).src = `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
+      if (Menu) Menu.renderTopBartTitleLogo();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
