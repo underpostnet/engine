@@ -72,7 +72,7 @@ const TranslateCore = {
     };
     Translate.Data['color-copy'] = { es: 'color copiado en el portapapeles', en: 'color copied to clipboard' };
     Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
-    Translate.Data['fullscreen'] = { en: 'fullscreen', es: 'pantalla completa' };
+    Translate.Data['fullscreen'] = { en: 'Fullscreen', es: 'Pantalla completa' };
     Translate.Data['lang'] = { en: 'Language', es: 'Idioma' };
     Translate.Data['name'] = { en: 'Name', es: 'Nombre' };
     Translate.Data['select'] = { en: 'Select', es: 'Seleccionar' };

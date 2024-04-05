@@ -141,10 +141,6 @@ const CssNexodev = {
       margin-top: 15px;
       text-align: left;
     }
-    .btn-custom {
-      width: 283px;
-      padding: 15px;
-    }
     .menu-btn-icon {
       font-size: 20px;
       margin: 12px;
@@ -191,6 +187,31 @@ const CssNexodev = {
     }
     .sub-title-icon {
       font-size: 30px;
+    }
+    .dropdown-container {
+      border: 2px solid #313131;
+      transition: 0.3s;
+      cursor: pointer;
+    }
+    .btn-custom {
+      width: 260px;
+      font-size: 20px;
+      padding: 10px;
+    }
+    .box-option {
+      width: 238px;
+      font-size: 20px;
+      border: 2px solid #313131;
+      padding: 10px;
+    }
+    .dropdown-option {
+      width: 238px;
+      font-size: 20px;
+      padding: 10px;
+    }
+    .dropdown-option:hover {
+      color: #c1c1c1;
+      background: #313131;
     }
   `,
 };

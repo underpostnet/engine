@@ -20,6 +20,7 @@ import { Docs } from '../core/Docs.js';
 import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
+import { Settings } from './Settings.js';
 
 const Menu = {
   Data: {},
@@ -97,6 +98,14 @@ const Menu = {
               text: html`${Translate.Render('chat')}`,
             }),
             attrs: `data-id="12"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-settings',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-sliders-h"></i>`,
+              text: html`${Translate.Render('settings')}`,
+            }),
+            attrs: `data-id="13"`,
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
@@ -435,6 +444,25 @@ const Menu = {
         handleType: 'bar',
         maximize: true,
         observer: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-settings`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-settings',
+        route: 'settings',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html` <i class="fas fa-sliders-h"></i>`,
+          text: Translate.Render('settings'),
+        }),
+        html: async () => await Settings.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
