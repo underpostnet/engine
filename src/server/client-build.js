@@ -86,7 +86,9 @@ const buildClient = async () => {
   const publicPath = `./public`;
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
-    for (const path of Object.keys(confServer[host])) {
+    const paths = Object.keys(confServer[host]).filter((p) => p !== '/');
+    if (confServer[host]['/']) paths.unshift('/');
+    for (const path of paths) {
       const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata } = confClient[client];
