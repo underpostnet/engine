@@ -197,6 +197,10 @@ const TranslateCore = {
       es: 'No ha seleccionado ningún archivo para subir.',
       en: 'No file selected for upload.',
     };
+    Translate.Data['no-can-connect-stream-device'] = {
+      es: 'No se pudo conectar al dispositivo de transmisión.',
+      en: 'Unable to connect to the stream device.',
+    };
   },
 };
 

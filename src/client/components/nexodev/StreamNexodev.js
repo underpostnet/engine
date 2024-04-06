@@ -1,6 +1,8 @@
 import { Modal } from '../core/Modal.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Stream } from '../core/Stream.js';
+import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 
 const StreamNexodev = {
@@ -18,7 +20,7 @@ const StreamNexodev = {
       let myPeerId;
 
       Modal.Data[options.idModal].onCloseListener[id] = () => {
-        Stream.removeMediaStream(stream);
+        if (stream) Stream.removeMediaStream(stream);
         Stream.handlePeerDisconnect({ id });
       };
 
@@ -32,6 +34,12 @@ const StreamNexodev = {
       });
 
       const stream = await Stream.getMediaStream();
+
+      if (!stream)
+        return NotificationManager.Push({
+          html: Translate.Render('no-can-connect-stream-device'),
+          status: 'warning',
+        });
 
       s(`.media-stream-grid`).append(Stream.renderElementStream(myMediaElement, stream)); // Display our audio/video to ourselves
 

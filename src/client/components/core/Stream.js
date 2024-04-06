@@ -74,7 +74,15 @@ const Stream = {
       audio: true,
     },
   ) {
-    return new Promise((resolve) => navigator.mediaDevices.getUserMedia(options).then((stream) => resolve(stream)));
+    return new Promise((resolve) => {
+      navigator.mediaDevices
+        .getUserMedia(options)
+        .then((stream) => resolve(stream))
+        .catch((error) => {
+          logger.error(error);
+          resolve(undefined);
+        });
+    });
   },
   removeMediaStream: function (stream) {
     // later you can do below
