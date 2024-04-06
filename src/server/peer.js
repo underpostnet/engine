@@ -10,12 +10,12 @@ const logger = loggerFactory(import.meta);
 // https://github.com/peers/peerjs
 // https://github.com/peers/peerjs-server
 
-const createPeerServer = ({ port, devPort, origins }) => {
+const createPeerServer = ({ port, devPort, origins, path }) => {
   if (process.env.NODE_ENV === 'development' && devPort) origins.push(`http://localhost:${devPort}`);
   /** @type {import('peer').IConfig} */
   const options = {
     port,
-    path: '/peer',
+    path: `${path === '/' ? '' : path}/peer`,
     corsOptions: {
       origin: origins,
     },

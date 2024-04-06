@@ -233,7 +233,7 @@ const buildRuntime = async () => {
               });
             })();
 
-          if (peer) createPeerServer({ port: peer.port, devPort: port, origins });
+          if (peer) createPeerServer({ port: peer.port, devPort: port, origins, path });
 
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);
