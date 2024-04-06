@@ -6,8 +6,8 @@ import { darkTheme } from './Css.js';
 import { Translate } from './Translate.js';
 
 const Content = {
-  Render: async function (options = { location: '', Menu: {} }) {
-    const { Menu } = options;
+  Render: async function (options = { idModal: '', Menu: {} }) {
+    const { Menu, idModal } = options;
     setTimeout(async () => {
       const queryParams = getQueryParams();
       if (queryParams.id) {
@@ -21,7 +21,7 @@ const Content = {
         switch (ext) {
           case 'md':
             htmls(
-              `.title-modal-modal-content`,
+              `.title-modal-${idModal}`,
               html`${Menu.renderViewTitle({
                   icon: html`<i
                     class="inl ${queryParams.icon ? queryParams.icon : 'far fa-file'}"
@@ -33,7 +33,7 @@ const Content = {
                   ${queryParams.subTitle ? queryParams.subTitle : ''}</span
                 >`,
             );
-            htmls(`.content-render`, marked.parse(content));
+            htmls(`.content-render-${idModal}`, marked.parse(content));
 
             break;
 
@@ -42,19 +42,7 @@ const Content = {
         }
       }
     });
-    return html` <style>
-        a {
-          color: ${darkTheme ? `#b1a7a7` : `rgba(109, 104, 255, 1)`};
-        }
-        a:hover {
-          color: ${darkTheme ? `#ffffff` : `rgba(232, 159, 76, 1)`};
-        }
-        .content-render {
-          font-size: 16px;
-          font-family: monospace;
-        }
-      </style>
-      <div class="in content-render"></div>`;
+    return html` <div class="in content-render content-render-${idModal}"></div>`;
   },
 };
 

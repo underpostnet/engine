@@ -124,11 +124,6 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
 const setURI = (uri, objData, title) => history.pushState(objData, title, uri);
 
 /**
- * The getURI function returns the pathname of the current URL.
- */
-const getURI = () => location.pathname;
-
-/**
  * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
  * object.
  * @returns An object containing the query parameters from the current URL is being returned.
@@ -328,7 +323,6 @@ export {
   copyData,
   pasteData,
   setURI,
-  getURI,
   getQueryParams,
   preHTML,
   disableOptionsClick,

@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
@@ -386,9 +386,17 @@ const Menu = {
     });
 
     EventsUI.onClick(`.main-btn-content`, async () => {
+      let subModalId = '';
+      const path =
+        location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
+
+      if (path.replaceAll(`${getProxyPath()}`, '') === 'content' && getQueryParams().id) {
+        subModalId = `-${getQueryParams().id}`;
+      }
+
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-content',
+        id: `modal-content${subModalId}`,
         route: 'content',
         barConfig,
         title: this.renderViewTitle({
@@ -397,7 +405,7 @@ const Menu = {
         }),
         html: async () =>
           await Content.Render({
-            idModal: 'modal-content',
+            idModal: `modal-content${subModalId}`,
             Menu: this,
           }),
         handleType: 'bar',

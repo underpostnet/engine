@@ -1,6 +1,6 @@
 import { getId } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setURI, getProxyPath, getURI, htmls } from './VanillaJs.js';
+import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -69,7 +69,7 @@ const Modal = {
           // Router
           if (options.route)
             (() => {
-              let path = getURI();
+              let path = window.location.pathname;
               if (path !== '/' && path[path.length - 1] === '/') path = path.slice(0, -1);
               const proxyPath = getProxyPath();
               const newPath = `${proxyPath}${options.route}`;
@@ -347,7 +347,7 @@ const Modal = {
         // Router
         if (options.route)
           (() => {
-            let path = getURI();
+            let path = window.location.pathname;
             if (path[path.length - 1] !== '/') path = `${path}/`;
             let newPath = `${getProxyPath()}`;
             if (path !== newPath) {
@@ -463,16 +463,20 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
-  removeModal: function (idModal) {
-    s(`.${idModal}`).style.opacity = '0';
-    setTimeout(() => {
-      if (this.Data[idModal].observer) {
-        this.Data[idModal].observer.disconnect();
-        // this.Data[idModal].observer.unobserve();
-      }
-      s(`.${idModal}`).remove();
-      s(`.style-${idModal}`).remove();
-      delete this.Data[idModal];
+  removeModal: async function (idModal) {
+    return new Promise((resolve) => {
+      if (!s(`.${idModal}`)) resolve();
+      s(`.${idModal}`).style.opacity = '0';
+      setTimeout(() => {
+        if (this.Data[idModal].observer) {
+          this.Data[idModal].observer.disconnect();
+          // this.Data[idModal].observer.unobserve();
+        }
+        s(`.${idModal}`).remove();
+        s(`.style-${idModal}`).remove();
+        delete this.Data[idModal];
+        resolve();
+      });
     });
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,

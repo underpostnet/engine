@@ -237,6 +237,16 @@ const CssBms = {
       .drop-zone-file-explorer {
         min-height: 300px;
       }
+      a {
+        color: #b1a7a7;
+      }
+      a:hover {
+        color: #ffffff;
+      }
+      .content-render {
+        font-size: 16px;
+        font-family: monospace;
+      }
     </style>
   `,
 };
@@ -485,6 +495,16 @@ const CssBmsLight = {
       }
       .drop-zone-file-explorer {
         min-height: 300px;
+      }
+      a {
+        color: rgba(109, 104, 255, 1);
+      }
+      a:hover {
+        color: rgba(232, 159, 76, 1);
+      }
+      .content-render {
+        font-size: 16px;
+        font-family: monospace;
       }
     </style>
   `,

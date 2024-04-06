@@ -1,6 +1,6 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { getProxyPath, getQueryParams, getURI, htmls, setURI } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, setURI } from './VanillaJs.js';
 
 // Router
 
@@ -17,7 +17,7 @@ const RouterEvents = {};
 
 const Router = function (options = { Routes: () => {}, proxyPath: '/', e: new PopStateEvent(), NameApp: '' }) {
   const { proxyPath, e, Routes, NameApp } = options;
-  let path = getURI();
+  let path = window.location.pathname;
   logger.info(options);
 
   for (let route of Object.keys(Routes())) {
@@ -48,7 +48,7 @@ const LoadRouter = function (RouterInstance) {
 const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'p') => {
   const { queryPath, path } = options;
   const newUri = `${getProxyPath()}${path}${queryPath ? `/?${queryKey}=${queryPath}` : ''}`;
-  const currentUri = `${getURI()}${location.search}`;
+  const currentUri = `${window.location.pathname}${location.search}`;
   if (currentUri !== newUri && currentUri !== `${newUri}/`) setURI(newUri);
 };
 
