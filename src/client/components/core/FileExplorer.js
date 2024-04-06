@@ -259,8 +259,12 @@ const FileExplorer = {
         `;
 
         setTimeout(() => {
-          const uri = `${getProxyPath() === '/' ? '' : getProxyPath()}content/?id=${params.data.fileId}`;
+          const uri = `${getProxyPath()}content/?id=${params.data.fileId}`;
           const url = `${window.location.origin}${uri}`;
+
+          // ${window.location.origin[window.location.origin.length - 1] === '/' ? '' : '/'}
+
+          console.log({ url, uri });
 
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
             e.preventDefault();

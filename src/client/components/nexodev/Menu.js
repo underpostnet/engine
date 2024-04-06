@@ -390,7 +390,7 @@ const Menu = {
       const path =
         location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
 
-      if (path.replaceAll(`${getProxyPath()}`, '') === 'content' && getQueryParams().id) {
+      if (path.split('/').pop() === 'content' && getQueryParams().id) {
         subModalId = `-${getQueryParams().id}`;
       }
 
