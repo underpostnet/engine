@@ -1,5 +1,5 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Responsive } from '../core/Responsive.js';
@@ -84,10 +84,7 @@ const Settings = {
             return {
               display: html`<i class="fa-solid fa-brush"></i> ${localThemes[theme].displayName}`,
               value: theme,
-              onClick: async () => {
-                localStorage.setItem('theme', theme);
-                await Themes[theme]();
-              },
+              onClick: async () => Css.renderTheme(theme),
             };
           }),
         })}

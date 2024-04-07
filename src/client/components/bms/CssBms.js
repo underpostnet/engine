@@ -1,5 +1,6 @@
 const CssBms = {
   theme: 'bms',
+  dark: true,
   render: async () => html`
     <style>
       html {
@@ -253,6 +254,7 @@ const CssBms = {
 
 const CssBmsLight = {
   theme: 'bms-light',
+  dark: false,
   render: async () => html`
     <style>
       html {

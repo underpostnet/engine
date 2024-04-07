@@ -1,5 +1,6 @@
 import { AgGrid } from './AgGrid.js';
 import { Modal } from './Modal.js';
+import { ToolBar } from './ToolBar.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
 let proxyPath;
@@ -17,6 +18,11 @@ const Css = {
       if (themeOption) return await this.Init(themeOption);
     }
     await this.Init(themes ? themes[0] : undefined);
+  },
+  renderTheme: async function (theme) {
+    localStorage.setItem('theme', theme);
+    await Themes[theme]();
+    if (ToolBar.toolBarThemeRender) ToolBar.toolBarThemeRender();
   },
   Init: async function (options) {
     if (!proxyPath) proxyPath = getProxyPath();

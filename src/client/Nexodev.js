@@ -19,7 +19,8 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { ToolBar } from './components/core/ToolBar.js';
 
 (async function () {
-  await Css.loadThemes([CssNexodevLight, CssNexodev], Menu);
+  const themes = [CssNexodevLight, CssNexodev];
+  await Css.loadThemes(themes, Menu);
   const RouterInstance = RouterNexodev();
   await TranslateCore.Init();
   await Responsive.Init();
@@ -32,5 +33,17 @@ import { ToolBar } from './components/core/ToolBar.js';
   await SignUpNexodev();
   LoadRouter(RouterInstance);
   await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
-  await ToolBar.Render();
+  await ToolBar.Render({
+    id: 'ToolBar',
+    tools: [
+      {
+        id: 'theme',
+        themes,
+      },
+      {
+        id: 'lang',
+        langs: ['es', 'en'],
+      },
+    ],
+  });
 })();

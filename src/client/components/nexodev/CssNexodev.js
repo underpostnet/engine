@@ -1,5 +1,6 @@
 const CssNexodev = {
   theme: 'nexodev',
+  dark: true,
   render: async () => html`
     <style>
       html {
@@ -253,6 +254,7 @@ const CssNexodev = {
 
 const CssNexodevLight = {
   theme: 'nexodev-light',
+  dark: false,
   render: async () => html`
     <style>
       html {
