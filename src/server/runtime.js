@@ -140,7 +140,12 @@ const buildRuntime = async () => {
             // internal redirect
             if (req.url.startsWith(`/${process.env.BASE_API}/$`))
               return res.redirect(
-                decodeURIComponent(`${req.url.replaceAll(`/${process.env.BASE_API}/$`, `/${process.env.BASE_API}/`)}`),
+                decodeURIComponent(
+                  `${req.url.replaceAll(
+                    `${path === '/' ? '' : path}/${process.env.BASE_API}/$`,
+                    `/${process.env.BASE_API}/`,
+                  )}`,
+                ),
               );
             return next();
           });
