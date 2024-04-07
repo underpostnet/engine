@@ -138,7 +138,7 @@ const buildRuntime = async () => {
 
           app.use((req, res, next) => {
             // internal redirect
-            if (req.url.startsWith(`/${process.env.BASE_API}/$`))
+            if (req.url.startsWith(`${path === '/' ? '' : path}/${process.env.BASE_API}/$`))
               return res.redirect(
                 decodeURIComponent(
                   `${req.url.replaceAll(
