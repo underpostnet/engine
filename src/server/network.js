@@ -70,6 +70,7 @@ const listenPortController = async (server, port, log) =>
           logger.info('Proxy running', log);
           return resolve(true);
         }
+        networkRouter[log.host] = log.local;
         return resolve(true);
       });
     } catch (error) {
