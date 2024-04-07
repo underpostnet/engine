@@ -18,7 +18,7 @@ import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 
 (async function () {
-  await Css.loadThemes([CssBmsLight, CssBms]);
+  await Css.loadThemes([CssBms, CssBmsLight]);
   const RouterInstance = RouterBms();
   await TranslateCore.Init();
   await Responsive.Init();
