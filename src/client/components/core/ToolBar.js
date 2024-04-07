@@ -1,5 +1,5 @@
 import { getId } from './CommonJs.js';
-import { Themes, Css } from './Css.js';
+import { Themes, Css, darkTheme } from './Css.js';
 import { Modal } from './Modal.js';
 import { Responsive } from './Responsive.js';
 import { s } from './VanillaJs.js';
@@ -18,10 +18,29 @@ const ToolBar = {
       overflow: 'hidden',
       resize: 'none',
       // color: `#d9d9d9`,
-      top: '10px',
+      top: '5px',
       // right: '10px',
-      border: '2px solid red',
+      // border: '1px solid red',
+      'box-shadow': 'none !important',
     };
+
+    let render = html`
+      <div class="fl">
+        <div class="in flr toolbar-slot toolbar-theme">
+          <div class="abs center">
+            <a> ${darkTheme ? html` <i class="fas fa-moon"></i>` : html`<i class="far fa-sun"></i>`}</a>
+          </div>
+          <!--
+          <i class="fas fa-adjust"></i> 
+          -->
+        </div>
+        <div class="in flr toolbar-slot toolbar-lang">
+          <div class="abs center">
+            <div class="abs center"><a>${s('html').lang}</a></div>
+          </div>
+        </div>
+      </div>
+    `;
 
     const { barConfig } = await Themes[Css.currentTheme]();
     barConfig.buttons.maximize.disabled = true;
@@ -32,7 +51,7 @@ const ToolBar = {
     await Modal.Render({
       id,
       barConfig,
-      html: async () => html`test`,
+      html: async () => render,
       titleClass: 'hide',
       style,
       dragDisabled: true,

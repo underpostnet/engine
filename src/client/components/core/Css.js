@@ -586,6 +586,24 @@ scrollbar-width: none;
         </style>
       `,
     ),
+  toolbar: async () => {
+    append(
+      '.theme',
+      html`
+        <style>
+          .toolbar-slot {
+            height: 30px;
+            width: 30px;
+            margin: 3px;
+            cursor: pointer;
+          }
+          .html-ToolBar {
+            padding: 0px;
+          }
+        </style>
+      `,
+    );
+  },
   fontawesome: async () =>
     append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
 };
@@ -720,6 +738,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.nexodev();
+      await Css.toolbar();
       darkTheme = true;
       AgGrid.changeTheme({ darkTheme });
       if (Menu) Menu.renderTopBartTitleLogo();
@@ -735,6 +754,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.default();
       await Css['nexodev-light']();
+      await Css.toolbar();
       darkTheme = false;
       AgGrid.changeTheme({ darkTheme });
       if (Menu) Menu.renderTopBartTitleLogo();
@@ -750,6 +770,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       await Css.bms();
+      await Css.toolbar();
       darkTheme = true;
       AgGrid.changeTheme({ darkTheme });
     }
@@ -764,6 +785,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.default();
       await Css['bms-light']();
+      await Css.toolbar();
       darkTheme = false;
       AgGrid.changeTheme({ darkTheme });
     }
