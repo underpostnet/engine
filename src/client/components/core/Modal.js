@@ -75,7 +75,7 @@ const Modal = {
               const newPath = `${proxyPath}${options.route}`;
               if (path !== newPath) {
                 // console.warn('SET MODAL URI', newPath);
-                setURI(`${newPath}${location.search}`);
+                setURI(`${newPath}`); // ${location.search}
                 setDocTitle({ ...options.RouterInstance, route: options.route });
               }
             })();
