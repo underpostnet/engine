@@ -3,6 +3,7 @@ import { Themes, Css, darkTheme } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { Modal } from './Modal.js';
 import { Responsive } from './Responsive.js';
+import { Translate } from './Translate.js';
 import { append, htmls, s } from './VanillaJs.js';
 
 const ToolBar = {
@@ -68,20 +69,24 @@ const ToolBar = {
               let theme;
               if (darkTheme) theme = tool.themes.find((t) => !t.dark);
               else theme = tool.themes.find((t) => t.dark);
-              Css.renderTheme(theme.theme);
               if (s(`.dropdown-option-${theme.theme}`)) s(`.dropdown-option-${theme.theme}`).click();
+              else Css.renderTheme(theme.theme);
             });
             break;
           case 'lang':
+            this.toolBarLangRender = () => {};
             append(
               `.${id}-render`,
               html` <div class="in flr toolbar-slot toolbar-lang">
-                <div class="abs center">
-                  <div class="abs center"><a>${s('html').lang}</a></div>
-                </div>
+                <div class="abs center"><a class="toolbar-lang-render">${s('html').lang}</a></div>
               </div>`,
             );
-            EventsUI.onClick(`.toolbar-lang`, () => {});
+            EventsUI.onClick(`.toolbar-lang`, () => {
+              let lang = 'en';
+              lang = tool.langs.find((l) => l !== s('html').lang);
+              if (s(`.dropdown-option-${lang}`)) s(`.dropdown-option-${lang}`).click();
+              else Translate.renderLang(lang);
+            });
             break;
 
           default:

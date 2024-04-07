@@ -34,6 +34,11 @@ const Translate = {
     if (s('html').lang in keyLang) return html`<span class="${translateHash}">${keyLang[s('html').lang]}</span>`;
     return html`<span class="${translateHash}">${keyLang['en']}</span>`;
   },
+  renderLang: function (language) {
+    localStorage.setItem('lang', language);
+    this.Parse(language);
+    if (s(`.toolbar-lang-render`)) htmls(`.toolbar-lang-render`, s('html').lang);
+  },
 };
 
 const TranslateCore = {
