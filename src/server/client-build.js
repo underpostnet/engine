@@ -359,7 +359,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
             version: '2.0.0',
           },
           schemes: ['https', 'http'], // by default: ['http']
-          basePath: `${path === '/' ? '' : '/'}${process.env.BASE_API}`,
+          basePath: `/${process.env.BASE_API}`,
           host: process.env.NODE_ENV === 'development' ? `localhost:${port}${path}` : `${host}${path}`,
         };
 
