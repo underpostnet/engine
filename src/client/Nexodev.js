@@ -18,7 +18,7 @@ import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 
 (async function () {
-  await Css.loadThemes([CssNexodev, CssNexodevLight], Menu);
+  await Css.loadThemes([CssNexodevLight, CssNexodev], Menu);
   const RouterInstance = RouterNexodev();
   await TranslateCore.Init();
   await Responsive.Init();
