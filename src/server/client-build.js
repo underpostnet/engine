@@ -3,7 +3,7 @@
 import fs from 'fs-extra';
 import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
-import { cap, newInstance, titleFormatted } from '../client/components/core/CommonJs.js';
+import { cap, newInstance, orderArrayFromAttrInt, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
@@ -86,8 +86,7 @@ const buildClient = async () => {
   const publicPath = `./public`;
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
-    const paths = Object.keys(confServer[host]).filter((p) => p !== '/');
-    if (confServer[host]['/']) paths.unshift('/');
+    const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
       const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};

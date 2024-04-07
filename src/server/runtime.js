@@ -7,7 +7,7 @@ import swaggerUi from 'swagger-ui-express';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { network, listenPortController, ip } from './network.js';
+import { network, listenPortController, ip, networkRouter, logNetworkRouter } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -22,7 +22,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const buildRuntime = async () => {
-  const ipInstance = await ip.public.ipv4();
+  const ipInstance = ''; // await ip.public.ipv4();
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of Object.keys(confServer)) {
@@ -36,9 +36,8 @@ const buildRuntime = async () => {
         runtime,
         client,
         public: `http://${ipInstance}:${port}${path}`,
-        host: `http://${host}:${port}${path}`,
+        host: [443, 80].includes(port) ? `http://${host}${path}` : `http://${host}:${port}${path}`,
         local: `http://localhost:${port}${path}`,
-        peer: peer ? `http://localhost:${peer.port}` : undefined,
       };
 
       let redirectUrl;
@@ -188,7 +187,7 @@ const buildRuntime = async () => {
 
           const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
           if (fs.existsSync(swaggerJsonPath)) {
-            logger.info('Build swagger serve', swaggerJsonPath);
+            // logger.info('Build swagger serve', swaggerJsonPath);
             app.use(
               `${path === '/' ? `/api-docs` : `${path}/api-docs`}`,
               swaggerUi.serve,
@@ -212,7 +211,7 @@ const buildRuntime = async () => {
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
                 const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
-                logger.info('Load api router', { host, path: apiPath, api });
+                // logger.info('Load api router', { host, path: apiPath, api });
                 app.use(apiPath, ApiRouter({ host, path, apiPath, mailer, db }));
               })();
 
@@ -222,7 +221,7 @@ const buildRuntime = async () => {
           if (ws)
             await (async () => {
               const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
-              logger.info('Load socket.io ws router', { host, ws });
+              // logger.info('Load socket.io ws router', { host, ws });
               // start socket.io
               const ioServer = createIoServer(server, {
                 host,
@@ -233,7 +232,11 @@ const buildRuntime = async () => {
               });
             })();
 
-          if (peer) createPeerServer({ port: peer.port, devPort: port, origins, path });
+          if (peer) {
+            currentPort++;
+            const peerPort = newInstance(currentPort);
+            await createPeerServer({ port: peerPort, devPort: port, origins, host, path });
+          }
 
           await network.port.portClean(port);
           await listenPortController(server, port, runningData);
@@ -247,6 +250,8 @@ const buildRuntime = async () => {
   }
   if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
   if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
+
+  logNetworkRouter(logger);
 };
 
 export { buildRuntime };

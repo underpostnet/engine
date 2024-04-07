@@ -2,6 +2,7 @@ import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { killPortProcess } from 'kill-port-process';
 import detect from 'detect-port';
 import { loggerFactory } from './logger.js';
+import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 
 // Network Address Translation Management
 
@@ -50,14 +51,31 @@ const ip = {
   },
 };
 
+const networkRouter = {};
+
+const logNetworkRouter = (logger) => {
+  // order router
+  const router = {};
+  for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(networkRouter), 'length'))
+    router[absoluteHostKey] = networkRouter[absoluteHostKey];
+
+  logger.info('Runtime network', router);
+};
+
 const listenPortController = async (server, port, log) =>
   new Promise((resolve) => {
     try {
-      server.listen(port, () => (logger.info('App running', log), resolve(true)));
+      server.listen(port, () => {
+        if (log.type === 'proxy') {
+          logger.info('Proxy running', log);
+          return resolve(true);
+        }
+        return resolve(true);
+      });
     } catch (error) {
       logger.error(error, error.stack);
       resolve(false);
     }
   });
 
-export { ip, network, listenPortController };
+export { ip, network, listenPortController, networkRouter, logNetworkRouter };

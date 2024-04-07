@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
-import { newInstance } from '../client/components/core/CommonJs.js';
+import { newInstance, orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
 
 dotenv.config();
@@ -39,7 +39,7 @@ const buildProxy = async () => {
 
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const proxyRouter = {};
-  for (const host of Object.keys(confServer))
+  for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
       switch (confServer[host][path].runtime) {
         case 'xampp':
@@ -57,16 +57,31 @@ const buildProxy = async () => {
           target: `http://localhost:${confServer[host][path].port}`,
           // target: `http://127.0.0.1:${confServer[host][path].port}`,
           proxy: confServer[host][path].proxy,
-          peer: confServer[host][path].peer,
           redirect: confServer[host][path].redirect,
           host,
           path,
         };
       }
       currentPort++;
+      if (confServer[host][path].peer) {
+        const peerPath = path === '/' ? `/peer` : `${path}/peer`;
+        confServer[host][peerPath] = newInstance(confServer[host][path]);
+        confServer[host][peerPath].port = newInstance(currentPort);
+        for (const port of confServer[host][path].proxy) {
+          if (!(port in proxyRouter)) proxyRouter[port] = {};
+          proxyRouter[port][`${host}${peerPath}`] = {
+            // target: `http://${host}:${confServer[host][peerPath].port}${peerPath}`,
+            target: `http://localhost:${confServer[host][peerPath].port}`,
+            // target: `http://127.0.0.1:${confServer[host][peerPath].port}`,
+            proxy: confServer[host][peerPath].proxy,
+            host,
+            path: peerPath,
+          };
+        }
+        currentPort++;
+      }
     }
-
-  // logger.info('Proxy router', proxyRouter);
+  }
 
   let ServerSSL;
   let OptionSSL = {};
@@ -110,9 +125,14 @@ const buildProxy = async () => {
         ? `${host}${path === '/' ? '' : path}`
         : `${host}:${port}${path === '/' ? '' : path}`;
 
-      if (peer) options.router[`${absoluteHost}/peer`] = `http://localhost:${peer.port}`;
       options.router[absoluteHost] = target;
     });
+
+    // order router
+    const router = {};
+    for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(options.router), 'length'))
+      router[absoluteHostKey] = options.router[absoluteHostKey];
+    options.router = router;
 
     if (Object.keys(options.router).length === 0) continue;
 
@@ -138,8 +158,8 @@ const buildProxy = async () => {
         }
       });
 
-      if (ServerSSL) await listenPortController(ServerSSL, port, { port, options });
-    } else await listenPortController(app, port, { port, options });
+      if (ServerSSL) await listenPortController(ServerSSL, port, { port, options, type: 'proxy' });
+    } else await listenPortController(app, port, { port, options, type: 'proxy' });
   }
 };
 

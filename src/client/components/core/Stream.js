@@ -1,4 +1,3 @@
-import { getHost } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { getProxyPath } from './VanillaJs.js';
 
@@ -11,7 +10,7 @@ const Stream = {
   createPeerServer: function ({ id }) {
     const peerOptions = {
       host: location.hostname, // '/'
-      port: location.protocol === 'https:' ? 443 : 4015,
+      port: location.protocol === 'https:' ? 443 : parseInt(location.port) + 1,
       path: `${getProxyPath()}peer`,
       secure: location.protocol === 'https:',
     };
