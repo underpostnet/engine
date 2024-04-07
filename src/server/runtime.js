@@ -188,11 +188,15 @@ const buildRuntime = async () => {
           const swaggerJsonPath = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
           if (fs.existsSync(swaggerJsonPath)) {
             // logger.info('Build swagger serve', swaggerJsonPath);
-            app.use(
-              `${path === '/' ? `/api-docs` : `${path}/api-docs`}`,
-              swaggerUi.serve,
-              swaggerUi.setup(JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'))),
-            );
+
+            const swaggerInstance =
+              (swaggerDoc) =>
+              (...args) =>
+                swaggerUi.setup(swaggerDoc)(...args);
+
+            const swaggerDoc = JSON.parse(fs.readFileSync(swaggerJsonPath, 'utf8'));
+
+            app.use(`${path === '/' ? `/api-docs` : `${path}/api-docs`}`, swaggerUi.serve, swaggerInstance(swaggerDoc));
           }
 
           if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
