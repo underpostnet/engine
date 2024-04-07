@@ -16,6 +16,7 @@ import { Elements } from './components/bms/Elements.js';
 import { SocketIoBms } from './components/bms/SocketIoBms.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
+import { ToolBar } from './components/core/ToolBar.js';
 
 (async function () {
   await Css.loadThemes([CssBms, CssBmsLight]);
@@ -31,4 +32,5 @@ import { HomeBackground } from './components/core/HomeBackground.js';
   await SignUpBms();
   LoadRouter(RouterInstance);
   await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+  await ToolBar.Render();
 })();

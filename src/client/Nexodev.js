@@ -16,6 +16,7 @@ import { Elements } from './components/nexodev/Elements.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
+import { ToolBar } from './components/core/ToolBar.js';
 
 (async function () {
   await Css.loadThemes([CssNexodevLight, CssNexodev], Menu);
@@ -31,4 +32,5 @@ import { HomeBackground } from './components/core/HomeBackground.js';
   await SignUpNexodev();
   LoadRouter(RouterInstance);
   await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
+  await ToolBar.Render();
 })();
