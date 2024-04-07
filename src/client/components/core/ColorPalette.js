@@ -1,3 +1,4 @@
+import { BtnIcon } from './BtnIcon.js';
 import { orderArrayFromAttrInt, s4 } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -5237,32 +5238,29 @@ const logger = loggerFactory(import.meta);
 
 const ColorPalette = {
   Palettes: {},
-  Render: function () {
-    return html`
-      <div class="in" style="width: 100%; height: 100%; overflow: auto;">
-        ${getDataColors()
-          .map((coloData) => {
-            const idColor = `color-${s4()}-${coloData.number}`;
-            setTimeout(() =>
-              s(`.btn-palette-${idColor}`)
-                ? (s(`.btn-palette-${idColor}`).onclick = async () => {
-                    logger.info(coloData);
-                    NotificationManager.Push({
-                      html: Translate.Render('color-copy'),
-                      status: 'success',
-                    });
-                    copyData(coloData.hex);
-                  })
-                : null,
-            );
-            return html`<button class="btn-palette-${idColor}">
-              ${coloData.name} - ${coloData.hex} <br />
-              <div class="inl" style="background: ${coloData.hex}; width: 80px; height: 20px;"></div>
-            </button>`;
-          })
-          .join('')}
-      </div>
-    `;
+  Render: async function () {
+    let render = '';
+    for (const colorData of getDataColors()) {
+      const idColor = `color-${s4()}-${colorData.number}`;
+      setTimeout(() =>
+        s(`.btn-palette-${idColor}`)
+          ? (s(`.btn-palette-${idColor}`).onclick = async () => {
+              logger.info(colorData);
+              NotificationManager.Push({
+                html: Translate.Render('color-copy'),
+                status: 'success',
+              });
+              copyData(colorData.hex);
+            })
+          : null,
+      );
+      render += await BtnIcon.Render({
+        class: `btn-palette-${idColor}`,
+        label: html` ${colorData.name} - ${colorData.hex} <br />
+          <div class="inl" style="background: ${colorData.hex}; width: 80px; height: 20px;"></div>`,
+      });
+    }
+    return html` <div class="in" style="width: 100%; height: 100%; overflow: auto;">${render}</div> `;
   },
 };
 

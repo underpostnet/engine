@@ -221,7 +221,7 @@ const Menu = {
         route: 'colors',
         barConfig,
         title: this.renderViewTitle({ 'ui-icon': 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
-        html: async () => ColorPalette.Render(),
+        html: async () => await ColorPalette.Render(),
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',

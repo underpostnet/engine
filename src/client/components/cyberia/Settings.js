@@ -34,7 +34,7 @@ const Settings = {
       <div class="in section-mp box-option">
         <div class="fl ">
           <div class="in fll" style="width: 70%">
-            <div class="in">${Translate.Render('fullscreen')}</div>
+            <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('fullscreen')}</div>
           </div>
           <div class="in fll" style="width: 30%">
             ${await ToggleSwitch.Render({

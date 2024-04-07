@@ -31,6 +31,9 @@ import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsSkillManagement } from './cyberia.ws.skill.js';
 import fs from 'fs-extra';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
@@ -56,7 +59,7 @@ const CyberiaWsBotManagement = {
       this.worlds = await CyberiaWorld.find();
       this.biomes = await CyberiaBiome.find();
       if (this.worlds.length === 0 || this.biomes.length === 0) return;
-      for (const indexBot of range(0, 49)) {
+      for (const indexBot of range(0, process.env.NODE_ENV === 'development' ? 0 : 49)) {
         const skinId = ['kishins', 'purple'][random(0, 1)];
 
         let bot = BaseElement().bot.main;

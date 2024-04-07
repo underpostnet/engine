@@ -1,4 +1,5 @@
 import { AgGrid } from './AgGrid.js';
+import { BtnIcon } from './BtnIcon.js';
 import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
@@ -146,9 +147,10 @@ const InputFile = {
         <div class="in section-mp input-file-sub-col">
           <input class="wfa ${id}" type="file" ${multiple ? `multiple="multiple"` : ''} />
           <div class="in">
-            <button class="wfa btn-clear-input-file-${id}">
-              <i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}
-            </button>
+            ${await BtnIcon.Render({
+              class: `wfa btn-clear-input-file-${id}`,
+              label: `<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+            })}
           </div>
           <div class="in">
             ${await AgGrid.Render({
