@@ -14,35 +14,33 @@ const logger = loggerFactory(import.meta);
 const getRootDirectory = () => process.cwd().replace(/\\/g, '/');
 
 const ProcessController = {
-  SIG: {
-    data: [
-      'SIGPIPE',
-      'SIGHUP',
-      'SIGTERM',
-      'SIGINT',
-      'SIGBREAK',
-      'SIGWINCH',
-      // 'SIGKILL',
-      // 'SIGSTOP',
-      'SIGBUS',
-      'SIGFPE',
-      'SIGSEGV',
-      'SIGILL',
-    ],
-    onListen: function () {
-      return this.data.map((sig) =>
-        process.on(sig, (...args) => {
-          this.logger.info(`process on ${sig}`, args);
-        }),
-      );
-    },
+  SIG: [
+    'SIGPIPE',
+    'SIGHUP',
+    'SIGTERM',
+    'SIGINT',
+    'SIGBREAK',
+    'SIGWINCH',
+    // 'SIGKILL',
+    // 'SIGSTOP',
+    'SIGBUS',
+    'SIGFPE',
+    'SIGSEGV',
+    'SIGILL',
+  ],
+  onSigListen: function () {
+    return this.SIG.map((sig) =>
+      process.on(sig, (...args) => {
+        this.logger.info(`process on ${sig}`, args);
+      }),
+    );
   },
   init: function (logger) {
     this.logger = logger;
     process.on('exit', (...args) => {
       this.logger.info(`process on exit`, args);
     });
-    this.SIG.onListen();
+    this.onSigListen();
   },
 };
 
