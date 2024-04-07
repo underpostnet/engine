@@ -14,7 +14,7 @@ const Settings = {
     Responsive.Event['full-screen-settings'] = () => {
       let fullScreenMode = checkFullScreen();
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
-        s('.fullscreen-toggle').click();
+        if (s('.fullscreen-toggle')) s('.fullscreen-toggle').click();
     };
     const localThemes = {
       bms: { displayName: 'Dark' },
