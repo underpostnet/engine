@@ -91,17 +91,16 @@ const CyberiaWsBotManagement = {
         bot.y = y;
         const id = getId(this.element[wsManagementId], 'bot-');
 
-        if (!fs.existsSync(`./tmp/${biome._id.toString()}.json`))
-          fs.writeFileSync(`./tmp/${biome._id.toString()}.json`, JSONmatrix(getCollisionMatrix(biome, bot)), 'utf8');
-        const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${biome._id.toString()}.json`, 'utf8'));
+        if (!fs.existsSync(`./tmp/${skinId}-${biome._id.toString()}.json`))
+          fs.writeFileSync(
+            `./tmp/${skinId}-${biome._id.toString()}.json`,
+            JSONmatrix(getCollisionMatrix(biome, bot)),
+            'utf8',
+          );
+
+        const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
         logger.info(`${wsManagementId} Load bot`, { index: indexBot, face: bot.model.world.face, x, y });
-
-        // fs.writeFileSync(
-        //   `./tmp/${skinId}.metadata.json`,
-        //   JSON.stringify({ index: indexBot, face: bot.model.world.face, x, y }, null, 4),
-        //   'utf8',
-        // );
 
         this.localElementScope[wsManagementId][id] = {
           drop: {

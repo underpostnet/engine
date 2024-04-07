@@ -1,6 +1,8 @@
+import detect from 'detect-port';
+import fs from 'fs-extra';
+
 import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { killPortProcess } from 'kill-port-process';
-import detect from 'detect-port';
 import { loggerFactory } from './logger.js';
 import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 
@@ -60,6 +62,8 @@ const logNetworkRouter = (logger) => {
     router[absoluteHostKey] = networkRouter[absoluteHostKey];
 
   logger.info('Runtime network', router);
+
+  fs.writeFileSync(`./tmp/runtime-router.json`, JSON.stringify(router, null, 4), 'utf-8');
 };
 
 const listenPortController = async (server, port, log) =>
