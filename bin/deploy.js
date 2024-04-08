@@ -67,7 +67,7 @@ try {
       }
       break;
 
-    case 'run-prod-macro':
+    case 'run-macro':
       {
         const silent = true;
         const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
