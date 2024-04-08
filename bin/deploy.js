@@ -70,6 +70,12 @@ try {
     case 'run-macro':
       {
         const silent = true;
+
+        shellExec(`git pull origin master`, { silent });
+        shellCd(`engine-private`);
+        shellExec(`git pull origin master`, { silent });
+        shellCd(`..`);
+
         const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
           (deployId) => {
             return {
@@ -77,11 +83,6 @@ try {
             };
           },
         );
-
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`engine-private`);
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`..`);
 
         for (const deploy of dataDeploy) {
           shellExec(
