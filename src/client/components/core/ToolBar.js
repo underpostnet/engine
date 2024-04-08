@@ -11,10 +11,10 @@ const ToolBar = {
   Render: async function (options = { id: 'ToolBar', tools: [] }) {
     const id = options?.id ? options.id : getId(this.Data, 'ToolBar-');
     this.Data[id] = {};
-
+    const width = 75;
     const style = {
       height: '40px',
-      width: '180px',
+      width: `${width}px`,
       'z-index': 6, // ??
       'font-size': '18px',
       overflow: 'hidden',
@@ -41,7 +41,7 @@ const ToolBar = {
       dragDisabled: true,
     });
     Responsive.Event[id] = () => {
-      s(`.${id}`).style.left = `${window.innerWidth - (180 + 10)}px`;
+      s(`.${id}`).style.left = `${window.innerWidth - (width + 10)}px`;
     };
     Responsive.Event[id]();
     if (options.tools)
