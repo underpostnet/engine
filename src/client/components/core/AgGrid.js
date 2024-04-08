@@ -8,8 +8,10 @@ const AgGrid = {
   grids: {},
   changeTheme: function ({ darkTheme }) {
     for (const idGrid of Object.keys(this.grids)) {
-      s(`.${idGrid}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
-      s(`.${idGrid}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
+      if (s(`.${idGrid}`)) {
+        s(`.${idGrid}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
+        s(`.${idGrid}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
+      } else console.warn('change theme: grid not found');
     }
   },
   Render: async function (options) {
