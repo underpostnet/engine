@@ -1,11 +1,13 @@
 import fs from 'fs-extra';
+import axios from 'axios';
+import ncp from 'copy-paste';
+import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { Config, loadConf } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { timer } from '../src/client/components/core/CommonJs.js';
-import axios from 'axios';
 
 const logger = loggerFactory(import.meta);
 
@@ -95,8 +97,11 @@ try {
 
         for (const deploy of dataDeploy) {
           shellExec(`pm2 delete ${deploy.deployId}`, { silent });
-          shellExec(`env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`, { silent });
-          await timer(3500);
+          const cmd = `env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`;
+          // shellExec(cmd, { silent });
+          logger.info('cmd', cmd);
+          await ncp.copy(cmd);
+          await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
         }
 
         for (const deploy of dataDeploy) {
@@ -105,18 +110,29 @@ try {
           );
           for (const host of Object.keys(serverConf))
             for (const path of Object.keys(serverConf[host])) {
-              const result = await axios.get(`https://${host}${path}`);
+              const urlTest = `https://${host}${path}`;
+              const result = await axios.get(urlTest);
               const test = result.data.split('<title>');
-              if (test[1])
-                logger.info('Success deploy', {
+              try {
+                if (test[1])
+                  logger.info('Success deploy', {
+                    ...deploy,
+                    result: test[1].split('</title>')[0],
+                    urlTest,
+                  });
+                else
+                  logger.error('Error deploy', {
+                    ...deploy,
+                    result: result.data,
+                    urlTest,
+                  });
+              } catch (error) {
+                logger.error(error, {
                   ...deploy,
-                  result: test.replaceAll('</title>', ''),
+                  message: error.message,
+                  urlTest,
                 });
-              else
-                logger.error({
-                  ...deploy,
-                  result: result.data,
-                });
+              }
             }
         }
       }
