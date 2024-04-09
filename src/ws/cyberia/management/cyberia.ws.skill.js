@@ -3,7 +3,7 @@ import {
   BaseElement,
   CyberiaBaseMatrix,
   CyberiaParams,
-  SkillType,
+  Stat,
   isElementCollision,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../../../server/logger.js';
@@ -43,7 +43,7 @@ const CyberiaWsSkillManagement = {
 
     const id = getId(this.element[wsManagementId], 'skill-');
     if (!skillKey) skillKey = parentElement.skill.basic;
-    const skillData = SkillType[parentElement.skill.keys[skillKey]];
+    const skillData = Stat.get[parentElement.skill.keys[skillKey]]();
     this.element[wsManagementId][id] = BaseElement().skill.main;
     this.element[wsManagementId][id].x = parentElement.x;
     this.element[wsManagementId][id].y = parentElement.y;

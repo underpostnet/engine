@@ -47,49 +47,85 @@ const PositionsComponent = {
     { positionId: '16', frames: 8 },
     { positionId: '18', frames: 8 },
   ],
+  '08frames2': () => [{ positionId: '08', frames: 2 }],
 };
 
-const SkinComponent = {
-  anon: {
-    dim: 1,
-    vel: 0.5,
-    maxLife: 150,
-    deadTime: 3000,
+const Stat = {
+  get: {
+    anon: () => {
+      return {
+        dim: 1,
+        vel: 0.5,
+        maxLife: 150,
+        deadTime: 3000,
+      };
+    },
+    purple: () => {
+      return {
+        dim: 1,
+        vel: 0.5,
+        maxLife: 150,
+        deadTime: 3000,
+      };
+    },
+    ghost: () => {
+      return {
+        dim: 1,
+        vel: 0.5,
+        maxLife: 150,
+        deadTime: 3000,
+      };
+    },
+    eiri: () => {
+      return {
+        dim: 1,
+        vel: 0.5,
+        maxLife: 150,
+        deadTime: 3000,
+      };
+    },
+    kishins: () => {
+      return {
+        dim: 2.5,
+        vel: 0.8,
+        maxLife: 400,
+        deadTime: 5000,
+      };
+    },
+    'scp-2040': () => {
+      return {
+        dim: 1.8,
+        vel: 0.2,
+        maxLife: 300,
+        deadTime: 8000,
+      };
+    },
+    'tim-knife': () => {
+      return {
+        dim: 1.8,
+        vel: 0.2,
+        maxLife: 300,
+        deadTime: 8000,
+      };
+    },
+    'red-power': () => {
+      return {
+        cooldown: 750,
+        timeLife: 300,
+        damage: 10,
+      };
+    },
   },
-  purple: {
-    dim: 1,
-    vel: 0.5,
-    maxLife: 150,
-    deadTime: 3000,
-  },
-  ghost: {
-    dim: 1,
-    vel: 0.5,
-    maxLife: 150,
-    deadTime: 3000,
-  },
-  eiri: {
-    dim: 1,
-    vel: 0.5,
-    maxLife: 150,
-    deadTime: 3000,
-  },
-  kishins: {
-    dim: 2.5,
-    vel: 0.8,
-    maxLife: 400,
-    deadTime: 5000,
-  },
-  'scp-2040': {
-    dim: 1.8,
-    vel: 0.2,
-    maxLife: 300,
-    deadTime: 8000,
-  },
-};
+  set: function (statType, element) {
+    switch (statType) {
+      case 'skin':
+        return { ...element, ...this.get[element.components.skin.find((s) => s.current).displayId]() };
+        break;
 
-const setSkinStat = (element) => {
-  return { ...element, ...SkinComponent[element.components.skin.find((s) => s.current).displayId] };
+      default:
+        break;
+    }
+  },
 };
 
 const ComponentElement = {
@@ -128,13 +164,24 @@ const ComponentElement = {
             assetFolder: 'skin',
           },
         ],
+        weapon: [
+          {
+            displayId: 'tim-knife',
+            position: '08',
+            positions: PositionsComponent['08frames2'](),
+            velFrame: 250,
+            enabled: true,
+            assetFolder: 'weapon',
+            extension: 'gif',
+          },
+        ],
         lifeBar: {},
         lifeIndicator: {},
         coinIndicator: {},
         username: {},
       },
     };
-    return setSkinStat(base);
+    return Stat.set('skin', base);
   },
   bot: () => {
     let base = {
@@ -162,7 +209,7 @@ const ComponentElement = {
         username: {},
       },
     };
-    return setSkinStat(base);
+    return Stat.set('skin', base);
   },
   skill: () => {
     let base = {
@@ -172,10 +219,20 @@ const ComponentElement = {
       },
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skin: [{ ...SkillType['red-power'].skin, current: true }],
+        skin: [
+          {
+            displayId: 'red-power',
+            position: '08',
+            positions: PositionsComponent['08frames2'](),
+            velFrame: 250,
+            enabled: true,
+            assetFolder: 'skill',
+            current: true,
+          },
+        ],
       },
     };
-    return setSkinStat(base);
+    return Stat.set('skin', base);
   },
 };
 
@@ -198,13 +255,19 @@ const PlayerElement = () => {
         e: null,
         r: null,
       },
-      tree: ['red-power'],
+      tree: [
+        {
+          id: 'red-power',
+        },
+      ],
     },
-    item: [
-      {
-        itemId: 'tim-knife',
-      },
-    ],
+    weapon: {
+      tree: [
+        {
+          id: 'tim-knife',
+        },
+      ],
+    },
     maxLife: 150,
     life: 150,
     deadTime: 3000,
@@ -368,41 +431,6 @@ const WorldLimit = (options = { type: undefined }) => {
   };
 };
 
-const ItemComponent = {
-  'tim-knife': {
-    skin: {
-      displayId: 'tim-knife',
-      position: '08',
-      positions: [{ positionId: '08', frames: 2 }],
-      velFrame: 250,
-      enabled: true,
-      assetFolder: 'item',
-      extension: 'gif',
-    },
-    stats: {
-      damage: 15,
-      life: 100,
-      vel: 10,
-    },
-  },
-};
-
-const SkillType = {
-  'red-power': {
-    skin: {
-      displayId: 'red-power',
-      position: '08',
-      positions: [{ positionId: '08', frames: 2 }],
-      velFrame: 250,
-      enabled: true,
-      assetFolder: 'skill',
-    },
-    cooldown: 750,
-    timeLife: 300,
-    damage: 10,
-  },
-};
-
 const updateMovementDirection = ({ direction, element }) => {
   switch (direction) {
     case 'n':
@@ -497,14 +525,11 @@ export {
   isElementCollision,
   WorldLimit,
   WorldType,
-  SkillType,
   CyberiaParams,
   updateMovementDirection,
   CyberiaBaseMatrix,
   getCollisionMatrix,
   CharacterSlotType,
-  SkinComponent,
   PositionsComponent,
-  setSkinStat,
-  ItemComponent,
+  Stat,
 };

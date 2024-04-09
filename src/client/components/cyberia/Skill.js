@@ -2,7 +2,7 @@ import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.
 import { Keyboard } from '../core/Keyboard.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { SkillType } from './CommonCyberia.js';
+import { Stat } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 
 const Skill = {
@@ -60,7 +60,8 @@ const Skill = {
               status: 'create',
               skillKey,
             });
-            let currentCooldown = newInstance(SkillType[Elements.Data.user.main.skill.keys[skillKey]].cooldown);
+            const statData = Stat.get[Elements.Data.user.main.skill.keys[skillKey]]();
+            let currentCooldown = newInstance(statData.cooldown);
             s(`.main-skill-cooldown-${indexSkill}`).style.display = 'block';
             const reduceCooldown = async () => {
               const cooldownDisplayValue = currentCooldown / 1000;

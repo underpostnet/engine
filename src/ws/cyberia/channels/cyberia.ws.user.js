@@ -1,5 +1,5 @@
 import { objectEquals } from '../../../client/components/core/CommonJs.js';
-import { BaseElement, setSkinStat } from '../../../client/components/cyberia/CommonCyberia.js';
+import { BaseElement, Stat } from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
@@ -58,6 +58,10 @@ const CyberiaWsUserController = {
             ...CyberiaWsUserManagement.element[wsManagementId][socket.id],
             ...user,
           };
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
+            'skin',
+            CyberiaWsUserManagement.element[wsManagementId][socket.id],
+          );
           propagate();
         }
         break;
@@ -141,7 +145,8 @@ const CyberiaWsUserController = {
       case 'update-skin-position':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].components.skin = element.components.skin;
         if (args.updateStat)
-          CyberiaWsUserManagement.element[wsManagementId][socket.id] = setSkinStat(
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
+            'skin',
             CyberiaWsUserManagement.element[wsManagementId][socket.id],
           );
         CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].direction = args.direction;

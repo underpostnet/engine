@@ -15,12 +15,11 @@ import {
   BaseElement,
   CyberiaParams,
   PositionsComponent,
-  SkillType,
   WorldType,
   getCollisionMatrix,
   getRandomAvailablePosition,
   isBiomeCollision,
-  setSkinStat,
+  Stat,
   updateMovementDirection,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
@@ -79,7 +78,7 @@ const CyberiaWsBotManagement = {
           assetFolder: 'skin',
         });
 
-        bot = setSkinStat(bot);
+        bot = Stat.set('skin', bot);
 
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];
@@ -347,21 +346,15 @@ const CyberiaWsBotManagement = {
         this.element[wsManagementId][id] = bot;
         this.localElementScope[wsManagementId][id].movement.Callback();
 
-        const basicSkillKey = this.element[wsManagementId][id].skill.basic;
-        const skill = { keys: {} };
-        for (const skillKey of Object.keys(this.element[wsManagementId][id].skill.keys)) {
-          if (
-            this.element[wsManagementId][id].skill.keys[skillKey] &&
-            SkillType[this.element[wsManagementId][id].skill.keys[skillKey]]
-          ) {
-            skill.keys[skillKey] = SkillType[this.element[wsManagementId][id].skill.keys[skillKey]];
-          }
-        }
-        skill.Callback = setInterval(() => {
-          if (this.localElementScope[wsManagementId][id].target.Active)
-            CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' });
-        }, skill.keys[basicSkillKey].cooldown);
-        this.localElementScope[wsManagementId][id].skill = skill;
+        const skillDataStat =
+          Stat.get[this.element[wsManagementId][id].skill.keys[this.element[wsManagementId][id].skill.basic]]();
+
+        this.localElementScope[wsManagementId][id].skill = {
+          Callback: setInterval(() => {
+            if (this.localElementScope[wsManagementId][id].target.Active)
+              CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' });
+          }, skillDataStat.cooldown),
+        };
       }
     })();
   },

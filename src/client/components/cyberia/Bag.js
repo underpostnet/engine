@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { ItemComponent, SkinComponent, setSkinStat } from './CommonCyberia.js';
+import { Stat } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -15,8 +15,8 @@ import { Pixi } from './Pixi.js';
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
 const ItemModal = {
-  Render: async function (options = { idModal: '', skin: { skinId: '' } }) {
-    const { idModal, skin, item } = options;
+  Render: async function (options = { idModal: '', skin: { id: '' }, weapon: { id: '' } }) {
+    const { idModal, skin, weapon } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -25,12 +25,13 @@ const ItemModal = {
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         let statsRender = '';
-        for (const statKey of Object.keys(SkinComponent[skin.skinId])) {
+        const statData = Stat.get[skin.id]();
+        for (const statKey of Object.keys(statData)) {
           statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
               <div class="in section-mp">${statKey}</div>
             </div>
             <div class="in fll stat-table-cell">
-              <div class="in section-mp">${SkinComponent[skin.skinId][statKey]}</div>
+              <div class="in section-mp">${statData[statKey]}</div>
             </div>`;
         }
         htmls(
@@ -52,11 +53,11 @@ const ItemModal = {
           const type = 'user';
           const id = 'main';
           Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
-            skinData.enabled = skinData.displayId === skin.skinId;
-            skinData.current = skinData.displayId === skin.skinId;
+            skinData.enabled = skinData.displayId === skin.id;
+            skinData.current = skinData.displayId === skin.id;
             return skinData;
           });
-          Elements.Data[type][id] = setSkinStat(Elements.Data[type][id]);
+          Elements.Data[type][id] = Stat.set('skin', Elements.Data[type][id]);
           Pixi.setSkinComponent({ type, id });
           Pixi.triggerUpdateSkinPosition({ type, id });
           SocketIo.Emit(type, {
@@ -70,19 +71,20 @@ const ItemModal = {
         // -----------------------------------------------------------
         htmls(
           `.${id1}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.id}/08/0.png" /> `,
         );
       }
-      if (item) {
+      if (weapon) {
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         let statsRender = '';
-        for (const statKey of Object.keys(ItemComponent[item.itemId].stats)) {
+        const statData = Stat.get[weapon.id]();
+        for (const statKey of Object.keys(statData)) {
           statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
               <div class="in section-mp">${statKey}</div>
             </div>
             <div class="in fll stat-table-cell">
-              <div class="in section-mp">${ItemComponent[item.itemId].stats[statKey]}</div>
+              <div class="in section-mp">${statData[statKey]}</div>
             </div>`;
         }
         htmls(
@@ -98,18 +100,18 @@ const ItemModal = {
         // -----------------------------------------------------------
         htmls(
           `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-item-${idModal}` })}`,
+          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-weapon-${idModal}` })}`,
         );
-        EventsUI.onClick(`.btn-equip-item-${idModal}`, async () => {
+        EventsUI.onClick(`.btn-equip-weapon-${idModal}`, async () => {
           const type = 'user';
           const id = 'main';
-          console.warn('equip item', ItemComponent[item.itemId]);
+          console.warn('equip weapon', Stat.get[weapon.id]());
         });
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
           `.${id1}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/item/${item.itemId}/animation.gif" /> `,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/weapon/${weapon.id}/animation.gif" /> `,
         );
       }
     });
@@ -176,13 +178,13 @@ const Slot = {
         EventsUI.onClick(`.${slotId}`, async (e) => {
           const { barConfig } = await Themes[Css.currentTheme]();
           await Modal.Render({
-            id: `modal-item-${slotId}`,
+            id: `modal-skin-${slotId}`,
             barConfig,
             title: Menu.renderViewTitle({
               img: `${getProxyPath()}assets/skin/${skinId}/08/0.png`,
               text: html`${skinId}`,
             }),
-            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, skin: { skinId } })}`,
+            html: html`${await ItemModal.Render({ idModal: `modal-skin-${slotId}`, skin: { id: skinId } })}`,
             mode: 'view',
             slideMenu: 'modal-menu',
             maximize: Modal.mobileModal(),
@@ -193,10 +195,10 @@ const Slot = {
       return indexBag;
     },
   },
-  item: {
+  weapon: {
     render: ({ bagId, indexBag }) => {
-      for (const itemId of uniqueArray(Elements.Data.user.main.item.map((i) => i.itemId))) {
-        const count = Elements.Data.user.main.item.filter((i) => i.itemId === itemId).length;
+      for (const weaponId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
+        const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === weaponId).length;
         const slotId = `${bagId}-${indexBag}`;
         htmls(
           `.${slotId}`,
@@ -204,21 +206,21 @@ const Slot = {
             <div class="abs bag-slot-count">
               <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/item/${itemId}/animation.gif" />
-            <div class="in bag-slot-type-text">item</div>
-            <div class="in bag-slot-name-text">${itemId}</div>
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/weapon/${weaponId}/animation.gif" />
+            <div class="in bag-slot-type-text">weapon</div>
+            <div class="in bag-slot-name-text">${weaponId}</div>
           `,
         );
         EventsUI.onClick(`.${slotId}`, async (e) => {
           const { barConfig } = await Themes[Css.currentTheme]();
           await Modal.Render({
-            id: `modal-item-${slotId}`,
+            id: `modal-weapon-${slotId}`,
             barConfig,
             title: Menu.renderViewTitle({
-              img: `${getProxyPath()}assets/item/${itemId}/animation.gif`,
-              text: html`${itemId}`,
+              img: `${getProxyPath()}assets/weapon/${weaponId}/animation.gif`,
+              text: html`${weaponId}`,
             }),
-            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, item: { itemId } })}`,
+            html: html`${await ItemModal.Render({ idModal: `modal-weapon-${slotId}`, weapon: { id: weaponId } })}`,
             mode: 'view',
             slideMenu: 'modal-menu',
             maximize: Modal.mobileModal(),
@@ -231,8 +233,8 @@ const Slot = {
   },
   skill: {
     render: ({ bagId, indexBag }) => {
-      for (const skillId of uniqueArray(Elements.Data.user.main.skill.tree)) {
-        const count = Elements.Data.user.main.skill.tree.filter((s) => s === skillId).length;
+      for (const skillId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
+        const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === skillId).length;
         htmls(
           `.${bagId}-${indexBag}`,
           html`
@@ -325,8 +327,8 @@ const Bag = {
       indexBag = await Slot.coin.render({ bagId, indexBag });
       indexBag = await Slot.skin.render({ bagId, indexBag });
       indexBag = await Slot.skill.render({ bagId, indexBag });
+      indexBag = await Slot.weapon.render({ bagId, indexBag });
       indexBag = await Slot.xp.render({ bagId, indexBag });
-      indexBag = await Slot.item.render({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">

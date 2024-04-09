@@ -13,18 +13,17 @@ const CyberiaUserSchema = new Schema({
   deadTime: { type: Number },
   coin: { type: Number },
   skill: {
-    basic: { type: String },
+    basic: { type: String, default: 'q' },
     keys: {
-      q: { type: String },
+      q: { type: String, default: 'red-power' },
       w: { type: String },
       e: { type: String },
       r: { type: String },
     },
-    tree: { type: [String], default: ['red-power'] },
+    tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }] },
   },
-  item: {
-    type: [Object],
-    default: [{ itemId: 'tim-knife' }],
+  weapon: {
+    tree: { type: [{ id: { type: String } }], default: [{ id: 'tim-knife' }] },
   },
   components: {
     skin: {
