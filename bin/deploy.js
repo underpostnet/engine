@@ -15,13 +15,11 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
 
-// usage
-// node bin/deploy save-conf pm2-cyberia-3001
-// node bin/deploy exec pm2-cyberia-3001
-
 const deployTest = async (dataDeploy) => {
+  const failed = [];
   for (const deploy of dataDeploy) {
     const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8'));
+    let fail = false;
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
         const urlTest = `https://${host}${path}`;
@@ -34,21 +32,47 @@ const deployTest = async (dataDeploy) => {
               result: test[1].split('</title>')[0],
               urlTest,
             });
-          else
+          else {
             logger.error('Error deploy', {
               ...deploy,
               result: result.data,
               urlTest,
             });
+            fail = true;
+          }
         } catch (error) {
           logger.error('Error deploy', {
             ...deploy,
             message: error.message,
             urlTest,
           });
+          fail = true;
         }
       }
+    if (fail) failed.push(deploy);
   }
+  return { failed };
+};
+
+const Cmd = {
+  clientBuild: (deploy) =>
+    `env-cmd -f .env.production node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${
+      deploy.deployId
+    } docs`,
+  run: (deploy) => `pm2 delete ${deploy.deployId} && env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`,
+  copy: async (cmd) => {
+    logger.info('cmd', cmd);
+    await ncp.copy(cmd);
+    await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+  },
+};
+
+const deployRun = async (dataDeploy, reset) => {
+  if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
+  for (const deploy of dataDeploy) await Cmd.copy(Cmd.run(deploy));
+  const { failed } = await deployTest(dataDeploy);
+  for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
+  if (failed.length > 0) await deployRun(failed);
 };
 
 try {
@@ -101,26 +125,13 @@ try {
       }
       break;
 
-    case 'test':
-      const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
-        (deployId) => {
-          return {
-            deployId,
-          };
-        },
-      );
-      await deployTest(dataDeploy);
-      break;
-
     case 'run-macro':
       {
         const silent = true;
-
         shellExec(`git pull origin master`, { silent });
         shellCd(`engine-private`);
         shellExec(`git pull origin master`, { silent });
         shellCd(`..`);
-
         const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
           (deployId) => {
             return {
@@ -128,28 +139,26 @@ try {
             };
           },
         );
+        await deployRun(dataDeploy, true);
+      }
+      break;
 
-        for (const deploy of dataDeploy) {
-          shellExec(
-            `env-cmd -f .env.production node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${
-              deploy.deployId
-            } docs`,
-            { silent },
-          );
-        }
-
-        fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
-
-        for (const deploy of dataDeploy) {
-          shellExec(`pm2 delete ${deploy.deployId}`, { silent });
-          const cmd = `env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`;
-          // shellExec(cmd, { silent });
-          logger.info('cmd', cmd);
-          await ncp.copy(cmd);
-          await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-        }
-
-        await deployTest(dataDeploy);
+    case 'run-macro-build':
+      {
+        const silent = true;
+        shellExec(`git pull origin master`, { silent });
+        shellCd(`engine-private`);
+        shellExec(`git pull origin master`, { silent });
+        shellCd(`..`);
+        const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
+          (deployId) => {
+            return {
+              deployId,
+            };
+          },
+        );
+        for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent });
+        await deployRun(dataDeploy, true);
       }
       break;
     default:
