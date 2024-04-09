@@ -401,7 +401,12 @@ const Pixi = {
               componentInstance.y =
                 (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
               break;
-
+            case 'tim-knife':
+              componentInstance.width = dim * Elements.Data[type][id].dim;
+              componentInstance.height = dim * Elements.Data[type][id].dim;
+              componentInstance.x = 0;
+              componentInstance.y = dim * Elements.Data[type][id].dim * 0.15;
+              break;
             default:
               componentInstance.width = dim * Elements.Data[type][id].dim;
               componentInstance.height = dim * Elements.Data[type][id].dim;
