@@ -102,10 +102,8 @@ const Stat = {
     },
     'tim-knife': () => {
       return {
-        dim: 1.8,
-        vel: 0.2,
-        maxLife: 300,
-        deadTime: 8000,
+        damage: 50,
+        dim: 1,
       };
     },
     'red-power': () => {
@@ -116,15 +114,38 @@ const Stat = {
       };
     },
   },
-  set: function (statType, element) {
-    switch (statType) {
-      case 'skin':
-        return { ...element, ...this.get[element.components.skin.find((s) => s.current).displayId]() };
-        break;
-
-      default:
-        break;
+  set: function (type, element, build) {
+    if (!build) {
+      const oldElement = newInstance(element);
+      element = BaseElement()[type].main;
+      element._id = oldElement._id;
+      element.x = oldElement.x;
+      element.y = oldElement.y;
+      element.skill = oldElement.skill;
+      element.weapon = oldElement.weapon;
+      element.model = oldElement.model;
+      element.components = oldElement.components;
     }
+
+    element = { ...element, ...this.get[element.components.skin.find((e) => e.current).displayId]() };
+
+    for (const componentType of ['weapon']) {
+      const component = element.components[componentType].find((e) => e.current);
+      if (component) {
+        const componentStat = this.get[component.displayId]();
+        for (const keyStat of Object.keys(componentStat)) {
+          switch (keyStat) {
+            case 'damage':
+              element[keyStat] += componentStat[keyStat];
+              break;
+
+            default:
+              break;
+          }
+        }
+      }
+    }
+    return element;
   },
 };
 
@@ -170,7 +191,7 @@ const ComponentElement = {
             position: '08',
             positions: PositionsComponent['08frames2'](),
             velFrame: 250,
-            enabled: true,
+            enabled: false,
             assetFolder: 'weapon',
             extension: 'gif',
           },
@@ -181,7 +202,7 @@ const ComponentElement = {
         username: {},
       },
     };
-    return Stat.set('skin', base);
+    return Stat.set('user', base, true);
   },
   bot: () => {
     let base = {
@@ -204,12 +225,13 @@ const ComponentElement = {
             assetFolder: 'skin',
           },
         ],
+        weapon: [],
         lifeBar: {},
         lifeIndicator: {},
         username: {},
       },
     };
-    return Stat.set('skin', base);
+    return Stat.set('bot', base, true);
   },
   skill: () => {
     let base = {
@@ -230,9 +252,10 @@ const ComponentElement = {
             current: true,
           },
         ],
+        weapon: [],
       },
     };
-    return Stat.set('skin', base);
+    return Stat.set('skill', base, true);
   },
 };
 
@@ -242,6 +265,14 @@ const MatrixElement = () => {
     y: 1, // Matrix.Data.dim / 2 - 0.5,
     dim: 1,
     vel: 0.5,
+  };
+};
+
+const SkillElement = () => {
+  return {
+    cooldown: 750,
+    timeLife: 300,
+    damage: 10,
   };
 };
 
@@ -281,6 +312,7 @@ const BaseElement = () => {
       main: {
         ...MatrixElement(),
         ...PlayerElement(),
+        ...SkillElement(),
         ...ComponentElement.user(),
         model: {
           ...ModelElement.world(),
@@ -292,6 +324,7 @@ const BaseElement = () => {
       main: {
         ...MatrixElement(),
         ...PlayerElement(),
+        ...SkillElement(),
         ...ComponentElement.bot(),
         model: {
           ...ModelElement.world(),
@@ -301,6 +334,7 @@ const BaseElement = () => {
     skill: {
       main: {
         ...MatrixElement(),
+        ...SkillElement(),
         ...ComponentElement.skill(),
         model: {
           ...ModelElement.world(),

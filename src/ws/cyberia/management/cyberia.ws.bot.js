@@ -78,7 +78,7 @@ const CyberiaWsBotManagement = {
           assetFolder: 'skin',
         });
 
-        bot = Stat.set('skin', bot);
+        bot = Stat.set('bot', bot);
 
         const world = this.worlds.find((world) => world._id.toString() === bot.model.world._id);
         bot.model.world.face = WorldType[world.type].worldFaces[random(0, WorldType[world.type].worldFaces.length - 1)];

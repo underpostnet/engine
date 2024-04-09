@@ -59,7 +59,7 @@ const CyberiaWsUserController = {
             ...user,
           };
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
-            'skin',
+            channel,
             CyberiaWsUserManagement.element[wsManagementId][socket.id],
           );
           propagate();
@@ -146,7 +146,7 @@ const CyberiaWsUserController = {
         CyberiaWsUserManagement.element[wsManagementId][socket.id].components.skin = element.components.skin;
         if (args.updateStat)
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
-            'skin',
+            channel,
             CyberiaWsUserManagement.element[wsManagementId][socket.id],
           );
         CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].direction = args.direction;
@@ -163,6 +163,29 @@ const CyberiaWsUserController = {
               id: socket.id,
               element: { components: { skin: element.components.skin } },
               updateStat: args.updateStat,
+            });
+          }
+        }
+        break;
+      case 'update-weapon':
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].components.weapon = element.components.weapon;
+        CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
+          channel,
+          CyberiaWsUserManagement.element[wsManagementId][socket.id],
+        );
+
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+          if (
+            elementId !== socket.id &&
+            objectEquals(
+              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+            )
+          ) {
+            CyberiaWsEmit(channel, client[elementId], {
+              status,
+              id: socket.id,
+              element: { components: { weapon: element.components.weapon } },
             });
           }
         }

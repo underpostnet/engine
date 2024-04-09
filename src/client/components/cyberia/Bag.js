@@ -57,9 +57,9 @@ const ItemModal = {
             skinData.current = skinData.displayId === skin.id;
             return skinData;
           });
-          Elements.Data[type][id] = Stat.set('skin', Elements.Data[type][id]);
-          Pixi.setSkinComponent({ type, id });
-          Pixi.triggerUpdateSkinPosition({ type, id });
+          Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+          Pixi.setDisplayComponent({ type, id, componentType: 'skin' });
+          // Pixi.triggerUpdateDisplay({ type, id, componentType: 'skin' });
           SocketIo.Emit(type, {
             status: 'update-skin-position',
             element: { components: { skin: Elements.Data[type][id].components.skin } },
@@ -106,6 +106,18 @@ const ItemModal = {
           const type = 'user';
           const id = 'main';
           console.warn('equip weapon', Stat.get[weapon.id]());
+          Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
+            weaponData.enabled = weaponData.displayId === weapon.id;
+            weaponData.current = weaponData.displayId === weapon.id;
+            return weaponData;
+          });
+          Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+          Pixi.setDisplayComponent({ type, id, componentType: 'weapon' });
+          // Pixi.triggerUpdateDisplay({ type, id, componentType: 'weapon' });
+          SocketIo.Emit(type, {
+            status: 'update-weapon',
+            element: { components: { weapon: Elements.Data[type][id].components.weapon } },
+          });
         });
         // -----------------------------------------------------------
         // -----------------------------------------------------------

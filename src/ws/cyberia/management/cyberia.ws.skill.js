@@ -112,7 +112,10 @@ const CyberiaWsSkillManagement = {
                     CyberiaWsUserManagement.updateLife({
                       wsManagementId,
                       id: clientId,
-                      life: CyberiaWsUserManagement.element[wsManagementId][clientId].life - skillData.damage,
+                      life:
+                        CyberiaWsUserManagement.element[wsManagementId][clientId].life -
+                        skillData.damage -
+                        parentElement.damage,
                     });
                 break;
 
@@ -135,7 +138,10 @@ const CyberiaWsSkillManagement = {
                     dimPaintByCell: this.matrixData.dimPaintByCell,
                   })
                 ) {
-                  const newLife = CyberiaWsBotManagement.element[wsManagementId][botId].life - skillData.damage;
+                  const newLife =
+                    CyberiaWsBotManagement.element[wsManagementId][botId].life -
+                    skillData.damage -
+                    parentElement.damage;
                   CyberiaWsBotManagement.updateLife({
                     wsManagementId,
                     id: botId,

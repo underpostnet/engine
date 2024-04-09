@@ -4,14 +4,17 @@ import { PositionsComponent } from '../../client/components/cyberia/CommonCyberi
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
 const CyberiaUserSchema = new Schema({
-  x: { type: Number },
-  y: { type: Number },
-  dim: { type: Number },
-  vel: { type: Number },
-  maxLife: { type: Number },
-  life: { type: Number },
-  deadTime: { type: Number },
-  coin: { type: Number },
+  x: { type: Number, default: 1 },
+  y: { type: Number, default: 1 },
+  dim: { type: Number, default: 1 },
+  vel: { type: Number, default: 0.5 },
+  maxLife: { type: Number, default: 150 },
+  life: { type: Number, default: 150 },
+  deadTime: { type: Number, default: 3000 },
+  coin: { type: Number, default: 0 },
+  cooldown: { type: Number, default: 750 },
+  timeLife: { type: Number, default: 300 },
+  damage: { type: Number, default: 10 },
   skill: {
     basic: { type: String, default: 'q' },
     keys: {
@@ -35,6 +38,7 @@ const CyberiaUserSchema = new Schema({
           position: { type: String },
           positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
           assetFolder: { type: String },
+          extension: { type: String },
         },
       ],
       default: [
@@ -61,6 +65,20 @@ const CyberiaUserSchema = new Schema({
           assetFolder: 'skin',
         },
       ],
+    },
+    weapon: {
+      type: [
+        {
+          displayId: { type: String },
+          current: { type: Boolean },
+          enabled: { type: Boolean },
+          position: { type: String },
+          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+          assetFolder: { type: String },
+          extension: { type: String },
+        },
+      ],
+      default: [],
     },
     background: {
       type: [{ pixi: { tint: { type: String }, visible: { type: Boolean } }, enabled: { type: Boolean } }],

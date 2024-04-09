@@ -348,8 +348,9 @@ const Pixi = {
             };
           }
           break;
+        case 'weapon':
         case 'skin':
-          this.setSkinComponent({ type, id });
+          this.setDisplayComponent({ type, id, componentType });
           break;
 
         default:
@@ -357,10 +358,10 @@ const Pixi = {
       }
     }
   },
-  setSkinComponent: function (options = { type: 'user', id: 'main' }) {
+  setDisplayComponent: function (options = { type: 'user', id: 'main', componentType: 'skin' }) {
     // params
-    const { type, id } = options;
-    const componentType = 'skin';
+    const { type, id, componentType } = options;
+
     let dim = this.MetaData.dim / Matrix.Data.dim;
     if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
 
@@ -501,10 +502,10 @@ const Pixi = {
     this.Data[type][id].destroy();
     delete this.Data[type][id];
   },
-  triggerUpdateSkinPosition: function (options = { type: 'user', id: 'main' }) {
-    const { type, id } = options;
-    for (const skinInterval of Object.keys(this.Data[type][id].intervals['skin']))
-      this.Data[type][id].intervals['skin'][skinInterval].callBack();
+  triggerUpdateDisplay: function (options = { type: 'user', id: 'main', componentType: 'skin' }) {
+    const { type, id, componentType } = options;
+    for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType]))
+      this.Data[type][id].intervals[componentType][skinInterval].callBack();
   },
   removeAll: function () {
     for (const type of Object.keys(Elements.Data)) {
