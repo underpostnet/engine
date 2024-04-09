@@ -257,10 +257,11 @@ const buildRuntime = async () => {
       currentPort++;
     }
   }
-  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
-  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
 
   logNetworkRouter(logger);
+
+  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
+  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
 };
 
 export { buildRuntime };

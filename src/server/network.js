@@ -63,7 +63,20 @@ const logNetworkRouter = (logger) => {
 
   logger.info('Runtime network', router);
 
-  fs.writeFileSync(`./tmp/runtime-router.json`, JSON.stringify(router, null, 4), 'utf-8');
+  fs.writeFileSync(
+    `./tmp/runtime-router.json`,
+    JSON.stringify(
+      {
+        ...(fs.existsSync(`./tmp/runtime-router.json`)
+          ? JSON.parse(fs.readFileSync(`./tmp/runtime-router.json`, 'utf8'))
+          : undefined),
+        ...router,
+      },
+      null,
+      4,
+    ),
+    'utf-8',
+  );
 };
 
 const listenPortController = async (server, port, log) =>

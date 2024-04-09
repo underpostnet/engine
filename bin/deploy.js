@@ -19,6 +19,38 @@ const [exe, dir, operator] = process.argv;
 // node bin/deploy save-conf pm2-cyberia-3001
 // node bin/deploy exec pm2-cyberia-3001
 
+const deployTest = async (dataDeploy) => {
+  for (const deploy of dataDeploy) {
+    const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8'));
+    for (const host of Object.keys(serverConf))
+      for (const path of Object.keys(serverConf[host])) {
+        const urlTest = `https://${host}${path}`;
+        const result = await axios.get(urlTest);
+        const test = result.data.split('<title>');
+        try {
+          if (test[1])
+            logger.info('Success deploy', {
+              ...deploy,
+              result: test[1].split('</title>')[0],
+              urlTest,
+            });
+          else
+            logger.error('Error deploy', {
+              ...deploy,
+              result: result.data,
+              urlTest,
+            });
+        } catch (error) {
+          logger.error('Error deploy', {
+            ...deploy,
+            message: error.message,
+            urlTest,
+          });
+        }
+      }
+  }
+};
+
 try {
   switch (operator) {
     case 'save':
@@ -69,6 +101,17 @@ try {
       }
       break;
 
+    case 'test':
+      const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
+        (deployId) => {
+          return {
+            deployId,
+          };
+        },
+      );
+      await deployTest(dataDeploy);
+      break;
+
     case 'run-macro':
       {
         const silent = true;
@@ -95,6 +138,8 @@ try {
           );
         }
 
+        fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
+
         for (const deploy of dataDeploy) {
           shellExec(`pm2 delete ${deploy.deployId}`, { silent });
           const cmd = `env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`;
@@ -104,37 +149,7 @@ try {
           await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
         }
 
-        for (const deploy of dataDeploy) {
-          const serverConf = JSON.parse(
-            fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8'),
-          );
-          for (const host of Object.keys(serverConf))
-            for (const path of Object.keys(serverConf[host])) {
-              const urlTest = `https://${host}${path}`;
-              const result = await axios.get(urlTest);
-              const test = result.data.split('<title>');
-              try {
-                if (test[1])
-                  logger.info('Success deploy', {
-                    ...deploy,
-                    result: test[1].split('</title>')[0],
-                    urlTest,
-                  });
-                else
-                  logger.error('Error deploy', {
-                    ...deploy,
-                    result: result.data,
-                    urlTest,
-                  });
-              } catch (error) {
-                logger.error(error, {
-                  ...deploy,
-                  message: error.message,
-                  urlTest,
-                });
-              }
-            }
-        }
+        await deployTest(dataDeploy);
       }
       break;
     default:
