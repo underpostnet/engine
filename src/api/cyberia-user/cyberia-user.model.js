@@ -22,6 +22,10 @@ const CyberiaUserSchema = new Schema({
     },
     tree: { type: [String], default: ['red-power'] },
   },
+  item: {
+    type: [Object],
+    default: [{ itemId: 'tim-knife' }],
+  },
   components: {
     skin: {
       type: [

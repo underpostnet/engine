@@ -513,12 +513,12 @@ const CssCyberia = {
           height: auto;
           margin: auto;
         }
-        .stat-skin-table-cell {
+        .stat-table-cell {
           width: 50%;
           /*  border: 2px solid #313131; */
           box-sizing: border-box;
         }
-        .stat-skin-table-cell-key {
+        .stat-table-cell-key {
           color: #ffcc00;
         }
         .header-icon-item-modal {

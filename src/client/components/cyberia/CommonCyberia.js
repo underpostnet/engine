@@ -200,6 +200,11 @@ const PlayerElement = () => {
       },
       tree: ['red-power'],
     },
+    item: [
+      {
+        itemId: 'tim-knife',
+      },
+    ],
     maxLife: 150,
     life: 150,
     deadTime: 3000,
@@ -363,13 +368,32 @@ const WorldLimit = (options = { type: undefined }) => {
   };
 };
 
+const ItemComponent = {
+  'tim-knife': {
+    skin: {
+      displayId: 'tim-knife',
+      position: '08',
+      positions: [{ positionId: '08', frames: 2 }],
+      velFrame: 250,
+      enabled: true,
+      assetFolder: 'item',
+      extension: 'gif',
+    },
+    stats: {
+      damage: 15,
+      life: 100,
+      vel: 10,
+    },
+  },
+};
+
 const SkillType = {
   'red-power': {
     skin: {
       displayId: 'red-power',
       position: '08',
       positions: [{ positionId: '08', frames: 2 }],
-      velFrame: 50,
+      velFrame: 250,
       enabled: true,
       assetFolder: 'skill',
     },
@@ -482,4 +506,5 @@ export {
   SkinComponent,
   PositionsComponent,
   setSkinStat,
+  ItemComponent,
 };

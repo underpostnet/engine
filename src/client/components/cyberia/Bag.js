@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { SkinComponent, setSkinStat } from './CommonCyberia.js';
+import { ItemComponent, SkinComponent, setSkinStat } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -16,7 +16,7 @@ import { Pixi } from './Pixi.js';
 
 const ItemModal = {
   Render: async function (options = { idModal: '', skin: { skinId: '' } }) {
-    const { idModal, skin } = options;
+    const { idModal, skin, item } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -26,10 +26,10 @@ const ItemModal = {
         // -----------------------------------------------------------
         let statsRender = '';
         for (const statKey of Object.keys(SkinComponent[skin.skinId])) {
-          statsRender += html` <div class="in fll stat-skin-table-cell stat-skin-table-cell-key">
+          statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
               <div class="in section-mp">${statKey}</div>
             </div>
-            <div class="in fll stat-skin-table-cell">
+            <div class="in fll stat-table-cell">
               <div class="in section-mp">${SkinComponent[skin.skinId][statKey]}</div>
             </div>`;
         }
@@ -71,6 +71,45 @@ const ItemModal = {
         htmls(
           `.${id1}-render-col-a`,
           html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.skinId}/08/0.png" /> `,
+        );
+      }
+      if (item) {
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        let statsRender = '';
+        for (const statKey of Object.keys(ItemComponent[item.itemId].stats)) {
+          statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
+              <div class="in section-mp">${statKey}</div>
+            </div>
+            <div class="in fll stat-table-cell">
+              <div class="in section-mp">${ItemComponent[item.itemId].stats[statKey]}</div>
+            </div>`;
+        }
+        htmls(
+          `.${id0}-render-col-a`,
+          html` <div class="in section-mp">
+              <div class="in sub-title-item-modal">
+                <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Stats
+              </div>
+            </div>
+            <div class="in section-mp"><div class="fl">${statsRender}</div></div>`,
+        );
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id0}-render-col-b`,
+          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-item-${idModal}` })}`,
+        );
+        EventsUI.onClick(`.btn-equip-item-${idModal}`, async () => {
+          const type = 'user';
+          const id = 'main';
+          console.warn('equip item', ItemComponent[item.itemId]);
+        });
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id1}-render-col-a`,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/item/${item.itemId}/animation.gif" /> `,
         );
       }
     });
@@ -154,6 +193,42 @@ const Slot = {
       return indexBag;
     },
   },
+  item: {
+    render: ({ bagId, indexBag }) => {
+      for (const itemId of uniqueArray(Elements.Data.user.main.item.map((i) => i.itemId))) {
+        const count = Elements.Data.user.main.item.filter((i) => i.itemId === itemId).length;
+        const slotId = `${bagId}-${indexBag}`;
+        htmls(
+          `.${slotId}`,
+          html`
+            <div class="abs bag-slot-count">
+              <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
+            </div>
+            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/item/${itemId}/animation.gif" />
+            <div class="in bag-slot-type-text">item</div>
+            <div class="in bag-slot-name-text">${itemId}</div>
+          `,
+        );
+        EventsUI.onClick(`.${slotId}`, async (e) => {
+          const { barConfig } = await Themes[Css.currentTheme]();
+          await Modal.Render({
+            id: `modal-item-${slotId}`,
+            barConfig,
+            title: Menu.renderViewTitle({
+              img: `${getProxyPath()}assets/item/${itemId}/animation.gif`,
+              text: html`${itemId}`,
+            }),
+            html: html`${await ItemModal.Render({ idModal: `modal-item-${slotId}`, item: { itemId } })}`,
+            mode: 'view',
+            slideMenu: 'modal-menu',
+            maximize: Modal.mobileModal(),
+          });
+        });
+        indexBag++;
+      }
+      return indexBag;
+    },
+  },
   skill: {
     render: ({ bagId, indexBag }) => {
       for (const skillId of uniqueArray(Elements.Data.user.main.skill.tree)) {
@@ -186,6 +261,7 @@ const Slot = {
           <div class="in bag-slot-name-text">level 0</div>`,
       );
       indexBag++;
+      return indexBag;
     },
   },
 };
@@ -250,6 +326,7 @@ const Bag = {
       indexBag = await Slot.skin.render({ bagId, indexBag });
       indexBag = await Slot.skill.render({ bagId, indexBag });
       indexBag = await Slot.xp.render({ bagId, indexBag });
+      indexBag = await Slot.item.render({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">

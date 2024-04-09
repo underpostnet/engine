@@ -382,11 +382,13 @@ const Pixi = {
     // set skin
     let index = 0;
     for (const component of Elements.Data[type][id].components[componentType]) {
-      const { displayId, position, enabled, positions, velFrame, assetFolder } = component;
+      const { displayId, position, enabled, positions, velFrame, assetFolder, extension } = component;
       for (const positionData of positions) {
         const { positionId, frames } = positionData;
         for (const frame of range(0, frames - 1)) {
-          const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.png`;
+          const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
+            extension ? extension : `png`
+          }`;
           const componentInstance = Sprite.from(src);
           switch (displayId) {
             case 'green-power':
@@ -421,13 +423,17 @@ const Pixi = {
                 return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
               const { position } = Elements.Data[type][id].components[componentType][currentIndex];
 
-              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.png`;
+              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
+                extension ? extension : `png`
+              }`;
               this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
 
               currentFrame++;
               if (currentFrame === frames) currentFrame = 0;
 
-              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.png`;
+              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
+                extension ? extension : `png`
+              }`;
 
               const enabledSkin = Elements.Data[type][id].components[componentType].find((s) => s.enabled);
               this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
