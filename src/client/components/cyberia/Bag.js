@@ -58,8 +58,7 @@ const ItemModal = {
             return skinData;
           });
           Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-          Pixi.setDisplayComponent({ type, id, componentType: 'skin' });
-          // Pixi.triggerUpdateDisplay({ type, id, componentType: 'skin' });
+          Pixi.setDisplayComponent({ type, id });
           SocketIo.Emit(type, {
             status: 'update-skin-position',
             element: { components: { skin: Elements.Data[type][id].components.skin } },
@@ -112,8 +111,7 @@ const ItemModal = {
             return weaponData;
           });
           Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-          Pixi.setDisplayComponent({ type, id, componentType: 'weapon' });
-          // Pixi.triggerUpdateDisplay({ type, id, componentType: 'weapon' });
+          Pixi.setDisplayComponent({ type, id });
           SocketIo.Emit(type, {
             status: 'update-weapon',
             element: { components: { weapon: Elements.Data[type][id].components.weapon } },

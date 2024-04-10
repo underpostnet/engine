@@ -185,7 +185,7 @@ const MainUser = {
 
         Elements.Data[type][id] = updateMovementDirection({ direction, element: Elements.Data[type][id] });
 
-        Pixi.triggerUpdateDisplay({ type, id, componentType: 'skin' });
+        Pixi.triggerUpdateDisplay({ type, id });
         SocketIo.Emit(type, {
           status: 'update-skin-position',
           element: { components: { skin: Elements.Data[type][id].components.skin } },
@@ -222,8 +222,7 @@ const MainUser = {
     await Bag.updateAll({ bagId: 'cyberia-bag', type, id });
     // console.log(type, id, Elements.Data[type][id]);
     // Pixi.setComponents({ type, id });
-    Pixi.setDisplayComponent({ type, id, componentType: 'skin' });
-    Pixi.setDisplayComponent({ type, id, componentType: 'weapon' });
+    Pixi.setDisplayComponent({ type, id });
     Pixi.updateLife({ type, id });
     Pixi.setUsername({ type, id });
     InteractionPanel.PanelRender.element({ type, id });

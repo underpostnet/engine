@@ -61,18 +61,17 @@ const SocketIoCyberia = {
             case 'update-skin-position':
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].components.skin = element.components.skin;
-              Pixi.triggerUpdateDisplay({ type, id, componentType: 'skin' });
               if (args.updateStat) {
                 Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-                Pixi.setDisplayComponent({ type, id, componentType: 'skin' });
-              }
+                Pixi.setDisplayComponent({ type, id });
+              } else Pixi.triggerUpdateDisplay({ type, id });
+
               break;
             case 'update-weapon':
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].components.weapon = element.components.weapon;
               Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-              Pixi.setDisplayComponent({ type, id, componentType: 'weapon' });
-              // Pixi.triggerUpdateDisplay({ type, id, componentType: 'weapon' });
+              Pixi.setDisplayComponent({ type, id });
               break;
             case 'disconnect':
               Pixi.removeElement({ type, id });

@@ -127,12 +127,15 @@ const Stat = {
       element.components = oldElement.components;
     }
 
-    element = { ...element, ...this.get[element.components.skin.find((e) => e.current).displayId]() };
-
-    for (const componentType of ['weapon']) {
+    for (const componentType of Object.keys(CharacterSlotType)) {
+      if (!element.components[componentType]) continue;
       const component = element.components[componentType].find((e) => e.current);
       if (component) {
         const componentStat = this.get[component.displayId]();
+        if (componentType === 'skin') {
+          element = { ...element, ...componentStat };
+          continue;
+        }
         for (const keyStat of Object.keys(componentStat)) {
           switch (keyStat) {
             case 'damage':
@@ -535,13 +538,13 @@ const updateMovementDirection = ({ direction, element }) => {
 };
 
 const CharacterSlotType = {
-  'faction-symbol': {},
+  skin: {},
   weapon: {},
+  'faction-symbol': {},
   breastplate: {},
   legs: {},
   helmet: {},
   talisman: {},
-  skin: {},
 };
 
 const CyberiaParams = {

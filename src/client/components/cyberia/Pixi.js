@@ -8,7 +8,7 @@ import { Elements } from './Elements.js';
 import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import { WorldManagement } from './World.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CyberiaParams } from './CommonCyberia.js';
+import { CharacterSlotType, CyberiaParams } from './CommonCyberia.js';
 import { MainUser } from './MainUser.js';
 
 const Pixi = {
@@ -348,111 +348,112 @@ const Pixi = {
             };
           }
           break;
-        case 'weapon':
-        case 'skin':
-          this.setDisplayComponent({ type, id, componentType });
           break;
 
         default:
           break;
       }
     }
+    this.setDisplayComponent({ type, id });
   },
-  setDisplayComponent: function (options = { type: 'user', id: 'main', componentType: 'skin' }) {
+  setDisplayComponent: function (options = { type: 'user', id: 'main' }) {
     // params
-    const { type, id, componentType } = options;
+    const { type, id } = options;
 
     let dim = this.MetaData.dim / Matrix.Data.dim;
     if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
 
-    // clear
-    if (this.Data[type][id].intervals && this.Data[type][id].intervals[componentType]) {
-      for (const componentIntervalKey of Object.keys(this.Data[type][id].intervals[componentType])) {
-        clearInterval(this.Data[type][id].intervals[componentType][componentIntervalKey].interval);
+    for (const componentType of Object.keys(CharacterSlotType)) {
+      if (!this.Data[type][id].components[componentType]) continue;
+      // clear
+      if (this.Data[type][id].intervals && this.Data[type][id].intervals[componentType]) {
+        for (const componentIntervalKey of Object.keys(this.Data[type][id].intervals[componentType])) {
+          clearInterval(this.Data[type][id].intervals[componentType][componentIntervalKey].interval);
+        }
+        this.Data[type][id].intervals[componentType] = {};
       }
-      this.Data[type][id].intervals[componentType] = {};
-    }
 
-    if (this.Data[type][id].components[componentType]) {
-      for (const componentKeyInstance of Object.keys(this.Data[type][id].components[componentType])) {
-        this.Data[type][id].components[componentType][componentKeyInstance].destroy();
+      if (this.Data[type][id].components[componentType]) {
+        for (const componentKeyInstance of Object.keys(this.Data[type][id].components[componentType])) {
+          this.Data[type][id].components[componentType][componentKeyInstance].destroy();
+        }
+        this.Data[type][id].components[componentType] = {};
       }
-      this.Data[type][id].components[componentType] = {};
-    }
 
-    // set skin
-    let index = 0;
-    for (const component of Elements.Data[type][id].components[componentType]) {
-      const { displayId, position, enabled, positions, velFrame, assetFolder, extension } = component;
-      for (const positionData of positions) {
-        const { positionId, frames } = positionData;
-        for (const frame of range(0, frames - 1)) {
-          const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
-            extension ? extension : `png`
-          }`;
-          const componentInstance = Sprite.from(src);
-          switch (displayId) {
-            case 'green-power':
-            case 'red-power':
-              componentInstance.width = dim * Elements.Data[type][id].dim * 0.5;
-              componentInstance.height = dim * Elements.Data[type][id].dim * 0.5;
-              componentInstance.x =
-                (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
-              componentInstance.y =
-                (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
-              break;
-            case 'tim-knife':
-              componentInstance.width = dim * Elements.Data[type][id].dim;
-              componentInstance.height = dim * Elements.Data[type][id].dim;
-              componentInstance.x = 0;
-              componentInstance.y = dim * Elements.Data[type][id].dim * 0.15;
-              break;
-            default:
-              componentInstance.width = dim * Elements.Data[type][id].dim;
-              componentInstance.height = dim * Elements.Data[type][id].dim;
-              componentInstance.x = 0;
-              componentInstance.y = 0;
-              break;
-          }
-          componentInstance.visible = position === positionId && frame === 0 && enabled;
-          this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
-          this.Data[type][id].addChild(componentInstance);
-          if (frame === 0) {
-            let currentFrame = 0;
-            let currentSrc;
-            let currentIndex = newInstance(index);
-            if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
+      // set skin
+      let index = 0;
+      for (const component of Elements.Data[type][id].components[componentType]) {
+        const { displayId, position, enabled, positions, velFrame, assetFolder, extension } = component;
+        for (const positionData of positions) {
+          const { positionId, frames } = positionData;
+          for (const frame of range(0, frames - 1)) {
+            const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
+              extension ? extension : `png`
+            }`;
+            const componentInstance = Sprite.from(src);
+            switch (displayId) {
+              case 'green-power':
+              case 'red-power':
+                componentInstance.width = dim * Elements.Data[type][id].dim * 0.5;
+                componentInstance.height = dim * Elements.Data[type][id].dim * 0.5;
+                componentInstance.x =
+                  (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                componentInstance.y =
+                  (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                break;
+              case 'tim-knife':
+                componentInstance.width = dim * Elements.Data[type][id].dim;
+                componentInstance.height = dim * Elements.Data[type][id].dim;
+                componentInstance.x = 0;
+                componentInstance.y = dim * Elements.Data[type][id].dim * 0.15;
+                break;
+              default:
+                componentInstance.width = dim * Elements.Data[type][id].dim;
+                componentInstance.height = dim * Elements.Data[type][id].dim;
+                componentInstance.x = 0;
+                componentInstance.y = 0;
+                break;
+            }
+            componentInstance.visible = position === positionId && frame === 0 && enabled;
+            this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
+            this.Data[type][id].addChild(componentInstance);
+            if (frame === 0) {
+              let currentFrame = 0;
+              let currentSrc;
+              let currentIndex = newInstance(index);
+              if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
 
-            const callBack = () => {
-              if (!Elements.Data[type][id]) return this.removeElement({ type, id });
-              if (!Elements.Data[type][id].components[componentType][currentIndex])
-                return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
-              const { position } = Elements.Data[type][id].components[componentType][currentIndex];
+              const callBack = () => {
+                if (!Elements.Data[type][id]) return this.removeElement({ type, id });
+                if (!Elements.Data[type][id].components[componentType][currentIndex])
+                  return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
+                const { position } = Elements.Data[type][id].components[componentType][currentIndex];
 
-              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
-                extension ? extension : `png`
-              }`;
-              this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
+                currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
+                  extension ? extension : `png`
+                }`;
+                this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
 
-              currentFrame++;
-              if (currentFrame === frames) currentFrame = 0;
+                currentFrame++;
+                if (currentFrame === frames) currentFrame = 0;
 
-              currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
-                extension ? extension : `png`
-              }`;
+                currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
+                  extension ? extension : `png`
+                }`;
 
-              const enabledSkin = Elements.Data[type][id].components[componentType].find((s) => s.enabled);
-              this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
-                position === positionId && enabledSkin && enabledSkin.displayId === displayId;
-            };
-            this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
-              callBack,
-              interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
-            };
+                const enabledSkin = Elements.Data[type][id].components[componentType].find((s) => s.enabled);
+                this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
+                  position === positionId && enabledSkin && enabledSkin.displayId === displayId;
+              };
+              this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
+                callBack,
+                interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
+              };
+            }
           }
         }
+        index++;
       }
-      index++;
     }
   },
   updateLife: function (options) {
@@ -507,10 +508,12 @@ const Pixi = {
     this.Data[type][id].destroy();
     delete this.Data[type][id];
   },
-  triggerUpdateDisplay: function (options = { type: 'user', id: 'main', componentType: 'skin' }) {
-    const { type, id, componentType } = options;
-    for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType]))
-      this.Data[type][id].intervals[componentType][skinInterval].callBack();
+  triggerUpdateDisplay: function (options = { type: 'user', id: 'main' }) {
+    const { type, id } = options;
+    for (const componentType of Object.keys(CharacterSlotType))
+      if (this.Data[type][id].intervals[componentType])
+        for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType]))
+          this.Data[type][id].intervals[componentType][skinInterval].callBack();
   },
   removeAll: function () {
     for (const type of Object.keys(Elements.Data)) {
