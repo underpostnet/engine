@@ -9,7 +9,13 @@ const loggerFactory = (meta) => {
       } catch (error) {
         stack = error.stack.split('Logger.js')[2].split(')')[1];
       }
-      return console[type](`[${meta}] ${new Date().toISOString()} ${type}:`, args[0], args, stack);
+      return console[type](
+        `[${meta}] ${new Date().toISOString()} ${type}:`,
+        args[0],
+        args[1] ? args[1] : args,
+        args[1] ? args : stack,
+        args[1] ? stack : undefined,
+      );
     },
   };
   types.map(

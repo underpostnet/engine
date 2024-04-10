@@ -11,8 +11,12 @@ import { Menu } from './Menu.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Pixi } from './Pixi.js';
+import { loggerFactory } from '../core/Logger.js';
+import { Character } from './Character.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
+
+const logger = loggerFactory(import.meta);
 
 const ItemModal = {
   Render: async function (options = { idModal: '', skin: { id: '' }, weapon: { id: '' } }) {
@@ -49,23 +53,7 @@ const ItemModal = {
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-skin-${idModal}` })}`,
         );
-        EventsUI.onClick(`.btn-equip-skin-${idModal}`, async () => {
-          const type = 'user';
-          const id = 'main';
-          Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
-            skinData.enabled = skinData.displayId === skin.id;
-            skinData.current = skinData.displayId === skin.id;
-            return skinData;
-          });
-          Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-          Pixi.setDisplayComponent({ type, id });
-          SocketIo.Emit(type, {
-            status: 'update-skin-position',
-            element: { components: { skin: Elements.Data[type][id].components.skin } },
-            direction: Elements.LocalDataScope[type][id].lastDirection,
-            updateStat: true,
-          });
-        });
+        EventsUI.onClick(`.btn-equip-skin-${idModal}`, () => this.Equip.skin({ type: 'user', id: 'main', skin }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -101,22 +89,7 @@ const ItemModal = {
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-weapon-${idModal}` })}`,
         );
-        EventsUI.onClick(`.btn-equip-weapon-${idModal}`, async () => {
-          const type = 'user';
-          const id = 'main';
-          console.warn('equip weapon', Stat.get[weapon.id]());
-          Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
-            weaponData.enabled = weaponData.displayId === weapon.id;
-            weaponData.current = weaponData.displayId === weapon.id;
-            return weaponData;
-          });
-          Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-          Pixi.setDisplayComponent({ type, id });
-          SocketIo.Emit(type, {
-            status: 'update-weapon',
-            element: { components: { weapon: Elements.Data[type][id].components.weapon } },
-          });
-        });
+        EventsUI.onClick(`.btn-equip-weapon-${idModal}`, () => this.Equip.weapon({ type: 'user', id: 'main', weapon }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -146,21 +119,56 @@ const ItemModal = {
       </div>
     `;
   },
+  Equip: {
+    skin: function ({ type, id, skin }) {
+      Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
+        skinData.enabled = skinData.displayId === skin.id;
+        skinData.current = skinData.displayId === skin.id;
+        return skinData;
+      });
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      SocketIo.Emit(type, {
+        status: 'update-skin-position',
+        element: { components: { skin: Elements.Data[type][id].components.skin } },
+        direction: Elements.LocalDataScope[type][id].lastDirection,
+        updateStat: true,
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'skin' });
+    },
+    weapon: function ({ type, id, weapon }) {
+      console.warn('equip weapon', Stat.get[weapon.id]());
+      Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
+        weaponData.enabled = weaponData.displayId === weapon.id;
+        weaponData.current = weaponData.displayId === weapon.id;
+        return weaponData;
+      });
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      SocketIo.Emit(type, {
+        status: 'update-weapon',
+        element: { components: { weapon: Elements.Data[type][id].components.weapon } },
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+    },
+  },
 };
 
 const Slot = {
   coin: {
-    render: ({ bagId, indexBag }) => {
+    renderBagSlots: ({ bagId, indexBag }) => {
       htmls(
         `.${bagId}-${indexBag}`,
-        html` <div class="abs bag-slot-count">
-            <div class="abs center">
-              x<span class="bag-slot-value-${bagId}-${indexBag}">${Elements.Data.user.main.coin}</span>
+        html` <div class="abs bag-slot-count character-drop-zone">
+            <div class="abs center character-drop-zone">
+              x<span class="bag-slot-value-${bagId}-${indexBag} character-drop-zone"
+                >${Elements.Data.user.main.coin}</span
+              >
             </div>
           </div>
-          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
-          <div class="in bag-slot-type-text">currency</div>
-          <div class="in bag-slot-name-text">coin</div>`,
+          <img class="abs center bag-slot-img character-drop-zone" src="${getProxyPath()}assets/coin/animation.gif" />
+          <div class="in bag-slot-type-text character-drop-zone">currency</div>
+          <div class="in bag-slot-name-text character-drop-zone">coin</div>`,
       );
       indexBag++;
       return indexBag;
@@ -170,90 +178,113 @@ const Slot = {
     },
   },
   skin: {
-    render: ({ bagId, indexBag }) => {
-      for (const skinId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
-        const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === skinId).length;
-        const slotId = `${bagId}-${indexBag}`;
-        htmls(
-          `.${slotId}`,
-          html`
-            <div class="abs bag-slot-count">
-              <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
+    render: function ({ slotId, displayId }) {
+      if (!s(`.${slotId}`)) return;
+      const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count character-drop-zone">
+            <div class="abs center character-drop-zone">
+              x<span class="bag-slot-value-${slotId} character-drop-zone">${count}</span>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${skinId}/08/0.png" />
-            <div class="in bag-slot-type-text">skin</div>
-            <div class="in bag-slot-name-text">${skinId}</div>
-          `,
-        );
-        EventsUI.onClick(`.${slotId}`, async (e) => {
-          const { barConfig } = await Themes[Css.currentTheme]();
-          await Modal.Render({
-            id: `modal-skin-${slotId}`,
-            barConfig,
-            title: Menu.renderViewTitle({
-              img: `${getProxyPath()}assets/skin/${skinId}/08/0.png`,
-              text: html`${skinId}`,
-            }),
-            html: html`${await ItemModal.Render({ idModal: `modal-skin-${slotId}`, skin: { id: skinId } })}`,
-            mode: 'view',
-            slideMenu: 'modal-menu',
-            maximize: Modal.mobileModal(),
-          });
+          </div>
+          <img
+            class="abs center bag-slot-img character-drop-zone"
+            src="${getProxyPath()}assets/skin/${displayId}/08/0.png"
+          />
+          <div class="in bag-slot-type-text character-drop-zone">skin</div>
+          <div class="in bag-slot-name-text character-drop-zone">${displayId}</div>
+        `,
+      );
+      EventsUI.onClick(`.${slotId}`, async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-skin-${slotId}`,
+          barConfig,
+          title: Menu.renderViewTitle({
+            img: `${getProxyPath()}assets/skin/${displayId}/08/0.png`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({ idModal: `modal-skin-${slotId}`, skin: { id: displayId } })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
         });
+      });
+    },
+    renderBagSlots: function ({ bagId, indexBag }) {
+      for (const displayId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
+        const slotId = `${bagId}-${indexBag}`;
+        this.render({ displayId, slotId });
         indexBag++;
       }
       return indexBag;
     },
   },
   weapon: {
-    render: ({ bagId, indexBag }) => {
-      for (const weaponId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
-        const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === weaponId).length;
-        const slotId = `${bagId}-${indexBag}`;
-        htmls(
-          `.${slotId}`,
-          html`
-            <div class="abs bag-slot-count">
-              <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
+    render: function ({ slotId, displayId }) {
+      if (!s(`.${slotId}`)) return;
+      const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count character-drop-zone">
+            <div class="abs center character-drop-zone">
+              x<span class="bag-slot-value-${slotId} character-drop-zone">${count}</span>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/weapon/${weaponId}/animation.gif" />
-            <div class="in bag-slot-type-text">weapon</div>
-            <div class="in bag-slot-name-text">${weaponId}</div>
-          `,
-        );
-        EventsUI.onClick(`.${slotId}`, async (e) => {
-          const { barConfig } = await Themes[Css.currentTheme]();
-          await Modal.Render({
-            id: `modal-weapon-${slotId}`,
-            barConfig,
-            title: Menu.renderViewTitle({
-              img: `${getProxyPath()}assets/weapon/${weaponId}/animation.gif`,
-              text: html`${weaponId}`,
-            }),
-            html: html`${await ItemModal.Render({ idModal: `modal-weapon-${slotId}`, weapon: { id: weaponId } })}`,
-            mode: 'view',
-            slideMenu: 'modal-menu',
-            maximize: Modal.mobileModal(),
-          });
+          </div>
+          <img
+            class="abs center bag-slot-img character-drop-zone"
+            src="${getProxyPath()}assets/weapon/${displayId}/animation.gif"
+          />
+          <div class="in bag-slot-type-text character-drop-zone">weapon</div>
+          <div class="in bag-slot-name-text character-drop-zone">${displayId}</div>
+        `,
+      );
+      EventsUI.onClick(`.${slotId}`, async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-weapon-${slotId}`,
+          barConfig,
+          title: Menu.renderViewTitle({
+            img: `${getProxyPath()}assets/weapon/${displayId}/animation.gif`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({ idModal: `modal-weapon-${slotId}`, weapon: { id: displayId } })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
         });
+      });
+    },
+    renderBagSlots: function ({ bagId, indexBag }) {
+      for (const displayId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
+        const slotId = `${bagId}-${indexBag}`;
+        this.render({ slotId, displayId });
         indexBag++;
       }
       return indexBag;
     },
   },
   skill: {
-    render: ({ bagId, indexBag }) => {
-      for (const skillId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
-        const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === skillId).length;
+    renderBagSlots: ({ bagId, indexBag }) => {
+      for (const displayId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
+        const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
         htmls(
           `.${bagId}-${indexBag}`,
           html`
-            <div class="abs bag-slot-count">
-              <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span></div>
+            <div class="abs bag-slot-count character-drop-zone">
+              <div class="abs center character-drop-zone">
+                x<span class="bag-slot-value-${bagId}-${indexBag} character-drop-zone">${count}</span>
+              </div>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${skillId}/animation.gif" />
-            <div class="in bag-slot-type-text">skill</div>
-            <div class="in bag-slot-name-text">${skillId}</div>
+            <img
+              class="abs center bag-slot-img character-drop-zone"
+              src="${getProxyPath()}assets/skill/${displayId}/animation.gif"
+            />
+            <div class="in bag-slot-type-text character-drop-zone">skill</div>
+            <div class="in bag-slot-name-text character-drop-zone">${displayId}</div>
           `,
         );
         indexBag++;
@@ -262,15 +293,17 @@ const Slot = {
     },
   },
   xp: {
-    render: ({ bagId, indexBag }) => {
+    renderBagSlots: ({ bagId, indexBag }) => {
       htmls(
         `.${bagId}-${indexBag}`,
-        html` <div class="abs bag-slot-count">
-            <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">0</span></div>
+        html` <div class="abs bag-slot-count character-drop-zone">
+            <div class="abs center character-drop-zone">
+              x<span class="bag-slot-value-${bagId}-${indexBag} character-drop-zone">0</span>
+            </div>
           </div>
-          <div class="abs center xp-icon">XP</div>
-          <div class="in bag-slot-type-text">experience</div>
-          <div class="in bag-slot-name-text">level 0</div>`,
+          <div class="abs center xp-icon character-drop-zone">XP</div>
+          <div class="in bag-slot-type-text character-drop-zone">experience</div>
+          <div class="in bag-slot-name-text character-drop-zone">level 0</div>`,
       );
       indexBag++;
       return indexBag;
@@ -317,6 +350,34 @@ const Bag = {
           // console.log('Sortable onEnd', evt);
           // console.log('evt.oldIndex', evt.oldIndex);
           // console.log('evt.newIndex', evt.newIndex);
+
+          const { srcElement, target, toElement } = evt.originalEvent;
+
+          const { item } = evt;
+
+          const dataBagFrom = {
+            type: Array.from(item.children)[2].innerHTML,
+            id: Array.from(item.children)[3].innerHTML,
+          };
+          const dataBagTo = {
+            srcElement: Array.from(srcElement.classList).pop(),
+            target: Array.from(target.classList).pop(),
+            toElement: Array.from(toElement.classList).pop(),
+          };
+
+          logger.info('Sortable Bag From:', dataBagFrom);
+          logger.info('Sortable Bag To:', dataBagTo);
+
+          if (
+            ['skin', 'weapon'].includes(dataBagFrom.type) &&
+            Object.values(dataBagTo).includes('character-drop-zone')
+          ) {
+            const payLoadEquip = { type: 'user', id: 'main' };
+            payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
+            ItemModal.Equip[dataBagFrom.type](payLoadEquip);
+            return;
+          }
+
           const slotId = Array.from(evt.item.classList).pop();
           // console.log('slotId', slotId);
           if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
@@ -334,11 +395,11 @@ const Bag = {
       });
 
       let indexBag = 0;
-      indexBag = await Slot.coin.render({ bagId, indexBag });
-      indexBag = await Slot.skin.render({ bagId, indexBag });
-      indexBag = await Slot.skill.render({ bagId, indexBag });
-      indexBag = await Slot.weapon.render({ bagId, indexBag });
-      indexBag = await Slot.xp.render({ bagId, indexBag });
+      indexBag = await Slot.coin.renderBagSlots({ bagId, indexBag });
+      indexBag = await Slot.xp.renderBagSlots({ bagId, indexBag });
+      indexBag = await Slot.skin.renderBagSlots({ bagId, indexBag });
+      indexBag = await Slot.skill.renderBagSlots({ bagId, indexBag });
+      indexBag = await Slot.weapon.renderBagSlots({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">
@@ -347,7 +408,11 @@ const Bag = {
             setTimeout(() => {
               // s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);
             });
-            return html` <div class="in fll bag-slot ${bagId}-${slot}" data-id="${slot}"><!-- slot ${slot} --></div> `;
+            return html`
+              <div class="in fll bag-slot ${bagId}-${slot}" data-id="${slot}">
+                <!-- slot ${slot} -->
+              </div>
+            `;
           })
           .join('')}
       </div>

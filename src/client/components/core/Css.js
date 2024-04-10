@@ -843,10 +843,26 @@ const Themes = {
 
 const addTheme = (options) => (Css[options.theme] = async () => append('.theme', await options.render()));
 
-const borderChar = (px, color) => html`
-  text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px ${color},
-  ${px}px ${px}px ${px}px ${color};
-`;
+const borderChar = (px, color, selectors) => {
+  if (selectors) {
+    return selectors
+      .map(
+        (selector) => html`
+          <style>
+            ${selector} {
+              text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
+                -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
+            }
+          </style>
+        `,
+      )
+      .join('');
+  }
+  return html`
+    text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px
+    ${color}, ${px}px ${px}px ${px}px ${color};
+  `;
+};
 
 const boxShadow = ({ selector }) => css`
   .${selector} {

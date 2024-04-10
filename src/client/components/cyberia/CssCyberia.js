@@ -6,7 +6,7 @@ const CssCyberia = {
   render: async () =>
     html`
       <style>
-          body,
+        body,
         input,
         .modal,
         button {
@@ -92,15 +92,15 @@ const CssCyberia = {
         .ag-theme-alpine,
         .ag-theme-alpine-dark {
           /*
-          --ag-foreground-color: rgb(126, 46, 132);
-          --ag-background-color: rgb(249, 245, 227);
-          --ag-header-foreground-color: rgb(204, 245, 172);
-          --ag-header-background-color: rgb(209, 64, 129);
-          --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
-          --ag-header-column-resize-handle-color: rgb(126, 46, 132);
+           --ag-foreground-color: rgb(126, 46, 132);
+           --ag-background-color: rgb(249, 245, 227);
+           --ag-header-foreground-color: rgb(204, 245, 172);
+           --ag-header-background-color: rgb(209, 64, 129);
+           --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
+           --ag-header-column-resize-handle-color: rgb(126, 46, 132);
 
-          --ag-font-size: 17px;
-          */
+           --ag-font-size: 17px;
+           */
           --ag-font-family: 'retro-font-sensitive';
           --ag-font-size: 24px;
         }
@@ -270,7 +270,6 @@ const CssCyberia = {
           left: 20%;
           font-size: 50px;
           color: #ffcc00;
-          ${borderChar(2, 'black')}
         }
         .main-skill-img {
           width: 50%;
@@ -285,7 +284,6 @@ const CssCyberia = {
           background: rgba(0, 0, 0, 0.5);
           transition: 0.35;
           border-radius: 10px;
-          ${borderChar(2, 'black')}
         }
 
         .user-lifeBar {
@@ -306,24 +304,20 @@ const CssCyberia = {
           height: 30px;
           top: 5px;
           right: 5px;
-          ${borderChar(2, 'black')}
         }
         .bag-slot-type-text {
           padding-top: 70%;
           color: yellow;
           font-size: 16px;
           text-align: center;
-          ${borderChar(2, 'black')}
         }
         .bag-slot-name-text {
           font-size: 20px;
           text-align: center;
-          ${borderChar(2, 'black')}
         }
         .xp-icon {
           font-size: 70px;
           color: black;
-          ${borderChar(2, 'yellow')}
         }
         .sub-head-sub-title-modal {
           color: #ffcc00;
@@ -335,6 +329,10 @@ const CssCyberia = {
 
         .character-container {
           border: 2px solid #313131;
+        }
+
+        .character-container:hover {
+          background: rgba(255, 255, 255, 0.03);
         }
 
         .character-equip-container {
@@ -349,6 +347,15 @@ const CssCyberia = {
           width: 80px;
           height: 80px;
           border: 2px solid #313131;
+          cursor: pointer;
+        }
+        .character-slot:hover {
+          background: #313131;
+        }
+
+        .character-slot:hover .bag-slot-img {
+          width: 90%;
+          height: 90%;
         }
         .character-slot-type-text {
           font-size: 12px;
@@ -395,7 +402,6 @@ const CssCyberia = {
         .main-btn-menu-text {
           font-size: 14px;
           color: #ffcc00;
-          ${borderChar(2, 'black')}
           top: 90%;
         }
         .menu-btn-container {
@@ -410,16 +416,26 @@ const CssCyberia = {
         }
         .text-btn-square-view-title {
           padding-left: 60px;
-          ${borderChar(2, 'black')}
         }
         .character-slot-skill {
           width: 50px;
           height: 50px;
           border: 2px solid #313131;
+          cursor: pointer;
         }
         .character-slot-skill-0 {
           left: 20%;
         }
+
+        .character-slot-skill:hover {
+          background: #313131;
+        }
+
+        .character-slot-skill:hover .bag-slot-img {
+          width: 90%;
+          height: 90%;
+        }
+
         .character-slot-skill-1 {
           left: 40%;
         }
@@ -446,7 +462,6 @@ const CssCyberia = {
         }
         .map-face-symbol-text {
           color: white;
-          ${borderChar(2, 'black')}
         }
         .input-file-col,
         .explorer-file-col {
@@ -456,9 +471,8 @@ const CssCyberia = {
           border: 2px solid #313131;
           padding: 10px;
           min-height: 300px;
-         }
+        }
         .explorer-file-sub-col {
-
         }
         input::file-selector-button {
           background: #232323;
@@ -506,7 +520,7 @@ const CssCyberia = {
         }
         .item-modal-section-cell {
           /* border: 2px solid red;
-          min-height: 100px; */
+           min-height: 100px; */
         }
         .item-modal-img {
           width: 80%;
@@ -552,6 +566,18 @@ const CssCyberia = {
           padding: 10px;
         }
       </style>
+
+      ${borderChar(2, 'black', [
+        '.main-skill-key-text',
+        '.main-skill-cooldown',
+        '.bag-slot-count',
+        '.bag-slot-name-text',
+        '.bag-slot-type-text',
+        '.main-btn-menu-text',
+        '.text-btn-square-view-title',
+        '.map-face-symbol-text',
+      ])}
+      ${borderChar(2, 'yellow', ['.xp-icon'])}
     `,
 };
 
