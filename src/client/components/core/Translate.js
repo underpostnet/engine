@@ -206,6 +206,15 @@ const TranslateCore = {
       es: 'No se pudo conectar al dispositivo de transmisión.',
       en: 'Unable to connect to the stream device.',
     };
+
+    Translate.Data['equip'] = {
+      es: 'Equipar',
+      en: 'Equip',
+    };
+    Translate.Data['unequip'] = {
+      es: 'Desequipar',
+      en: 'Unequip',
+    };
   },
 };
 

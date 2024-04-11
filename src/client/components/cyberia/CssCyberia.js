@@ -307,7 +307,7 @@ const CssCyberia = {
         }
         .bag-slot-type-text {
           padding-top: 70%;
-          color: yellow;
+          color: #ffcc00;
           font-size: 16px;
           text-align: center;
         }

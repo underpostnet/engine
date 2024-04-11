@@ -51,9 +51,19 @@ const ItemModal = {
         // -----------------------------------------------------------
         htmls(
           `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-skin-${idModal}` })}`,
+          html`${await BtnIcon.Render({
+            label: Translate.Render('equip'),
+            type: 'button',
+            class: `btn-equip-skin-${idModal}`,
+          })}
+          ${await BtnIcon.Render({
+            label: Translate.Render('unequip'),
+            type: 'button',
+            class: `btn-unequip-skin-${idModal}`,
+          })} `,
         );
         EventsUI.onClick(`.btn-equip-skin-${idModal}`, () => this.Equip.skin({ type: 'user', id: 'main', skin }));
+        EventsUI.onClick(`.btn-unequip-skin-${idModal}`, () => this.Unequip.skin({ type: 'user', id: 'main' }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -87,9 +97,19 @@ const ItemModal = {
         // -----------------------------------------------------------
         htmls(
           `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({ label: 'equip', type: 'button', class: `btn-equip-weapon-${idModal}` })}`,
+          html`${await BtnIcon.Render({
+            label: Translate.Render('equip'),
+            type: 'button',
+            class: `btn-equip-weapon-${idModal}`,
+          })}
+          ${await BtnIcon.Render({
+            label: Translate.Render('unequip'),
+            type: 'button',
+            class: `btn-unequip-weapon-${idModal}`,
+          })} `,
         );
         EventsUI.onClick(`.btn-equip-weapon-${idModal}`, () => this.Equip.weapon({ type: 'user', id: 'main', weapon }));
+        EventsUI.onClick(`.btn-unequip-weapon-${idModal}`, () => this.Unequip.weapon({ type: 'user', id: 'main' }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -137,10 +157,41 @@ const ItemModal = {
       Character.RenderCharacterSLot({ type, id, componentType: 'skin' });
     },
     weapon: function ({ type, id, weapon }) {
-      console.warn('equip weapon', Stat.get[weapon.id]());
       Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
         weaponData.enabled = weaponData.displayId === weapon.id;
         weaponData.current = weaponData.displayId === weapon.id;
+        return weaponData;
+      });
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      SocketIo.Emit(type, {
+        status: 'update-weapon',
+        element: { components: { weapon: Elements.Data[type][id].components.weapon } },
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+    },
+  },
+  Unequip: {
+    skin: function ({ type, id, skin }) {
+      Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
+        skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
+        skinData.current = skinData.displayId === (skin?.id ? skin.id : 'anon');
+        return skinData;
+      });
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      SocketIo.Emit(type, {
+        status: 'update-skin-position',
+        element: { components: { skin: Elements.Data[type][id].components.skin } },
+        direction: Elements.LocalDataScope[type][id].lastDirection,
+        updateStat: true,
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'skin' });
+    },
+    weapon: function ({ type, id, weapon }) {
+      Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
+        weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
+        weaponData.current = weapon?.id ? weaponData.displayId === weapon.id : false;
         return weaponData;
       });
       Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
@@ -404,16 +455,13 @@ const Bag = {
     return html`
       <div class="fl ${bagId}">
         ${range(0, totalSlots - 1)
-          .map((slot) => {
-            setTimeout(() => {
-              // s(`.${bagId}-${slot}`).onclick = () => console.warn(slot);
-            });
-            return html`
+          .map(
+            (slot) => html`
               <div class="in fll bag-slot ${bagId}-${slot}" data-id="${slot}">
                 <!-- slot ${slot} -->
               </div>
-            `;
-          })
+            `,
+          )
           .join('')}
       </div>
     `;

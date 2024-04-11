@@ -3,7 +3,7 @@ import { getId } from '../core/CommonJs.js';
 import { Slot } from './Bag.js';
 import { CharacterSlotType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
-import { s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { loggerFactory } from '../core/Logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -18,6 +18,8 @@ const Character = {
         slotId: `character-slot-${componentType}`,
         displayId: component.displayId,
       });
+    else if (s(`.character-slot-${componentType}`))
+      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
   },
   Render: async function (options) {
     const idModal = options.idModal ? options.idModal : getId(this.Data, 'character-');
@@ -106,9 +108,7 @@ const Character = {
                 class="abs center character-slot character-slot-container-${slotType} character-drop-zone"
               >
                 <div data-id="0" class="in sub-character-slot character-slot-${slotType} character-drop-zone">
-                  <div class="in character-slot-type-text character-drop-zone">
-                    ${slotType.replace('-', html`<br />`)}
-                  </div>
+                  ${this.renderEmptyCharacterSlot(slotType)}
                 </div>
               </div>`;
             })
@@ -128,6 +128,11 @@ const Character = {
         </div>
       </div>
     `;
+  },
+  renderEmptyCharacterSlot: function (slotType) {
+    return html` <div class="in character-slot-type-text character-drop-zone">
+      ${slotType.replace('-', html`<br />`)}
+    </div>`;
   },
 };
 
