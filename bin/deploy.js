@@ -59,7 +59,8 @@ const Cmd = {
     `env-cmd -f .env.production node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${
       deploy.deployId
     } docs`,
-  run: (deploy) => `pm2 delete ${deploy.deployId} && env-cmd -f .env.production node bin/deploy run ${deploy.deployId}`,
+  delete: (deploy) => `pm2 delete ${deploy.deployId}`,
+  run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   copy: async (cmd) => {
     logger.info('cmd', cmd);
     await ncp.copy(cmd);
@@ -69,7 +70,10 @@ const Cmd = {
 
 const deployRun = async (dataDeploy, reset) => {
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
-  for (const deploy of dataDeploy) await Cmd.copy(Cmd.run(deploy));
+  for (const deploy of dataDeploy) {
+    await Cmd.copy(Cmd.delete(deploy));
+    await Cmd.copy(Cmd.run(deploy));
+  }
   const { failed } = await deployTest(dataDeploy);
   for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
   if (failed.length > 0) await deployRun(failed);
