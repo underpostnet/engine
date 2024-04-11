@@ -11,6 +11,4 @@ SrrComponent = ({ title, author, keywords, description, themeColor, ssrPath, can
   <meta property="og:image" content="${thumbnail}" />
   <meta property="og:url" content="${canonicalURL}" />
   <meta name="twitter:card" content="summary_large_image" />
-
-  <meta name="googlebot" content="notranslate" />
 `;
