@@ -364,25 +364,25 @@ const CssCyberia = {
           padding: 5px;
         }
 
-        .character-slot-faction-symbol {
+        .character-slot-container-faction-symbol {
           top: 17%;
         }
-        .character-slot-weapon {
+        .character-slot-container-weapon {
           left: 20%;
           top: 70%;
         }
-        .character-slot-breastplate {
+        .character-slot-container-breastplate {
           left: 80%;
           top: 70%;
         }
-        .character-slot-legs {
+        .character-slot-container-legs {
           top: 83%;
         }
-        .character-slot-helmet {
+        .character-slot-container-helmet {
           left: 80%;
           top: 37%;
         }
-        .character-slot-talisman {
+        .character-slot-container-talisman {
           left: 20%;
           top: 37%;
         }
@@ -564,6 +564,10 @@ const CssCyberia = {
           font-size: 20px;
           border: 2px solid #313131;
           padding: 10px;
+        }
+        .sub-character-slot {
+          width: 100%;
+          height: 100%;
         }
       </style>
 

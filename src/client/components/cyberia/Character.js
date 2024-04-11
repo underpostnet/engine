@@ -1,7 +1,12 @@
+import Sortable from 'sortablejs';
 import { getId } from '../core/CommonJs.js';
 import { Slot } from './Bag.js';
 import { CharacterSlotType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
+import { s } from '../core/VanillaJs.js';
+import { loggerFactory } from '../core/Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Character = {
   Data: {},
@@ -15,8 +20,14 @@ const Character = {
       });
   },
   Render: async function (options) {
-    const idModal = options.id ? options.id : getId(this.Data, 'character-');
-    this.Data[idModal] = {};
+    const idModal = options.idModal ? options.idModal : getId(this.Data, 'character-');
+    if (this.Data[idModal]) {
+      if (this.Data[idModal].sortable)
+        for (const sortableInstanceKey of Object.keys(this.Data[idModal].sortable)) {
+          this.Data[idModal].sortable[sortableInstanceKey].destroy();
+          delete this.Data[idModal].sortable[sortableInstanceKey];
+        }
+    } else this.Data[idModal] = { ...CharacterSlotType };
 
     setTimeout(() => {
       const type = 'user';
@@ -30,14 +41,77 @@ const Character = {
       <div class="inl section-mp character-container character-drop-zone">
         <div class="in character-equip-container character-drop-zone">
           ${Object.keys(CharacterSlotType)
-            .map(
-              (slotType) =>
-                html`<div class="abs center character-slot character-slot-${slotType} character-drop-zone">
+            .map((slotType, i) => {
+              setTimeout(() => {
+                this.Data[idModal][slotType].sortable = new Sortable(s(`.character-slot-container-${slotType}`), {
+                  animation: 150,
+                  group: `character-equip-sortable-${slotType}`,
+                  forceFallback: true,
+                  fallbackOnBody: true,
+
+                  // chosenClass: 'css-class',
+                  // ghostClass: 'css-class',
+                  // Element dragging ended
+                  onEnd: function (/**Event*/ evt) {
+                    // console.log('Sortable onEnd', evt);
+                    // console.log('evt.oldIndex', evt.oldIndex);
+                    // console.log('evt.newIndex', evt.newIndex);
+
+                    const { srcElement, target, toElement } = evt.originalEvent;
+
+                    const { item } = evt;
+
+                    // const dataBagFrom = {
+                    //   type: Array.from(item.children)[2].innerHTML,
+                    //   id: Array.from(item.children)[3].innerHTML,
+                    // };
+                    const dataBagFrom = item.children;
+
+                    const dataBagTo = {
+                      srcElement: Array.from(srcElement.classList).pop(),
+                      target: Array.from(target.classList).pop(),
+                      toElement: Array.from(toElement.classList).pop(),
+                    };
+
+                    logger.info('Sortable Bag From:', dataBagFrom);
+                    logger.info('Sortable Bag To:', dataBagTo);
+
+                    // if (
+                    //   ['skin', 'weapon'].includes(dataBagFrom.type) &&
+                    //   Object.values(dataBagTo).includes('character-drop-zone')
+                    // ) {
+                    //   const payLoadEquip = { type: 'user', id: 'main' };
+                    //   payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
+                    //   ItemModal.Equip[dataBagFrom.type](payLoadEquip);
+                    //   return;
+                    // }
+
+                    // const slotId = Array.from(evt.item.classList).pop();
+                    // console.log('slotId', slotId);
+                    // if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+
+                    // var itemEl = evt.item; // dragged HTMLElement
+                    // evt.to; // target list
+                    // evt.from; // previous list
+                    // evt.oldIndex; // element's old index within old parent
+                    // evt.newIndex; // element's new index within new parent
+                    // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+                    // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+                    // evt.clone; // the clone element
+                    // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+                  },
+                });
+              });
+              return html`<div
+                class="abs center character-slot character-slot-container-${slotType} character-drop-zone"
+              >
+                <div data-id="0" class="in sub-character-slot character-slot-${slotType} character-drop-zone">
                   <div class="in character-slot-type-text character-drop-zone">
                     ${slotType.replace('-', html`<br />`)}
                   </div>
-                </div>`,
-            )
+                </div>
+              </div>`;
+            })
             .join('')}
         </div>
         <div class="in character-skill-container character-drop-zone">
