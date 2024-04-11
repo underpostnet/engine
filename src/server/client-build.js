@@ -96,7 +96,8 @@ const buildClient = async () => {
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
-      const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
+      // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
+      const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       currentPort++;
 
       const acmeChallengeFullPath = directory
