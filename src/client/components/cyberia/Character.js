@@ -27,7 +27,7 @@ const Character = {
           this.Data[idModal].sortable[sortableInstanceKey].destroy();
           delete this.Data[idModal].sortable[sortableInstanceKey];
         }
-    } else this.Data[idModal] = { ...CharacterSlotType };
+    } else this.Data[idModal] = { sortable: {} };
 
     setTimeout(() => {
       const type = 'user';
@@ -43,7 +43,7 @@ const Character = {
           ${Object.keys(CharacterSlotType)
             .map((slotType, i) => {
               setTimeout(() => {
-                this.Data[idModal][slotType].sortable = new Sortable(s(`.character-slot-container-${slotType}`), {
+                this.Data[idModal].sortable[slotType] = new Sortable(s(`.character-slot-container-${slotType}`), {
                   animation: 150,
                   group: `character-equip-sortable-${slotType}`,
                   forceFallback: true,
