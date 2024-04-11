@@ -169,7 +169,7 @@ const buildRuntime = async () => {
           app.set('json spaces', 2);
 
           // cors
-          app.use(cors({ origin: origins }));
+          app.use(cors());
 
           if (redirect) {
             app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {
@@ -219,6 +219,7 @@ const buildRuntime = async () => {
             for (const api of apis)
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
+                ApiRouter.use(cors({ origin: origins }));
                 const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
                 // logger.info('Load api router', { host, path: apiPath, api });
                 app.use(apiPath, ApiRouter({ host, path, apiPath, mailer, db }));
