@@ -56,9 +56,7 @@ const deployTest = async (dataDeploy) => {
 
 const Cmd = {
   clientBuild: (deploy) =>
-    `env-cmd -f .env.production node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${
-      deploy.deployId
-    } docs`,
+    `node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${deploy.deployId} docs`,
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   copy: async (cmd) => {

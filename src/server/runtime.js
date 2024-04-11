@@ -169,7 +169,7 @@ const buildRuntime = async () => {
           app.set('json spaces', 2);
 
           // cors
-          app.use(cors());
+          app.use(cors({ origin: origins }));
 
           if (redirect) {
             app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {
