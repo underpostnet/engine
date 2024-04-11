@@ -96,6 +96,7 @@ const buildClient = async () => {
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
+      const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       currentPort++;
 
       const acmeChallengeFullPath = directory
@@ -135,6 +136,7 @@ const buildClient = async () => {
               dists,
               path,
               'components',
+              baseHost,
             );
             fs.writeFileSync(
               `${rootClientPath}/components/${module}/${component}.js`,
@@ -155,6 +157,7 @@ const buildClient = async () => {
             dists,
             path,
             'services',
+            baseHost,
           );
           fs.writeFileSync(
             `${rootClientPath}/services/${module}/${module}.service.js`,
@@ -180,6 +183,7 @@ const buildClient = async () => {
             srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')),
             dists,
             path,
+            baseHost,
           );
 
           const minifyJsSrc = UglifyJS.minify(jsSrc);
