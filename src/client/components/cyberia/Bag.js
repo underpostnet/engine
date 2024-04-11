@@ -478,4 +478,4 @@ const Bag = {
   },
 };
 
-export { Bag, Slot };
+export { Bag, Slot, ItemModal };

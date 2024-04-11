@@ -1,6 +1,6 @@
 import Sortable from 'sortablejs';
 import { getId } from '../core/CommonJs.js';
-import { Slot } from './Bag.js';
+import { ItemModal, Slot } from './Bag.js';
 import { CharacterSlotType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -63,11 +63,10 @@ const Character = {
 
                     const { item } = evt;
 
-                    // const dataBagFrom = {
-                    //   type: Array.from(item.children)[2].innerHTML,
-                    //   id: Array.from(item.children)[3].innerHTML,
-                    // };
-                    const dataBagFrom = item.children;
+                    const dataBagFrom = {
+                      type: Array.from(item.children)[2].innerHTML,
+                      id: Array.from(item.children)[3].innerHTML,
+                    };
 
                     const dataBagTo = {
                       srcElement: Array.from(srcElement.classList).pop(),
@@ -78,15 +77,11 @@ const Character = {
                     logger.info('Sortable Bag From:', dataBagFrom);
                     logger.info('Sortable Bag To:', dataBagTo);
 
-                    // if (
-                    //   ['skin', 'weapon'].includes(dataBagFrom.type) &&
-                    //   Object.values(dataBagTo).includes('character-drop-zone')
-                    // ) {
-                    //   const payLoadEquip = { type: 'user', id: 'main' };
-                    //   payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
-                    //   ItemModal.Equip[dataBagFrom.type](payLoadEquip);
-                    //   return;
-                    // }
+                    if (
+                      ['skin', 'weapon'].includes(dataBagFrom.type) &&
+                      !Object.values(dataBagTo).includes('character-drop-zone')
+                    )
+                      return ItemModal.Unequip[dataBagFrom.type]({ type: 'user', id: 'main' });
 
                     // const slotId = Array.from(evt.item.classList).pop();
                     // console.log('slotId', slotId);
