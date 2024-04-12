@@ -148,6 +148,10 @@ const Stat = {
         }
       }
     }
+
+    if ('life' in element && 'maxLife' in element && element.life > element.maxLife)
+      element.life = newInstance(element.maxLife);
+
     return element;
   },
 };

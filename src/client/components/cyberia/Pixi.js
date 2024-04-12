@@ -227,13 +227,12 @@ const Pixi = {
 
           // maxLife -> 100%
           // life -> x%
-          componentInstance.width =
-            dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
 
           componentInstance.height = dim * Elements.Data[type][id].dim * 0.2;
           componentInstance.tint = '#00e622ff';
           componentInstance.visible = true;
           this.Data[type][id].components[componentType] = componentInstance;
+          this.updateLifeBarWidth({ type, id, dim });
           this.Data[type][id].addChild(componentInstance);
 
           break;
@@ -455,6 +454,7 @@ const Pixi = {
         index++;
       }
     }
+    this.updateLifeBarWidth({ type, id, dim });
   },
   updateLife: function (options) {
     const { type, id } = options;
@@ -610,6 +610,11 @@ const Pixi = {
         this.Data[type][id].components[componentType].container.addChild(componentInstance);
       }, 100);
     }
+  },
+  updateLifeBarWidth: function ({ type, id, dim }) {
+    if (this.Data[type][id].components['lifeBar'])
+      this.Data[type][id].components['lifeBar'].width =
+        dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
   },
 };
 

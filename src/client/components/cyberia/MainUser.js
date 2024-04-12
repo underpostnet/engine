@@ -16,6 +16,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Skill } from './Skill.js';
 import { Bag, Slot } from './Bag.js';
 import { InteractionPanel } from './InteractionPanel.js';
+import { Character } from './Character.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -223,6 +224,7 @@ const MainUser = {
     // console.log(type, id, Elements.Data[type][id]);
     // Pixi.setComponents({ type, id });
     Pixi.setDisplayComponent({ type, id });
+    Character.renderCharacterStat();
     Pixi.updateLife({ type, id });
     Pixi.setUsername({ type, id });
     InteractionPanel.PanelRender.element({ type, id });
