@@ -1,4 +1,5 @@
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
+import { borderChar } from '../core/Css.js';
 import { Keyboard } from '../core/Keyboard.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
@@ -37,6 +38,8 @@ const Skill = {
   setMainKeysSkill: function () {
     let indexSkillIteration = -1;
     Keyboard.Event['main-skill'] = {};
+    Elements.LocalDataScope['user']['main']['skill'] = {};
+
     for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys)) {
       indexSkillIteration++;
       const indexSkill = indexSkillIteration;
@@ -51,23 +54,24 @@ const Skill = {
         s(`.main-skill-img-${indexSkill}`).src = `${getProxyPath()}assets/skill/${
           Elements.Data.user.main.skill.keys[skillKey]
         }/animation.gif`;
-        triggerSkill = (e) => {
-          if (e) e.preventDefault();
-          if (Elements.Data.user.main.life <= 0) return;
+        triggerSkill = (e, ms, headerRender = '', type) => {
+          if (e && e.preventDefault) e.preventDefault();
+          if (Elements.Data.user.main.life <= 0 && type !== 'dead') return;
           if (!cooldownActive) {
             cooldownActive = true;
-            SocketIo.Emit('skill', {
-              status: 'create',
-              skillKey,
-            });
+            if (type !== 'dead')
+              SocketIo.Emit('skill', {
+                status: 'create',
+                skillKey,
+              });
             const statData = Stat.get[Elements.Data.user.main.skill.keys[skillKey]]();
-            let currentCooldown = newInstance(statData.cooldown);
+            let currentCooldown = ms ? newInstance(ms) : newInstance(statData.cooldown);
             s(`.main-skill-cooldown-${indexSkill}`).style.display = 'block';
             const reduceCooldown = async () => {
               const cooldownDisplayValue = currentCooldown / 1000;
               htmls(
                 `.main-skill-cooldown-delay-time-text-${indexSkill}`,
-                `${setPad(floatRound(cooldownDisplayValue, 3), '0', 4, true)} s`,
+                `${headerRender}${setPad(setPad(floatRound(cooldownDisplayValue, 3), '0', 2, true), '0', 2)} s`,
               );
               await timer(50);
               currentCooldown -= 50;
@@ -87,7 +91,19 @@ const Skill = {
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;
       Keyboard.Event['main-skill'][skillKey.toLowerCase()] = triggerSkill;
       Keyboard.Event['main-skill'][skillKey.toUpperCase()] = triggerSkill;
+      Elements.LocalDataScope['user']['main']['skill'][indexSkill] = triggerSkill;
     }
+  },
+  renderDeadCooldown: function ({ type, id }) {
+    if (Elements.LocalDataScope[type][id].skill)
+      for (const skillKey of Object.keys(Elements.LocalDataScope[type][id].skill)) {
+        Elements.LocalDataScope[type][id].skill[skillKey](
+          {},
+          Elements.Data[type][id].deadTime,
+          html`<i class="inl fa-solid fa-ban" style="color: red; top: 10px; ${borderChar(2, 'black')}"></i> <br />`,
+          'dead',
+        );
+      }
   },
 };
 

@@ -569,6 +569,9 @@ const CssCyberia = {
           width: 100%;
           height: 100%;
         }
+        .main-skill-cooldown-delay-time-text {
+          font-size: 21px;
+        }
       </style>
 
       ${borderChar(2, 'black', [

@@ -126,10 +126,13 @@ const getDistance = (x1, y1, x2, y2) => {
   return Math.sqrt(disX * disX + disY * disY);
 };
 
-const setPad = (num, padValue, targetLength, endPad) => {
-  let str = String(num);
-  while (str.length < targetLength) endPad ? (str = str + padValue) : (str = padValue + str);
-  return str;
+const setPad = (num, padValue, targetLength, endPad, separator) => {
+  separator = separator ? separator : '.';
+  let str = String(num).split(separator);
+  if (!str[1]) str[1] = '';
+  while (endPad ? str[1].length < targetLength : str[0].length < targetLength)
+    endPad ? (str[1] = str[1] + padValue) : (str[0] = padValue + str[0]);
+  return str.join(separator);
 };
 
 /**

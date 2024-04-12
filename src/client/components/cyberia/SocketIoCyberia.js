@@ -12,6 +12,7 @@ import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { LogInCyberia } from './LogInCyberia.js';
 import { Pixi } from './Pixi.js';
+import { Skill } from './Skill.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -44,6 +45,8 @@ const SocketIoCyberia = {
               if (!Elements.Data[type][id]) return;
               Elements.Data[type][id].life = element.life;
               Pixi.updateLife({ type, id });
+              if (Elements.Data[type][id].life <= 0 && type === 'user' && id === 'main')
+                Skill.renderDeadCooldown({ type, id });
               break;
             case 'update-position':
               if (!Elements.Data[type][id]) return;
@@ -84,7 +87,10 @@ const SocketIoCyberia = {
               if (type === 'user' || type === 'bot') {
                 Pixi.setUsername({ type, id });
               }
-              if (type === 'user' && id === 'main') resolve();
+              if (type === 'user' && id === 'main') {
+                if (Elements.Data[type][id].life <= 0) Skill.renderDeadCooldown({ type, id });
+                resolve();
+              }
               break;
             case 'email-confirmed':
               const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
