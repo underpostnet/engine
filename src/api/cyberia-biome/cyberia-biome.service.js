@@ -3,7 +3,16 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 const logger = loggerFactory(import.meta);
 
 const select = {
-  'all-name': { _id: 1, name: 1, biome: 1, fileId: 1, dim: 1, dimAmplitude: 1, dimPaintByCell: 1 },
+  'all-name': {
+    _id: 1,
+    name: 1,
+    biome: 1,
+    fileId: 1,
+    topLevelColorFileId: 1,
+    dim: 1,
+    dimAmplitude: 1,
+    dimPaintByCell: 1,
+  },
 };
 
 const CyberiaBiomeService = {

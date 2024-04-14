@@ -112,14 +112,17 @@ const WorldManagement = {
             ][0] - 1
           ]
         ) {
-          this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
-          if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
-            this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
-            this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeScope.Data[biomeKey].imageSrc);
-          }
-          if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
-            this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeScope.Data[biomeKey].imageSrc);
-            this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeScope.Data[biomeKey].imageSrc);
+          for (const srcType of ['imageSrc']) {
+            // 'imageTopLevelColorSrc'
+            this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
+            if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
+              this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
+            }
+            if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
+              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeScope.Data[biomeKey][srcType]);
+            }
           }
         }
       }
@@ -422,7 +425,11 @@ const World = {
     `;
   },
   renderFace: async function (index) {
-    if (this.WorldScope.face[index] && this.WorldScope.face[index].fileId) {
+    if (
+      this.WorldScope.face[index] &&
+      this.WorldScope.face[index].fileId &&
+      this.WorldScope.face[index].topLevelColorFileId
+    ) {
       const resultFile = await FileService.get({ id: this.WorldScope.face[index].fileId });
 
       const imageData = resultFile.data[0];
@@ -433,10 +440,30 @@ const World = {
 
       const imageSrc = URL.createObjectURL(imageFile);
 
+      const resultTopLevelColorFile = await FileService.get({ id: this.WorldScope.face[index].topLevelColorFileId });
+
+      const imageTopLevelColorData = resultTopLevelColorFile.data[0];
+
+      const imageTopLevelColorBlob = new Blob([new Uint8Array(imageTopLevelColorData.data.data)], {
+        type: imageTopLevelColorData.mimetype,
+      });
+
+      const imageTopLevelColorFile = new File([imageTopLevelColorBlob], imageTopLevelColorData.name, {
+        type: imageTopLevelColorData.mimetype,
+      });
+
+      const imageTopLevelColorSrc = URL.createObjectURL(imageTopLevelColorFile);
+
       htmls(
         `.world-${index}`,
         html`
-          <img class="in face-world-img" src="${imageSrc}" ${index === 2 ? `style="transform: rotate(180deg)"` : ''} />
+          <img class="abs face-world-img" src="${imageSrc}" ${index === 2 ? `style="transform: rotate(180deg)"` : ''} />
+          <div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>
+          <img
+            class="abs face-world-img"
+            src="${imageTopLevelColorSrc}"
+            ${index === 2 ? `style="transform: rotate(180deg)"` : ''}
+          />
           <div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>
         `,
       );

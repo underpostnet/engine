@@ -5,8 +5,13 @@ const CyberiaBiomeSchema = new Schema({
     type: Schema.Types.ObjectId,
     ref: 'File',
   },
+  topLevelColorFileId: {
+    type: Schema.Types.ObjectId,
+    ref: 'File',
+  },
   solid: [[{ type: Number }]],
   color: [[{ type: String }]],
+  topLevelColor: [[{ type: String }]],
   name: { type: String },
   biome: { type: String },
   dim: { type: Number },

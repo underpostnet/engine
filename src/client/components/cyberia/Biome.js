@@ -11,6 +11,7 @@ import {
   random,
   randomHexColor,
   range,
+  round10,
 } from '../core/CommonJs.js';
 import { Css, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
@@ -56,8 +57,10 @@ const Biome = {
     const BiomeMatrix = {
       color: {},
       solid: {},
+      topLevelColor: {},
     };
     let colorCell;
+    let defaultColor;
     // seeds
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
@@ -77,11 +80,14 @@ const Biome = {
             colorCell = pavementStyle[pavementStyle.length - 3];
           } else {
             colorCell = pavementStyle[pavementStyle.length - 4];
+            defaultColor = pavementStyle[pavementStyle.length - 4];
           }
         }
         if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+        if (!BiomeMatrix.topLevelColor[y]) BiomeMatrix.topLevelColor[y] = {};
         BiomeMatrix.color[y][x] = `${colorCell}`;
+        BiomeMatrix.topLevelColor[y][x] = '';
         BiomeMatrix.solid[y][x] = 0;
       });
     });
@@ -101,6 +107,9 @@ const Biome = {
             const yFactor = random(3, 10);
             const buildLimitX = BiomeParamsScope.dimPaintByCell * xFactor - 1;
             const buildLimitY = BiomeParamsScope.dimPaintByCell * yFactor - 1;
+            const topLevelColor = {
+              y: round10(buildLimitY * 0.4),
+            };
 
             if (!buildLimitStorage[x]) buildLimitStorage[x] = {};
             buildLimitStorage[x][y] = {
@@ -112,8 +121,12 @@ const Biome = {
               range(0, buildLimitY).map((sumY) => {
                 if (baseCordValidator(x + sumX, y + sumY, dim - 1, dim - 1)) {
                   colorCell = buildStyle.body[random(0, 500) < 100 || x + sumX <= x + random(3, 7) ? 0 : 1];
-                  BiomeMatrix.solid[y + sumY][x + sumX] = 1;
-                  BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+                  const topLevelColorEnabled = sumY <= topLevelColor.y;
+                  BiomeMatrix.solid[y + sumY][x + sumX] = topLevelColorEnabled ? 0 : 1;
+                  if (topLevelColorEnabled) {
+                    BiomeMatrix.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
+                    if (sumX === 0 && sumY === 0) BiomeMatrix.color[y + sumY][x + sumX] = `${defaultColor}`;
+                  } else BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
                 }
               }),
             );
@@ -137,7 +150,12 @@ const Biome = {
                         y + sumY + sumY0 > y
                       ) {
                         colorCell = buildStyle.window[random(0, 2)];
-                        BiomeMatrix.color[y + sumY + sumY0][x + sumX + sumX0] = `${colorCell}`;
+                        const topLevelColorEnabled = sumY + sumY0 <= topLevelColor.y;
+                        if (topLevelColorEnabled) {
+                          BiomeMatrix.topLevelColor[y + sumY + sumY0][x + sumX + sumX0] = `${colorCell}`;
+                          if (sumX0 === 0 && sumY0 === 0)
+                            BiomeMatrix.color[y + sumY + sumY0][x + sumX + sumX0] = `${defaultColor}`;
+                        } else BiomeMatrix.color[y + sumY + sumY0][x + sumX + sumX0] = `${colorCell}`;
                       }
                     }),
                   );
@@ -658,6 +676,15 @@ class LoadBiomeRenderer {
           status: fileDeleteResult.status,
         });
 
+        const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
+        NotificationManager.Push({
+          html:
+            topLevelColorFileDeleteResult.status === 'success'
+              ? Translate.Render(topLevelColorFileDeleteResult.message)
+              : topLevelColorFileDeleteResult.message,
+          status: topLevelColorFileDeleteResult.status,
+        });
+
         setTimeout(() => {
           BiomeScope.Grid = BiomeScope.Grid.filter((biome) => biome._id !== params.data._id);
           AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeScope.Grid);
@@ -693,9 +720,27 @@ class LoadBiomeRenderer {
 
       const imageSrc = URL.createObjectURL(imageFile);
 
+      const resultTopLevelColorFile = await FileService.get({ id: biomeData.topLevelColorFileId });
+
+      const imageTopLevelColorData = resultTopLevelColorFile.data[0];
+
+      const imageTopLevelColorBlob = new Blob([new Uint8Array(imageTopLevelColorData.data.data)], {
+        type: imageTopLevelColorData.mimetype,
+      });
+
+      const imageTopLevelColorFile = new File([imageTopLevelColorBlob], imageTopLevelColorData.name, {
+        type: imageTopLevelColorData.mimetype,
+      });
+
+      const imageTopLevelColorSrc = URL.createObjectURL(imageTopLevelColorFile);
+
       biomeData.color = Object.assign(
         {},
         biomeData.color.map((cell) => Object.assign({}, cell)),
+      );
+      biomeData.topLevelColor = Object.assign(
+        {},
+        biomeData.topLevelColor.map((cell) => Object.assign({}, cell)),
       );
       biomeData.solid = Object.assign(
         {},
@@ -706,6 +751,8 @@ class LoadBiomeRenderer {
         ...biomeData,
         imageFile,
         imageSrc,
+        imageTopLevelColorFile,
+        imageTopLevelColorSrc,
         mainUserCollisionMatrix: getCollisionMatrix(biomeData, Elements.Data.user.main),
       };
     }
@@ -721,12 +768,14 @@ class LoadBiomeRenderer {
     Matrix.Data.biomeDataId = rowId;
     // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
     Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
+    Pixi.setFloorTopLevelColor(BiomeScope.Data[rowId].imageTopLevelColorSrc);
   }
 }
 
 const BiomeEngine = {
   PixiBiomeDim: 0,
   PixiBiome: Application,
+  PixiBiomeTopLevelColor: Application,
   Render: async function (options) {
     const resultBiome = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
@@ -812,6 +861,17 @@ const BiomeEngine = {
       this.PixiBiome.view.classList.add('pixi-canvas-biome');
 
       s('.biome-pixi-container').appendChild(this.PixiBiome.view);
+
+      this.PixiBiomeTopLevelColor = new Application({
+        width: this.PixiBiomeDim,
+        height: this.PixiBiomeDim,
+        backgroundAlpha: 0,
+      });
+
+      this.PixiBiomeTopLevelColor.view.classList.add('in');
+      this.PixiBiomeTopLevelColor.view.classList.add('pixi-canvas-biome');
+
+      s('.biome-top-level-pixi-container').appendChild(this.PixiBiomeTopLevelColor.view);
     });
     setTimeout(() =>
       Object.keys(Biome).map(async (biome) => {
@@ -833,17 +893,18 @@ const BiomeEngine = {
               status: 'error',
             });
 
-          let { solid, color } = BiomeScope.Keys[biome];
+          let { solid, color, topLevelColor } = BiomeScope.Keys[biome];
           if (!solid)
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
               status: 'error',
             });
-          const body = new FormData();
           // https://www.iana.org/assignments/media-types/media-types.xhtml
-          body.append('file', BiomeScope.Keys[biome].imageFile);
           let fileId;
+          let topLevelColorFileId;
           await (async () => {
+            const body = new FormData();
+            body.append('file', BiomeScope.Keys[biome].imageFile);
             const { status, data } = await FileService.post({ body });
             // await timer(3000);
             NotificationManager.Push({
@@ -852,16 +913,30 @@ const BiomeEngine = {
             });
             if (status === 'success') fileId = data[0]._id;
           })();
-          if (fileId)
+          await (async () => {
+            const body = new FormData();
+            body.append('file', BiomeScope.Keys[biome].imageTopLevelColorFile);
+            const { status, data } = await FileService.post({ body });
+            // await timer(3000);
+            NotificationManager.Push({
+              html: Translate.Render(`${status}-upload-file`),
+              status,
+            });
+            if (status === 'success') topLevelColorFileId = data[0]._id;
+          })();
+          if (fileId && topLevelColorFileId)
             await (async () => {
               if (color) color = Object.values(color).map((row) => Object.values(row));
+              if (topLevelColor) topLevelColor = Object.values(topLevelColor).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
               const { dim, dimPaintByCell, dimAmplitude } = BiomeScope.Keys[biome];
               const { status, data } = await CyberiaBiomeService.post({
                 body: {
                   fileId,
+                  topLevelColorFileId,
                   solid,
                   color,
+                  topLevelColor,
                   name: s(`.input-name-${biome}`).value,
                   biome,
                   dim,
@@ -888,7 +963,14 @@ const BiomeEngine = {
             id: `modal-image-biome-${biome}`,
             barConfig,
             title: ` ${Translate.Render(`biome-image`)} - ${biome}`,
-            html: html`<img class="in" style="width: 100%" src="${BiomeScope.Keys[biome].imageSrc}" />`,
+            html: html`<div class="in section-mp">
+              <img class="in" style="width: 100%" src="${BiomeScope.Keys[biome].imageSrc}" />
+              <img
+                class="abs"
+                style="top: 0%; left: 0%; width: 100%; height: 100%"
+                src="${BiomeScope.Keys[biome].imageTopLevelColorSrc}"
+              />
+            </div>`,
             mode: 'view',
             slideMenu: 'modal-menu',
           });
@@ -960,6 +1042,9 @@ const BiomeEngine = {
             <div class="in biome-pixi-container"></div>
           </div>
           <div class="in section-mp">
+            <div class="in biome-top-level-pixi-container"></div>
+          </div>
+          <div class="in section-mp">
             <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
           </div>
           <div class="in section-mp">
@@ -1002,17 +1087,29 @@ const BiomeEngine = {
     await this.renderPixiBiome(BiomeScope.Keys[biome]);
     setTimeout(
       async () => {
-        const biomeImg = await this.PixiBiome.renderer.extract.image(this.PixiBiome.stage);
-        BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
-        const res = await fetch(BiomeScope.Keys[biome].imageSrc);
-        const blob = await res.blob();
-        BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+        {
+          const biomeImg = await this.PixiBiome.renderer.extract.image(this.PixiBiome.stage);
+          BiomeScope.Keys[biome].imageSrc = biomeImg.currentSrc;
+          const res = await fetch(BiomeScope.Keys[biome].imageSrc);
+          const blob = await res.blob();
+          BiomeScope.Keys[biome].imageFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+        }
+        {
+          const biomeImgTopLevelColor = await this.PixiBiomeTopLevelColor.renderer.extract.image(
+            this.PixiBiomeTopLevelColor.stage,
+          );
+          BiomeScope.Keys[biome].imageTopLevelColorSrc = biomeImgTopLevelColor.currentSrc;
+          const res = await fetch(BiomeScope.Keys[biome].imageTopLevelColorSrc);
+          const blob = await res.blob();
+          BiomeScope.Keys[biome].imageTopLevelColorFile = new File([blob], `${biome}.png`, { type: 'image/png' });
+        }
       },
       BiomeMatrix.timeOut ? BiomeMatrix.timeOut : 0,
     );
   },
   renderPixiBiome: async function (BiomeMatrix) {
     this.PixiBiome.stage.removeChildren();
+    this.PixiBiomeTopLevelColor.stage.removeChildren();
 
     if (BiomeMatrix.biome === 'seed-city' && !BiomeMatrix.setBiome) {
       const biomeData = await Biome['seed-city']();
@@ -1045,6 +1142,15 @@ const BiomeEngine = {
           cell.height = dim;
           cell.tint = BiomeMatrix.color[y][x];
           this.PixiBiome.stage.addChild(cell);
+        }
+        if (BiomeMatrix.topLevelColor && BiomeMatrix.topLevelColor[y] && BiomeMatrix.topLevelColor[y][x]) {
+          const cell = new Sprite(Texture.WHITE);
+          cell.x = dim * x;
+          cell.y = dim * y;
+          cell.width = dim;
+          cell.height = dim;
+          cell.tint = BiomeMatrix.topLevelColor[y][x];
+          this.PixiBiomeTopLevelColor.stage.addChild(cell);
         }
       }
   },

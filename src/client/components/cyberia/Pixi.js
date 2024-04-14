@@ -72,16 +72,16 @@ const Pixi = {
     this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
 
-    this.AppTopLevel = new Application({
+    this.AppTopLevelColor = new Application({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
       background: undefined,
       backgroundAlpha: 0,
     });
-    this.AppTopLevel.view.classList.add('abs');
-    this.AppTopLevel.view.classList.add('pixi-canvas-top-level');
+    this.AppTopLevelColor.view.classList.add('abs');
+    this.AppTopLevelColor.view.classList.add('pixi-canvas-top-level');
 
-    s('.pixi-container-top-level').appendChild(this.AppTopLevel.view);
+    s('.pixi-container-top-level').appendChild(this.AppTopLevelColor.view);
     s('.pixi-container-top-level').style.zIndex = '2';
 
     (() => {
@@ -94,7 +94,7 @@ const Pixi = {
       componentInstance.height = this.MetaData.dim * 0.1;
       componentInstance.tint = '#ff0000';
       componentInstance.visible = true;
-      this.AppTopLevel.stage.addChild(componentInstance);
+      this.AppTopLevelColor.stage.addChild(componentInstance);
     })();
 
     // Matrix.Render['matrix-center-square']('.pixi-container');
@@ -170,6 +170,15 @@ const Pixi = {
     this.Data.biome.floor.x = 0;
     this.Data.biome.floor.y = 0;
     this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome.floor);
+  },
+  setFloorTopLevelColor: function (blobUrl) {
+    this.AppTopLevelColor.stage.removeChildren();
+    const componentInstance = Sprite.from(new BaseTexture(blobUrl));
+    componentInstance.width = this.MetaData.dim;
+    componentInstance.height = this.MetaData.dim;
+    componentInstance.x = 0;
+    componentInstance.y = 0;
+    this.AppTopLevelColor.stage.addChild(componentInstance);
   },
   setBiome: function (BiomeMatrix) {
     this.clearBiomeContainers();
@@ -576,7 +585,7 @@ const Pixi = {
       sprites[frame].visible = frame === 0;
       container.addChild(sprites[frame]);
     }
-    this.AppTopLevel.stage.addChild(container);
+    this.AppTopLevelColor.stage.addChild(container);
 
     await timer(30);
     sprites[0].visible = false;
