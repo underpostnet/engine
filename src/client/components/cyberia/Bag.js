@@ -362,66 +362,70 @@ const Bag = {
         // ghostClass: 'css-class',
         // Element dragging ended
         onEnd: function (/**Event*/ evt) {
-          // console.log('Sortable onEnd', evt);
-          // console.log('evt.oldIndex', evt.oldIndex);
-          // console.log('evt.newIndex', evt.newIndex);
+          try {
+            // console.log('Sortable onEnd', evt);
+            // console.log('evt.oldIndex', evt.oldIndex);
+            // console.log('evt.newIndex', evt.newIndex);
 
-          const toElements = {
-            srcElement: evt.originalEvent.srcElement,
-            target: evt.originalEvent.target,
-            toElement: evt.originalEvent.toElement,
-          };
+            const toElements = {
+              srcElement: evt.originalEvent.srcElement,
+              target: evt.originalEvent.target,
+              toElement: evt.originalEvent.toElement,
+            };
 
-          const { item } = evt; // parentElement parentNode children(array)
+            const { item } = evt; // parentElement parentNode children(array)
 
-          const dataBagFrom = {
-            type: Array.from(item.children)[2].innerHTML,
-            id: Array.from(item.children)[3].innerHTML,
-          };
-          const dataBagTo = {};
+            const dataBagFrom = {
+              type: Array.from(item.children)[2].innerHTML,
+              id: Array.from(item.children)[3].innerHTML,
+            };
+            const dataBagTo = {};
 
-          let dataClassBagFrom = [];
-          let dataClassBagTo = [];
+            let dataClassBagFrom = [];
+            let dataClassBagTo = [];
 
-          for (const toElementKey of Object.keys(toElements)) {
-            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
-            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
-            dataClassBagTo = dataClassBagTo.concat(
-              Array.from(toElements[toElementKey].parentNode.parentNode.classList),
-            );
-            dataClassBagTo = dataClassBagTo.concat(
-              Array.from(toElements[toElementKey].parentElement.parentElement.classList),
-            );
+            for (const toElementKey of Object.keys(toElements)) {
+              dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
+              dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
+              dataClassBagTo = dataClassBagTo.concat(
+                Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+              );
+              dataClassBagTo = dataClassBagTo.concat(
+                Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+              );
+            }
+
+            dataClassBagTo = uniqueArray(dataClassBagTo);
+
+            logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
+            logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
+
+            if (
+              Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) &&
+              ['skin', 'weapon'].includes(dataBagFrom.type)
+            ) {
+              const payLoadEquip = { type: 'user', id: 'main' };
+              payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
+              ItemModal.Equip[dataBagFrom.type](payLoadEquip);
+              return;
+            }
+
+            const slotId = Array.from(evt.item.classList).pop();
+            // console.log('slotId', slotId);
+            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+
+            // var itemEl = evt.item; // dragged HTMLElement
+            // evt.to; // target list
+            // evt.from; // previous list
+            // evt.oldIndex; // element's old index within old parent
+            // evt.newIndex; // element's new index within new parent
+            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+            // evt.clone; // the clone element
+            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+          } catch (error) {
+            logger.error(error, error.stack);
           }
-
-          dataClassBagTo = uniqueArray(dataClassBagTo);
-
-          logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
-          logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
-
-          if (
-            Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) &&
-            ['skin', 'weapon'].includes(dataBagFrom.type)
-          ) {
-            const payLoadEquip = { type: 'user', id: 'main' };
-            payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
-            ItemModal.Equip[dataBagFrom.type](payLoadEquip);
-            return;
-          }
-
-          const slotId = Array.from(evt.item.classList).pop();
-          // console.log('slotId', slotId);
-          if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
-
-          // var itemEl = evt.item; // dragged HTMLElement
-          // evt.to; // target list
-          // evt.from; // previous list
-          // evt.oldIndex; // element's old index within old parent
-          // evt.newIndex; // element's new index within new parent
-          // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-          // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-          // evt.clone; // the clone element
-          // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
         },
       });
 
