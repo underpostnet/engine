@@ -210,14 +210,16 @@ const Slot = {
     },
   },
   skin: {
-    render: function ({ slotId, displayId }) {
+    render: function ({ slotId, displayId, disabledCount }) {
       if (!s(`.${slotId}`)) return;
       const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
       htmls(
         `.${slotId}`,
         html`
           <div class="abs bag-slot-count">
-            <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${slotId}">${count}</span>
+            </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${displayId}/08/0.png" />
           <div class="in bag-slot-type-text">skin</div>
@@ -250,14 +252,16 @@ const Slot = {
     },
   },
   weapon: {
-    render: function ({ slotId, displayId }) {
+    render: function ({ slotId, displayId, disabledCount }) {
       if (!s(`.${slotId}`)) return;
       const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
           <div class="abs bag-slot-count">
-            <div class="abs center">x<span class="bag-slot-value-${slotId}">${count}</span></div>
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${slotId}">${count}</span>
+            </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/weapon/${displayId}/animation.gif" />
           <div class="in bag-slot-type-text">weapon</div>
@@ -290,14 +294,16 @@ const Slot = {
     },
   },
   skill: {
-    renderBagSlots: ({ bagId, indexBag }) => {
+    renderBagSlots: ({ bagId, indexBag, disabledCount }) => {
       for (const displayId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
         const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
         htmls(
           `.${bagId}-${indexBag}`,
           html`
             <div class="abs bag-slot-count">
-              <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span></div>
+              <div class="abs center ${disabledCount ? 'hide' : ''}">
+                x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span>
+              </div>
             </div>
             <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
             <div class="in bag-slot-type-text">skill</div>

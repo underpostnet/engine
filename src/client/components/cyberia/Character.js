@@ -144,6 +144,7 @@ const Character = {
       Slot[componentType].render({
         slotId: `character-slot-${componentType}`,
         displayId: component.displayId,
+        disabledCount: true,
       });
     else if (s(`.character-slot-${componentType}`))
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
