@@ -84,7 +84,8 @@ const Pixi = {
     s('.pixi-container-top-level').appendChild(this.AppTopLevel.view);
     s('.pixi-container-top-level').style.zIndex = '2';
 
-    {
+    (() => {
+      return;
       // top level render test
       const componentInstance = new Sprite(Texture.WHITE);
       componentInstance.x = 100;
@@ -94,7 +95,7 @@ const Pixi = {
       componentInstance.tint = '#ff0000';
       componentInstance.visible = true;
       this.AppTopLevel.stage.addChild(componentInstance);
-    }
+    })();
 
     // Matrix.Render['matrix-center-square']('.pixi-container');
 
