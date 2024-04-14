@@ -182,12 +182,6 @@ const Biome = {
                   !pavementStyle.includes(BiomeMatrix.color[yDoor + deltaY][xDoor + deltaX])
                 ) {
                   validDoor = false;
-                } else if (
-                  BiomeMatrix.color[yDoor + deltaY] &&
-                  BiomeMatrix.color[yDoor + deltaY][xDoor + deltaX] &&
-                  !pavementStyle.includes(BiomeMatrix.color[yDoor + deltaY][xDoor + deltaX])
-                ) {
-                  validDoor = false;
                 }
               }),
             );
