@@ -22,7 +22,8 @@ const Pixi = {
       'body',
       html`
         <style>
-          .pixi-container {
+          .pixi-container,
+          .pixi-container-top-level {
             width: 100%;
             height: 100%;
             top: 0px;
@@ -59,6 +60,7 @@ const Pixi = {
           <div class="abs adjacent-map adjacent-map-limit-bottom-left"></div>
           <div class="abs adjacent-map adjacent-map-limit-bottom-right"></div>
         </div>
+        <div class="fix pixi-container-top-level"></div>
       `,
     );
     this.App = new Application({
@@ -70,6 +72,30 @@ const Pixi = {
     this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
 
+    this.AppTopLevel = new Application({
+      width: this.MetaData.dim,
+      height: this.MetaData.dim,
+      background: undefined,
+      backgroundAlpha: 0,
+    });
+    this.AppTopLevel.view.classList.add('abs');
+    this.AppTopLevel.view.classList.add('pixi-canvas-top-level');
+
+    s('.pixi-container-top-level').appendChild(this.AppTopLevel.view);
+    s('.pixi-container-top-level').style.zIndex = '2';
+
+    {
+      // top level render test
+      const componentInstance = new Sprite(Texture.WHITE);
+      componentInstance.x = 100;
+      componentInstance.y = 100;
+      componentInstance.width = this.MetaData.dim * 0.1;
+      componentInstance.height = this.MetaData.dim * 0.1;
+      componentInstance.tint = '#ff0000';
+      componentInstance.visible = true;
+      this.AppTopLevel.stage.addChild(componentInstance);
+    }
+
     // Matrix.Render['matrix-center-square']('.pixi-container');
 
     Responsive.Event['pixi-container'] = () => {
@@ -77,6 +103,8 @@ const Pixi = {
       const ResponsiveData = Responsive.getResponsiveData();
       s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas-top-level').style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas-top-level').style.height = `${ResponsiveDataAmplitude.minValue}px`;
 
       for (const limitType of [
         'top',
@@ -547,7 +575,7 @@ const Pixi = {
       sprites[frame].visible = frame === 0;
       container.addChild(sprites[frame]);
     }
-    this.App.stage.addChild(container);
+    this.AppTopLevel.stage.addChild(container);
 
     await timer(30);
     sprites[0].visible = false;
