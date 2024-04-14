@@ -1,4 +1,5 @@
 import { newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
+import { setElementConsistency } from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
@@ -14,7 +15,8 @@ const CyberiaWsUserManagement = {
       const element = this.element[wsManagementId][elementId];
       element?._id
         ? (async () => {
-            const result = await CyberiaUser.findByIdAndUpdate(element._id, element, {
+            const saveElement = setElementConsistency('user', element);
+            const result = await CyberiaUser.findByIdAndUpdate(element._id, saveElement, {
               runValidators: true,
             });
           })()

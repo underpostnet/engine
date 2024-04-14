@@ -50,6 +50,20 @@ const PositionsComponent = {
   '08frames2': () => [{ positionId: '08', frames: 2 }],
 };
 
+const setElementConsistency = (type, element) => {
+  if ('life' in element && 'maxLife' in element) {
+    if (element.life > element.maxLife) element.life = newInstance(element.maxLife);
+    if (element.life > 0 && element.components.skin.find((s) => s.enabled).displayId === 'ghost') {
+      const currentSkin = element.components.skin.find((s) => s.current);
+      element.components.skin = element.components.skin.map((s) => {
+        s.enabled = s.displayId === (currentSkin ? currentSkin.displayId : 'anon');
+        return s;
+      });
+    }
+  }
+  return element;
+};
+
 const Stat = {
   get: {
     anon: () => {
@@ -149,8 +163,7 @@ const Stat = {
       }
     }
 
-    if ('life' in element && 'maxLife' in element && element.life > element.maxLife)
-      element.life = newInstance(element.maxLife);
+    element = setElementConsistency(type, element);
 
     return element;
   },
@@ -573,4 +586,5 @@ export {
   CharacterSlotType,
   PositionsComponent,
   Stat,
+  setElementConsistency,
 };
