@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { getId, newInstance, range, timer } from '../core/CommonJs.js';
+import { getId, newInstance, range, round10, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { Matrix } from './Matrix.js';
@@ -10,6 +10,7 @@ import { WorldManagement } from './World.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterSlotType, CyberiaParams } from './CommonCyberia.js';
 import { MainUser } from './MainUser.js';
+import { BiomeScope } from './Biome.js';
 
 const Pixi = {
   MetaData: {
@@ -29,6 +30,9 @@ const Pixi = {
             top: 0px;
             left: 0px;
             /* overflow: hidden; */
+          }
+          .pixi-container-top-level {
+            transition: 0.4s;
           }
           .adjacent-map {
             /* border: 2px solid #ff0000; */
@@ -60,7 +64,7 @@ const Pixi = {
           <div class="abs adjacent-map adjacent-map-limit-bottom-left"></div>
           <div class="abs adjacent-map adjacent-map-limit-bottom-right"></div>
         </div>
-        <div class="fix pixi-container-top-level"></div>
+        <div class="fix pixi-container-top-level" style="opacity: 1"></div>
       `,
     );
     this.App = new Application({
@@ -524,6 +528,29 @@ const Pixi = {
     }
 
     if (type === 'user' && id === 'main') {
+      if (
+        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor &&
+        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+        ] &&
+        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+        ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)] &&
+        `${s(`.pixi-container-top-level`).style.opacity}` !== `0.3`
+      ) {
+        s(`.pixi-container-top-level`).style.opacity = '0.3';
+      } else if (
+        (!BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+        ] ||
+          !BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+            round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+          ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)]) &&
+        `${s(`.pixi-container-top-level`).style.opacity}` !== `1`
+      ) {
+        s(`.pixi-container-top-level`).style.opacity = '1';
+      }
+
       SocketIo.Emit(type, {
         status: 'update-position',
         element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
