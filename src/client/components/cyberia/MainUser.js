@@ -228,6 +228,7 @@ const MainUser = {
     Pixi.updateLife({ type, id });
     Pixi.setUsername({ type, id });
     InteractionPanel.PanelRender.element({ type, id });
+    Pixi.topLevelCallBack({ type, id });
 
     LoadingAnimation.removeSplashScreen();
   },

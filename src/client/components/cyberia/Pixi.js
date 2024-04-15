@@ -528,29 +528,7 @@ const Pixi = {
     }
 
     if (type === 'user' && id === 'main') {
-      if (
-        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor &&
-        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
-          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
-        ] &&
-        BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
-          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
-        ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)] &&
-        `${s(`.pixi-container-top-level`).style.opacity}` !== `0.3`
-      ) {
-        s(`.pixi-container-top-level`).style.opacity = '0.3';
-      } else if (
-        (!BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
-          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
-        ] ||
-          !BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
-            round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
-          ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)]) &&
-        `${s(`.pixi-container-top-level`).style.opacity}` !== `1`
-      ) {
-        s(`.pixi-container-top-level`).style.opacity = '1';
-      }
-
+      this.topLevelCallBack({ type, id });
       SocketIo.Emit(type, {
         status: 'update-position',
         element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
@@ -559,6 +537,30 @@ const Pixi = {
       const dim = this.MetaData.dim / Matrix.Data.dim;
       this.Data[type][id].x = dim * Elements.Data[type][id].x;
       this.Data[type][id].y = dim * Elements.Data[type][id].y;
+    }
+  },
+  topLevelCallBack: function ({ type, id }) {
+    if (
+      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor &&
+      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+        round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+      ] &&
+      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+        round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+      ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)] &&
+      `${s(`.pixi-container-top-level`).style.opacity}` !== `0.3`
+    ) {
+      s(`.pixi-container-top-level`).style.opacity = '0.3';
+    } else if (
+      (!BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+        round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+      ] ||
+        !BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+          round10(Elements.Data[type][id].y * Matrix.Data.dimPaintByCell)
+        ][round10(Elements.Data[type][id].x * Matrix.Data.dimPaintByCell)]) &&
+      `${s(`.pixi-container-top-level`).style.opacity}` !== `1`
+    ) {
+      s(`.pixi-container-top-level`).style.opacity = '1';
     }
   },
   removeElement: function (options = { type: 'user', id: 'main' }) {

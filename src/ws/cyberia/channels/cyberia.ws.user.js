@@ -49,10 +49,22 @@ const CyberiaWsUserController = {
         {
           /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
           const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
+          /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
+          const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
+
           const userDoc = await CyberiaUser.findById(args.user._id);
           const user = userDoc._doc;
           user.model.user = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user;
           user.model.world._id = user.model.world._id.toString();
+
+          const worldDoc = await CyberiaWorld.findById(user.model.world._id);
+          if (!worldDoc) {
+            const baseElement = BaseElement().user.main;
+            user.model.world = baseElement.model.world;
+            user.x = baseElement.x;
+            user.y = baseElement.y;
+          }
+
           user._id = user._id.toString();
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = {
             ...CyberiaWsUserManagement.element[wsManagementId][socket.id],
