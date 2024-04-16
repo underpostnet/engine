@@ -49,7 +49,7 @@ const CyberiaWsUserController = {
         {
           /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
           const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
-          /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
+          /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
           const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
 
           const userDoc = await CyberiaUser.findById(args.user._id);

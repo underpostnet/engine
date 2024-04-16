@@ -80,14 +80,15 @@ const Biome = {
             colorCell = pavementStyle[pavementStyle.length - 3];
           } else {
             colorCell = pavementStyle[pavementStyle.length - 4];
-            defaultColor = pavementStyle[pavementStyle.length - 4];
           }
+          if (!defaultColor) defaultColor = pavementStyle[pavementStyle.length - 4];
         }
         if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
         if (!BiomeMatrix.topLevelColor[y]) BiomeMatrix.topLevelColor[y] = {};
         BiomeMatrix.color[y][x] = `${colorCell}`;
-        BiomeMatrix.topLevelColor[y][x] = '';
+        BiomeMatrix.topLevelColor[y][x] =
+          (y === 0 && x === 0) || (x === dim - 1 && y === dim - 1) ? `${defaultColor}` : '';
         BiomeMatrix.solid[y][x] = 0;
       });
     });
@@ -237,8 +238,10 @@ const Biome = {
     const BiomeMatrix = {
       color: {},
       solid: {},
+      topLevelColor: {},
     };
     let colorCell;
+    let defaultColor;
 
     // biome seeds
     range(0, dim - 1).map((y) => {
@@ -253,11 +256,15 @@ const Biome = {
         } else {
           colorCell = '#3bb177';
         }
+        if (!defaultColor) defaultColor = '#3bb177';
 
         if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+        if (!BiomeMatrix.topLevelColor[y]) BiomeMatrix.topLevelColor[y] = {};
         BiomeMatrix.color[y][x] = `${colorCell}`;
         BiomeMatrix.solid[y][x] = 0;
+        BiomeMatrix.topLevelColor[y][x] =
+          (y === 0 && x === 0) || (x === dim - 1 && y === dim - 1) ? `${defaultColor}` : '';
       });
     });
     const seedMatrix = newInstance(BiomeMatrix.color);
@@ -340,8 +347,9 @@ const Biome = {
               if (random(1, 0) === 1 && (sumX > 3 || sumX < -3) && (sumY > -3 || sumY < -4)) return;
               colorCell = selectPhenotype[0];
               if (validateMatrixLimit(x + sumX, y + sumY)) {
-                BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-                BiomeMatrix.solid[y + sumY][x + sumX] = 1;
+                if (sumX === 0 && sumY === 0) BiomeMatrix.color[y + sumY][x + sumX] = `${defaultColor}`;
+                BiomeMatrix.solid[y + sumY][x + sumX] = 0;
+                BiomeMatrix.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
               }
             }),
           );
@@ -349,7 +357,10 @@ const Biome = {
             range(-5, 0).map((sumY) => {
               if (random(1, 4) === 4) return;
               colorCell = selectPhenotype[1];
-              if (validateMatrixLimit(x + sumX, y + sumY)) BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
+              if (validateMatrixLimit(x + sumX, y + sumY)) {
+                if (sumX === 0 && sumY === 0) BiomeMatrix.color[y + sumY][x + sumX] = `${defaultColor}`;
+                BiomeMatrix.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
+              }
             }),
           );
           // rhizome
@@ -358,8 +369,10 @@ const Biome = {
             range(-1, 3).map((sumY) => {
               if (random(0, 1) === 0) colorCell = '#975206';
               if (validateMatrixLimit(x + sumX, y + sumY)) {
-                BiomeMatrix.color[y + sumY][x + sumX] = `${colorCell}`;
-                BiomeMatrix.solid[y + sumY][x + sumX] = 1;
+                const topLevelColorEnabled = sumY > 0;
+                if (BiomeMatrix.solid[y + sumY + 2])
+                  BiomeMatrix.solid[y + sumY + 2][x + sumX] = topLevelColorEnabled ? 0 : 1;
+                if (topLevelColorEnabled) BiomeMatrix.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
               }
               colorCell = '#AF5E06';
             }),
