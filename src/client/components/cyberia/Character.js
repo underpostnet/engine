@@ -1,6 +1,6 @@
 import Sortable from 'sortablejs';
 import { getId, uniqueArray } from '../core/CommonJs.js';
-import { ItemModal, Slot } from './Bag.js';
+import { ItemModal, Slot, SlotEvents } from './Bag.js';
 import { CharacterSlotType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { htmls, s } from '../core/VanillaJs.js';
@@ -68,18 +68,34 @@ const Character = {
                         let dataClassBagTo = [];
 
                         for (const toElementKey of Object.keys(toElements)) {
-                          dataClassBagTo = dataClassBagTo.concat(
-                            Array.from(toElements[toElementKey].parentNode.classList),
-                          );
-                          dataClassBagTo = dataClassBagTo.concat(
-                            Array.from(toElements[toElementKey].parentElement.classList),
-                          );
-                          dataClassBagTo = dataClassBagTo.concat(
-                            Array.from(toElements[toElementKey].parentNode.parentNode.classList),
-                          );
-                          dataClassBagTo = dataClassBagTo.concat(
-                            Array.from(toElements[toElementKey].parentElement.parentElement.classList),
-                          );
+                          try {
+                            dataClassBagTo = dataClassBagTo.concat(
+                              Array.from(toElements[toElementKey].parentNode.classList),
+                            );
+                          } catch (error) {
+                            logger.warn(error);
+                          }
+                          try {
+                            dataClassBagTo = dataClassBagTo.concat(
+                              Array.from(toElements[toElementKey].parentElement.classList),
+                            );
+                          } catch (error) {
+                            logger.warn(error);
+                          }
+                          try {
+                            dataClassBagTo = dataClassBagTo.concat(
+                              Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+                            );
+                          } catch (error) {
+                            logger.warn(error);
+                          }
+                          try {
+                            dataClassBagTo = dataClassBagTo.concat(
+                              Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+                            );
+                          } catch (error) {
+                            logger.warn(error);
+                          }
                         }
 
                         dataClassBagTo = uniqueArray(dataClassBagTo);
@@ -88,14 +104,16 @@ const Character = {
                         logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
 
                         if (
-                          Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) === undefined &&
+                          Object.values(dataClassBagTo).find(
+                            (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
+                          ) === undefined &&
                           ['skin', 'weapon'].includes(dataBagFrom.type)
                         )
                           return ItemModal.Unequip[dataBagFrom.type]({ type: 'user', id: 'main' });
 
                         const slotId = Array.from(evt.item.classList).pop();
                         // console.log('slotId', slotId);
-                        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+                        if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
 
                         // var itemEl = evt.item; // dragged HTMLElement
                         // evt.to; // target list

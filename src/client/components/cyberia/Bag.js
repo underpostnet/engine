@@ -188,6 +188,8 @@ const ItemModal = {
   },
 };
 
+const SlotEvents = {};
+
 const Slot = {
   coin: {
     renderBagSlots: ({ bagId, indexBag }) => {
@@ -211,6 +213,7 @@ const Slot = {
   },
   skin: {
     render: function ({ slotId, displayId, disabledCount }) {
+      SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
       htmls(
@@ -226,7 +229,7 @@ const Slot = {
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
       );
-      EventsUI.onClick(`.${slotId}`, async (e) => {
+      SlotEvents[slotId].onClick = async (e) => {
         const { barConfig } = await Themes[Css.currentTheme]();
         await Modal.Render({
           id: `modal-skin-${slotId}`,
@@ -240,7 +243,8 @@ const Slot = {
           slideMenu: 'modal-menu',
           maximize: Modal.mobileModal(),
         });
-      });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagSlots: function ({ bagId, indexBag }) {
       for (const displayId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
@@ -253,6 +257,7 @@ const Slot = {
   },
   weapon: {
     render: function ({ slotId, displayId, disabledCount }) {
+      SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
       htmls(
@@ -268,7 +273,7 @@ const Slot = {
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
       );
-      EventsUI.onClick(`.${slotId}`, async (e) => {
+      SlotEvents[slotId].onClick = async (e) => {
         const { barConfig } = await Themes[Css.currentTheme]();
         await Modal.Render({
           id: `modal-weapon-${slotId}`,
@@ -282,7 +287,8 @@ const Slot = {
           slideMenu: 'modal-menu',
           maximize: Modal.mobileModal(),
         });
-      });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagSlots: function ({ bagId, indexBag }) {
       for (const displayId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
@@ -391,14 +397,30 @@ const Bag = {
             let dataClassBagTo = [];
 
             for (const toElementKey of Object.keys(toElements)) {
-              dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
-              dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
-              dataClassBagTo = dataClassBagTo.concat(
-                Array.from(toElements[toElementKey].parentNode.parentNode.classList),
-              );
-              dataClassBagTo = dataClassBagTo.concat(
-                Array.from(toElements[toElementKey].parentElement.parentElement.classList),
-              );
+              try {
+                dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
+              } catch (error) {
+                logger.warn(error);
+              }
+              try {
+                dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
+              } catch (error) {
+                logger.warn(error);
+              }
+              try {
+                dataClassBagTo = dataClassBagTo.concat(
+                  Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+                );
+              } catch (error) {
+                logger.warn(error);
+              }
+              try {
+                dataClassBagTo = dataClassBagTo.concat(
+                  Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+                );
+              } catch (error) {
+                logger.warn(error);
+              }
             }
 
             dataClassBagTo = uniqueArray(dataClassBagTo);
@@ -418,7 +440,7 @@ const Bag = {
 
             const slotId = Array.from(evt.item.classList).pop();
             // console.log('slotId', slotId);
-            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+            if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
 
             // var itemEl = evt.item; // dragged HTMLElement
             // evt.to; // target list
@@ -468,4 +490,4 @@ const Bag = {
   },
 };
 
-export { Bag, Slot, ItemModal };
+export { Bag, Slot, SlotEvents, ItemModal };
