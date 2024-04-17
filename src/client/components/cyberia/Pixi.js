@@ -228,7 +228,15 @@ const Pixi = {
     this.Data[type][id].height = dim * Elements.Data[type][id].dim;
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
-    this.Data[type][id].components = {};
+    this.Data[type][id].components = {
+      layer0: { container: new Container() },
+    };
+    this.Data[type][id].components.layer0.container.width = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components.layer0.container.height = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components.layer0.container.x = 0;
+    this.Data[type][id].components.layer0.container.y = 0;
+    this.Data[type][id].addChild(this.Data[type][id].components.layer0.container);
+
     this.Data[type][id].intervals = {};
     let index;
     if (type === 'user' && id === 'main') {
@@ -432,6 +440,7 @@ const Pixi = {
               extension ? extension : `png`
             }`;
             const componentInstance = Sprite.from(src);
+            let componentContainer;
             switch (displayId) {
               case 'green-power':
               case 'red-power':
@@ -448,6 +457,44 @@ const Pixi = {
                 componentInstance.x = 0;
                 componentInstance.y = dim * Elements.Data[type][id].dim * 0.15;
                 break;
+              case 'brown-wing':
+                switch (positionId) {
+                  case '08':
+                  case '18':
+                    componentContainer = 'layer0';
+                    componentInstance.width =
+                      dim * Elements.Data[type][id].dim + (dim * Elements.Data[type][id].dim) / 2.5;
+                    componentInstance.height = dim * Elements.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                    componentInstance.y = 0;
+                    break;
+                  case '02':
+                  case '12':
+                    componentInstance.width =
+                      dim * Elements.Data[type][id].dim + (dim * Elements.Data[type][id].dim) / 2.5;
+                    componentInstance.height = dim * Elements.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                    componentInstance.y = 0;
+                    break;
+                  case '06':
+                  case '16':
+                    componentInstance.width = (dim * Elements.Data[type][id].dim) / 2;
+                    componentInstance.height = dim * Elements.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                    componentInstance.y = 0;
+                    break;
+                  case '04':
+                  case '14':
+                    componentInstance.width = (dim * Elements.Data[type][id].dim) / 2;
+                    componentInstance.height = dim * Elements.Data[type][id].dim;
+                    componentInstance.x = dim * Elements.Data[type][id].dim - (dim * Elements.Data[type][id].dim) / 4.5;
+                    componentInstance.y = 0;
+                    break;
+
+                  default:
+                    break;
+                }
+                break;
               default:
                 componentInstance.width = dim * Elements.Data[type][id].dim;
                 componentInstance.height = dim * Elements.Data[type][id].dim;
@@ -457,7 +504,11 @@ const Pixi = {
             }
             componentInstance.visible = position === positionId && frame === 0 && enabled;
             this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
-            this.Data[type][id].addChild(componentInstance);
+
+            componentContainer
+              ? this.Data[type][id].components[componentContainer].container.addChild(componentInstance)
+              : this.Data[type][id].addChild(componentInstance);
+
             if (frame === 0) {
               let currentFrame = 0;
               let currentSrc;
@@ -486,6 +537,7 @@ const Pixi = {
                 this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
                   position === positionId && enabledSkin && enabledSkin.displayId === displayId;
               };
+              setTimeout(() => callBack());
               this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                 callBack,
                 interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
