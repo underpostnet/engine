@@ -21,6 +21,7 @@ import { Skill } from './components/cyberia/Skill.js';
 import { PointAndClickMovement } from './components/cyberia/PointAndClickMovement.js';
 import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
+import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -44,6 +45,6 @@ import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
   LoadRouter(RouterInstance);
   disableOptionsClick('html', ['drag', 'select', 'menu']);
   // s(`.btn-menu-modal-menu`).click();
-  await Keyboard.Init();
+  await Keyboard.Init({ callBackTime: CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME });
   await JoyStickCyberia.Render();
 })();

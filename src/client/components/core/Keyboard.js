@@ -1,9 +1,8 @@
-import { CyberiaParams } from '../cyberia/CommonCyberia.js';
-
 const Keyboard = {
   ActiveKey: {},
   Event: {},
-  Init: async function () {
+  Init: async function (options = { callBackTime: 50 }) {
+    const { callBackTime } = options;
     window.onkeydown = (e) => {
       this.ActiveKey[e.key] = true;
     };
@@ -16,7 +15,7 @@ const Keyboard = {
           if (activeKey in this.Event[key]) this.Event[key][activeKey]();
         });
       });
-    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+    }, callBackTime);
   },
 };
 
