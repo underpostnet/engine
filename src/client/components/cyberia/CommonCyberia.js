@@ -146,6 +146,13 @@ const Stat = {
         damage: 10,
       };
     },
+    'green-power': () => {
+      return {
+        cooldown: 750,
+        timeLife: 300,
+        damage: 10,
+      };
+    },
     'brown-wing': () => {
       return {
         dim: 1,
@@ -327,6 +334,18 @@ const MatrixElement = () => {
   };
 };
 
+const SkillType = {
+  basic: { keyboard: 'q' },
+  primary: { keyboard: 'w' },
+  secondary: { keyboard: 'e' },
+  definitive: { keyboard: 'r' },
+};
+
+const SkillData = {
+  'red-power': { type: 'basic' },
+  'green-power': { type: 'basic' },
+};
+
 const SkillElement = () => {
   return {
     cooldown: 750,
@@ -338,16 +357,18 @@ const SkillElement = () => {
 const PlayerElement = () => {
   return {
     skill: {
-      basic: 'q',
       keys: {
-        q: 'red-power',
-        w: null,
-        e: null,
-        r: null,
+        basic: 'red-power',
+        primary: null,
+        secondary: null,
+        definitive: null,
       },
       tree: [
         {
           id: 'red-power',
+        },
+        {
+          id: 'green-power',
         },
       ],
     },
@@ -633,4 +654,6 @@ export {
   PositionsComponent,
   Stat,
   setElementConsistency,
+  SkillData,
+  SkillType,
 };

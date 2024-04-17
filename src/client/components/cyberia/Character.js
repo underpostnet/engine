@@ -140,16 +140,21 @@ const Character = {
           </div>
           <div class="in character-skill-container">
             ${Object.keys(Elements.Data.user.main.skill.keys)
-              .map(
-                (skillKey, i) =>
-                  html`
-                    <div class="abs center character-slot-skill character-slot-skill-${i}">
-                      <div class="in character-slot-type-text">skill [${skillKey.toUpperCase()}]</div>
+              .map((skillKey) => {
+                skillKey = `${skillKey}-skill`;
+                return html`
+                  <div class="abs center character-slot-skill character-slot-container-${skillKey}">
+                    <div data-id="0" class="in sub-character-slot character-slot-${skillKey}">
+                      ${this.renderEmptyCharacterSlot(skillKey)}
                     </div>
-                  `,
-              )
+                  </div>
+                `;
+              })
               .join('')}
           </div>
+        </div>
+        <div class="in fll section-mp character-container character-container-view">
+          <!-- TODO: extract 3 pixi main user canvas image and create 'set interval' preview gif -->
         </div>
         <div class="in fll section-mp character-container character-container-stats"></div>
       </div>
@@ -168,7 +173,7 @@ const Character = {
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
   },
   renderEmptyCharacterSlot: function (slotType) {
-    return html` <div class="in character-slot-type-text">${slotType.replace('-', html`<br />`)}</div>`;
+    return html` <div class="abs center character-slot-type-text">${slotType.replace('-', html`<br />`)}</div>`;
   },
   renderCharacterStat: function () {
     if (s(`.character-container-stats`))

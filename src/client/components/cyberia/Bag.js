@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { Stat } from './CommonCyberia.js';
+import { SkillData, Stat } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -19,8 +19,10 @@ import { Character } from './Character.js';
 const logger = loggerFactory(import.meta);
 
 const ItemModal = {
-  Render: async function (options = { idModal: '', skin: { id: '' }, weapon: { id: '' }, breastplate: { id: '' } }) {
-    const { idModal, skin, weapon, breastplate } = options;
+  Render: async function (
+    options = { idModal: '', skin: { id: '' }, weapon: { id: '' }, breastplate: { id: '' }, skill: { id: '' } },
+  ) {
+    const { idModal, skin, weapon, breastplate, skill } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -109,6 +111,34 @@ const ItemModal = {
           `,
         );
       }
+      if (skill) {
+        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[skill.id]()));
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id0}-render-col-b`,
+          html`${await BtnIcon.Render({
+            label: Translate.Render('equip'),
+            type: 'button',
+            class: `btn-equip-skill-${idModal}`,
+          })}
+          ${await BtnIcon.Render({
+            label: Translate.Render('unequip'),
+            type: 'button',
+            class: `btn-unequip-skill-${idModal}`,
+          })} `,
+        );
+        EventsUI.onClick(`.btn-equip-skill-${idModal}`, () => this.Equip.skill({ type: 'user', id: 'main', skill }));
+        EventsUI.onClick(`.btn-unequip-skill-${idModal}`, () =>
+          this.Unequip.skill({ type: 'user', id: 'main', skill }),
+        );
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id1}-render-col-a`,
+          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skill/${skill.id}/animation.gif" /> `,
+        );
+      }
     });
     return html`
       ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50', limit: 500 })}
@@ -132,6 +162,9 @@ const ItemModal = {
     `;
   },
   Equip: {
+    skill: function ({ type, id, skill }) {
+      console.log('Equip skill', { type, id, skill });
+    },
     skin: function ({ type, id, skin }) {
       Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
         skinData.enabled = skinData.displayId === skin.id;
@@ -185,6 +218,9 @@ const ItemModal = {
     },
   },
   Unequip: {
+    skill: function ({ type, id, skill }) {
+      console.log('Unequip skill', { type, id, skill });
+    },
     skin: function ({ type, id, skin }) {
       Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
         skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
@@ -417,22 +453,47 @@ const Slot = {
     },
   },
   skill: {
-    renderBagSlots: ({ bagId, indexBag, disabledCount }) => {
-      for (const displayId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
-        const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
-        htmls(
-          `.${bagId}-${indexBag}`,
-          html`
-            <div class="abs bag-slot-count">
-              <div class="abs center ${disabledCount ? 'hide' : ''}">
-                x<span class="bag-slot-value-${bagId}-${indexBag}">${count}</span>
-              </div>
+    render: function ({ slotId, displayId, disabledCount }) {
+      SlotEvents[slotId] = {};
+      if (!s(`.${slotId}`)) return;
+      const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count">
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${slotId}">${count}</span>
             </div>
-            <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
-            <div class="in bag-slot-type-text">skill</div>
-            <div class="in bag-slot-name-text">${displayId}</div>
-          `,
-        );
+          </div>
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
+          <div class="in bag-slot-type-text">${SkillData[displayId].type}<br />skill</div>
+          <div class="in bag-slot-name-text">${displayId}</div>
+        `,
+      );
+      SlotEvents[slotId].onClick = async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-skill-${slotId}`,
+          barConfig,
+          title: Menu.renderViewTitle({
+            img: `${getProxyPath()}assets/skill/${displayId}/animation.gif`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({
+            idModal: `modal-skill-${slotId}`,
+            skill: { id: displayId },
+          })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
+        });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
+    },
+    renderBagSlots: function ({ bagId, indexBag }) {
+      for (const displayId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
+        const slotId = `${bagId}-${indexBag}`;
+        this.render({ slotId, displayId });
         indexBag++;
       }
       return indexBag;

@@ -3,7 +3,7 @@ import { borderChar } from '../core/Css.js';
 import { Keyboard } from '../core/Keyboard.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { Stat } from './CommonCyberia.js';
+import { SkillData, SkillType, Stat } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 
 const Skill = {
@@ -45,7 +45,8 @@ const Skill = {
       const indexSkill = indexSkillIteration;
       let triggerSkill = () => null;
       let cooldownActive = false;
-      htmls(`.main-skill-key-text-${indexSkill}`, skillKey);
+      htmls(`.main-skill-key-text-${indexSkill}`, SkillType[skillKey].keyboard);
+
       if (Elements.Data.user.main.skill.keys[skillKey]) {
         htmls(
           `.main-skill-img-container-${indexSkill}`,
@@ -89,8 +90,8 @@ const Skill = {
       }
 
       s(`.main-skill-slot-${indexSkill}`).onclick = triggerSkill;
-      Keyboard.Event['main-skill'][skillKey.toLowerCase()] = triggerSkill;
-      Keyboard.Event['main-skill'][skillKey.toUpperCase()] = triggerSkill;
+      Keyboard.Event['main-skill'][SkillType[skillKey].keyboard.toLowerCase()] = triggerSkill;
+      Keyboard.Event['main-skill'][SkillType[skillKey].keyboard.toUpperCase()] = triggerSkill;
       Elements.LocalDataScope['user']['main']['skill'][indexSkill] = triggerSkill;
     }
   },

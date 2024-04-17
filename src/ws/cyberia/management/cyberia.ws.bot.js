@@ -109,7 +109,7 @@ const CyberiaWsBotManagement = {
           },
           target: {
             Interval: 8, // detector target check time (ms)
-            Radius: 8,
+            Radius: 5,
             Active: false,
             IndexPoint: -1,
             Direction: 'n',
@@ -245,7 +245,41 @@ const CyberiaWsBotManagement = {
                       return false;
                     })();
                   }
-                  if (foundNewTargetPath) break;
+                  if (foundNewTargetPath) {
+                    if (this.localElementScope[wsManagementId][id].target.Element.type === 'user') {
+                      const direction = getDirection({
+                        x1: this.element[wsManagementId][id].x,
+                        y1: this.element[wsManagementId][id].y,
+                        x2: CyberiaWsUserManagement.element[wsManagementId][
+                          this.localElementScope[wsManagementId][id].target.Element.id
+                        ].x,
+                        y2: CyberiaWsUserManagement.element[wsManagementId][
+                          this.localElementScope[wsManagementId][id].target.Element.id
+                        ].y,
+                      });
+
+                      this.element[wsManagementId][id] = updateMovementDirection({
+                        direction,
+                        element: this.element[wsManagementId][id],
+                      });
+
+                      for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                        if (
+                          objectEquals(
+                            CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                            this.element[wsManagementId][id].model.world,
+                          )
+                        ) {
+                          CyberiaWsEmit(CyberiaWsBotChannel.channel, CyberiaWsBotChannel.client[clientId], {
+                            status: 'update-skin-position',
+                            id,
+                            element: { components: { skin: this.element[wsManagementId][id].components.skin } },
+                          });
+                        }
+                      }
+                    }
+                    break;
+                  }
 
                   let newDirection = false;
                   const direction = getDirection({
@@ -346,8 +380,7 @@ const CyberiaWsBotManagement = {
         this.element[wsManagementId][id] = bot;
         this.localElementScope[wsManagementId][id].movement.Callback();
 
-        const skillDataStat =
-          Stat.get[this.element[wsManagementId][id].skill.keys[this.element[wsManagementId][id].skill.basic]]();
+        const skillDataStat = Stat.get[this.element[wsManagementId][id].skill.keys.basic]();
 
         this.localElementScope[wsManagementId][id].skill = {
           Callback: setInterval(() => {

@@ -42,7 +42,7 @@ const CyberiaWsSkillManagement = {
     if (!parentElement) return logger.error('Not found skill caster parent', parent);
 
     const id = getId(this.element[wsManagementId], 'skill-');
-    if (!skillKey) skillKey = parentElement.skill.basic;
+    if (!skillKey) skillKey = 'basic';
     const skillData = Stat.get[parentElement.skill.keys[skillKey]]();
     this.element[wsManagementId][id] = BaseElement().skill.main;
     this.element[wsManagementId][id].x = parentElement.x + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);

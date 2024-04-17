@@ -16,12 +16,11 @@ const CyberiaUserSchema = new Schema({
   timeLife: { type: Number, default: 300 },
   damage: { type: Number, default: 10 },
   skill: {
-    basic: { type: String, default: 'q' },
     keys: {
-      q: { type: String, default: 'red-power' },
-      w: { type: String },
-      e: { type: String },
-      r: { type: String },
+      basic: { type: String, default: 'red-power' },
+      primary: { type: String },
+      secondary: { type: String },
+      definitive: { type: String },
     },
     tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }] },
   },

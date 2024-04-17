@@ -364,6 +364,7 @@ const CssCyberia = {
           color: #ffcc00;
           text-align: center;
           padding: 5px;
+          width: 120%;
         }
 
         .character-slot-container-faction-symbol {
@@ -425,9 +426,6 @@ const CssCyberia = {
           border: 2px solid #313131;
           cursor: pointer;
         }
-        .character-slot-skill-0 {
-          left: 20%;
-        }
 
         .character-slot-skill:hover {
           background: #313131;
@@ -438,13 +436,17 @@ const CssCyberia = {
           height: 90%;
         }
 
-        .character-slot-skill-1 {
+        .character-slot-container-basic-skill {
+          left: 20%;
+        }
+
+        .character-slot-container-primary-skill {
           left: 40%;
         }
-        .character-slot-skill-2 {
+        .character-slot-container-secondary-skill {
           left: 60%;
         }
-        .character-slot-skill-3 {
+        .character-slot-container-definitive-skill {
           left: 80%;
         }
         .display-current-face {
