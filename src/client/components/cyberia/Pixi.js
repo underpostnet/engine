@@ -468,7 +468,7 @@ const Pixi = {
                 if (!Elements.Data[type][id]) return this.removeElement({ type, id });
                 if (!Elements.Data[type][id].components[componentType][currentIndex])
                   return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
-                const { position } = Elements.Data[type][id].components[componentType][currentIndex];
+                const position = Elements.Data[type][id].components['skin'].find((s) => s.current).position;
 
                 currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
                   extension ? extension : `png`

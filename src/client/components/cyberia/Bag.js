@@ -19,8 +19,8 @@ import { Character } from './Character.js';
 const logger = loggerFactory(import.meta);
 
 const ItemModal = {
-  Render: async function (options = { idModal: '', skin: { id: '' }, weapon: { id: '' } }) {
-    const { idModal, skin, weapon } = options;
+  Render: async function (options = { idModal: '', skin: { id: '' }, weapon: { id: '' }, breastplate: { id: '' } }) {
+    const { idModal, skin, weapon, breastplate } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -77,6 +77,38 @@ const ItemModal = {
           html` <img class="in item-modal-img" src="${getProxyPath()}assets/weapon/${weapon.id}/animation.gif" /> `,
         );
       }
+      if (breastplate) {
+        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[breastplate.id]()));
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id0}-render-col-b`,
+          html`${await BtnIcon.Render({
+            label: Translate.Render('equip'),
+            type: 'button',
+            class: `btn-equip-breastplate-${idModal}`,
+          })}
+          ${await BtnIcon.Render({
+            label: Translate.Render('unequip'),
+            type: 'button',
+            class: `btn-unequip-breastplate-${idModal}`,
+          })} `,
+        );
+        EventsUI.onClick(`.btn-equip-breastplate-${idModal}`, () =>
+          this.Equip.breastplate({ type: 'user', id: 'main', breastplate }),
+        );
+        EventsUI.onClick(`.btn-unequip-breastplate-${idModal}`, () =>
+          this.Unequip.breastplate({ type: 'user', id: 'main' }),
+        );
+        // -----------------------------------------------------------
+        // -----------------------------------------------------------
+        htmls(
+          `.${id1}-render-col-a`,
+          html`
+            <img class="in item-modal-img" src="${getProxyPath()}assets/breastplate/${breastplate.id}/animation.gif" />
+          `,
+        );
+      }
     });
     return html`
       ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50', limit: 500 })}
@@ -127,10 +159,29 @@ const ItemModal = {
       Pixi.setDisplayComponent({ type, id });
       Character.renderCharacterStat();
       SocketIo.Emit(type, {
-        status: 'update-weapon',
+        status: 'update-item',
+        itemType: 'weapon',
         element: { components: { weapon: Elements.Data[type][id].components.weapon } },
       });
       Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+    },
+    breastplate: function ({ type, id, breastplate }) {
+      Elements.Data[type][id].components.breastplate = Elements.Data[type][id].components.breastplate.map(
+        (breastplateData) => {
+          breastplateData.enabled = breastplateData.displayId === breastplate.id;
+          breastplateData.current = breastplateData.displayId === breastplate.id;
+          return breastplateData;
+        },
+      );
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      Character.renderCharacterStat();
+      SocketIo.Emit(type, {
+        status: 'update-item',
+        itemType: 'breastplate',
+        element: { components: { breastplate: Elements.Data[type][id].components.breastplate } },
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'breastplate' });
     },
   },
   Unequip: {
@@ -161,10 +212,29 @@ const ItemModal = {
       Pixi.setDisplayComponent({ type, id });
       Character.renderCharacterStat();
       SocketIo.Emit(type, {
-        status: 'update-weapon',
+        status: 'update-item',
+        itemType: 'weapon',
         element: { components: { weapon: Elements.Data[type][id].components.weapon } },
       });
       Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+    },
+    breastplate: function ({ type, id, breastplate }) {
+      Elements.Data[type][id].components.breastplate = Elements.Data[type][id].components.breastplate.map(
+        (breastplateData) => {
+          breastplateData.enabled = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
+          breastplateData.current = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
+          return breastplateData;
+        },
+      );
+      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+      Pixi.setDisplayComponent({ type, id });
+      Character.renderCharacterStat();
+      SocketIo.Emit(type, {
+        status: 'update-item',
+        itemType: 'breastplate',
+        element: { components: { breastplate: Elements.Data[type][id].components.breastplate } },
+      });
+      Character.RenderCharacterSLot({ type, id, componentType: 'breastplate' });
     },
   },
   RenderStat: function (statData) {
@@ -292,6 +362,53 @@ const Slot = {
     },
     renderBagSlots: function ({ bagId, indexBag }) {
       for (const displayId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
+        const slotId = `${bagId}-${indexBag}`;
+        this.render({ slotId, displayId });
+        indexBag++;
+      }
+      return indexBag;
+    },
+  },
+  breastplate: {
+    render: function ({ slotId, displayId, disabledCount }) {
+      SlotEvents[slotId] = {};
+      if (!s(`.${slotId}`)) return;
+      const count = Elements.Data.user.main.breastplate.tree.filter((i) => i.id === displayId).length;
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count">
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${slotId}">${count}</span>
+            </div>
+          </div>
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/breastplate/${displayId}/animation.gif" />
+          <div class="in bag-slot-type-text">breastplate</div>
+          <div class="in bag-slot-name-text">${displayId}</div>
+        `,
+      );
+      SlotEvents[slotId].onClick = async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-breastplate-${slotId}`,
+          barConfig,
+          title: Menu.renderViewTitle({
+            img: `${getProxyPath()}assets/breastplate/${displayId}/animation.gif`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({
+            idModal: `modal-breastplate-${slotId}`,
+            breastplate: { id: displayId },
+          })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
+        });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
+    },
+    renderBagSlots: function ({ bagId, indexBag }) {
+      for (const displayId of uniqueArray(Elements.Data.user.main.breastplate.tree.map((i) => i.id))) {
         const slotId = `${bagId}-${indexBag}`;
         this.render({ slotId, displayId });
         indexBag++;
@@ -430,7 +547,7 @@ const Bag = {
 
             if (
               Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) &&
-              ['skin', 'weapon'].includes(dataBagFrom.type)
+              ['skin', 'weapon', 'breastplate'].includes(dataBagFrom.type)
             ) {
               const payLoadEquip = { type: 'user', id: 'main' };
               payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
@@ -463,6 +580,7 @@ const Bag = {
       indexBag = await Slot.skin.renderBagSlots({ bagId, indexBag });
       indexBag = await Slot.skill.renderBagSlots({ bagId, indexBag });
       indexBag = await Slot.weapon.renderBagSlots({ bagId, indexBag });
+      indexBag = await Slot.breastplate.renderBagSlots({ bagId, indexBag });
     });
     return html`
       <div class="fl ${bagId}">

@@ -28,6 +28,9 @@ const CyberiaUserSchema = new Schema({
   weapon: {
     tree: { type: [{ id: { type: String } }], default: [{ id: 'tim-knife' }] },
   },
+  breastplate: {
+    tree: { type: [{ id: { type: String } }], default: [] },
+  },
   components: {
     skin: {
       type: [
@@ -67,6 +70,20 @@ const CyberiaUserSchema = new Schema({
       ],
     },
     weapon: {
+      type: [
+        {
+          displayId: { type: String },
+          current: { type: Boolean },
+          enabled: { type: Boolean },
+          position: { type: String },
+          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+          assetFolder: { type: String },
+          extension: { type: String },
+        },
+      ],
+      default: [],
+    },
+    breastplate: {
       type: [
         {
           displayId: { type: String },

@@ -37,6 +37,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 2 },
     { positionId: '18', frames: 2 },
   ],
+  wing: () => [
+    { positionId: '02', frames: 2 },
+    { positionId: '04', frames: 2 },
+    { positionId: '06', frames: 2 },
+    { positionId: '08', frames: 2 },
+    { positionId: '12', frames: 2 },
+    { positionId: '14', frames: 2 },
+    { positionId: '16', frames: 2 },
+    { positionId: '18', frames: 2 },
+  ],
   ghost: () => [
     { positionId: '02', frames: 8 },
     { positionId: '04', frames: 8 },
@@ -47,7 +57,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 8 },
     { positionId: '18', frames: 8 },
   ],
-  '08frames2': () => [{ positionId: '08', frames: 2 }],
+  frames3: () => [
+    { positionId: '02', frames: 3 },
+    { positionId: '04', frames: 3 },
+    { positionId: '06', frames: 3 },
+    { positionId: '08', frames: 3 },
+    { positionId: '12', frames: 3 },
+    { positionId: '14', frames: 3 },
+    { positionId: '16', frames: 3 },
+    { positionId: '18', frames: 3 },
+  ],
 };
 
 const setElementConsistency = (type, element) => {
@@ -127,6 +146,12 @@ const Stat = {
         damage: 10,
       };
     },
+    'brown-wing': () => {
+      return {
+        dim: 1,
+        vel: 1.5,
+      };
+    },
   },
   set: function (type, element, build) {
     if (!build) {
@@ -137,6 +162,7 @@ const Stat = {
       element.y = oldElement.y;
       element.skill = oldElement.skill;
       element.weapon = oldElement.weapon;
+      element.breastplate = oldElement.breastplate;
       element.model = oldElement.model;
       element.components = oldElement.components;
     }
@@ -209,11 +235,22 @@ const ComponentElement = {
           {
             displayId: 'tim-knife',
             position: '08',
-            positions: PositionsComponent['08frames2'](),
+            positions: PositionsComponent['frames3'](),
             velFrame: 250,
             enabled: false,
             assetFolder: 'weapon',
             extension: 'gif',
+          },
+        ],
+        breastplate: [
+          {
+            displayId: 'brown-wing',
+            position: '08',
+            positions: PositionsComponent.wing(),
+            velFrame: 250,
+            enabled: false,
+            assetFolder: 'breastplate',
+            extension: 'png',
           },
         ],
         lifeBar: {},
@@ -246,6 +283,7 @@ const ComponentElement = {
           },
         ],
         weapon: [],
+        breastplate: [],
         lifeBar: {},
         lifeIndicator: {},
         username: {},
@@ -265,7 +303,7 @@ const ComponentElement = {
           {
             displayId: 'red-power',
             position: '08',
-            positions: PositionsComponent['08frames2'](),
+            positions: PositionsComponent['frames3'](),
             velFrame: 250,
             enabled: true,
             assetFolder: 'skill',
@@ -273,6 +311,7 @@ const ComponentElement = {
           },
         ],
         weapon: [],
+        breastplate: [],
       },
     };
     return Stat.set('skill', base, true);
@@ -316,6 +355,13 @@ const PlayerElement = () => {
       tree: [
         {
           id: 'tim-knife',
+        },
+      ],
+    },
+    breastplate: {
+      tree: [
+        {
+          id: 'brown-wing',
         },
       ],
     },

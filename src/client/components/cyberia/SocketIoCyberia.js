@@ -70,11 +70,14 @@ const SocketIoCyberia = {
               } else Pixi.triggerUpdateDisplay({ type, id });
 
               break;
-            case 'update-weapon':
-              if (!Elements.Data[type][id]) return;
-              Elements.Data[type][id].components.weapon = element.components.weapon;
-              Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-              Pixi.setDisplayComponent({ type, id });
+            case 'update-item':
+              {
+                if (!Elements.Data[type][id]) return;
+                const { itemType } = args;
+                Elements.Data[type][id].components[itemType] = element.components[itemType];
+                Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
+                Pixi.setDisplayComponent({ type, id });
+              }
               break;
             case 'disconnect':
               Pixi.removeElement({ type, id });

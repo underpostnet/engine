@@ -107,7 +107,7 @@ const Character = {
                           Object.values(dataClassBagTo).find(
                             (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
                           ) === undefined &&
-                          ['skin', 'weapon'].includes(dataBagFrom.type)
+                          ['skin', 'weapon', 'breastplate'].includes(dataBagFrom.type)
                         )
                           return ItemModal.Unequip[dataBagFrom.type]({ type: 'user', id: 'main' });
 

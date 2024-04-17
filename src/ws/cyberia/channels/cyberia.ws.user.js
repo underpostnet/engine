@@ -179,26 +179,33 @@ const CyberiaWsUserController = {
           }
         }
         break;
-      case 'update-weapon':
-        CyberiaWsUserManagement.element[wsManagementId][socket.id].components.weapon = element.components.weapon;
-        CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
-          channel,
-          CyberiaWsUserManagement.element[wsManagementId][socket.id],
-        );
+      case 'update-item':
+        {
+          const { itemType } = args;
+          const elementUpdate = { components: {} };
+          elementUpdate.components[itemType] = element.components[itemType];
+          CyberiaWsUserManagement.element[wsManagementId][socket.id].components[itemType] =
+            element.components[itemType];
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = Stat.set(
+            channel,
+            CyberiaWsUserManagement.element[wsManagementId][socket.id],
+          );
 
-        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-          if (
-            elementId !== socket.id &&
-            objectEquals(
-              CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
-              CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
-            )
-          ) {
-            CyberiaWsEmit(channel, client[elementId], {
-              status,
-              id: socket.id,
-              element: { components: { weapon: element.components.weapon } },
-            });
+          for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+            if (
+              elementId !== socket.id &&
+              objectEquals(
+                CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+                CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
+              )
+            ) {
+              CyberiaWsEmit(channel, client[elementId], {
+                status,
+                id: socket.id,
+                itemType,
+                element: elementUpdate,
+              });
+            }
           }
         }
         break;
