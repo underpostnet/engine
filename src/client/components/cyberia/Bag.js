@@ -28,7 +28,7 @@ const ItemModal = {
 
     setTimeout(async () => {
       if (skin) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[skin.id]()));
+        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[skin.id](), { 'item type': 'skin' }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -54,7 +54,7 @@ const ItemModal = {
         );
       }
       if (weapon) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[weapon.id]()));
+        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[weapon.id](), { 'item type': 'weapon' }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -80,7 +80,7 @@ const ItemModal = {
         );
       }
       if (breastplate) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[breastplate.id]()));
+        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[breastplate.id](), { 'item type': 'breastplate' }));
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -112,7 +112,10 @@ const ItemModal = {
         );
       }
       if (skill) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[skill.id]()));
+        htmls(
+          `.${id0}-render-col-a`,
+          this.RenderStat(Stat.get[skill.id](), { 'item type': `${SkillData[skill.id].type} skill` }),
+        );
         // -----------------------------------------------------------
         // -----------------------------------------------------------
         htmls(
@@ -273,9 +276,18 @@ const ItemModal = {
       Character.RenderCharacterSLot({ type, id, componentType: 'breastplate' });
     },
   },
-  RenderStat: function (statData) {
+  RenderStat: function (statData, options) {
     const displayStats = ['dim', 'vel', 'maxLife', 'life', 'deadTime', 'damage'];
     let statsRender = '';
+    if (options)
+      for (const statKey of Object.keys(options)) {
+        statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
+            <div class="in section-mp">${statKey}</div>
+          </div>
+          <div class="in fll stat-table-cell">
+            <div class="in section-mp">${options[statKey]}</div>
+          </div>`;
+      }
     for (const statKey of Object.keys(statData)) {
       if (!displayStats.includes(statKey)) continue;
       statsRender += html` <div class="in fll stat-table-cell stat-table-cell-key">
