@@ -2,6 +2,7 @@ import { newInstance } from '../core/CommonJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { loggerFactory } from '../core/Logger.js';
 import { BiomeEngine } from './Biome.js';
+import { CyberiaParams } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Pixi } from './Pixi.js';
 
@@ -12,6 +13,7 @@ const JoyStickCyberia = {
     const id = 'cyberia-joystick';
     JoyStick.Render({
       id,
+      callBackTime: CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME,
       callback: () => {
         const { direction } = JoyStick.Tokens[id].joyDataSet;
         let x = newInstance(Elements.Data.user.main.x);

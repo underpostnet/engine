@@ -2,14 +2,13 @@ import JoystickController from 'joystick-controller';
 import { getDirection, getId } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
-import { CyberiaParams } from '../cyberia/CommonCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
 const JoyStick = {
   Tokens: {},
-  Render: async function (options = { id: '', callback: ({ joyDataSet }) => {} }) {
-    const { callback } = options;
+  Render: async function (options = { id: '', callback: ({ joyDataSet }) => {}, callBackTime: 50 }) {
+    const { callback, callBackTime } = options;
     const id = options.id ? options.id : getId(this.Tokens, 'joystick-');
     this.Tokens[id] = { callback };
     append(
@@ -71,7 +70,7 @@ const JoyStick = {
     setInterval(() => {
       if (!this.Tokens[id].joyDataSet || !this.Tokens[id].joyDataSet.direction) return;
       this.Tokens[id].callback({ joyDataSet: this.Tokens[id].joyDataSet });
-    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+    }, callBackTime);
   },
 };
 
