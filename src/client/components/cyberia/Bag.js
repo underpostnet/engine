@@ -632,10 +632,11 @@ const Bag = {
 
             logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
             logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
+            if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
 
             if (
               Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) &&
-              ['skin', 'weapon', 'breastplate'].includes(dataBagFrom.type)
+              ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
             ) {
               const payLoadEquip = { type: 'user', id: 'main' };
               payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };

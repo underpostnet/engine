@@ -35,6 +35,90 @@ const Character = {
         });
       this.renderCharacterStat();
     });
+    const onEnd = function (/**Event*/ evt) {
+      try {
+        // console.log('Sortable onEnd', evt);
+        // console.log('evt.oldIndex', evt.oldIndex);
+        // console.log('evt.newIndex', evt.newIndex);
+        const toElements = {
+          srcElement: evt.originalEvent.srcElement,
+          target: evt.originalEvent.target,
+          toElement: evt.originalEvent.toElement,
+        };
+
+        const { item } = evt; // parentElement parentNode children(array)
+
+        const dataBagFrom = {
+          type: Array.from(item.children)[2].innerHTML,
+          id: Array.from(item.children)[3].innerHTML,
+        };
+        const dataBagTo = {};
+
+        let dataClassBagFrom = [];
+        let dataClassBagTo = [];
+
+        for (const toElementKey of Object.keys(toElements)) {
+          try {
+            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
+          } catch (error) {
+            logger.warn(error);
+          }
+          try {
+            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
+          } catch (error) {
+            logger.warn(error);
+          }
+          try {
+            dataClassBagTo = dataClassBagTo.concat(
+              Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+            );
+          } catch (error) {
+            logger.warn(error);
+          }
+          try {
+            dataClassBagTo = dataClassBagTo.concat(
+              Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+            );
+          } catch (error) {
+            logger.warn(error);
+          }
+        }
+
+        dataClassBagTo = uniqueArray(dataClassBagTo);
+
+        logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
+        logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
+        if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
+
+        if (
+          Object.values(dataClassBagTo).find(
+            (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
+          ) === undefined &&
+          ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
+        ) {
+          const payLoadEquip = { type: 'user', id: 'main' };
+          payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
+          ItemModal.Unequip[dataBagFrom.type](payLoadEquip);
+          return;
+        }
+
+        const slotId = Array.from(evt.item.classList).pop();
+        // console.log('slotId', slotId);
+        if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
+
+        // var itemEl = evt.item; // dragged HTMLElement
+        // evt.to; // target list
+        // evt.from; // previous list
+        // evt.oldIndex; // element's old index within old parent
+        // evt.newIndex; // element's new index within new parent
+        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        // evt.clone; // the clone element
+        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+      } catch (error) {
+        logger.error(error, error.stack);
+      }
+    };
     return html`
       <div class="fl">
         <div class="in fll section-mp character-container">
@@ -51,89 +135,7 @@ const Character = {
                     // chosenClass: 'css-class',
                     // ghostClass: 'css-class',
                     // Element dragging ended
-                    onEnd: function (/**Event*/ evt) {
-                      try {
-                        // console.log('Sortable onEnd', evt);
-                        // console.log('evt.oldIndex', evt.oldIndex);
-                        // console.log('evt.newIndex', evt.newIndex);
-                        const toElements = {
-                          srcElement: evt.originalEvent.srcElement,
-                          target: evt.originalEvent.target,
-                          toElement: evt.originalEvent.toElement,
-                        };
-
-                        const { item } = evt; // parentElement parentNode children(array)
-
-                        const dataBagFrom = {
-                          type: Array.from(item.children)[2].innerHTML,
-                          id: Array.from(item.children)[3].innerHTML,
-                        };
-                        const dataBagTo = {};
-
-                        let dataClassBagFrom = [];
-                        let dataClassBagTo = [];
-
-                        for (const toElementKey of Object.keys(toElements)) {
-                          try {
-                            dataClassBagTo = dataClassBagTo.concat(
-                              Array.from(toElements[toElementKey].parentNode.classList),
-                            );
-                          } catch (error) {
-                            logger.warn(error);
-                          }
-                          try {
-                            dataClassBagTo = dataClassBagTo.concat(
-                              Array.from(toElements[toElementKey].parentElement.classList),
-                            );
-                          } catch (error) {
-                            logger.warn(error);
-                          }
-                          try {
-                            dataClassBagTo = dataClassBagTo.concat(
-                              Array.from(toElements[toElementKey].parentNode.parentNode.classList),
-                            );
-                          } catch (error) {
-                            logger.warn(error);
-                          }
-                          try {
-                            dataClassBagTo = dataClassBagTo.concat(
-                              Array.from(toElements[toElementKey].parentElement.parentElement.classList),
-                            );
-                          } catch (error) {
-                            logger.warn(error);
-                          }
-                        }
-
-                        dataClassBagTo = uniqueArray(dataClassBagTo);
-
-                        logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
-                        logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
-
-                        if (
-                          Object.values(dataClassBagTo).find(
-                            (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
-                          ) === undefined &&
-                          ['skin', 'weapon', 'breastplate'].includes(dataBagFrom.type)
-                        )
-                          return ItemModal.Unequip[dataBagFrom.type]({ type: 'user', id: 'main' });
-
-                        const slotId = Array.from(evt.item.classList).pop();
-                        // console.log('slotId', slotId);
-                        if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
-
-                        // var itemEl = evt.item; // dragged HTMLElement
-                        // evt.to; // target list
-                        // evt.from; // previous list
-                        // evt.oldIndex; // element's old index within old parent
-                        // evt.newIndex; // element's new index within new parent
-                        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-                        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-                        // evt.clone; // the clone element
-                        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-                      } catch (error) {
-                        logger.error(error, error.stack);
-                      }
-                    },
+                    onEnd,
                   });
                 });
                 return html`<div class="abs center character-slot character-slot-container-${slotType}">
@@ -148,6 +150,19 @@ const Character = {
             ${Object.keys(Elements.Data.user.main.skill.keys)
               .map((skillKey) => {
                 skillKey = `${skillKey}-skill`;
+                setTimeout(() => {
+                  this.Data[idModal].sortable[skillKey] = new Sortable(s(`.character-slot-container-${skillKey}`), {
+                    animation: 150,
+                    group: `character-equip-sortable-${skillKey}`,
+                    forceFallback: true,
+                    fallbackOnBody: true,
+
+                    // chosenClass: 'css-class',
+                    // ghostClass: 'css-class',
+                    // Element dragging ended
+                    onEnd,
+                  });
+                });
                 return html`
                   <div class="abs center character-slot-skill character-slot-container-${skillKey}">
                     <div data-id="0" class="in sub-character-slot character-slot-${skillKey}">
