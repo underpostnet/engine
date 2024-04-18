@@ -241,8 +241,10 @@ const ItemModal = {
     },
     skin: function ({ type, id, skin }) {
       Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
-        skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
-        skinData.current = skinData.displayId === (skin?.id ? skin.id : 'anon');
+        // skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
+        // skinData.current = skinData.displayId === (skin?.id ? skin.id : 'anon');
+        skinData.enabled = skinData.displayId === 'anon';
+        skinData.current = skinData.displayId === 'anon';
         return skinData;
       });
       Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
@@ -258,8 +260,10 @@ const ItemModal = {
     },
     weapon: function ({ type, id, weapon }) {
       Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
-        weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
-        weaponData.current = weapon?.id ? weaponData.displayId === weapon.id : false;
+        // weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
+        // weaponData.current = weapon?.id ? weaponData.displayId === weapon.id : false;
+        weaponData.enabled = false;
+        weaponData.current = false;
         return weaponData;
       });
       Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
@@ -275,8 +279,10 @@ const ItemModal = {
     breastplate: function ({ type, id, breastplate }) {
       Elements.Data[type][id].components.breastplate = Elements.Data[type][id].components.breastplate.map(
         (breastplateData) => {
-          breastplateData.enabled = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
-          breastplateData.current = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
+          // breastplateData.enabled = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
+          // breastplateData.current = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
+          breastplateData.enabled = false;
+          breastplateData.current = false;
           return breastplateData;
         },
       );

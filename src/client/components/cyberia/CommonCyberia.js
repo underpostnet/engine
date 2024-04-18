@@ -174,6 +174,7 @@ const Stat = {
       element.breastplate = oldElement.breastplate;
       element.model = oldElement.model;
       element.components = oldElement.components;
+      element.life = oldElement.life;
     }
 
     for (const componentType of Object.keys(CharacterSlotType)) {
