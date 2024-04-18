@@ -11,7 +11,7 @@ import { Account } from '../core/Account.js';
 import { append, s } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
-import { Application } from 'pixi.js';
+import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Skill } from './Skill.js';
 import { Bag, Slot } from './Bag.js';
@@ -231,6 +231,21 @@ const MainUser = {
     Pixi.topLevelCallBack({ type, id });
 
     LoadingAnimation.removeSplashScreen();
+  },
+  renderPixiMainUserBackground: function () {
+    const type = 'user';
+    const id = 'main';
+    const dim = (Pixi.MetaData.dim / Matrix.Data.dim) * Matrix.Data.dimAmplitude * Elements.Data.user.main.dim;
+    if (this.MainUserBackground) this.MainUserBackground.destroy();
+
+    this.MainUserBackground = new Sprite(); // Texture.WHITE
+    this.MainUserBackground.x = -1 * dim * 0.25; // Pixi.MetaData.dim / 2; //  - backgroundWidth / 2;
+    this.MainUserBackground.y = -1 * dim * 0.25; // Pixi.MetaData.dim / 2; //  - backgroundWidth / 2;
+    this.MainUserBackground.width = dim * 1.5;
+    this.MainUserBackground.height = dim * 1.5;
+    // this.MainUserBackground.tint = `#ffffff00`;
+    this.MainUserBackground.visible = true;
+    Pixi.Data[type][id].components['layer-1'].container.addChild(this.MainUserBackground);
   },
 };
 

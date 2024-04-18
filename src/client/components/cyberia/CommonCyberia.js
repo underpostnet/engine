@@ -555,68 +555,68 @@ const WorldLimit = (options = { type: undefined }) => {
   };
 };
 
-const updateMovementDirection = ({ direction, element }) => {
+const updateMovementDirection = ({ direction, element, suffix }) => {
   switch (direction) {
     case 'n':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '12';
+          component.position = `${suffix ? suffix : '1'}2`;
           return component;
         });
       break;
     case 's':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '18';
+          component.position = `${suffix ? suffix : '1'}8`;
           return component;
         });
       break;
     case 'e':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '16';
+          component.position = `${suffix ? suffix : '1'}6`;
           return component;
         });
       break;
     case 'se':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '16';
+          component.position = `${suffix ? suffix : '1'}6`;
           return component;
         });
       break;
     case 'ne':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '16';
+          component.position = `${suffix ? suffix : '1'}6`;
           return component;
         });
       break;
     case 'w':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '14';
+          component.position = `${suffix ? suffix : '1'}4`;
           return component;
         });
       break;
     case 'sw':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '14';
+          component.position = `${suffix ? suffix : '1'}4`;
           return component;
         });
       break;
     case 'nw':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '14';
+          component.position = `${suffix ? suffix : '1'}4`;
           return component;
         });
       break;
     default:
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
-          component.position = '18';
+          component.position = `${suffix ? suffix : '1'}8`;
           return component;
         });
       break;

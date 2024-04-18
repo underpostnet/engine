@@ -1,10 +1,13 @@
 import Sortable from 'sortablejs';
-import { getId, uniqueArray } from '../core/CommonJs.js';
+import { getId, range, timer, uniqueArray } from '../core/CommonJs.js';
 import { ItemModal, Slot, SlotEvents } from './Bag.js';
-import { CharacterSlotType } from './CommonCyberia.js';
+import { CharacterSlotType, updateMovementDirection } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { loggerFactory } from '../core/Logger.js';
+import { MainUser } from './MainUser.js';
+import { Pixi } from './Pixi.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -20,7 +23,7 @@ const Character = {
         }
     } else this.Data[idModal] = { sortable: {} };
 
-    setTimeout(() => {
+    setTimeout(async () => {
       const type = 'user';
       const id = 'main';
       for (const componentType of Object.keys(CharacterSlotType)) {
@@ -34,6 +37,8 @@ const Character = {
           skillKey,
         });
       this.renderCharacterStat();
+      this.renderCharacterPreView();
+      LoadingAnimation.spinner.play(`.character-preview-loading`);
     });
     const onEnd = function (/**Event*/ evt) {
       try {
@@ -91,9 +96,10 @@ const Character = {
         if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
 
         if (
-          Object.values(dataClassBagTo).find(
+          (Object.values(dataClassBagTo).find(
             (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
-          ) === undefined &&
+          ) === undefined ||
+            Object.values(dataClassBagTo).find((c) => c.startsWith(`character-container-view`))) &&
           ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
         ) {
           const payLoadEquip = { type: 'user', id: 'main' };
@@ -174,10 +180,10 @@ const Character = {
               .join('')}
           </div>
         </div>
-        <div class="in fll section-mp character-container character-container-view">
-          <!-- TODO: extract 3 pixi main user canvas image and create 'set interval' preview gif -->
-        </div>
         <div class="in fll section-mp character-container character-container-stats"></div>
+        <div class="in fll section-mp character-container character-container-view">
+          <div class="abs center character-preview-loading"></div>
+        </div>
       </div>
     `;
   },
@@ -192,6 +198,7 @@ const Character = {
       });
     else if (s(`.character-slot-${componentType}`))
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
+    this.renderCharacterPreView();
   },
   RenderCharacterSkillSLot: function (options = { id: 'main', type: 'user', skillKey: '' }) {
     const { type, id, skillKey } = options;
@@ -205,7 +212,67 @@ const Character = {
     } else if (s(`.character-slot-${componentType}`))
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
   },
+  renderCharacterPreView: async function () {
+    const type = 'user';
+    const id = 'main';
+
+    if (!s(`.character-container-view`)) return;
+
+    if (Pixi.Data[type][id].components['lifeBar']) Pixi.Data[type][id].components['lifeBar'].visible = false;
+    if (Pixi.Data[type][id].components['coinIndicator'].container)
+      Pixi.Data[type][id].components['coinIndicator'].container.visible = false;
+    if (Pixi.Data[type][id].components['lifeIndicator'].container)
+      Pixi.Data[type][id].components['lifeIndicator'].container.visible = false;
+    if (Pixi.Data[type][id].components['username'].container)
+      Pixi.Data[type][id].components['username'].container.visible = false;
+
+    Elements.Data.user.main = updateMovementDirection({
+      direction: 's',
+      element: Elements.Data.user.main,
+      suffix: '0',
+    });
+    Pixi.triggerUpdateDisplay({ type, id });
+
+    const frames = [];
+    for (const frame of range(0, 2)) {
+      const characterImg = await MainUser.PixiMainUser.renderer.extract.image(MainUser.PixiMainUser.stage);
+      frames[frame] = characterImg.currentSrc;
+      await timer(200);
+    }
+
+    htmls(
+      `.character-container-view`,
+      frames
+        .map(
+          (v, i) =>
+            html`<img
+              class="abs center character-view-img character-view-img-frame-${i} ${i === 0 ? '' : 'hide'}"
+              src="${v}"
+            />`,
+        )
+        .join(''),
+    );
+
+    let frame = 0;
+    if (this.CharacterPreViewInterval) clearInterval(this.CharacterPreViewInterval);
+    this.CharacterPreViewInterval = setInterval(() => {
+      if (!s(`.character-container-view`)) return clearInterval(this.CharacterPreViewInterval);
+      s(`.character-view-img-frame-${frame}`).classList.add('hide');
+      frame++;
+      if (frame === frames.length) frame = 0;
+      s(`.character-view-img-frame-${frame}`).classList.remove('hide');
+    }, 200);
+
+    if (Pixi.Data[type][id].components['lifeBar']) Pixi.Data[type][id].components['lifeBar'].visible = true;
+    if (Pixi.Data[type][id].components['coinIndicator'].container)
+      Pixi.Data[type][id].components['coinIndicator'].container.visible = true;
+    if (Pixi.Data[type][id].components['lifeIndicator'].container)
+      Pixi.Data[type][id].components['lifeIndicator'].container.visible = true;
+    if (Pixi.Data[type][id].components['username'].container)
+      Pixi.Data[type][id].components['username'].container.visible = true;
+  },
   renderEmptyCharacterSlot: function (slotType) {
+    this.renderCharacterPreView();
     return html` <div class="abs center character-slot-type-text">${slotType.replace('-', html`<br />`)}</div>`;
   },
   renderCharacterStat: function () {

@@ -229,8 +229,16 @@ const Pixi = {
     this.Data[type][id].x = dim * Elements.Data[type][id].x;
     this.Data[type][id].y = dim * Elements.Data[type][id].y;
     this.Data[type][id].components = {
+      'layer-1': { container: new Container() },
       layer0: { container: new Container() },
     };
+
+    this.Data[type][id].components['layer-1'].container.width = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components['layer-1'].container.height = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components['layer-1'].container.x = 0;
+    this.Data[type][id].components['layer-1'].container.y = 0;
+    this.Data[type][id].addChild(this.Data[type][id].components['layer-1'].container);
+
     this.Data[type][id].components.layer0.container.width = dim * Elements.Data[type][id].dim;
     this.Data[type][id].components.layer0.container.height = dim * Elements.Data[type][id].dim;
     this.Data[type][id].components.layer0.container.x = 0;
@@ -243,6 +251,7 @@ const Pixi = {
       this.Data[type][id].x = this.MetaData.dim / 2 - dim * Elements.Data[type][id].x * 0.5;
       this.Data[type][id].y = this.MetaData.dim / 2 - dim * Elements.Data[type][id].y * 0.5;
       MainUser.PixiMainUser.stage.addChild(this.Data[type][id]);
+      MainUser.renderPixiMainUserBackground();
     } else this.Data[type].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(Elements.Data[type][id].components)) {
       if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
@@ -549,6 +558,7 @@ const Pixi = {
       }
     }
     this.updateLifeBarWidth({ type, id, dim });
+    if (type === 'user' && id === 'main') MainUser.renderPixiMainUserBackground();
   },
   updateLife: function (options) {
     const { type, id } = options;

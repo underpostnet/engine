@@ -338,12 +338,12 @@ const CssCyberia = {
         }
 
         .character-equip-container {
-          width: 330px;
+          width: 320px;
           height: 300px;
         }
         .character-skill-container {
           top: -40px;
-          width: 330px;
+          width: 320px;
           height: 150px;
         }
         .character-slot {
@@ -576,6 +576,19 @@ const CssCyberia = {
         }
         .main-skill-cooldown-delay-time-text {
           font-size: 21px;
+        }
+        .character-container-stats {
+          width: 320px;
+          height: 450px;
+        }
+        .character-container-view {
+          height: 450px;
+          width: 320px;
+          overflow: hidden;
+        }
+        .character-view-img {
+          width: 320px;
+          height: auto;
         }
       </style>
 
