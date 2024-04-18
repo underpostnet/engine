@@ -635,7 +635,9 @@ const Bag = {
             if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
 
             if (
-              Object.values(dataClassBagTo).find((c) => c.startsWith(`character-`)) &&
+              Object.values(dataClassBagTo).find(
+                (c) => c.startsWith(`character-`) || c.startsWith('main-skill-slot'),
+              ) &&
               ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
             ) {
               const payLoadEquip = { type: 'user', id: 'main' };
