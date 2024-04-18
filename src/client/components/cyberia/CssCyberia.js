@@ -342,8 +342,9 @@ const CssCyberia = {
           height: 300px;
         }
         .character-skill-container {
+          top: -40px;
           width: 330px;
-          height: 100px;
+          height: 150px;
         }
         .character-slot {
           width: 80px;

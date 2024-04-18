@@ -154,6 +154,10 @@ const CyberiaWsUserController = {
           }
         }
         break;
+
+      case 'update-skill':
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].skill = element.skill;
+        break;
       case 'update-skin-position':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].components.skin = element.components.skin;
         if (args.updateStat)

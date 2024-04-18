@@ -144,6 +144,7 @@ const Stat = {
         cooldown: 750,
         timeLife: 300,
         damage: 10,
+        vel: 0.3,
       };
     },
     'green-power': () => {
@@ -151,6 +152,7 @@ const Stat = {
         cooldown: 750,
         timeLife: 300,
         damage: 10,
+        vel: 0.8,
       };
     },
     'brown-wing': () => {

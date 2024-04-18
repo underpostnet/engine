@@ -13,6 +13,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Pixi } from './Pixi.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Character } from './Character.js';
+import { Skill } from './Skill.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -167,6 +168,13 @@ const ItemModal = {
   Equip: {
     skill: function ({ type, id, skill }) {
       console.log('Equip skill', { type, id, skill });
+      Elements.Data[type][id].skill.keys[SkillData[skill.id].type] = skill.id;
+      SocketIo.Emit(type, {
+        status: 'update-skill',
+        element: { skill: Elements.Data[type][id].skill },
+      });
+      Character.RenderCharacterSkillSLot({ type, id, skillKey: SkillData[skill.id].type });
+      Skill.setMainKeysSkill();
     },
     skin: function ({ type, id, skin }) {
       Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
@@ -223,6 +231,13 @@ const ItemModal = {
   Unequip: {
     skill: function ({ type, id, skill }) {
       console.log('Unequip skill', { type, id, skill });
+      Elements.Data[type][id].skill.keys[SkillData[skill.id].type] = null;
+      SocketIo.Emit(type, {
+        status: 'update-skill',
+        element: { skill: Elements.Data[type][id].skill },
+      });
+      Character.RenderCharacterSkillSLot({ type, id, skillKey: SkillData[skill.id].type });
+      Skill.setMainKeysSkill();
     },
     skin: function ({ type, id, skin }) {
       Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {

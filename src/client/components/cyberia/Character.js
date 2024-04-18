@@ -27,6 +27,12 @@ const Character = {
         if (!Elements.Data[type][id].components[componentType]) continue;
         this.RenderCharacterSLot({ type, id, componentType });
       }
+      for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys))
+        this.RenderCharacterSkillSLot({
+          type,
+          id,
+          skillKey,
+        });
       this.renderCharacterStat();
     });
     return html`
@@ -170,6 +176,18 @@ const Character = {
         disabledCount: true,
       });
     else if (s(`.character-slot-${componentType}`))
+      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
+  },
+  RenderCharacterSkillSLot: function (options = { id: 'main', type: 'user', skillKey: '' }) {
+    const { type, id, skillKey } = options;
+    const componentType = `${skillKey}-skill`;
+    if (Elements.Data[type][id].skill.keys[skillKey]) {
+      Slot.skill.render({
+        slotId: `character-slot-${componentType}`,
+        displayId: Elements.Data[type][id].skill.keys[skillKey],
+        disabledCount: true,
+      });
+    } else if (s(`.character-slot-${componentType}`))
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
   },
   renderEmptyCharacterSlot: function (slotType) {

@@ -49,7 +49,14 @@ const CyberiaWsSkillManagement = {
     this.element[wsManagementId][id].y = parentElement.y + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].parent = parent;
     this.element[wsManagementId][id].model.world = parentElement.model.world;
-    this.element[wsManagementId][id].vel = 0.2;
+
+    // skill stats
+    this.element[wsManagementId][id] = {
+      ...this.element[wsManagementId][id],
+      ...skillData,
+    };
+    this.element[wsManagementId][id].components.skin[0].displayId = parentElement.skill.keys[skillKey];
+
     this.localElementScope[wsManagementId][id] = {};
 
     for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
