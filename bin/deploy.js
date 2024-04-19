@@ -94,7 +94,7 @@ try {
     case 'run':
       {
         loadConf(process.argv[3]);
-        shellExec('npm start');
+        shellExec(`npm start ${process.argv[3]}`);
         shellExec('git checkout .');
       }
       break;

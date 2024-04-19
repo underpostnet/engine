@@ -23,8 +23,20 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const buildRuntime = async () => {
+  const deployId = `${process.argv[3] ? process.argv[3] : 'default'}`;
+
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
+
+  const promCounterOption = {
+    name: `${deployId.replaceAll('-', '_')}_http_requests_total`,
+    help: 'Total number of HTTP requests',
+    labelNames: ['instance', 'method', 'status_code'],
+  };
+
+  logger.info('promCounterOption', promCounterOption);
+
+  const requestCounter = new promClient.Counter(promCounterOption);
 
   const ipInstance = ''; // await ip.public.ipv4();
   let currentPort = parseInt(process.env.PORT) + 1;
@@ -145,18 +157,12 @@ const buildRuntime = async () => {
           // https://medium.com/@diego.coder/monitoreo-de-aplicaciones-con-node-js-grafana-y-prometheus-afd2b33e3f91
           // for grafana prometheus server: host.docker.internal:9090
 
-          const promCounterOption = {
-            name: `${host.split('.')[2] ? host.split('.')[1] : host.split('.')[0]}_${currentPort}_http_requests_total`,
-            help: 'Total number of HTTP requests',
-            labelNames: ['method', 'status_code'],
-          };
-
-          logger.info('promCounterOption', promCounterOption);
-
-          const requestCounter = new promClient.Counter(promCounterOption);
-
           app.use((req, res, next) => {
-            requestCounter.inc({ method: req.method, status_code: res.statusCode });
+            requestCounter.inc({
+              instance: `${host}:${port}${path}`,
+              method: req.method,
+              status_code: res.statusCode,
+            });
             return next();
           });
 
