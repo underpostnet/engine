@@ -7,7 +7,7 @@ import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { Config, loadConf } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
-import { timer } from '../src/client/components/core/CommonJs.js';
+import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -23,9 +23,9 @@ const deployTest = async (dataDeploy) => {
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
         const urlTest = `https://${host}${path}`;
-        const result = await axios.get(urlTest);
-        const test = result.data.split('<title>');
         try {
+          const result = await axios.get(urlTest);
+          const test = result.data.split('<title>');
           if (test[1])
             logger.info('Success deploy', {
               ...deploy,
@@ -161,6 +161,27 @@ try {
         );
         for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent });
         await deployRun(dataDeploy, true);
+      }
+      break;
+    case 'prometheus':
+    case 'prom':
+      {
+        const rangePort = [1, 20];
+        const promConfigPath = `./engine-private/prometheus/prometheus-service-config.yml`;
+        const rawConfig = fs
+          .readFileSync(promConfigPath, 'utf8')
+          .replaceAll(
+            `['']`,
+            JSON.stringify(range(...rangePort).map((i) => `host.docker.internal:30${setPad(i, '0', 2)}`)).replaceAll(
+              `"`,
+              `'`,
+            ),
+          );
+        console.log(rawConfig);
+
+        fs.writeFileSync(promConfigPath, rawConfig, 'utf8');
+
+        await Cmd.copy(`cd engine-private/prometheus ; docker-compose -f prometheus-service.yml up -d`);
       }
       break;
     default:

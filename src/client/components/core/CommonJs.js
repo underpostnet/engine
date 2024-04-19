@@ -129,10 +129,14 @@ const getDistance = (x1, y1, x2, y2) => {
 const setPad = (num, padValue, targetLength, endPad, separator) => {
   separator = separator ? separator : '.';
   let str = String(num).split(separator);
-  if (!str[1]) str[1] = '';
+  let removeSeparator = false;
+  if (!str[1]) {
+    str[1] = '';
+    if (!endPad) removeSeparator = true;
+  }
   while (endPad ? str[1].length < targetLength : str[0].length < targetLength)
     endPad ? (str[1] = str[1] + padValue) : (str[0] = padValue + str[0]);
-  return str.join(separator);
+  return removeSeparator ? str.join(separator).replace(separator, '') : str.join(separator);
 };
 
 /**
