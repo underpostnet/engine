@@ -6,18 +6,20 @@ services:
     build:
       dockerfile: ./Dockerfile
       context: . # workdir path
-    image: underpost-engine
+    # image: underpost-engine
     # container_name: <name> ignore for replicas
     ports:
       - '22'
       - '80' # host port allocated dynamically, host ports are unique independent of replicas
       - '443'
+      - '3306'
+      - '27017'
       - '3000-3020'
     volumes:
       - ./logs:/code/logs
     deploy:
       mode: replicated
-      replicas: 3
+      replicas: 2
       restart_policy:
         condition: on-failure
         delay: 5s
@@ -25,8 +27,8 @@ services:
         window: 120s
       resources:
         limits:
-          cpus: '0.50'
-          memory: 50M
+          cpus: '2'
+          memory: 400M
         reservations:
           cpus: '0.25'
           memory: 20M
