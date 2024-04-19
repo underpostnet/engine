@@ -57,9 +57,10 @@ const networkRouter = {};
 
 const logNetworkRouter = (logger) => {
   // order router
-  const router = fs.existsSync(`./tmp/runtime-router.json`)
-    ? JSON.parse(fs.readFileSync(`./tmp/runtime-router.json`, 'utf8'))
-    : {};
+  // const router = fs.existsSync(`./tmp/runtime-router.json`)
+  //   ? JSON.parse(fs.readFileSync(`./tmp/runtime-router.json`, 'utf8'))
+  //   : {};
+  const router = {};
 
   for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(networkRouter), 'length'))
     router[absoluteHostKey] = networkRouter[absoluteHostKey];

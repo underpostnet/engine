@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
 import swaggerUi from 'swagger-ui-express';
+import * as promClient from 'prom-client';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
@@ -22,6 +23,9 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const buildRuntime = async () => {
+  const collectDefaultMetrics = promClient.collectDefaultMetrics;
+  collectDefaultMetrics();
+
   const ipInstance = ''; // await ip.public.ipv4();
   let currentPort = parseInt(process.env.PORT) + 1;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
@@ -134,6 +138,31 @@ const buildRuntime = async () => {
           app.use((req, res, next) => {
             // const info = `${req.headers.host}${req.url}`;
             return next();
+          });
+
+          // https://github.com/prometheus/prometheus/blob/main/documentation/examples/prometheus.yml
+          // https://github.com/grafana/grafana/tree/main/conf
+          // https://medium.com/@diego.coder/monitoreo-de-aplicaciones-con-node-js-grafana-y-prometheus-afd2b33e3f91
+          // for grafana prometheus server: host.docker.internal:9090
+
+          const promCounterOption = {
+            name: `${host.split('.')[2] ? host.split('.')[1] : host.split('.')[0]}_${currentPort}_http_requests_total`,
+            help: 'Total number of HTTP requests',
+            labelNames: ['method', 'status_code'],
+          };
+
+          logger.info('promCounterOption', promCounterOption);
+
+          const requestCounter = new promClient.Counter(promCounterOption);
+
+          app.use((req, res, next) => {
+            requestCounter.inc({ method: req.method, status_code: res.statusCode });
+            return next();
+          });
+
+          app.get(`${path === '/' ? '' : path}/metrics`, async (req, res) => {
+            res.set('Content-Type', promClient.register.contentType);
+            return res.end(await promClient.register.metrics());
           });
 
           app.use((req, res, next) => {

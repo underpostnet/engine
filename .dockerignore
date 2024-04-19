@@ -8,5 +8,7 @@
 /build
 /.env
 /coverage
+/prometheus_data
+/grafana_data
 .nyc_output
 .cache
