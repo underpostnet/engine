@@ -40,6 +40,7 @@ const Config = {
             'Router',
             'Account',
             'Auth',
+            'ToolBar',
           ],
           underpost: [
             'Menu',
