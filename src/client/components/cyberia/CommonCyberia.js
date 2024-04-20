@@ -175,6 +175,7 @@ const Stat = {
       element.model = oldElement.model;
       element.components = oldElement.components;
       element.life = oldElement.life;
+      element.coin = oldElement.coin;
     }
 
     for (const componentType of Object.keys(CharacterSlotType)) {

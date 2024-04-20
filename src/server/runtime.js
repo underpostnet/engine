@@ -297,8 +297,8 @@ const buildRuntime = async () => {
 
   logNetworkRouter(logger);
 
-  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
-  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
+  if (Xampp.enabled() && Xampp.router) Xampp.initService({ daemon: true });
+  if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
 };
 
 export { buildRuntime };
