@@ -226,15 +226,18 @@ const Character = {
     if (Pixi.Data[type][id].components['username'].container)
       Pixi.Data[type][id].components['username'].container.visible = false;
 
-    Elements.Data.user.main = updateMovementDirection({
-      direction: 's',
-      element: Elements.Data.user.main,
-      suffix: '0',
-    });
-    Pixi.triggerUpdateDisplay({ type, id });
-
     const frames = [];
     for (const frame of range(0, 2)) {
+      Elements.Data.user.main = updateMovementDirection({
+        direction: 's',
+        element: Elements.Data.user.main,
+        suffix: '0',
+      });
+      Elements.Data.user.main.components.skin = Elements.Data.user.main.components.skin.map((s) => {
+        s.enabled = s.current ? true : false;
+        return s;
+      });
+      Pixi.triggerUpdateDisplay({ type, id });
       const characterImg = await MainUser.PixiMainUser.renderer.extract.image(MainUser.PixiMainUser.stage);
       frames[frame] = characterImg.currentSrc;
       await timer(200);
@@ -270,6 +273,12 @@ const Character = {
       Pixi.Data[type][id].components['lifeIndicator'].container.visible = true;
     if (Pixi.Data[type][id].components['username'].container)
       Pixi.Data[type][id].components['username'].container.visible = true;
+
+    Elements.Data.user.main.components.skin = Elements.Data.user.main.components.skin.map((s) => {
+      s.enabled = Elements.Data.user.main.life > 0 ? s.current : s.displayId === 'ghost';
+      return s;
+    });
+    Pixi.triggerUpdateDisplay({ type, id });
   },
   renderEmptyCharacterSlot: function (slotType) {
     this.renderCharacterPreView();

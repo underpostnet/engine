@@ -181,7 +181,7 @@ try {
 
         fs.writeFileSync(promConfigPath, rawConfig, 'utf8');
 
-        await Cmd.copy(`cd engine-private/prometheus ; docker-compose -f prometheus-service.yml up -d`);
+        await Cmd.copy(`docker-compose -f engine-private/prometheus/prometheus-service.yml up -d`);
       }
       break;
     default:
