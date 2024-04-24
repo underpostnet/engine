@@ -89,6 +89,7 @@ const CyberiaWsBotManagement = {
     const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
     this.localElementScope[wsManagementId][id] = {
+      metaDataBot,
       drop: {
         coin: {
           range: [5, 40],

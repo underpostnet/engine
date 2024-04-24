@@ -3,10 +3,11 @@ import { Css, Themes, borderChar } from '../core/Css.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { isElementCollision } from './CommonCyberia.js';
+import { WorldType, isElementCollision } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
 import { PointAndClickMovement } from './PointAndClickMovement.js';
+import { WorldManagement } from './World.js';
 
 const InteractionPanel = {
   Data: {},
@@ -18,9 +19,21 @@ const InteractionPanel = {
       );
     },
     map: ({ face }) => {
-      htmls('.display-current-face', face);
-      range(1, 4).map((i) => (s(`.map-face-slot-${i}`).style.background = `#80751980`));
-      s(`.map-face-slot-${face}`).style.background = `#f5dd11d9`;
+      const indexFace = WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces.findIndex(
+        (f) => f === face,
+      );
+      range(0, WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces.length - 1).map((i) => {
+        htmls(
+          `.map-face-symbol-text-${i}`,
+          html`
+            ${WorldManagement.Data['user']['main'].model.world.instance[i].type}
+            <br />
+            ${WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces[i]}
+          `,
+        );
+        s(`.map-face-slot-${i}`).style.background = `#80751980`;
+      });
+      s(`.map-face-slot-${indexFace}`).style.background = `#f5dd11d9`;
     },
   },
   Render: async function (options = { id: 'interaction-panel' }) {
@@ -67,14 +80,13 @@ const InteractionPanel = {
         style.top = '111px';
         // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†'];
         render = async () => html`
-          <div class="in hide">Face <span class="display-current-face" style="${borderChar(2, 'black')}"></span></div>
           <div class="fl">
-            ${[1, 6, 3, 5]
+            ${range(0, 3)
               .map(
                 (v, i) =>
                   html` <div class="in fll map-face-slot-container">
-                    <div class="abs center map-face-slot map-face-slot-${i + 1} map-face-slot-${v}">
-                      <div class="abs center map-face-symbol-text">${v}</div>
+                    <div class="abs center map-face-slot map-face-slot-${i}">
+                      <div class="abs center map-face-symbol-text map-face-symbol-text-${i}"></div>
                     </div>
                   </div>`,
               )

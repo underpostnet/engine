@@ -35,6 +35,12 @@ const CyberiaWorldSchema = new Schema({
             type: 'quest-passive',
             displayIds: ['agent', 'ayleen', 'punk'],
           },
+          {
+            min: 5,
+            max: 10,
+            type: 'user-hostile',
+            displayIds: ['purple', 'kishins'],
+          },
         ],
       },
       {

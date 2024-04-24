@@ -450,10 +450,6 @@ const CssCyberia = {
         .character-slot-container-definitive-skill {
           left: 80%;
         }
-        .display-current-face {
-          font-size: 20px;
-          color: white;
-        }
         .map-face-slot-container {
           width: 25%;
           height: 30px;
@@ -467,6 +463,7 @@ const CssCyberia = {
         }
         .map-face-symbol-text {
           color: white;
+          font-size: 14px;
         }
         .input-file-col,
         .explorer-file-col {

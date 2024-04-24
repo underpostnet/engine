@@ -4,8 +4,10 @@ import {
   CyberiaBaseMatrix,
   CyberiaParams,
   Stat,
+  WorldType,
   isElementCollision,
 } from '../../../client/components/cyberia/CommonCyberia.js';
+import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsSkillChannel } from '../channels/cyberia.ws.skill.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
@@ -22,9 +24,12 @@ const CyberiaWsSkillManagement = {
   element: {},
   localElementScope: {},
   matrixData: CyberiaBaseMatrix(),
-  instance: function (wsManagementId = '') {
+  instance: async function (wsManagementId = '') {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
+    /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
+    this.world = await CyberiaWorld.findById(process.env.CYBERIA_WORLD_ID);
   },
   createSkill: function (wsManagementId = '', parent = { id: '', type: '' }, skillKey = '') {
     let parentElement;
@@ -111,6 +116,11 @@ const CyberiaWsSkillManagement = {
               case 'user':
               case 'bot':
                 if (
+                  (parent.type === 'bot' ||
+                    (parent.type === 'user' &&
+                      this.world.instance[
+                        WorldType[this.world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
+                      ].type === 'pvp')) &&
                   CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                   isElementCollision({
                     A: this.element[wsManagementId][id],
@@ -141,6 +151,7 @@ const CyberiaWsSkillManagement = {
             switch (parent.type) {
               case 'user':
                 if (
+                  CyberiaWsBotManagement.localElementScope[wsManagementId][botId].metaDataBot.type === 'user-hostile' &&
                   CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
                   isElementCollision({
                     A: this.element[wsManagementId][id],
