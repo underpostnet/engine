@@ -1,6 +1,9 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { BaseElement } from '../../client/components/cyberia/CommonCyberia.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 // import { Types } from 'mongoose';
 // new Types.ObjectId()
@@ -29,7 +32,7 @@ const CyberiaUserService = {
 
           const worldDoc = await CyberiaWorld.findById(user[0].model.world._id.toString());
           if (!worldDoc) {
-            const baseElement = BaseElement().user.main;
+            const baseElement = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID }).user.main;
             user[0].model.world = baseElement.model.world;
             user[0].x = baseElement.x;
             user[0].y = baseElement.y;

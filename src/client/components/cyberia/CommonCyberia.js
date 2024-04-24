@@ -9,10 +9,10 @@ const CyberiaBaseMatrix = () => {
 };
 
 const ModelElement = {
-  world: () => {
+  world: (options) => {
     return {
       world: {
-        _id: '661db2f89513c1bfef3a3281',
+        _id: options?.worldId ? options.worldId : CyberiaParams.CYBERIA_WORLD_ID,
         face: 1,
       },
     };
@@ -397,7 +397,7 @@ const PlayerElement = () => {
   };
 };
 
-const BaseElement = () => {
+const BaseElement = (options = { worldId: undefined }) => {
   return {
     user: {
       main: {
@@ -406,7 +406,7 @@ const BaseElement = () => {
         ...SkillElement(),
         ...ComponentElement.user(),
         model: {
-          ...ModelElement.world(),
+          ...ModelElement.world(options),
           ...ModelElement.user(),
         },
       },
@@ -418,7 +418,7 @@ const BaseElement = () => {
         ...SkillElement(),
         ...ComponentElement.bot(),
         model: {
-          ...ModelElement.world(),
+          ...ModelElement.world(options),
         },
       },
     },
@@ -428,7 +428,7 @@ const BaseElement = () => {
         ...SkillElement(),
         ...ComponentElement.skill(),
         model: {
-          ...ModelElement.world(),
+          ...ModelElement.world(options),
         },
       },
     },
@@ -638,6 +638,7 @@ const CharacterSlotType = {
 const CyberiaParams = {
   CYBERIA_EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
+  CYBERIA_WORLD_ID: '',
 };
 
 export {

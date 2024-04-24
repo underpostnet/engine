@@ -1,5 +1,9 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
+
 const logger = loggerFactory(import.meta);
 
 const select = {
@@ -89,7 +93,7 @@ const CyberiaWorldService = {
 
       default:
         result = await CyberiaWorld.find({
-          _id: req.params.id,
+          _id: process.env.CYBERIA_WORLD_ID,
         });
         break;
     }

@@ -7,6 +7,9 @@ import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsSkillManagement } from '../management/cyberia.ws.skill.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 import { CyberiaWsSkillChannel } from './cyberia.ws.skill.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const channel = 'user';
 const logger = loggerFactory(import.meta);
@@ -59,7 +62,9 @@ const CyberiaWsUserController = {
 
           const worldDoc = await CyberiaWorld.findById(user.model.world._id);
           if (!worldDoc) {
-            const baseElement = BaseElement().user.main;
+            const baseElement = BaseElement({
+              worldId: process.env.CYBERIA_WORLD_ID,
+            }).user.main;
             user.model.world = baseElement.model.world;
             user.x = baseElement.x;
             user.y = baseElement.y;
@@ -79,7 +84,9 @@ const CyberiaWsUserController = {
         break;
       case 'unregister-cyberia-user':
         {
-          CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement().user.main;
+          CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
+            worldId: process.env.CYBERIA_WORLD_ID,
+          }).user.main;
           propagate();
         }
         break;
@@ -218,7 +225,9 @@ const CyberiaWsUserController = {
     }
   },
   connection: function (socket, client, wsManagementId) {
-    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement()[channel].main;
+    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID })[
+      channel
+    ].main;
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
       direction: 's',
     };

@@ -12,6 +12,9 @@ import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsBotManagement } from './cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
@@ -44,7 +47,7 @@ const CyberiaWsSkillManagement = {
     const id = getId(this.element[wsManagementId], 'skill-');
     if (!skillKey) skillKey = 'basic';
     const skillData = Stat.get[parentElement.skill.keys[skillKey]]();
-    this.element[wsManagementId][id] = BaseElement().skill.main;
+    this.element[wsManagementId][id] = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID }).skill.main;
     this.element[wsManagementId][id].x = parentElement.x + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].y = parentElement.y + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].parent = parent;

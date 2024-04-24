@@ -15,7 +15,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
 import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
-import { WorldLimit, WorldType } from './CommonCyberia.js';
+import { CyberiaParams, WorldLimit, WorldType } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { InteractionPanel } from './InteractionPanel.js';
 import { Matrix } from './Matrix.js';
@@ -209,6 +209,7 @@ const WorldManagement = {
 
     if (!('world' in this.Data[type][id].model)) {
       const { data } = await CyberiaWorldService.get({ id: Elements.Data[type][id].model.world._id });
+      if (!CyberiaParams.CYBERIA_WORLD_ID) CyberiaParams.CYBERIA_WORLD_ID = data[0]._id;
       this.Data[type][id].model.world = data[0];
     }
 
