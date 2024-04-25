@@ -267,6 +267,7 @@ const buildClient = async () => {
                 case 'BmsScripts':
                 case 'UnderpostScripts':
                 case 'CyberiaScripts':
+                case 'DefaultScripts':
                   ssrHeadComponents += SrrComponent({ ssrPath });
                   break;
                 default:
@@ -315,9 +316,12 @@ const buildClient = async () => {
           );
         }
       if (siteMapLinks.length > 0) {
+        const xslUrl = fs.existsSync(`${rootClientPath}/sitemap`)
+          ? `${path === '/' ? '' : path}/sitemap.xsl`
+          : undefined;
         // Create a stream to write to
         /** @type {import('sitemap').SitemapStreamOptions} */
-        const sitemapOptions = { hostname: `https://${host}`, xslUrl: `${path === '/' ? '' : path}/sitemap.xsl` };
+        const sitemapOptions = { hostname: `https://${host}`, xslUrl };
 
         const siteMapStream = new SitemapStream(sitemapOptions);
         let siteMapSrc = await new Promise((resolve) =>
@@ -336,11 +340,12 @@ const buildClient = async () => {
         }
         // Return a promise that resolves with your XML string
         fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
-        fs.writeFileSync(
-          `${rootClientPath}/sitemap.xsl`,
-          fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
-          'utf8',
-        );
+        if (xslUrl)
+          fs.writeFileSync(
+            `${rootClientPath}/sitemap.xsl`,
+            fs.readFileSync(`${rootClientPath}/sitemap`, 'utf8').replaceAll('{{web-url}}', `https://${host}${path}`),
+            'utf8',
+          );
 
         fs.writeFileSync(
           `${rootClientPath}/robots.txt`,

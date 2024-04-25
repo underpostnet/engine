@@ -839,6 +839,36 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+  'css-default': async (options) => {
+    const htmlRender = Css.currentTheme !== 'css-default';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'css-default';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css['css-default']();
+      await Css.toolbar();
+      darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
+  'css-default-light': async (options) => {
+    const htmlRender = Css.currentTheme !== 'css-default-light';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'css-default-light';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.default();
+      await Css['css-default-light']();
+      await Css.toolbar();
+      darkTheme = false;
+      AgGrid.changeTheme({ darkTheme });
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
 };
 
 const addTheme = (options) => (Css[options.theme] = async () => append('.theme', await options.render()));
@@ -864,13 +894,15 @@ const borderChar = (px, color, selectors) => {
   `;
 };
 
-const boxShadow = ({ selector }) => css`
-  .${selector} {
-    box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-  }
-  .${selector}:hover {
-    box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-  }
+const boxShadow = ({ selector }) => html`
+  <style>
+    ${selector} {
+      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+    }
+    ${selector}:hover {
+      box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
+    }
+  </style>
 `;
 
 const renderMediaQuery = (mediaData) => {
