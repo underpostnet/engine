@@ -35,7 +35,7 @@ const Matrix = {
         await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id], true);
         await this.UpdateCamera('.pixi-canvas-top-level', Elements.Data[type][id], true);
         await this.UpdateCamera('.PointAndClickMovement-container', Elements.Data[type][id]);
-      }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+      }, CyberiaParams.EVENT_CALLBACK_TIME);
     }
   },
   UpdateAdjacentLimit: function (params) {

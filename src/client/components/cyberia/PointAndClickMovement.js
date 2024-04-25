@@ -69,7 +69,7 @@ const PointAndClickMovement = {
 
       if (Elements.LocalDataScope['user']['main'].path[0])
         for (const point of newInstance(Elements.LocalDataScope['user']['main'].path)) {
-          await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+          await timer(CyberiaParams.EVENT_CALLBACK_TIME);
           if (currentIdPath === idPath) {
             Elements.Data.user.main.x = point[0];
             Elements.Data.user.main.y = point[1];

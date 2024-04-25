@@ -193,7 +193,7 @@ const MainUser = {
           direction: lastDirection,
         });
       }
-    }, CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+    }, CyberiaParams.EVENT_CALLBACK_TIME);
 
     if (Object.values(oldElement).length > 0) {
       await WorldManagement.Load();

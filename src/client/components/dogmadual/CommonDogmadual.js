@@ -23,7 +23,7 @@ const BaseElement = () => {
 };
 
 const DogmadualParams = {
-  NEXODEV_EVENT_CALLBACK_TIME: 45,
+  EVENT_CALLBACK_TIME: 45,
 };
 
 export { BaseElement, ModelElement, DogmadualParams };

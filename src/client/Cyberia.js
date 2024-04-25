@@ -45,6 +45,6 @@ import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
   LoadRouter(RouterInstance);
   disableOptionsClick('html', ['drag', 'select', 'menu']);
   // s(`.btn-menu-modal-menu`).click();
-  await Keyboard.Init({ callBackTime: CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME });
+  await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
   await JoyStickCyberia.Render();
 })();

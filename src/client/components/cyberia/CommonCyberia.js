@@ -636,7 +636,7 @@ const CharacterSlotType = {
 };
 
 const CyberiaParams = {
-  CYBERIA_EVENT_CALLBACK_TIME: 45,
+  EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
   CYBERIA_WORLD_ID: '',
 };

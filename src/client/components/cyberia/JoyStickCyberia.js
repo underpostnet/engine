@@ -13,7 +13,7 @@ const JoyStickCyberia = {
     const id = 'cyberia-joystick';
     JoyStick.Render({
       id,
-      callBackTime: CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME,
+      callBackTime: CyberiaParams.EVENT_CALLBACK_TIME,
       callback: () => {
         const { direction } = JoyStick.Tokens[id].joyDataSet;
         let x = newInstance(Elements.Data.user.main.x);

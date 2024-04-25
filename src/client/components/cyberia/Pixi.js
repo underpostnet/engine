@@ -549,7 +549,7 @@ const Pixi = {
               setTimeout(() => callBack());
               this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
                 callBack,
-                interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME * 10),
+                interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.EVENT_CALLBACK_TIME * 10),
               };
             }
           }

@@ -80,7 +80,7 @@ const CyberiaWsSkillManagement = {
     }
     this.localElementScope[wsManagementId][id].movement = {
       Callback: async () => {
-        await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+        await timer(CyberiaParams.EVENT_CALLBACK_TIME);
         if (!this.element[wsManagementId][id]) return;
         for (const directionCode of direction) {
           switch (directionCode) {

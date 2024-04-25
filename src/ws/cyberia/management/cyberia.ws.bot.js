@@ -316,7 +316,7 @@ const CyberiaWsBotManagement = {
                 }
               }
 
-              await timer(CyberiaParams.CYBERIA_EVENT_CALLBACK_TIME);
+              await timer(CyberiaParams.EVENT_CALLBACK_TIME);
               const clientId = this.localElementScope[wsManagementId][id].target.Element.id;
               if (
                 CyberiaWsUserManagement.element[wsManagementId][clientId] &&
