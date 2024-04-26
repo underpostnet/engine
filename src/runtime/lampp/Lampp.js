@@ -16,7 +16,7 @@ const Lampp = {
     cmd = `sudo /opt/lampp/lampp start`;
     fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
     shellExec(cmd, { async: true });
-    if (options && options.daemon) return await this.daemon();
+    if (options && options.daemon) this.daemon();
   },
   daemon: async function () {
     await timer(1000 * 60 * 2); // 2 minutes
@@ -24,7 +24,7 @@ const Lampp = {
       const [portStatus] = await network.port.status([port]);
       if (!portStatus.open) return await this.initService();
     }
-    return await this.daemon();
+    this.daemon();
   },
   enabled: () => fs.existsSync(`/opt/lampp/apache2/conf/httpd.conf`),
   appendRouter: function (render) {

@@ -8,7 +8,7 @@ import * as promClient from 'prom-client';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { network, listenPortController, ip, networkRouter, logNetworkRouter } from './network.js';
+import { network, listenPortController, saveRuntimeRouter, logRuntimeRouter } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -49,14 +49,11 @@ const buildRuntime = async () => {
         confServer[host][path];
 
       const runningData = {
+        host,
+        path,
         runtime,
         client,
-        public: `http://${ipInstance}:${port}${path}`,
-        publicHost: [443, 80].includes(port) ? `http://${host}${path}` : `http://${host}:${port}${path}`,
-        local: `http://localhost:${port}${path}`,
-        host,
-        port,
-        path,
+        meta: import.meta,
       };
 
       let redirectUrl;
@@ -298,10 +295,11 @@ const buildRuntime = async () => {
     }
   }
 
-  logNetworkRouter(logger);
+  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
+  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
 
-  if (Xampp.enabled() && Xampp.router) Xampp.initService({ daemon: true });
-  if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
+  saveRuntimeRouter();
+  logRuntimeRouter();
 };
 
 export { buildRuntime };

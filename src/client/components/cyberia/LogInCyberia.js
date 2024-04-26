@@ -60,6 +60,7 @@ const LogInCyberia = async function () {
     } else localStorage.removeItem('jwt');
   } else {
     // Anon
+    await LoadingAnimation.bar.play('init-loading');
     await MainUser.Update();
     SocketIo.Emit('user', {
       status: 'propagate',

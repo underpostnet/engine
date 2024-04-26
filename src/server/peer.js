@@ -28,15 +28,13 @@ const createPeerServer = async ({ port, devPort, origins, host, path }) => {
 
   const peerServer = PeerServer(options);
 
-  const runningData = {
+  await listenPortController({ listen: (...args) => args[1]() }, port, {
     runtime: 'nodejs',
     client: 'peer',
-    // public: `http://${ipInstance}:${port}${path}`,
-    host: `http://${host}:${port}${options.path}`,
-    local: `http://localhost:${port}${options.path}`,
-  };
-
-  await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
+    host,
+    path,
+    meta: import.meta,
+  });
 
   return peerServer;
 };

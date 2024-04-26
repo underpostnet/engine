@@ -138,14 +138,20 @@ const buildProxy = async () => {
 
     // instance proxy server
 
+    const proxyPath = '/';
+    const proxyHost = 'localhost';
+
     const filter = false
       ? (pathname, req) => {
           // return pathname.match('^/api') && req.method === 'GET';
           return true;
         }
-      : '/';
-    app.use('/', createProxyMiddleware(filter, options));
+      : proxyPath;
+    app.use(proxyPath, createProxyMiddleware(filter, options));
     await network.port.portClean(port);
+
+    const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
+
     if (port === 443) {
       Object.keys(hosts).map((host) => {
         const { redirect } = hosts[host];
@@ -158,8 +164,10 @@ const buildProxy = async () => {
         }
       });
 
-      if (ServerSSL) await listenPortController(ServerSSL, port, { port, options, type: 'proxy' });
-    } else await listenPortController(app, port, { port, options, type: 'proxy' });
+      if (ServerSSL) await listenPortController(ServerSSL, port, runningData);
+    } else await listenPortController(app, port, runningData);
+
+    logger.info('Proxy running', options);
   }
 };
 

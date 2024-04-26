@@ -1,7 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import dotenv from 'dotenv';
-import { networkRouterScope } from '../../server/network.js';
+import { networkRouter } from '../../server/network.js';
 
 dotenv.config();
 
@@ -9,10 +9,10 @@ const logger = loggerFactory(import.meta);
 
 const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
   process.env.NODE_ENV === 'development' &&
-  networkRouterScope[options.host] &&
-  networkRouterScope[options.host][pathWorld] &&
-  networkRouterScope[options.host][pathWorld].port
-    ? `:${networkRouterScope[options.host][pathWorld].port}`
+  networkRouter[options.host] &&
+  networkRouter[options.host][pathWorld] &&
+  networkRouter[options.host][pathWorld].port
+    ? `:${networkRouter[options.host][pathWorld].port}`
     : ``;
 
 const select = {

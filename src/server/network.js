@@ -53,40 +53,56 @@ const ip = {
   },
 };
 
+let ipInstance = '';
 const networkRouter = {};
 
-const networkRouterScope = {};
+const logRuntimeRouter = () => {
+  const displayLog = {};
 
-const logNetworkRouter = (logger) => {
-  // order router
-  // const router = fs.existsSync(`./tmp/runtime-router.json`)
-  //   ? JSON.parse(fs.readFileSync(`./tmp/runtime-router.json`, 'utf8'))
-  //   : {};
+  for (const host of Object.keys(networkRouter))
+    for (const path of Object.keys(networkRouter[host]))
+      displayLog[networkRouter[host][path].publicHost] = networkRouter[host][path].local;
 
-  const deployId = process.argv[3] ? process.argv[3] : 'default';
-  const router = {};
-
-  for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(networkRouter), 'length'))
-    router[absoluteHostKey] = networkRouter[absoluteHostKey];
-
-  logger.info('Runtime network', router);
-
-  fs.writeFileSync(`./tmp/runtime-router.${deployId}.json`, JSON.stringify(router, null, 4), 'utf-8');
+  logger.info('Runtime network:', displayLog);
 };
 
-const listenPortController = async (server, port, log) =>
+const saveRuntimeRouter = () =>
+  fs.writeFileSync(
+    `./tmp/runtime-router.${process.argv[3] ? process.argv[3] : 'default'}.json`,
+    JSON.stringify(networkRouter, null, 4),
+    'utf-8',
+  );
+
+const listenPortController = async (server, port, metadata) =>
   new Promise((resolve) => {
     try {
+      const { host, path, client, runtime, meta } = metadata;
+      const error = [];
+      if (port === undefined) error.push(`port`);
+      if (host === undefined) error.push(`host`);
+      if (path === undefined) error.push(`path`);
+      if (client === undefined) error.push(`client`);
+      if (runtime === undefined) error.push(`runtime`);
+      if (meta === undefined) error.push(`meta`);
+      if (error.length > 0) throw new Error('Lister port controller metadata undefined values: ' + error.join(', '));
+
       server.listen(port, () => {
-        if (log.type === 'proxy') {
-          logger.info('Proxy running', log);
-          return resolve(true);
-        }
-        if (log.host && log.path) {
-          if (!networkRouterScope[log.host]) networkRouterScope[log.host] = {};
-          networkRouterScope[log.host][log.path] = log;
-        }
-        networkRouter[log.publicHost ? log.publicHost : log.host] = log.local;
+        if (!networkRouter[host]) networkRouter[host] = {};
+        networkRouter[host][path] = {
+          meta,
+          client,
+          runtime,
+          port,
+          public: `http://${ipInstance}:${port}${path}`,
+          publicHost:
+            port === 80
+              ? `http://${host}${path}`
+              : port === 443
+              ? `https://${host}${path}`
+              : `http://${host}:${port}${path}`,
+          local: `http://localhost:${port}${path}`,
+        };
+
         return resolve(true);
       });
     } catch (error) {
@@ -95,4 +111,4 @@ const listenPortController = async (server, port, log) =>
     }
   });
 
-export { ip, network, listenPortController, networkRouter, networkRouterScope, logNetworkRouter };
+export { ip, network, listenPortController, networkRouter, saveRuntimeRouter, logRuntimeRouter };
