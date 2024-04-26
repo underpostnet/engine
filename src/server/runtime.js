@@ -34,7 +34,7 @@ const buildRuntime = async () => {
     labelNames: ['instance', 'method', 'status_code'],
   };
 
-  logger.info('promCounterOption', promCounterOption);
+  // logger.info('promCounterOption', promCounterOption);
 
   const requestCounter = new promClient.Counter(promCounterOption);
 
