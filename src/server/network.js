@@ -86,7 +86,7 @@ const listenPortController = async (server, port, metadata) =>
       if (client === undefined) error.push(`client`);
       if (runtime === undefined) error.push(`runtime`);
       if (meta === undefined) error.push(`meta`);
-      if (error.length > 0) throw new Error('Lister port controller metadata undefined values: ' + error.join(', '));
+      if (error.length > 0) throw new Error('Listen port controller requires values: ' + error.join(', '));
 
       server.listen(port, () => {
         if (!networkRouter[host]) networkRouter[host] = {};
@@ -108,7 +108,7 @@ const listenPortController = async (server, port, metadata) =>
         return resolve(true);
       });
     } catch (error) {
-      logger.error(error, error.stack);
+      logger.error(error, { metadata, port, stack: error.stack });
       resolve(false);
     }
   });
