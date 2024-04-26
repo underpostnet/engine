@@ -63,7 +63,7 @@ const logRuntimeRouter = () => {
     for (const path of Object.keys(networkRouter[host]))
       displayLog[networkRouter[host][path].publicHost] = networkRouter[host][path].local;
 
-  logger.info('Runtime network:', displayLog);
+  logger.info('Runtime network', displayLog);
 };
 
 const saveRuntimeRouter = () =>
