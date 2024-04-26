@@ -25,18 +25,9 @@ const createPeerServer = async ({ port, devPort, origins, host, path }) => {
     // cert: fs.readFileSync(''),
     // ca: fs.readFileSync(''),
   };
-
   const peerServer = PeerServer(options);
 
-  await listenPortController({ listen: (...args) => args[1]() }, port, {
-    runtime: 'nodejs',
-    client: 'peer',
-    host,
-    path,
-    meta: import.meta,
-  });
-
-  return peerServer;
+  return { options, peerServer, meta: import.meta };
 };
 
 export { createPeerServer };

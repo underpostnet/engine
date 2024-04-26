@@ -7,8 +7,8 @@ import { loggerFactory } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const IoServer = (httpServer, options = {}, Connection = () => {}) =>
-  new Server(httpServer, {
+const IoServer = (httpServer, options = {}, Connection = () => {}) => {
+  const wsOptions = {
     cors: {
       // origin: `http://localhost:${options.port}`,
       origins: options.origins,
@@ -26,7 +26,13 @@ const IoServer = (httpServer, options = {}, Connection = () => {}) =>
       ],
       credentials: true,
     },
-    path: options.path !== '/' ? `${options.path}/socket.io/` : undefined,
-  }).on('connection', Connection);
+    path: options.path !== '/' ? `${options.path}/socket.io/` : '/socket.io',
+  };
+  return {
+    options: wsOptions,
+    meta: import.meta,
+    ioServer: new Server(httpServer, wsOptions).on('connection', Connection),
+  };
+};
 
 export { IoServer };

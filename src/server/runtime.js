@@ -102,7 +102,7 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
-          await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
+          await listenPortController(null, port, runningData);
           break;
         case 'xampp':
           if (!Xampp.enabled()) continue;
@@ -142,7 +142,7 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
-          await listenPortController({ listen: (...args) => args[1]() }, port, runningData);
+          await listenPortController(null, port, runningData);
           break;
         case 'nodejs':
           const app = express();
@@ -269,19 +269,33 @@ const buildRuntime = async () => {
               const { createIoServer } = await import(`../ws/${ws}/${ws}.ws.server.js`);
               // logger.info('Load socket.io ws router', { host, ws });
               // start socket.io
-              const ioServer = createIoServer(server, {
+              const { options, meta } = await createIoServer(server, {
                 host,
                 path,
                 db,
                 port,
                 origins,
               });
+              await listenPortController(null, port, {
+                runtime: 'nodejs',
+                client: null,
+                host,
+                path: options.path,
+                meta,
+              });
             })();
 
           if (peer) {
             currentPort++;
             const peerPort = newInstance(currentPort);
-            await createPeerServer({ port: peerPort, devPort: port, origins, host, path });
+            const { options, meta } = await createPeerServer({ port: peerPort, devPort: port, origins, host, path });
+            await listenPortController(null, peerPort, {
+              runtime: 'nodejs',
+              client: null,
+              host,
+              path: options.path,
+              meta,
+            });
           }
 
           await network.port.portClean(port);
