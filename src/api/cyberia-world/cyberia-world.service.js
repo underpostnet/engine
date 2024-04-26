@@ -1,10 +1,19 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import dotenv from 'dotenv';
+import { networkRouterScope } from '../../server/network.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
+
+const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
+  process.env.NODE_ENV === 'development' &&
+  networkRouterScope[options.host] &&
+  networkRouterScope[options.host][pathWorld] &&
+  networkRouterScope[options.host][pathWorld].port
+    ? `:${networkRouterScope[options.host][pathWorld].port}`
+    : ``;
 
 const select = {
   'all-name': { _id: 1, name: 1, face: 1 },
@@ -93,7 +102,7 @@ const CyberiaWorldService = {
 
       default:
         result = await CyberiaWorld.find({
-          _id: process.env.CYBERIA_WORLD_ID,
+          _id: options.cyberia.world.instance._id.toString(),
         });
         break;
     }
@@ -115,4 +124,4 @@ const CyberiaWorldService = {
   },
 };
 
-export { CyberiaWorldService };
+export { CyberiaWorldService, getCyberiaPortByWorldPath };

@@ -8,7 +8,6 @@ import { Elements } from './components/cyberia/Elements.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
 import { JoyStickCyberia } from './components/cyberia/JoyStickCyberia.js';
 import { MainUser } from './components/cyberia/MainUser.js';
-import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { TranslateCore } from './components/core/Translate.js';
@@ -25,7 +24,6 @@ import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 
 (async function () {
   await Css.Init(CssCyberia);
-  await LoadingAnimation.bar.play('init-loading');
   const RouterInstance = RouterCyberia();
   await TranslateCore.Init();
   await TranslateCyberia.Init();

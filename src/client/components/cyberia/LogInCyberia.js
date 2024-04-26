@@ -2,6 +2,7 @@ import { CyberiaUserService } from '../../services/cyberia-user/cyberia-user.ser
 import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { newInstance } from '../core/CommonJs.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { LogIn } from '../core/LogIn.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
@@ -33,6 +34,11 @@ const LogInCyberia = async function () {
     // Elements.Data[type][id] = BaseElement()[type][id];
     Webhook.register({ user });
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
+    if (resultUserCyberia.data.redirect) {
+      const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
+      return (location.href = redirect);
+    }
+    await LoadingAnimation.bar.play('init-loading');
     if (resultUserCyberia.status === 'success') {
       Elements.Init({ type, id, element: resultUserCyberia.data });
       CyberiaWebhook.register({ user: resultUserCyberia.data });

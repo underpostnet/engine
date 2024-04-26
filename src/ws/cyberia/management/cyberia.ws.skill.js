@@ -11,6 +11,7 @@ import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { CyberiaWsSkillChannel } from '../channels/cyberia.ws.skill.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
+import { CyberiaWsInstanceScope } from '../cyberia.ws.server.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsBotManagement } from './cyberia.ws.bot.js';
 import { CyberiaWsUserManagement } from './cyberia.ws.user.js';
@@ -29,7 +30,7 @@ const CyberiaWsSkillManagement = {
     this.localElementScope[wsManagementId] = {};
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
-    this.world = await CyberiaWorld.findById(process.env.CYBERIA_WORLD_ID);
+    this.world = CyberiaWsInstanceScope[wsManagementId].world.instance;
   },
   createSkill: function (wsManagementId = '', parent = { id: '', type: '' }, skillKey = '') {
     let parentElement;
@@ -52,7 +53,9 @@ const CyberiaWsSkillManagement = {
     const id = getId(this.element[wsManagementId], 'skill-');
     if (!skillKey) skillKey = 'basic';
     const skillData = Stat.get[parentElement.skill.keys[skillKey]]();
-    this.element[wsManagementId][id] = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID }).skill.main;
+    this.element[wsManagementId][id] = BaseElement({
+      worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+    }).skill.main;
     this.element[wsManagementId][id].x = parentElement.x + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].y = parentElement.y + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].parent = parent;

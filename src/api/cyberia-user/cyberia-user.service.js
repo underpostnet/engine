@@ -2,6 +2,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { BaseElement } from '../../client/components/cyberia/CommonCyberia.js';
 import dotenv from 'dotenv';
+import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 
 dotenv.config();
 
@@ -30,12 +31,25 @@ const CyberiaUserService = {
             'model.user._id': req.auth.user._id,
           });
 
-          const worldDoc = await CyberiaWorld.findById(user[0].model.world._id.toString());
-          if (!worldDoc) {
-            const baseElement = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID }).user.main;
+          let userWorldId = user[0].model.world._id.toString();
+
+          const userWorld = await CyberiaWorld.findById(userWorldId);
+          if (!userWorld) {
+            userWorldId = options.cyberia.world.default._id();
+            const baseElement = BaseElement({ worldId: userWorldId }).user.main;
             user[0].model.world = baseElement.model.world;
             user[0].x = baseElement.x;
             user[0].y = baseElement.y;
+            const result = await CyberiaUser.findByIdAndUpdate(user[0]._id.toString(), user[0], {
+              runValidators: true,
+            });
+          }
+
+          if (userWorldId !== options.cyberia.world.instance._id.toString()) {
+            result = {
+              redirect: `${getCyberiaPortByWorldPath(options, `/${userWorld._doc.name}`)}/${userWorld._doc.name}`,
+            };
+            return result;
           }
 
           if (user[0]) result = user[0];

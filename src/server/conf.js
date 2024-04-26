@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
+import { newInstance } from '../client/components/core/CommonJs.js';
 
 // monitoring: https://app.pm2.io/
 
@@ -180,7 +181,9 @@ const Config = {
     if (process.argv[2] === 'proxy') {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
-        const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
+        const serverConf = loadReplicas(
+          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+        );
         // this.default.server = {
         //   ...this.default.server,
         //   ...serverConf,
@@ -218,12 +221,11 @@ const Config = {
 const loadConf = (deployId) => {
   const folder = `./engine-private/conf/${deployId}`;
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
-  for (const typeConf of Object.keys(Config.default))
-    fs.writeFileSync(
-      `./conf/conf.${typeConf}.json`,
-      fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8'),
-      'utf8',
-    );
+  for (const typeConf of Object.keys(Config.default)) {
+    let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
+    if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(JSON.parse(srcConf)), null, 4);
+    fs.writeFileSync(`./conf/conf.${typeConf}.json`, srcConf, 'utf8');
+  }
   fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
@@ -239,4 +241,18 @@ const loadConf = (deployId) => {
   return { folder, deployId };
 };
 
-export { Config, loadConf };
+const loadReplicas = (confServer) => {
+  for (const host of Object.keys(confServer)) {
+    for (const path of Object.keys(confServer[host])) {
+      const { replicas } = confServer[host][path];
+      if (replicas)
+        for (const replicaPath of replicas) {
+          confServer[host][replicaPath] = newInstance(confServer[host][path]);
+          delete confServer[host][replicaPath].replicas;
+        }
+    }
+  }
+  return confServer;
+};
+
+export { Config, loadConf, loadReplicas };

@@ -1,4 +1,5 @@
 import { loggerFactory } from '../../server/logger.js';
+import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 import { CyberiaUserService } from './cyberia-user.service.js';
 const logger = loggerFactory(import.meta);
 
@@ -37,6 +38,11 @@ const CyberiaUserController = {
       return res.status(400).json({
         status: 'error',
         message: error.message,
+        data: {
+          redirect: `${getCyberiaPortByWorldPath(options, `/${options.cyberia.world.default._doc.name}`)}/${
+            options.cyberia.world.default._doc.name
+          }`,
+        },
       });
     }
   },

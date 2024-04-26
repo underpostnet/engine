@@ -31,6 +31,7 @@ import { CyberiaWsSkillManagement } from './cyberia.ws.skill.js';
 import fs from 'fs-extra';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import dotenv from 'dotenv';
+import { CyberiaWsInstanceScope } from '../cyberia.ws.server.js';
 
 dotenv.config();
 
@@ -53,7 +54,7 @@ const CyberiaWsBotManagement = {
         break;
     }
 
-    let bot = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID }).bot.main;
+    let bot = BaseElement({ worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString() }).bot.main;
 
     bot.components.skin = bot.components.skin.map((skinData) => {
       skinData.current = false;
@@ -410,7 +411,7 @@ const CyberiaWsBotManagement = {
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
     (async () => {
-      this.world = await CyberiaWorld.findById(process.env.CYBERIA_WORLD_ID);
+      this.world = CyberiaWsInstanceScope[wsManagementId].world.instance;
 
       if (!this.world) return;
 
@@ -432,15 +433,15 @@ const CyberiaWsBotManagement = {
               metaDataBot,
               botIndex,
             });
-            if (metaDataBot.type === 'quest-passive')
-              logger.info(`${wsManagementId} Load bot`, {
-                index: botIndex,
-                type: metaDataBot.type,
-                face: bot.model.world.face,
-                x: bot.x,
-                y: bot.y,
-                skinId,
-              });
+            // if (metaDataBot.type === 'quest-passive')
+            //   logger.info(`${wsManagementId} Load bot`, {
+            //     index: botIndex,
+            //     type: metaDataBot.type,
+            //     face: bot.model.world.face,
+            //     x: bot.x,
+            //     y: bot.y,
+            //     skinId,
+            //   });
           }
         }
       }

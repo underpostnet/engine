@@ -3,6 +3,7 @@ import { BaseElement, Stat } from '../../../client/components/cyberia/CommonCybe
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
+import { CyberiaWsInstanceScope } from '../cyberia.ws.server.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
 import { CyberiaWsSkillManagement } from '../management/cyberia.ws.skill.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
@@ -63,7 +64,7 @@ const CyberiaWsUserController = {
           const worldDoc = await CyberiaWorld.findById(user.model.world._id);
           if (!worldDoc) {
             const baseElement = BaseElement({
-              worldId: process.env.CYBERIA_WORLD_ID,
+              worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
             }).user.main;
             user.model.world = baseElement.model.world;
             user.x = baseElement.x;
@@ -85,7 +86,7 @@ const CyberiaWsUserController = {
       case 'unregister-cyberia-user':
         {
           CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
-            worldId: process.env.CYBERIA_WORLD_ID,
+            worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
           }).user.main;
           propagate();
         }
@@ -225,9 +226,9 @@ const CyberiaWsUserController = {
     }
   },
   connection: function (socket, client, wsManagementId) {
-    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({ worldId: process.env.CYBERIA_WORLD_ID })[
-      channel
-    ].main;
+    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
+      worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+    })[channel].main;
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
       direction: 's',
     };

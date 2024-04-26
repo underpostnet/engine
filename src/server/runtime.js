@@ -52,8 +52,11 @@ const buildRuntime = async () => {
         runtime,
         client,
         public: `http://${ipInstance}:${port}${path}`,
-        host: [443, 80].includes(port) ? `http://${host}${path}` : `http://${host}:${port}${path}`,
+        publicHost: [443, 80].includes(port) ? `http://${host}${path}` : `http://${host}:${port}${path}`,
         local: `http://localhost:${port}${path}`,
+        host,
+        port,
+        path,
       };
 
       let redirectUrl;

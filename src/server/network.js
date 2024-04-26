@@ -55,6 +55,8 @@ const ip = {
 
 const networkRouter = {};
 
+const networkRouterScope = {};
+
 const logNetworkRouter = (logger) => {
   // order router
   // const router = fs.existsSync(`./tmp/runtime-router.json`)
@@ -80,7 +82,11 @@ const listenPortController = async (server, port, log) =>
           logger.info('Proxy running', log);
           return resolve(true);
         }
-        networkRouter[log.host] = log.local;
+        if (log.host && log.path) {
+          if (!networkRouterScope[log.host]) networkRouterScope[log.host] = {};
+          networkRouterScope[log.host][log.path] = log;
+        }
+        networkRouter[log.publicHost ? log.publicHost : log.host] = log.local;
         return resolve(true);
       });
     } catch (error) {
@@ -89,4 +95,4 @@ const listenPortController = async (server, port, log) =>
     }
   });
 
-export { ip, network, listenPortController, networkRouter, logNetworkRouter };
+export { ip, network, listenPortController, networkRouter, networkRouterScope, logNetworkRouter };

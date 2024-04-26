@@ -5,7 +5,7 @@ import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { Config, loadConf } from '../src/server/conf.js';
+import { Config, loadConf, loadReplicas } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
@@ -18,7 +18,9 @@ const [exe, dir, operator] = process.argv;
 const deployTest = async (dataDeploy) => {
   const failed = [];
   for (const deploy of dataDeploy) {
-    const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8'));
+    const serverConf = loadReplicas(
+      JSON.parse(fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8')),
+    );
     let fail = false;
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
