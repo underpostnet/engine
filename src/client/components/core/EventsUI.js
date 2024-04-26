@@ -27,6 +27,7 @@ const EventsUI = {
         complete = true;
         return;
       }
+      if (e && e.preventDefault) e.preventDefault();
       logger.warn('in process', id);
     };
   },
