@@ -36,6 +36,7 @@ const LogInCyberia = async function () {
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
     if (resultUserCyberia.data.redirect) {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
+      if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
       return (location.href = redirect);
     }
     await LoadingAnimation.bar.play('init-loading');
