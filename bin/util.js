@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import merge from 'deepmerge';
 import si from 'systeminformation';
+import * as dir from 'path';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { shellCd, shellExec } from '../src/server/process.js';
@@ -11,7 +12,7 @@ const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, operator] = process.argv;
+const operator = process.argv[2];
 
 try {
   // let cmd;
@@ -114,6 +115,30 @@ try {
         }
       }
       break;
+    case 'delete-empty-folder':
+      function cleanEmptyFoldersRecursively(folder) {
+        const isDir = fs.statSync(folder).isDirectory();
+        if (!isDir) return;
+
+        let files = fs.readdirSync(folder);
+        if (files.length > 0) {
+          files.forEach(function (file) {
+            const fullPath = dir.join(folder, file);
+            cleanEmptyFoldersRecursively(fullPath);
+          });
+
+          // re-evaluate files; after deleting subfolder
+          // we may have parent folder empty now
+          files = fs.readdirSync(folder);
+        }
+
+        if (files.length === 0) {
+          console.log('removing: ', folder);
+          fs.rmdirSync(folder);
+          return;
+        }
+      }
+      cleanEmptyFoldersRecursively('./');
     default:
       break;
   }
