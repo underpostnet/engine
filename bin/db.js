@@ -87,8 +87,6 @@ try {
       break;
   }
 
-  shellExec(`git checkout .`);
-
   // logger.info(`Run the following command`, cmd);
   // await ncp.copy(cmd);
   // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });

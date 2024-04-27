@@ -70,5 +70,29 @@
   },
   "docwriter.style": "JSDoc",
   "docwriter.progress.trackFunctions": false,
-  "docwriter.progress.trackMethods": false
+  "docwriter.progress.trackMethods": false,
+  "files.exclude": {
+    "**/.git": true, // this is a default value
+    "**/.DS_Store": true, // this is a default value
+
+    "**/node_modules": true, // this excludes all folders
+    // named "node_modules" from
+    // the explore tree
+
+    // alternative version
+    "node_modules": true, // this excludes the folder
+    // only from the root of
+    // your workspace
+    "public": true,
+    "engine-private": true,
+    "conf": true,
+    "tmp": true,
+    "bkt": true,
+    "logs": true,
+    "build": true,
+    "coverage": true,
+    "prometheus_data": true,
+    "grafana_data": true,
+    ".nyc_output": true
+  }
 }

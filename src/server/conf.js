@@ -1,20 +1,16 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { newInstance } from '../client/components/core/CommonJs.js';
+import * as dir from 'path';
 
 // monitoring: https://app.pm2.io/
 
 const Config = {
   default: {
     client: {
-      underpost: {
+      default: {
         metadata: {
-          title: 'underpost.net',
-          description: 'Development javascript ecosystem virtual lab.',
-          keywords: ['javascript', 'Development', 'DevOps', 'Web'],
-          author: 'https://github.com/underpostnet',
-          thumbnail: 'assets/banner/underpost-social.jpg',
-          themeColor: '#b81414',
+          title: 'App',
         },
         components: {
           core: [
@@ -42,57 +38,53 @@ const Config = {
             'Account',
             'Auth',
             'ToolBar',
+            'HomeBackground',
+            'Worker',
           ],
-          underpost: [
+          default: [
             'Menu',
-            'RoutesUnderpost',
+            'RoutesDefault',
             'Elements',
-            'CommonUnderpost',
-            'CssUnderpost',
-            'LogInUnderpost',
-            'LogOutUnderpost',
-            'SignUpUnderpost',
-            'LabGallery',
-            'BlogContraculturaCyberpunk',
-            'TranslateUnderpost',
+            'CommonDefault',
+            'CssDefault',
+            'LogInDefault',
+            'LogOutDefault',
+            'SignUpDefault',
+            'TranslateDefault',
+            'Settings',
           ],
         },
         views: [
           {
             path: '/',
             title: 'Home',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            client: 'Default',
+            ssr: 'Default',
           },
           {
-            path: '/lab-gallery',
-            client: 'Underpost',
-            ssr: 'Underpost',
-          },
-          {
-            path: '/contracultura-cyberpunk',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            path: '/settings',
+            client: 'Default',
+            ssr: 'Default',
           },
           {
             path: '/log-in',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            client: 'Default',
+            ssr: 'Default',
           },
           {
             path: '/sign-up',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            client: 'Default',
+            ssr: 'Default',
           },
           {
             path: '/log-out',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            client: 'Default',
+            ssr: 'Default',
           },
           {
             path: '/account',
-            client: 'Underpost',
-            ssr: 'Underpost',
+            client: 'Default',
+            ssr: 'Default',
           },
         ],
         dists: [
@@ -133,15 +125,15 @@ const Config = {
       },
     },
     ssr: {
-      Underpost: {
-        head: ['Seo', 'Pwa', 'UnderpostScripts'],
+      Default: {
+        head: ['DefaultScripts'],
         body: [],
       },
     },
     server: {
-      'underpost.net': {
+      'default.net': {
         '/': {
-          client: 'underpost',
+          client: 'default',
           runtime: 'nodejs',
           apis: ['user', 'test'],
           origins: [],
@@ -151,8 +143,19 @@ const Config = {
           db: {
             provider: 'mongoose',
             host: 'mongodb://127.0.0.1:27017',
-            name: 'underpost',
+            name: 'default',
           },
+        },
+      },
+      'www.default.net': {
+        '/': {
+          client: null,
+          runtime: 'nodejs',
+          apis: [],
+          origins: [],
+          minifyBuild: false,
+          lightBuild: true,
+          proxy: [80, 443],
         },
       },
     },
@@ -255,4 +258,20 @@ const loadReplicas = (confServer) => {
   return confServer;
 };
 
-export { Config, loadConf, loadReplicas };
+const cloneConf = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+) => {
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
+
+  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
+  const files = await fs.readdir(confFromFolder, { recursive: true });
+
+  for (const relativePath of files) {
+    const filePath = dir.resolve(`${confFromFolder}/${relativePath}`);
+    console.log(filePath);
+  }
+};
+
+export { Config, loadConf, loadReplicas, cloneConf };

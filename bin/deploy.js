@@ -5,7 +5,7 @@ import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { Config, loadConf, loadReplicas } from '../src/server/conf.js';
+import { Config, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
@@ -93,11 +93,18 @@ try {
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
       }
       break;
+    case 'build-conf':
+      // node bin/deploy build-conf pm2-cyberia-3001 cyberia-portal
+      // node bin/deploy build-conf engine-3001 server-engine-ui default-3001 default
+
+      const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
+      const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
+      cloneConf({ toOptions, fromOptions });
+      break;
     case 'run':
       {
         loadConf(process.argv[3]);
         shellExec(`npm start ${process.argv[3]}`);
-        shellExec('git checkout .');
       }
       break;
     case 'build-full-client-zip':
@@ -113,8 +120,6 @@ try {
         }
         fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');
         await buildClient();
-        // shellExec(`pm2 delete ${deployId}`);
-        // shellExec('git checkout .');
       }
       break;
 
