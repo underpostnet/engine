@@ -94,9 +94,6 @@ try {
       }
       break;
     case 'build-conf':
-      // node bin/deploy build-conf pm2-cyberia-3001 cyberia-portal
-      // node bin/deploy build-conf engine-3001 server-engine-ui default-3001 default
-
       const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
       const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
       cloneConf({ toOptions, fromOptions });

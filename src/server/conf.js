@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { newInstance } from '../client/components/core/CommonJs.js';
+import { cap, newInstance } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 
 // monitoring: https://app.pm2.io/
@@ -258,20 +258,47 @@ const loadReplicas = (confServer) => {
   return confServer;
 };
 
+const buildClientVariableName = (clientId = 'default') => cap(clientId.replaceAll('-', ' ')).replaceAll(' ', '');
+
 const cloneConf = async (
-  { toOptions, fromOptions },
+  { toOptions, fromOptions, domain },
   fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
 
   const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
-  const files = await fs.readdir(confFromFolder, { recursive: true });
+  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
 
-  for (const relativePath of files) {
-    const filePath = dir.resolve(`${confFromFolder}/${relativePath}`);
-    console.log(filePath);
+  const toClientVariableName = buildClientVariableName(toOptions.clientId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+
+  const formattedSrc = (dataConf) =>
+    JSON.stringify(dataConf, null, 4)
+      .replaceAll(fromClientVariableName, toClientVariableName)
+      .replaceAll(fromOptions.clientId, toOptions.clientId);
+
+  const isMergeConf = fs.existsSync(confToFolder);
+  if (!isMergeConf) fs.mkdirSync(confToFolder, { recursive: true });
+
+  fs.writeFileSync(
+    `${confToFolder}/.env.production`,
+    fs.readFileSync(`${confFromFolder}/.env.production`, 'utf8'),
+    'utf8',
+  );
+  fs.writeFileSync(
+    `${confToFolder}/.env.development`,
+    fs.readFileSync(`${confFromFolder}/.env.development`, 'utf8'),
+    'utf8',
+  );
+  fs.writeFileSync(`${confToFolder}/.env.test`, fs.readFileSync(`${confFromFolder}/.env.test`, 'utf8'), 'utf8');
+
+  for (const confTypeId of ['server', 'client', 'dns', 'ssr']) {
+    const confFromData = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.${confTypeId}.json`, 'utf8'));
+    fs.writeFileSync(`${confToFolder}/conf.${confTypeId}.json`, formattedSrc(confFromData), 'utf8');
   }
+
+  // fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
 };
 
 export { Config, loadConf, loadReplicas, cloneConf };
