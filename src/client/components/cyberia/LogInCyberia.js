@@ -36,10 +36,10 @@ const LogInCyberia = async function () {
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
     if (resultUserCyberia.data.redirect) {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
-      if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
+      // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
       return (location.href = redirect);
     }
-    await LoadingAnimation.bar.play('init-loading');
+    LoadingAnimation.barLevel.append();
     if (resultUserCyberia.status === 'success') {
       Elements.Init({ type, id, element: resultUserCyberia.data });
       CyberiaWebhook.register({ user: resultUserCyberia.data });
@@ -61,7 +61,7 @@ const LogInCyberia = async function () {
     } else localStorage.removeItem('jwt');
   } else {
     // Anon
-    await LoadingAnimation.bar.play('init-loading');
+    LoadingAnimation.barLevel.append();
     await MainUser.Update();
     SocketIo.Emit('user', {
       status: 'propagate',

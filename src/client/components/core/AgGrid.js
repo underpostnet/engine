@@ -11,7 +11,9 @@ const AgGrid = {
       if (s(`.${idGrid}`)) {
         s(`.${idGrid}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
         s(`.${idGrid}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
-      } else console.warn('change theme: grid not found');
+      } else {
+        // console.warn('change theme: grid not found');
+      }
     }
   },
   Render: async function (options) {
@@ -56,6 +58,7 @@ const AgGrid = {
 
       // Your Javascript code to create the grid
       const myGridElement = s(`.${id}`);
+      if (this.grids[id]) this.grids[id].destroy();
       this.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
       // myGridElement.style.setProperty('width', '100%');
     });

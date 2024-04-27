@@ -108,6 +108,7 @@ try {
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
             serverConf[host][path].lightBuild = false;
+            serverConf[host][path].minifyBuild = true;
           }
         }
         fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');

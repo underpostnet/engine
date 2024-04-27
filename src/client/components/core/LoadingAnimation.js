@@ -71,13 +71,21 @@ const LoadingAnimation = {
       s(`.${id}`).remove();
     },
   },
+  barLevel: {
+    append: () => {
+      s(`.ssr-blink-bar`).classList.remove('ssr-blink-bar');
+      append('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
+    },
+    clear: () => {
+      htmls('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
+    },
+  },
   removeSplashScreen: function () {
     setTimeout(() => {
       s('.ssr-background').style.opacity = 0;
       setTimeout(async () => {
         s('.ssr-background').style.display = 'none';
         s(`.main-user-container`).style.display = 'block';
-        this.bar.stop('init-loading');
       }, 300);
     });
   },

@@ -141,7 +141,7 @@ const buildClient = async () => {
             );
             fs.writeFileSync(
               `${rootClientPath}/components/${module}/${component}.js`,
-              minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
           });
@@ -162,7 +162,7 @@ const buildClient = async () => {
           );
           fs.writeFileSync(
             `${rootClientPath}/services/${module}/${module}.service.js`,
-            minifyBuild ? UglifyJS.minify(jsSrc).code : jsSrc,
+            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
             'utf8',
           );
         }
@@ -187,11 +187,11 @@ const buildClient = async () => {
             baseHost,
           );
 
-          const minifyJsSrc = UglifyJS.minify(jsSrc);
-
-          // console.log(minifyJsSrc);
-
-          fs.writeFileSync(`${buildPath}${buildId}.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
+          fs.writeFileSync(
+            `${buildPath}${buildId}.js`,
+            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+            'utf8',
+          );
 
           const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
             view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
@@ -206,6 +206,7 @@ const buildClient = async () => {
           let ssrBodyComponents = ``;
           if ('ssr' in view) {
             // https://metatags.io/
+            if (process.env.NODE_ENV === 'production') confSSR[view.ssr].head.unshift('Production');
 
             for (const ssrHeadComponent of confSSR[view.ssr].head) {
               let SrrComponent;
@@ -236,8 +237,11 @@ const buildClient = async () => {
                     // build service worker
                     if (fs.existsSync(`./src/client/sw/${client}.sw.js`)) {
                       const jsSrc = fs.readFileSync(`./src/client/sw/${client}.sw.js`, 'utf8');
-                      const minifyJsSrc = UglifyJS.minify(jsSrc);
-                      fs.writeFileSync(`${buildPath}sw.js`, minifyBuild ? minifyJsSrc.code : jsSrc, 'utf8');
+                      fs.writeFileSync(
+                        `${buildPath}sw.js`,
+                        minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+                        'utf8',
+                      );
                     }
 
                     ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
@@ -261,16 +265,8 @@ const buildClient = async () => {
                     ssrHeadComponents += SrrComponent({ microdata });
                   }
                   break;
-                case 'CryptokoynScripts':
-                case 'DogmadualScripts':
-                case 'NexodevScripts':
-                case 'BmsScripts':
-                case 'UnderpostScripts':
-                case 'CyberiaScripts':
-                case 'DefaultScripts':
-                  ssrHeadComponents += SrrComponent({ ssrPath });
-                  break;
                 default:
+                  ssrHeadComponents += SrrComponent({ ssrPath });
                   break;
               }
             }
@@ -303,7 +299,7 @@ const buildClient = async () => {
 
           fs.writeFileSync(
             `${buildPath}index.html`,
-            minifyBuild
+            minifyBuild || process.env.NODE_ENV === 'production'
               ? await minify(htmlSrc, {
                   minifyCSS: true,
                   minifyJS: true,

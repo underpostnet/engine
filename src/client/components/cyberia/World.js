@@ -8,6 +8,7 @@ import { borderChar, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Polyhedron } from '../core/Polyhedron.js';
@@ -209,6 +210,7 @@ const WorldManagement = {
 
     if (!('world' in this.Data[type][id].model)) {
       const { data } = await CyberiaWorldService.get({ id: Elements.Data[type][id].model.world._id });
+      LoadingAnimation.barLevel.append();
       if (!CyberiaParams.CYBERIA_WORLD_ID) CyberiaParams.CYBERIA_WORLD_ID = data[0]._id;
       this.Data[type][id].model.world = data[0];
     }
@@ -224,6 +226,7 @@ const WorldManagement = {
             data: { _id },
           }),
         });
+        LoadingAnimation.barLevel.append();
       } else
         await this.biomeRender.loadData({
           data: { _id },

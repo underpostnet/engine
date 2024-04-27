@@ -112,10 +112,10 @@ const SocketIoCyberia = {
         };
       SocketIo.Event.connect[s4()] = async (reason) => {};
       SocketIo.Event.disconnect[s4()] = async (reason) => {
+        LoadingAnimation.barLevel.clear();
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
         s(`.main-user-container`).style.display = 'none';
-        LoadingAnimation.bar.play('init-loading');
         Pixi.removeAll();
         Elements.removeAll();
         Webhook.unregister();
