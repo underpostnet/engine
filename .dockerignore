@@ -10,5 +10,6 @@
 /coverage
 /prometheus_data
 /grafana_data
+e.js
 .nyc_output
 .cache

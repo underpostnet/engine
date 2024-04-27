@@ -10,5 +10,6 @@
 /.env
 /prometheus_data
 /grafana_data
+e.js
 .cache
 .nyc_output
