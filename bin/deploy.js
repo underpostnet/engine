@@ -5,7 +5,7 @@ import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { Config, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
+import { Config, buildClientSrc, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
@@ -94,9 +94,18 @@ try {
       }
       break;
     case 'build-conf':
-      const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
-      const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
-      cloneConf({ toOptions, fromOptions });
+      {
+        const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
+        const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
+        cloneConf({ toOptions, fromOptions });
+      }
+      break;
+    case 'build-src':
+      {
+        const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
+        const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
+        buildClientSrc({ toOptions, fromOptions });
+      }
       break;
     case 'run':
       {

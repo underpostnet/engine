@@ -303,4 +303,32 @@ const cloneConf = async (
   fs.writeFileSync(`${confToFolder}/package.json`, JSON.stringify(packageData, null, 4), 'utf8');
 };
 
-export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName };
+const buildClientSrc = async (
+  { toOptions, fromOptions, domain },
+  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+) => {
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
+
+  const confFromFolder = `./src/client/components/${fromOptions.clientId}`;
+  const confToFolder = `./src/client/components/${toOptions.clientId}`;
+
+  const toClientVariableName = buildClientVariableName(toOptions.clientId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+
+  const formattedSrc = (src) =>
+    src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.clientId, toOptions.clientId);
+
+  const isMergeConf = fs.existsSync(confToFolder);
+  if (!isMergeConf) fs.mkdirSync(confToFolder, { recursive: true });
+
+  const files = await fs.readdir(confFromFolder, { recursive: true });
+  for (const relativePath of files) {
+    const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
+    const toFilePath = dir.resolve(`${confToFolder}/${relativePath}`);
+
+    fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
+  }
+};
+
+export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc };
