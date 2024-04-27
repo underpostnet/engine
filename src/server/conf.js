@@ -329,6 +329,20 @@ const buildClientSrc = async (
 
     fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
   }
+
+  fs.writeFileSync(
+    `./src/client/ssr/head-components/${toClientVariableName}Scripts.js`,
+    formattedSrc(fs.readFileSync(`./src/client/ssr/head-components/${fromClientVariableName}Scripts.js`, 'utf8')),
+    'utf8',
+  );
+
+  fs.writeFileSync(
+    `./src/client/${toClientVariableName}.js`,
+    formattedSrc(fs.readFileSync(`./src/client/${fromClientVariableName}.js`, 'utf8')),
+    'utf8',
+  );
+
+  fs.copySync(`./src/client/public/${fromOptions.clientId}`, `./src/client/public/${toOptions.clientId}`);
 };
 
 export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc };
