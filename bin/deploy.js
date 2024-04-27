@@ -113,6 +113,20 @@ try {
         shellExec(`npm start ${process.argv[3]}`);
       }
       break;
+    case 'new':
+      {
+        const deployId = process.argv[3];
+        const clientId = process.argv[4];
+
+        shellExec(`node bin/deploy build-conf ${deployId} ${clientId}`);
+
+        shellExec(`node bin/deploy build-src ${deployId} ${clientId}`);
+
+        shellExec(`node bin/deploy build-full-client ${deployId}`);
+
+        shellExec(`npm run dev ${deployId}`);
+      }
+      break;
     case 'build-full-client-zip':
     case 'build-full-client':
       {

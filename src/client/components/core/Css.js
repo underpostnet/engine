@@ -878,6 +878,7 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+  /*css-render-theme*/
 };
 
 const addTheme = (options) => (Css[options.theme] = async () => append('.theme', await options.render()));
