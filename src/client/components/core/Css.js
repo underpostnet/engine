@@ -878,6 +878,36 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
+   'css-cyberia-portal': async (options) => {
+    const htmlRender = Css.currentTheme !== 'css-cyberia-portal';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'css-cyberia-portal';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css['dark-light']();
+      await Css['css-cyberia-portal']();
+      await Css.toolbar();
+      darkTheme = true;
+      AgGrid.changeTheme({ darkTheme });
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
+  'css-cyberia-portal-light': async (options) => {
+    const htmlRender = Css.currentTheme !== 'css-cyberia-portal-light';
+    if (options) addTheme(options);
+    if (htmlRender) {
+      Css.currentTheme = 'css-cyberia-portal-light';
+      htmls('.theme', '');
+      await Css.fontawesome();
+      await Css.default();
+      await Css['css-cyberia-portal-light']();
+      await Css.toolbar();
+      darkTheme = false;
+      AgGrid.changeTheme({ darkTheme });
+    }
+    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
+  },
   /*css-render-theme*/
 };
 
