@@ -30,7 +30,6 @@ const CyberiaWsSkillManagement = {
     this.localElementScope[wsManagementId] = {};
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
-    this.world = CyberiaWsInstanceScope[wsManagementId].world.instance;
   },
   createSkill: function (wsManagementId = '', parent = { id: '', type: '' }, skillKey = '') {
     let parentElement;
@@ -50,11 +49,12 @@ const CyberiaWsSkillManagement = {
     if (parentElement.life <= 0) return;
     if (!parentElement) return logger.error('Not found skill caster parent', parent);
 
+    const world = CyberiaWsInstanceScope[wsManagementId].world.instance;
     const id = getId(this.element[wsManagementId], 'skill-');
     if (!skillKey) skillKey = 'basic';
     const skillData = Stat.get[parentElement.skill.keys[skillKey]]();
     this.element[wsManagementId][id] = BaseElement({
-      worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+      worldId: world._id.toString(),
     }).skill.main;
     this.element[wsManagementId][id].x = parentElement.x + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
     this.element[wsManagementId][id].y = parentElement.y + (parentElement.dim > 1 ? (parentElement.dim - 1) / 2 : 0);
@@ -121,8 +121,8 @@ const CyberiaWsSkillManagement = {
                 if (
                   (parent.type === 'bot' ||
                     (parent.type === 'user' &&
-                      this.world.instance[
-                        WorldType[this.world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
+                      world.instance[
+                        WorldType[world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
                       ].type === 'pvp')) &&
                   CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                   isElementCollision({

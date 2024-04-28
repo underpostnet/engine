@@ -411,16 +411,16 @@ const CyberiaWsBotManagement = {
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
     (async () => {
-      this.world = CyberiaWsInstanceScope[wsManagementId].world.instance;
+      const world = CyberiaWsInstanceScope[wsManagementId].world.instance;
 
-      if (!this.world) return;
+      if (!world) return;
 
       let instanceIndex = -1;
-      for (const instance of this.world.instance) {
+      for (const instance of world.instance) {
         instanceIndex++;
-        if (!WorldType[this.world.type].worldFaces.includes(instanceIndex + 1)) continue;
+        if (!WorldType[world.type].worldFaces.includes(instanceIndex + 1)) continue;
 
-        const biome = await CyberiaBiome.findById(this.world.face[instanceIndex].toString());
+        const biome = await CyberiaBiome.findById(world.face[instanceIndex].toString());
 
         if (!biome) continue;
 

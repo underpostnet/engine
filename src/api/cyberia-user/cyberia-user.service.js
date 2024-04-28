@@ -1,6 +1,6 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { BaseElement } from '../../client/components/cyberia/CommonCyberia.js';
+import { BaseElement, WorldType } from '../../client/components/cyberia/CommonCyberia.js';
 import dotenv from 'dotenv';
 import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 
@@ -50,6 +50,13 @@ const CyberiaUserService = {
               redirect: `${getCyberiaPortByWorldPath(options, `/${userWorld._doc.name}`)}/${userWorld._doc.name}`,
             };
             return result;
+          }
+
+          if (!WorldType[options.cyberia.world.instance.type].worldFaces.includes(user[0].model.world.face)) {
+            user[0].model.world.face = 1;
+            const result = await CyberiaUser.findByIdAndUpdate(user[0]._id.toString(), user[0], {
+              runValidators: true,
+            });
           }
 
           if (user[0]) result = user[0];
