@@ -9,7 +9,7 @@ const DefaultRouter = (options) => {
   const router = express.Router();
   const endpoint = 'default';
   router.post(`/${endpoint}/:id`, async (req, res) => await DefaultController.post(req, res, options));
-  router.post(`/${endpoint}`, authMiddleware, async (req, res) => await DefaultController.post(req, res, options));
+  router.post(`/${endpoint}`, async (req, res) => await DefaultController.post(req, res, options));
   router.get(`/${endpoint}/:id`, async (req, res) => await DefaultController.get(req, res, options));
   router.get(`/${endpoint}`, async (req, res) => await DefaultController.get(req, res, options));
   router.put(`/${endpoint}/:id`, async (req, res) => await DefaultController.put(req, res, options));

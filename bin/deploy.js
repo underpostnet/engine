@@ -149,6 +149,29 @@ try {
         shellExec(`npm run dev ${deployId}`);
       }
       break;
+    case 'test-new-api':
+      {
+        const port = process.argv[3];
+        const apiId = process.argv[4];
+        let url = `http://localhost:${port}/api/${apiId}`;
+        {
+          logger.info(`POST REQUEST`, url);
+          const result = await axios.post(url, {});
+          url += '/' + result.data.data._id;
+          logger.info(`POST RESULT ${url}`, result.data);
+        }
+        {
+          logger.info(`GET REQUEST`, url);
+          const result = await axios.get(url);
+          logger.info(`GET RESULT ${url}`, result.data);
+        }
+        {
+          logger.info(`DELETE REQUEST`, url);
+          const result = await axios.delete(url);
+          logger.info(`DELETE RESULT ${url}`, result.data);
+        }
+      }
+      break;
     case 'new-nodejs-api':
       {
         const apiId = process.argv[3];
