@@ -426,10 +426,6 @@ const buildApiSrc = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
 ) => {
-  fromOptions = {
-    ...fromDefaultOptions,
-    ...fromOptions,
-  };
   if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
@@ -485,10 +481,6 @@ const addApiConf = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
 ) => {
-  fromOptions = {
-    ...fromDefaultOptions,
-    ...fromOptions,
-  };
   if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
