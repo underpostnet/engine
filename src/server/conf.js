@@ -433,6 +433,13 @@ const buildApiSrc = async (
       ),
     'utf8',
   );
+
+  fs.mkdirSync(`./src/client/services/${toOptions.apiId}`, { recursive: true });
+  fs.writeFileSync(
+    `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.service.js`,
+    formattedSrc(fs.readFileSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`, 'utf8')),
+    'utf8',
+  );
 };
 
 export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc, buildApiSrc };

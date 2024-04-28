@@ -93,21 +93,21 @@ try {
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
       }
       break;
-    case 'build-conf':
+    case 'build-conf-app':
       {
         const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
         const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
         cloneConf({ toOptions, fromOptions });
       }
       break;
-    case 'build-src':
+    case 'build-src-app':
       {
         const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
         const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
         buildClientSrc({ toOptions, fromOptions });
       }
       break;
-    case 'build-api':
+    case 'build-src-api':
       {
         const toOptions = { apiId: process.argv[3], deployId: process.argv[4], clientId: process.argv[5] };
         const fromOptions = { apiId: process.argv[6], deployId: process.argv[7], clientId: process.argv[8] };
@@ -136,6 +136,7 @@ try {
       break;
     case 'new-nodejs-api':
       {
+        // TODO:
       }
       break;
     case 'build-full-client-zip':
