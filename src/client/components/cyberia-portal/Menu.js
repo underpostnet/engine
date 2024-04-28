@@ -13,6 +13,7 @@ import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
 import { Settings } from './Settings.js';
+import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 
 const Menu = {
   Data: {},
@@ -77,6 +78,14 @@ const Menu = {
               text: html`${Translate.Render('settings')}`,
             }),
             attrs: `data-id="5"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-server',
+            label: this.renderMenuLabel({
+              icon: html`<i class="fas fa-server"></i>`,
+              text: html`${Translate.Render('server')}`,
+            }),
+            attrs: `data-id="6"`,
           })}
         </div>
       `,
@@ -239,6 +248,25 @@ const Menu = {
           text: Translate.Render('settings'),
         }),
         html: async () => await Settings.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-server`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-server',
+        route: 'server',
+        barConfig,
+        title: this.renderViewTitle({
+          icon: html` <i class="fas fa-server"></i>`,
+          text: Translate.Render('server'),
+        }),
+        html: async () => await ServerCyberiaPortal.Render({ idModal: 'modal-server' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

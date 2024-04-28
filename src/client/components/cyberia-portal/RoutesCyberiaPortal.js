@@ -14,6 +14,7 @@ const RoutesCyberiaPortal = () => {
       upperCase: true,
     },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
+    '/server': { title: 'server', render: () => s(`.main-btn-server`).click(), translateTitle: true },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
     '/log-out': {
