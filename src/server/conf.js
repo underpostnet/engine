@@ -442,4 +442,33 @@ const buildApiSrc = async (
   );
 };
 
-export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc, buildApiSrc };
+const addApiConf = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
+) => {
+  fromOptions = {
+    ...fromDefaultOptions,
+    ...fromOptions,
+  };
+  if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
+
+  const toClientVariableName = buildClientVariableName(toOptions.apiId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+
+  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
+  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
+
+  const confServer = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
+  for (const host of Object.keys(confServer))
+    for (const path of Object.keys(confServer[host]))
+      if (confServer[host][path].apis) confServer[host][path].apis.push(toOptions.apiId);
+  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+
+  const confClient = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
+  confClient[fromOptions.clientId].services.push(toOptions.apiId);
+  fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
+};
+
+export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc, buildApiSrc, addApiConf };

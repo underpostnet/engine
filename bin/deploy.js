@@ -5,7 +5,15 @@ import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { Config, buildApiSrc, buildClientSrc, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
+import {
+  Config,
+  addApiConf,
+  buildApiSrc,
+  buildClientSrc,
+  cloneConf,
+  loadConf,
+  loadReplicas,
+} from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
@@ -93,21 +101,28 @@ try {
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
       }
       break;
-    case 'build-conf-app':
+    case 'build-nodejs-conf-app':
       {
         const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
         const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
         cloneConf({ toOptions, fromOptions });
       }
       break;
-    case 'build-src-app':
+    case 'build-nodejs-src-app':
       {
         const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
         const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
         buildClientSrc({ toOptions, fromOptions });
       }
       break;
-    case 'build-src-api':
+    case 'build-nodejs-conf-api':
+      {
+        const toOptions = { apiId: process.argv[3], deployId: process.argv[4], clientId: process.argv[5] };
+        const fromOptions = { apiId: process.argv[6], deployId: process.argv[7], clientId: process.argv[8] };
+        addApiConf({ toOptions, fromOptions });
+      }
+      break;
+    case 'build-nodejs-src-api':
       {
         const toOptions = { apiId: process.argv[3], deployId: process.argv[4], clientId: process.argv[5] };
         const fromOptions = { apiId: process.argv[6], deployId: process.argv[7], clientId: process.argv[8] };
@@ -125,9 +140,9 @@ try {
         const deployId = process.argv[3];
         const clientId = process.argv[4];
 
-        shellExec(`node bin/deploy build-conf ${deployId} ${clientId}`);
+        shellExec(`node bin/deploy build-nodejs-conf-app ${deployId} ${clientId}`);
 
-        shellExec(`node bin/deploy build-src ${deployId} ${clientId}`);
+        shellExec(`node bin/deploy build-nodejs-src-app ${deployId} ${clientId}`);
 
         shellExec(`node bin/deploy build-full-client ${deployId}`);
 
@@ -136,7 +151,15 @@ try {
       break;
     case 'new-nodejs-api':
       {
-        // TODO:
+        const apiId = process.argv[3];
+        const deployId = process.argv[4];
+        const clientId = process.argv[5];
+
+        shellExec(`node bin/deploy build-nodejs-conf-api ${apiId} ${deployId} ${clientId}`);
+
+        shellExec(`node bin/deploy build-nodejs-src-api ${apiId} ${deployId} ${clientId}`);
+
+        shellExec(`npm run dev ${deployId}`);
       }
       break;
     case 'build-full-client-zip':
