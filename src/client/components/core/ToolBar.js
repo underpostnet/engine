@@ -24,6 +24,7 @@ const ToolBar = {
       // right: '10px',
       // border: '1px solid red',
       'box-shadow': 'none !important',
+      background: 'none',
     };
 
     const { barConfig } = await Themes[Css.currentTheme]();
