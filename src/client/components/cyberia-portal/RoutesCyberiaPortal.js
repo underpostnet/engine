@@ -3,15 +3,15 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`App`;
+const NameApp = html`CYBERIA`;
 
 // Router
 const RoutesCyberiaPortal = () => {
   return {
     '/': {
-      title: 'Home',
+      title: 'MMORPG',
       render: () => s(`.main-btn-home`).click(),
-      upperCase: false,
+      upperCase: true,
     },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },

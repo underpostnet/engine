@@ -21,6 +21,7 @@ import { PointAndClickMovement } from './components/cyberia/PointAndClickMovemen
 import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
+import { ToolBar } from './components/core/ToolBar.js';
 
 (async function () {
   await Css.Init(CssCyberia);
@@ -45,4 +46,17 @@ import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
   // s(`.btn-menu-modal-menu`).click();
   await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
   await JoyStickCyberia.Render();
+  await ToolBar.Render({
+    id: 'ToolBar',
+    tools: [
+      // {
+      //   id: 'theme',
+      //   themes,
+      // },
+      {
+        id: 'lang',
+        langs: ['es', 'en'],
+      },
+    ],
+  });
 })();

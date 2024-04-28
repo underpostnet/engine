@@ -83,12 +83,12 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html` <!-- <img
-          class="abs cyberia-portal-title-logo"
-          src="${getProxyPath()}assets/splash/mstile-144x144.png"
-        /> -->
-        &nbsp &nbsp <span class="inl cyberia-portal-title-text-a">APP</span
-        ><span class="inl cyberia-portal-title-text-b">page</span>`,
+      // titleRender: () => html` <!-- <img
+      //     class="abs cyberia-portal-title-logo"
+      //     src="${getProxyPath()}assets/splash/mstile-144x144.png"
+      //   /> -->
+      //   &nbsp &nbsp <span class="inl cyberia-portal-title-text-a">APP</span
+      //   ><span class="inl cyberia-portal-title-text-b">page</span>`,
       mode: 'slide-menu',
       slideTop,
     });

@@ -25,16 +25,18 @@ const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
   fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
 };
 
-const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath }) => {
+const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath, publicRef }) => {
   logger.warn('Full build', rootClientPath);
+
+  const publicClientId = publicRef ? publicRef : client;
 
   fs.removeSync(rootClientPath);
 
   buildAcmeChallengePath(acmeChallengeFullPath);
 
-  if (fs.existsSync(`./src/client/public/${client}`)) {
+  if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
     fs.copySync(
-      `./src/client/public/${client}`,
+      `./src/client/public/${publicClientId}`,
       rootClientPath /* {
           filter: function (name) {
             console.log(name);
@@ -42,11 +44,11 @@ const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChalle
           },
         } */,
     );
-  } else if (fs.existsSync(`./engine-private/src/client/public/${client}`)) {
-    switch (client) {
+  } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
+    switch (publicClientId) {
       case 'mysql_test':
         if (db) {
-          fs.copySync(`./engine-private/src/client/public/${client}`, rootClientPath);
+          fs.copySync(`./engine-private/src/client/public/${publicClientId}`, rootClientPath);
           fs.writeFileSync(
             `${rootClientPath}/index.php`,
             fs
@@ -90,7 +92,7 @@ const buildClient = async () => {
     for (const path of paths) {
       const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
-      const { components, dists, views, services, metadata } = confClient[client];
+      const { components, dists, views, services, metadata, publicRef } = confClient[client];
       if (metadata) {
         if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
       }
@@ -123,6 +125,7 @@ const buildClient = async () => {
           dists,
           rootClientPath,
           acmeChallengeFullPath,
+          publicRef,
         });
 
       if (components)

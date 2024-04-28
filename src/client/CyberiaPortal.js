@@ -15,9 +15,10 @@ import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyb
 import { ToolBar } from './components/core/ToolBar.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
+import { CssCyberia } from './components/cyberia/CssCyberia.js';
 
 (async function () {
-  const themes = [CssCyberiaPortalLight, CssCyberiaPortal];
+  const themes = [CssCyberia]; // CssCyberiaPortal, CssCyberiaPortalLight
   await Css.loadThemes(themes);
   const RouterInstance = RouterCyberiaPortal();
   await TranslateCore.Init();
@@ -29,14 +30,14 @@ import { getProxyPath } from './components/core/VanillaJs.js';
   await LogOutCyberiaPortal();
   await SignUpCyberiaPortal();
   LoadRouter(RouterInstance);
-  await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+  // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
   await ToolBar.Render({
     id: 'ToolBar',
     tools: [
-      {
-        id: 'theme',
-        themes,
-      },
+      // {
+      //   id: 'theme',
+      //   themes,
+      // },
       {
         id: 'lang',
         langs: ['es', 'en'],

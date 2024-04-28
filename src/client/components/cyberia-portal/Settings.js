@@ -17,8 +17,7 @@ const Settings = {
         if (s('.fullscreen-toggle')) s('.fullscreen-toggle').click();
     };
     const localThemes = {
-      'css-cyberia-portal': { displayName: 'Dark' },
-      'css-cyberia-portal-light': { displayName: 'Light' },
+      cyberia: { displayName: 'CYBERIA' },
     };
     setTimeout(() => {
       EventsUI.onClick(`.btn-install-service-controller`, async (e) => {

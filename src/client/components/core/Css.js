@@ -703,6 +703,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.retro();
       await Css.cyberia();
+      await Css.toolbar();
       darkTheme = true;
       AgGrid.changeTheme({ darkTheme });
     }
@@ -878,7 +879,7 @@ const Themes = {
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
-   'css-cyberia-portal': async (options) => {
+  'css-cyberia-portal': async (options) => {
     const htmlRender = Css.currentTheme !== 'css-cyberia-portal';
     if (options) addTheme(options);
     if (htmlRender) {
