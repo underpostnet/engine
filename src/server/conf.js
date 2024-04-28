@@ -316,6 +316,9 @@ const addClientConf = async (
   const toClientConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
   const fromClientConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.client.json`, 'utf8'));
 
+  const toClientVariableName = buildClientVariableName(toOptions.clientId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+
   const { host, path } = toOptions;
 
   toClientConf[fromOptions.clientId] = fromClientConf[fromOptions.clientId];
@@ -330,6 +333,13 @@ const addClientConf = async (
   toServerConf[host][path].apis = fromClientConf[fromOptions.clientId].services;
 
   fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(toServerConf, null, 4), 'utf8');
+
+  const fromSsrConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.ssr.json`, 'utf8'));
+  const toSsrConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.ssr.json`, 'utf8'));
+
+  toSsrConf[fromClientVariableName] = fromSsrConf[fromClientVariableName];
+
+  fs.writeFileSync(`${confToFolder}/conf.ssr.json`, JSON.stringify(toSsrConf, null, 4), 'utf8');
 };
 
 const buildClientSrc = async (
