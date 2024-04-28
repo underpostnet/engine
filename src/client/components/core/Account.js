@@ -23,6 +23,7 @@ const Account = {
         { model: 'email', id: `account-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
           model: 'password',
+          defaultValue: '*******',
           id: `account-password`,
           rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
         },
@@ -30,7 +31,8 @@ const Account = {
       const validators = await Validator.instance(formData);
 
       for (const inputData of formData) {
-        s(`.${inputData.id}`).value = user[inputData.model];
+        s(`.${inputData.id}`).value =
+          !user[inputData.model] && inputData.defaultValue ? inputData.defaultValue : user[inputData.model];
       }
       let lastUser;
       EventsUI.onClick(`.btn-account`, async (e) => {
@@ -121,6 +123,7 @@ const Account = {
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: true,
+            disabledEye: true,
           })}
         </div>
         <div class="in">

@@ -41,7 +41,7 @@ const Input = {
     return html` <div class="${options?.containerClass ? options.containerClass : ''} input-container-${id}">
       <div class="in">
         <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
-        ${options.type === 'password'
+        ${options.type === 'password' && !options.disabledEye
           ? html`
               <div class="fl">
                 <div class="in fll" style="width: 80%;">${inputElement}</div>
