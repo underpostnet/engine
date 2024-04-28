@@ -5,7 +5,7 @@ import read from 'read';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { Config, buildClientSrc, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
+import { Config, buildApiSrc, buildClientSrc, cloneConf, loadConf, loadReplicas } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
 
@@ -107,13 +107,20 @@ try {
         buildClientSrc({ toOptions, fromOptions });
       }
       break;
+    case 'build-api':
+      {
+        const toOptions = { apiId: process.argv[3], deployId: process.argv[4], clientId: process.argv[5] };
+        const fromOptions = { apiId: process.argv[6], deployId: process.argv[7], clientId: process.argv[8] };
+        buildApiSrc({ toOptions, fromOptions });
+      }
+      break;
     case 'run':
       {
         loadConf(process.argv[3]);
         shellExec(`npm start ${process.argv[3]}`);
       }
       break;
-    case 'new':
+    case 'new-nodejs-app':
       {
         const deployId = process.argv[3];
         const clientId = process.argv[4];
@@ -125,6 +132,10 @@ try {
         shellExec(`node bin/deploy build-full-client ${deployId}`);
 
         shellExec(`npm run dev ${deployId}`);
+      }
+      break;
+    case 'new-nodejs-api':
+      {
       }
       break;
     case 'build-full-client-zip':

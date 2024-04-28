@@ -1,41 +1,28 @@
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
 const DefaultService = {
   post: async (req, res, options) => {
-    let result;
-    switch (req.params.id) {
-      default:
-        break;
-    }
-    return result;
+    /** @type {import('./default.model.js').DefaultModel} */
+    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Default;
+    return await new Default(req.body).save();
   },
   get: async (req, res, options) => {
-    let result;
-    switch (req.params.id) {
-      default:
-        result = false;
-        break;
-    }
-    return result;
+    /** @type {import('./default.model.js').DefaultModel} */
+    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Default;
+    return await Default.findById(req.params.id);
   },
   put: async (req, res, options) => {
-    let result;
-    switch (req.params.id) {
-      default:
-        result = false;
-        break;
-    }
-    return result;
+    /** @type {import('./default.model.js').DefaultModel} */
+    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Default;
+    return await Default.findByIdAndUpdate(req.params.id, req.body);
   },
   delete: async (req, res, options) => {
-    let result;
-    switch (req.params.id) {
-      default:
-        break;
-    }
-    return result;
+    /** @type {import('./default.model.js').DefaultModel} */
+    const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Default;
+    return await Default.findByIdAndDelete(req.params.id);
   },
 };
 

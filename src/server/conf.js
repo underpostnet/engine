@@ -261,7 +261,7 @@ const loadReplicas = (confServer) => {
 const buildClientVariableName = (clientId = 'default') => cap(clientId.replaceAll('-', ' ')).replaceAll(' ', '');
 
 const cloneConf = async (
-  { toOptions, fromOptions, domain },
+  { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -304,7 +304,7 @@ const cloneConf = async (
 };
 
 const buildClientSrc = async (
-  { toOptions, fromOptions, domain },
+  { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -383,4 +383,56 @@ const buildClientSrc = async (
   );
 };
 
-export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc };
+const buildApiSrc = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
+) => {
+  fromOptions = {
+    ...fromDefaultOptions,
+    ...fromOptions,
+  };
+  if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
+
+  const toClientVariableName = buildClientVariableName(toOptions.apiId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+
+  const formattedSrc = (src) =>
+    src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.apiId, toOptions.apiId);
+
+  const apiToFolder = `./src/api/${toOptions.apiId}`;
+  const apiFromFolder = `./src/api/${fromOptions.apiId}`;
+
+  const isMergeConf = fs.existsSync(apiToFolder);
+  if (!isMergeConf) fs.mkdirSync(apiToFolder, { recursive: true });
+
+  for (const srcApiType of ['model', 'controller', 'service', 'router']) {
+    fs.writeFileSync(
+      `${apiToFolder}/${toOptions.apiId}.${srcApiType}.js`,
+      formattedSrc(fs.readFileSync(`${apiFromFolder}/${fromOptions.apiId}.${srcApiType}.js`, 'utf8')),
+      'utf8',
+    );
+  }
+
+  fs.writeFileSync(
+    `./src/db/mongoose/MongooseDB.js`,
+    fs
+      .readFileSync(`./src/db/mongoose/MongooseDB.js`, 'utf8')
+      .replaceAll(
+        `/*import-render*/`,
+        `import { ${toClientVariableName}Schema } from '../../api/${toOptions.apiId}/${toOptions.apiId}.model.js';
+/*import-render*/`,
+      )
+      .replaceAll(
+        `/*case-render*/`,
+        `case '${toOptions.apiId}':
+          models.${toClientVariableName} = conn.model('${toClientVariableName}', ${toClientVariableName}Schema);
+          break;
+        /*case-render*/`,
+      ),
+    'utf8',
+  );
+};
+
+export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc, buildApiSrc };
