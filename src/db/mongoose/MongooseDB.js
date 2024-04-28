@@ -11,6 +11,7 @@ import { CyberiaBiomeSchema } from '../../api/cyberia-biome/cyberia-biome.model.
 import { CyberiaTileSchema } from '../../api/cyberia-tile/cyberia-tile.model.js';
 import { CyberiaWorldSchema } from '../../api/cyberia-world/cyberia-world.model.js';
 import { TestSchema } from '../../api/test/test.model.js';
+import { CoreSchema } from '../../api/core/core.model.js';
 /*import-render*/
 
 import { loggerFactory } from '../../server/logger.js';
@@ -79,6 +80,9 @@ const MongooseDB = {
           break;
         case 'cyberia-world':
           models.CyberiaWorld = conn.model('CyberiaWorld', CyberiaWorldSchema);
+          break;
+        case 'core':
+          models.Core = conn.model('Core', CoreSchema);
           break;
         /*case-render*/
       }
