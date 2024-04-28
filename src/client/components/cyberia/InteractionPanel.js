@@ -78,7 +78,7 @@ const InteractionPanel = {
         break;
       case 'map-interaction-panel':
         style.top = '111px';
-        // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†'];
+        // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
         render = async () => html`
           <div class="fl">
             ${range(0, 3)

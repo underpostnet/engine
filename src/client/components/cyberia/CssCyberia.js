@@ -591,8 +591,15 @@ const CssCyberia = {
           height: auto;
         }
         .server-icon {
-          width: 60px;
-          height: 60px;
+          width: 40px;
+          height: 40px;
+          top: 8px;
+        }
+        .server-status-circle {
+          color: green;
+          font-size: 30px;
+          position: relative;
+          top: 4px;
         }
       </style>
 
