@@ -14,7 +14,7 @@ import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPo
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
 import { ToolBar } from './components/core/ToolBar.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
+import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 
 (async function () {
@@ -44,4 +44,5 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
       },
     ],
   });
+  s(`.main-btn-server`).click();
 })();

@@ -590,6 +590,10 @@ const CssCyberia = {
           width: 320px;
           height: auto;
         }
+        .server-icon {
+          width: 60px;
+          height: 60px;
+        }
       </style>
 
       ${borderChar(2, 'black', [
