@@ -8,6 +8,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import {
   Config,
   addApiConf,
+  addClientConf,
   buildApiSrc,
   buildClientSrc,
   cloneConf,
@@ -99,6 +100,18 @@ try {
         fs.writeFileSync(`${folder}/.env.development`, fs.readFileSync('./.env.development', 'utf8'), 'utf8');
         fs.writeFileSync(`${folder}/.env.test`, fs.readFileSync('./.env.test', 'utf8'), 'utf8');
         fs.writeFileSync(`${folder}/package.json`, fs.readFileSync('./package.json', 'utf8'), 'utf8');
+      }
+      break;
+    case 'add-nodejs-app-client-conf':
+      {
+        const toOptions = {
+          deployId: process.argv[3],
+          clientId: process.argv[4],
+          host: process.argv[5],
+          path: process.argv[6],
+        };
+        const fromOptions = { deployId: process.argv[7], clientId: process.argv[8] };
+        addClientConf({ toOptions, fromOptions });
       }
       break;
     case 'build-nodejs-conf-app':

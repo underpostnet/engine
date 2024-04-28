@@ -303,6 +303,35 @@ const cloneConf = async (
   fs.writeFileSync(`${confToFolder}/package.json`, JSON.stringify(packageData, null, 4), 'utf8');
 };
 
+const addClientConf = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+) => {
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
+
+  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
+  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
+
+  const toClientConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
+  const fromClientConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.client.json`, 'utf8'));
+
+  const { host, path } = toOptions;
+
+  toClientConf[fromOptions.clientId] = fromClientConf[fromOptions.clientId];
+
+  fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(toClientConf, null, 4), 'utf8');
+
+  const toServerConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
+  const fromServerConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
+
+  toServerConf[host][path].client = fromOptions.clientId;
+  toServerConf[host][path].runtime = 'nodejs';
+  toServerConf[host][path].apis = fromClientConf[fromOptions.clientId].services;
+
+  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(toServerConf, null, 4), 'utf8');
+};
+
 const buildClientSrc = async (
   { toOptions, fromOptions },
   fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
@@ -471,4 +500,14 @@ const addApiConf = async (
   fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
 };
 
-export { Config, loadConf, loadReplicas, cloneConf, buildClientVariableName, buildClientSrc, buildApiSrc, addApiConf };
+export {
+  Config,
+  loadConf,
+  loadReplicas,
+  cloneConf,
+  buildClientVariableName,
+  buildClientSrc,
+  buildApiSrc,
+  addApiConf,
+  addClientConf,
+};
