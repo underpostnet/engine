@@ -100,7 +100,7 @@ const CssUnderpost = {
         text-align: center;
         padding: 10px;
       }
-      .btn-default-modal-container {
+      .btn-bar-modal-container {
         text-align: right;
         padding-right: 3px;
       }

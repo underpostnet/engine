@@ -228,7 +228,7 @@ const Modal = {
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
           <div class="stq bar-default-modal bar-default-modal-${idModal}">
-            <div class="in btn-default-modal-container">
+            <div class="in btn-bar-modal-container">
               ${await BtnIcon.Render({
                 class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                   options?.barConfig?.buttons?.minimize?.disabled ? 'hide' : ''
