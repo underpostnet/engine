@@ -209,7 +209,8 @@ const buildClient = async () => {
           let ssrBodyComponents = ``;
           if ('ssr' in view) {
             // https://metatags.io/
-            if (process.env.NODE_ENV === 'production') confSSR[view.ssr].head.unshift('Production');
+            if (process.env.NODE_ENV === 'production' && !confSSR[view.ssr].head.includes('Production'))
+              confSSR[view.ssr].head.unshift('Production');
 
             for (const ssrHeadComponent of confSSR[view.ssr].head) {
               let SrrComponent;
