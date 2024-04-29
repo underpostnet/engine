@@ -4,6 +4,8 @@ SrrComponent = (render = { style: {}, renderStyle: () => '' }, options) =>
   >
     Email Confirmed<img
       style="display: none"
-      src="http${options.transport.secure ? 's' : ''}://${options.host}${options.path}api/user/mailer/{{TOKEN}}"
+      src="http${options.transport.secure ? 's' : ''}://${options.host}${options.path === '/'
+        ? ''
+        : options.path}/api/user/mailer/{{TOKEN}}"
     />
   </div>`;

@@ -54,9 +54,13 @@ const CyberiaUserService = {
 
           if (!WorldType[options.cyberia.world.instance.type].worldFaces.includes(user[0].model.world.face)) {
             user[0].model.world.face = 1;
-            const result = await CyberiaUser.findByIdAndUpdate(user[0]._id.toString(), user[0], {
-              runValidators: true,
-            });
+            const result = await CyberiaUser.findByIdAndUpdate(
+              user[0]._id.toString(),
+              { model: user[0].model },
+              {
+                runValidators: true,
+              },
+            );
           }
 
           if (user[0]) result = user[0];
