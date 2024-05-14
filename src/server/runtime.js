@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import fileUpload from 'express-fileupload';
 import swaggerUi from 'swagger-ui-express';
 import * as promClient from 'prom-client';
+import compression from 'compression';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
@@ -191,6 +192,18 @@ const buildRuntime = async () => {
 
           // instance public static
           app.use('/', express.static(directory ? directory : `.${rootHostPath}`));
+
+          // js src compression
+          app.use(compression({ filter: shouldCompress }));
+          function shouldCompress(req, res) {
+            if (req.headers['x-no-compression']) {
+              // don't compress responses with this request header
+              return false;
+            }
+
+            // fallback to standard filter function
+            return compression.filter(req, res);
+          }
 
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));
