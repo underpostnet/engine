@@ -87,6 +87,7 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 
 // s(el).onmouseover = () => null;
 // s(el).onmouseout = () => null;
+// `0`.repeat(3) -> 000
 
 /**
  * The `copyData` function uses the Clipboard API to copy the provided data to the clipboard and

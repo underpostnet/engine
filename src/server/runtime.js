@@ -39,7 +39,8 @@ const buildRuntime = async () => {
   const requestCounter = new promClient.Counter(promCounterOption);
 
   const ipInstance = ''; // await ip.public.ipv4();
-  let currentPort = parseInt(process.env.PORT) + 1;
+  const initPort = parseInt(process.env.PORT) + 1;
+  let currentPort = initPort;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of Object.keys(confServer)) {
     const rootHostPath = `/public/${host}`;
@@ -67,7 +68,7 @@ const buildRuntime = async () => {
         case 'lampp':
           if (!Lampp.enabled()) continue;
           if (!Lampp.ports.includes(port)) Lampp.ports.push(port);
-          if (confServer[host][path].resetRouter) Lampp.removeRouter();
+          if (currentPort === initPort) Lampp.removeRouter();
           Lampp.appendRouter(`
             
         Listen ${port}
@@ -107,7 +108,7 @@ const buildRuntime = async () => {
         case 'xampp':
           if (!Xampp.enabled()) continue;
           if (!Xampp.ports.includes(port)) Xampp.ports.push(port);
-          if (confServer[host][path].resetRouter) Xampp.removeRouter();
+          if (currentPort === initPort) Xampp.removeRouter();
           Xampp.appendRouter(`
             
         Listen ${port}

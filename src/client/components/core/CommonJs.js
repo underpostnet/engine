@@ -463,6 +463,61 @@ function getDirname(path) {
   return parts.join('/'); // Adjust separator if needed for Windows ('\')
 }
 
+const isDayValid = (day) => {
+  const date = new Date();
+  date.setDate(day);
+  return date.getDate() === day;
+};
+
+const isMonthValid = (month) => {
+  const date = new Date();
+  date.setMonth(month - 1);
+  return date.getMonth() === month - 1;
+};
+
+const isValidDate = (day, month, year) => {
+  if (!isDayValid(day) || !isMonthValid(month)) {
+    return false;
+  }
+
+  const date = new Date(year, month - 1, day);
+  return !isNaN(date.getTime());
+};
+
+const isValidFormat = (value, format) => {
+  try {
+    switch (format) {
+      case 'ALPHANUMERIC':
+        return /^[a-z0-9]+$/i.test(value);
+      case 'DDMMYYYY': {
+        const day = parseInt(value.substring(0, 2));
+        const month = parseInt(value.substring(2, 4));
+        const year = parseInt(value.substring(4));
+        return isValidDate(day, month, year);
+      }
+      case 'YYYYDDMM': {
+        const day = parseInt(value.substring(4, 6));
+        const month = parseInt(value.substring(6, 8));
+        const year = parseInt(value.substring(0, 4));
+        return isValidDate(day, month, year);
+      }
+      case 'DD-MM-YYYY': {
+        value = value.split('-');
+        const day = parseInt(value[0]);
+        const month = parseInt(value[1]);
+        const year = parseInt(value[2]);
+        return isValidDate(day, month, year);
+      }
+
+      default:
+        return false;
+    }
+  } catch (error) {
+    console.error(error);
+    return false;
+  }
+};
+
 export {
   s4,
   range,
@@ -501,4 +556,8 @@ export {
   getSubpaths,
   formatBytes,
   getDirname,
+  isDayValid,
+  isMonthValid,
+  isValidDate,
+  isValidFormat,
 };

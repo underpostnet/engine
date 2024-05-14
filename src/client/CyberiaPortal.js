@@ -44,5 +44,4 @@ import { CssCyberia } from './components/cyberia/CssCyberia.js';
       },
     ],
   });
-  s(`.main-btn-server`).click();
 })();

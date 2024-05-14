@@ -13,6 +13,14 @@ import { Elements } from './Elements.js';
 import { InteractionPanel } from './InteractionPanel.js';
 import { MainUser } from './MainUser.js';
 
+const initAnonSession = async () => {
+  LoadingAnimation.barLevel.append();
+  await MainUser.Update();
+  SocketIo.Emit('user', {
+    status: 'propagate',
+  });
+};
+
 const LogInCyberia = async function () {
   const type = 'user';
   const id = 'main';
@@ -58,15 +66,11 @@ const LogInCyberia = async function () {
         token,
         user,
       });
-    } else localStorage.removeItem('jwt');
-  } else {
-    // Anon
-    LoadingAnimation.barLevel.append();
-    await MainUser.Update();
-    SocketIo.Emit('user', {
-      status: 'propagate',
-    });
-  }
+    } else {
+      localStorage.removeItem('jwt');
+      await initAnonSession();
+    }
+  } else await initAnonSession();
   InteractionPanel.PanelRender.element({ type: 'user', id: 'main' });
 };
 

@@ -4,7 +4,7 @@ import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js'
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
-import { renderStatus } from './Css.js';
+import { Css, Themes, renderStatus } from './Css.js';
 import { setDocTitle } from './Router.js';
 
 const logger = loggerFactory(import.meta);
@@ -133,7 +133,7 @@ const Modal = {
 
             append('body', html`<div class="fix modal slide-menu-top-bar"></div>`);
 
-            setTimeout(() => {
+            setTimeout(async () => {
               // clone and change position
 
               // s(`.btn-close-${idModal}`);
@@ -155,6 +155,28 @@ const Modal = {
 
               // s('body').removeChild(`.${idModal}`);
               // while (s(`.top-modal`).firstChild) s(`.top-modal`).removeChild(s(`.top-modal`).firstChild);
+
+              const { barConfig } = await Themes[Css.currentTheme]();
+              barConfig.buttons.maximize.disabled = true;
+              barConfig.buttons.minimize.disabled = true;
+              barConfig.buttons.restore.disabled = true;
+              barConfig.buttons.menu.disabled = true;
+              barConfig.buttons.close.disabled = true;
+              await Modal.Render({
+                id: 'main-body',
+                barConfig,
+                html: options.htmlMainBody ? options.htmlMainBody : () => html``,
+                titleClass: 'hide',
+                style: {
+                  // overflow: 'hidden',
+                  background: 'none',
+                  resize: 'none',
+                  'min-width': '320px',
+                },
+                dragDisabled: true,
+                maximize: true,
+                slideMenu: 'modal-menu',
+              });
             });
           })();
           break;

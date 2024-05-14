@@ -1,7 +1,7 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, pathViewFormatted, viewFormatted } from './client-formatted.js';
+import { srcFormatted, componentFormatted, viewFormatted } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import { cap, newInstance, orderArrayFromAttrInt, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
@@ -25,10 +25,8 @@ const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
   fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
 };
 
-const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath, publicRef }) => {
+const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath, publicClientId }) => {
   logger.warn('Full build', rootClientPath);
-
-  const publicClientId = publicRef ? publicRef : client;
 
   fs.removeSync(rootClientPath);
 
@@ -98,6 +96,7 @@ const buildClient = async () => {
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
+      const publicClientId = publicRef ? publicRef : client;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       currentPort++;
@@ -125,7 +124,7 @@ const buildClient = async () => {
           dists,
           rootClientPath,
           acmeChallengeFullPath,
-          publicRef,
+          publicClientId,
         });
 
       if (components)
@@ -177,7 +176,7 @@ const buildClient = async () => {
         for (const view of views) {
           const buildPath = `${
             rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-          }${pathViewFormatted(view.path)}`;
+          }${view.path === '/' ? view.path : `${view.path}/`}`;
 
           if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
@@ -218,29 +217,55 @@ const buildClient = async () => {
 
               switch (ssrHeadComponent) {
                 case 'Pwa':
-                  if (
+                  const validPwaBuild =
                     metadata &&
-                    path === '/' &&
-                    view.path === '/' &&
-                    // fs.existsSync(`./src/client/sw/${client}.sw.js`) &&
-                    fs.existsSync(`./src/client/public/${client}/browserconfig.xml`) &&
-                    fs.existsSync(`./src/client/public/${client}/site.webmanifest`)
-                  ) {
+                    fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
+                    fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`) &&
+                    fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`);
+
+                  if (view.path === '/' && validPwaBuild) {
                     // build webmanifest
+                    const webmanifestJson = JSON.parse(
+                      fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),
+                    );
+                    if (metadata.title) {
+                      webmanifestJson.name = metadata.title;
+                      webmanifestJson.short_name = metadata.title;
+                    }
+                    if (metadata.description) {
+                      webmanifestJson.description = metadata.description;
+                    }
+                    if (metadata.themeColor) {
+                      webmanifestJson.theme_color = metadata.themeColor;
+                      webmanifestJson.background_color = metadata.themeColor;
+                    }
                     fs.writeFileSync(
                       `${buildPath}site.webmanifest`,
-                      fs.readFileSync(`./src/client/public/${client}/site.webmanifest`, 'utf8'),
+                      JSON.stringify(webmanifestJson, null, 4).replaceAll(`: "/`, `: "${ssrPath}`),
                       'utf8',
                     );
                     // build browserconfig
                     fs.writeFileSync(
                       `${buildPath}browserconfig.xml`,
-                      fs.readFileSync(`./src/client/public/${client}/browserconfig.xml`, 'utf8'),
+                      fs
+                        .readFileSync(`./src/client/public/${publicClientId}/browserconfig.xml`, 'utf8')
+                        .replaceAll(
+                          `<TileColor></TileColor>`,
+                          metadata.themeColor
+                            ? `<TileColor>${metadata.themeColor}</TileColor>`
+                            : `<TileColor>#e0e0e0</TileColor>`,
+                        )
+                        .replaceAll(`src="/`, `src="${ssrPath}`),
                       'utf8',
                     );
                     // build service worker
-                    if (fs.existsSync(`./src/client/sw/${client}.sw.js`)) {
-                      const jsSrc = fs.readFileSync(`./src/client/sw/${client}.sw.js`, 'utf8');
+                    if (fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`) && path === '/') {
+                      const jsSrc = viewFormatted(
+                        srcFormatted(fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')),
+                        dists,
+                        path,
+                        baseHost,
+                      );
                       fs.writeFileSync(
                         `${buildPath}sw.js`,
                         minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
@@ -248,9 +273,17 @@ const buildClient = async () => {
                       );
                     }
 
-                    ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                    // Android play store example:
+                    //
+                    // "related_applications": [
+                    //   {
+                    //     "platform": "play",
+                    //     "url": "https://play.google.com/store/apps/details?id=cheeaun.hackerweb"
+                    //   }
+                    // ],
+                    // "prefer_related_applications": true
                   }
-
+                  if (validPwaBuild) ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
                   break;
                 case 'Seo':
                   if (metadata) {
@@ -259,12 +292,12 @@ const buildClient = async () => {
                   break;
                 case 'Microdata':
                   if (
-                    fs.existsSync(`./src/client/public/${client}/microdata.json`) &&
-                    path === '/' &&
-                    view.path === '/'
+                    fs.existsSync(`./src/client/public/${publicClientId}/microdata.json`) // &&
+                    // path === '/' &&
+                    // view.path === '/'
                   ) {
                     const microdata = JSON.parse(
-                      fs.readFileSync(`./src/client/public/${client}/microdata.json`, 'utf8'),
+                      fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
                     );
                     ssrHeadComponents += SrrComponent({ microdata });
                   }
@@ -327,7 +360,7 @@ const buildClient = async () => {
         let siteMapSrc = await new Promise((resolve) =>
           streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
         );
-        switch (client) {
+        switch (publicClientId) {
           case 'underpost':
             siteMapSrc = siteMapSrc.replaceAll(
               `</urlset>`,

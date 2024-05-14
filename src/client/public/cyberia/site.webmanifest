@@ -55,6 +55,5 @@
   "display": "standalone",
   "description": "CYBERIA",
   "scope": "/",
-  "orientation": "any",
-  "prefer_related_applications": true
+  "orientation": "any"
 }

@@ -1,3 +1,5 @@
+import { loggerFactory } from '../components/core/Logger.js';
+
 // https://googlechrome.github.io/samples/service-worker/custom-offline-page/
 
 /*
@@ -13,20 +15,15 @@ Copyright 2015, 2019 Google Inc. All Rights Reserved.
  limitations under the License.
 */
 
-// Incrementing OFFLINE_VERSION will kick off the install event and force
-// previously cached resources to be updated from the network.
-const OFFLINE_VERSION = 1;
-const CACHE_NAME = 'offline';
-// Customize this with a different URL if needed.
-const OFFLINE_URL = 'offline.html';
+const logger = loggerFactory(import.meta);
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_NAME);
+      // const cache = await caches.open(CACHE_NAME);
       // Setting {cache: 'reload'} in the new request will ensure that the response
       // isn't fulfilled from the HTTP cache; i.e., it will be from the network.
-      await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+      // await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
     })(),
   );
 });
@@ -47,6 +44,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  logger.info(`On fetch`, {
+    mode: event.request.mode,
+    url: event.request.url,
+    method: event.request.method,
+  });
+
   // We only want to call event.respondWith() if this is a navigation request
   // for an HTML page.
   if (event.request.mode === 'navigate') {
@@ -66,11 +69,16 @@ self.addEventListener('fetch', (event) => {
           // due to a network error.
           // If fetch() returns a valid HTTP response with a response code in
           // the 4xx or 5xx range, the catch() will NOT be called.
-          console.log('Fetch failed; returning offline page instead.', error);
+          logger.info('Fetch failed; returning offline page instead.', error);
 
-          const cache = await caches.open(CACHE_NAME);
-          const cachedResponse = await cache.match(OFFLINE_URL);
-          return cachedResponse;
+          // const cache = await caches.open(CACHE_NAME);
+          // const cachedResponse = await cache.match(OFFLINE_URL);
+          // return cachedResponse;
+
+          const response = new Response(JSON.stringify({ message: 'offline test response' }));
+          response.status = 200;
+          response.headers.set('Content-Type', 'application/json');
+          return response;
         }
       })(),
     );

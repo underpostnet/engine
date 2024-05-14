@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { getId, newInstance, range } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -89,6 +89,11 @@ const Menu = {
           })}
         </div>
       `,
+      htmlMainBody: async () => {
+        let render = '';
+        for (const _ of range(0, 0)) render += await ServerCyberiaPortal.Render();
+        return render;
+      },
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
@@ -98,6 +103,7 @@ const Menu = {
       //   /> -->
       //   &nbsp &nbsp <span class="inl cyberia-portal-title-text-a">APP</span
       //   ><span class="inl cyberia-portal-title-text-b">page</span>`,
+      // mode: 'slide-menu-right',
       mode: 'slide-menu',
       slideTop,
     });

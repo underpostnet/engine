@@ -19,20 +19,7 @@ const Settings = {
     const localThemes = {
       cyberia: { displayName: 'CYBERIA' },
     };
-    setTimeout(() => {
-      EventsUI.onClick(`.btn-install-service-controller`, async (e) => {
-        e.preventCyberiaPortal();
-        const result = await Worker.install();
-      });
-      EventsUI.onClick(`.btn-uninstall-service-controller`, async (e) => {
-        e.preventCyberiaPortal();
-        const result = await Worker.uninstall();
-      });
-      EventsUI.onClick(`.btn-reload`, async (e) => {
-        e.preventCyberiaPortal();
-        location.reload();
-      });
-    });
+    setTimeout(() => Worker.loadSettingUI());
     return html`
       <div class="in section-mp box-option">
         <div class="fl ">
@@ -94,7 +81,6 @@ const Settings = {
         ${await BtnIcon.Render({
           class: 'inl section-mp btn-custom btn-uninstall-service-controller',
           label: html`<i class="far fa-trash-alt"></i> ${Translate.Render('Uninstall control service')}`,
-          style: 'display: none',
         })}
       </div>
       <div class="in">
