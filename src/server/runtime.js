@@ -9,7 +9,7 @@ import compression from 'compression';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { network, listenPortController, saveRuntimeRouter, logRuntimeRouter } from './network.js';
+import { network, listenPortController, saveRuntimeRouter, logRuntimeRouter, listenServerFactory } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -104,7 +104,7 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
-          await listenPortController(null, port, runningData);
+          await listenPortController(listenServerFactory(), port, runningData);
           break;
         case 'xampp':
           if (!Xampp.enabled()) continue;
@@ -144,7 +144,7 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
-          await listenPortController(null, port, runningData);
+          await listenPortController(listenServerFactory(), port, runningData);
           break;
         case 'nodejs':
           const app = express();
@@ -290,7 +290,7 @@ const buildRuntime = async () => {
                 port,
                 origins,
               });
-              await listenPortController(null, port, {
+              await listenPortController(listenServerFactory(), port, {
                 runtime: 'nodejs',
                 client: null,
                 host,
@@ -302,8 +302,14 @@ const buildRuntime = async () => {
           if (peer) {
             currentPort++;
             const peerPort = newInstance(currentPort);
-            const { options, meta } = await createPeerServer({ port: peerPort, devPort: port, origins, host, path });
-            await listenPortController(null, peerPort, {
+            const { options, meta, peerServer } = await createPeerServer({
+              port: peerPort,
+              devPort: port,
+              origins,
+              host,
+              path,
+            });
+            await listenPortController(peerServer, peerPort, {
               runtime: 'nodejs',
               client: null,
               host,

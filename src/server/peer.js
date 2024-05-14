@@ -2,7 +2,7 @@ import { PeerServer } from 'peer';
 import dotenv from 'dotenv';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
-import { listenPortController } from './network.js';
+import { listenServerFactory } from './network.js';
 
 dotenv.config();
 
@@ -25,7 +25,7 @@ const createPeerServer = async ({ port, devPort, origins, host, path }) => {
     // cert: fs.readFileSync(''),
     // ca: fs.readFileSync(''),
   };
-  const peerServer = PeerServer(options);
+  const peerServer = listenServerFactory(() => PeerServer(options));
 
   return { options, peerServer, meta: import.meta };
 };

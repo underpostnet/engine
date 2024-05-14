@@ -73,10 +73,16 @@ const saveRuntimeRouter = () =>
     'utf-8',
   );
 
+const listenServerFactory = (logic = async () => {}) => {
+  return {
+    listen: async (...args) => (logic ? await logic(...args) : undefined, args[1]()),
+  };
+};
+
 const listenPortController = async (server, port, metadata) =>
   new Promise((resolve) => {
     try {
-      if (!server) server = { listen: (...args) => args[1]() };
+      if (!server) server = listenServerFactory();
 
       const { host, path, client, runtime, meta } = metadata;
       const error = [];
@@ -113,4 +119,4 @@ const listenPortController = async (server, port, metadata) =>
     }
   });
 
-export { ip, network, listenPortController, networkRouter, saveRuntimeRouter, logRuntimeRouter };
+export { ip, network, listenPortController, networkRouter, saveRuntimeRouter, logRuntimeRouter, listenServerFactory };
