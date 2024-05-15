@@ -1,5 +1,5 @@
 import { loggerFactory } from '../../server/logger.js';
-import { getPasswordHash, getToken, jwtVerify, passwordVerify } from '../../server/auth.js';
+import { hashPassword, verifyPassword, hashJWT, verifyJWT } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
 import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
@@ -28,7 +28,7 @@ const UserService = {
               {
                 if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
-                const token = getToken({ email: req.body.email });
+                const token = hashJWT({ email: req.body.email });
                 const id = `${options.host}${options.path}`;
                 const user = await User.findById(req.auth.user._id);
 
@@ -77,14 +77,14 @@ const UserService = {
           email: req.body.email,
         });
         if (user[0]) {
-          login = await passwordVerify(req.body.password, user[0].password);
+          login = await verifyPassword(req.body.password, user[0].password);
           find = await User.find({
             _id: user[0]._id.toString(),
           }).select(select['auth']);
           user = find[0];
           if (login === true) {
             result = {
-              token: getToken({ user }),
+              token: hashJWT({ user }),
               user,
             };
           }
@@ -92,14 +92,14 @@ const UserService = {
         break;
 
       default:
-        req.body.password = await getPasswordHash(req.body.password);
+        req.body.password = await hashPassword(req.body.password);
         req.body.role = 'user';
         save = await new User(req.body).save();
         _id = save._id;
         find = await User.find({ _id }).select(select['auth']);
         user = find[0];
         result = {
-          token: getToken({ user }),
+          token: hashJWT({ user }),
           user,
         };
         break;
@@ -117,7 +117,7 @@ const UserService = {
           switch (req.params.id) {
             default:
               {
-                result = await jwtVerify(req.params.id);
+                result = await verifyJWT(req.params.id);
                 const [user] = await User.find({
                   email: result.email,
                 });
@@ -187,7 +187,8 @@ const UserService = {
     let result, find;
     switch (req.params.id) {
       default:
-        if (req.body.password) req.body.password = await getPasswordHash(req.body.password);
+        // if (req.body.password) req.body.password = await hashPassword(req.body.password);
+        delete req.body.password;
         if (req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
         result = await User.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
         find = await User.find({
