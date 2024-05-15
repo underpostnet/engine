@@ -17,8 +17,10 @@ import { SocketIoBms } from './components/bms/SocketIoBms.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { ToolBar } from './components/core/ToolBar.js';
+import { Worker } from './components/core/Worker.js';
 
 (async function () {
+  await Worker.Init();
   const themes = [CssBms, CssBmsLight];
   await Css.loadThemes(themes);
   const RouterInstance = RouterBms();

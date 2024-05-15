@@ -220,8 +220,7 @@ const buildClient = async () => {
                   const validPwaBuild =
                     metadata &&
                     fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
-                    fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`) &&
-                    fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`);
+                    fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
 
                   if (view.path === '/' && validPwaBuild) {
                     // build webmanifest
@@ -264,7 +263,7 @@ const buildClient = async () => {
                         srcFormatted(
                           fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
                             ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
-                            : fs.existsSync(`./src/client/sw/default.sw.js`),
+                            : fs.readFileSync(`./src/client/sw/default.sw.js`, 'utf8'),
                         ),
                         dists,
                         path,

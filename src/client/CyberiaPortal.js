@@ -16,8 +16,10 @@ import { ToolBar } from './components/core/ToolBar.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
+import { Worker } from './components/core/Worker.js';
 
 (async function () {
+  await Worker.Init();
   const themes = [CssCyberia]; // CssCyberiaPortal, CssCyberiaPortalLight
   await Css.loadThemes(themes);
   const RouterInstance = RouterCyberiaPortal();

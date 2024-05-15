@@ -5,6 +5,10 @@ import { getProxyPath, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const Worker = {
+  Init: async function () {
+    const isInstall = await this.status();
+    if (!isInstall) await this.install();
+  },
   status: function () {
     let status = false;
     return new Promise((resolve, reject) => {

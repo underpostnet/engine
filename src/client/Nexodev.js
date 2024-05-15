@@ -17,8 +17,10 @@ import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { ToolBar } from './components/core/ToolBar.js';
+import { Worker } from './components/core/Worker.js';
 
 (async function () {
+  await Worker.Init();
   const themes = [CssNexodevLight, CssNexodev];
   await Css.loadThemes(themes, Menu);
   const RouterInstance = RouterNexodev();

@@ -22,8 +22,10 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { ToolBar } from './components/core/ToolBar.js';
+import { Worker } from './components/core/Worker.js';
 
 (async function () {
+  await Worker.Init();
   await Css.Init(CssCyberia);
   const RouterInstance = RouterCyberia();
   await TranslateCore.Init();
