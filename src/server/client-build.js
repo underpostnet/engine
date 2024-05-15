@@ -259,9 +259,13 @@ const buildClient = async () => {
                       'utf8',
                     );
                     // build service worker
-                    if (fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`) && path === '/') {
+                    if (path === '/') {
                       const jsSrc = viewFormatted(
-                        srcFormatted(fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')),
+                        srcFormatted(
+                          fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+                            ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
+                            : fs.existsSync(`./src/client/sw/default.sw.js`),
+                        ),
                         dists,
                         path,
                         baseHost,

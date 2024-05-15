@@ -60,8 +60,10 @@ const Worker = {
     });
   },
   uninstall: function () {
-    return new Promise((resolve, reject) => {
+    return new Promise(async (resolve, reject) => {
       if ('serviceWorker' in navigator) {
+        const cacheNames = await caches.keys();
+        for (const cacheName of cacheNames) await caches.delete(cacheName);
         navigator.serviceWorker
           .getRegistrations()
           .then((registrations) => {
