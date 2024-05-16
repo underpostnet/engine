@@ -24,41 +24,41 @@ import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { ToolBar } from './components/core/ToolBar.js';
 import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Worker.Init();
-  await Css.Init(CssCyberia);
-  const RouterInstance = RouterCyberia();
-  await TranslateCore.Init();
-  await TranslateCyberia.Init();
-  await MainUser.Render();
-  await Pixi.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await Skill.renderMainKeysSlots();
-  await NotificationManager.RenderBoard();
-  await PointAndClickMovement.Render();
-  await InteractionPanel.Render({ id: 'map-interaction-panel' });
-  await InteractionPanel.Render({ id: 'element-interaction-panel' });
-  await SocketIo.Init({ channels: Elements.Data });
-  await SocketIoCyberia.Init();
-  await LogOutCyberia();
-  await SignUpCyberia();
-  LoadRouter(RouterInstance);
-  disableOptionsClick('html', ['drag', 'select', 'menu']);
-  // s(`.btn-menu-modal-menu`).click();
-  await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
-  await JoyStickCyberia.Render();
-  await ToolBar.Render({
-    id: 'ToolBar',
-    tools: [
-      // {
-      //   id: 'theme',
-      //   themes,
-      // },
-      {
-        id: 'lang',
-        langs: ['es', 'en'],
-      },
-    ],
-  });
-})();
+(() =>
+  Worker.instance(async () => {
+    await Css.Init(CssCyberia);
+    const RouterInstance = RouterCyberia();
+    await TranslateCore.Init();
+    await TranslateCyberia.Init();
+    await MainUser.Render();
+    await Pixi.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await Skill.renderMainKeysSlots();
+    await NotificationManager.RenderBoard();
+    await PointAndClickMovement.Render();
+    await InteractionPanel.Render({ id: 'map-interaction-panel' });
+    await InteractionPanel.Render({ id: 'element-interaction-panel' });
+    await SocketIo.Init({ channels: Elements.Data });
+    await SocketIoCyberia.Init();
+    await LogOutCyberia();
+    await SignUpCyberia();
+    LoadRouter(RouterInstance);
+    disableOptionsClick('html', ['drag', 'select', 'menu']);
+    // s(`.btn-menu-modal-menu`).click();
+    await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
+    await JoyStickCyberia.Render();
+    await ToolBar.Render({
+      id: 'ToolBar',
+      tools: [
+        // {
+        //   id: 'theme',
+        //   themes,
+        // },
+        {
+          id: 'lang',
+          langs: ['es', 'en'],
+        },
+      ],
+    });
+  }))();

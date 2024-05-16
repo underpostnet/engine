@@ -160,6 +160,7 @@ const TranslateCore = {
     Translate.Data['home'] = { en: 'Home', es: 'Inicio' };
     Translate.Data['calendar'] = { es: 'Calendario', en: 'Calendar' };
     Translate.Data['docs'] = { es: 'Documentacion', en: 'Documentation' };
+    Translate.Data['clean-cache'] = { es: 'Limpiar caché', en: 'Clean cache' };
 
     Translate.Data = {
       ...Translate.Data,

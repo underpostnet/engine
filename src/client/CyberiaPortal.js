@@ -18,32 +18,32 @@ import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Worker.Init();
-  const themes = [CssCyberia]; // CssCyberiaPortal, CssCyberiaPortalLight
-  await Css.loadThemes(themes);
-  const RouterInstance = RouterCyberiaPortal();
-  await TranslateCore.Init();
-  await TranslateCyberiaPortal.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await NotificationManager.RenderBoard();
-  await LogInCyberiaPortal();
-  await LogOutCyberiaPortal();
-  await SignUpCyberiaPortal();
-  LoadRouter(RouterInstance);
-  // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  await ToolBar.Render({
-    id: 'ToolBar',
-    tools: [
-      // {
-      //   id: 'theme',
-      //   themes,
-      // },
-      {
-        id: 'lang',
-        langs: ['es', 'en'],
-      },
-    ],
-  });
-})();
+(async () =>
+  Worker.instance(async () => {
+    const themes = [CssCyberia]; // CssCyberiaPortal, CssCyberiaPortalLight
+    await Css.loadThemes(themes);
+    const RouterInstance = RouterCyberiaPortal();
+    await TranslateCore.Init();
+    await TranslateCyberiaPortal.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await NotificationManager.RenderBoard();
+    await LogInCyberiaPortal();
+    await LogOutCyberiaPortal();
+    await SignUpCyberiaPortal();
+    LoadRouter(RouterInstance);
+    // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+    await ToolBar.Render({
+      id: 'ToolBar',
+      tools: [
+        // {
+        //   id: 'theme',
+        //   themes,
+        // },
+        {
+          id: 'lang',
+          langs: ['es', 'en'],
+        },
+      ],
+    });
+  }))();

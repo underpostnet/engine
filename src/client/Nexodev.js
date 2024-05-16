@@ -19,33 +19,33 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { ToolBar } from './components/core/ToolBar.js';
 import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Worker.Init();
-  const themes = [CssNexodevLight, CssNexodev];
-  await Css.loadThemes(themes, Menu);
-  const RouterInstance = RouterNexodev();
-  await TranslateCore.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await NotificationManager.RenderBoard();
-  await SocketIo.Init({ channels: Elements.Data });
-  await SocketIoNexodev.Init();
-  await LogInNexodev();
-  await LogOutNexodev();
-  await SignUpNexodev();
-  LoadRouter(RouterInstance);
-  await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
-  await ToolBar.Render({
-    id: 'ToolBar',
-    tools: [
-      {
-        id: 'theme',
-        themes,
-      },
-      {
-        id: 'lang',
-        langs: ['es', 'en'],
-      },
-    ],
-  });
-})();
+(() =>
+  Worker.instance(async () => {
+    const themes = [CssNexodevLight, CssNexodev];
+    await Css.loadThemes(themes, Menu);
+    const RouterInstance = RouterNexodev();
+    await TranslateCore.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await NotificationManager.RenderBoard();
+    await SocketIo.Init({ channels: Elements.Data });
+    await SocketIoNexodev.Init();
+    await LogInNexodev();
+    await LogOutNexodev();
+    await SignUpNexodev();
+    LoadRouter(RouterInstance);
+    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
+    await ToolBar.Render({
+      id: 'ToolBar',
+      tools: [
+        {
+          id: 'theme',
+          themes,
+        },
+        {
+          id: 'lang',
+          langs: ['es', 'en'],
+        },
+      ],
+    });
+  }))();

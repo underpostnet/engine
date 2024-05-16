@@ -19,33 +19,33 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { ToolBar } from './components/core/ToolBar.js';
 import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Worker.Init();
-  const themes = [CssBms, CssBmsLight];
-  await Css.loadThemes(themes);
-  const RouterInstance = RouterBms();
-  await TranslateCore.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await NotificationManager.RenderBoard();
-  await SocketIo.Init({ channels: Elements.Data });
-  await SocketIoBms.Init();
-  await LogInBms();
-  await LogOutBms();
-  await SignUpBms();
-  LoadRouter(RouterInstance);
-  await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  await ToolBar.Render({
-    id: 'ToolBar',
-    tools: [
-      {
-        id: 'theme',
-        themes,
-      },
-      {
-        id: 'lang',
-        langs: ['es', 'en'],
-      },
-    ],
-  });
-})();
+(() =>
+  Worker.instance(async () => {
+    const themes = [CssBms, CssBmsLight];
+    await Css.loadThemes(themes);
+    const RouterInstance = RouterBms();
+    await TranslateCore.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await NotificationManager.RenderBoard();
+    await SocketIo.Init({ channels: Elements.Data });
+    await SocketIoBms.Init();
+    await LogInBms();
+    await LogOutBms();
+    await SignUpBms();
+    LoadRouter(RouterInstance);
+    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+    await ToolBar.Render({
+      id: 'ToolBar',
+      tools: [
+        {
+          id: 'theme',
+          themes,
+        },
+        {
+          id: 'lang',
+          langs: ['es', 'en'],
+        },
+      ],
+    });
+  }))();

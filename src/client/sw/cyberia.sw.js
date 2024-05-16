@@ -21,6 +21,7 @@ Copyright 2015, 2019 Google Inc. All Rights Reserved.
 // https://developer.mozilla.org/es/docs/Web/Progressive_web_apps/Re-engageable_Notifications_Push
 // https://developer.mozilla.org/en-US/docs/Web/API/Notification/Notification
 // https://github.com/GoogleChrome/samples/blob/9e4b3b77b091268d28e5438bb2fe8829091e9540/service-worker/basic/service-worker.js#L59
+// https://developer.mozilla.org/en-US/docs/Web/API/Geolocation_API
 
 /*
 
@@ -37,6 +38,9 @@ even while offline, can asynchronously save files and many other things)
 const logger = loggerFactory(import.meta);
 
 self.addEventListener('install', (event) => {
+  // Activate right away
+  self.skipWaiting();
+
   event.waitUntil(
     (async () => {
       // const cache = await caches.open(CACHE_NAME);
@@ -60,15 +64,50 @@ self.addEventListener('activate', (event) => {
 
   // Tell the active service worker to take control of the page immediately.
   self.clients.claim();
+
+  // event message
+  self.addEventListener('message', (event) => {
+    logger.info('Received event message', event.data);
+
+    switch (event.data.status) {
+      case 'skipWaiting':
+        return self.skipWaiting();
+        break;
+
+      default:
+        break;
+    }
+
+    clients.matchAll().then((clientList) => {
+      for (const client of clientList) {
+        logger.info('client', client);
+        client.postMessage({
+          title: 'Hello from SW event message',
+        });
+        // client -> document.visibilityState
+        //           client.visibilityState
+      }
+    });
+  });
+  // broadcast message
+  const channel = new BroadcastChannel('sw-messages');
+  channel.addEventListener('message', (event) => {
+    logger.info('Received broadcast message', event.data);
+    channel.postMessage({ title: 'Hello from SW broadcast message' });
+  });
 });
 
 self.addEventListener('fetch', (event) => {
-  let path;
+  let path, client;
 
   if (event.request.url.match(location.origin)) path = event.request.url.slice(location.origin.length);
   const preload = path && !path.match('/api');
 
+  // Get the client.
+  // client = await clients.get(event.clientId);
+
   logger.info(`On fetch`, {
+    client,
     mode: event.request.mode,
     url: event.request.url,
     referrer: event.request.referrer,
@@ -79,7 +118,7 @@ self.addEventListener('fetch', (event) => {
 
   // We only want to call event.respondWith() if this is a navigation request
   // for an HTML page.
-  if (path || event.request.mode === 'navigate') {
+  if (path !== undefined || event.request.mode === 'navigate') {
     event.respondWith(
       (async () => {
         try {

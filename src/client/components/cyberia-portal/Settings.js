@@ -75,17 +75,19 @@ const Settings = {
 
       <div class="in">
         ${await BtnIcon.Render({
-          class: 'inl section-mp btn-custom btn-install-service-controller',
+          class: 'inl section-mp btn-custom btn-install-service-controller hide',
           label: html`<i class="fas fa-download"></i> ${Translate.Render('Install control service')}`,
         })}
         ${await BtnIcon.Render({
-          class: 'inl section-mp btn-custom btn-uninstall-service-controller',
+          class: 'inl section-mp btn-custom btn-uninstall-service-controller hide',
           label: html`<i class="far fa-trash-alt"></i> ${Translate.Render('Uninstall control service')}`,
         })}
-      </div>
-      <div class="in">
         ${await BtnIcon.Render({
-          class: 'inl section-mp btn-custom btn-reload',
+          class: 'inl section-mp btn-custom btn-clean-cache',
+          label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clean-cache')}`,
+        })}
+        ${await BtnIcon.Render({
+          class: 'inl section-mp btn-custom btn-reload hide',
           label: html`<i class="fas fa-sync-alt"></i> ${Translate.Render('Reload')}`,
         })}
       </div>

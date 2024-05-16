@@ -169,7 +169,7 @@ const buildClient = async () => {
           );
         }
 
-      const buildId = `index.${client}`;
+      const buildId = `${client}.index`;
       const siteMapLinks = [];
 
       if (views)
