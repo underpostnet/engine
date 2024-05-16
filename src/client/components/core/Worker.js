@@ -129,22 +129,15 @@ const Worker = {
   uninstall: function () {
     return new Promise(async (resolve, reject) => {
       if ('serviceWorker' in navigator) {
-        const cacheNames = await caches.keys();
-        for (const cacheName of cacheNames) await caches.delete(cacheName);
         navigator.serviceWorker
           .getRegistrations()
-          .then((registrations) => {
+          .then(async (registrations) => {
             for (const registration of registrations) {
               logger.info('remove', registration);
               registration.unregister();
             }
-
-            caches.keys().then((names) => {
-              for (const name of names) {
-                logger.info('remove', name);
-                caches.delete(name);
-              }
-            });
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) await caches.delete(cacheName);
           })
           .catch((...args) => {
             logger.error(...args);
