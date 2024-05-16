@@ -28,6 +28,10 @@ const Elements = {
         path: [],
       };
   },
+  getCurrentSkinDisplayId: function ({ type, id }) {
+    const dataSkin = this.Data[type][id].components.skin.find((s) => s.current);
+    return dataSkin ? dataSkin.displayId : undefined;
+  },
   getDisplayName: ({ type, id }) => {
     const displayName =
       type === 'user' && Elements.Data[type][id].model.user.username

@@ -255,6 +255,7 @@ const Pixi = {
     } else this.Data[type].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(Elements.Data[type][id].components)) {
       if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
+      if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
       switch (componentType) {
         case 'background':
           index = 0;
@@ -277,6 +278,43 @@ const Pixi = {
             index++;
           }
 
+          break;
+
+        case 'pointerArrow':
+          {
+            const displayId = Elements.getCurrentSkinDisplayId({ type, id });
+            const arrowColor = ['purple', 'kishins'].includes(displayId) ? 'red' : 'yellow';
+            // if (WorldManagement.Data['user'] && WorldManagement.Data['user']['main'])
+            //   for (const instance of WorldManagement.Data['user']['main'].model.world.instances) {
+            //     if (instance.bot.find((b) => b.displayIds.includes(displayId) && b.type === 'user-hostile')) {
+            //       arrowColor = 'red';
+            //     }
+            //   }
+            const src = `${getProxyPath()}assets/icons/${arrowColor}-pointer-arrow.png`;
+            const componentInstance = Sprite.from(src);
+            componentInstance.width = dim * 0.5;
+            componentInstance.height = dim * 0.4;
+            componentInstance.x = (dim * Elements.Data[type][id].dim) / 2 - (dim * 0.5) / 2;
+
+            componentInstance.visible = false;
+            this.Data[type][id].components[componentType][`pointer-arrow`] = componentInstance;
+            this.Data[type][id].addChild(componentInstance);
+
+            const frames = [-1.8, -2.0];
+            let frame = 0;
+            const callBack = function () {
+              if (!componentInstance.visible) return;
+              componentInstance.y = frames[frame] * dim * Elements.Data[type][id].dim * 0.5;
+              frame++;
+              if (frame === frames.length) frame = 0;
+            };
+
+            setTimeout(() => callBack());
+            this.Data[type][id].intervals[componentType][`pointer-arrow`] = {
+              callBack,
+              interval: setInterval(callBack, 200),
+            };
+          }
           break;
 
         case 'lifeBar':
@@ -344,7 +382,6 @@ const Pixi = {
                 }, 450);
               }
             };
-            if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
             this.Data[type][id].intervals[componentType]['coinIndicator-interval'] = {
               callBack,
               interval: setInterval(callBack, 500),
@@ -399,7 +436,6 @@ const Pixi = {
                 }, 450);
               }
             };
-            if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
             this.Data[type][id].intervals[componentType]['lifeIndicator-interval'] = {
               callBack,
               interval: setInterval(callBack, 500),
@@ -428,7 +464,6 @@ const Pixi = {
         for (const componentIntervalKey of Object.keys(this.Data[type][id].intervals[componentType])) {
           clearInterval(this.Data[type][id].intervals[componentType][componentIntervalKey].interval);
         }
-        this.Data[type][id].intervals[componentType] = {};
       }
 
       if (this.Data[type][id].components[componentType]) {
@@ -522,7 +557,6 @@ const Pixi = {
               let currentFrame = 0;
               let currentSrc;
               let currentIndex = newInstance(index);
-              if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
 
               const callBack = () => {
                 if (!Elements.Data[type][id]) return this.removeElement({ type, id });
@@ -767,6 +801,16 @@ const Pixi = {
     if (this.Data[type][id].components['lifeBar'])
       this.Data[type][id].components['lifeBar'].width =
         dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
+  },
+  displayPointerArrow: function ({ oldElement, newElement }) {
+    {
+      const { type, id } = oldElement;
+      if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = false;
+    }
+    {
+      const { type, id } = newElement;
+      if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = true;
+    }
   },
 };
 

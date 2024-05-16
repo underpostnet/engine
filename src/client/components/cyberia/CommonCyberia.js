@@ -268,6 +268,7 @@ const ComponentElement = {
         lifeIndicator: {},
         coinIndicator: {},
         username: {},
+        pointerArrow: {},
       },
     };
     return Stat.set('user', base, true);
@@ -298,6 +299,7 @@ const ComponentElement = {
         lifeBar: {},
         lifeIndicator: {},
         username: {},
+        pointerArrow: {},
       },
     };
     return Stat.set('bot', base, true);

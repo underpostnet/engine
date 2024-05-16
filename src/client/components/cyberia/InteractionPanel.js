@@ -6,19 +6,28 @@ import { htmls, s } from '../core/VanillaJs.js';
 import { WorldType, isElementCollision } from './CommonCyberia.js';
 import { Elements } from './Elements.js';
 import { Matrix } from './Matrix.js';
+import { Pixi } from './Pixi.js';
 import { PointAndClickMovement } from './PointAndClickMovement.js';
 import { WorldManagement } from './World.js';
 
 const InteractionPanel = {
   Data: {},
   PanelRender: {
-    element: ({ type, id }) => {
+    element: function ({ type, id }) {
       htmls(
         `.display-current-element`,
         html`${type} <span style="color: white">${Elements.getDisplayName({ type, id })}</span>`,
       );
+      setTimeout(() => {
+        if (!InteractionPanel.Data['element-interaction-panel']) return;
+        Pixi.displayPointerArrow({
+          oldElement: InteractionPanel.Data['element-interaction-panel'].element.current,
+          newElement: { type, id },
+        });
+        InteractionPanel.Data['element-interaction-panel'].element.current = { type, id };
+      });
     },
-    map: ({ face }) => {
+    map: function ({ face }) {
       const indexFace = WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces.findIndex(
         (f) => f === face,
       );
@@ -38,7 +47,14 @@ const InteractionPanel = {
   },
   Render: async function (options = { id: 'interaction-panel' }) {
     const id = options?.id ? options.id : getId(this.Data, 'interaction-panel-');
-    this.Data[id] = {};
+    this.Data[id] = {
+      element: {
+        current: {
+          type: 'user',
+          id: 'main',
+        },
+      },
+    };
     const style = {
       height: '40px',
       width: '180px',

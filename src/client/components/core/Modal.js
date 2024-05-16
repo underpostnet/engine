@@ -60,11 +60,7 @@ const Modal = {
             options.style.resize = 'none';
           }
 
-          Responsive.Event[`view-${idModal}`] = () => {
-            if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
-            if (this.Data[idModal].slideMenu)
-              s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
-          };
+          this.addResponsiveEvent({ idModal });
 
           // Router
           if (options.route)
@@ -162,8 +158,9 @@ const Modal = {
               barConfig.buttons.restore.disabled = true;
               barConfig.buttons.menu.disabled = true;
               barConfig.buttons.close.disabled = true;
+              const id = 'main-body';
               await Modal.Render({
-                id: 'main-body',
+                id,
                 barConfig,
                 html: options.htmlMainBody ? options.htmlMainBody : () => html``,
                 titleClass: 'hide',
@@ -172,11 +169,13 @@ const Modal = {
                   background: 'none',
                   resize: 'none',
                   'min-width': '320px',
+                  // border: '3px solid red',
                 },
                 dragDisabled: true,
                 maximize: true,
                 slideMenu: 'modal-menu',
               });
+              setTimeout(() => this.addResponsiveEvent({ idModal: id }));
             });
           })();
           break;
@@ -483,6 +482,14 @@ const Modal = {
       dragInstance,
       setDragInstance,
       ...this.Data[idModal],
+    };
+  },
+  addResponsiveEvent: function (options = { idModal: '' }) {
+    const { idModal } = options;
+    Responsive.Event[`view-${idModal}`] = () => {
+      if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
+      if (this.Data[idModal].slideMenu)
+        s(`.${idModal}`).style.height = `${window.innerHeight - (options.slideTop ? options.slideTop : 52)}px`;
     };
   },
   removeModal: async function (idModal) {

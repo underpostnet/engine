@@ -6,6 +6,10 @@ const logger = loggerFactory(import.meta);
 
 const Worker = {
   Init: async function () {
+    if (location.port) {
+      const cacheNames = await caches.keys();
+      for (const cacheName of cacheNames) if (cacheName.match('components/')) await caches.delete(cacheName);
+    }
     const isInstall = await this.status();
     if (!isInstall) await this.install();
   },

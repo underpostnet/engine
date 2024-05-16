@@ -86,6 +86,7 @@ const CyberiaWsBotManagement = {
       );
 
     if (Stat.get[skinId]) bot = Stat.set('bot', bot);
+    bot.life = newInstance(bot.maxLife);
 
     const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
