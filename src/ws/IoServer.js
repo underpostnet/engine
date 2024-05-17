@@ -23,6 +23,7 @@ const IoServer = (httpServer, options = {}, Connection = () => {}) => {
         'Accept',
         'Connection',
         'Cache-Control',
+        'Authorization',
       ],
       credentials: true,
     },
