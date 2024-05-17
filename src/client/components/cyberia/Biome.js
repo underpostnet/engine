@@ -39,6 +39,60 @@ const logger = loggerFactory(import.meta);
 const BiomeParamsScope = CyberiaBaseMatrix();
 
 const Biome = {
+  'city-interior-building': async function () {
+    const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
+    const BiomeMatrix = {
+      color: {},
+      solid: {},
+    };
+
+    const squareDimLimit = round10((dim - 1) * [0.2, 0.15, 0.1, 0.05][random(0, 3)]);
+
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
+        if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+
+        if (
+          x >= squareDimLimit &&
+          x <= dim - 1 - squareDimLimit &&
+          y >= squareDimLimit &&
+          y <= dim - 1 - squareDimLimit
+        ) {
+          BiomeMatrix.color[y][x] = `#ffd900`;
+          BiomeMatrix.solid[y][x] = 0;
+        } else {
+          BiomeMatrix.color[y][x] = `#000000`;
+          BiomeMatrix.solid[y][x] = 1;
+        }
+      });
+    });
+
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (!BiomeMatrix.color[y]) BiomeMatrix.color[y] = {};
+        if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
+
+        if (
+          x >= squareDimLimit &&
+          x <= dim - 1 - squareDimLimit &&
+          y >= squareDimLimit &&
+          y <= dim - 1 - squareDimLimit
+        ) {
+          if (
+            x % BiomeParamsScope.dimPaintByCell === 0 &&
+            y % BiomeParamsScope.dimPaintByCell === 0 &&
+            random(0, 700) < 10
+          ) {
+            BiomeMatrix.color[y][x] = `#ff0a0a`;
+            BiomeMatrix.solid[y][x] = 1;
+          }
+        }
+      });
+    });
+
+    return BiomeMatrix;
+  },
   city: async function () {
     const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
     const buildingStyles = [
