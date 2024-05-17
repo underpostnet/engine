@@ -46,8 +46,9 @@ const CyberiaUserService = {
           }
 
           if (userWorldId !== options.cyberia.world.instance._id.toString()) {
+            // const redirectPort = getCyberiaPortByWorldPath(options, `/${userWorld._doc.name}`);
             result = {
-              redirect: `${getCyberiaPortByWorldPath(options, `/${userWorld._doc.name}`)}/${userWorld._doc.name}`,
+              redirect: `/${userWorld._doc.name}`,
             };
             return result;
           }

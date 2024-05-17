@@ -5,13 +5,14 @@ import { newInstance } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { LogIn } from '../core/LogIn.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { s } from '../core/VanillaJs.js';
+import { s, setURI } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { CyberiaWebhook } from './CyberiaWebhook.js';
 import { Elements } from './Elements.js';
 import { InteractionPanel } from './InteractionPanel.js';
 import { MainUser } from './MainUser.js';
+import { SocketIoCyberia } from './SocketIoCyberia.js';
 
 const initAnonSession = async () => {
   LoadingAnimation.barLevel.append();
@@ -45,7 +46,10 @@ const LogInCyberia = async function () {
     if (resultUserCyberia.data.redirect) {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
       // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
-      return (location.href = redirect);
+      // return (location.href = redirect);
+      setURI(resultUserCyberia.data.redirect);
+      await SocketIo.Init({ channels: Elements.Data });
+      return await SocketIoCyberia.Init();
     }
     LoadingAnimation.barLevel.append();
     if (resultUserCyberia.status === 'success') {

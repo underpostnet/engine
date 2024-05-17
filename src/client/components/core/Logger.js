@@ -3,7 +3,7 @@ const loggerFactory = (meta) => {
   const types = ['error', 'warn', 'info', 'debug'];
   const logger = {
     log: function (type, args) {
-      if (!location.port && console.log() !== null) {
+      if (location.hostname !== 'localhost' && console.log() !== null) {
         console.log = () => null;
         console.error = () => null;
         console.info = () => null;
@@ -15,7 +15,7 @@ const loggerFactory = (meta) => {
       } catch (error) {
         stack = error.stack.split('Logger.js')[2].split(')')[1];
       }
-      return location.port
+      return location.hostname === 'localhost'
         ? console[type](
             `[${meta}] ${new Date().toISOString()} ${type}:`,
             args[0],

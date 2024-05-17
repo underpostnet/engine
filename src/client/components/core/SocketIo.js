@@ -10,7 +10,8 @@ const SocketIo = {
     connect_error: {},
     disconnect: {},
   },
-  socket: {},
+  /** @type {import('socket.io').Socket} */
+  socket: null,
   Emit: function (channel = '', payload = {}) {
     try {
       this.socket.emit(channel, JSON.stringify(payload));
@@ -19,6 +20,7 @@ const SocketIo = {
     }
   },
   Init: async function (options) {
+    if (this.socket) this.socket.disconnect();
     const { protocol, host } = window.location;
     this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
     logger.info(`ws host:`, this.host);

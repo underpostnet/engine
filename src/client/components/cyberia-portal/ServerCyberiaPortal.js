@@ -27,9 +27,8 @@ const ServerCyberiaPortal = {
 
         setTimeout(() => {
           s(`.btn-server-${server}-${id}`).onclick = () => {
-            location.href = location.port
-              ? `http://localhost:${port}/${server}`
-              : `https://www.cyberiaonline.com/${server}`;
+            const { protocol, hostname } = window.location;
+            location.href = `${protocol}//${hostname}/${server}`;
           };
         });
       }

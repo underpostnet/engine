@@ -10,7 +10,7 @@ const Worker = {
     let success = false;
     const isInstall = await this.status();
     if (!isInstall) await this.install();
-    else if (location.port) await this.update();
+    else if (location.hostname === 'localhost') await this.update();
     setTimeout(async () => {
       if (!success) {
         await this.update();

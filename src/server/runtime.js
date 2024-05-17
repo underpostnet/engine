@@ -222,7 +222,7 @@ const buildRuntime = async () => {
 
           if (redirect) {
             app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {
-              if (!req.url.startsWith(`/.well-known/acme-challenge`))
+              if (process.env.NODE_ENV === 'production' && !req.url.startsWith(`/.well-known/acme-challenge`))
                 return res.status(302).redirect(redirectTarget + req.url);
               // if (!req.url.startsWith(`/.well-known/acme-challenge`)) return res.status(302).redirect(redirect);
               return next();

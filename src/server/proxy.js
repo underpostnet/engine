@@ -118,14 +118,14 @@ const buildProxy = async () => {
     const hosts = proxyRouter[port];
     Object.keys(hosts).map((hostKey) => {
       let { host, path, target, proxy, peer } = hosts[hostKey];
-      // host = `localhost`;
+      if (process.env.NODE_ENV === 'development') host = `localhost`;
 
       if (!proxy.includes(port)) return;
       const absoluteHost = [80, 443].includes(port)
         ? `${host}${path === '/' ? '' : path}`
         : `${host}:${port}${path === '/' ? '' : path}`;
 
-      options.router[absoluteHost] = target;
+      if (!(absoluteHost in options.router)) options.router[absoluteHost] = target;
     });
 
     // order router
