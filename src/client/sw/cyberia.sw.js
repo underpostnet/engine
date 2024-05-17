@@ -47,6 +47,10 @@ self.addEventListener('install', (event) => {
       // Setting {cache: 'reload'} in the new request will ensure that the response
       // isn't fulfilled from the HTTP cache; i.e., it will be from the network.
       // await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
+      // Open the app's cache.
+      // const cache = await caches.open(CACHE_NAME);
+      // Cache all static resources.
+      // await cache.addAll(PRE_CACHED_RESOURCES);
     })(),
   );
 });
@@ -134,6 +138,13 @@ self.addEventListener('fetch', (event) => {
             if (!preloadCache) {
               logger.warn('install', path);
               await cache.add(new Request(event.request.url, { cache: 'reload' }));
+              // Other option:
+              // The resource wasn't found in the cache, so fetch it from the network.
+              // const fetchResponse = await fetch(event.request.url);
+              // Put the response in cache.
+              // await cache.put(event.request.url, fetchResponse.clone());
+              // And return the response.
+              // return fetchResponse;
             }
             // logger.info('cache response', path);
             return await cache.match(path);
