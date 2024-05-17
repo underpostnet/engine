@@ -35,7 +35,7 @@ const RoutesCyberiaPortal = () => {
 window.Routes = RoutesCyberiaPortal;
 
 const RouterCyberiaPortal = () => {
-  return { Routes: RoutesCyberiaPortal, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesCyberiaPortal, NameApp };
 };
 
 export { RoutesCyberiaPortal, RouterCyberiaPortal, NameApp };

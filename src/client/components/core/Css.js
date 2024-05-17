@@ -3,7 +3,6 @@ import { Modal } from './Modal.js';
 import { ToolBar } from './ToolBar.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
-let proxyPath;
 let Menu;
 // https://www.fontspace.com/
 // https://www.1001fonts.com/
@@ -25,7 +24,6 @@ const Css = {
     if (ToolBar.toolBarThemeRender) ToolBar.toolBarThemeRender();
   },
   Init: async function (options) {
-    if (!proxyPath) proxyPath = getProxyPath();
     if (!options) options = { theme: 'default' };
     const { theme } = options;
     append(
@@ -588,15 +586,15 @@ scrollbar-width: none;
         <style>
           @font-face {
             font-family: 'retro-font-title';
-            src: URL('${proxyPath}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+            src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
           }
           @font-face {
             font-family: 'retro-font';
-            src: URL('${proxyPath}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+            src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
           }
           @font-face {
             font-family: 'retro-font-sensitive';
-            src: URL('${proxyPath}assets/fonts/VT323-Regular.ttf') format('truetype');
+            src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
           }
         </style>
       `,
@@ -620,17 +618,20 @@ scrollbar-width: none;
     );
   },
   fontawesome: async () =>
-    append('head', html`<link rel="stylesheet" type="text/css" href="${proxyPath}dist/fontawesome/css/all.min.css" />`),
+    append(
+      'head',
+      html`<link rel="stylesheet" type="text/css" href="${getProxyPath()}dist/fontawesome/css/all.min.css" />`,
+    ),
 };
 
 const barLabels = () => {
   return {
     cyberia: {
-      close: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/close.png" />`,
-      maximize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/maximize.png" />`,
-      minimize: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/minimize.png" />`,
-      restore: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/restore.png" />`,
-      menu: html`<img class="inl bar-default-modal-icon" src="${proxyPath}assets/icons/menu.png" />`,
+      close: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/close.png" />`,
+      maximize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/maximize.png" />`,
+      minimize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/minimize.png" />`,
+      restore: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/restore.png" />`,
+      menu: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/menu.png" />`,
     },
     fontawesome: {
       close: html`<i class="fa-solid fa-xmark"></i>`,

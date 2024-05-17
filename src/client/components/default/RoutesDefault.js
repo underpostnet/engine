@@ -34,7 +34,7 @@ const RoutesDefault = () => {
 window.Routes = RoutesDefault;
 
 const RouterDefault = () => {
-  return { Routes: RoutesDefault, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesDefault, NameApp };
 };
 
 export { RoutesDefault, RouterDefault, NameApp };

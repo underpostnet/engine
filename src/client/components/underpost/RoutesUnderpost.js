@@ -39,7 +39,7 @@ const RoutesUnderpost = () => {
 window.Routes = RoutesUnderpost;
 
 const RouterUnderpost = () => {
-  return { Routes: RoutesUnderpost, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesUnderpost, NameApp };
 };
 
 export { RoutesUnderpost, RouterUnderpost, NameApp };

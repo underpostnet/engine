@@ -33,7 +33,7 @@ const RoutesCryptokoyn = () => {
 window.Routes = RoutesCryptokoyn;
 
 const RouterCryptokoyn = () => {
-  return { Routes: RoutesCryptokoyn, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesCryptokoyn, NameApp };
 };
 
 export { RoutesCryptokoyn, RouterCryptokoyn, NameApp };

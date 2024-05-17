@@ -42,7 +42,7 @@ const RoutesBms = () => {
 window.Routes = RoutesBms;
 
 const RouterBms = () => {
-  return { Routes: RoutesBms, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesBms, NameApp };
 };
 
 export { RoutesBms, RouterBms, NameApp };

@@ -89,7 +89,7 @@ const FileExplorer = {
     let bucketId = '';
     let bucketInstance = [];
 
-    RouterEvents['file-explorer'] = ({ path, pushPath, proxyPath, route }) => {
+    RouterEvents['file-explorer'] = ({ path, pushPath, route }) => {
       if (route === 'cloud') {
         setTimeout(() => {
           const query = getQueryParams();

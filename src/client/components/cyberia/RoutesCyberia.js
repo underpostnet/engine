@@ -45,7 +45,7 @@ const RoutesCyberia = () => {
 window.Routes = RoutesCyberia;
 
 const RouterCyberia = () => {
-  return { Routes: RoutesCyberia, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesCyberia, NameApp };
 };
 
 export { RoutesCyberia, RouterCyberia, NameApp };

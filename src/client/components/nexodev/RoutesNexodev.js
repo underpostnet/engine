@@ -42,7 +42,7 @@ const RoutesNexodev = () => {
 window.Routes = RoutesNexodev;
 
 const RouterNexodev = () => {
-  return { Routes: RoutesNexodev, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesNexodev, NameApp };
 };
 
 export { RoutesNexodev, RouterNexodev, NameApp };

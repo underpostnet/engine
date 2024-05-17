@@ -33,7 +33,7 @@ const RoutesDogmadual = () => {
 window.Routes = RoutesDogmadual;
 
 const RouterDogmadual = () => {
-  return { Routes: RoutesDogmadual, proxyPath: getProxyPath(), NameApp };
+  return { Routes: RoutesDogmadual, NameApp };
 };
 
 export { RoutesDogmadual, RouterDogmadual, NameApp };
