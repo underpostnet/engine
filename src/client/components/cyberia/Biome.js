@@ -46,7 +46,8 @@ const Biome = {
       solid: {},
     };
 
-    const squareDimLimit = round10((dim - 1) * [0.2, 0.15, 0.1, 0.05][random(0, 3)]);
+    const squareSeedDimLimit = round10((dim - 1) * [0.2, 0.15, 0.1, 0.05][random(0, 3)]);
+    const squareSeedDimLimitMax = round10(squareSeedDimLimit * (1 + [0.5, 0.6, 0.7, 0.8][random(0, 3)]));
 
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
@@ -54,10 +55,10 @@ const Biome = {
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
 
         if (
-          x >= squareDimLimit &&
-          x <= dim - 1 - squareDimLimit &&
-          y >= squareDimLimit &&
-          y <= dim - 1 - squareDimLimit
+          x >= squareSeedDimLimit &&
+          x <= dim - 1 - squareSeedDimLimit &&
+          y >= squareSeedDimLimit &&
+          y <= dim - 1 - squareSeedDimLimit
         ) {
           BiomeMatrix.color[y][x] = `#ffd900`;
           BiomeMatrix.solid[y][x] = 0;
@@ -74,19 +75,45 @@ const Biome = {
         if (!BiomeMatrix.solid[y]) BiomeMatrix.solid[y] = {};
 
         if (
-          x >= squareDimLimit &&
-          x <= dim - 1 - squareDimLimit &&
-          y >= squareDimLimit &&
-          y <= dim - 1 - squareDimLimit
+          x >= squareSeedDimLimit &&
+          x <= dim - 1 - squareSeedDimLimit &&
+          y >= squareSeedDimLimit &&
+          y <= dim - 1 - squareSeedDimLimit
         ) {
           if (
             x % BiomeParamsScope.dimPaintByCell === 0 &&
             y % BiomeParamsScope.dimPaintByCell === 0 &&
-            random(0, 700) < 10
+            random(0, 700) < 30
           ) {
-            BiomeMatrix.color[y][x] = `#ff0a0a`;
-            BiomeMatrix.solid[y][x] = 1;
+            if (
+              !(
+                x >= squareSeedDimLimitMax &&
+                x <= dim - 1 - squareSeedDimLimitMax &&
+                y >= squareSeedDimLimitMax &&
+                y <= dim - 1 - squareSeedDimLimitMax
+              )
+            ) {
+              BiomeMatrix.color[y][x] = `#ff0a0a`;
+            }
           }
+        }
+      });
+    });
+
+    const seedMatrix = newInstance(BiomeMatrix.color);
+
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (seedMatrix[y][x] === `#ff0a0a`) {
+          const squareLimit = round10(((dim - 1) * [0.1, 0.2, 0.3, 0.4][random(0, 3)]) / 2);
+          range(-1 * squareLimit, squareLimit).map((sumY) => {
+            range(-1 * squareLimit, squareLimit).map((sumX) => {
+              if (BiomeMatrix.color[y + sumY] && BiomeMatrix.color[y + sumY][x + sumX]) {
+                BiomeMatrix.color[y + sumY][x + sumX] = `#000000`;
+                BiomeMatrix.solid[y + sumY][x + sumX] = 1;
+              }
+            });
+          });
         }
       });
     });
@@ -878,7 +905,7 @@ const BiomeEngine = {
         <div class="in row-${biome}" style="display: none">
           ${await Input.Render({
             id: `input-name-${biome}`,
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
+            label: html`<i class="fa-solid fa-pen-to-squareSeed"></i> ${Translate.Render('name')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
@@ -1103,7 +1130,7 @@ const BiomeEngine = {
         </div>
         <div class="in fll biome-col-b">
           <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
+            <div class="in sub-title-modal"><i class="fa-solid fa-vector-squareSeed"></i> Render</div>
           </div>
           <div class="in section-mp">
             <div class="in biome-pixi-container"></div>
