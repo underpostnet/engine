@@ -1,3 +1,4 @@
+import { s4 } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { loggerFactory } from './Logger.js';
 import { getProxyPath, s } from './VanillaJs.js';
@@ -46,10 +47,11 @@ const Worker = {
   },
   reload: async function (timeOut = 3000) {
     return await new Promise((resolve) => {
-      navigator.serviceWorker.controller.postMessage({
-        status: 'skipWaiting',
-      });
-      setTimeout(() => resolve(open(location, '_self').close()), timeOut);
+      if (navigator.serviceWorker && navigator.serviceWorker.controller)
+        navigator.serviceWorker.controller.postMessage({
+          status: 'skipWaiting',
+        });
+      setTimeout(() => resolve((location.href = `${location.origin}${location.pathname}?r=${s4()}`)), timeOut);
     });
   },
   update: async function () {
