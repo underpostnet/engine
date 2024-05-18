@@ -120,7 +120,7 @@ const Biome = {
 
     // doors
     const seedMatrixDoor = newInstance(BiomeMatrix.color);
-    const instanceValidDoor = (x, fromLimitX, toLimitX, y, fromLimitY, toLimitY) => {
+    const _instanceValidDoor = (x, fromLimitX, toLimitX, y, fromLimitY, toLimitY) => {
       let validDoor = true;
       for (const sumY of range(fromLimitY, toLimitY)) {
         for (const sumX of range(fromLimitX, toLimitX)) {
@@ -143,6 +143,44 @@ const Biome = {
             else BiomeMatrix.color[y + sumY][x + sumX] = `#790073`;
           }
         }
+    };
+    const instanceValidDoor = (x, fromLimitX, toLimitX, y, fromLimitY, toLimitY) => {
+      let validDoor = true;
+      for (const sumY of range(fromLimitY, toLimitY)) {
+        for (const sumX of range(fromLimitX, toLimitX)) {
+          if (
+            !seedMatrixDoor[y + sumY] ||
+            !seedMatrixDoor[y + sumY][x + sumX] ||
+            seedMatrixDoor[y + sumY][x + sumX] !== `#ffd900` ||
+            BiomeMatrix.color[y + sumY][x + sumX] === `#790073` ||
+            BiomeMatrix.color[y + sumY][x + sumX] === `#1fa92d`
+          ) {
+            validDoor = false;
+          }
+        }
+      }
+      if (validDoor) {
+        const colorDoor = random(0, 20) <= 5 ? `#1fa92d` : `#790073`;
+        for (const sumY of range(fromLimitY, toLimitY)) {
+          for (const sumX of range(fromLimitX, toLimitX)) {
+            if (
+              fromLimitX > 0 &&
+              (sumX > 3 || sumY > 3) &&
+              BiomeMatrix.color[y + sumY][x + sumX] !== `#790073` &&
+              BiomeMatrix.color[y + sumY][x + sumX] !== `#1fa92d`
+            )
+              BiomeMatrix.color[y + sumY][x + sumX] = `#ff00f2`;
+            else if (
+              fromLimitX < 0 &&
+              (sumX < -3 || sumY < -3) &&
+              BiomeMatrix.color[y + sumY][x + sumX] !== `#790073` &&
+              BiomeMatrix.color[y + sumY][x + sumX] !== `#1fa92d`
+            )
+              BiomeMatrix.color[y + sumY][x + sumX] = `#ff00f2`;
+            else BiomeMatrix.color[y + sumY][x + sumX] = colorDoor;
+          }
+        }
+      }
     };
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
