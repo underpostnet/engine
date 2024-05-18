@@ -39,15 +39,6 @@ import { Worker } from './components/core/Worker.js';
     await PointAndClickMovement.Render();
     await InteractionPanel.Render({ id: 'map-interaction-panel' });
     await InteractionPanel.Render({ id: 'element-interaction-panel' });
-    await SocketIo.Init({ channels: Elements.Data });
-    await SocketIoCyberia.Init();
-    await LogOutCyberia();
-    await SignUpCyberia();
-    LoadRouter(RouterInstance);
-    disableOptionsClick('html', ['drag', 'select', 'menu']);
-    // s(`.btn-menu-modal-menu`).click();
-    await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
-    await JoyStickCyberia.Render();
     await ToolBar.Render({
       id: 'ToolBar',
       tools: [
@@ -69,4 +60,13 @@ import { Worker } from './components/core/Worker.js';
         },
       ],
     });
+    await SocketIo.Init({ channels: Elements.Data });
+    await SocketIoCyberia.Init();
+    await LogOutCyberia();
+    await SignUpCyberia();
+    LoadRouter(RouterInstance);
+    disableOptionsClick('html', ['drag', 'select', 'menu']);
+    // s(`.btn-menu-modal-menu`).click();
+    await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
+    await JoyStickCyberia.Render();
   }))();

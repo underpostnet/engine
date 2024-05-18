@@ -395,6 +395,8 @@ const PlayerElement = () => {
     maxLife: 150,
     life: 150,
     deadTime: 3000,
+    lifeRegeneration: 5,
+    lifeRegenerationVel: 1500,
     coin: 0,
   };
 };

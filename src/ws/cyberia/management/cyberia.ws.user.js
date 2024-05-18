@@ -29,10 +29,32 @@ const CyberiaWsUserManagement = {
     this.localElementScope[wsManagementId] = {};
     this.updateCyberiaUser(wsManagementId, 1500);
   },
+  setRegenerationLife: function (wsManagementId, id) {
+    this.localElementScope[wsManagementId][id].lifeRegeneration = {
+      Callback: async () => {
+        await timer(this.element[wsManagementId][id].lifeRegenerationVel);
+        if (!this.localElementScope[wsManagementId] || !this.localElementScope[wsManagementId][id]) return;
+        if (this.element[wsManagementId][id].life > 0) {
+          this.updateLife({
+            wsManagementId,
+            id,
+            life: this.element[wsManagementId][id].life + this.element[wsManagementId][id].lifeRegeneration,
+          });
+        }
+        this.localElementScope[wsManagementId][id].lifeRegeneration.Callback();
+      },
+    };
+    this.localElementScope[wsManagementId][id].lifeRegeneration.Callback();
+  },
   updateLife: function (args = { wsManagementId: '', id: '', life: 1 }) {
     const { wsManagementId, id, life } = args;
     if (!this.element[wsManagementId][id]) return;
-    this.element[wsManagementId][id].life = life < 0 ? 0 : life;
+    this.element[wsManagementId][id].life =
+      life < 0
+        ? 0
+        : life > this.element[wsManagementId][id].maxLife
+        ? newInstance(this.element[wsManagementId][id].maxLife)
+        : life;
     for (const clientId of Object.keys(this.element[wsManagementId])) {
       if (
         objectEquals(this.element[wsManagementId][id].model.world, this.element[wsManagementId][clientId].model.world)

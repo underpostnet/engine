@@ -108,6 +108,18 @@ const CyberiaWsBotManagement = {
           id: '',
         },
       },
+      lifeRegeneration: {
+        Callback: async () => {
+          if (this.element[wsManagementId][id].life > 0)
+            this.updateLife({
+              wsManagementId,
+              id,
+              life: this.element[wsManagementId][id].life + bot.lifeRegeneration,
+            });
+          await timer(bot.lifeRegenerationVel);
+          this.localElementScope[wsManagementId][id].lifeRegeneration.Callback();
+        },
+      },
       movement: {
         Direction: undefined,
         InitPosition: { x, y },
@@ -382,6 +394,7 @@ const CyberiaWsBotManagement = {
       case 'user-hostile':
         {
           this.localElementScope[wsManagementId][id].movement.Callback();
+          this.localElementScope[wsManagementId][id].lifeRegeneration.Callback();
           const skillDataStat = Stat.get[this.element[wsManagementId][id].skill.keys.basic]();
 
           this.localElementScope[wsManagementId][id].skill = {
@@ -451,7 +464,12 @@ const CyberiaWsBotManagement = {
   updateLife: function (args = { wsManagementId: '', id: '', life: 1 }) {
     const { wsManagementId, id, life } = args;
     if (!this.element[wsManagementId][id]) return;
-    this.element[wsManagementId][id].life = life < 0 ? 0 : life;
+    this.element[wsManagementId][id].life =
+      life < 0
+        ? 0
+        : life > this.element[wsManagementId][id].maxLife
+        ? newInstance(this.element[wsManagementId][id].maxLife)
+        : life;
     for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
       if (
         objectEquals(

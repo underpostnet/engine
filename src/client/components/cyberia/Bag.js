@@ -298,7 +298,16 @@ const ItemModal = {
     },
   },
   RenderStat: function (statData, options) {
-    const displayStats = ['dim', 'vel', 'maxLife', 'life', 'deadTime', 'damage'];
+    const displayStats = [
+      'dim',
+      'vel',
+      'maxLife',
+      'life',
+      'deadTime',
+      'damage',
+      'lifeRegeneration',
+      'lifeRegenerationVel',
+    ];
     let statsRender = '';
     if (options)
       for (const statKey of Object.keys(options)) {

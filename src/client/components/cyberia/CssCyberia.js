@@ -536,6 +536,7 @@ const CssCyberia = {
           width: 50%;
           /*  border: 2px solid #313131; */
           box-sizing: border-box;
+          font-size: 16px;
         }
         .stat-table-cell-key {
           color: #ffcc00;

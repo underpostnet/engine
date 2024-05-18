@@ -28,11 +28,6 @@ import { Worker } from './components/core/Worker.js';
     await Responsive.Init();
     await Menu.Render();
     await NotificationManager.RenderBoard();
-    await LogInCyberiaPortal();
-    await LogOutCyberiaPortal();
-    await SignUpCyberiaPortal();
-    LoadRouter(RouterInstance);
-    // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
     await ToolBar.Render({
       id: 'ToolBar',
       tools: [
@@ -54,4 +49,9 @@ import { Worker } from './components/core/Worker.js';
         },
       ],
     });
+    await LogInCyberiaPortal();
+    await LogOutCyberiaPortal();
+    await SignUpCyberiaPortal();
+    LoadRouter(RouterInstance);
+    // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
   }))();

@@ -252,6 +252,7 @@ const CyberiaWsUserController = {
           });
       }
     }
+    CyberiaWsUserManagement.setRegenerationLife(wsManagementId, socket.id);
   },
   disconnect: function (socket, client, reason, wsManagementId) {
     for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
