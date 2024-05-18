@@ -1189,7 +1189,7 @@ const BiomeEngine = {
           ${await Input.Render({
             id: `biome-dim`,
             label: html`<i class="fa-solid fa-ruler"></i> dim`,
-            containerClass: 'inl section-mp width-mini-box input-container',
+            containerClass: 'in section-mp width-mini-box input-container',
             type: 'number',
             min: 0,
             placeholder: true,
@@ -1198,7 +1198,7 @@ const BiomeEngine = {
           ${await Input.Render({
             id: `biome-dimPaintByCell`,
             label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
-            containerClass: 'inl section-mp width-mini-box input-container',
+            containerClass: 'in section-mp width-mini-box input-container',
             type: 'number',
             min: 0,
             placeholder: true,

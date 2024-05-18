@@ -15,6 +15,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
+import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 import { Bag } from './Bag.js';
 import { BiomeEngine } from './Biome.js';
 import { Character } from './Character.js';
@@ -124,6 +125,11 @@ const Menu = {
             class: 'in fll main-btn-square-menu main-btn-cloud',
             label: this.renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
             attrs: `data-id="16"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-server',
+            label: this.renderMenuLabel({ img: 'server.png', text: 'Server' }),
+            attrs: `data-id="17"`,
           })}
         </div>
       `,
@@ -440,6 +446,22 @@ const Menu = {
         barConfig,
         title: this.renderViewTitle({ 'ui-icon': 'cloud.png', text: 'cloud' }),
         html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-server`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-server',
+        route: 'server',
+        barConfig,
+        title: this.renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
+        html: async () => await ServerCyberiaPortal.Render({ idModal: 'modal-server' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

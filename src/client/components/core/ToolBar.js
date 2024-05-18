@@ -11,7 +11,7 @@ const ToolBar = {
   Render: async function (options = { id: 'ToolBar', tools: [] }) {
     const id = options?.id ? options.id : getId(this.Data, 'ToolBar-');
     this.Data[id] = {};
-    const width = 75;
+    const width = 300;
     const style = {
       height: '40px',
       width: `${width}px`,
@@ -46,7 +46,7 @@ const ToolBar = {
     };
     Responsive.Event[id]();
     if (options.tools)
-      for (const tool of options.tools) {
+      for (const tool of options.tools.reverse()) {
         switch (tool.id) {
           case 'theme':
             this.toolBarThemeRender = () =>
@@ -88,6 +88,24 @@ const ToolBar = {
               if (s(`.dropdown-option-${lang}`)) s(`.dropdown-option-${lang}`).click();
               else Translate.renderLang(lang);
             });
+            break;
+          case 'sign-up':
+            append(
+              `.${id}-render`,
+              html` <div class="in flr toolbar-slot toolbar-sign-up">
+                <div class="abs center">${tool.icon ? tool.icon : html`sign<br />up`}</div>
+              </div>`,
+            );
+            s(`.toolbar-sign-up`).onclick = () => s(`.main-btn-sign-up`).click();
+            break;
+          case 'log-in':
+            append(
+              `.${id}-render`,
+              html` <div class="in flr toolbar-slot toolbar-log-in">
+                <div class="abs center">${tool.icon ? tool.icon : html`log<br />in`}</div>
+              </div>`,
+            );
+            s(`.toolbar-log-in`).onclick = () => s(`.main-btn-log-in`).click();
             break;
 
           default:

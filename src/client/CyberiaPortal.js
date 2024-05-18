@@ -41,6 +41,14 @@ import { Worker } from './components/core/Worker.js';
         //   themes,
         // },
         {
+          id: 'log-in',
+          icon: html`<i class="toolbar-fas-fa fas fa-sign-in-alt"></i>`,
+        },
+        {
+          id: 'sign-up',
+          icon: html`<i class="toolbar-fas-fa fas fa-user-plus"></i>`,
+        },
+        {
           id: 'lang',
           langs: ['es', 'en'],
         },

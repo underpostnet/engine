@@ -1,7 +1,7 @@
 import { SocketIo } from './components/core/SocketIo.js';
 import { Responsive } from './components/core/Responsive.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { disableOptionsClick, s } from './components/core/VanillaJs.js';
+import { disableOptionsClick, getProxyPath, s } from './components/core/VanillaJs.js';
 import { NotificationManager } from './components/core/NotificationManager.js';
 import { Pixi } from './components/cyberia/Pixi.js';
 import { Elements } from './components/cyberia/Elements.js';
@@ -55,6 +55,14 @@ import { Worker } from './components/core/Worker.js';
         //   id: 'theme',
         //   themes,
         // },
+        {
+          id: 'log-in',
+          icon: html`<img class="in toolbar-icon" src="${getProxyPath()}assets/ui-icons/log-in.png" />`,
+        },
+        {
+          id: 'sign-up',
+          icon: html`<img class="in toolbar-icon" src="${getProxyPath()}assets/ui-icons/sign-up.png" />`,
+        },
         {
           id: 'lang',
           langs: ['es', 'en'],

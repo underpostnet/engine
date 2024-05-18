@@ -601,6 +601,26 @@ const CssCyberia = {
           position: relative;
           top: 4px;
         }
+        .toolbar-icon {
+          width: 27px;
+          height: 27px;
+        }
+        .toolbar-icon:hover {
+          width: 30px;
+          height: 30px;
+        }
+        .toolbar-fas-fa {
+          font-size: 18px;
+        }
+        .toolbar-fas-fa:hover {
+          font-size: 21px;
+        }
+        .toolbar-lang {
+          font-size: 26px;
+        }
+        .toolbar-lang:hover {
+          font-size: 30px;
+        }
       </style>
 
       ${borderChar(2, 'black', [
