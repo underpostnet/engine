@@ -118,6 +118,43 @@ const Biome = {
       });
     });
 
+    // doors
+    const seedMatrixDoor = newInstance(BiomeMatrix.color);
+    const instanceValidDoor = (x, fromLimitX, toLimitX, y, fromLimitY, toLimitY) => {
+      let validDoor = true;
+      for (const sumY of range(fromLimitY, toLimitY)) {
+        for (const sumX of range(fromLimitX, toLimitX)) {
+          if (
+            !seedMatrixDoor[y + sumY] ||
+            !seedMatrixDoor[y + sumY][x + sumX] ||
+            seedMatrixDoor[y + sumY][x + sumX] !== `#ffd900`
+          ) {
+            validDoor = false;
+          }
+        }
+      }
+      if (validDoor)
+        for (const sumY of range(fromLimitY, toLimitY)) {
+          for (const sumX of range(fromLimitX, toLimitX)) {
+            if (fromLimitX > 0 && (sumX > 3 || sumY > 3) && BiomeMatrix.color[y + sumY][x + sumX] !== `#790073`)
+              BiomeMatrix.color[y + sumY][x + sumX] = `#ff00f2`;
+            else if (fromLimitX < 0 && (sumX < -3 || sumY < -3) && BiomeMatrix.color[y + sumY][x + sumX] !== `#790073`)
+              BiomeMatrix.color[y + sumY][x + sumX] = `#ff00f2`;
+            else BiomeMatrix.color[y + sumY][x + sumX] = `#790073`;
+          }
+        }
+    };
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (BiomeMatrix.color[y][x] === `#000000`) {
+          instanceValidDoor(x, 1, 6, y, 1, 3);
+          instanceValidDoor(x, -1, -6, y, -1, -3);
+          instanceValidDoor(x, 1, 3, y, 1, 6);
+          instanceValidDoor(x, -1, -3, y, -1, -6);
+        }
+      });
+    });
+
     return BiomeMatrix;
   },
   city: async function () {
@@ -1092,6 +1129,8 @@ const BiomeEngine = {
       s(`.biome-dim`).onblur = updateDim;
       s(`.biome-dimPaintByCell`).oninput = updateDimPaintByCell;
       s(`.biome-dimPaintByCell`).onblur = updateDimPaintByCell;
+      updateDim();
+      updateDimPaintByCell();
     });
 
     return html`
