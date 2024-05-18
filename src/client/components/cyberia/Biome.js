@@ -980,7 +980,7 @@ const BiomeEngine = {
         <div class="in row-${biome}" style="display: none">
           ${await Input.Render({
             id: `input-name-${biome}`,
-            label: html`<i class="fa-solid fa-pen-to-squareSeed"></i> ${Translate.Render('name')}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}
@@ -1207,7 +1207,7 @@ const BiomeEngine = {
         </div>
         <div class="in fll biome-col-b">
           <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="fa-solid fa-vector-squareSeed"></i> Render</div>
+            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
           </div>
           <div class="in section-mp">
             <div class="in biome-pixi-container"></div>
