@@ -12,8 +12,9 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, s, setURI } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 import { Bag } from './Bag.js';
@@ -22,6 +23,7 @@ import { Character } from './Character.js';
 import { Elements } from './Elements.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { Settings } from './Settings.js';
+import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { Tile } from './Tile.js';
 import { World } from './World.js';
 import Sortable from 'sortablejs';
@@ -461,7 +463,17 @@ const Menu = {
         route: 'server',
         barConfig,
         title: this.renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
-        html: async () => await ServerCyberiaPortal.Render({ idModal: 'modal-server' }),
+        html: async () =>
+          await ServerCyberiaPortal.Render({
+            idModal: 'modal-server',
+            events: {
+              'change-server': async ({ server }) => {
+                setURI(server);
+                await SocketIo.Init({ channels: Elements.Data });
+                return await SocketIoCyberia.Init();
+              },
+            },
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

@@ -10,8 +10,16 @@ const ServerCyberiaPortal = {
     { server: 'dim32', port: 4002, status: 'online' },
     { server: 'hhworld', port: 4003, status: 'online' },
   ],
-  Render: async function () {
-    const id = getId(this.Tokens, 'server-cyberia-');
+  Render: async function (options = { idModal: '', events: {} }) {
+    const id = options?.idModal ? options.idModal : getId(this.Tokens, 'server-cyberia-');
+    this.Tokens[id] = {
+      events: {},
+    };
+    if (options && options.events)
+      this.Tokens[id].events = {
+        ...this.Tokens[id].events,
+        ...options.events,
+      };
 
     class LoadGridServerActionsRenderer {
       eGui;
@@ -26,7 +34,14 @@ const ServerCyberiaPortal = {
         })}`;
 
         setTimeout(() => {
-          s(`.btn-server-${server}-${id}`).onclick = () => {
+          s(`.btn-server-${server}-${id}`).onclick = async () => {
+            const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
+            if (keyEvents.length > 0) {
+              for (const keyEvent of keyEvents)
+                await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: `/${server}` });
+              if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
+              return;
+            }
             const { protocol, hostname } = window.location;
             location.href = `${protocol}//${hostname}/${server}`;
           };
