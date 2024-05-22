@@ -502,6 +502,65 @@ const addApiConf = async (
   fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
 };
 
+const addWsConf = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
+) => {
+  if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
+  if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
+
+  const toClientVariableName = buildClientVariableName(toOptions.apiId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+
+  const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
+  const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
+
+  const paths = toOptions.paths.split(',');
+
+  const confServer = JSON.parse(fs.readFileSync(`${confToFolder}/conf.server.json`, 'utf8'));
+  for (const host of Object.keys(confServer))
+    for (const path of Object.keys(confServer[host]))
+      if (host === toOptions.host && paths.includes(path) && confServer[host][path])
+        confServer[host][path].ws = toOptions.wsId;
+  fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+};
+
+const buildWsSrc = async (
+  { toOptions, fromOptions },
+  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
+) => {
+  if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
+  if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
+  if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
+  if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
+
+  const toClientVariableName = buildClientVariableName(toOptions.wsId);
+  const fromClientVariableName = buildClientVariableName(fromOptions.wsId);
+
+  const confFromFolder = `./src/ws/${fromOptions.wsId}`;
+  const confToFolder = `./src/ws/${toOptions.wsId}`;
+
+  const paths = toOptions.paths.split(',');
+
+  const formattedSrc = (src) =>
+    src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.wsId, toOptions.wsId);
+
+  const files = await fs.readdir(confFromFolder, { recursive: true });
+  for (const relativePath of files) {
+    const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
+    const toFilePath = dir.resolve(`${confToFolder}/${relativePath}`);
+
+    if (fs.lstatSync(fromFilePath).isDirectory() && !fs.existsSync(formattedSrc(toFilePath)))
+      fs.mkdirSync(formattedSrc(toFilePath), { recursive: true });
+
+    if (fs.lstatSync(fromFilePath).isFile() && !fs.existsSync(formattedSrc(toFilePath))) {
+      fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
+    }
+  }
+};
+
 export {
   Config,
   loadConf,
@@ -512,4 +571,6 @@ export {
   buildApiSrc,
   addApiConf,
   addClientConf,
+  addWsConf,
+  buildWsSrc,
 };

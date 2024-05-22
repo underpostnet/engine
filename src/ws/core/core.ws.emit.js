@@ -1,4 +1,4 @@
-import { loggerFactory } from '../../client/components/core/Logger.js';
+import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 

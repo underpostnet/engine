@@ -2,7 +2,7 @@ import { loggerFactory } from '../../server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const CyberiaWsEmit = (channel = '', client = {}, payload = {}) => {
+const DefaultWsEmit = (channel = '', client = {}, payload = {}) => {
   try {
     client.emit(channel, JSON.stringify(payload));
   } catch (error) {
@@ -10,4 +10,4 @@ const CyberiaWsEmit = (channel = '', client = {}, payload = {}) => {
   }
 };
 
-export { CyberiaWsEmit };
+export { DefaultWsEmit };

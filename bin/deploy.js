@@ -14,6 +14,8 @@ import {
   cloneConf,
   loadConf,
   loadReplicas,
+  addWsConf,
+  buildWsSrc,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
@@ -142,6 +144,40 @@ try {
         buildApiSrc({ toOptions, fromOptions });
       }
       break;
+    case 'build-nodejs-conf-ws':
+      {
+        const toOptions = {
+          wsId: process.argv[3],
+          deployId: process.argv[4],
+          host: process.argv[5],
+          paths: process.argv[6],
+        };
+        const fromOptions = {
+          wsId: process.argv[7],
+          deployId: process.argv[8],
+          host: process.argv[9],
+          paths: process.argv[10],
+        };
+        addWsConf({ toOptions, fromOptions });
+      }
+      break;
+    case 'build-nodejs-src-ws':
+      {
+        const toOptions = {
+          wsId: process.argv[3],
+          deployId: process.argv[4],
+          host: process.argv[5],
+          paths: process.argv[6],
+        };
+        const fromOptions = {
+          wsId: process.argv[7],
+          deployId: process.argv[8],
+          host: process.argv[9],
+          paths: process.argv[10],
+        };
+        buildWsSrc({ toOptions, fromOptions });
+      }
+      break;
     case 'run':
       {
         loadConf(process.argv[3]);
@@ -194,6 +230,20 @@ try {
         shellExec(`node bin/deploy build-nodejs-conf-api ${apiId} ${deployId} ${clientId}`);
 
         shellExec(`node bin/deploy build-nodejs-src-api ${apiId} ${deployId} ${clientId}`);
+
+        shellExec(`npm run dev ${deployId}`);
+      }
+      break;
+    case 'new-nodejs-ws':
+      {
+        const wsId = process.argv[3];
+        const deployId = process.argv[4];
+        const host = process.argv[5];
+        const paths = process.argv[6];
+
+        shellExec(`node bin/deploy build-nodejs-conf-ws ${wsId} ${deployId} ${host} ${paths}`);
+
+        shellExec(`node bin/deploy build-nodejs-src-ws ${wsId} ${deployId} ${host} ${paths}`);
 
         shellExec(`npm run dev ${deployId}`);
       }
