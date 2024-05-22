@@ -504,7 +504,7 @@ const addApiConf = async (
 
 const addWsConf = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', hosts: 'default.net', paths: '/' },
+  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
 ) => {
   if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -529,7 +529,7 @@ const addWsConf = async (
 
 const buildWsSrc = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', hosts: 'default.net', paths: '/' },
+  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
 ) => {
   if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
