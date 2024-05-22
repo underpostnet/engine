@@ -812,6 +812,9 @@ const Pixi = {
       if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = true;
     }
   },
+  setQuestItems: function ({ type, id }) {
+    // ->
+  },
 };
 
 export { Pixi };

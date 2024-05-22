@@ -83,6 +83,26 @@ const setElementConsistency = (type, element) => {
   return element;
 };
 
+const QuestComponent = {
+  'floki-bone': {
+    type: 'search',
+    provider: {
+      displayId: 'ayleen',
+      quantity: 1,
+    },
+    searchItems: [
+      {
+        id: 'bone',
+        quantity: 2,
+      },
+      {
+        id: 'bone-brown',
+        quantity: 1,
+      },
+    ],
+  },
+};
+
 const Stat = {
   get: {
     anon: () => {
@@ -159,6 +179,16 @@ const Stat = {
       return {
         dim: 1,
         vel: 1.5,
+      };
+    },
+    'bone-browne': {
+      return: {
+        dim: 1.8,
+      },
+    },
+    bone: () => {
+      return {
+        dim: 1,
       };
     },
   },
@@ -665,4 +695,5 @@ export {
   setElementConsistency,
   SkillData,
   SkillType,
+  QuestComponent,
 };

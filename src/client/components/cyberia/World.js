@@ -212,6 +212,7 @@ const WorldManagement = {
       const { data } = await CyberiaWorldService.get({ id: Elements.Data[type][id].model.world._id });
       LoadingAnimation.barLevel.append();
       if (!CyberiaParams.CYBERIA_WORLD_ID) CyberiaParams.CYBERIA_WORLD_ID = data[0]._id;
+      // ->
       this.Data[type][id].model.world = data[0];
     }
 

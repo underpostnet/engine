@@ -938,6 +938,8 @@ class LoadBiomeRenderer {
     // Matrix.Data.dimAmplitude = BiomeScope.Data[rowId].dimAmplitude;
     Pixi.setFloor(BiomeScope.Data[rowId].imageSrc);
     Pixi.setFloorTopLevelColor(BiomeScope.Data[rowId].imageTopLevelColorSrc);
+
+    // render quest items
   }
 }
 
