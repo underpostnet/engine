@@ -9,18 +9,6 @@ const CyberiaWorldSchema = new Schema({
       ref: 'CyberiaBiome',
     },
   ],
-  quests: {
-    type: [
-      {
-        id: { type: String },
-      },
-    ],
-    default: [
-      {
-        id: 'floki-bone',
-      },
-    ],
-  },
   instance: {
     type: [
       {

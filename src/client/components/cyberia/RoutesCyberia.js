@@ -40,7 +40,6 @@ const RoutesCyberia = () => {
     '/blockchain': { title: 'BlockChain Engine', render: () => s(`.main-btn-blockchain`).click() },
     '/cloud': { title: 'Cloud', render: () => s(`.main-btn-cloud`).click() },
     '/server': { title: 'server', render: () => s(`.main-btn-server`).click() },
-    '/quest': { title: 'quest', render: () => s(`.main-btn-quest`).click() },
   };
 };
 

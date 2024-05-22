@@ -23,18 +23,6 @@ const CyberiaWorldRouter = (options) => {
           default: await CyberiaWorld.findOne({ name: process.env.CYBERIA_DEFAULT_WORLD_NAME }),
         },
       };
-
-      for (const questObj of options.cyberia.world.instance.quests) {
-        switch (questObj.type) {
-          case 'search':
-            break;
-
-          default:
-            break;
-        }
-      }
-
-      // instanciar quests
     })();
 
   router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaWorldController.post(req, res, options));
