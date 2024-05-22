@@ -1,5 +1,5 @@
 import { loggerFactory } from '../../server/logger.js';
-import { DefaultWsDefaultChannel } from './channels/default.ws.default.js';
+import { DefaultWsMainChannel } from './channels/default.ws.main.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -10,12 +10,12 @@ const DefaultWsConnection = function (socket, wsManagementId) {
 
   logger.info(`DefaultWsConnection ${socket.id}`);
 
-  DefaultWsDefaultChannel.connection(socket, wsManagementId);
+  DefaultWsMainChannel.connection(socket, wsManagementId);
 
   socket.on('disconnect', (reason) => {
     logger.info(`DefaultWsConnection ${socket.id} due to reason: ${reason}`);
 
-    DefaultWsDefaultChannel.disconnect(socket, reason, wsManagementId);
+    DefaultWsMainChannel.disconnect(socket, reason, wsManagementId);
   });
 };
 

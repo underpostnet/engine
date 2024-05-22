@@ -1,16 +1,16 @@
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
 
-const channel = 'default';
+const channel = 'main';
 const logger = loggerFactory(import.meta);
 
-const DefaultWsDefaultController = {
+const DefaultWsMainController = {
   channel,
   controller: function (socket, client, payload, wsManagementId) {},
   connection: function (socket, client, wsManagementId) {},
   disconnect: function (socket, client, reason, wsManagementId) {},
 };
 
-const DefaultWsDefaultChannel = IoCreateChannel(DefaultWsDefaultController);
+const DefaultWsMainChannel = IoCreateChannel(DefaultWsMainController);
 
-export { DefaultWsDefaultChannel, DefaultWsDefaultController };
+export { DefaultWsMainChannel, DefaultWsMainController };

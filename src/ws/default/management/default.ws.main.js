@@ -1,8 +1,8 @@
-const DefaultWsDefaultManagement = {
+const DefaultWsMainManagement = {
   element: {},
   instance: function (wsManagementId = '') {
     this.element[wsManagementId] = {};
   },
 };
 
-export { DefaultWsDefaultManagement };
+export { DefaultWsMainManagement };
