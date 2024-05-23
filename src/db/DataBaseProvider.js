@@ -1,4 +1,4 @@
-import { MongooseDB } from './mongoose/MongooseDB.js';
+import { MongooseDB } from './mongo/MongooseDB.js';
 import { loggerFactory } from '../server/logger.js';
 
 const logger = loggerFactory(import.meta);

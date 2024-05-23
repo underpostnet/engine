@@ -451,9 +451,9 @@ const buildApiSrc = async (
   }
 
   fs.writeFileSync(
-    `./src/db/mongoose/MongooseDB.js`,
+    `./src/db/mongo/MongooseDB.js`,
     fs
-      .readFileSync(`./src/db/mongoose/MongooseDB.js`, 'utf8')
+      .readFileSync(`./src/db/mongo/MongooseDB.js`, 'utf8')
       .replaceAll(
         `/*import-render*/`,
         `import { ${toClientVariableName}Schema } from '../../api/${toOptions.apiId}/${toOptions.apiId}.model.js';
