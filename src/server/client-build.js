@@ -92,7 +92,7 @@ const buildClient = async () => {
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
       if (metadata) {
-        if (metadata.thumbnail) metadata.thumbnail = `${path}${metadata.thumbnail}`;
+        if (metadata.thumbnail) metadata.thumbnail = `${path === '/' ? path : `${path}/`}${metadata.thumbnail}`;
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
