@@ -156,6 +156,20 @@ selection
             background: rgb(208, 208, 208);
           }
 
+          .lowercase {
+            text-transform: lowercase;
+          }
+          .uppercase {
+            text-transform: uppercase;
+          }
+          .capitalize {
+            text-transform: capitalize;
+          }
+
+          .bold {
+            font-weight: bold;
+          }
+
           /*
 
 scrollbar
