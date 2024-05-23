@@ -39,7 +39,7 @@ const logger = loggerFactory(import.meta);
 const BiomeParamsScope = CyberiaBaseMatrix();
 
 const Biome = {
-  'city-interior-building': async function () {
+  'city-interior': async function () {
     const dim = BiomeParamsScope.dim * BiomeParamsScope.dimPaintByCell;
     const BiomeMatrix = {
       color: {},
