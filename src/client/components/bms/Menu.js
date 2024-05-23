@@ -24,6 +24,7 @@ import { Settings } from './Settings.js';
 import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { Validator } from '../core/Validator.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -164,13 +165,33 @@ const Menu = {
       mode: 'slide-menu',
       slideTop,
       htmlMainBody: async () => {
-        const titleKey = 'propertyType';
-        const subTitleKey = 'address';
-        const iconKeys = {
-          price: html`<i class="fas fa-dollar-sign"></i>`,
-        };
-        const infoKeys = ['price', 'bedrooms', 'bathrooms', 'squareFootage', 'acreage'];
-        const pinsKeys = ['price'];
+        const formData = [
+          {
+            model: 'id',
+            id: 'id',
+            inputType: 'text',
+            panel: {},
+          },
+          { id: 'propertyType', model: 'propertyType', inputType: 'text', panel: { type: 'title' } },
+          { id: 'address', model: 'address', inputType: 'text', panel: { type: 'subtitle' } },
+          {
+            id: 'price',
+            model: 'price',
+            inputType: 'number',
+            panel: {
+              type: 'info-row-pin',
+              icon: {
+                value: html`<i class="fas fa-dollar-sign"></i>`,
+              },
+            },
+          },
+          { id: 'bedrooms', model: 'bedrooms', inputType: 'number', panel: { type: 'info-row' } },
+          { id: 'bathrooms', model: 'bathrooms', inputType: 'number', panel: { type: 'info-row' } },
+          { id: 'squareFootage', model: 'squareFootage', inputType: 'number', panel: { type: 'info-row' } },
+          { id: 'imageUrl', model: 'imageUrl', inputType: 'file', panel: {} },
+        ];
+
+        // const validators = await Validator.instance(formData);
 
         const data = [
           {
@@ -220,13 +241,11 @@ const Menu = {
             acreage: 5,
             imageUrl: 'https://example.com/property5.jpg',
           },
-        ].map((item) => {
-          for (const itemKey of Object.keys(item))
-            if (iconKeys[itemKey]) item[itemKey] = html`${iconKeys[itemKey]} ${item[itemKey]}`;
-          return item;
-        });
+        ];
 
         let render = '';
+        const titleKey = formData.find((f) => f.panel.type === 'title').model;
+        const subTitleKey = formData.find((f) => f.panel.type === 'subtitle').model;
         for (const obj of data) {
           const { id } = obj;
 
@@ -252,19 +271,21 @@ const Menu = {
                 <div class="abs center panel-img-spinner-${id}"></div>
               </div>
               <div class="in fll panel-cell panel-cell-col-b">
-                ${infoKeys
+                ${Object.keys(obj)
                   .map((infoKey) => {
-                    return html` ${obj[infoKey]
-                      ? pinsKeys.includes(infoKey)
-                        ? html`<div class="in panel-row">
-                            <span class="panel-row-pin-key capitalize"> ${infoKey}:</span>
-                            <span class="panel-row-pin-value"> ${obj[infoKey]}</span>
-                          </div> `
-                        : html`<div class="in panel-row">
-                            <span class="panel-row-key capitalize"> ${infoKey}:</span>
-                            <span class="panel-row-value"> ${obj[infoKey]}</span>
-                          </div> `
-                      : ''}`;
+                    if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row-pin'))
+                      return html`<div class="in panel-row">
+                        <span class="panel-row-pin-key capitalize"> ${infoKey}:</span>
+                        <span class="panel-row-pin-value"> ${obj[infoKey]}</span>
+                      </div> `;
+
+                    if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row'))
+                      return html`<div class="in panel-row">
+                        <span class="panel-row-key capitalize"> ${infoKey}:</span>
+                        <span class="panel-row-value"> ${obj[infoKey]}</span>
+                      </div> `;
+
+                    return html``;
                   })
                   .join('')}
               </div>
@@ -280,6 +301,9 @@ const Menu = {
             }
             .panel-cell {
               min-height: 200px;
+            }
+            .panel-container {
+              color: black;
             }
             .panel {
               margin: 10px;
@@ -321,14 +345,16 @@ const Menu = {
               color: rgb(19 190 84);
             }
           </style>
-          <form class="in panel-form session-in-log-in">form</form>
-          ${dynamicCol({
-            id: `panel-cell`,
-            containerSelector: `panel-render`,
-            limit: 500,
-            type: 'a-50-b-50',
-          })}
-          <div class="in panel-render">${render}</div>
+          <div class="panel-container">
+            <form class="in panel-form session-in-log-in"></form>
+            ${dynamicCol({
+              id: `panel-cell`,
+              containerSelector: `panel-render`,
+              limit: 500,
+              type: 'a-50-b-50',
+            })}
+            <div class="in panel-render">${render}</div>
+          </div>
         `;
       },
     });
