@@ -5,12 +5,30 @@ import { Input } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { s } from './VanillaJs.js';
+import { htmls, s } from './VanillaJs.js';
 
 const LogIn = {
   Event: {},
   Trigger: async function (options) {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
+    if (s(`.session`))
+      htmls(
+        `.session`,
+        html`<style>
+          .session-in-log-in {
+            display: block;
+          }
+          .session-inl-log-in {
+            display: inline-table;
+          }
+          .session-in-log-out {
+            display: none;
+          }
+          .session-inl-log-out {
+            display: none;
+          }
+        </style>`,
+      );
   },
   Render: async function () {
     setTimeout(async () => {

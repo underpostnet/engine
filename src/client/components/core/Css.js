@@ -191,6 +191,22 @@ scrollbar-width: none;
             background: #555;
           }
         </style>
+        <div class="session">
+          <style>
+            .session-in-log-out {
+              display: block;
+            }
+            .session-inl-log-out {
+              display: inline-table;
+            }
+            .session-in-log-in {
+              display: none;
+            }
+            .session-inl-log-in {
+              display: none;
+            }
+          </style>
+        </div>
         <div class="theme"></div>
       `,
     );
