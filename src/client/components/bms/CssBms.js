@@ -508,6 +508,12 @@ const CssBmsLight = {
         font-size: 16px;
         font-family: monospace;
       }
+      .primary-color {
+        color: rgba(109, 104, 255, 1);
+      }
+      .secondary-color {
+        color: rgba(232, 159, 76, 1);
+      }
     </style>
   `,
 };

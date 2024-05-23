@@ -1,14 +1,14 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, Themes, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterBms } from './RoutesBms.js';
@@ -23,6 +23,7 @@ import { Chat } from '../core/Chat.js';
 import { Settings } from './Settings.js';
 import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -40,7 +41,7 @@ const Menu = {
       html: html`
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-blog',
+            class: 'wfa main-btn-menu main-btn-blog hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fa-solid fa-file-invoice"></i>`,
               text: html`${Translate.Render('blog')}`,
@@ -48,7 +49,7 @@ const Menu = {
             attrs: `data-id="5"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-calendar',
+            class: 'wfa main-btn-menu main-btn-calendar hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
               text: html`${Translate.Render('calendar')}`,
@@ -56,7 +57,7 @@ const Menu = {
             attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-dashboard',
+            class: 'wfa main-btn-menu main-btn-dashboard hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fa-solid fa-chart-line"></i>`,
               text: html`${Translate.Render('dashboard')}`,
@@ -64,7 +65,7 @@ const Menu = {
             attrs: `data-id="7"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-stream',
+            class: 'wfa main-btn-menu main-btn-stream hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fa-solid fa-video"></i>`,
               text: html`${Translate.Render('stream')}`,
@@ -72,7 +73,7 @@ const Menu = {
             attrs: `data-id="8"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-docs',
+            class: 'wfa main-btn-menu main-btn-docs hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
               text: html`${Translate.Render('docs')}`,
@@ -80,7 +81,7 @@ const Menu = {
             attrs: `data-id="9"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-content',
+            class: 'wfa main-btn-menu main-btn-content hide',
             label: this.renderMenuLabel({
               icon: html`<i class="far fa-file"></i>`,
               text: html`${Translate.Render('content')}`,
@@ -88,7 +89,7 @@ const Menu = {
             attrs: `data-id="10"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-cloud',
+            class: 'wfa main-btn-menu main-btn-cloud hide',
             label: this.renderMenuLabel({
               icon: html`<i class="fas fa-cloud"></i>`,
               text: html`${Translate.Render('cloud')}`,
@@ -96,7 +97,7 @@ const Menu = {
             attrs: `data-id="11"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-chat',
+            class: 'wfa main-btn-menu main-btn-chat hide',
             label: this.renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
               text: html`${Translate.Render('chat')}`,
@@ -162,6 +163,174 @@ const Menu = {
       titleRender: () => html`<strong>BMS</strong>`,
       mode: 'slide-menu',
       slideTop,
+      htmlMainBody: async () => {
+        const titleKey = 'propertyType';
+        const subTitleKey = 'address';
+        const iconKeys = {
+          price: html`<i class="fas fa-dollar-sign"></i>`,
+        };
+        const infoKeys = ['price', 'bedrooms', 'bathrooms', 'squareFootage', 'acreage'];
+        const pinsKeys = ['price'];
+
+        const data = [
+          {
+            id: 1,
+            propertyType: 'Single Family Home',
+            address: '123 Main Street, Anytown, CA 95123',
+            price: 500000,
+            bedrooms: 3,
+            bathrooms: 2,
+            squareFootage: 1500,
+            imageUrl: 'https://example.com/property1.jpg',
+            isNew: true,
+          },
+          {
+            id: 2,
+            propertyType: 'Condo',
+            address: '456 Elm Street, Anytown, CA 95123',
+            price: 350000,
+            bedrooms: 2,
+            bathrooms: 1.5,
+            squareFootage: 1200,
+            imageUrl: 'https://example.com/property2.jpg',
+          },
+          {
+            id: 3,
+            propertyType: 'Townhouse',
+            address: '789 Oak Street, Anytown, CA 95123',
+            price: 400000,
+            bedrooms: 3,
+            bathrooms: 2,
+            squareFootage: 1400,
+            imageUrl: 'https://example.com/property3.jpg',
+          },
+          {
+            id: 4,
+            propertyType: 'Commercial',
+            address: '123 Main Street, Anytown, CA 95123',
+            price: 1000000,
+            squareFootage: 2500,
+            imageUrl: 'https://example.com/property4.jpg',
+          },
+          {
+            id: 5,
+            propertyType: 'Land',
+            address: '456 Elm Street, Anytown, CA 95123',
+            price: 200000,
+            acreage: 5,
+            imageUrl: 'https://example.com/property5.jpg',
+          },
+        ].map((item) => {
+          for (const itemKey of Object.keys(item))
+            if (iconKeys[itemKey]) item[itemKey] = html`${iconKeys[itemKey]} ${item[itemKey]}`;
+          return item;
+        });
+
+        let render = '';
+        for (const obj of data) {
+          const { id } = obj;
+
+          // const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
+          // const options = {
+          //   headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
+          // };
+
+          // fetch(src, options)
+          //   .then((res) => res.blob())
+          //   .then((blob) => {
+          //     obj.imageUrl = URL.createObjectURL(blob);
+          //     htmls(`.panel-cell-col-a-${id}`, html`<img class="in img-panel" src="${obj.imageUrl}" />`);
+          //   });
+
+          render += html` <div class="in box-shadow panel">
+            <div class="in panel-head">
+              <div class="in panel-title"><i class="fas fa-tag"></i> &nbsp ${obj[titleKey]}</div>
+              <div class="in panel-subtitle">${obj[subTitleKey]}</div>
+            </div>
+            <div class="fl">
+              <div class="in fll panel-cell panel-cell-col-a panel-cell-col-a-${id}">
+                <div class="abs center panel-img-spinner-${id}"></div>
+              </div>
+              <div class="in fll panel-cell panel-cell-col-b">
+                ${infoKeys
+                  .map((infoKey) => {
+                    return html` ${obj[infoKey]
+                      ? pinsKeys.includes(infoKey)
+                        ? html`<div class="in panel-row">
+                            <span class="panel-row-pin-key capitalize"> ${infoKey}:</span>
+                            <span class="panel-row-pin-value"> ${obj[infoKey]}</span>
+                          </div> `
+                        : html`<div class="in panel-row">
+                            <span class="panel-row-key capitalize"> ${infoKey}:</span>
+                            <span class="panel-row-value"> ${obj[infoKey]}</span>
+                          </div> `
+                      : ''}`;
+                  })
+                  .join('')}
+              </div>
+            </div>
+          </div>`;
+          setTimeout(async () => {
+            LoadingAnimation.spinner.play(`.panel-img-spinner-${id}`, 'dual-ring');
+          });
+        }
+        return html`
+          <style>
+            .panel-form {
+            }
+            .panel-cell {
+              min-height: 200px;
+            }
+            .panel {
+              margin: 10px;
+              transition: 0.3s;
+              cursor: default;
+              border-radius: 10px;
+              background: white;
+            }
+            .panel-head {
+              /* background: white; */
+              margin-bottom: 10px;
+            }
+            .img-panel {
+              width: 100%;
+            }
+            .panel-title {
+              color: rgba(109, 104, 255, 1);
+              font-size: 24px;
+              padding: 15px;
+            }
+            .panel-row {
+              padding: 5px;
+              margin: 5px;
+              font-size: 16px;
+            }
+            .panel-subtitle {
+              font-size: 17px;
+              margin-left: 20px;
+              top: -7px;
+            }
+            .panel-row-key {
+            }
+            .panel-row-value {
+            }
+            .panel-row-pin-key {
+            }
+            .panel-row-pin-value {
+              font-size: 20px;
+              color: rgb(19 190 84);
+            }
+          </style>
+          <form class="in panel-form session-in-log-in">form</form>
+          ${dynamicCol({
+            id: `panel-cell`,
+            containerSelector: `panel-render`,
+            limit: 500,
+            type: 'a-50-b-50',
+          })}
+          <div class="in panel-render">${render}</div>
+        `;
+      },
     });
 
     this.Data[id].sortable = Modal.mobileModal()
