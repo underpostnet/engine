@@ -2,6 +2,9 @@ import { AgGrid } from '../core/AgGrid.js';
 import { darkTheme, dynamicCol } from '../core/Css.js';
 import { D3Chart } from '../core/D3Chart.js';
 import { newInstance, random, range } from '../core/CommonJs.js';
+import Sortable from 'sortablejs';
+import { Modal } from '../core/Modal.js';
+import { s } from '../core/VanillaJs.js';
 
 const DashboardNexodev = {
   Tokens: {},
@@ -159,17 +162,68 @@ const DashboardNexodev = {
       //    flashDelay: 3000,
       //    fadeDelay: 2000,
       //  });
+
+      this.Tokens[id].sortable = Modal.mobileModal()
+        ? null
+        : new Sortable(s(`.section-0-${id}`), {
+            animation: 150,
+            group: `dashboard-sortable`,
+            forceFallback: true,
+            fallbackOnBody: true,
+            store: {
+              /**
+               * Get the order of elements. Called once during initialization.
+               * @param   {Sortable}  sortable
+               * @returns {Array}
+               */
+              get: function (sortable) {
+                const order = localStorage.getItem(sortable.options.group.name);
+                return order ? order.split('|') : [];
+              },
+
+              /**
+               * Save the order of elements. Called onEnd (when the item is dropped).
+               * @param {Sortable}  sortable
+               */
+              set: function (sortable) {
+                const order = sortable.toArray();
+                localStorage.setItem(sortable.options.group.name, order.join('|'));
+              },
+            },
+            // chosenClass: 'css-class',
+            // ghostClass: 'css-class',
+            // Element dragging ended
+            onEnd: function (/**Event*/ evt) {
+              // console.log('Sortable onEnd', evt);
+              // console.log('evt.oldIndex', evt.oldIndex);
+              // console.log('evt.newIndex', evt.newIndex);
+              const slotId = Array.from(evt.item.classList).pop();
+              // console.log('slotId', slotId);
+              if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+
+              // var itemEl = evt.item; // dragged HTMLElement
+              // evt.to; // target list
+              // evt.from; // previous list
+              // evt.oldIndex; // element's old index within old parent
+              // evt.newIndex; // element's new index within new parent
+              // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+              // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+              // evt.clone; // the clone element
+              // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+            },
+          });
     });
+
     return html`
       ${dynamicCol({ id: `section-0-${id}`, containerSelector: `section-0-${id}`, type: 'a-50-b-50' })}
       <div class="fl section-0-${id}">
-        <div class="in fll section-0-${id}-col-a">
+        <div class="in fll section-0-${id}-col-a" data-id="0">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fa-solid fa-chart-column sub-title-icon"></i> &nbsp Plot</div>
           </div>
           <div class="in section-mp">${await D3Chart.Render()}</div>
         </div>
-        <div class="in fll section-0-${id}-col-b">
+        <div class="in fll section-0-${id}-col-b" data-id="1">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="far fa-list-alt sub-title-icon"></i> &nbsp Clients</div>
           </div>
