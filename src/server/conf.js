@@ -394,7 +394,7 @@ const buildClientSrc = async (
       await Css['css-default']();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -409,7 +409,7 @@ const buildClientSrc = async (
       await Css['css-default-light']();
       await Css.toolbar();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },

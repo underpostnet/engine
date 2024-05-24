@@ -223,9 +223,7 @@ const Modal = {
                   html: () => html`<span style="color: red">BottomBar</span>`,
                   titleClass: 'hide',
                   style: {
-                    // background: 'none',
                     resize: 'none',
-                    background: 'red',
                     height: `${options.heightBottomBar}px`,
                     'min-width': `${minWidth}px`,
                   },

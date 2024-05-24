@@ -1,21 +1,12 @@
 // https://www.ag-grid.com/javascript-data-grid/getting-started/
 // https://www.ag-grid.com/javascript-data-grid/themes/
 
+import { ThemeEvents, darkTheme } from './Css.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
 import * as agGrid from 'ag-grid-community';
 
 const AgGrid = {
   grids: {},
-  changeTheme: function ({ darkTheme }) {
-    for (const idGrid of Object.keys(this.grids)) {
-      if (s(`.${idGrid}`)) {
-        s(`.${idGrid}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
-        s(`.${idGrid}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
-      } else {
-        // console.warn('change theme: grid not found');
-      }
-    }
-  },
   Render: async function (options) {
     let { id } = options;
     if (!this.theme) {
@@ -61,6 +52,15 @@ const AgGrid = {
       if (this.grids[id]) this.grids[id].destroy();
       this.grids[id] = agGrid.createGrid(myGridElement, gridOptions);
       // myGridElement.style.setProperty('width', '100%');
+      ThemeEvents[id] = () => {
+        if (s(`.${id}`)) {
+          s(`.${id}`).classList.remove(darkTheme ? this.theme : this.theme + '-dark');
+          s(`.${id}`).classList.add(!darkTheme ? this.theme : this.theme + '-dark');
+        } else {
+          // console.warn('change theme: grid not found');
+          delete ThemeEvents[id];
+        }
+      };
     });
     return html`
       <div

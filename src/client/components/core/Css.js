@@ -712,6 +712,9 @@ const renderDefaultWindowsModalButtonContent = (options) => {
 };
 
 let darkTheme = true;
+const ThemeEvents = {};
+const TriggerThemeEvents = () => Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
+
 const Themes = {
   cyberia: async (options) => {
     if (options) addTheme(options);
@@ -725,7 +728,7 @@ const Themes = {
       await Css.cyberia();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
   },
@@ -737,7 +740,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.default();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -749,7 +752,7 @@ const Themes = {
       await Css.fontawesome();
       await Css['dark-light']();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -761,7 +764,7 @@ const Themes = {
       await Css.fontawesome();
       await Css.dark();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -776,7 +779,7 @@ const Themes = {
       await Css.nexodev();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
       if (Menu) Menu.renderTopBartTitleLogo();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
@@ -792,7 +795,7 @@ const Themes = {
       await Css['nexodev-light']();
       await Css.toolbar();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
       if (Menu) Menu.renderTopBartTitleLogo();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
@@ -808,7 +811,7 @@ const Themes = {
       await Css.bms();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -823,7 +826,7 @@ const Themes = {
       await Css['bms-light']();
       await Css.toolbar();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -837,7 +840,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.dogmadual();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -851,7 +854,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.cryptokoyn();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -865,7 +868,7 @@ const Themes = {
       await Css['dark-light']();
       await Css.underpost();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -880,7 +883,7 @@ const Themes = {
       await Css['css-default']();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -895,7 +898,7 @@ const Themes = {
       await Css['css-default-light']();
       await Css.toolbar();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -910,7 +913,7 @@ const Themes = {
       await Css['css-cyberia-portal']();
       await Css.toolbar();
       darkTheme = true;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -925,7 +928,7 @@ const Themes = {
       await Css['css-cyberia-portal-light']();
       await Css.toolbar();
       darkTheme = false;
-      AgGrid.changeTheme({ darkTheme });
+      TriggerThemeEvents();
     }
     return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
   },
@@ -1087,4 +1090,6 @@ export {
   boxShadow,
   addTheme,
   darkTheme,
+  ThemeEvents,
+  TriggerThemeEvents,
 };
