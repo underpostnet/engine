@@ -36,6 +36,7 @@ const Menu = {
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
+    const heightBottomBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -163,6 +164,7 @@ const Menu = {
       titleRender: () => html`<strong>BMS</strong>`,
       mode: 'slide-menu',
       heightTopBar,
+      heightBottomBar,
       htmlMainBody: async () => {
         const idPanel = 'real-state-panel';
         const formData = [
@@ -380,6 +382,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -400,6 +403,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -420,6 +424,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -440,6 +445,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -465,6 +471,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -488,6 +495,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -511,6 +519,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -534,6 +543,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -566,6 +576,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -586,6 +597,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -607,6 +619,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -627,6 +640,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -651,6 +665,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 

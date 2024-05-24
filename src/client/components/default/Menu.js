@@ -23,6 +23,7 @@ const Menu = {
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
+    const heightBottomBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -91,6 +92,7 @@ const Menu = {
         ><span class="inl default-title-text-b">page</span>`,
       mode: 'slide-menu',
       heightTopBar,
+      heightBottomBar,
     });
 
     this.Data[id].sortable = Modal.mobileModal()
@@ -160,6 +162,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -180,6 +183,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -200,6 +204,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -225,6 +230,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -245,6 +251,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
