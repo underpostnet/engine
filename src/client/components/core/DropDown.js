@@ -117,7 +117,7 @@ const DropDown = {
       `;
     }
     return html`
-      <div class="inl dropdown-container ${id}">
+      <div class="inl dropdown-container ${id} ${options?.containerClass ? options.containerClass : ''}">
         <div class="in dropdown-option dropdown-label-${id}">
           <i class="fa-solid fa-caret-down"> </i> ${options.label}
         </div>

@@ -162,7 +162,6 @@ const CssCyberia = {
           border: 2px solid #313131;
           transition: 0.3s;
           cursor: pointer;
-          min-height: 100px;
         }
         .dropdown-option {
           width: 250px;

@@ -201,7 +201,6 @@ const CssCyberiaPortal = {
         border: 2px solid #313131;
         transition: 0.3s;
         cursor: pointer;
-        min-height: 100px;
       }
       .btn-custom {
         width: 260px;
@@ -447,7 +446,6 @@ const CssCyberiaPortalLight = {
         border: 2px solid #bbbbbb;
         transition: 0.3s;
         cursor: pointer;
-        min-height: 100px;
       }
       .btn-custom {
         width: 260px;

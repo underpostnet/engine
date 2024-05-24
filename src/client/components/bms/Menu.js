@@ -370,6 +370,7 @@ const Menu = {
                 ${await DropDown.Render({
                   id: `${modelData.id}`,
                   label: html`${Translate.Render(modelData.model)}`,
+                  containerClass: 'panel-dropdown',
                   // type: 'checkbox',
                   value: modelData.dropdown.options[0].replaceAll(' ', '-').toLowerCase(),
                   data: modelData.dropdown.options.map((dKey) => {
@@ -524,6 +525,9 @@ const Menu = {
             .btn-panel-add {
               padding: 10px;
               font-size: 20px;
+            }
+            .panel-dropdown {
+              min-height: 100px;
             }
           </style>
           <div class="panel-container">
