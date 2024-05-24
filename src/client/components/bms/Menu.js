@@ -35,7 +35,7 @@ const Menu = {
     const RouterInstance = RouterBms();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const slideTop = 50;
+    const heightTopBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -162,7 +162,7 @@ const Menu = {
       // titleClass: 'hide',
       titleRender: () => html`<strong>BMS</strong>`,
       mode: 'slide-menu',
-      slideTop,
+      heightTopBar,
       htmlMainBody: async () => {
         const idPanel = 'real-state-panel';
         const formData = [
@@ -289,7 +289,7 @@ const Menu = {
             imageUrl: 'https://example.com/property5.jpg',
           },
         ];
-        return await Panel.Render({ idPanel, formData, slideTop, data, scrollClassContainer: 'main-body' });
+        return await Panel.Render({ idPanel, formData, heightTopBar, data, scrollClassContainer: 'main-body' });
       },
     });
 
@@ -379,7 +379,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -399,7 +399,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -419,7 +419,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -439,7 +439,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -464,7 +464,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -487,7 +487,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -510,7 +510,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -533,7 +533,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -565,7 +565,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -585,6 +585,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        heightTopBar,
       });
     });
 
@@ -605,6 +606,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        heightTopBar,
       });
     });
 
@@ -624,6 +626,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
+        heightTopBar,
       });
     });
 
@@ -647,7 +650,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 

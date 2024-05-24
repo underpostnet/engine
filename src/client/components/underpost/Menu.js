@@ -23,7 +23,7 @@ const Menu = {
     const RouterInstance = RouterUnderpost();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const slideTop = 50;
+    const heightTopBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -101,7 +101,7 @@ const Menu = {
         &nbsp &nbsp <span class="inl underpost-title-text-a">UNDER</span
         ><span class="inl underpost-title-text-b">post.net</span>`,
       mode: 'slide-menu',
-      slideTop,
+      heightTopBar,
     });
 
     this.Data[id].sortable = Modal.mobileModal()
@@ -170,7 +170,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -190,7 +190,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -210,7 +210,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -230,7 +230,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -250,7 +250,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -275,7 +275,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 

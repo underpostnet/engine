@@ -12,9 +12,11 @@ import { EventsUI } from './EventsUI.js';
 
 const Panel = {
   Tokens: {},
-  Render: async function (options = { idPanel: '', scrollClassContainer: '', formData: [], data: [], slideTop: 50 }) {
+  Render: async function (
+    options = { idPanel: '', scrollClassContainer: '', formData: [], data: [], heightTopBar: 50 },
+  ) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
-    const { scrollClassContainer, formData, data, slideTop } = options;
+    const { scrollClassContainer, formData, data, heightTopBar } = options;
 
     const titleKey = formData.find((f) => f.panel.type === 'title').model;
     const subTitleKey = formData.find((f) => f.panel.type === 'subtitle').model;
@@ -141,7 +143,7 @@ const Panel = {
     setTimeout(async () => {
       Responsive.Event[`${idPanel}-responsive`] = () => {
         if (s(`.${idPanel}-form-container`))
-          s(`.${idPanel}-form-container`).style.maxHeight = `${window.innerHeight - slideTop}px`;
+          s(`.${idPanel}-form-container`).style.maxHeight = `${window.innerHeight - heightTopBar}px`;
       };
       Responsive.Event[`${idPanel}-responsive`]();
       const validators = await Validator.instance(formData);

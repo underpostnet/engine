@@ -21,7 +21,7 @@ const Menu = {
     const RouterInstance = RouterDogmadual();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
-    const slideTop = 50;
+    const heightTopBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -81,7 +81,7 @@ const Menu = {
         &nbsp &nbsp <span class="inl dogmadual-title-text-a">DOGMADUAL</span
         ><span class="inl dogmadual-title-text-b">.com</span>`,
       mode: 'slide-menu',
-      slideTop,
+      heightTopBar,
     });
 
     this.Data[id].sortable = Modal.mobileModal()
@@ -150,7 +150,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -170,7 +170,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -190,7 +190,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
@@ -215,7 +215,7 @@ const Menu = {
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
-        slideTop,
+        heightTopBar,
       });
     });
 
