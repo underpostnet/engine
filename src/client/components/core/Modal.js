@@ -266,7 +266,9 @@ const Modal = {
                 };
                 s(`.bottom-btn-center`).onclick = (e) => {
                   e.preventDefault();
-                  s(`.main-btn-home`).click();
+                  if (!s(`.btn-close-modal-menu `).classList.contains('hide')) return s(`.main-btn-home`).click();
+
+                  if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
                 };
                 s(`.bottom-btn-right`).onclick = (e) => {
                   e.preventDefault();
