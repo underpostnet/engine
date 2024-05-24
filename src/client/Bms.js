@@ -1,7 +1,6 @@
 'use strict';
 
-import { Css, addTheme } from './components/core/Css.js';
-import { NotificationManager } from './components/core/NotificationManager.js';
+import { Css } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
 import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
@@ -27,7 +26,6 @@ import { Worker } from './components/core/Worker.js';
     await TranslateCore.Init();
     await Responsive.Init();
     await Menu.Render();
-    await NotificationManager.RenderBoard();
     await SocketIo.Init({ channels: Elements.Data });
     await SocketIoBms.Init();
     await LogInBms();

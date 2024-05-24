@@ -1,7 +1,6 @@
 'use strict';
 
 import { Css } from './components/core/Css.js';
-import { NotificationManager } from './components/core/NotificationManager.js';
 import { Responsive } from './components/core/Responsive.js';
 import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
@@ -18,7 +17,6 @@ import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
   await TranslateCore.Init();
   await Responsive.Init();
   await Menu.Render();
-  await NotificationManager.RenderBoard();
   await LogInCryptokoyn();
   await LogOutCryptokoyn();
   await SignUpCryptokoyn();

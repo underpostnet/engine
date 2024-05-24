@@ -6,6 +6,7 @@ import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
 import { Css, Themes, renderStatus } from './Css.js';
 import { setDocTitle } from './Router.js';
+import { NotificationManager } from './NotificationManager.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -272,6 +273,8 @@ const Modal = {
                   window.history.forward();
                 };
               }
+
+              await NotificationManager.RenderBoard(options);
             });
           })();
           break;

@@ -5,7 +5,8 @@ import { append, prepend, s } from './VanillaJs.js';
 
 const NotificationManager = {
   Types: ['success', 'error', 'warning', 'info'],
-  RenderBoard: async function () {
+  RenderBoard: async function (options) {
+    this.options = options;
     append(
       'body',
       html`
@@ -13,7 +14,7 @@ const NotificationManager = {
           .notification-board-container {
             right: 5px;
             width: 300px;
-            bottom: 5px;
+            bottom: ${5 + (options?.heightBottomBar ? options.heightBottomBar : 0)}px;
             z-index: 5;
           }
           .notification-board-title {
