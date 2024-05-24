@@ -162,10 +162,6 @@ const CssCyberiaPortal = {
         font-size: 35px;
         margin: 20px;
       }
-      .warn-logout {
-        text-align: center;
-        padding: 10px;
-      }
       .btn-bar-modal-container {
         text-align: right;
         padding-right: 3px;
@@ -205,6 +201,7 @@ const CssCyberiaPortal = {
         border: 2px solid #313131;
         transition: 0.3s;
         cursor: pointer;
+        min-height: 100px;
       }
       .btn-custom {
         width: 260px;
@@ -409,10 +406,6 @@ const CssCyberiaPortalLight = {
         font-size: 35px;
         margin: 20px;
       }
-      .warn-logout {
-        text-align: center;
-        padding: 10px;
-      }
       .btn-bar-modal-container {
         text-align: right;
         padding-right: 3px;
@@ -454,6 +447,7 @@ const CssCyberiaPortalLight = {
         border: 2px solid #bbbbbb;
         transition: 0.3s;
         cursor: pointer;
+        min-height: 100px;
       }
       .btn-custom {
         width: 260px;

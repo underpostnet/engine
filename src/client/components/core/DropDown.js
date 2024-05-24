@@ -79,6 +79,8 @@ const DropDown = {
 
             console.warn('current value dropdown id:' + id, this.Tokens[id].value);
 
+            s(`.${id}`).value = this.Tokens[id].value;
+
             optionData.onClick(e);
           }
         };
@@ -115,7 +117,7 @@ const DropDown = {
       `;
     }
     return html`
-      <div class="inl dropdown-container">
+      <div class="inl dropdown-container ${id}">
         <div class="in dropdown-option dropdown-label-${id}">
           <i class="fa-solid fa-caret-down"> </i> ${options.label}
         </div>

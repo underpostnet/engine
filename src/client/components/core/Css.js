@@ -79,6 +79,7 @@ const Css = {
 
           .stq {
             position: sticky;
+            /* require defined at least top, bottom, left o right */
           }
 
           .wfa {
@@ -241,9 +242,6 @@ scrollbar-width: none;
             background: #dfdfdf;
             color: black;
           }
-          .html-modal-content {
-            padding: 5px;
-          }
           button {
             background: none;
             outline: none;
@@ -330,9 +328,6 @@ scrollbar-width: none;
             background: #242424;
             color: white;
           }
-          .html-modal-content {
-            padding: 5px;
-          }
           button {
             background: none;
             outline: none;
@@ -413,9 +408,6 @@ scrollbar-width: none;
             /* background: #242124; */
             background: #242424;
             color: white;
-          }
-          .html-modal-content {
-            padding: 5px;
           }
           button {
             background: none;
@@ -504,9 +496,6 @@ scrollbar-width: none;
             /* background: #242124; */
             width: 15px;
             height: 15px;
-          }
-          .html-modal-content {
-            padding: 5px;
           }
           button {
             background: none;

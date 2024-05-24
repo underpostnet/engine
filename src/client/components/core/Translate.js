@@ -162,6 +162,8 @@ const TranslateCore = {
     Translate.Data['docs'] = { es: 'Documentacion', en: 'Documentation' };
     Translate.Data['clean-cache'] = { es: 'Limpiar caché', en: 'Clean cache' };
 
+    Translate.Data['add'] = { es: 'Agregar', en: 'Add' };
+
     Translate.Data = {
       ...Translate.Data,
       ...{

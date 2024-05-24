@@ -296,7 +296,7 @@ const Modal = {
             </div>
           </div>
 
-          <div class="in html-modal-content html-${idModal}">
+          <div class="in html-${idModal}">
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
           </div>
         </div>

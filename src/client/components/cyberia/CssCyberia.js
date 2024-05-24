@@ -162,6 +162,7 @@ const CssCyberia = {
           border: 2px solid #313131;
           transition: 0.3s;
           cursor: pointer;
+          min-height: 100px;
         }
         .dropdown-option {
           width: 250px;
@@ -232,10 +233,6 @@ const CssCyberia = {
           border: 2px solid #313131;
           overflow: auto;
           font-family: 'retro-font-sensitive';
-        }
-        .warn-logout {
-          text-align: center;
-          padding: 10px;
         }
         .pixi-canvas-biome {
           width: 100%;

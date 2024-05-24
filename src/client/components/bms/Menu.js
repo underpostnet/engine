@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, getQueryParams, htmls, prepend, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterBms } from './RoutesBms.js';
@@ -25,6 +25,8 @@ import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
+import { Input } from '../core/Input.js';
+import { Responsive } from '../core/Responsive.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -171,9 +173,26 @@ const Menu = {
             id: 'id',
             inputType: 'text',
             panel: {},
+            disableRender: true,
+            rules: [{ type: 'isEmpty' }],
           },
-          { id: 'propertyType', model: 'propertyType', inputType: 'text', panel: { type: 'title' } },
-          { id: 'address', model: 'address', inputType: 'text', panel: { type: 'subtitle' } },
+          {
+            id: 'propertyType',
+            model: 'propertyType',
+            inputType: 'dropdown',
+            dropdown: {
+              options: ['Single Family Home', 'Condo', 'Townhouse', 'Commercial', ' Land'],
+            },
+            rules: [{ type: 'isEmpty' }],
+            panel: { type: 'title' },
+          },
+          {
+            id: 'address',
+            model: 'address',
+            inputType: 'text',
+            panel: { type: 'subtitle' },
+            rules: [{ type: 'isEmpty' }],
+          },
           {
             id: 'price',
             model: 'price',
@@ -183,15 +202,45 @@ const Menu = {
               icon: {
                 value: html`<i class="fas fa-dollar-sign"></i>`,
               },
+              newIcon: {
+                key: html``,
+              },
             },
+            rules: [{ type: 'isEmpty' }],
           },
-          { id: 'bedrooms', model: 'bedrooms', inputType: 'number', panel: { type: 'info-row' } },
-          { id: 'bathrooms', model: 'bathrooms', inputType: 'number', panel: { type: 'info-row' } },
-          { id: 'squareFootage', model: 'squareFootage', inputType: 'number', panel: { type: 'info-row' } },
-          { id: 'imageUrl', model: 'imageUrl', inputType: 'file', panel: {} },
-        ];
-
-        // const validators = await Validator.instance(formData);
+          {
+            id: 'bedrooms',
+            model: 'bedrooms',
+            inputType: 'number',
+            panel: { type: 'info-row' },
+            rules: [],
+          },
+          {
+            id: 'bathrooms',
+            model: 'bathrooms',
+            inputType: 'number',
+            panel: { type: 'info-row' },
+            rules: [],
+          },
+          {
+            id: 'squareFootage',
+            model: 'squareFootage',
+            inputType: 'number',
+            panel: { type: 'info-row' },
+            rules: [],
+          },
+          {
+            disableRender: true,
+            id: 'imageUrl',
+            model: 'imageUrl',
+            inputType: 'file',
+            panel: {},
+            rules: [{ type: 'isEmpty' }],
+          },
+        ].map((formObj) => {
+          formObj.id = `panel-${formObj.id}`;
+          return formObj;
+        });
 
         const data = [
           {
@@ -243,10 +292,9 @@ const Menu = {
           },
         ];
 
-        let render = '';
         const titleKey = formData.find((f) => f.panel.type === 'title').model;
         const subTitleKey = formData.find((f) => f.panel.type === 'subtitle').model;
-        for (const obj of data) {
+        const renderPanel = (obj) => {
           const { id } = obj;
 
           // const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
@@ -260,10 +308,14 @@ const Menu = {
           //     obj.imageUrl = URL.createObjectURL(blob);
           //     htmls(`.panel-cell-col-a-${id}`, html`<img class="in img-panel" src="${obj.imageUrl}" />`);
           //   });
-
-          render += html` <div class="in box-shadow panel">
+          setTimeout(async () => {
+            LoadingAnimation.spinner.play(`.panel-img-spinner-${id}`, 'dual-ring');
+          });
+          return html` <div class="in box-shadow panel">
             <div class="in panel-head">
-              <div class="in panel-title"><i class="fas fa-tag"></i> &nbsp ${obj[titleKey]}</div>
+              <div class="in panel-title">
+                ${obj.new ? obj.new : html`<i class="fas fa-tag"></i>`} &nbsp ${obj[titleKey]}
+              </div>
               <div class="in panel-subtitle">${obj[subTitleKey]}</div>
             </div>
             <div class="fl">
@@ -273,16 +325,24 @@ const Menu = {
               <div class="in fll panel-cell panel-cell-col-b">
                 ${Object.keys(obj)
                   .map((infoKey) => {
+                    const formObjData = formData.find((f) => f.model === infoKey);
+                    const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
+                    const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
+
+                    const valueNewIcon =
+                      obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
+                    const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
+
                     if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row-pin'))
                       return html`<div class="in panel-row">
-                        <span class="panel-row-pin-key capitalize"> ${infoKey}:</span>
-                        <span class="panel-row-pin-value"> ${obj[infoKey]}</span>
+                        <span class="panel-row-pin-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
+                        <span class="panel-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
 
                     if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row'))
                       return html`<div class="in panel-row">
-                        <span class="panel-row-key capitalize"> ${infoKey}:</span>
-                        <span class="panel-row-value"> ${obj[infoKey]}</span>
+                        <span class="panel-row-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
+                        <span class="panel-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
                       </div> `;
 
                     return html``;
@@ -291,19 +351,129 @@ const Menu = {
               </div>
             </div>
           </div>`;
-          setTimeout(async () => {
-            LoadingAnimation.spinner.play(`.panel-img-spinner-${id}`, 'dual-ring');
-          });
+        };
+
+        let render = '';
+        let renderForm = html` <div class="in modal stq" style="top: 0px; z-index: 1; padding-bottom: 5px">
+          ${await BtnIcon.Render({
+            class: 'section-mp btn-custom btn-panel-close',
+            label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+            type: 'button',
+          })}
+        </div>`;
+
+        for (const modelData of formData) {
+          if (modelData.disableRender) continue;
+          switch (modelData.inputType) {
+            case 'dropdown':
+              renderForm += html` <div class="inl section-mp">
+                ${await DropDown.Render({
+                  id: `${modelData.id}`,
+                  label: html`${Translate.Render(modelData.model)}`,
+                  // type: 'checkbox',
+                  value: modelData.dropdown.options[0].replaceAll(' ', '-').toLowerCase(),
+                  data: modelData.dropdown.options.map((dKey) => {
+                    const key = dKey.replaceAll(' ', '-').toLowerCase();
+                    return {
+                      value: key,
+                      data: dKey,
+                      // checked: true,
+                      display: html`${Translate.Render(dKey)}`,
+                      onClick: function () {},
+                    };
+                  }),
+                })}
+              </div>`;
+              break;
+
+            default:
+              renderForm += `${await Input.Render({
+                id: `${modelData.id}`,
+                type: modelData.inputType,
+                // autocomplete: 'new-password',
+                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render(modelData.model)}`,
+                containerClass: 'inl section-mp width-mini-box input-container',
+                placeholder: true,
+                // disabled: true,
+                // disabledEye: true,
+              })}`;
+              break;
+          }
         }
+        renderForm += html` <div class="in">
+          ${await BtnIcon.Render({
+            class: 'section-mp btn-custom btn-panel-submit',
+            label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
+            type: 'button',
+          })}
+          ${await BtnIcon.Render({
+            class: 'section-mp btn-custom btn-panel-clean',
+            label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
+            type: 'button',
+          })}
+        </div>`;
+
+        setTimeout(async () => {
+          Responsive.Event['panel-responsive'] = () => {
+            if (s(`.panel-form-container`))
+              s(`.panel-form-container`).style.maxHeight = `${window.innerHeight - slideTop}px`;
+          };
+          Responsive.Event['panel-responsive']();
+          const validators = await Validator.instance(formData);
+          EventsUI.onClick(`.btn-panel-submit`, async (e) => {
+            e.preventDefault();
+            const { errorMessage } = await validators();
+            if (errorMessage) return;
+            const obj = Input.getValues(formData);
+            obj.id = `${data.length}`;
+            obj.new = html`<span class="bold" style="color: #ff533ecf;"> <i class="fa-solid fa-tag"></i> NEW ! </span>`;
+            data.push(obj);
+            prepend('.panel-render', renderPanel(obj));
+            Input.cleanValues(formData);
+            s(`.btn-panel-close`).click();
+            s(`.main-body`).scrollTop = 0;
+          });
+          s(`.btn-panel-clean`).onclick = () => {
+            Input.cleanValues(formData);
+          };
+          s(`.btn-panel-close`).onclick = () => {
+            s(`.panel-form-body`).style.opacity = 0;
+            s(`.btn-panel-add`).classList.remove('hide');
+            s(`.main-body`).style.overflow = 'auto';
+            setTimeout(() => {
+              s(`.panel-form-body`).classList.add('hide');
+            });
+          };
+          s(`.btn-panel-add`).onclick = () => {
+            s(`.panel-form-body`).classList.remove('hide');
+            s(`.btn-panel-add`).classList.add('hide');
+            s(`.main-body`).style.overflow = 'hidden';
+            setTimeout(() => {
+              s(`.panel-form-body`).style.opacity = 1;
+            });
+          };
+        });
+
+        for (const obj of data) render += renderPanel(obj);
+
         return html`
           <style>
+            .main-body {
+              scroll-behavior: smooth;
+            }
+            .panel-form-container {
+              padding-bottom: 20px;
+              top: 0px;
+              z-index: 1;
+              overflow: auto;
+            }
             .panel-form {
+              max-width: 900px;
             }
             .panel-cell {
               min-height: 200px;
             }
             .panel-container {
-              color: black;
             }
             .panel {
               margin: 10px;
@@ -311,6 +481,8 @@ const Menu = {
               cursor: default;
               border-radius: 10px;
               background: white;
+              color: black;
+              padding: 10px;
             }
             .panel-head {
               /* background: white; */
@@ -344,9 +516,29 @@ const Menu = {
               font-size: 20px;
               color: rgb(19 190 84);
             }
+            .panel-form-header {
+            }
+            .panel-form-body {
+              transition: 0.3s;
+            }
+            .btn-panel-add {
+              padding: 10px;
+              font-size: 20px;
+            }
           </style>
           <div class="panel-container">
-            <form class="in panel-form session-in-log-in"></form>
+            <div class="stq modal panel-form-container session-in-log-in">
+              <div class="in panel-form-header">
+                ${await BtnIcon.Render({
+                  class: 'section-mp wfa btn-panel-add',
+                  label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
+                  type: 'button',
+                })}
+              </div>
+              <div class="in panel-form-body hide" style="opacity: 0">
+                <form class="in panel-form">${renderForm}</form>
+              </div>
+            </div>
             ${dynamicCol({
               id: `panel-cell`,
               containerSelector: `panel-render`,

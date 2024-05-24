@@ -3,7 +3,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { Translate } from './Translate.js';
-import { s } from './VanillaJs.js';
+import { htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const Input = {
@@ -63,6 +63,29 @@ const Input = {
     } catch (error) {
       return s(selector).value;
     }
+  },
+  getValues: function (formData) {
+    const obj = {};
+    for (const inputData of formData) {
+      if (!s(`.${inputData.id}`) || !s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined')
+        continue;
+      if ('model' in inputData) {
+        obj[inputData.model] = s(`.${inputData.id}`).value;
+      }
+    }
+    return obj;
+  },
+  cleanValues: function (formData) {
+    const obj = {};
+    for (const inputData of formData) {
+      if (!s(`.${inputData.id}`)) continue;
+
+      if ('model' in inputData) {
+        if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = '';
+      }
+      if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
+    }
+    return obj;
   },
 };
 

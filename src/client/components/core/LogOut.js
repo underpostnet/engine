@@ -27,15 +27,21 @@ const LogOut = {
   },
   Render: async function () {
     setTimeout(() => {
-      s('.btn-log-out').onclick = () => LogOut.Trigger();
+      s('.btn-log-out').onclick = (e) => {
+        e.preventDefault();
+        LogOut.Trigger();
+      };
     });
-    return html` <div class="in warn-logout">${Translate.Render('confirm-logout')}</div>
-      <div class="in warn-logout">
+    // Translate.Render('confirm-logout')
+    return html` <form class="in">
+      <div class="in">
         ${await BtnIcon.Render({
-          class: 'section-mp form-button btn-log-out',
-          label: Translate.Render('log-out'),
+          class: 'section-mp btn-custom btn-log-out',
+          label: html`<i class="fa-solid fa-power-off"></i> ${Translate.Render('log-out')}`,
+          type: 'submit',
         })}
-      </div>`;
+      </div>
+    </form>`;
   },
 };
 
