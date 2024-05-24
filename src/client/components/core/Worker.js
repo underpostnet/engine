@@ -13,7 +13,8 @@ const Worker = {
     if (!isInstall) await this.install();
     else if (location.hostname === 'localhost') await this.update();
     setTimeout(async () => {
-      if (!success) {
+      const isInstall = await this.status();
+      if (isInstall && !success) {
         await this.update();
         await this.reload();
       }

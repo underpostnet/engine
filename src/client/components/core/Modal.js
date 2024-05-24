@@ -228,17 +228,17 @@ const Modal = {
                     <div class="fl" style="height: ${options.heightBottomBar}px;">
                       ${await BtnIcon.Render({
                         style: `width: ${widthCell}%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-btn-left',
+                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-left',
                         label: html`<div class="abs center"><i class="fas fa-chevron-left"></i></div>`,
                       })}
                       ${await BtnIcon.Render({
                         style: `width: ${widthCell}%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-btn-center',
+                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-center',
                         label: html` <div class="abs center"><i class="far fa-square"></i></div>`,
                       })}
                       ${await BtnIcon.Render({
                         style: `width: ${widthCell}%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-btn-right',
+                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-right',
                         label: html` <div class="abs center"><i class="fas fa-chevron-right"></i></div>`,
                       })}
                     </div>

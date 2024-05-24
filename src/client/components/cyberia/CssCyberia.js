@@ -618,6 +618,10 @@ const CssCyberia = {
         .toolbar-lang:hover {
           font-size: 30px;
         }
+        .bottom-bar-btn {
+          margin: 0px;
+          border: none;
+        }
       </style>
 
       ${borderChar(2, 'black', [
