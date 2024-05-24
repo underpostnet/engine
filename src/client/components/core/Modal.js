@@ -28,6 +28,7 @@ const Modal = {
     let top = `${ResponsiveData.height / 2 - height / 2}px`;
     let left = `${ResponsiveData.width / 2 - width / 2}px`;
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
+    const heightDefaultTopBar = 0;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
     this.Data[idModal] = { options, onCloseListener: {} };
     if (options && 'mode' in options) {
@@ -60,7 +61,14 @@ const Modal = {
             options.style.resize = 'none';
           }
 
-          this.addResponsiveEvent({ idModal });
+          Responsive.Event[`view-${idModal}`] = () => {
+            if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
+            if (this.Data[idModal].slideMenu)
+              s(`.${idModal}`).style.height = `${
+                window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)
+              }px`;
+          };
+          Responsive.Event[`view-${idModal}`]();
 
           // Router
           if (options.route)
@@ -84,11 +92,11 @@ const Modal = {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
-              height: `${window.innerHeight - (options.heightTopBar ? options.heightTopBar : 50)}px`,
+              height: `${window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)}px`,
               width: '320px',
               'z-index': 5,
               resize: 'none',
-              top: `${options.heightTopBar ? options.heightTopBar : 50}px`,
+              top: `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`,
             };
             options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
 
@@ -106,7 +114,7 @@ const Modal = {
                   this.Data[_idModal].slideMenu.callBack();
               }
               s(`.${idModal}`).style.height = `${
-                window.innerHeight - (options.heightTopBar ? options.heightTopBar : 52)
+                window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)
               }px`;
             };
             barConfig.buttons.menu.onClick = () => {
@@ -176,8 +184,17 @@ const Modal = {
                 dragDisabled: true,
                 maximize: true,
                 slideMenu: 'modal-menu',
+                heightTopBar: options.heightTopBar,
               });
-              setTimeout(() => this.addResponsiveEvent({ idModal: id }));
+
+              Responsive.Event[`view-${id}`] = () => {
+                if (!this.Data[id]) return delete Responsive.Event[`view-${id}`];
+                if (this.Data[id].slideMenu)
+                  s(`.${id}`).style.height = `${
+                    window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)
+                  }px`;
+              };
+              Responsive.Event[`view-${id}`]();
             });
           })();
           break;
@@ -442,8 +459,10 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
-        s(`.${idModal}`).style.height = `${window.innerHeight - (options.heightTopBar ? options.heightTopBar : 50)}px`;
-        s(`.${idModal}`).style.top = `${options.heightTopBar ? options.heightTopBar : 50}px`;
+        s(`.${idModal}`).style.height = `${
+          window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)
+        }px`;
+        s(`.${idModal}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
       } else {
         s(`.${idModal}`).style.width = '100%';
         s(`.${idModal}`).style.height = '100%';
@@ -484,14 +503,6 @@ const Modal = {
       dragInstance,
       setDragInstance,
       ...this.Data[idModal],
-    };
-  },
-  addResponsiveEvent: function (options = { idModal: '' }) {
-    const { idModal } = options;
-    Responsive.Event[`view-${idModal}`] = () => {
-      if (!this.Data[idModal]) return delete Responsive.Event[`view-${idModal}`];
-      if (this.Data[idModal].slideMenu)
-        s(`.${idModal}`).style.height = `${window.innerHeight - (options.heightTopBar ? options.heightTopBar : 52)}px`;
     };
   },
   removeModal: async function (idModal) {

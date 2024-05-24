@@ -12,9 +12,7 @@ import { EventsUI } from './EventsUI.js';
 
 const Panel = {
   Tokens: {},
-  Render: async function (
-    options = { idPanel: '', scrollClassContainer: '', formData: [], data: [], heightTopBar: 50 },
-  ) {
+  Render: async function (options = { idPanel: '', scrollClassContainer: '', formData: [], data: [] }) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
     const { scrollClassContainer, formData, data, heightTopBar } = options;
 
