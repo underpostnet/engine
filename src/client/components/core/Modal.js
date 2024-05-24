@@ -122,7 +122,9 @@ const Modal = {
                   this.Data[_idModal].slideMenu.callBack();
               }
               s(`.${idModal}`).style.height = `${
-                window.innerHeight - (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar)
+                window.innerHeight -
+                (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+                (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
               }px`;
             };
             barConfig.buttons.menu.onClick = () => {
@@ -217,28 +219,58 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
+                const widthCell = 33.33;
                 await Modal.Render({
                   id,
                   barConfig,
-                  html: () => html`<span style="color: red">BottomBar</span>`,
+                  html: async () => html`
+                    <div class="fl" style="height: ${options.heightBottomBar}px;">
+                      ${await BtnIcon.Render({
+                        style: `width: ${widthCell}%; height: 100%`,
+                        class: 'in fll main-btn-menu bottom-btn-left',
+                        label: html`<div class="abs center"><i class="fas fa-chevron-left"></i></div>`,
+                      })}
+                      ${await BtnIcon.Render({
+                        style: `width: ${widthCell}%; height: 100%`,
+                        class: 'in fll main-btn-menu bottom-btn-center',
+                        label: html` <div class="abs center"><i class="far fa-square"></i></div>`,
+                      })}
+                      ${await BtnIcon.Render({
+                        style: `width: ${widthCell}%; height: 100%`,
+                        class: 'in fll main-btn-menu bottom-btn-right',
+                        label: html` <div class="abs center"><i class="fas fa-chevron-right"></i></div>`,
+                      })}
+                    </div>
+                  `,
                   titleClass: 'hide',
                   style: {
                     resize: 'none',
                     height: `${options.heightBottomBar}px`,
                     'min-width': `${minWidth}px`,
+                    'z-index': 5,
                   },
                   dragDisabled: true,
                   maximize: true,
-                  slideMenu: 'modal-menu',
                 });
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
-                  if (this.Data[id].slideMenu)
-                    s(`.${id}`).style.top = `${
-                      window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                    }px`;
+                  s(`.${id}`).style.top = `${
+                    window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                  }px`;
                 };
                 Responsive.Event[`view-${id}`]();
+                s(`.bottom-btn-left`).onclick = (e) => {
+                  e.preventDefault();
+                  window.history.back();
+                };
+                s(`.bottom-btn-center`).onclick = (e) => {
+                  e.preventDefault();
+                  s(`.main-btn-home`).click();
+                };
+                s(`.bottom-btn-right`).onclick = (e) => {
+                  e.preventDefault();
+                  window.history.forward();
+                };
               }
             });
           })();

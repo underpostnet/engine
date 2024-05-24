@@ -11,7 +11,7 @@ const ToolBar = {
   Render: async function (options = { id: 'ToolBar', tools: [] }) {
     const id = options?.id ? options.id : getId(this.Data, 'ToolBar-');
     this.Data[id] = {};
-    const width = 300;
+    const width = 200;
     const style = {
       height: '40px',
       width: `${width}px`,
