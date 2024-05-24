@@ -297,17 +297,17 @@ const Menu = {
         const renderPanel = (obj) => {
           const { id } = obj;
 
-          // const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
-          // const options = {
-          //   headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
-          // };
+          const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
+          const options = {
+            headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
+          };
 
-          // fetch(src, options)
-          //   .then((res) => res.blob())
-          //   .then((blob) => {
-          //     obj.imageUrl = URL.createObjectURL(blob);
-          //     htmls(`.panel-cell-col-a-${id}`, html`<img class="in img-panel" src="${obj.imageUrl}" />`);
-          //   });
+          fetch(src, options)
+            .then((res) => res.blob())
+            .then((blob) => {
+              obj.imageUrl = URL.createObjectURL(blob);
+              htmls(`.panel-cell-col-a-${id}`, html`<img class="in img-panel" src="${obj.imageUrl}" />`);
+            });
           setTimeout(async () => {
             LoadingAnimation.spinner.play(`.panel-img-spinner-${id}`, 'dual-ring');
           });
