@@ -292,7 +292,6 @@ scrollbar-width: none;
           }
           .slide-menu-top-bar {
             width: 100%;
-            height: 50px;
             top: 0px;
             right: 0px;
           }
@@ -378,7 +377,6 @@ scrollbar-width: none;
           }
           .slide-menu-top-bar {
             width: 100%;
-            height: 50px;
             top: 0px;
             right: 0px;
           }
@@ -460,7 +458,6 @@ scrollbar-width: none;
 
           .slide-menu-top-bar {
             width: 100%;
-            height: 50px;
             top: 0px;
             right: 0px;
           }
@@ -587,7 +584,6 @@ scrollbar-width: none;
           }
           .slide-menu-top-bar {
             width: 100%;
-            height: 50px;
             top: 0px;
             right: 0px;
           }

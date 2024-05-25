@@ -3,6 +3,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { CyberiaQuestController } from './cyberia-quest.controller.js';
 import express from 'express';
 import dotenv from 'dotenv';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 
 dotenv.config();
 

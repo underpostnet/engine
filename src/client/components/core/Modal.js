@@ -1,4 +1,4 @@
-import { getId } from './CommonJs.js';
+import { getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
 import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
@@ -23,6 +23,16 @@ const Modal = {
       RouterInstance: {},
     },
   ) {
+    let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
+    let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
+
+    options.topBar = true;
+
+    if (options.topBar && options.heightBottomBar > 0) {
+      options.heightTopBar = options.heightTopBar + options.heightBottomBar;
+      options.heightBottomBar = 0;
+    }
+
     const ResponsiveData = Responsive.getResponsiveData();
     let width = 300;
     let height = 400;
@@ -167,27 +177,33 @@ const Modal = {
             };
             transition += `, width 0.3s`;
 
-            append('body', html`<div class="fix modal slide-menu-top-bar"></div>`);
+            append(
+              'body',
+              html`<div class="fix modal slide-menu-top-bar">
+                <div class="in top-bar" style="height: ${originHeightTopBar}px;"></div>
+              </div>`,
+            );
 
             setTimeout(async () => {
               // clone and change position
 
               // s(`.btn-close-${idModal}`);
               // s(`.btn-menu-${idModal}`);
+              if (originHeightBottomBar === 0) {
+                const btnCloseNode = s(`.btn-close-${idModal}`).cloneNode(true);
+                s(`.btn-close-${idModal}`).remove();
+                s(`.top-bar`).appendChild(btnCloseNode);
+                s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
 
-              // const btnCloseNode = s(`.btn-close-${idModal}`).cloneNode(true);
-              // s(`.btn-close-${idModal}`).remove();
-              // s(`.slide-menu-top-bar`).appendChild(btnCloseNode);
-              // s(`.btn-close-${idModal}`).onclick = btnCloseEvent;
-
-              // const btnMenuNode = s(`.btn-menu-${idModal}`).cloneNode(true);
-              // s(`.btn-menu-${idModal}`).remove();
-              // s(`.slide-menu-top-bar`).appendChild(btnMenuNode);
-              // s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
+                const btnMenuNode = s(`.btn-menu-${idModal}`).cloneNode(true);
+                s(`.btn-menu-${idModal}`).remove();
+                s(`.top-bar`).appendChild(btnMenuNode);
+                s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
+              }
 
               const titleNode = s(`.title-modal-${idModal}`).cloneNode(true);
               s(`.title-modal-${idModal}`).remove();
-              s(`.slide-menu-top-bar`).appendChild(titleNode);
+              s(`.top-bar`).appendChild(titleNode);
               s(`.slide-menu-top-bar`).style.zIndex = 7;
 
               // s('body').removeChild(`.${idModal}`);
@@ -232,7 +248,7 @@ const Modal = {
                 Responsive.Event[`view-${id}`]();
               }
 
-              if (options.heightBottomBar && options.heightBottomBar > 0) {
+              {
                 const { barConfig } = await Themes[Css.currentTheme]();
                 barConfig.buttons.maximize.disabled = true;
                 barConfig.buttons.minimize.disabled = true;
@@ -240,58 +256,64 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
-                await Modal.Render({
-                  id,
-                  barConfig,
-                  html: async () => html`
-                    <div class="fl" style="height: ${options.heightBottomBar}px;">
-                      ${await BtnIcon.Render({
-                        style: `width: 25%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-center',
-                        label: html`
-                          <div class="abs center">
-                            <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                            <i class="fa-solid fa-xmark btn-bar-center-icon-close hide"></i>
-                            <i class="fa-solid fa-bars btn-bar-center-icon-menu"></i>
-                          </div>
-                        `,
-                      })}
-                      ${await BtnIcon.Render({
-                        style: `width: 25%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-home',
-                        label: html` <div class="abs center"><i class="fas fa-home"></i></div>`,
-                      })}
-                      ${await BtnIcon.Render({
-                        style: `width: 25%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-left',
-                        label: html`<div class="abs center"><i class="fas fa-chevron-left"></i></div>`,
-                      })}
-                      ${await BtnIcon.Render({
-                        style: `width: 25%; height: 100%`,
-                        class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-right',
-                        label: html` <div class="abs center"><i class="fas fa-chevron-right"></i></div>`,
-                      })}
-                    </div>
-                  `,
-                  titleClass: 'hide',
-                  style: {
-                    resize: 'none',
-                    height: `${options.heightBottomBar}px`,
-                    'min-width': `${minWidth}px`,
-                    'z-index': 7,
-                  },
-                  dragDisabled: true,
-                  maximize: true,
-                });
-                Responsive.Event[`view-${id}`] = () => {
-                  if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
-                  //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
-                  // s(`.right-offset-menu-bottom-bar`).style.width = `${window.innerWidth - slideMenuWidth}px`;
-                  s(`.${id}`).style.top = `${
-                    window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                  }px`;
-                };
-                Responsive.Event[`view-${id}`]();
+                const contentIconClass = 'abs center';
+                const html = async () => html`
+                  <div class="fl" style="height: ${originHeightBottomBar}px;">
+                    ${await BtnIcon.Render({
+                      style: `width: 25%; height: 100%`,
+                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-center',
+                      label: html`
+                        <div class="${contentIconClass}">
+                          <i class="far fa-square btn-bar-center-icon-square hide"></i>
+                          <i class="fa-solid fa-xmark btn-bar-center-icon-close hide"></i>
+                          <i class="fa-solid fa-bars btn-bar-center-icon-menu"></i>
+                        </div>
+                      `,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `width: 25%; height: 100%`,
+                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-home',
+                      label: html` <div class="${contentIconClass}"><i class="fas fa-home"></i></div>`,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `width: 25%; height: 100%`,
+                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-left',
+                      label: html`<div class="${contentIconClass}"><i class="fas fa-chevron-left"></i></div>`,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `width: 25%; height: 100%`,
+                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-right',
+                      label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
+                    })}
+                  </div>
+                `;
+                if (options.heightBottomBar === 0 && options.heightTopBar > 0) {
+                  append(`.slide-menu-top-bar`, html` <div class="in ${id}">${await html()}</div>`);
+                } else {
+                  await Modal.Render({
+                    id,
+                    barConfig,
+                    html,
+                    titleClass: 'hide',
+                    style: {
+                      resize: 'none',
+                      height: `${options.heightBottomBar}px`,
+                      'min-width': `${minWidth}px`,
+                      'z-index': 7,
+                    },
+                    dragDisabled: true,
+                    maximize: true,
+                  });
+                  Responsive.Event[`view-${id}`] = () => {
+                    if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
+                    //  <div class="in fll right-offset-menu-bottom-bar" style="height: 100%"></div>
+                    // s(`.right-offset-menu-bottom-bar`).style.width = `${window.innerWidth - slideMenuWidth}px`;
+                    s(`.${id}`).style.top = `${
+                      window.innerHeight - (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                    }px`;
+                  };
+                  Responsive.Event[`view-${id}`]();
+                }
                 s(`.bottom-btn-left`).onclick = (e) => {
                   e.preventDefault();
                   window.history.back();
