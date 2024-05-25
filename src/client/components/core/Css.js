@@ -295,7 +295,6 @@ scrollbar-width: none;
             height: 50px;
             top: 0px;
             right: 0px;
-            z-index: 5;
           }
           .modal-icon-container {
             width: 40px;
@@ -382,7 +381,6 @@ scrollbar-width: none;
             height: 50px;
             top: 0px;
             right: 0px;
-            z-index: 5;
           }
         </style>
       `,
@@ -465,7 +463,6 @@ scrollbar-width: none;
             height: 50px;
             top: 0px;
             right: 0px;
-            z-index: 5;
           }
         </style>
       `,
@@ -593,7 +590,6 @@ scrollbar-width: none;
             height: 50px;
             top: 0px;
             right: 0px;
-            z-index: 5;
           }
         </style>
       `,
