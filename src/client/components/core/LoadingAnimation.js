@@ -71,6 +71,22 @@ const LoadingAnimation = {
       s(`.${id}`).remove();
     },
   },
+  img: {
+    tokens: {},
+    load: function ({ key, src, classes, style }) {
+      this.tokens[key] = { src, classes, style };
+    },
+    play: function (container, key) {
+      append(
+        container,
+        html`<img
+          ${this.tokens[key].classes ? `class="${this.tokens[key].classes}"` : ''}
+          ${this.tokens[key].style ? `style="${this.tokens[key].style}"` : ''}
+          src="${getProxyPath()}${this.tokens[key].src}"
+        />`,
+      );
+    },
+  },
   barLevel: {
     append: () => {
       s(`.ssr-blink-bar`).classList.remove('ssr-blink-bar');

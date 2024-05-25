@@ -1,4 +1,4 @@
-import { AgGrid } from './AgGrid.js';
+import { LoadingAnimation } from './LoadingAnimation.js';
 import { Modal } from './Modal.js';
 import { ToolBar } from './ToolBar.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
@@ -727,6 +727,12 @@ const Themes = {
       await Css.retro();
       await Css.cyberia();
       await Css.toolbar();
+      LoadingAnimation.img.load({
+        key: 'points',
+        src: 'assets/util/points-loading.gif',
+        classes: 'inl',
+        style: 'width: 100px; height: 100px',
+      });
       darkTheme = true;
       TriggerThemeEvents();
     }

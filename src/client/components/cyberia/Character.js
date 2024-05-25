@@ -38,7 +38,7 @@ const Character = {
         });
       this.renderCharacterStat();
       this.renderCharacterPreView();
-      LoadingAnimation.spinner.play(`.character-preview-loading`);
+      LoadingAnimation.img.play(`.character-preview-loading`, 'points');
     });
     const onEnd = function (/**Event*/ evt) {
       try {
