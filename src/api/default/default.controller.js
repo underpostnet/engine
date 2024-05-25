@@ -27,7 +27,7 @@ const DefaultController = {
   get: async (req, res, options) => {
     try {
       // throw { message: 'error default' };
-      const result = await DefaultService.put(req, res, options);
+      const result = await DefaultService.get(req, res, options);
       if (!result)
         return res.status(400).json({
           status: 'error',
@@ -48,7 +48,7 @@ const DefaultController = {
   put: async (req, res, options) => {
     try {
       // throw { message: 'error default' };
-      const result = await DefaultService.get(req, res, options);
+      const result = await DefaultService.put(req, res, options);
       if (!result)
         return res.status(400).json({
           status: 'error',
