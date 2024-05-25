@@ -37,7 +37,10 @@ try {
         `./.vscode/extensions.json`,
         JSON.stringify(
           {
-            recommendations: fs.readFileSync(`./vs-extensions.txt`, 'utf8').split(`\n`),
+            recommendations: fs
+              .readFileSync(`./vs-extensions.txt`, 'utf8')
+              .split(`\n`)
+              .filter((ext) => ext.trim()),
           },
           null,
           4,
