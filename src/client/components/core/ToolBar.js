@@ -15,7 +15,7 @@ const ToolBar = {
     const style = {
       height: '40px',
       width: `${width}px`,
-      'z-index': 6, // ??
+      'z-index': 8, // ??
       'font-size': '18px',
       overflow: 'hidden',
       resize: 'none',
