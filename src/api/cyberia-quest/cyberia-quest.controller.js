@@ -27,7 +27,7 @@ const CyberiaQuestController = {
   get: async (req, res, options) => {
     try {
       // throw { message: 'error cyberia-quest' };
-      const result = await CyberiaQuestService.put(req, res, options);
+      const result = await CyberiaQuestService.get(req, res, options);
       if (!result)
         return res.status(400).json({
           status: 'error',
@@ -48,7 +48,7 @@ const CyberiaQuestController = {
   put: async (req, res, options) => {
     try {
       // throw { message: 'error cyberia-quest' };
-      const result = await CyberiaQuestService.get(req, res, options);
+      const result = await CyberiaQuestService.put(req, res, options);
       if (!result)
         return res.status(400).json({
           status: 'error',
