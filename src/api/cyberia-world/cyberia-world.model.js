@@ -100,6 +100,18 @@ const CyberiaWorldSchema = new Schema({
       },
     ],
   },
+  quests: {
+    type: [
+      {
+        id: { type: String },
+      },
+    ],
+    default: [
+      {
+        id: 'floki-bone',
+      },
+    ],
+  },
   type: { type: String, enum: ['width', 'height'], default: 'width' },
   name: { type: String },
 });

@@ -17,6 +17,7 @@ import { Skill } from './Skill.js';
 import { Bag, Slot } from './Bag.js';
 import { InteractionPanel } from './InteractionPanel.js';
 import { Character } from './Character.js';
+import { QuestManagement } from './Quest.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -44,6 +45,7 @@ const MainUser = {
 
     try {
       await WorldManagement.Load({ type, id });
+      await QuestManagement.Load({ type, id });
     } catch (error) {
       console.error(error);
     }
