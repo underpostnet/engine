@@ -498,7 +498,7 @@ const addApiConf = async (
   fs.writeFileSync(`${confToFolder}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
 
   const confClient = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
-  confClient[fromOptions.clientId].services.push(toOptions.apiId);
+  confClient[toOptions.clientId].services.push(toOptions.apiId);
   fs.writeFileSync(`${confToFolder}/conf.client.json`, JSON.stringify(confClient, null, 4), 'utf8');
 };
 

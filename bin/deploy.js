@@ -231,7 +231,7 @@ try {
 
         shellExec(`node bin/deploy build-nodejs-src-api ${apiId} ${deployId} ${clientId}`);
 
-        shellExec(`npm run dev ${deployId}`);
+        // shellExec(`npm run dev ${deployId}`);
       }
       break;
     case 'new-nodejs-ws':
