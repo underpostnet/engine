@@ -13,7 +13,7 @@ const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, hostPath = '', operator, deployId] = process.argv;
+const [exe, dir, hostPath = '', operator, deployId, arg0, arg1] = process.argv;
 const [host, path = ''] = hostPath.split('/');
 
 try {
@@ -36,6 +36,9 @@ try {
           break;
         case 'delete':
           await MariaDB.query({ user, password, query: `DROP DATABASE IF EXISTS ${name}` });
+          break;
+        case 'select':
+          await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
           break;
         case 'export':
           cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${backupPath}`;
