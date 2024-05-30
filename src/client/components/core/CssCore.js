@@ -10,6 +10,12 @@ const CssCommonCore = async () => {
       width: 35px;
       height: 35px;
     }
+    .mini-title {
+      font-size: 15px;
+    }
+    .top-bar-search-box-container {
+      cursor: pointer;
+    }
   </style>`;
 };
 

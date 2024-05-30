@@ -9,7 +9,7 @@ import { EventsUI } from '../core/EventsUI.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal } from '../core/Modal.js';
+import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { SocketIo } from '../core/SocketIo.js';
@@ -50,89 +50,89 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-character',
-            label: this.renderMenuLabel({ img: 'character.png', text: Translate.Render('character') }),
+            label: renderMenuLabel({ img: 'character.png', text: Translate.Render('character') }),
             attrs: `data-id="1"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-bag',
-            label: this.renderMenuLabel({ img: 'bag.png', text: Translate.Render('bag') }),
+            label: renderMenuLabel({ img: 'bag.png', text: Translate.Render('bag') }),
             attrs: `data-id="2"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-colors',
-            label: this.renderMenuLabel({ img: 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
+            label: renderMenuLabel({ img: 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
             attrs: `data-id="3"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-settings',
-            label: this.renderMenuLabel({ img: 'settings.png', text: Translate.Render('settings') }),
+            label: renderMenuLabel({ img: 'settings.png', text: Translate.Render('settings') }),
             attrs: `data-id="4"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-in',
-            label: this.renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
+            label: renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
             attrs: `data-id="5"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-sign-up',
-            label: this.renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
+            label: renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
             attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-wallet',
-            label: this.renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
+            label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
             attrs: `data-id="7"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-out',
-            label: this.renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
+            label: renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
             attrs: `data-id="8"`,
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-account',
-            label: this.renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
+            label: renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
             style: 'display: none',
             attrs: `data-id="9"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-chat',
-            label: this.renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
+            label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
             attrs: `data-id="10"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-biome',
-            label: this.renderMenuLabel({ img: 'engine.png', text: 'Biome Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'Biome Engine' }),
             attrs: `data-id="11"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-tile',
-            label: this.renderMenuLabel({ img: 'engine.png', text: 'Tile Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'Tile Engine' }),
             attrs: `data-id="12"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-3d',
-            label: this.renderMenuLabel({ img: 'engine.png', text: '3D Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: '3D Engine' }),
             attrs: `data-id="13"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-world',
-            label: this.renderMenuLabel({ img: 'engine.png', text: 'World Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'World Engine' }),
             attrs: `data-id="14"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-blockchain',
-            label: this.renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
             attrs: `data-id="15"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-cloud',
-            label: this.renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
+            label: renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
             attrs: `data-id="16"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-server',
-            label: this.renderMenuLabel({ img: 'server.png', text: 'Server' }),
+            label: renderMenuLabel({ img: 'server.png', text: 'Server' }),
             attrs: `data-id="17"`,
           })}
         </div>
@@ -212,7 +212,7 @@ const Menu = {
         id: 'modal-settings',
         route: 'settings',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'settings.png', text: Translate.Render('settings') }),
+        title: renderViewTitle({ 'ui-icon': 'settings.png', text: Translate.Render('settings') }),
         html: async () => await Settings.Render(),
         maximize: true,
         mode: 'view',
@@ -229,7 +229,7 @@ const Menu = {
         id: 'modal-bag',
         route: 'bag',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'bag.png', text: Translate.Render('bag') }),
+        title: renderViewTitle({ 'ui-icon': 'bag.png', text: Translate.Render('bag') }),
         html: async () => await Bag.Render({ id: 'cyberia-bag', idModal: 'modal-bag' }),
         handleType: 'bar',
         maximize: true,
@@ -247,7 +247,7 @@ const Menu = {
         id: 'modal-pallet-colors',
         route: 'colors',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
+        title: renderViewTitle({ 'ui-icon': 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
         html: async () => await ColorPalette.Render(),
         maximize: true,
         mode: 'view',
@@ -264,7 +264,7 @@ const Menu = {
         id: 'modal-biome',
         route: 'biome',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'engine.png', text: 'Biome engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'Biome engine' }),
         html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
         handleType: 'bar',
         maximize: true,
@@ -282,7 +282,7 @@ const Menu = {
         id: 'modal-tile-engine',
         route: 'tile',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'engine.png', text: 'Tile engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'Tile engine' }),
         html: async () => await Tile.Render({ idModal: 'modal-tile-engine' }),
         handleType: 'bar',
         maximize: true,
@@ -300,7 +300,7 @@ const Menu = {
         id: 'modal-3d-engine',
         route: '3d',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'engine.png', text: '3d Engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: '3d Engine' }),
         html: async () =>
           await Polyhedron.Render({
             idModal: 'modal-3d-engine',
@@ -328,7 +328,7 @@ const Menu = {
         id: 'modal-world-engine',
         route: 'world',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'engine.png', text: 'World Engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'World Engine' }),
         html: async () => await World.Render({ idModal: 'modal-world-engine' }),
         handleType: 'bar',
         maximize: true,
@@ -346,7 +346,7 @@ const Menu = {
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'sign-up.png', text: Translate.Render('sign-up') }),
+        title: renderViewTitle({ 'ui-icon': 'sign-up.png', text: Translate.Render('sign-up') }),
         html: async () => await SignUp.Render({ idModal: 'modal-sign-up' }),
         handleType: 'bar',
         maximize: true,
@@ -364,7 +364,7 @@ const Menu = {
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'log-out.png', text: Translate.Render('log-out') }),
+        title: renderViewTitle({ 'ui-icon': 'log-out.png', text: Translate.Render('log-out') }),
         html: async () => await LogOut.Render(),
         handleType: 'bar',
         maximize: true,
@@ -382,7 +382,7 @@ const Menu = {
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'log-in.png', text: Translate.Render('log-in') }),
+        title: renderViewTitle({ 'ui-icon': 'log-in.png', text: Translate.Render('log-in') }),
         html: async () => await LogIn.Render(),
         handleType: 'bar',
         maximize: true,
@@ -400,7 +400,7 @@ const Menu = {
         id: 'modal-chat',
         route: 'chat',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'chat.png', text: 'Chat' }),
+        title: renderViewTitle({ 'ui-icon': 'chat.png', text: 'Chat' }),
         html: async () => await Chat.Render({ idModal: 'modal-chat' }),
         handleType: 'bar',
         maximize: true,
@@ -419,7 +419,7 @@ const Menu = {
         id: 'modal-account',
         route: 'account',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'account.png', text: Translate.Render('account') }),
+        title: renderViewTitle({ 'ui-icon': 'account.png', text: Translate.Render('account') }),
         html: async () => await Account.Render({ idModal: 'modal-account', user: Elements.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
@@ -437,7 +437,7 @@ const Menu = {
         id: 'modal-wallet',
         route: 'wallet',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'wallet.png', text: 'Wallet' }),
+        title: renderViewTitle({ 'ui-icon': 'wallet.png', text: 'Wallet' }),
         html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
@@ -455,7 +455,7 @@ const Menu = {
         id: 'modal-blockchain',
         route: 'blockchain',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'engine.png', text: 'blockchain' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'blockchain' }),
         html: async () => await BlockChainManagement.Render({ idModal: 'modal-blockchain' }),
         handleType: 'bar',
         maximize: true,
@@ -473,7 +473,7 @@ const Menu = {
         id: 'modal-character',
         route: 'character',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'character.png', text: 'character' }),
+        title: renderViewTitle({ 'ui-icon': 'character.png', text: 'character' }),
         html: async () => await Character.Render({ idModal: 'modal-character' }),
         handleType: 'bar',
         maximize: true,
@@ -491,7 +491,7 @@ const Menu = {
         id: 'modal-cloud',
         route: 'cloud',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'cloud.png', text: 'cloud' }),
+        title: renderViewTitle({ 'ui-icon': 'cloud.png', text: 'cloud' }),
         html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
@@ -509,7 +509,7 @@ const Menu = {
         id: 'modal-server',
         route: 'server',
         barConfig,
-        title: this.renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
+        title: renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
         html: async () =>
           await ServerCyberiaPortal.Render({
             idModal: 'modal-server',
@@ -530,20 +530,6 @@ const Menu = {
         heightBottomBar,
       });
     });
-  },
-  renderMenuLabel: ({ img, text }) => html`<img
-      class="abs center img-btn-square-menu"
-      src="${getProxyPath()}assets/ui-icons/${img}"
-    />
-    <div class="abs center main-btn-menu-text">${text}</div>`,
-
-  renderViewTitle: (options = { img: '', text: '', 'ui-icons': '' }) => {
-    const { img, text } = options;
-    return html`<img
-        class="abs img-btn-square-view-title"
-        src="${options['ui-icon'] ? `${getProxyPath()}assets/ui-icons/${options['ui-icon']}` : img}"
-      />
-      <div class="in text-btn-square-view-title">${text}</div>`;
   },
 };
 

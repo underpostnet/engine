@@ -1,10 +1,9 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
-import { Modal } from '../core/Modal.js';
+import { Modal, renderViewTitle } from '../core/Modal.js';
 import { listenQueryPathInstance, setQueryPath } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
-import { Menu } from './Menu.js';
 
 const LabGallery = {
   Tokens: {},
@@ -36,7 +35,7 @@ const LabGallery = {
           };
           await Modal.Render({
             barConfig,
-            title: Menu.renderViewTitle({
+            title: renderViewTitle({
               icon: html`<i class="fa-solid fa-photo-film"></i>`,
               text: view.title,
             }),

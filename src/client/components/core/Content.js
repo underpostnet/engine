@@ -2,8 +2,8 @@ import { marked } from 'marked';
 import { FileService } from '../../services/file/file.service.js';
 import { getBlobFromUint8ArrayFile, getQueryParams, getRawContentFile, htmls } from './VanillaJs.js';
 import { titleFormatted } from './CommonJs.js';
-import { darkTheme } from './Css.js';
 import { Translate } from './Translate.js';
+import { renderViewTitle } from './Modal.js';
 
 const Content = {
   Render: async function (options = { idModal: '', Menu: {} }) {
@@ -22,7 +22,7 @@ const Content = {
           case 'md':
             htmls(
               `.title-modal-${idModal}`,
-              html`${Menu.renderViewTitle({
+              html`${renderViewTitle({
                   icon: html`<i
                     class="inl ${queryParams.icon ? queryParams.icon : 'far fa-file'}"
                     style="top: 17px;"

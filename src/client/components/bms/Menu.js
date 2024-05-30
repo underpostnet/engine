@@ -5,7 +5,7 @@ import { Css, Themes, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal } from '../core/Modal.js';
+import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
@@ -43,7 +43,7 @@ const Menu = {
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-blog hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-file-invoice"></i>`,
               text: html`${Translate.Render('blog')}`,
             }),
@@ -51,7 +51,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-calendar hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
               text: html`${Translate.Render('calendar')}`,
             }),
@@ -59,7 +59,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-dashboard hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-chart-line"></i>`,
               text: html`${Translate.Render('dashboard')}`,
             }),
@@ -67,7 +67,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-stream hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-video"></i>`,
               text: html`${Translate.Render('stream')}`,
             }),
@@ -75,7 +75,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-docs hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
               text: html`${Translate.Render('docs')}`,
             }),
@@ -83,7 +83,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-content hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="far fa-file"></i>`,
               text: html`${Translate.Render('content')}`,
             }),
@@ -91,7 +91,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-cloud hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-cloud"></i>`,
               text: html`${Translate.Render('cloud')}`,
             }),
@@ -99,7 +99,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-chat hide',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
               text: html`${Translate.Render('chat')}`,
             }),
@@ -107,7 +107,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-settings',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`${Translate.Render('settings')}`,
             }),
@@ -115,7 +115,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-home',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`${Translate.Render('home')}`,
             }),
@@ -124,7 +124,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-log-in',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`${Translate.Render('log-in')}`,
             }),
@@ -132,7 +132,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-sign-up',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`${Translate.Render('sign-up')}`,
             }),
@@ -140,7 +140,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-log-out',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`${Translate.Render('log-out')}`,
             }),
@@ -149,7 +149,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'wfa main-btn-menu main-btn-account',
-            label: this.renderMenuLabel({
+            label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`${Translate.Render('account')}`,
             }),
@@ -351,7 +351,7 @@ const Menu = {
         id: 'modal-sign-up',
         route: 'sign-up',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fas fa-user-plus"></i>`,
           text: Translate.Render('sign-up'),
         }),
@@ -392,7 +392,7 @@ const Menu = {
         id: 'modal-log-out',
         route: 'log-out',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fas fa-sign-out-alt"></i>`,
           text: Translate.Render('log-out'),
         }),
@@ -413,7 +413,7 @@ const Menu = {
         id: 'modal-log-in',
         route: 'log-in',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fas fa-sign-in-alt"></i>`,
           text: Translate.Render('log-in'),
         }),
@@ -434,7 +434,7 @@ const Menu = {
         id: 'modal-blog',
         route: 'blog',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
           text: Translate.Render('blog'),
         }),
@@ -455,7 +455,7 @@ const Menu = {
         id: 'modal-account',
         route: 'account',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fas fa-user-circle"></i>`,
           text: Translate.Render('account'),
         }),
@@ -481,7 +481,7 @@ const Menu = {
         id: 'modal-dashboard',
         route: 'dashboard',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fa-solid fa-chart-line"></i>`,
           text: Translate.Render('dashboard'),
         }),
@@ -505,7 +505,7 @@ const Menu = {
         id: 'modal-stream',
         route: 'stream',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fa-solid fa-video"></i>`,
           text: Translate.Render('stream'),
         }),
@@ -529,7 +529,7 @@ const Menu = {
         id: 'modal-calendar',
         route: 'calendar',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html` <i class="fas fa-calendar-alt"></i>`,
           text: Translate.Render('calendar'),
         }),
@@ -561,7 +561,7 @@ const Menu = {
         id: `modal-content${subModalId}`,
         route: 'content',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="far fa-file"></i>`,
           text: Translate.Render('content'),
         }),
@@ -586,7 +586,7 @@ const Menu = {
         id: 'modal-cloud',
         route: 'cloud',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html` <i class="fas fa-cloud"></i>`,
           text: Translate.Render('cloud'),
         }),
@@ -607,7 +607,7 @@ const Menu = {
         id: 'modal-chat',
         route: 'chat',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html` <i class="far fa-comments"></i>`,
           text: Translate.Render('chat'),
         }),
@@ -629,7 +629,7 @@ const Menu = {
         id: 'modal-settings',
         route: 'settings',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html` <i class="fas fa-sliders-h"></i>`,
           text: Translate.Render('settings'),
         }),
@@ -650,7 +650,7 @@ const Menu = {
         id: 'modal-docs',
         route: 'docs',
         barConfig,
-        title: this.renderViewTitle({
+        title: renderViewTitle({
           icon: html`<i class="fas fa-book"></i>`,
           text: Translate.Render('docs'),
         }),
@@ -669,9 +669,6 @@ const Menu = {
       });
     });
   },
-  renderMenuLabel: ({ icon, text }) => html`<span class="menu-btn-icon">${icon}</span> ${text}`,
-
-  renderViewTitle: ({ icon, text }) => html`<span class="view-title-icon">${icon}</span> ${text}`,
 };
 
 export { Menu };

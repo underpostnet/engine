@@ -4,7 +4,7 @@ import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
-import { Modal } from '../core/Modal.js';
+import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
 import { SkillData, Stat } from './CommonCyberia.js';
 import { Menu } from './Menu.js';
@@ -382,7 +382,7 @@ const Slot = {
         await Modal.Render({
           id: `modal-skin-${slotId}`,
           barConfig,
-          title: Menu.renderViewTitle({
+          title: renderViewTitle({
             img: `${getProxyPath()}assets/skin/${displayId}/08/0.png`,
             text: html`${displayId}`,
           }),
@@ -426,7 +426,7 @@ const Slot = {
         await Modal.Render({
           id: `modal-weapon-${slotId}`,
           barConfig,
-          title: Menu.renderViewTitle({
+          title: renderViewTitle({
             img: `${getProxyPath()}assets/weapon/${displayId}/animation.gif`,
             text: html`${displayId}`,
           }),
@@ -470,7 +470,7 @@ const Slot = {
         await Modal.Render({
           id: `modal-breastplate-${slotId}`,
           barConfig,
-          title: Menu.renderViewTitle({
+          title: renderViewTitle({
             img: `${getProxyPath()}assets/breastplate/${displayId}/animation.gif`,
             text: html`${displayId}`,
           }),
@@ -517,7 +517,7 @@ const Slot = {
         await Modal.Render({
           id: `modal-skill-${slotId}`,
           barConfig,
-          title: Menu.renderViewTitle({
+          title: renderViewTitle({
             img: `${getProxyPath()}assets/skill/${displayId}/animation.gif`,
             text: html`${displayId}`,
           }),

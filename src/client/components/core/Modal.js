@@ -193,7 +193,7 @@ const Modal = {
                       placeholder: Translate.Render('search', '.top-bar-search-box'), // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
                       placeholderIcon: html`<div
                         class="in fll"
-                        style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px; cursor: pointer"
+                        style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
                       >
                         <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
                       </div>`,
@@ -222,12 +222,15 @@ const Modal = {
                   barConfig.buttons.minimize.disabled = true;
                   barConfig.buttons.restore.disabled = true;
                   barConfig.buttons.menu.disabled = true;
-                  barConfig.buttons.close.disabled = true;
                   await Modal.Render({
                     id,
                     barConfig,
-                    html: () => html`Recent`,
-                    titleClass: 'hide',
+                    title: renderViewTitle({
+                      icon: html`<i class="fas fa-history mini-title"></i>`,
+                      text: Translate.Render('Recent'),
+                    }),
+                    html: () => html``,
+                    titleClass: 'mini-title',
                     style: {
                       resize: 'none',
                       'max-width': '450px',
@@ -240,12 +243,21 @@ const Modal = {
                     heightTopBar: originHeightTopBar,
                   });
 
+                  const titleNode = s(`.title-modal-${id}`).cloneNode(true);
+                  s(`.title-modal-${id}`).remove();
+                  s(`.btn-bar-modal-container-render-${id}`).classList.add('in');
+                  s(`.btn-bar-modal-container-render-${id}`).classList.add('fll');
+                  s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
+
                   s('.top-bar-search-box').onblur = searchBoxHistoryClose;
                   s(`.top-bar-search-box-container`).onmouseover = () => {
                     hoverInputBox = true;
                   };
                   s(`.top-bar-search-box-container`).onmouseout = () => {
                     hoverInputBox = false;
+                  };
+                  s(`.top-bar-search-box-container`).onclick = () => {
+                    searchBoxHistoryOpen();
                   };
                   s(`.${id}`).onmouseover = () => {
                     hoverHistBox = true;
@@ -585,7 +597,12 @@ const Modal = {
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
           <div class="stq bar-default-modal bar-default-modal-${idModal}">
-            <div class="in btn-bar-modal-container ${options?.btnBarModalClass ? options.btnBarModalClass : ''}">
+            <div
+              class="in btn-bar-modal-container btn-bar-modal-container-${idModal} ${options?.btnBarModalClass
+                ? options.btnBarModalClass
+                : ''}"
+            >
+              <div class="btn-bar-modal-container-render-${idModal}"></div>
               ${await BtnIcon.Render({
                 class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
                   options?.barConfig?.buttons?.minimize?.disabled ? 'hide' : ''
@@ -864,4 +881,20 @@ const Modal = {
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
 };
 
-export { Modal };
+const renderMenuLabel = ({ img, text, icon }) => {
+  if (!img) return html`<span class="menu-btn-icon">${icon}</span> ${text}`;
+  return html`<img class="abs center img-btn-square-menu" src="${getProxyPath()}assets/ui-icons/${img}" />
+    <div class="abs center main-btn-menu-text">${text}</div>`;
+};
+
+const renderViewTitle = (options = { icon: '', img: '', text: '', 'ui-icons': '' }) => {
+  const { img, text, icon } = options;
+  if (!img && !options['ui-icon']) return html`<span class="view-title-icon">${icon}</span> ${text}`;
+  return html`<img
+      class="abs img-btn-square-view-title"
+      src="${options['ui-icon'] ? `${getProxyPath()}assets/ui-icons/${options['ui-icon']}` : img}"
+    />
+    <div class="in text-btn-square-view-title">${text}</div>`;
+};
+
+export { Modal, renderMenuLabel, renderViewTitle };
