@@ -17,10 +17,10 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 
-(() =>
-  Worker.instance(async () => {
+Worker.instance({
+  router: RouterNexodev,
+  render: async () => {
     await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
-    const RouterInstance = RouterNexodev();
     await TranslateCore.Init();
     await Responsive.Init();
     await Menu.Render();
@@ -29,6 +29,6 @@ import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev
     await LogInNexodev();
     await LogOutNexodev();
     await SignUpNexodev();
-    LoadRouter(RouterInstance);
     await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
-  }))();
+  },
+});

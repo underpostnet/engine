@@ -10,15 +10,17 @@ import { SignUpDogmadual } from './components/dogmadual/SignUpDogmadual.js';
 import { Menu } from './components/dogmadual/Menu.js';
 import { RouterDogmadual } from './components/dogmadual/RoutesDogmadual.js';
 import { CssDogmadualDark, CssDogmadualLight } from './components/dogmadual/CssDogmadual.js';
+import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Css.loadThemes([CssDogmadualDark, CssDogmadualLight]);
-  const RouterInstance = RouterDogmadual();
-  await TranslateCore.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await LogInDogmadual();
-  await LogOutDogmadual();
-  await SignUpDogmadual();
-  LoadRouter(RouterInstance);
-})();
+Worker.instance({
+  router: RouterDogmadual,
+  render: async () => {
+    await Css.loadThemes([CssDogmadualDark, CssDogmadualLight]);
+    await TranslateCore.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await LogInDogmadual();
+    await LogOutDogmadual();
+    await SignUpDogmadual();
+  },
+});

@@ -10,7 +10,7 @@ const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => 
   const { Routes, route, NameApp } = options;
   let title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
-  htmls('title', html`${NameApp} | ${title}`);
+  htmls('title', html`${title} | ${NameApp}`);
 };
 
 const RouterEvents = {};

@@ -9,15 +9,17 @@ import { LogOutCryptokoyn } from './components/cryptokoyn/LogOutCryptokoyn.js';
 import { SignUpCryptokoyn } from './components/cryptokoyn/SignUpCryptokoyn.js';
 import { Menu } from './components/cryptokoyn/Menu.js';
 import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
+import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Css.loadThemes();
-  const RouterInstance = RouterCryptokoyn();
-  await TranslateCore.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await LogInCryptokoyn();
-  await LogOutCryptokoyn();
-  await SignUpCryptokoyn();
-  LoadRouter(RouterInstance);
-})();
+Worker.instance({
+  router: RouterCryptokoyn,
+  render: async () => {
+    await Css.loadThemes();
+    await TranslateCore.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await LogInCryptokoyn();
+    await LogOutCryptokoyn();
+    await SignUpCryptokoyn();
+  },
+});

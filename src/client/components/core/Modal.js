@@ -381,12 +381,6 @@ const Modal = {
                   e.preventDefault();
                   window.history.forward();
                 };
-                s(`.main-btn-home`).onclick = () => {
-                  for (const keyModal of Object.keys(this.Data)) {
-                    if (keyModal !== idModal) s(`.btn-close-${keyModal}`).click();
-                  }
-                  s(`.btn-close-modal-menu`).click();
-                };
                 s(`.bottom-btn-home`).onclick = () => s(`.main-btn-home`).click();
                 s(`.bottom-btn-app-icon`).onclick = () => location.reload();
               }
@@ -612,6 +606,26 @@ const Modal = {
         default:
           break;
       }
+    }
+    switch (options.mode) {
+      case 'slide-menu':
+      case 'slide-menu-right':
+      case 'slide-menu-left':
+        s(`.main-btn-home`).onclick = () => {
+          for (const keyModal of Object.keys(this.Data)) {
+            if (
+              ![idModal, 'main-body-top', 'main-body']
+                .concat(options?.homeModals ? options.homeModals : [])
+                .includes(keyModal)
+            )
+              s(`.btn-close-${keyModal}`).click();
+          }
+          s(`.btn-close-modal-menu`).click();
+        };
+        break;
+
+      default:
+        break;
     }
     const dragOptions = {
       // disabled: true,

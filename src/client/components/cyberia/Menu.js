@@ -153,6 +153,7 @@ const Menu = {
       title: NameApp,
       // titleClass: 'hide',
       mode: 'slide-menu',
+      homeModals: ['map-interaction-panel', 'element-interaction-panel'],
     });
 
     this.Data[id].sortable = Modal.mobileModal()

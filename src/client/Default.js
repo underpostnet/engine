@@ -12,17 +12,19 @@ import { RouterDefault } from './components/default/RoutesDefault.js';
 import { TranslateDefault } from './components/default/TranslateDefault.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
+import { Worker } from './components/core/Worker.js';
 
-(async function () {
-  await Css.loadThemes();
-  const RouterInstance = RouterDefault();
-  await TranslateCore.Init();
-  await TranslateDefault.Init();
-  await Responsive.Init();
-  await Menu.Render();
-  await LogInDefault();
-  await LogOutDefault();
-  await SignUpDefault();
-  LoadRouter(RouterInstance);
-  await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-})();
+Worker.instance({
+  router: RouterDefault,
+  render: async () => {
+    await Css.loadThemes();
+    await TranslateCore.Init();
+    await TranslateDefault.Init();
+    await Responsive.Init();
+    await Menu.Render();
+    await LogInDefault();
+    await LogOutDefault();
+    await SignUpDefault();
+    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+  },
+});

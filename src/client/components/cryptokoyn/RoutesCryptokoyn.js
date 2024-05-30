@@ -3,7 +3,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`CryptoKoyn`;
+const NameApp = html`Cryptokoyn`;
 
 // Router
 const RoutesCryptokoyn = () => {

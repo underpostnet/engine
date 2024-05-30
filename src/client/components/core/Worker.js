@@ -1,12 +1,13 @@
 import { s4 } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { loggerFactory } from './Logger.js';
+import { LoadRouter } from './Router.js';
 import { getProxyPath, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
 const Worker = {
-  instance: async function (viewLogic = async () => null) {
+  instance: async function ({ router, render }) {
     logger.warn('Init');
     let success = false;
     const isInstall = await this.status();
@@ -19,7 +20,9 @@ const Worker = {
         await this.reload();
       }
     }, 1000 * 70 * 1); // 70s limit
-    await viewLogic();
+    this.RouterInstance = router();
+    await render();
+    LoadRouter(this.RouterInstance);
     success = true;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       logger.info('The controller of current browsing context has changed.');
@@ -91,7 +94,7 @@ const Worker = {
           })
           .catch((...args) => {
             logger.error(...args);
-            return reject(false);
+            return resolve(false);
           })
           .finally((...args) => {
             logger.info('Finally status', args);
@@ -117,7 +120,7 @@ const Worker = {
           })
           .catch((...args) => {
             logger.error(...args);
-            return reject(args);
+            return resolve(args);
           })
           .finally((...args) => {
             logger.info('Finally install', args);
@@ -144,7 +147,7 @@ const Worker = {
           })
           .catch((...args) => {
             logger.error(...args);
-            return reject(args);
+            return resolve(args);
           })
           .finally((...args) => {
             logger.info('Finally uninstall', args);

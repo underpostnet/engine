@@ -11,7 +11,6 @@ import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
 import { TranslateCore } from './components/core/Translate.js';
 import { Menu } from './components/cyberia/Menu.js';
-import { LoadRouter } from './components/core/Router.js';
 import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Css } from './components/core/Css.js';
 import { CssCyberiaDark } from './components/cyberia/CssCyberia.js';
@@ -21,11 +20,10 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanel } from './components/cyberia/InteractionPanel.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { Worker } from './components/core/Worker.js';
-
-(() =>
-  Worker.instance(async () => {
+Worker.instance({
+  router: RouterCyberia,
+  render: async () => {
     await Css.loadThemes([CssCyberiaDark]);
-    const RouterInstance = RouterCyberia();
     await TranslateCore.Init();
     await TranslateCyberia.Init();
     await MainUser.Render();
@@ -40,9 +38,8 @@ import { Worker } from './components/core/Worker.js';
     await SocketIoCyberia.Init();
     await LogOutCyberia();
     await SignUpCyberia();
-    LoadRouter(RouterInstance);
     disableOptionsClick('html', ['drag', 'select', 'menu']);
-    // s(`.btn-menu-modal-menu`).click();
     await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
     await JoyStickCyberia.Render();
-  }))();
+  },
+});

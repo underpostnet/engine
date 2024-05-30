@@ -2,7 +2,6 @@
 
 import { Css } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
-import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
 import { LogInBms } from './components/bms/LogInBms.js';
 import { LogOutBms } from './components/bms/LogOutBms.js';
@@ -15,11 +14,10 @@ import { SocketIoBms } from './components/bms/SocketIoBms.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
-
-(() =>
-  Worker.instance(async () => {
+Worker.instance({
+  router: RouterBms,
+  render: async () => {
     await Css.loadThemes();
-    const RouterInstance = RouterBms();
     await TranslateCore.Init();
     await Responsive.Init();
     await Menu.Render();
@@ -28,6 +26,6 @@ import { Worker } from './components/core/Worker.js';
     await LogInBms();
     await LogOutBms();
     await SignUpBms();
-    LoadRouter(RouterInstance);
     await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  }))();
+  },
+});

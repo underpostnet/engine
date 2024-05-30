@@ -13,10 +13,10 @@ import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyb
 import { Worker } from './components/core/Worker.js';
 import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 
-(async () =>
-  Worker.instance(async () => {
+Worker.instance({
+  router: RouterCyberiaPortal,
+  render: async () => {
     await Css.loadThemes([CssCyberiaPortalDark, CssCyberiaPortalLight]);
-    const RouterInstance = RouterCyberiaPortal();
     await TranslateCore.Init();
     await TranslateCyberiaPortal.Init();
     await Responsive.Init();
@@ -24,6 +24,6 @@ import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberi
     await LogInCyberiaPortal();
     await LogOutCyberiaPortal();
     await SignUpCyberiaPortal();
-    LoadRouter(RouterInstance);
     // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  }))();
+  },
+});

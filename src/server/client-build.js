@@ -196,14 +196,37 @@ const buildClient = async () => {
             'utf8',
           );
 
-          const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
-            view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
-          }`;
+          // const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
+          //   view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
+          // }`;
+
+          const title = `${
+            view.title ? `${view.title} | ` : view.path !== '/' ? `${titleFormatted(view.path)} | ` : ''
+          }${metadata && metadata.title ? metadata.title : cap(client)}`;
 
           const canonicalURL = `https://${host}${path}${
             view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
           }`;
           const ssrPath = path === '/' ? path : `${path}/`;
+
+          // build service worker
+          if (path === '/') {
+            const jsSrc = viewFormatted(
+              srcFormatted(
+                fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+                  ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
+                  : fs.readFileSync(`./src/client/sw/default.sw.js`, 'utf8'),
+              ),
+              dists,
+              path,
+              baseHost,
+            );
+            fs.writeFileSync(
+              `${buildPath}sw.js`,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
+          }
 
           let ssrHeadComponents = ``;
           let ssrBodyComponents = ``;
@@ -258,24 +281,6 @@ const buildClient = async () => {
                         .replaceAll(`src="/`, `src="${ssrPath}`),
                       'utf8',
                     );
-                    // build service worker
-                    if (path === '/') {
-                      const jsSrc = viewFormatted(
-                        srcFormatted(
-                          fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-                            ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
-                            : fs.readFileSync(`./src/client/sw/default.sw.js`, 'utf8'),
-                        ),
-                        dists,
-                        path,
-                        baseHost,
-                      );
-                      fs.writeFileSync(
-                        `${buildPath}sw.js`,
-                        minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-                        'utf8',
-                      );
-                    }
 
                     // Android play store example:
                     //
