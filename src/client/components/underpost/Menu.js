@@ -1,14 +1,14 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
@@ -95,12 +95,24 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html`<img
-          class="abs underpost-title-logo"
-          src="${getProxyPath()}assets/splash/mstile-144x144.png"
-        />
-        &nbsp &nbsp <span class="inl underpost-title-text-a">UNDER</span
-        ><span class="inl underpost-title-text-b">post.net</span>`,
+      titleRender: () => {
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = `${getProxyPath()}assets/splash/mstile-144x144.png`;
+          htmls(
+            '.bottom-btn-app-icon-render',
+            html`<img
+              class="inl top-bar-app-icon"
+              src="${srcLogo}"
+              ${darkTheme
+                ? ''
+                : `style="   -webkit-filter: invert(1);
+          filter: invert(1);"`}
+            />`,
+          );
+        };
+        setTimeout(ThemeEvents['titleRender']);
+        return '';
+      },
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,

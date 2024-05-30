@@ -4,9 +4,12 @@ import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js'
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
-import { Css, Themes, renderStatus } from './Css.js';
+import { Css, ThemeEvents, Themes, ThemesScope, darkTheme, dynamicCol, renderStatus } from './Css.js';
 import { setDocTitle } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
+import { EventsUI } from './EventsUI.js';
+import { Translate } from './Translate.js';
+import { Input } from './Input.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -23,16 +26,12 @@ const Modal = {
       RouterInstance: {},
     },
   ) {
+    if (!options.heightBottomBar) options.heightBottomBar = 50;
+    if (!options.heightTopBar) options.heightTopBar = 50;
     let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
-
-    options.topBar = true;
-
-    if (options.topBar && options.heightBottomBar > 0) {
-      options.heightTopBar = options.heightTopBar + options.heightBottomBar;
-      options.heightBottomBar = 0;
-    }
-
+    options.heightTopBar = options.heightTopBar + options.heightBottomBar;
+    options.heightBottomBar = 0;
     const ResponsiveData = Responsive.getResponsiveData();
     let width = 300;
     let height = 400;
@@ -104,7 +103,7 @@ const Modal = {
         case 'slide-menu':
         case 'slide-menu-right':
         case 'slide-menu-left':
-          (() => {
+          (async () => {
             const { barConfig } = options;
             options.style = {
               position: 'absolute',
@@ -119,8 +118,10 @@ const Modal = {
               top: `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`,
             };
             options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
+            const contentIconClass = 'abs center';
 
             options.dragDisabled = true;
+            options.titleClass = 'hide';
             top = '0px';
             left = 'auto';
             width = 'auto';
@@ -179,8 +180,28 @@ const Modal = {
 
             append(
               'body',
-              html`<div class="fix modal slide-menu-top-bar">
-                <div class="in top-bar" style="height: ${originHeightTopBar}px;"></div>
+              html` <div class="fix modal slide-menu-top-bar">
+                <div class="fl top-bar" style="height: ${originHeightTopBar}px;">
+                  ${await BtnIcon.Render({
+                    style: `height: 100%`,
+                    class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-app-icon',
+                    label: html` <div class="${contentIconClass} bottom-btn-app-icon-render"></div>`,
+                  })}
+                  <div class="in fll top-bar-search-box-container hover">
+                    ${await Input.Render({
+                      id: `top-bar-search-box`,
+                      placeholder: Translate.Render('search', '.top-bar-search-box'), // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
+                      placeholderIcon: html`<div
+                        class="in fll"
+                        style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px; cursor: pointer"
+                      >
+                        <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
+                      </div>`,
+                      inputClass: 'in fll',
+                      // containerClass: '',
+                    })}
+                  </div>
+                </div>
               </div>`,
             );
 
@@ -201,9 +222,10 @@ const Modal = {
                 s(`.btn-menu-${idModal}`).onclick = btnMenuEvent;
               }
 
-              const titleNode = s(`.title-modal-${idModal}`).cloneNode(true);
-              s(`.title-modal-${idModal}`).remove();
-              s(`.top-bar`).appendChild(titleNode);
+              // const titleNode = s(`.title-modal-${idModal}`).cloneNode(true);
+              // s(`.title-modal-${idModal}`).remove();
+              // s(`.top-bar`).appendChild(titleNode);
+
               s(`.slide-menu-top-bar`).style.zIndex = 7;
 
               // s('body').removeChild(`.${idModal}`);
@@ -232,12 +254,17 @@ const Modal = {
                   dragDisabled: true,
                   maximize: true,
                   slideMenu: 'modal-menu',
-                  heightTopBar: options.heightTopBar,
-                  heightBottomBar: options.heightBottomBar,
+                  heightTopBar: originHeightTopBar,
+                  heightBottomBar: originHeightBottomBar,
                 });
 
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
+                  s(`.top-bar-search-box-container`).style.width = `${window.innerWidth - originHeightTopBar}px`;
+                  s(`.top-bar-search-box`).style.width = `${window.innerWidth - originHeightTopBar * 2.5}px`;
+                  s(`.top-bar-search-box`).style.top = `${
+                    (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
+                  }px`;
                   if (this.Data[id].slideMenu)
                     s(`.${id}`).style.height = `${
                       window.innerHeight -
@@ -256,11 +283,27 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
-                const contentIconClass = 'abs center';
                 const html = async () => html`
+                  <style>
+                    .top-bar-search-box-container {
+                      height: 100%;
+                      overflow: hidden;
+                    }
+                    .top-bar-search-box {
+                      max-width: 300px;
+                    }
+                    .bottom-bar {
+                      overflow: hidden;
+                    }
+                    .bottom-bar-btn {
+                      margin: 0px;
+                      border: none;
+                      width: 50px;
+                    }
+                  </style>
                   <div class="fl" style="height: ${originHeightBottomBar}px;">
                     ${await BtnIcon.Render({
-                      style: `width: 25%; height: 100%`,
+                      style: `height: 100%`,
                       class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-center',
                       label: html`
                         <div class="${contentIconClass}">
@@ -271,19 +314,29 @@ const Modal = {
                       `,
                     })}
                     ${await BtnIcon.Render({
-                      style: `width: 25%; height: 100%`,
-                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-home',
+                      style: `height: 100%`,
+                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-lang',
+                      label: html` <div class="${contentIconClass} bottom-btn-lang-render"></div>`,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `height: 100%`,
+                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-theme',
+                      label: html` <div class="${contentIconClass} bottom-btn-theme-render"></div>`,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `height: 100%`,
+                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-home',
                       label: html` <div class="${contentIconClass}"><i class="fas fa-home"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
-                      style: `width: 25%; height: 100%`,
-                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-left',
-                      label: html`<div class="${contentIconClass}"><i class="fas fa-chevron-left"></i></div>`,
+                      style: `height: 100%`,
+                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-right',
+                      label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
-                      style: `width: 25%; height: 100%`,
-                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-right',
-                      label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
+                      style: `height: 100%`,
+                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-left',
+                      label: html`<div class="${contentIconClass}"><i class="fas fa-chevron-left"></i></div>`,
                     })}
                   </div>
                 `;
@@ -329,6 +382,37 @@ const Modal = {
                   window.history.forward();
                 };
                 s(`.bottom-btn-home`).onclick = () => s(`.main-btn-home`).click();
+                s(`.bottom-btn-app-icon`).onclick = () => location.reload();
+              }
+
+              {
+                ThemeEvents['bottom-btn-theme'] = () => {
+                  htmls(
+                    `.bottom-btn-theme-render`,
+                    html` ${darkTheme ? html` <i class="fas fa-moon"></i>` : html`<i class="far fa-sun"></i>`}`,
+                  );
+                };
+                ThemeEvents['bottom-btn-theme']();
+
+                EventsUI.onClick(`.bottom-btn-theme`, async () => {
+                  const themePair = ThemesScope.find((t) => t.theme === Css.currentTheme).themePair;
+                  const theme = themePair ? themePair : ThemesScope.find((t) => t.dark === !darkTheme).theme;
+                  if (s(`.dropdown-option-${theme}`)) s(`.dropdown-option-${theme}`).click();
+                  else await Themes[theme]();
+                });
+                if (!(ThemesScope.find((t) => t.dark) && ThemesScope.find((t) => !t.dark))) {
+                  s(`.bottom-btn-theme`).classList.add('hide');
+                }
+              }
+
+              {
+                htmls(`.bottom-btn-lang-render`, html` ${s('html').lang}`);
+                EventsUI.onClick(`.bottom-btn-lang`, () => {
+                  let lang = 'en';
+                  if (s('html').lang === 'en') lang = 'es';
+                  if (s(`.dropdown-option-${lang}`)) s(`.dropdown-option-${lang}`).click();
+                  else Translate.renderLang(lang);
+                });
               }
 
               {
@@ -356,8 +440,8 @@ const Modal = {
                   },
                   dragDisabled: true,
                   maximize: true,
-                  heightTopBar: options.heightTopBar,
-                  heightBottomBar: options.heightBottomBar,
+                  heightTopBar: originHeightTopBar,
+                  heightBottomBar: originHeightBottomBar,
                 });
 
                 Responsive.Event[`view-${id}`] = () => {

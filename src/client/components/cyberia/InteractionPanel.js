@@ -67,7 +67,7 @@ const InteractionPanel = {
     let render = async () => html`${id}`;
     switch (id) {
       case 'element-interaction-panel':
-        style.top = '60px';
+        style.top = '160px';
 
         render = async () => html`<span class="display-current-element" style="${borderChar(2, 'black')}"></span>`;
         PointAndClickMovement.Event[id] = ({ x, y }) => {
@@ -93,7 +93,7 @@ const InteractionPanel = {
         };
         break;
       case 'map-interaction-panel':
-        style.top = '111px';
+        style.top = '211px';
         // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
         render = async () => html`
           <div class="fl">

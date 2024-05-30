@@ -10,40 +10,17 @@ import { SignUpCyberiaPortal } from './components/cyberia-portal/SignUpCyberiaPo
 import { Menu } from './components/cyberia-portal/Menu.js';
 import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPortal.js';
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
-import { ToolBar } from './components/core/ToolBar.js';
-import { CssCyberia } from './components/cyberia/CssCyberia.js';
 import { Worker } from './components/core/Worker.js';
+import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 
 (async () =>
   Worker.instance(async () => {
-    const themes = [CssCyberia]; // CssCyberiaPortal, CssCyberiaPortalLight
-    await Css.loadThemes(themes);
+    await Css.loadThemes([CssCyberiaPortalDark, CssCyberiaPortalLight]);
     const RouterInstance = RouterCyberiaPortal();
     await TranslateCore.Init();
     await TranslateCyberiaPortal.Init();
     await Responsive.Init();
     await Menu.Render();
-    await ToolBar.Render({
-      id: 'ToolBar',
-      tools: [
-        // {
-        //   id: 'theme',
-        //   themes,
-        // },
-        {
-          id: 'log-in',
-          icon: html`<i class="toolbar-fas-fa fas fa-sign-in-alt"></i>`,
-        },
-        {
-          id: 'sign-up',
-          icon: html`<i class="toolbar-fas-fa fas fa-user-plus"></i>`,
-        },
-        {
-          id: 'lang',
-          langs: ['es', 'en'],
-        },
-      ],
-    });
     await LogInCyberiaPortal();
     await LogOutCyberiaPortal();
     await SignUpCyberiaPortal();

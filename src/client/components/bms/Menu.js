@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterBms } from './RoutesBms.js';
@@ -161,7 +161,7 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html`<strong>BMS</strong>`,
+      titleRender: () => htmls(`.bottom-btn-app-icon-render`, NameApp),
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,

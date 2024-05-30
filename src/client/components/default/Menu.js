@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterDefault } from './RoutesDefault.js';
@@ -84,12 +84,7 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html` <!-- <img
-          class="abs default-title-logo"
-          src="${getProxyPath()}assets/splash/mstile-144x144.png"
-        /> -->
-        &nbsp &nbsp <span class="inl default-title-text-a">APP</span
-        ><span class="inl default-title-text-b">page</span>`,
+      titleRender: () => htmls(`.bottom-btn-app-icon-render`, html`APP`),
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,

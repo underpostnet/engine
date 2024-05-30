@@ -1,14 +1,14 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Elements } from './Elements.js';
 import Sortable from 'sortablejs';
 import { RouterDogmadual } from './RoutesDogmadual.js';
@@ -75,12 +75,16 @@ const Menu = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => html`<img
-          class="abs dogmadual-title-logo"
-          src="${getProxyPath()}assets/logo/dogmadual-white-t.png"
-        />
-        &nbsp &nbsp <span class="inl dogmadual-title-text-a">DOGMADUAL</span
-        ><span class="inl dogmadual-title-text-b">.com</span>`,
+      titleRender: () => {
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = darkTheme
+            ? `${getProxyPath()}assets/logo/dogmadual-white-t.png`
+            : `${getProxyPath()}assets/logo/dogmadual-black-t.png`;
+          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+        };
+        setTimeout(ThemeEvents['titleRender']);
+        return '';
+      },
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,

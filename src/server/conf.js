@@ -37,7 +37,7 @@ const Config = {
             'Router',
             'Account',
             'Auth',
-            'ToolBar',
+            'CssCore',
             'HomeBackground',
             'Worker',
           ],
@@ -382,44 +382,6 @@ const buildClientSrc = async (
   );
 
   fs.copySync(`./src/client/public/${fromOptions.clientId}`, `./src/client/public/${toOptions.clientId}`);
-
-  const themeRenderer = ` 'css-default': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-default';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-default';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css['css-default']();
-      await Css.toolbar();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'css-default-light': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-default-light';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-default-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css['css-default-light']();
-      await Css.toolbar();
-      darkTheme = false;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  /*css-render-theme*/`.replaceAll('css-default', `css-${toOptions.clientId}`);
-
-  fs.writeFileSync(
-    `./src/client/components/core/Css.js`,
-    fs.readFileSync(`./src/client/components/core/Css.js`, 'utf8').replaceAll(`/*css-render-theme*/`, themeRenderer),
-    'utf8',
-  );
 };
 
 const buildApiSrc = async (

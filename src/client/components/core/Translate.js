@@ -18,12 +18,13 @@ const Translate = {
       }
     });
   },
-  Render: function (keyLang) {
+  Render: function (keyLang, placeholder) {
     if (!(keyLang in this.Data)) {
       // TODO: add translate package or library for this case
       logger.warn('translate key lang does not exist: ', keyLang);
       return keyLang;
     }
+    if (placeholder) this.Data[keyLang].placeholder = placeholder;
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
     this.Token[translateHash] = newInstance(keyLang);
@@ -37,7 +38,7 @@ const Translate = {
   renderLang: function (language) {
     localStorage.setItem('lang', language);
     this.Parse(language);
-    if (s(`.toolbar-lang-render`)) htmls(`.toolbar-lang-render`, s('html').lang);
+    if (s(`.bottom-btn-lang-render`)) htmls(`.bottom-btn-lang-render`, s('html').lang);
   },
 };
 
@@ -95,7 +96,7 @@ const TranslateCore = {
     Translate.Data['upload'] = { en: 'upload', es: 'Subir' };
     Translate.Data['load'] = { en: 'load', es: 'Cargar' };
     Translate.Data['settings'] = { en: 'settings', es: 'configuraciones' };
-    Translate.Data['search'] = { en: 'search', es: 'buscar' };
+    Translate.Data['search'] = { en: 'Search', es: 'Buscar' };
     Translate.Data['view'] = { en: 'view', es: 'ver' };
     Translate.Data['user'] = { en: 'User', es: 'Usuario' };
     Translate.Data['pass'] = { en: 'Password', es: 'Contraseña' };

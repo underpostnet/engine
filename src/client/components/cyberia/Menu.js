@@ -4,7 +4,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
 import { ColorPalette } from '../core/ColorPalette.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { LogIn } from '../core/LogIn.js';
@@ -14,7 +14,7 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s, setURI } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 import { Bag } from './Bag.js';
@@ -37,6 +37,7 @@ const Menu = {
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
+    const heightBottomBar = 50;
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -136,7 +137,18 @@ const Menu = {
           })}
         </div>
       `,
+      titleRender: () => {
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = darkTheme
+            ? `${getProxyPath()}assets/splash/favicon-white-alpha.png`
+            : `${getProxyPath()}assets/splash/favicon-black-alpha.png`;
+          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+        };
+        setTimeout(ThemeEvents['titleRender']);
+        return '';
+      },
       heightTopBar,
+      heightBottomBar,
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
@@ -206,6 +218,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -223,6 +236,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -239,6 +253,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -256,6 +271,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -273,6 +289,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -300,6 +317,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -317,6 +335,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -334,6 +353,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -351,6 +371,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -368,6 +389,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -386,6 +408,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -403,6 +426,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -420,6 +444,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -437,6 +462,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -454,6 +480,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -471,6 +498,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 
@@ -498,6 +526,7 @@ const Menu = {
         slideMenu: 'modal-menu',
         RouterInstance,
         heightTopBar,
+        heightBottomBar,
       });
     });
 

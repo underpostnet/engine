@@ -29,7 +29,7 @@ const ServerCyberiaPortal = {
         const { server, status, port } = params.data;
 
         this.eGui.innerHTML = html` ${await BtnIcon.Render({
-          label: html`<i class="fas fa-play-circle" style="color: #ffcc00"></i>`,
+          label: html`<i class="fas fa-play-circle"></i>`,
           class: `btn-server-${server}-${id}`,
         })}`;
 

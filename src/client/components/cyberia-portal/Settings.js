@@ -1,5 +1,5 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { Css } from '../core/Css.js';
+import { Css, Themes, ThemesScope } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Responsive } from '../core/Responsive.js';
@@ -15,9 +15,6 @@ const Settings = {
       let fullScreenMode = checkFullScreen();
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
         if (s('.fullscreen-toggle')) s('.fullscreen-toggle').click();
-    };
-    const localThemes = {
-      cyberia: { displayName: 'CYBERIA' },
     };
     setTimeout(() => Worker.loadSettingUI());
     return html`
@@ -63,11 +60,11 @@ const Settings = {
         ${await DropDown.Render({
           value: Css.currentTheme,
           label: html`${Translate.Render('theme')}`,
-          data: Object.keys(localThemes).map((theme) => {
+          data: ThemesScope.map((themeOption) => {
             return {
-              display: html`<i class="fa-solid fa-brush"></i> ${localThemes[theme].displayName}`,
-              value: theme,
-              onClick: async () => Css.renderTheme(theme),
+              display: html`<i class="fa-solid fa-brush"></i> ${themeOption.theme}`,
+              value: themeOption.theme,
+              onClick: async () => await Themes[themeOption.theme](),
             };
           }),
         })}

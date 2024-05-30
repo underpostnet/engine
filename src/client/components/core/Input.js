@@ -9,7 +9,11 @@ const logger = loggerFactory(import.meta);
 const Input = {
   Render: async function (options) {
     const { id } = options;
-    options?.placeholder ? (options.placeholder === true ? (options.placeholder = ' . . .') : null) : null;
+    options?.placeholder
+      ? options.placeholder === true
+        ? (options.placeholder = ' . . .')
+        : options.placeholder
+      : null;
     setTimeout(() => {
       s(`.input-container-${id}`).onclick = () =>
         ['color'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
@@ -30,7 +34,7 @@ const Input = {
 
     const inputElement = html` <input
       type="${options?.type ? options.type : 'text'}"
-      class="in wfa ${id}"
+      class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
       ${options?.min !== undefined ? `min="${options.min}"` : ''}
       placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
       ${options?.value !== undefined ? `value="${options.value}"` : ''}
@@ -40,7 +44,7 @@ const Input = {
 
     return html` <div class="${options?.containerClass ? options.containerClass : ''} input-container-${id}">
       <div class="in">
-        <div class="in input-label input-label-${id}">${options?.label ? options.label : ''}</div>
+        ${options?.label ? html`<div class="in input-label input-label-${id}">${options.label}</div>` : ''}
         ${options.type === 'password' && !options.disabledEye
           ? html`
               <div class="fl">
@@ -51,6 +55,8 @@ const Input = {
                 </div>
               </div>
             `
+          : options?.placeholderIcon
+          ? html` <div class="fl">${options.placeholderIcon} ${inputElement}</div> `
           : inputElement}
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>

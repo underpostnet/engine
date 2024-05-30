@@ -1,5 +1,5 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, Themes, ThemesScope } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Responsive } from '../core/Responsive.js';
@@ -60,11 +60,11 @@ const Settings = {
         ${await DropDown.Render({
           value: Css.currentTheme,
           label: html`${Translate.Render('theme')}`,
-          data: Object.keys({ cyberia: {} }).map((theme) => {
+          data: ThemesScope.map((themeOption) => {
             return {
-              display: html`<i class="fa-solid fa-brush"></i> ${theme}`,
-              value: theme,
-              onClick: async () => await Themes[theme](),
+              display: html`<i class="fa-solid fa-brush"></i> ${themeOption.theme}`,
+              value: themeOption.theme,
+              onClick: async () => await Themes[themeOption.theme](),
             };
           }),
         })}

@@ -21,8 +21,6 @@ const LogOutCyberia = function () {
     s(`.main-btn-account`).style.display = 'none';
     s(`.main-btn-log-in`).style.display = null;
     s(`.main-btn-sign-up`).style.display = null;
-    s(`.toolbar-sign-up`).classList.remove('hide');
-    s(`.toolbar-log-in`).classList.remove('hide');
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 

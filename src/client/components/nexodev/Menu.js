@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes, darkTheme } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -160,8 +160,17 @@ const Menu = {
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,
+      titleRender: () => {
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = darkTheme
+            ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
+            : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
+          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+        };
+        setTimeout(ThemeEvents['titleRender']);
+        return '';
+      },
     });
-    this.renderTopBartTitleLogo();
 
     this.Data[id].sortable = Modal.mobileModal()
       ? null
@@ -527,20 +536,6 @@ const Menu = {
   renderMenuLabel: ({ icon, text }) => html`<span class="menu-btn-icon">${icon}</span> ${text}`,
 
   renderViewTitle: ({ icon, text }) => html`<span class="view-title-icon">${icon}</span> ${text}`,
-
-  renderTopBartTitleLogo: () => {
-    const idModal = 'modal-menu';
-    if (!s(`.title-modal-${idModal}`)) return;
-    const srcLogo = darkTheme
-      ? `${getProxyPath()}assets/logo/nexodev-white-t.png`
-      : `${getProxyPath()}assets/logo/nexodev-purple-t.png`;
-    console.log('render logo', srcLogo);
-    htmls(
-      `.title-modal-${idModal}`,
-      html`<img class="abs nexodev-title-logo" src="${srcLogo}" /> &nbsp &nbsp
-        <strong class="nexodev-title-nexo">nexo</strong>dev.org`,
-    );
-  },
 };
 
 export { Menu };

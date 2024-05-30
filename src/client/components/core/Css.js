@@ -1,30 +1,33 @@
+import { CssCoreDark, CssCoreLight } from './CssCore.js';
 import { LoadingAnimation } from './LoadingAnimation.js';
 import { Modal } from './Modal.js';
-import { ToolBar } from './ToolBar.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
-let Menu;
+let ThemesScope = [];
+
+// https://css.github.io/csso/csso.html
 // https://www.fontspace.com/
 // https://www.1001fonts.com/
 
 const Css = {
-  loadThemes: async function (themes, MenuLoad) {
-    Menu = MenuLoad;
+  loadThemes: async function (themes = []) {
+    ThemesScope = [];
     for (const themeOptions of themes) addTheme(themeOptions);
+    // if (!ThemesScope.find((t) => t.dark)) addTheme(CssCoreDark);
+    // if (!ThemesScope.find((t) => !t.dark)) addTheme(CssCoreLight);
+    if (ThemesScope.length === 0) {
+      addTheme(CssCoreDark);
+      addTheme(CssCoreLight);
+    }
     const localStorageTheme = localStorage.getItem('theme');
     if (localStorageTheme && Themes[localStorageTheme]) {
-      const themeOption = themes.find((t) => t.theme === localStorageTheme);
+      const themeOption = ThemesScope.find((t) => t.theme === localStorageTheme);
       if (themeOption) return await this.Init(themeOption);
     }
-    await this.Init(themes ? themes[0] : undefined);
-  },
-  renderTheme: async function (theme) {
-    localStorage.setItem('theme', theme);
-    await Themes[theme]();
-    if (ToolBar.toolBarThemeRender) ToolBar.toolBarThemeRender();
+    await this.Init();
   },
   Init: async function (options) {
-    if (!options) options = { theme: 'default' };
+    if (!options) options = ThemesScope[0];
     const { theme } = options;
     append(
       'body',
@@ -227,417 +230,11 @@ scrollbar-width: none;
     );
     return await Themes[theme](options);
   },
-  default: async () =>
-    append(
-      '.theme',
-      html`
-        <style>
-          .modal {
-            background: white;
-            color: black;
-            font-family: arial;
-            border-radius: 10px;
-          }
-          .bar-default-modal {
-            background: #dfdfdf;
-            color: black;
-          }
-          button {
-            background: none;
-            outline: none;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-            color: black;
-            margin: 5px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 2px solid #bbbbbb;
-            min-height: 30px;
-            min-width: 30px;
-          }
-          .title-modal {
-            padding: 5px;
-            margin: 5px;
-            cursor: default;
-            font-size: 20px;
-          }
-          button:hover {
-            background: #bbbbbb;
-          }
-          .box-shadow {
-            box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
-          }
-          .box-shadow:hover {
-            box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
-          }
-          .toggle-switch-content-border {
-            border: 2px solid #bbbbbb;
-            padding: 5px;
-            transition: 0.3s;
-            cursor: pointer;
-          }
-          .toggle-switch-content-border:hover {
-            background: #bbbbbb;
-          }
-          .toggle-switch-content {
-            width: 60px;
-          }
-          .toggle-switch-circle {
-            height: 20px;
-            width: 20px;
-            background: gray;
-            transition: 0.3s;
-          }
-          .slide-menu-top-bar {
-            width: 100%;
-            top: 0px;
-            right: 0px;
-          }
-          .modal-icon-container {
-            width: 40px;
-            height: 40px;
-            top: 5px;
-            left: 5px;
-            /* border: 2px solid black; */
-          }
-        </style>
-      `,
-    ),
-  dark: async () =>
-    append(
-      '.theme',
-      html`
-        <style>
-          html {
-            background: black;
-            color: white;
-          }
-          .modal {
-            /* background: #242124; */
-            background: #121212;
-            color: white;
-            font-family: arial;
-            border-radius: 10px;
-          }
-          .bar-default-modal {
-            /* background: #242124; */
-            background: #242424;
-            color: white;
-          }
-          button {
-            background: none;
-            outline: none;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-            color: white;
-            margin: 5px;
-            padding: 5px;
-            border-radius: 5px;
-            border: 2px solid #bbbbbb;
-            min-height: 30px;
-            min-width: 30px;
-          }
-          .title-modal {
-            padding: 5px;
-            margin: 5px;
-            cursor: default;
-            font-size: 20px;
-          }
-          button:hover {
-            background: #bbbbbb;
-            color: black;
-          }
-          .box-shadow {
-            box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19);
-          }
-          .box-shadow:hover {
-            box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3);
-          }
-          .toggle-switch-content-border {
-            border: 2px solid #bbbbbb;
-            padding: 5px;
-            transition: 0.3s;
-            cursor: pointer;
-          }
-          .toggle-switch-content-border:hover {
-            background: #bbbbbb;
-          }
-          .toggle-switch-content {
-            width: 60px;
-          }
-          .toggle-switch-circle {
-            height: 20px;
-            width: 20px;
-            background: gray;
-            transition: 0.3s;
-          }
-          .slide-menu-top-bar {
-            width: 100%;
-            top: 0px;
-            right: 0px;
-          }
-        </style>
-      `,
-    ),
-  cryptokoyn: async () =>
-    append(
-      '.theme',
-      html`
-        <style>
-          html {
-            background: black;
-            color: white;
-          }
-          .modal {
-            /* background: #242124; */
-            background: #121212;
-            color: white;
-            font-family: arial;
-            border: 2px solid yellow;
-            /* border-radius: 10px; */
-          }
-          .bar-default-modal {
-            /* background: #242124; */
-            background: #242424;
-            color: white;
-          }
-          button {
-            background: none;
-            outline: none;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-            color: white;
-            margin: 5px;
-            padding: 5px;
-            /* border-radius: 5px; */
-            border: 2px solid yellow;
-            min-height: 30px;
-            min-width: 30px;
-          }
-          .title-modal {
-            padding: 5px;
-            margin: 5px;
-            cursor: default;
-            font-size: 20px;
-            color: yellow;
-          }
-          button:hover {
-            background: yellow;
-            color: black;
-          }
-          .box-shadow {
-            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-          }
-          .box-shadow:hover {
-            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-          }
-          .toggle-switch-content-border {
-            border: 2px solid yellow;
-            padding: 5px;
-            transition: 0.3s;
-            cursor: pointer;
-          }
-          .toggle-switch-content-border:hover {
-            background: yellow;
-          }
-          .toggle-switch-content {
-            width: 60px;
-          }
-          .toggle-switch-circle {
-            height: 20px;
-            width: 20px;
-            background: gray;
-            transition: 0.3s;
-          }
-
-          .slide-menu-top-bar {
-            width: 100%;
-            top: 0px;
-            right: 0px;
-          }
-        </style>
-      `,
-    ),
-  'dark-light': async () =>
-    append(
-      '.theme',
-      html`
-        <style>
-          html {
-            background: black;
-            color: white;
-          }
-          .modal {
-            /* background: #242124; */
-            background: #121212;
-            color: white;
-            font-family: arial;
-            /* border: 2px solid #313131; */
-            /* border-radius: 10px; */
-          }
-          .bar-default-modal {
-            /* background: #242124; */
-            background: #242424;
-            color: white;
-          }
-          .bar-default-modal-icon {
-            /* background: #242124; */
-            width: 15px;
-            height: 15px;
-          }
-          button {
-            background: none;
-            outline: none;
-            border: none;
-            cursor: pointer;
-            transition: 0.3s;
-            font-size: 15px;
-            color: white;
-            margin: 5px;
-            padding: 5px;
-            /* border-radius: 5px; */
-            border: 2px solid #313131;
-            min-height: 30px;
-            min-width: 30px;
-          }
-          .title-modal {
-            padding: 5px;
-            margin: 5px;
-            cursor: default;
-            font-size: 20px;
-            color: yellow;
-          }
-          button:hover {
-            background: #313131;
-            color: yellow;
-          }
-          .box-shadow {
-            /* box-shadow: 0 2px 4px 0 rgba(255, 255, 255, 0.2), 0 3px 10px 0 rgba(255, 255, 255, 0.19); */
-          }
-          .box-shadow:hover {
-            /* box-shadow: 0 4px 8px 0 rgba(255, 255, 255, 0.2), 0 5px 15px 0 rgba(255, 255, 255, 0.3); */
-          }
-          .toggle-switch-content-border {
-            border: 2px solid #313131;
-            padding: 5px;
-            transition: 0.3s;
-            cursor: pointer;
-          }
-          .toggle-switch-content-border:hover {
-            background: #313131;
-          }
-          .toggle-switch-content {
-            width: 60px;
-          }
-          .toggle-switch-circle {
-            height: 20px;
-            width: 20px;
-            background: gray;
-            transition: 0.3s;
-          }
-
-          @keyframes diagonal-lines {
-            0% {
-              background-position: initial;
-            }
-            100% {
-              background-position: 100px 0px;
-            }
-          }
-          /*
-        .progress-bar {
-          top: 0px;
-          left: 0px;
-          transition: 0.3s;
-          height: 10px;
-          width: 100%;
-          background: repeating-linear-gradient(45deg, #606dbc, #606dbc 5%, #465298 5%, #465298 10%);
-          background-size: 100px 100px;
-          animation: diagonal-lines 2s linear infinite;
-        }
-        */
-          .progress-bar {
-            top: 0px;
-            left: 0px;
-            transition: 0.3s;
-            height: 10px;
-            width: 100%;
-            z-index: 11;
-          }
-          .diagonal-bar-background-animation {
-            background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);
-            background-size: 100px 100px;
-            animation: diagonal-lines 2s linear infinite;
-          }
-          .modal-icon-container {
-            width: 40px;
-            height: 40px;
-            top: 5px;
-            left: 5px;
-            /* border: 2px solid black; */
-          }
-          .slide-menu-top-bar {
-            width: 100%;
-            top: 0px;
-            right: 0px;
-          }
-        </style>
-      `,
-    ),
-  retro: async () =>
-    append(
-      '.theme',
-      html`
-        <style>
-          @font-face {
-            font-family: 'retro-font-title';
-            src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
-          }
-          @font-face {
-            font-family: 'retro-font';
-            src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
-          }
-          @font-face {
-            font-family: 'retro-font-sensitive';
-            src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
-          }
-        </style>
-      `,
-    ),
-  toolbar: async () => {
-    append(
-      '.theme',
-      html`
-        <style>
-          .toolbar-slot {
-            height: 30px;
-            width: 30px;
-            margin: 3px;
-            cursor: pointer;
-          }
-          .html-ToolBar {
-            padding: 0px;
-          }
-        </style>
-      `,
-    );
-  },
-  fontawesome: async () =>
-    append(
-      'head',
-      html`<link rel="stylesheet" type="text/css" href="${getProxyPath()}dist/fontawesome/css/all.min.css" />`,
-    ),
 };
 
 const barLabels = () => {
   return {
-    cyberia: {
+    img: {
       close: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/close.png" />`,
       maximize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/maximize.png" />`,
       minimize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/minimize.png" />`,
@@ -705,235 +302,34 @@ const renderDefaultWindowsModalButtonContent = (options) => {
 
 let darkTheme = true;
 const ThemeEvents = {};
-const TriggerThemeEvents = () => Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
-
-const Themes = {
-  cyberia: async (options) => {
-    if (options) addTheme(options);
-    const htmlRender = Css.currentTheme !== 'cyberia';
-    if (htmlRender) {
-      Css.currentTheme = 'cyberia';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.retro();
-      await Css.cyberia();
-      await Css.toolbar();
-      LoadingAnimation.img.load({
-        key: 'points',
-        src: 'assets/util/points-loading.gif',
-        classes: 'inl',
-        style: 'width: 100px; height: 100px',
-      });
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'cyberia', htmlRender }) };
-  },
-  default: async () => {
-    const htmlRender = Css.currentTheme !== 'default';
-    if (htmlRender) {
-      Css.currentTheme = 'default';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      darkTheme = false;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'dark-light': async () => {
-    const htmlRender = Css.currentTheme !== 'dark-light';
-    if (htmlRender) {
-      Css.currentTheme = 'dark-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  dark: async () => {
-    const htmlRender = Css.currentTheme !== 'dark';
-    if (htmlRender) {
-      Css.currentTheme = 'dark';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.dark();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  nexodev: async (options) => {
-    const htmlRender = Css.currentTheme !== 'nexodev';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'nexodev';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.nexodev();
-      await Css.toolbar();
-      darkTheme = true;
-      TriggerThemeEvents();
-      if (Menu) Menu.renderTopBartTitleLogo();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'nexodev-light': async (options) => {
-    const htmlRender = Css.currentTheme !== 'nexodev-light';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'nexodev-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css['nexodev-light']();
-      await Css.toolbar();
-      darkTheme = false;
-      TriggerThemeEvents();
-      if (Menu) Menu.renderTopBartTitleLogo();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  bms: async (options) => {
-    const htmlRender = Css.currentTheme !== 'bms';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'bms';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.bms();
-      await Css.toolbar();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'bms-light': async (options) => {
-    const htmlRender = Css.currentTheme !== 'bms-light';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'bms-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css['bms-light']();
-      await Css.toolbar();
-      darkTheme = false;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  dogmadual: async (options) => {
-    const htmlRender = Css.currentTheme !== 'dogmadual';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'dogmadual';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.dogmadual();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  cryptokoyn: async (options) => {
-    const htmlRender = Css.currentTheme !== 'cryptokoyn';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'cryptokoyn';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.cryptokoyn();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  underpost: async (options) => {
-    const htmlRender = Css.currentTheme !== 'underpost';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'underpost';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css.underpost();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'css-default': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-default';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-default';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css['css-default']();
-      await Css.toolbar();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'css-default-light': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-default-light';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-default-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css['css-default-light']();
-      await Css.toolbar();
-      darkTheme = false;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'css-cyberia-portal': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-cyberia-portal';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-cyberia-portal';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css['dark-light']();
-      await Css['css-cyberia-portal']();
-      await Css.toolbar();
-      darkTheme = true;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  'css-cyberia-portal-light': async (options) => {
-    const htmlRender = Css.currentTheme !== 'css-cyberia-portal-light';
-    if (options) addTheme(options);
-    if (htmlRender) {
-      Css.currentTheme = 'css-cyberia-portal-light';
-      htmls('.theme', '');
-      await Css.fontawesome();
-      await Css.default();
-      await Css['css-cyberia-portal-light']();
-      await Css.toolbar();
-      darkTheme = false;
-      TriggerThemeEvents();
-    }
-    return { ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: 'fontawesome', htmlRender }) };
-  },
-  /*css-render-theme*/
+const TriggerThemeEvents = () => {
+  localStorage.setItem('theme', Css.currentTheme);
+  Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
 
-const addTheme = (options) => (Css[options.theme] = async () => append('.theme', await options.render()));
+const Themes = {};
+
+const addTheme = (options) => {
+  ThemesScope.push(options);
+  Themes[options.theme] = async () => {
+    if (!options.dark) options.dark = false;
+    if (!options.barButtonsIconTheme) options.barButtonsIconTheme = 'fontawesome';
+    const htmlRender = Css.currentTheme !== options.theme;
+    if (htmlRender) {
+      Css.currentTheme = options.theme;
+      darkTheme = options.dark;
+      let render = '';
+      if (!['core', 'css-core'].includes(options.theme))
+        render += darkTheme ? await CssCoreDark.render() : await CssCoreLight.render();
+      render += await options.render();
+      htmls('.theme', render);
+      TriggerThemeEvents();
+    }
+    return {
+      ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: options.barButtonsIconTheme, htmlRender }),
+    };
+  };
+};
 
 const borderChar = (px, color, selectors) => {
   if (selectors) {
@@ -1090,4 +486,5 @@ export {
   darkTheme,
   ThemeEvents,
   TriggerThemeEvents,
+  ThemesScope,
 };
