@@ -188,7 +188,7 @@ const CssCoreDark = {
           background: #1a1a1a;
           font-size: 17px;
           padding-top: 7px;
-          padding-bottom: 7px;
+          padding-bottom: 6px;
         }
         ::placeholder {
           color: #c6c4c4;
@@ -468,7 +468,7 @@ const CssCoreLight = {
           background: #eaeaea;
           font-size: 17px;
           padding-top: 7px;
-          padding-bottom: 7px;
+          padding-bottom: 6px;
         }
         ::placeholder {
           color: #333;
