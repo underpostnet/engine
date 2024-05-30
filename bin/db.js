@@ -39,6 +39,11 @@ try {
       // Change password:
       // ALTER USER 'root'@'127.0.0.1' IDENTIFIED BY 'NEW_PASSWORD';
       // ALTER USER 'root'@'localhost' IDENTIFIED BY 'NEW_PASSWORD';
+      // ALTER USER 'root'@'::1' IDENTIFIED BY 'NEW_PASSWORD';
+
+      // Get all user privileges:
+      // select * from information_schema.user_privileges;
+
       switch (operator) {
         case 'show-all':
           await MariaDB.query({ user, password, query: `SHOW DATABASES` });
