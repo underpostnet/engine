@@ -2,7 +2,7 @@ SrrComponent = ({ title, author, keywords, description, themeColor, canonicalURL
   <link rel="manifest" href="${ssrPath}site.webmanifest" />
   <link rel="icon" type="image/png" sizes="16x16" href="${ssrPath}assets/splash/favicon-16x16.png" />
   <link rel="icon" type="image/png" sizes="32x32" href="${ssrPath}assets/splash/favicon-32x32.png" />
-  <link rel="icon" type="image/png" sizes="194x194" href="${ssrPath}assets/splash/favicon-194x194.png" />
+  <!-- <link rel="icon" type="image/png" sizes="194x194" href="${ssrPath}assets/splash/favicon-194x194.png" /> -->
   <!-- chrome -->
   <link rel="icon" type="image/png" sizes="36x36" href="${ssrPath}assets/splash/android-chrome-36x36.png" />
   <link rel="icon" type="image/png" sizes="48x48" href="${ssrPath}assets/splash/android-chrome-48x48.png" />
