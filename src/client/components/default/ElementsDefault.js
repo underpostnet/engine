@@ -3,7 +3,7 @@ import { BaseElement } from './CommonDefault.js';
 
 const logger = loggerFactory(import.meta);
 
-const Elements = {
+const ElementsDefault = {
   Data: BaseElement(),
   Interval: {},
   LocalDataScope: {},
@@ -35,4 +35,4 @@ const Elements = {
   },
 };
 
-export { Elements };
+export { ElementsDefault };

@@ -58,6 +58,7 @@
     "http-proxy-middleware": "^2.0.6",
     "ignore-walk": "^6.0.4",
     "is-admin": "^4.0.0",
+    "is-ip": "^5.0.1",
     "joystick-controller": "^1.0.15",
     "json-colorizer": "^2.2.2",
     "jsonwebtoken": "^9.0.2",

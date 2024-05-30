@@ -8,7 +8,7 @@ import { Translate } from '../core/Translate.js';
 import { s, fullScreenIn, fullScreenOut, checkFullScreen } from '../core/VanillaJs.js';
 import { Worker } from '../core/Worker.js';
 
-const Settings = {
+const SettingsDefault = {
   Render: async function () {
     let fullScreenSwitch = checkFullScreen();
     Responsive.Event['full-screen-settings'] = () => {
@@ -92,4 +92,4 @@ const Settings = {
   },
 };
 
-export { Settings };
+export { SettingsDefault };

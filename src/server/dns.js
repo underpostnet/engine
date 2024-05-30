@@ -4,6 +4,7 @@ import fs from 'fs';
 
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
+import { isIPv4 } from 'is-ip';
 
 dotenv.config();
 
@@ -14,9 +15,9 @@ const Dns = {
   ipDaemon: null,
   InitIpDaemon: async function () {
     // WAN | NAT-VPS | LAN
-    // DNS Records: [ANAME] -> [A] -> [ip]
-    // DHCP (Dynamic Host Configuration Protocol) LAN RESERVE IP -> MAC ID
-    // open ports to LAN IPv4
+    // DNS Records: [ANAME](Address Dynamic) -> [A](ipv4) host | [AAAA](ipv6) host -> [ip]
+    // DHCP (Dynamic Host Configuration Protocol) LAN reserver IP -> MAC ID
+    // Forward the router's TCP/UDP ports to the LAN device's IP address.
     const confDnsPath = './conf/conf.dns.json';
     let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
     if (confDnsData.ipDaemon.disabled) return;
@@ -24,8 +25,13 @@ const Dns = {
     logger.info(`Current ip`, this.ip);
     if (this.ipDaemon) clearInterval(this.ipDaemon);
     const callback = async () => {
-      const testIp = await ip.public.ipv4();
-      if (this.ip !== testIp) {
+      let testIp;
+      try {
+        testIp = await ip.public.ipv4();
+      } catch (error) {
+        logger.error(error, { testIp, stack: error.stack });
+      }
+      if (testIp && typeof testIp === 'string' && isIPv4(testIp) && this.ip !== testIp) {
         logger.info(`New ip`, testIp);
         this.ip = testIp;
         confDnsData.ipDaemon.ip = this.ip;
