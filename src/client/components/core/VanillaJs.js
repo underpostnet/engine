@@ -84,6 +84,8 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 
 // s(input).onblur = inputCheckFunction;
 // s(input).oninput = inputCheckFunction;
+// s(input).onfocus = inputCheckFunction;
+// s(input).focus();
 
 // s(el).onmouseover = () => null;
 // s(el).onmouseout = () => null;

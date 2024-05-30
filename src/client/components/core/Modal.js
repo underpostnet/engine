@@ -26,8 +26,8 @@ const Modal = {
       RouterInstance: {},
     },
   ) {
-    if (!options.heightBottomBar) options.heightBottomBar = 50;
-    if (!options.heightTopBar) options.heightTopBar = 50;
+    if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
+    if (options.heightTopBar === undefined) options.heightTopBar = 50;
     let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
     options.heightTopBar = options.heightTopBar + options.heightBottomBar;
@@ -204,7 +204,61 @@ const Modal = {
                 </div>
               </div>`,
             );
+            {
+              let hoverHistBox = false;
+              let hoverInputBox = false;
+              const id = 'search-box-history';
+              const searchBoxHistoryClose = () =>
+                setTimeout(() => {
+                  if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) Modal.removeModal(id);
+                });
 
+              const searchBoxHistoryOpen = async () => {
+                // in focus
+
+                if (!s(`.${id}`)) {
+                  const { barConfig } = await Themes[Css.currentTheme]();
+                  barConfig.buttons.maximize.disabled = true;
+                  barConfig.buttons.minimize.disabled = true;
+                  barConfig.buttons.restore.disabled = true;
+                  barConfig.buttons.menu.disabled = true;
+                  barConfig.buttons.close.disabled = true;
+                  await Modal.Render({
+                    id,
+                    barConfig,
+                    html: () => html`Recent`,
+                    titleClass: 'hide',
+                    style: {
+                      resize: 'none',
+                      'max-width': '450px',
+                      'max-height': '300px',
+                      'z-index': 7,
+                    },
+                    dragDisabled: true,
+                    maximize: true,
+                    heightBottomBar: 0,
+                    heightTopBar: originHeightTopBar,
+                  });
+
+                  s('.top-bar-search-box').onblur = searchBoxHistoryClose;
+                  s(`.top-bar-search-box-container`).onmouseover = () => {
+                    hoverInputBox = true;
+                  };
+                  s(`.top-bar-search-box-container`).onmouseout = () => {
+                    hoverInputBox = false;
+                  };
+                  s(`.${id}`).onmouseover = () => {
+                    hoverHistBox = true;
+                  };
+                  s(`.${id}`).onmouseout = () => {
+                    hoverHistBox = false;
+                    s('.top-bar-search-box').focus();
+                  };
+                }
+              };
+              s('.top-bar-search-box').oninput = searchBoxHistoryOpen;
+              s('.top-bar-search-box').onfocus = searchBoxHistoryOpen;
+            }
             setTimeout(async () => {
               // clone and change position
 
