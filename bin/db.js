@@ -24,6 +24,21 @@ try {
   logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
     case 'mariadb':
+      // https://www.cyberciti.biz/faq/how-to-show-list-users-in-a-mysql-mariadb-database/
+
+      // Login:
+      // mysql -u root -p
+      // mysql -u root -h localhost -p mysql
+
+      // Get Users:
+      // SELECT host, user, password FROM mysql.user;
+
+      // Get DB User:
+      // SELECT User, Db, Host from mysql.db;
+
+      // Change password:
+      // ALTER USER 'root'@'127.0.0.1' IDENTIFIED BY 'NEW_PASSWORD';
+      // ALTER USER 'root'@'localhost' IDENTIFIED BY 'NEW_PASSWORD';
       switch (operator) {
         case 'show-all':
           await MariaDB.query({ user, password, query: `SHOW DATABASES` });

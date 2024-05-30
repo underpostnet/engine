@@ -13,13 +13,13 @@ const Xampp = {
       fs.readFileSync(`C:/xampp/apache/conf/httpd.template.conf`, 'utf8').replace(`Listen 80`, ``),
       'utf8',
     );
-    fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, Xampp.router || '', 'utf8');
+    fs.writeFileSync(`C:/xampp/apache/conf/extra/httpd-ssl.conf`, this.router || '', 'utf8');
     cmd = `C:/xampp/xampp_stop.exe`;
     shellExec(cmd);
     await network.port.portClean(3306);
-    for (const port of Xampp.ports) await network.port.portClean(port);
+    for (const port of this.ports) await network.port.portClean(port);
     cmd = `C:/xampp/xampp_start.exe`;
-    fs.writeFileSync(`./tmp/xampp-router.conf`, Xampp.router, 'utf-8');
+    if (this.router) fs.writeFileSync(`./tmp/xampp-router.conf`, this.router, 'utf-8');
     shellExec(cmd);
     if (options && options.daemon) this.daemon();
   },

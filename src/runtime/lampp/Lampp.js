@@ -14,7 +14,7 @@ const Lampp = {
     await network.port.portClean(3306);
     for (const port of this.ports) await network.port.portClean(port);
     cmd = `sudo /opt/lampp/lampp start`;
-    fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
+    if (this.router) fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
     shellExec(cmd, { async: true });
     if (options && options.daemon) this.daemon();
   },
