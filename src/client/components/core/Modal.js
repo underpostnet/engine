@@ -381,6 +381,12 @@ const Modal = {
                   e.preventDefault();
                   window.history.forward();
                 };
+                s(`.main-btn-home`).onclick = () => {
+                  for (const keyModal of Object.keys(this.Data)) {
+                    if (keyModal !== idModal) s(`.btn-close-${keyModal}`).click();
+                  }
+                  s(`.btn-close-modal-menu`).click();
+                };
                 s(`.bottom-btn-home`).onclick = () => s(`.main-btn-home`).click();
                 s(`.bottom-btn-app-icon`).onclick = () => location.reload();
               }

@@ -529,13 +529,6 @@ const Menu = {
         heightBottomBar,
       });
     });
-
-    s(`.main-btn-home`).onclick = () => {
-      for (const idModal of Object.keys(Modal.Data)) {
-        if (Modal.Data[idModal].options.route) s(`.btn-close-${idModal}`).click();
-      }
-      s(`.btn-close-modal-menu`).click();
-    };
   },
   renderMenuLabel: ({ img, text }) => html`<img
       class="abs center img-btn-square-menu"
