@@ -9,13 +9,13 @@ import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
-import { LabGallery } from './LabGallery.js';
-import { BlogContraculturaCyberpunk } from './BlogContraculturaCyberpunk.js';
+import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
+import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 
-const Menu = {
+const MenuUnderpost = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
@@ -241,7 +241,7 @@ const Menu = {
           icon: html`<i class="fa-solid fa-photo-film"></i>`,
           text: Translate.Render('lab-gallery'),
         }),
-        html: async () => await LabGallery.Render(),
+        html: async () => await LabGalleryUnderpost.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -262,7 +262,7 @@ const Menu = {
           icon: html`<i class="fa-brands fa-blogger"></i>`,
           text: Translate.Render('contracultura-cyberpunk'),
         }),
-        html: async () => await BlogContraculturaCyberpunk.Render(),
+        html: async () => await CyberpunkBloggerUnderpost.Render(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -286,7 +286,7 @@ const Menu = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: Elements.Data.user.main.model.user,
+            user: ElementsUnderpost.Data.user.main.model.user,
             disabled: ['emailConfirm'],
           }),
         handleType: 'bar',
@@ -301,4 +301,4 @@ const Menu = {
   },
 };
 
-export { Menu };
+export { MenuUnderpost };

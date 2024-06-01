@@ -1,6 +1,6 @@
 import { getProxyPath, getQueryParams, s } from '../core/VanillaJs.js';
 
-const BlogContraculturaCyberpunk = {
+const CyberpunkBloggerUnderpost = {
   Render: async function () {
     let renderBlog = '';
     if (getQueryParams().type === 'blog') {
@@ -897,4 +897,4 @@ const BlogContraculturaCyberpunk = {
   },
 };
 
-export { BlogContraculturaCyberpunk };
+export { CyberpunkBloggerUnderpost };

@@ -5,7 +5,7 @@ import { Modal, renderViewTitle } from '../core/Modal.js';
 import { listenQueryPathInstance, setQueryPath } from '../core/Router.js';
 import { s } from '../core/VanillaJs.js';
 
-const LabGallery = {
+const LabGalleryUnderpost = {
   Tokens: {},
   View: [
     { title: '3D PLOT DEMO', path: '3dplotdemo' },
@@ -77,4 +77,4 @@ const LabGallery = {
   },
 };
 
-export { LabGallery };
+export { LabGalleryUnderpost };

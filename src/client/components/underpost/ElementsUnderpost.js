@@ -3,7 +3,7 @@ import { BaseElement } from './CommonUnderpost.js';
 
 const logger = loggerFactory(import.meta);
 
-const Elements = {
+const ElementsUnderpost = {
   Data: BaseElement(),
   Interval: {},
   LocalDataScope: {},
@@ -35,4 +35,4 @@ const Elements = {
   },
 };
 
-export { Elements };
+export { ElementsUnderpost };
