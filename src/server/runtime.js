@@ -309,6 +309,7 @@ const buildRuntime = async () => {
               host,
               path,
             });
+            await network.port.portClean(peerPort);
             await listenPortController(peerServer, peerPort, {
               runtime: 'nodejs',
               client: null,
