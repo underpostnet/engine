@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, ThemeEvents, Themes } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -9,16 +9,16 @@ import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsDogmadual } from './ElementsDogmadual.js';
 import Sortable from 'sortablejs';
-import { RouterCryptokoyn } from './RoutesCryptokoyn.js';
+import { RouterDogmadual } from './RoutesDogmadual.js';
 
-const Menu = {
+const MenuDogmadual = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
-    const RouterInstance = RouterCryptokoyn();
+    const RouterInstance = RouterDogmadual();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
@@ -77,7 +77,9 @@ const Menu = {
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}assets/logo/cryptokoyn.png`;
+          const srcLogo = darkTheme
+            ? `${getProxyPath()}assets/logo/dogmadual-white-t.png`
+            : `${getProxyPath()}assets/logo/dogmadual-black-t.png`;
           htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
@@ -214,7 +216,7 @@ const Menu = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: Elements.Data.user.main.model.user,
+            user: ElementsDogmadual.Data.user.main.model.user,
             disabled: ['emailConfirm'],
           }),
         handleType: 'bar',
@@ -229,4 +231,4 @@ const Menu = {
   },
 };
 
-export { Menu };
+export { MenuDogmadual };

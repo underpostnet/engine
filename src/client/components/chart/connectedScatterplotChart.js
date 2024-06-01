@@ -7,7 +7,7 @@
 // Released under the ISC license.
 // https://observablehq.com/@d3/connected-scatterplot
 
-export const connectedScatterplot = (
+export const connectedScatterplotChart = (
   data,
   {
     svgId = 'connected-scatterplot',

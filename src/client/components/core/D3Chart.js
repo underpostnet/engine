@@ -1,4 +1,4 @@
-import { connectedScatterplot } from '../chart/connectedScatterplot.js';
+import { connectedScatterplotChart } from '../chart/connectedScatterplotChart.js';
 
 // https://takanori-fujiwara.github.io/d3-gallery-javascript/
 
@@ -10,7 +10,7 @@ const D3Chart = {
       const button = d3.select('.chart-panel').append('div').append('button').attr('type', 'button').text('Replay');
 
       const play = () => {
-        const chart = connectedScatterplot(driving, {
+        const chart = connectedScatterplotChart(driving, {
           svgId: 'connected-scatterplot',
           x: (d) => d.miles,
           y: (d) => d.gas,
