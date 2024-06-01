@@ -2,7 +2,6 @@
 
 import { Css } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
-import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
 import { LogInCyberiaPortal } from './components/cyberia-portal/LogInCyberiaPortal.js';
 import { LogOutCyberiaPortal } from './components/cyberia-portal/LogOutCyberiaPortal.js';

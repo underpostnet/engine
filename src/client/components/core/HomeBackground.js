@@ -13,7 +13,7 @@ const HomeBackground = {
       s(`.home-background`).style.width = `auto`;
     };
     Responsive.Event['home-background']();
-    return html` <div></div> `;
+    return html``;
   },
 };
 

@@ -2,7 +2,6 @@
 
 import { Css } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
-import { LoadRouter } from './components/core/Router.js';
 import { TranslateCore } from './components/core/Translate.js';
 import { LogInNexodev } from './components/nexodev/LogInNexodev.js';
 import { LogOutNexodev } from './components/nexodev/LogOutNexodev.js';
