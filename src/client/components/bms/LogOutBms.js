@@ -11,6 +11,8 @@ const LogOutBms = async function () {
     s(`.main-btn-account`).style.display = 'none';
     s(`.main-btn-log-in`).style.display = null;
     s(`.main-btn-sign-up`).style.display = null;
+    if (s(`.real-state-panel-form-body`) && !s(`.real-state-panel-form-body`).classList.contains('hide'))
+      s(`.btn-real-state-panel-close`).click();
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
