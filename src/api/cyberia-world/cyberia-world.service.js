@@ -16,7 +16,7 @@ const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
     : ``;
 
 const select = {
-  'all-name': { _id: 1, name: 1, face: 1 },
+  'all-name': { _id: 1, name: 1, face: 1, type: 1 },
 };
 
 const populateOptions = {

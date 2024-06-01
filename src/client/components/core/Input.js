@@ -33,16 +33,19 @@ const Input = {
     });
 
     const inputElement = html` <input
-      type="${options?.type ? options.type : 'text'}"
-      class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
-      ${options?.min !== undefined ? `min="${options.min}"` : ''}
-      placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
-      ${options?.value !== undefined ? `value="${options.value}"` : ''}
-      ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
-      ${options?.disabled ? `disabled` : ''}
-    />`;
+        type="${options?.type ? options.type : 'text'}"
+        class="${options.inputClass ? options.inputClass : 'in wfa'} ${id}"
+        ${options?.min !== undefined ? `min="${options.min}"` : ''}
+        placeholder${options?.placeholder ? `="${options.placeholder}"` : ''}
+        ${options?.value !== undefined ? `value="${options.value}"` : ''}
+        ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
+        ${options?.disabled ? `disabled` : ''}
+      />
+      <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
+        ${options?.extension ? await options.extension() : ''}
+      </div>`;
 
-    return html` <div class="${options?.containerClass ? options.containerClass : ''} input-container-${id}">
+    return html` <div class="${options?.containerClass ? options.containerClass + ' ' : ''}input-container-${id}">
       <div class="in">
         ${options?.label ? html`<div class="in input-label input-label-${id}">${options.label}</div>` : ''}
         ${options.type === 'password' && !options.disabledEye
@@ -60,7 +63,6 @@ const Input = {
           : inputElement}
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>
-      ${options?.footer ? options.footer : ''}
     </div>`;
   },
   parseJsonEval: (selector) => {

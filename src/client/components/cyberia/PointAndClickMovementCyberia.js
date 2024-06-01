@@ -1,20 +1,22 @@
 import { JSONmatrix, insertTransitionCoordinates, newInstance, round10, s4, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 import { append, s } from '../core/VanillaJs.js';
-import { BiomeScope } from './Biome.js';
+import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { CyberiaParams } from './CommonCyberia.js';
-import { Elements } from './Elements.js';
-import { Matrix } from './Matrix.js';
-import { Pixi } from './Pixi.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
+import { MatrixCyberia } from './MatrixCyberia.js';
+import { PixiCyberia } from './PixiCyberia.js';
 
-const PointAndClickMovement = {
+const PointAndClickMovementCyberia = {
   Event: {},
   callback: null,
   Render: async function () {
-    const id = `PointAndClickMovement`;
+    const id = `PointAndClickMovementCyberia`;
     append('body', html` <div class="abs ${id}-container"></div> `);
     this[`callback`] = () => {
-      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
+        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
+      });
       // const ResponsiveData = Responsive.getResponsiveData();
       s(`.${id}-container`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s(`.${id}-container`).style.height = `${ResponsiveDataAmplitude.minValue}px`;
@@ -36,45 +38,48 @@ const PointAndClickMovement = {
       idPath = s4() + s4();
       const currentIdPath = idPath;
 
-      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
+        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
+      });
 
-      const matrixDim = Matrix.Data.dim * 1; // Matrix.Data.dimPaintByCell;
+      const matrixDim = MatrixCyberia.Data.dim * 1; // MatrixCyberia.Data.dimPaintByCell;
 
       const x = (matrixDim * e.offsetX) / ResponsiveDataAmplitude.minValue;
       const y = (matrixDim * e.offsetY) / ResponsiveDataAmplitude.minValue;
 
       for (const eventKey of Object.keys(this.Event)) this.Event[eventKey]({ x, y });
 
-      // console.log({ x, y, e: Elements.Data.user.main });
+      // console.log({ x, y, e: ElementsCyberia.Data.user.main });
 
-      const collisionMatrix = BiomeScope.Data[Matrix.Data.biomeDataId].mainUserCollisionMatrix;
+      const collisionMatrixCyberia =
+        BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].mainUserCollisionMatrixCyberia;
 
-      // console.log(JSONmatrix(collisionMatrix));
+      // console.log(JSONmatrix(collisionMatrixCyberia));
 
       const Path = insertTransitionCoordinates(
         this.pathfinding.findPath(
-          round10(Elements.Data.user.main.x),
-          round10(Elements.Data.user.main.y),
+          round10(ElementsCyberia.Data.user.main.x),
+          round10(ElementsCyberia.Data.user.main.y),
           round10(x),
           round10(y),
-          new pathfinding.Grid(collisionMatrix.length, collisionMatrix.length, collisionMatrix),
+          new pathfinding.Grid(collisionMatrixCyberia.length, collisionMatrixCyberia.length, collisionMatrixCyberia),
         ),
-        CyberiaParams.MOVEMENT_TRANSITION_FACTOR * (0.3 / Elements.Data.user.main.vel),
+        CyberiaParams.MOVEMENT_TRANSITION_FACTOR * (0.3 / ElementsCyberia.Data.user.main.vel),
       );
 
       console.log(Path);
 
-      Elements.LocalDataScope['user']['main'].path = Path;
-      Pixi.renderMarker({ x, y });
+      ElementsCyberia.LocalDataScope['user']['main'].path = Path;
+      PixiCyberia.renderMarker({ x, y });
 
-      if (Elements.LocalDataScope['user']['main'].path[0])
-        for (const point of newInstance(Elements.LocalDataScope['user']['main'].path)) {
+      if (ElementsCyberia.LocalDataScope['user']['main'].path[0])
+        for (const point of newInstance(ElementsCyberia.LocalDataScope['user']['main'].path)) {
           await timer(CyberiaParams.EVENT_CALLBACK_TIME);
           if (currentIdPath === idPath) {
-            Elements.Data.user.main.x = point[0];
-            Elements.Data.user.main.y = point[1];
-            Pixi.updatePosition({ type: 'user', id: 'main' });
-            Elements.LocalDataScope['user']['main'].path.shift();
+            ElementsCyberia.Data.user.main.x = point[0];
+            ElementsCyberia.Data.user.main.y = point[1];
+            PixiCyberia.updatePosition({ type: 'user', id: 'main' });
+            ElementsCyberia.LocalDataScope['user']['main'].path.shift();
           }
         }
       return;
@@ -92,4 +97,4 @@ const PointAndClickMovement = {
   },
 };
 
-export { PointAndClickMovement };
+export { PointAndClickMovementCyberia };

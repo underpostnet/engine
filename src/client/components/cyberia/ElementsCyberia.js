@@ -1,11 +1,11 @@
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { BaseElement } from './CommonCyberia.js';
-import { WorldManagement } from './World.js';
+import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
-const Elements = {
+const ElementsCyberia = {
   Data: BaseElement(),
   Interval: {},
   LocalDataScope: {},
@@ -34,8 +34,8 @@ const Elements = {
   },
   getDisplayName: ({ type, id }) => {
     const displayName =
-      type === 'user' && Elements.Data[type][id].model.user.username
-        ? Elements.Data[type][id].model.user.username
+      type === 'user' && ElementsCyberia.Data[type][id].model.user.username
+        ? ElementsCyberia.Data[type][id].model.user.username
         : type === 'user' && id === 'main'
         ? SocketIo.socket.id
         : id;
@@ -51,8 +51,8 @@ const Elements = {
     }
     this.Interval = {};
     this.Data = BaseElement();
-    WorldManagement.Data = {};
+    WorldCyberiaManagement.Data = {};
   },
 };
 
-export { Elements };
+export { ElementsCyberia };

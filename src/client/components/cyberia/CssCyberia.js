@@ -149,12 +149,9 @@ const CssCyberiaDark = {
             min-height: 90px;
           }
 
-          /* .btn-custom {
-          width: 253px;
-        }
-        .width-mini-box {
-          width: 250px;
-        } */
+          .width-mini-box {
+            width: 256px;
+          }
 
           .width-mini-box:hover {
             color: #ffcc00;
@@ -328,7 +325,7 @@ const CssCyberiaDark = {
           .user-lifeBar {
             left: 0px;
           }
-          .PointAndClickMovement-container {
+          .PointAndClickMovementCyberia-container {
             z-index: 2;
             top: 54px;
             cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
@@ -604,8 +601,8 @@ const CssCyberiaDark = {
           .drop-zone-file-explorer {
             min-height: 300px;
           }
-          .box-option {
-            width: 231px;
+          .toggle-form-container {
+            width: 239px;
             font-size: 20px;
             border: 2px solid #313131;
             padding: 10px;

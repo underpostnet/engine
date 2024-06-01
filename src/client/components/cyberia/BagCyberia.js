@@ -1,19 +1,18 @@
 import Sortable from 'sortablejs';
 import { getId, range, uniqueArray } from '../core/CommonJs.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { SkillData, Stat } from './CommonCyberia.js';
-import { Menu } from './Menu.js';
+import { SkillCyberiaData, Stat } from './CommonCyberia.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { Pixi } from './Pixi.js';
+import { PixiCyberia } from './PixiCyberia.js';
 import { loggerFactory } from '../core/Logger.js';
-import { Character } from './Character.js';
-import { Skill } from './Skill.js';
+import { CharacterCyberia } from './CharacterCyberia.js';
+import { SkillCyberia } from './SkillCyberia.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -115,7 +114,7 @@ const ItemModal = {
       if (skill) {
         htmls(
           `.${id0}-render-col-a`,
-          this.RenderStat(Stat.get[skill.id](), { 'item type': `${SkillData[skill.id].type} skill` }),
+          this.RenderStat(Stat.get[skill.id](), { 'item type': `${SkillCyberiaData[skill.id].type} skill` }),
         );
         // -----------------------------------------------------------
         // -----------------------------------------------------------
@@ -168,116 +167,124 @@ const ItemModal = {
   Equip: {
     skill: function ({ type, id, skill }) {
       console.log('Equip skill', { type, id, skill });
-      Elements.Data[type][id].skill.keys[SkillData[skill.id].type] = skill.id;
+      ElementsCyberia.Data[type][id].skill.keys[SkillCyberiaData[skill.id].type] = skill.id;
       SocketIo.Emit(type, {
         status: 'update-skill',
-        element: { skill: Elements.Data[type][id].skill },
+        element: { skill: ElementsCyberia.Data[type][id].skill },
       });
-      Character.RenderCharacterSkillSLot({ type, id, skillKey: SkillData[skill.id].type });
-      Skill.setMainKeysSkill();
+      CharacterCyberia.RenderCharacterCyberiaSkillSLot({ type, id, skillKey: SkillCyberiaData[skill.id].type });
+      SkillCyberia.setMainKeysSkillCyberia();
     },
     skin: function ({ type, id, skin }) {
-      Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
-        skinData.enabled = skinData.displayId === skin.id;
-        skinData.current = skinData.displayId === skin.id;
-        return skinData;
-      });
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id].components.skin = ElementsCyberia.Data[type][id].components.skin.map(
+        (skinData) => {
+          skinData.enabled = skinData.displayId === skin.id;
+          skinData.current = skinData.displayId === skin.id;
+          return skinData;
+        },
+      );
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-skin-position',
-        element: { components: { skin: Elements.Data[type][id].components.skin } },
-        direction: Elements.LocalDataScope[type][id].lastDirection,
+        element: { components: { skin: ElementsCyberia.Data[type][id].components.skin } },
+        direction: ElementsCyberia.LocalDataScope[type][id].lastDirection,
         updateStat: true,
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'skin' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'skin' });
     },
     weapon: function ({ type, id, weapon }) {
-      Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
-        weaponData.enabled = weaponData.displayId === weapon.id;
-        weaponData.current = weaponData.displayId === weapon.id;
-        return weaponData;
-      });
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id].components.weapon = ElementsCyberia.Data[type][id].components.weapon.map(
+        (weaponData) => {
+          weaponData.enabled = weaponData.displayId === weapon.id;
+          weaponData.current = weaponData.displayId === weapon.id;
+          return weaponData;
+        },
+      );
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-item',
         itemType: 'weapon',
-        element: { components: { weapon: Elements.Data[type][id].components.weapon } },
+        element: { components: { weapon: ElementsCyberia.Data[type][id].components.weapon } },
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'weapon' });
     },
     breastplate: function ({ type, id, breastplate }) {
-      Elements.Data[type][id].components.breastplate = Elements.Data[type][id].components.breastplate.map(
+      ElementsCyberia.Data[type][id].components.breastplate = ElementsCyberia.Data[type][id].components.breastplate.map(
         (breastplateData) => {
           breastplateData.enabled = breastplateData.displayId === breastplate.id;
           breastplateData.current = breastplateData.displayId === breastplate.id;
           return breastplateData;
         },
       );
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-item',
         itemType: 'breastplate',
-        element: { components: { breastplate: Elements.Data[type][id].components.breastplate } },
+        element: { components: { breastplate: ElementsCyberia.Data[type][id].components.breastplate } },
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'breastplate' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'breastplate' });
     },
   },
   Unequip: {
     skill: function ({ type, id, skill }) {
       console.log('Unequip skill', { type, id, skill });
-      Elements.Data[type][id].skill.keys[SkillData[skill.id].type] = null;
+      ElementsCyberia.Data[type][id].skill.keys[SkillCyberiaData[skill.id].type] = null;
       SocketIo.Emit(type, {
         status: 'update-skill',
-        element: { skill: Elements.Data[type][id].skill },
+        element: { skill: ElementsCyberia.Data[type][id].skill },
       });
-      Character.RenderCharacterSkillSLot({ type, id, skillKey: SkillData[skill.id].type });
-      Skill.setMainKeysSkill();
+      CharacterCyberia.RenderCharacterCyberiaSkillSLot({ type, id, skillKey: SkillCyberiaData[skill.id].type });
+      SkillCyberia.setMainKeysSkillCyberia();
     },
     skin: function ({ type, id, skin }) {
-      Elements.Data[type][id].components.skin = Elements.Data[type][id].components.skin.map((skinData) => {
-        // skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
-        // skinData.current = skinData.displayId === (skin?.id ? skin.id : 'anon');
-        skinData.enabled = skinData.displayId === 'anon';
-        skinData.current = skinData.displayId === 'anon';
-        return skinData;
-      });
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id].components.skin = ElementsCyberia.Data[type][id].components.skin.map(
+        (skinData) => {
+          // skinData.enabled = skinData.displayId === (skin?.id ? skin.id : 'anon');
+          // skinData.current = skinData.displayId === (skin?.id ? skin.id : 'anon');
+          skinData.enabled = skinData.displayId === 'anon';
+          skinData.current = skinData.displayId === 'anon';
+          return skinData;
+        },
+      );
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-skin-position',
-        element: { components: { skin: Elements.Data[type][id].components.skin } },
-        direction: Elements.LocalDataScope[type][id].lastDirection,
+        element: { components: { skin: ElementsCyberia.Data[type][id].components.skin } },
+        direction: ElementsCyberia.LocalDataScope[type][id].lastDirection,
         updateStat: true,
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'skin' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'skin' });
     },
     weapon: function ({ type, id, weapon }) {
-      Elements.Data[type][id].components.weapon = Elements.Data[type][id].components.weapon.map((weaponData) => {
-        // weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
-        // weaponData.current = weapon?.id ? weaponData.displayId === weapon.id : false;
-        weaponData.enabled = false;
-        weaponData.current = false;
-        return weaponData;
-      });
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id].components.weapon = ElementsCyberia.Data[type][id].components.weapon.map(
+        (weaponData) => {
+          // weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
+          // weaponData.current = weapon?.id ? weaponData.displayId === weapon.id : false;
+          weaponData.enabled = false;
+          weaponData.current = false;
+          return weaponData;
+        },
+      );
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-item',
         itemType: 'weapon',
-        element: { components: { weapon: Elements.Data[type][id].components.weapon } },
+        element: { components: { weapon: ElementsCyberia.Data[type][id].components.weapon } },
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'weapon' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'weapon' });
     },
     breastplate: function ({ type, id, breastplate }) {
-      Elements.Data[type][id].components.breastplate = Elements.Data[type][id].components.breastplate.map(
+      ElementsCyberia.Data[type][id].components.breastplate = ElementsCyberia.Data[type][id].components.breastplate.map(
         (breastplateData) => {
           // breastplateData.enabled = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
           // breastplateData.current = breastplate?.id ? breastplateData.displayId === breastplate.id : false;
@@ -286,15 +293,15 @@ const ItemModal = {
           return breastplateData;
         },
       );
-      Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-      Pixi.setDisplayComponent({ type, id });
-      Character.renderCharacterStat();
+      ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      PixiCyberia.setDisplayComponent({ type, id });
+      CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
         status: 'update-item',
         itemType: 'breastplate',
-        element: { components: { breastplate: Elements.Data[type][id].components.breastplate } },
+        element: { components: { breastplate: ElementsCyberia.Data[type][id].components.breastplate } },
       });
-      Character.RenderCharacterSLot({ type, id, componentType: 'breastplate' });
+      CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'breastplate' });
     },
   },
   RenderStat: function (statData, options) {
@@ -340,30 +347,30 @@ const SlotEvents = {};
 
 const Slot = {
   coin: {
-    renderBagSlots: ({ bagId, indexBag }) => {
+    renderBagCyberiaSlots: ({ bagId, indexBagCyberia }) => {
       htmls(
-        `.${bagId}-${indexBag}`,
+        `.${bagId}-${indexBagCyberia}`,
         html` <div class="abs bag-slot-count">
             <div class="abs center">
-              x<span class="bag-slot-value-${bagId}-${indexBag}">${Elements.Data.user.main.coin}</span>
+              x<span class="bag-slot-value-${bagId}-${indexBagCyberia}">${ElementsCyberia.Data.user.main.coin}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
           <div class="in bag-slot-type-text">currency</div>
           <div class="in bag-slot-name-text">coin</div>`,
       );
-      indexBag++;
-      return indexBag;
+      indexBagCyberia++;
+      return indexBagCyberia;
     },
     update: ({ bagId, type, id }) => {
-      if (s(`.bag-slot-value-${bagId}-0`)) htmls(`.bag-slot-value-${bagId}-0`, Elements.Data[type][id].coin);
+      if (s(`.bag-slot-value-${bagId}-0`)) htmls(`.bag-slot-value-${bagId}-0`, ElementsCyberia.Data[type][id].coin);
     },
   },
   skin: {
     render: function ({ slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = Elements.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
+      const count = ElementsCyberia.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -394,20 +401,20 @@ const Slot = {
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
-    renderBagSlots: function ({ bagId, indexBag }) {
-      for (const displayId of uniqueArray(Elements.Data.user.main.components.skin.map((s) => s.displayId))) {
-        const slotId = `${bagId}-${indexBag}`;
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
+      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.components.skin.map((s) => s.displayId))) {
+        const slotId = `${bagId}-${indexBagCyberia}`;
         this.render({ displayId, slotId });
-        indexBag++;
+        indexBagCyberia++;
       }
-      return indexBag;
+      return indexBagCyberia;
     },
   },
   weapon: {
     render: function ({ slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = Elements.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
+      const count = ElementsCyberia.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -438,20 +445,20 @@ const Slot = {
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
-    renderBagSlots: function ({ bagId, indexBag }) {
-      for (const displayId of uniqueArray(Elements.Data.user.main.weapon.tree.map((i) => i.id))) {
-        const slotId = `${bagId}-${indexBag}`;
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
+      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.weapon.tree.map((i) => i.id))) {
+        const slotId = `${bagId}-${indexBagCyberia}`;
         this.render({ slotId, displayId });
-        indexBag++;
+        indexBagCyberia++;
       }
-      return indexBag;
+      return indexBagCyberia;
     },
   },
   breastplate: {
     render: function ({ slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = Elements.Data.user.main.breastplate.tree.filter((i) => i.id === displayId).length;
+      const count = ElementsCyberia.Data.user.main.breastplate.tree.filter((i) => i.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -485,20 +492,20 @@ const Slot = {
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
-    renderBagSlots: function ({ bagId, indexBag }) {
-      for (const displayId of uniqueArray(Elements.Data.user.main.breastplate.tree.map((i) => i.id))) {
-        const slotId = `${bagId}-${indexBag}`;
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
+      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.breastplate.tree.map((i) => i.id))) {
+        const slotId = `${bagId}-${indexBagCyberia}`;
         this.render({ slotId, displayId });
-        indexBag++;
+        indexBagCyberia++;
       }
-      return indexBag;
+      return indexBagCyberia;
     },
   },
   skill: {
     render: function ({ slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = Elements.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
+      const count = ElementsCyberia.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -508,7 +515,7 @@ const Slot = {
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
-          <div class="in bag-slot-type-text">${SkillData[displayId].type}<br />skill</div>
+          <div class="in bag-slot-type-text">${SkillCyberiaData[displayId].type}<br />skill</div>
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
       );
@@ -532,33 +539,33 @@ const Slot = {
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
-    renderBagSlots: function ({ bagId, indexBag }) {
-      for (const displayId of uniqueArray(Elements.Data.user.main.skill.tree.map((s) => s.id))) {
-        const slotId = `${bagId}-${indexBag}`;
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
+      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.skill.tree.map((s) => s.id))) {
+        const slotId = `${bagId}-${indexBagCyberia}`;
         this.render({ slotId, displayId });
-        indexBag++;
+        indexBagCyberia++;
       }
-      return indexBag;
+      return indexBagCyberia;
     },
   },
   xp: {
-    renderBagSlots: ({ bagId, indexBag }) => {
+    renderBagCyberiaSlots: ({ bagId, indexBagCyberia }) => {
       htmls(
-        `.${bagId}-${indexBag}`,
+        `.${bagId}-${indexBagCyberia}`,
         html` <div class="abs bag-slot-count">
-            <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBag}">0</span></div>
+            <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBagCyberia}">0</span></div>
           </div>
           <div class="abs center xp-icon">XP</div>
           <div class="in bag-slot-type-text">experience</div>
           <div class="in bag-slot-name-text">level 0</div>`,
       );
-      indexBag++;
-      return indexBag;
+      indexBagCyberia++;
+      return indexBagCyberia;
     },
   },
 };
 
-const Bag = {
+const BagCyberia = {
   Tokens: {},
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
@@ -599,7 +606,7 @@ const Bag = {
             // console.log('evt.oldIndex', evt.oldIndex);
             // console.log('evt.newIndex', evt.newIndex);
 
-            const toElements = {
+            const toElementsCyberia = {
               srcElement: evt.originalEvent.srcElement,
               target: evt.originalEvent.target,
               toElement: evt.originalEvent.toElement,
@@ -607,57 +614,62 @@ const Bag = {
 
             const { item } = evt; // parentElement parentNode children(array)
 
-            const dataBagFrom = {
+            const dataBagCyberiaFrom = {
               type: Array.from(item.children)[2].innerHTML,
               id: Array.from(item.children)[3].innerHTML,
             };
-            const dataBagTo = {};
+            const dataBagCyberiaTo = {};
 
-            let dataClassBagFrom = [];
-            let dataClassBagTo = [];
+            let dataClassBagCyberiaFrom = [];
+            let dataClassBagCyberiaTo = [];
 
-            for (const toElementKey of Object.keys(toElements)) {
+            for (const toElementKey of Object.keys(toElementsCyberia)) {
               try {
-                dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
-              } catch (error) {
-                logger.warn(error);
-              }
-              try {
-                dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
-              } catch (error) {
-                logger.warn(error);
-              }
-              try {
-                dataClassBagTo = dataClassBagTo.concat(
-                  Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                  Array.from(toElementsCyberia[toElementKey].parentNode.classList),
                 );
               } catch (error) {
                 logger.warn(error);
               }
               try {
-                dataClassBagTo = dataClassBagTo.concat(
-                  Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                  Array.from(toElementsCyberia[toElementKey].parentElement.classList),
+                );
+              } catch (error) {
+                logger.warn(error);
+              }
+              try {
+                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                  Array.from(toElementsCyberia[toElementKey].parentNode.parentNode.classList),
+                );
+              } catch (error) {
+                logger.warn(error);
+              }
+              try {
+                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                  Array.from(toElementsCyberia[toElementKey].parentElement.parentElement.classList),
                 );
               } catch (error) {
                 logger.warn(error);
               }
             }
 
-            dataClassBagTo = uniqueArray(dataClassBagTo);
+            dataClassBagCyberiaTo = uniqueArray(dataClassBagCyberiaTo);
 
-            logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
-            logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
-            if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
+            logger.info('Sortable BagCyberia From:', { dataClassBagCyberiaFrom, dataBagCyberiaFrom });
+            logger.info('Sortable BagCyberia To:', { dataClassBagCyberiaTo, dataBagCyberiaTo });
+            if (dataBagCyberiaFrom.type.split('<br>')[1])
+              dataBagCyberiaFrom.type = dataBagCyberiaFrom.type.split('<br>')[1];
 
             if (
-              Object.values(dataClassBagTo).find(
+              Object.values(dataClassBagCyberiaTo).find(
                 (c) => c.startsWith(`character-`) || c.startsWith('main-skill-slot'),
               ) &&
-              ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
+              ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagCyberiaFrom.type)
             ) {
               const payLoadEquip = { type: 'user', id: 'main' };
-              payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
-              ItemModal.Equip[dataBagFrom.type](payLoadEquip);
+              payLoadEquip[dataBagCyberiaFrom.type] = { id: dataBagCyberiaFrom.id };
+              ItemModal.Equip[dataBagCyberiaFrom.type](payLoadEquip);
               return;
             }
 
@@ -680,13 +692,13 @@ const Bag = {
         },
       });
 
-      let indexBag = 0;
-      indexBag = await Slot.coin.renderBagSlots({ bagId, indexBag });
-      indexBag = await Slot.xp.renderBagSlots({ bagId, indexBag });
-      indexBag = await Slot.skin.renderBagSlots({ bagId, indexBag });
-      indexBag = await Slot.skill.renderBagSlots({ bagId, indexBag });
-      indexBag = await Slot.weapon.renderBagSlots({ bagId, indexBag });
-      indexBag = await Slot.breastplate.renderBagSlots({ bagId, indexBag });
+      let indexBagCyberia = 0;
+      indexBagCyberia = await Slot.coin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.xp.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.skin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
     });
     return html`
       <div class="fl ${bagId}">
@@ -714,4 +726,4 @@ const Bag = {
   },
 };
 
-export { Bag, Slot, SlotEvents, ItemModal };
+export { BagCyberia, Slot, SlotEvents, ItemModal };

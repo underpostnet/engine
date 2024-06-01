@@ -7,7 +7,7 @@ import { TranslateCore } from './components/core/Translate.js';
 import { LogInCyberiaPortal } from './components/cyberia-portal/LogInCyberiaPortal.js';
 import { LogOutCyberiaPortal } from './components/cyberia-portal/LogOutCyberiaPortal.js';
 import { SignUpCyberiaPortal } from './components/cyberia-portal/SignUpCyberiaPortal.js';
-import { Menu } from './components/cyberia-portal/Menu.js';
+import { MenuCyberiaPortal } from './components/cyberia-portal/MenuCyberiaPortal.js';
 import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPortal.js';
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
 import { Worker } from './components/core/Worker.js';
@@ -20,7 +20,7 @@ Worker.instance({
     await TranslateCore.Init();
     await TranslateCyberiaPortal.Init();
     await Responsive.Init();
-    await Menu.Render();
+    await MenuCyberiaPortal.Render();
     await LogInCyberiaPortal();
     await LogOutCyberiaPortal();
     await SignUpCyberiaPortal();

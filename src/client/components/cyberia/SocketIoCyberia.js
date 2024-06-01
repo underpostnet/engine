@@ -6,20 +6,20 @@ import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
-import { Slot } from './Bag.js';
+import { Slot } from './BagCyberia.js';
 import { Stat } from './CommonCyberia.js';
-import { CyberiaWebhook } from './CyberiaWebhook.js';
-import { Elements } from './Elements.js';
+import { WebhookCyberia } from './WebhookCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 import { LogInCyberia } from './LogInCyberia.js';
-import { Pixi } from './Pixi.js';
-import { Skill } from './Skill.js';
+import { PixiCyberia } from './PixiCyberia.js';
+import { SkillCyberia } from './SkillCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
 const SocketIoCyberia = {
   Init: function () {
     return new Promise((resolve) => {
-      for (const type of Object.keys(Elements.Data))
+      for (const type of Object.keys(ElementsCyberia.Data))
         SocketIo.Event[type][s4()] = async (args) => {
           args = JSON.parse(args[0]);
 
@@ -42,67 +42,68 @@ const SocketIoCyberia = {
 
           switch (status) {
             case 'update-life':
-              if (!Elements.Data[type][id]) return;
-              Elements.Data[type][id].life = element.life;
-              Pixi.updateLife({ type, id });
-              if (Elements.Data[type][id].life <= 0 && type === 'user' && id === 'main')
-                Skill.renderDeadCooldown({ type, id });
+              if (!ElementsCyberia.Data[type][id]) return;
+              ElementsCyberia.Data[type][id].life = element.life;
+              PixiCyberia.updateLife({ type, id });
+              if (ElementsCyberia.Data[type][id].life <= 0 && type === 'user' && id === 'main')
+                SkillCyberia.renderDeadCooldown({ type, id });
               break;
             case 'update-position':
-              if (!Elements.Data[type][id]) return;
-              Elements.Data[type][id].x = element.x;
-              Elements.Data[type][id].y = element.y;
-              Pixi.updatePosition({ type, id });
+              if (!ElementsCyberia.Data[type][id]) return;
+              ElementsCyberia.Data[type][id].x = element.x;
+              ElementsCyberia.Data[type][id].y = element.y;
+              PixiCyberia.updatePosition({ type, id });
               break;
             case 'update-model-user':
-              Elements.Data[type][id].model.user = {
-                ...Elements.Data[type][id].model.user,
+              ElementsCyberia.Data[type][id].model.user = {
+                ...ElementsCyberia.Data[type][id].model.user,
                 ...element.model.user,
               };
-              if (element.model.user.username) Pixi.setUsername({ type, id });
+              if (element.model.user.username) PixiCyberia.setUsername({ type, id });
               break;
             case 'update-skin-position':
-              if (!Elements.Data[type][id]) return;
-              Elements.Data[type][id].components.skin = element.components.skin;
+              if (!ElementsCyberia.Data[type][id]) return;
+              ElementsCyberia.Data[type][id].components.skin = element.components.skin;
               if (args.updateStat) {
-                Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-                Pixi.setDisplayComponent({ type, id });
-              } else Pixi.triggerUpdateDisplay({ type, id });
+                ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+                PixiCyberia.setDisplayComponent({ type, id });
+              } else PixiCyberia.triggerUpdateDisplay({ type, id });
 
               break;
             case 'update-item':
               {
-                if (!Elements.Data[type][id]) return;
+                if (!ElementsCyberia.Data[type][id]) return;
                 const { itemType } = args;
-                Elements.Data[type][id].components[itemType] = element.components[itemType];
-                Elements.Data[type][id] = Stat.set(type, Elements.Data[type][id]);
-                Pixi.setDisplayComponent({ type, id });
+                ElementsCyberia.Data[type][id].components[itemType] = element.components[itemType];
+                ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+                PixiCyberia.setDisplayComponent({ type, id });
               }
               break;
             case 'disconnect':
-              Pixi.removeElement({ type, id });
-              delete Elements.Data[type][id];
+              PixiCyberia.removeElement({ type, id });
+              delete ElementsCyberia.Data[type][id];
               break;
             case 'connection':
-              Elements.Init({ type, id, element });
-              Pixi.setComponents({ type, id });
-              if (type === 'user' && id === 'main' && !Elements.Data[type][id].model.user._id) await LogInCyberia();
+              ElementsCyberia.Init({ type, id, element });
+              PixiCyberia.setComponents({ type, id });
+              if (type === 'user' && id === 'main' && !ElementsCyberia.Data[type][id].model.user._id)
+                await LogInCyberia();
               if (type === 'user' || type === 'bot') {
-                Pixi.setUsername({ type, id });
+                PixiCyberia.setUsername({ type, id });
               }
               if (type === 'user' && id === 'main') {
-                if (Elements.Data[type][id].life <= 0) Skill.renderDeadCooldown({ type, id });
+                if (ElementsCyberia.Data[type][id].life <= 0) SkillCyberia.renderDeadCooldown({ type, id });
                 resolve();
               }
               break;
             case 'email-confirmed':
-              const newUser = { ...Elements.Data.user.main.model.user, emailConfirmed: true };
+              const newUser = { ...ElementsCyberia.Data.user.main.model.user, emailConfirmed: true };
               Account.renderVerifyEmailStatus(newUser);
               Account.triggerUpdateEvent({ user: newUser });
               break;
             case 'update-coin':
               if (type === 'user' && id === 'main') {
-                Elements.Data[type][id].coin = element.coin;
+                ElementsCyberia.Data[type][id].coin = element.coin;
                 Slot.coin.update({ bagId: 'cyberia-bag', type, id });
               }
               break;
@@ -116,10 +117,10 @@ const SocketIoCyberia = {
         s('.ssr-background').style.display = 'block';
         setTimeout((s('.ssr-background').style.opacity = '1'));
         s(`.main-user-container`).style.display = 'none';
-        Pixi.removeAll();
-        Elements.removeAll();
+        PixiCyberia.removeAll();
+        ElementsCyberia.removeAll();
         Webhook.unregister();
-        CyberiaWebhook.unregister();
+        WebhookCyberia.unregister();
       };
     });
   },

@@ -15,10 +15,10 @@ import {
   BaseElement,
   CyberiaParams,
   PositionsComponent,
-  WorldType,
-  getCollisionMatrix,
-  getRandomAvailablePosition,
-  isBiomeCollision,
+  WorldCyberiaType,
+  getCollisionMatrixCyberia,
+  getRandomAvailablePositionCyberia,
+  isBiomeCyberiaCollision,
   Stat,
   updateMovementDirection,
 } from '../../../client/components/cyberia/CommonCyberia.js';
@@ -73,7 +73,7 @@ const CyberiaWsBotManagement = {
 
     bot.model.world.face = instanceIndex + 1;
 
-    const { x, y } = getRandomAvailablePosition({ biomeData: biome, element: bot });
+    const { x, y } = getRandomAvailablePositionCyberia({ biomeData: biome, element: bot });
     bot.x = x;
     bot.y = y;
     const id = getId(this.element[wsManagementId], 'bot-');
@@ -81,14 +81,14 @@ const CyberiaWsBotManagement = {
     if (!fs.existsSync(`./tmp/${skinId}-${biome._id.toString()}.json`))
       fs.writeFileSync(
         `./tmp/${skinId}-${biome._id.toString()}.json`,
-        JSONmatrix(getCollisionMatrix(biome, bot)),
+        JSONmatrix(getCollisionMatrixCyberia(biome, bot)),
         'utf8',
       );
 
     if (Stat.get[skinId]) bot = Stat.set('bot', bot);
     bot.life = newInstance(bot.maxLife);
 
-    const collisionMatrix = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
+    const collisionMatrixCyberia = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
     this.localElementScope[wsManagementId][id] = {
       metaDataBot,
@@ -134,7 +134,7 @@ const CyberiaWsBotManagement = {
               while (
                 !x ||
                 !y ||
-                isBiomeCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
+                isBiomeCyberiaCollision({ biomeData: biome, element: this.element[wsManagementId][id], x, y })
                 // ||
                 // (this.element[wsManagementId][id].x === x && this.element[wsManagementId][id].y === y)
               ) {
@@ -158,7 +158,7 @@ const CyberiaWsBotManagement = {
                   round10(this.element[wsManagementId][id].y),
                   x,
                   y,
-                  new pathfinding.Grid(collisionMatrix),
+                  new pathfinding.Grid(collisionMatrixCyberia),
                 ),
                 this.localElementScope[wsManagementId][id].movement.TransitionFactor,
               );
@@ -213,7 +213,7 @@ const CyberiaWsBotManagement = {
                               yBot,
                               round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
                               round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
-                              new pathfinding.Grid(collisionMatrix),
+                              new pathfinding.Grid(collisionMatrixCyberia),
                             ),
                             this.localElementScope[wsManagementId][id].movement.TransitionFactor,
                           );
@@ -409,7 +409,7 @@ const CyberiaWsBotManagement = {
         break;
     }
 
-    return { id, bot, skinId, collisionMatrix };
+    return { id, bot, skinId, collisionMatrixCyberia };
   },
   pathfinding: new pathfinding.AStarFinder(),
   instance: function (wsManagementId = '') {
@@ -432,7 +432,7 @@ const CyberiaWsBotManagement = {
       let instanceIndex = -1;
       for (const instance of world.instance) {
         instanceIndex++;
-        if (!WorldType[world.type].worldFaces.includes(instanceIndex + 1)) continue;
+        if (!WorldCyberiaType[world.type].worldFaces.includes(instanceIndex + 1)) continue;
 
         const biome = await CyberiaBiome.findById(world.face[instanceIndex].toString());
 
@@ -440,7 +440,7 @@ const CyberiaWsBotManagement = {
 
         for (const metaDataBot of instance.bots) {
           for (const botIndex of range(0, random(metaDataBot.min - 1, metaDataBot.max - 1))) {
-            const { id, bot, skinId, collisionMatrix } = this.botFactory({
+            const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
               biome,
               instanceIndex,
               wsManagementId,

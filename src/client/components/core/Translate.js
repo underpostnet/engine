@@ -1,4 +1,5 @@
 import { newInstance, getId } from './CommonJs.js';
+import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
 import { s, htmls } from './VanillaJs.js';
 
@@ -39,6 +40,21 @@ const Translate = {
     localStorage.setItem('lang', language);
     this.Parse(language);
     if (s(`.bottom-btn-lang-render`)) htmls(`.bottom-btn-lang-render`, s('html').lang);
+  },
+  RenderSetting: async function () {
+    return html` <div class="in section-mp">
+      ${await DropDown.Render({
+        value: s('html').lang ? s('html').lang : 'en',
+        label: html`${Translate.Render('lang')}`,
+        data: ['en', 'es'].map((language) => {
+          return {
+            display: html`<i class="fa-solid fa-language"></i> ${Translate.Render(language)}`,
+            value: language,
+            onClick: () => Translate.renderLang(language),
+          };
+        }),
+      })}
+    </div>`;
   },
 };
 

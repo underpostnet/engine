@@ -4,9 +4,10 @@ const logger = loggerFactory(import.meta);
 
 const CoreWsEmit = (channel = '', client = {}, payload = {}) => {
   try {
-    client.emit(channel, JSON.stringify(payload));
+    if (client && client.emit) client.emit(channel, JSON.stringify(payload));
+    else logger.error('Invalid client', { channel, client, payload });
   } catch (error) {
-    logger.error(error, error.stack);
+    logger.error(error, { channel, client, payload, stack: error.stack });
   }
 };
 

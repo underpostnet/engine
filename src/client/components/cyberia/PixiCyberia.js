@@ -2,23 +2,23 @@ import { s, append, getProxyPath } from '../core/VanillaJs.js';
 import { getId, newInstance, range, round10, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
-import { Matrix } from './Matrix.js';
-import { Elements } from './Elements.js';
+import { MatrixCyberia } from './MatrixCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 
 import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
-import { WorldManagement } from './World.js';
+import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CharacterSlotType, CyberiaParams } from './CommonCyberia.js';
-import { MainUser } from './MainUser.js';
-import { BiomeScope } from './Biome.js';
+import { CharacterCyberiaSlotType, CyberiaParams } from './CommonCyberia.js';
+import { MainUserCyberia } from './MainUserCyberia.js';
+import { BiomeCyberiaScope } from './BiomeCyberia.js';
 
-const Pixi = {
+const PixiCyberia = {
   MetaData: {
     dim: 7 * 16 * 3 * 10,
   },
   Data: {},
   Init: function () {
-    Object.keys(Elements.Data).map((type) => (this.Data[type] = {}));
+    Object.keys(ElementsCyberia.Data).map((type) => (this.Data[type] = {}));
     append(
       'body',
       html`
@@ -101,10 +101,12 @@ const Pixi = {
       this.AppTopLevelColor.stage.addChild(componentInstance);
     })();
 
-    // Matrix.Render['matrix-center-square']('.pixi-container');
+    // MatrixCyberia.Render['matrix-center-square']('.pixi-container');
 
     Responsive.Event['pixi-container'] = () => {
-      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({ dimAmplitude: Matrix.Data.dimAmplitude });
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
+        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
+      });
       const ResponsiveData = Responsive.getResponsiveData();
       s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
       s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
@@ -149,7 +151,7 @@ const Pixi = {
 
     // channels container
 
-    for (const channelType of Object.keys(Elements.Data)) {
+    for (const channelType of Object.keys(ElementsCyberia.Data)) {
       this.Data[channelType].container = new Container();
       this.Data[channelType].container.width = this.MetaData.dim;
       this.Data[channelType].container.height = this.MetaData.dim;
@@ -158,22 +160,22 @@ const Pixi = {
       this.App.stage.addChild(this.Data[channelType].container);
     }
   },
-  currentBiomeContainer: String,
-  clearBiomeContainers: function () {
+  currentBiomeCyberiaContainer: String,
+  clearBiomeCyberiaContainers: function () {
     this.Data.biome.container.removeChildren();
     this.Data.biome['seed-city'].removeChildren();
     this.Data.biome.floorContainer.removeChildren();
   },
   setFloor: function (blobUrl) {
-    this.clearBiomeContainers();
+    this.clearBiomeCyberiaContainers();
 
-    this.currentBiomeContainer = 'floorContainer';
+    this.currentBiomeCyberiaContainer = 'floorContainer';
     this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
     this.Data.biome.floor.width = this.MetaData.dim;
     this.Data.biome.floor.height = this.MetaData.dim;
     this.Data.biome.floor.x = 0;
     this.Data.biome.floor.y = 0;
-    this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome.floor);
+    this.Data.biome[this.currentBiomeCyberiaContainer].addChild(this.Data.biome.floor);
   },
   setFloorTopLevelColor: function (blobUrl) {
     this.AppTopLevelColor.stage.removeChildren();
@@ -184,25 +186,27 @@ const Pixi = {
     componentInstance.y = 0;
     this.AppTopLevelColor.stage.addChild(componentInstance);
   },
-  setBiome: function (BiomeMatrix) {
-    this.clearBiomeContainers();
-    if (BiomeMatrix) {
-      this.currentBiomeContainer = BiomeMatrix?.container ? BiomeMatrix.container : 'container';
+  setBiomeCyberia: function (BiomeCyberiaMatrixCyberia) {
+    this.clearBiomeCyberiaContainers();
+    if (BiomeCyberiaMatrixCyberia) {
+      this.currentBiomeCyberiaContainer = BiomeCyberiaMatrixCyberia?.container
+        ? BiomeCyberiaMatrixCyberia.container
+        : 'container';
 
-      if (BiomeMatrix.setBiome) {
-        for (const cellData of BiomeMatrix.setBiome) {
+      if (BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
+        for (const cellData of BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
           const { src, dim, x, y } = cellData;
           this.Data.biome[src] = Sprite.from(src);
           this.Data.biome[src].width = dim;
           this.Data.biome[src].height = dim;
           this.Data.biome[src].x = x * dim;
           this.Data.biome[src].y = y * dim;
-          this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[src]);
+          this.Data.biome[this.currentBiomeCyberiaContainer].addChild(this.Data.biome[src]);
         }
         return;
       }
 
-      const paintDim = Matrix.Data.dim * Matrix.Data.dimPaintByCell;
+      const paintDim = MatrixCyberia.Data.dim * MatrixCyberia.Data.dimPaintByCell;
       const dim = this.MetaData.dim / paintDim;
       range(0, paintDim - 1).map((y) =>
         range(0, paintDim - 1).map((x) => {
@@ -212,35 +216,35 @@ const Pixi = {
           this.Data.biome[id].y = dim * y;
           this.Data.biome[id].width = dim;
           this.Data.biome[id].height = dim;
-          this.Data.biome[id].tint = BiomeMatrix.color[y][x];
-          this.Data.biome[this.currentBiomeContainer].addChild(this.Data.biome[id]);
+          this.Data.biome[id].tint = BiomeCyberiaMatrixCyberia.color[y][x];
+          this.Data.biome[this.currentBiomeCyberiaContainer].addChild(this.Data.biome[id]);
         }),
       );
     }
   },
   setComponents: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    let dim = this.MetaData.dim / Matrix.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     if (this.Data[type][id]) this.removeElement({ type, id });
     this.Data[type][id] = new Container();
-    this.Data[type][id].width = dim * Elements.Data[type][id].dim;
-    this.Data[type][id].height = dim * Elements.Data[type][id].dim;
-    this.Data[type][id].x = dim * Elements.Data[type][id].x;
-    this.Data[type][id].y = dim * Elements.Data[type][id].y;
+    this.Data[type][id].width = dim * ElementsCyberia.Data[type][id].dim;
+    this.Data[type][id].height = dim * ElementsCyberia.Data[type][id].dim;
+    this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+    this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
     this.Data[type][id].components = {
       'layer-1': { container: new Container() },
       layer0: { container: new Container() },
     };
 
-    this.Data[type][id].components['layer-1'].container.width = dim * Elements.Data[type][id].dim;
-    this.Data[type][id].components['layer-1'].container.height = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components['layer-1'].container.width = dim * ElementsCyberia.Data[type][id].dim;
+    this.Data[type][id].components['layer-1'].container.height = dim * ElementsCyberia.Data[type][id].dim;
     this.Data[type][id].components['layer-1'].container.x = 0;
     this.Data[type][id].components['layer-1'].container.y = 0;
     this.Data[type][id].addChild(this.Data[type][id].components['layer-1'].container);
 
-    this.Data[type][id].components.layer0.container.width = dim * Elements.Data[type][id].dim;
-    this.Data[type][id].components.layer0.container.height = dim * Elements.Data[type][id].dim;
+    this.Data[type][id].components.layer0.container.width = dim * ElementsCyberia.Data[type][id].dim;
+    this.Data[type][id].components.layer0.container.height = dim * ElementsCyberia.Data[type][id].dim;
     this.Data[type][id].components.layer0.container.x = 0;
     this.Data[type][id].components.layer0.container.y = 0;
     this.Data[type][id].addChild(this.Data[type][id].components.layer0.container);
@@ -248,18 +252,18 @@ const Pixi = {
     this.Data[type][id].intervals = {};
     let index;
     if (type === 'user' && id === 'main') {
-      this.Data[type][id].x = this.MetaData.dim / 2 - dim * Elements.Data[type][id].x * 0.5;
-      this.Data[type][id].y = this.MetaData.dim / 2 - dim * Elements.Data[type][id].y * 0.5;
-      MainUser.PixiMainUser.stage.addChild(this.Data[type][id]);
-      MainUser.renderPixiMainUserBackground();
+      this.Data[type][id].x = this.MetaData.dim / 2 - dim * ElementsCyberia.Data[type][id].x * 0.5;
+      this.Data[type][id].y = this.MetaData.dim / 2 - dim * ElementsCyberia.Data[type][id].y * 0.5;
+      MainUserCyberia.PixiCyberiaMainUserCyberia.stage.addChild(this.Data[type][id]);
+      MainUserCyberia.renderPixiCyberiaMainUserCyberiaBackground();
     } else this.Data[type].container.addChild(this.Data[type][id]);
-    for (const componentType of Object.keys(Elements.Data[type][id].components)) {
+    for (const componentType of Object.keys(ElementsCyberia.Data[type][id].components)) {
       if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
       if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
       switch (componentType) {
         case 'background':
           index = 0;
-          for (const component of Elements.Data[type][id].components[componentType]) {
+          for (const component of ElementsCyberia.Data[type][id].components[componentType]) {
             const { enabled } = component;
             if (!enabled) {
               index++;
@@ -269,8 +273,8 @@ const Pixi = {
             const componentInstance = new Sprite(Texture.WHITE);
             componentInstance.x = 0;
             componentInstance.y = 0;
-            componentInstance.width = dim * Elements.Data[type][id].dim;
-            componentInstance.height = dim * Elements.Data[type][id].dim;
+            componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+            componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
             componentInstance.tint = tint;
             componentInstance.visible = visible;
             this.Data[type][id].components[componentType][`${index}`] = componentInstance;
@@ -282,10 +286,10 @@ const Pixi = {
 
         case 'pointerArrow':
           {
-            const displayId = Elements.getCurrentSkinDisplayId({ type, id });
+            const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type, id });
             const arrowColor = ['purple', 'kishins'].includes(displayId) ? 'red' : 'yellow';
-            // if (WorldManagement.Data['user'] && WorldManagement.Data['user']['main'])
-            //   for (const instance of WorldManagement.Data['user']['main'].model.world.instances) {
+            // if (WorldCyberiaManagement.Data['user'] && WorldCyberiaManagement.Data['user']['main'])
+            //   for (const instance of WorldCyberiaManagement.Data['user']['main'].model.world.instances) {
             //     if (instance.bot.find((b) => b.displayIds.includes(displayId) && b.type === 'user-hostile')) {
             //       arrowColor = 'red';
             //     }
@@ -294,7 +298,7 @@ const Pixi = {
             const componentInstance = Sprite.from(src);
             componentInstance.width = dim * 0.5;
             componentInstance.height = dim * 0.4;
-            componentInstance.x = (dim * Elements.Data[type][id].dim) / 2 - (dim * 0.5) / 2;
+            componentInstance.x = (dim * ElementsCyberia.Data[type][id].dim) / 2 - (dim * 0.5) / 2;
 
             componentInstance.visible = false;
             this.Data[type][id].components[componentType][`pointer-arrow`] = componentInstance;
@@ -304,7 +308,7 @@ const Pixi = {
             let frame = 0;
             const callBack = function () {
               if (!componentInstance.visible) return;
-              componentInstance.y = frames[frame] * dim * Elements.Data[type][id].dim * 0.5;
+              componentInstance.y = frames[frame] * dim * ElementsCyberia.Data[type][id].dim * 0.5;
               frame++;
               if (frame === frames.length) frame = 0;
             };
@@ -320,12 +324,12 @@ const Pixi = {
         case 'lifeBar':
           const componentInstance = new Sprite(Texture.WHITE);
           componentInstance.x = 0;
-          componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.2;
+          componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.2;
 
           // maxLife -> 100%
           // life -> x%
 
-          componentInstance.height = dim * Elements.Data[type][id].dim * 0.2;
+          componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.2;
           componentInstance.tint = '#00e622ff';
           componentInstance.visible = true;
           this.Data[type][id].components[componentType] = componentInstance;
@@ -338,9 +342,9 @@ const Pixi = {
           {
             const componentInstance = new Container();
             componentInstance.x = 0;
-            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.8;
-            componentInstance.width = dim * Elements.Data[type][id].dim;
-            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
+            componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+            componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
             this.Data[type][id].addChild(componentInstance);
           }
@@ -348,19 +352,19 @@ const Pixi = {
             const componentInstance = new Sprite(); // Texture.WHITE
             componentInstance.x = 0;
             componentInstance.y = 0;
-            componentInstance.width = dim * Elements.Data[type][id].dim;
-            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+            componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             // componentInstance.tint = '#000000ff';
             componentInstance.visible = true;
             this.Data[type][id].components[componentType].background = componentInstance;
             this.Data[type][id].components[componentType].container.addChild(componentInstance);
           }
           {
-            let lastCoin = newInstance(Elements.Data[type][id].coin);
+            let lastCoin = newInstance(ElementsCyberia.Data[type][id].coin);
             const callBack = () => {
-              if (Elements.Data[type][id].coin !== lastCoin) {
-                let diffCoin = Elements.Data[type][id].coin - lastCoin;
-                lastCoin = newInstance(Elements.Data[type][id].coin);
+              if (ElementsCyberia.Data[type][id].coin !== lastCoin) {
+                let diffCoin = ElementsCyberia.Data[type][id].coin - lastCoin;
+                lastCoin = newInstance(ElementsCyberia.Data[type][id].coin);
                 if (diffCoin > 0) diffCoin = '+' + diffCoin;
                 diffCoin = '$ ' + diffCoin;
                 const componentInstance = new Text(
@@ -368,7 +372,7 @@ const Pixi = {
                   new TextStyle({
                     fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,
@@ -392,9 +396,9 @@ const Pixi = {
           {
             const componentInstance = new Container();
             componentInstance.x = 0;
-            componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.8;
-            componentInstance.width = dim * Elements.Data[type][id].dim;
-            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
+            componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+            componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
             this.Data[type][id].addChild(componentInstance);
           }
@@ -402,19 +406,19 @@ const Pixi = {
             const componentInstance = new Sprite(); // Texture.WHITE
             componentInstance.x = 0;
             componentInstance.y = 0;
-            componentInstance.width = dim * Elements.Data[type][id].dim;
-            componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+            componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+            componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             // componentInstance.tint = '#000000ff';
             componentInstance.visible = true;
             this.Data[type][id].components[componentType].background = componentInstance;
             this.Data[type][id].components[componentType].container.addChild(componentInstance);
           }
           {
-            let lastLife = newInstance(Elements.Data[type][id].life);
+            let lastLife = newInstance(ElementsCyberia.Data[type][id].life);
             const callBack = () => {
-              if (Elements.Data[type][id].life !== lastLife) {
-                let diffLife = Elements.Data[type][id].life - lastLife;
-                lastLife = newInstance(Elements.Data[type][id].life);
+              if (ElementsCyberia.Data[type][id].life !== lastLife) {
+                let diffLife = ElementsCyberia.Data[type][id].life - lastLife;
+                lastLife = newInstance(ElementsCyberia.Data[type][id].life);
                 if (diffLife > 0) diffLife = '+' + diffLife;
                 diffLife = diffLife + ' ♥';
                 const componentInstance = new Text(
@@ -422,7 +426,7 @@ const Pixi = {
                   new TextStyle({
                     fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,
@@ -454,10 +458,10 @@ const Pixi = {
     // params
     const { type, id } = options;
 
-    let dim = this.MetaData.dim / Matrix.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
 
-    for (const componentType of Object.keys(CharacterSlotType)) {
+    for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
       if (!this.Data[type][id].components[componentType]) continue;
       // clear
       if (this.Data[type][id].intervals && this.Data[type][id].intervals[componentType]) {
@@ -475,7 +479,7 @@ const Pixi = {
 
       // set skin
       let index = 0;
-      for (const component of Elements.Data[type][id].components[componentType]) {
+      for (const component of ElementsCyberia.Data[type][id].components[componentType]) {
         const { displayId, position, enabled, positions, velFrame, assetFolder, extension } = component;
         for (const positionData of positions) {
           const { positionId, frames } = positionData;
@@ -488,18 +492,18 @@ const Pixi = {
             switch (displayId) {
               case 'green-power':
               case 'red-power':
-                componentInstance.width = dim * Elements.Data[type][id].dim * 0.5;
-                componentInstance.height = dim * Elements.Data[type][id].dim * 0.5;
+                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim * 0.5;
+                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.5;
                 componentInstance.x =
-                  (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                  (dim * ElementsCyberia.Data[type][id].dim) / 2 - (dim * ElementsCyberia.Data[type][id].dim * 0.5) / 2;
                 componentInstance.y =
-                  (dim * Elements.Data[type][id].dim) / 2 - (dim * Elements.Data[type][id].dim * 0.5) / 2;
+                  (dim * ElementsCyberia.Data[type][id].dim) / 2 - (dim * ElementsCyberia.Data[type][id].dim * 0.5) / 2;
                 break;
               case 'tim-knife':
-                componentInstance.width = dim * Elements.Data[type][id].dim;
-                componentInstance.height = dim * Elements.Data[type][id].dim;
+                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
                 componentInstance.x = 0;
-                componentInstance.y = dim * Elements.Data[type][id].dim * 0.15;
+                componentInstance.y = dim * ElementsCyberia.Data[type][id].dim * 0.15;
                 break;
               case 'brown-wing':
                 switch (positionId) {
@@ -507,31 +511,32 @@ const Pixi = {
                   case '18':
                     componentContainer = 'layer0';
                     componentInstance.width =
-                      dim * Elements.Data[type][id].dim + (dim * Elements.Data[type][id].dim) / 2.5;
-                    componentInstance.height = dim * Elements.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                      dim * ElementsCyberia.Data[type][id].dim + (dim * ElementsCyberia.Data[type][id].dim) / 2.5;
+                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
                     componentInstance.y = 0;
                     break;
                   case '02':
                   case '12':
                     componentInstance.width =
-                      dim * Elements.Data[type][id].dim + (dim * Elements.Data[type][id].dim) / 2.5;
-                    componentInstance.height = dim * Elements.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                      dim * ElementsCyberia.Data[type][id].dim + (dim * ElementsCyberia.Data[type][id].dim) / 2.5;
+                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
                     componentInstance.y = 0;
                     break;
                   case '06':
                   case '16':
-                    componentInstance.width = (dim * Elements.Data[type][id].dim) / 2;
-                    componentInstance.height = dim * Elements.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * Elements.Data[type][id].dim) / 5);
+                    componentInstance.width = (dim * ElementsCyberia.Data[type][id].dim) / 2;
+                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
+                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
                     componentInstance.y = 0;
                     break;
                   case '04':
                   case '14':
-                    componentInstance.width = (dim * Elements.Data[type][id].dim) / 2;
-                    componentInstance.height = dim * Elements.Data[type][id].dim;
-                    componentInstance.x = dim * Elements.Data[type][id].dim - (dim * Elements.Data[type][id].dim) / 4.5;
+                    componentInstance.width = (dim * ElementsCyberia.Data[type][id].dim) / 2;
+                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
+                    componentInstance.x =
+                      dim * ElementsCyberia.Data[type][id].dim - (dim * ElementsCyberia.Data[type][id].dim) / 4.5;
                     componentInstance.y = 0;
                     break;
 
@@ -540,8 +545,8 @@ const Pixi = {
                 }
                 break;
               default:
-                componentInstance.width = dim * Elements.Data[type][id].dim;
-                componentInstance.height = dim * Elements.Data[type][id].dim;
+                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
                 componentInstance.x = 0;
                 componentInstance.y = 0;
                 break;
@@ -559,10 +564,10 @@ const Pixi = {
               let currentIndex = newInstance(index);
 
               const callBack = () => {
-                if (!Elements.Data[type][id]) return this.removeElement({ type, id });
-                if (!Elements.Data[type][id].components[componentType][currentIndex])
+                if (!ElementsCyberia.Data[type][id]) return this.removeElement({ type, id });
+                if (!ElementsCyberia.Data[type][id].components[componentType][currentIndex])
                   return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
-                const position = Elements.Data[type][id].components['skin'].find((s) => s.current).position;
+                const position = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.current).position;
 
                 currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
                   extension ? extension : `png`
@@ -576,7 +581,7 @@ const Pixi = {
                   extension ? extension : `png`
                 }`;
 
-                const enabledSkin = Elements.Data[type][id].components[componentType].find((s) => s.enabled);
+                const enabledSkin = ElementsCyberia.Data[type][id].components[componentType].find((s) => s.enabled);
                 this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
                   position === positionId && enabledSkin && enabledSkin.displayId === displayId;
               };
@@ -592,34 +597,36 @@ const Pixi = {
       }
     }
     this.updateLifeBarWidth({ type, id, dim });
-    if (type === 'user' && id === 'main') MainUser.renderPixiMainUserBackground();
+    if (type === 'user' && id === 'main') MainUserCyberia.renderPixiCyberiaMainUserCyberiaBackground();
   },
   updateLife: function (options) {
     const { type, id } = options;
-    let dim = this.MetaData.dim / Matrix.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     this.Data[type][id].components['lifeBar'].width =
-      dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
+      dim *
+      ElementsCyberia.Data[type][id].dim *
+      (ElementsCyberia.Data[type][id].life / ElementsCyberia.Data[type][id].maxLife);
   },
   updatePosition: function (options) {
     const { type, id } = options;
 
     if (type === 'user' && id === 'main') {
-      if (Elements.Data[type][id].x <= 0) {
+      if (ElementsCyberia.Data[type][id].x <= 0) {
         console.warn('limit map position', 'left');
-        WorldManagement.ChangeFace({ type, id, direction: 'left' });
+        WorldCyberiaManagement.ChangeFace({ type, id, direction: 'left' });
       }
-      if (Elements.Data[type][id].y <= 0) {
+      if (ElementsCyberia.Data[type][id].y <= 0) {
         console.warn('limit map position', 'top');
-        WorldManagement.ChangeFace({ type, id, direction: 'top' });
+        WorldCyberiaManagement.ChangeFace({ type, id, direction: 'top' });
       }
-      if (Elements.Data[type][id].x >= Matrix.Data.dim - Elements.Data[type][id].dim) {
+      if (ElementsCyberia.Data[type][id].x >= MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim) {
         console.warn('limit map position', 'right');
-        WorldManagement.ChangeFace({ type, id, direction: 'right' });
+        WorldCyberiaManagement.ChangeFace({ type, id, direction: 'right' });
       }
-      if (Elements.Data[type][id].y >= Matrix.Data.dim - Elements.Data[type][id].dim) {
+      if (ElementsCyberia.Data[type][id].y >= MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim) {
         console.warn('limit map position', 'bottom');
-        WorldManagement.ChangeFace({ type, id, direction: 'bottom' });
+        WorldCyberiaManagement.ChangeFace({ type, id, direction: 'bottom' });
       }
     }
 
@@ -627,54 +634,54 @@ const Pixi = {
       this.topLevelCallBack({ type, id });
       SocketIo.Emit(type, {
         status: 'update-position',
-        element: { x: Elements.Data[type][id].x, y: Elements.Data[type][id].y },
+        element: { x: ElementsCyberia.Data[type][id].x, y: ElementsCyberia.Data[type][id].y },
       });
     } else {
-      const dim = this.MetaData.dim / Matrix.Data.dim;
-      this.Data[type][id].x = dim * Elements.Data[type][id].x;
-      this.Data[type][id].y = dim * Elements.Data[type][id].y;
+      const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+      this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+      this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
     }
   },
   topLevelCallBack: function ({ type, id }) {
-    if (!BiomeScope.Data[Matrix.Data.biomeDataId]) return;
+    if (!BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId]) return;
     if (
-      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor &&
-      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+      BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].topLevelColor &&
+      BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].topLevelColor[
         round10(
-          Elements.Data[type][id].y * Matrix.Data.dimPaintByCell +
-            (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+          ElementsCyberia.Data[type][id].y * MatrixCyberia.Data.dimPaintByCell +
+            (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
         )
       ] &&
-      BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+      BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].topLevelColor[
         round10(
-          Elements.Data[type][id].y * Matrix.Data.dimPaintByCell +
-            (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+          ElementsCyberia.Data[type][id].y * MatrixCyberia.Data.dimPaintByCell +
+            (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
         )
       ][
         round10(
-          Elements.Data[type][id].x * Matrix.Data.dimPaintByCell +
-            (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+          ElementsCyberia.Data[type][id].x * MatrixCyberia.Data.dimPaintByCell +
+            (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
         )
       ] &&
       `${s(`.pixi-container-top-level`).style.opacity}` !== `0.3`
     ) {
       s(`.pixi-container-top-level`).style.opacity = '0.3';
     } else if (
-      (!BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+      (!BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].topLevelColor[
         round10(
-          Elements.Data[type][id].y * Matrix.Data.dimPaintByCell +
-            (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+          ElementsCyberia.Data[type][id].y * MatrixCyberia.Data.dimPaintByCell +
+            (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
         )
       ] ||
-        !BiomeScope.Data[Matrix.Data.biomeDataId].topLevelColor[
+        !BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].topLevelColor[
           round10(
-            Elements.Data[type][id].y * Matrix.Data.dimPaintByCell +
-              (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+            ElementsCyberia.Data[type][id].y * MatrixCyberia.Data.dimPaintByCell +
+              (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
           )
         ][
           round10(
-            Elements.Data[type][id].x * Matrix.Data.dimPaintByCell +
-              (Elements.Data[type][id].dim / 2) * Matrix.Data.dimPaintByCell,
+            ElementsCyberia.Data[type][id].x * MatrixCyberia.Data.dimPaintByCell +
+              (ElementsCyberia.Data[type][id].dim / 2) * MatrixCyberia.Data.dimPaintByCell,
           )
         ]) &&
       `${s(`.pixi-container-top-level`).style.opacity}` !== `1`
@@ -696,14 +703,14 @@ const Pixi = {
   },
   triggerUpdateDisplay: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    for (const componentType of Object.keys(CharacterSlotType))
+    for (const componentType of Object.keys(CharacterCyberiaSlotType))
       if (this.Data[type][id].intervals[componentType])
         for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType]))
           this.Data[type][id].intervals[componentType][skinInterval].callBack();
   },
   removeAll: function () {
-    for (const type of Object.keys(Elements.Data)) {
-      for (const id of Object.keys(Elements.Data[type])) {
+    for (const type of Object.keys(ElementsCyberia.Data)) {
+      for (const id of Object.keys(ElementsCyberia.Data[type])) {
         this.removeElement({ type, id });
       }
     }
@@ -714,7 +721,7 @@ const Pixi = {
 
     this.markers[id] = { x, y };
 
-    const dim = this.MetaData.dim / Matrix.Data.dim;
+    const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
     const container = new Container();
     container.width = dim;
     container.height = dim;
@@ -764,27 +771,27 @@ const Pixi = {
   setUsername: function ({ type, id }) {
     // https://pixijs.io/pixi-text-style/#
     const componentType = 'username';
-    let dim = this.MetaData.dim / Matrix.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * Matrix.Data.dimAmplitude;
+    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     {
       if (this.Data[type][id].components[componentType] && this.Data[type][id].components[componentType].container)
         this.Data[type][id].components[componentType].container.destroy();
       const componentInstance = new Container();
       componentInstance.x = 0;
-      componentInstance.y = -1 * dim * Elements.Data[type][id].dim * 0.5;
-      componentInstance.width = dim * Elements.Data[type][id].dim;
-      componentInstance.height = dim * Elements.Data[type][id].dim * 0.4;
+      componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.5;
+      componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
+      componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
       this.Data[type][id].components[componentType].container = componentInstance;
       this.Data[type][id].addChild(componentInstance);
     }
     {
       setTimeout(() => {
         const componentInstance = new Text(
-          Elements.getDisplayName({ type, id }),
+          ElementsCyberia.getDisplayName({ type, id }),
           new TextStyle({
             fill: '#dcdcdc',
             fontFamily: 'retro-font-sensitive',
-            fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / Matrix.Data.dimAmplitude),
+            fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
             // fontWeight: 'bold',
             dropShadow: true,
             dropShadowAngle: 1,
@@ -800,7 +807,9 @@ const Pixi = {
   updateLifeBarWidth: function ({ type, id, dim }) {
     if (this.Data[type][id].components['lifeBar'])
       this.Data[type][id].components['lifeBar'].width =
-        dim * Elements.Data[type][id].dim * (Elements.Data[type][id].life / Elements.Data[type][id].maxLife);
+        dim *
+        ElementsCyberia.Data[type][id].dim *
+        (ElementsCyberia.Data[type][id].life / ElementsCyberia.Data[type][id].maxLife);
   },
   displayPointerArrow: function ({ oldElement, newElement }) {
     {
@@ -814,4 +823,4 @@ const Pixi = {
   },
 };
 
-export { Pixi };
+export { PixiCyberia };

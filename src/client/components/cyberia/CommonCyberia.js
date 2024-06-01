@@ -1,6 +1,6 @@
 import { newInstance, random, range, reduceMatrix, round10 } from '../core/CommonJs.js';
 
-const CyberiaBaseMatrix = () => {
+const BaseMatrixCyberia = () => {
   return {
     dim: 16 * 2,
     dimPaintByCell: 3,
@@ -188,7 +188,7 @@ const Stat = {
       element.coin = oldElement.coin;
     }
 
-    for (const componentType of Object.keys(CharacterSlotType)) {
+    for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
       if (!element.components[componentType]) continue;
       const component = element.components[componentType].find((e) => e.current);
       if (component) {
@@ -370,19 +370,19 @@ const MatrixElement = () => {
   };
 };
 
-const SkillType = {
+const SkillCyberiaType = {
   basic: { keyboard: 'q' },
   primary: { keyboard: 'w' },
   secondary: { keyboard: 'e' },
   definitive: { keyboard: 'r' },
 };
 
-const SkillData = {
+const SkillCyberiaData = {
   'red-power': { type: 'basic' },
   'green-power': { type: 'basic' },
 };
 
-const SkillElement = () => {
+const SkillCyberiaElement = () => {
   return {
     cooldown: 750,
     timeLife: 300,
@@ -437,7 +437,7 @@ const BaseElement = (options = { worldId: undefined }) => {
       main: {
         ...MatrixElement(),
         ...PlayerElement(),
-        ...SkillElement(),
+        ...SkillCyberiaElement(),
         ...ComponentElement.user(),
         model: {
           ...ModelElement.world(options),
@@ -449,7 +449,7 @@ const BaseElement = (options = { worldId: undefined }) => {
       main: {
         ...MatrixElement(),
         ...PlayerElement(),
-        ...SkillElement(),
+        ...SkillCyberiaElement(),
         ...ComponentElement.bot(),
         model: {
           ...ModelElement.world(options),
@@ -459,7 +459,7 @@ const BaseElement = (options = { worldId: undefined }) => {
     skill: {
       main: {
         ...MatrixElement(),
-        ...SkillElement(),
+        ...SkillCyberiaElement(),
         ...ComponentElement.skill(),
         model: {
           ...ModelElement.world(options),
@@ -472,7 +472,7 @@ const BaseElement = (options = { worldId: undefined }) => {
   };
 };
 
-const isBiomeCollision = function (options = { biomeData: {}, element: {}, x: 1, y: 1 }) {
+const isBiomeCyberiaCollision = function (options = { biomeData: {}, element: {}, x: 1, y: 1 }) {
   let { biomeData, element, x, y } = newInstance(options);
   if (!biomeData || !biomeData.solid) return false;
   x = x * biomeData.dimPaintByCell;
@@ -505,18 +505,18 @@ const isElementCollision = function (
   return false;
 };
 
-const getRandomAvailablePosition = function (options = { biomeData: {}, element: {} }) {
+const getRandomAvailablePositionCyberia = function (options = { biomeData: {}, element: {} }) {
   const { biomeData } = options;
   let x, y;
   const dim = biomeData.dim * biomeData.dimPaintByCell;
-  while (x === undefined || y === undefined || isBiomeCollision({ ...options, x, y })) {
+  while (x === undefined || y === undefined || isBiomeCyberiaCollision({ ...options, x, y })) {
     x = random(0, dim - 1);
     y = random(0, dim - 1);
   }
   return { x, y };
 };
 
-const getCollisionMatrix = (biome, element) => {
+const getCollisionMatrixCyberia = (biome, element) => {
   let biomeData = newInstance(biome);
   if (!Array.isArray(biome.solid)) biomeData.solid = Object.values(biome.solid).map((row) => Object.values(row));
   return reduceMatrix(
@@ -525,7 +525,7 @@ const getCollisionMatrix = (biome, element) => {
   ).map((y, iY) =>
     y.map((x, iX) =>
       x === 0 &&
-      !isBiomeCollision({
+      !isBiomeCyberiaCollision({
         biomeData,
         element,
         x: iX,
@@ -537,7 +537,7 @@ const getCollisionMatrix = (biome, element) => {
   );
 };
 
-const WorldType = {
+const WorldCyberiaType = {
   width: {
     worldFaces: [1, 6, 3, 5],
     spaceFace: [2, 4],
@@ -548,7 +548,7 @@ const WorldType = {
   },
 };
 
-const WorldLimit = (options = { type: undefined }) => {
+const WorldCyberiaLimit = (options = { type: undefined }) => {
   const { type } = options;
   return {
     6: {
@@ -659,7 +659,7 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
   return element;
 };
 
-const CharacterSlotType = {
+const CharacterCyberiaSlotType = {
   skin: {},
   weapon: {},
   'faction-symbol': {},
@@ -680,20 +680,20 @@ export {
   MatrixElement,
   ModelElement,
   ComponentElement,
-  getRandomAvailablePosition,
-  isBiomeCollision,
+  getRandomAvailablePositionCyberia,
+  isBiomeCyberiaCollision,
   isElementCollision,
-  WorldLimit,
-  WorldType,
+  WorldCyberiaLimit,
+  WorldCyberiaType,
   CyberiaParams,
   updateMovementDirection,
-  CyberiaBaseMatrix,
-  getCollisionMatrix,
-  CharacterSlotType,
+  BaseMatrixCyberia,
+  getCollisionMatrixCyberia,
+  CharacterCyberiaSlotType,
   PositionsComponent,
   Stat,
   setElementConsistency,
-  SkillData,
-  SkillType,
+  SkillCyberiaData,
+  SkillCyberiaType,
   QuestComponent,
 };

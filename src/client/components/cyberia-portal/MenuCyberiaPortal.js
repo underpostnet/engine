@@ -9,13 +9,13 @@ import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 import Sortable from 'sortablejs';
 import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
-import { Settings } from './Settings.js';
+import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 
-const Menu = {
+const MenuCyberiaPortal = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
@@ -240,7 +240,7 @@ const Menu = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: Elements.Data.user.main.model.user,
+            user: ElementsCyberiaPortal.Data.user.main.model.user,
             disabled: ['emailConfirm'],
           }),
         handleType: 'bar',
@@ -263,7 +263,7 @@ const Menu = {
           icon: html` <i class="fas fa-sliders-h"></i>`,
           text: Translate.Render('settings'),
         }),
-        html: async () => await Settings.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsCyberiaPortal.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -297,4 +297,4 @@ const Menu = {
   },
 };
 
-export { Menu };
+export { MenuCyberiaPortal };

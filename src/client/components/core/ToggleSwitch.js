@@ -47,7 +47,7 @@ const ToggleSwitch = {
     if (options.type === 'checkbox') {
     }
     return html`
-      <div class="inl toggle-switch-content-border ${id}">
+      <div class="${options?.containerClass ? options.containerClass : 'inl toggle-switch-content-border'} ${id}">
         <div class="in ${id}-content toggle-switch-content ">
           <div class="in ${id}-circle toggle-switch-circle"></div>
           <input type="checkbox" class="${id}-checkbox" style="display: none" />

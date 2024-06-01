@@ -253,6 +253,23 @@ const CyberiaWsUserController = {
       }
     }
     CyberiaWsUserManagement.setRegenerationLife(wsManagementId, socket.id);
+    {
+      const status = 'update-position';
+      this.controller(
+        socket,
+        client,
+        {
+          status,
+          element: CyberiaWsInstanceScope[wsManagementId].user,
+        },
+        wsManagementId,
+      );
+      CyberiaWsEmit(channel, client[socket.id], {
+        status,
+        id: socket.id,
+        element: CyberiaWsInstanceScope[wsManagementId].user,
+      });
+    }
   },
   disconnect: function (socket, client, reason, wsManagementId) {
     for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {

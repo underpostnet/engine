@@ -15,16 +15,16 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
-import { BiomeEngine, BiomeScope, LoadBiomeRenderer } from './Biome.js';
-import { CyberiaParams, WorldLimit, WorldType } from './CommonCyberia.js';
-import { Elements } from './Elements.js';
-import { InteractionPanel } from './InteractionPanel.js';
-import { Matrix } from './Matrix.js';
-import { Pixi } from './Pixi.js';
+import { BiomeCyberiaEngine, BiomeCyberiaScope, LoadBiomeCyberiaRenderer } from './BiomeCyberia.js';
+import { CyberiaParams, WorldCyberiaLimit, WorldCyberiaType } from './CommonCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
+import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
+import { MatrixCyberia } from './MatrixCyberia.js';
+import { PixiCyberia } from './PixiCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
-class LoadWorldRenderer {
+class LoadWorldCyberiaRenderer {
   eGui;
 
   idFactory(params) {
@@ -32,7 +32,7 @@ class LoadWorldRenderer {
   }
 
   async init(params) {
-    console.log('LoadWorldRenderer created', params);
+    console.log('LoadWorldCyberiaRenderer created', params);
     const rowId = this.idFactory(params);
 
     this.eGui = document.createElement('div');
@@ -51,16 +51,20 @@ class LoadWorldRenderer {
 
     setTimeout(() => {
       EventsUI.onClick(`.btn-load-world-${rowId}`, async () => {
-        World.WorldScope = { ...World.WorldScope, ...newInstance(World.worlds.find((w) => w._id === params.data._id)) };
+        WorldCyberia.WorldCyberiaScope = {
+          ...WorldCyberia.WorldCyberiaScope,
+          ...newInstance(WorldCyberia.worlds.find((w) => w._id === params.data._id)),
+        };
         for (const index of range(0, 5)) {
-          if (World.WorldScope.face[index])
-            s(`.dropdown-option-face-${index}-${World.WorldScope.face[index]._id}`).click();
+          if (WorldCyberia.WorldCyberiaScope.face[index])
+            s(`.dropdown-option-face-${index}-${WorldCyberia.WorldCyberiaScope.face[index]._id}`).click();
           else s(`.dropdown-option-face-${index}-reset`).click();
         }
-        s(`.world-name`).value = World.WorldScope.name;
-        // if (s(`.dropdown-option-${World.WorldScope.type}`)) s(`.dropdown-option-${World.WorldScope.type}`).click();
+        s(`.world-name`).value = WorldCyberia.WorldCyberiaScope.name;
+        if (s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`))
+          s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`).click();
 
-        // await World.renderAllFace();
+        // await WorldCyberia.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
         const worldDeleteResult = await CyberiaWorldService.delete({ id: params.data._id });
@@ -73,8 +77,8 @@ class LoadWorldRenderer {
         });
 
         setTimeout(() => {
-          World.worlds = World.worlds.filter((world) => world._id !== params.data._id);
-          AgGrid.grids[`ag-grid-world`].setGridOption('rowData', World.getGridData());
+          WorldCyberia.worlds = WorldCyberia.worlds.filter((world) => world._id !== params.data._id);
+          AgGrid.grids[`ag-grid-world`].setGridOption('rowData', WorldCyberia.getGridData());
         });
       });
     });
@@ -85,13 +89,13 @@ class LoadWorldRenderer {
   }
 
   refresh(params) {
-    console.log('LoadWorldRenderer refreshed', params);
+    console.log('LoadWorldCyberiaRenderer refreshed', params);
     return true;
   }
 }
 
-const WorldManagement = {
-  biomeRender: new LoadBiomeRenderer(),
+const WorldCyberiaManagement = {
+  biomeRender: new LoadBiomeCyberiaRenderer(),
   Data: {},
   LoadSingleFace: function (selector, src) {
     for (const element of s(selector).children) {
@@ -103,26 +107,26 @@ const WorldManagement = {
       : append(selector, html`<img class="in adjacent-map-limit-img" src="${src}" />`);
   },
   LoadAdjacentFaces: function (type, id) {
-    for (const biomeKey of Object.keys(BiomeScope.Data)) {
+    for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
       for (const limitType of ['top', 'bottom', 'left', 'right']) {
         if (
-          BiomeScope.Data[biomeKey]._id ===
+          BiomeCyberiaScope.Data[biomeKey]._id ===
           this.Data[type][id].model.world.face[
-            WorldLimit({ type: this.Data[type][id].model.world.type })[Elements.Data[type][id].model.world.face][
-              limitType
-            ][0] - 1
+            WorldCyberiaLimit({ type: this.Data[type][id].model.world.type })[
+              ElementsCyberia.Data[type][id].model.world.face
+            ][limitType][0] - 1
           ]
         ) {
           for (const srcType of ['imageSrc']) {
             // 'imageTopLevelColorSrc'
-            this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
+            this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
             if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
-              this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
-              this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
             }
             if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
-              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeScope.Data[biomeKey][srcType]);
-              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeCyberiaScope.Data[biomeKey][srcType]);
+              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeCyberiaScope.Data[biomeKey][srcType]);
             }
           }
         }
@@ -132,7 +136,7 @@ const WorldManagement = {
   ChangeFace: async function (options = { type: 'user', id: 'main', direction: '' }) {
     const { type, id, direction } = options;
 
-    if (Elements.LocalDataScope[type][id].path.length > 1) return;
+    if (ElementsCyberia.LocalDataScope[type][id].path.length > 1) return;
 
     if (this.Data[type][id].model.world.type === 'height' && (direction === 'right' || direction === 'left')) return;
     if (this.Data[type][id].model.world.type === 'width' && (direction === 'top' || direction === 'bottom')) return;
@@ -141,29 +145,29 @@ const WorldManagement = {
       this.Data[type][id].blockChangeFace = true;
       setTimeout(() => (this.Data[type][id].blockChangeFace = false), 400);
 
-      const [newFace, initDirection] = WorldLimit({ type: this.Data[type][id].model.world.type })[
-        Elements.Data[type][id].model.world.face
+      const [newFace, initDirection] = WorldCyberiaLimit({ type: this.Data[type][id].model.world.type })[
+        ElementsCyberia.Data[type][id].model.world.face
       ][direction];
 
       console.warn('newFace', newFace);
-      let newBiome;
-      for (const biomeKey of Object.keys(BiomeScope.Data)) {
-        if (BiomeScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
-          newBiome = BiomeScope.Data[biomeKey];
+      let newBiomeCyberia;
+      for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
+        if (BiomeCyberiaScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
+          newBiomeCyberia = BiomeCyberiaScope.Data[biomeKey];
           break;
         }
       }
-      let newX = newInstance(Elements.Data[type][id].x);
-      let newY = newInstance(Elements.Data[type][id].y);
+      let newX = newInstance(ElementsCyberia.Data[type][id].x);
+      let newY = newInstance(ElementsCyberia.Data[type][id].y);
       switch (initDirection) {
         case 'left':
           newX = 0.5;
           break;
         case 'right':
-          newX = Matrix.Data.dim - Elements.Data[type][id].dim - 0.5;
+          newX = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
           break;
         case 'bottom':
-          newY = Matrix.Data.dim - Elements.Data[type][id].dim - 0.5;
+          newY = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
           break;
         case 'top':
           newY = 0.5;
@@ -171,34 +175,34 @@ const WorldManagement = {
         default:
           break;
       }
-      if (BiomeEngine.isBiomeCollision({ type, id, x: newX, y: newY, biome: newBiome })) return;
-      console.warn('newBiome', newBiome);
+      if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
+      console.warn('newBiomeCyberia', newBiomeCyberia);
       console.warn('initDirection', initDirection);
 
-      Elements.Data[type][id].x = newX;
-      Elements.Data[type][id].y = newY;
-      Elements.Data[type][id].model.world.face = newFace;
+      ElementsCyberia.Data[type][id].x = newX;
+      ElementsCyberia.Data[type][id].y = newY;
+      ElementsCyberia.Data[type][id].model.world.face = newFace;
       await this.biomeRender.load({
-        data: newBiome,
+        data: newBiomeCyberia,
       });
       this.LoadAdjacentFaces(type, id);
-      InteractionPanel.PanelRender.map({ face: newFace });
-      this.EmitNewWorldFace({ type, id });
+      InteractionPanelCyberia.PanelRender.map({ face: newFace });
+      this.EmitNewWorldCyberiaFace({ type, id });
     }
   },
-  EmitNewWorldFace: (options) => {
+  EmitNewWorldCyberiaFace: (options) => {
     const { type, id } = options;
-    for (const elementType of Object.keys(Elements.Data)) {
-      for (const elementId of Object.keys(Elements.Data[elementType])) {
+    for (const elementType of Object.keys(ElementsCyberia.Data)) {
+      for (const elementId of Object.keys(ElementsCyberia.Data[elementType])) {
         if (elementId !== 'main') {
-          Pixi.removeElement({ type: elementType, id: elementId });
-          delete Elements.Data[elementType][elementId];
+          PixiCyberia.removeElement({ type: elementType, id: elementId });
+          delete ElementsCyberia.Data[elementType][elementId];
         }
       }
       if (['user', 'bot', 'skill'].includes(elementType))
         SocketIo.Emit(elementType, {
           status: 'update-world-face',
-          element: { model: { world: Elements.Data[type][id].model.world } },
+          element: { model: { world: ElementsCyberia.Data[type][id].model.world } },
         });
     }
   },
@@ -209,7 +213,7 @@ const WorldManagement = {
     if (!this.Data[type][id]) this.Data[type][id] = { model: {} };
 
     if (!('world' in this.Data[type][id].model)) {
-      const { data } = await CyberiaWorldService.get({ id: Elements.Data[type][id].model.world._id });
+      const { data } = await CyberiaWorldService.get({ id: ElementsCyberia.Data[type][id].model.world._id });
       LoadingAnimation.barLevel.append();
       if (!CyberiaParams.CYBERIA_WORLD_ID) CyberiaParams.CYBERIA_WORLD_ID = data[0]._id;
       this.Data[type][id].model.world = data[0];
@@ -220,7 +224,7 @@ const WorldManagement = {
     for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
 
-      if (Elements.Data.user.main.model.world.face - 1 === indexFace) {
+      if (ElementsCyberia.Data.user.main.model.world.face - 1 === indexFace) {
         await this.biomeRender.load({
           data: await this.biomeRender.loadData({
             data: { _id },
@@ -232,7 +236,7 @@ const WorldManagement = {
           data: { _id },
         });
       this.LoadAdjacentFaces(type, id);
-      InteractionPanel.PanelRender.map({ face: Elements.Data.user.main.model.world.face });
+      InteractionPanelCyberia.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
     }
 
     if (this.Data[type][id].model.world.type === 'height') {
@@ -249,9 +253,9 @@ const WorldManagement = {
   },
 };
 
-const World = {
+const WorldCyberia = {
   worlds: [],
-  WorldScope: {
+  WorldCyberiaScope: {
     face: [],
   },
   getGridData: function () {
@@ -264,17 +268,23 @@ const World = {
     });
   },
   Render: async function (options) {
-    const resultWorlds = await CyberiaWorldService.get({ id: 'all' });
+    const resultWorldCyberias = await CyberiaWorldService.get({ id: 'all' });
     NotificationManager.Push({
-      html: resultWorlds.status === 'success' ? Translate.Render(resultWorlds.message) : resultWorlds.message,
-      status: resultWorlds.status,
+      html:
+        resultWorldCyberias.status === 'success'
+          ? Translate.Render(resultWorldCyberias.message)
+          : resultWorldCyberias.message,
+      status: resultWorldCyberias.status,
     });
-    if (resultWorlds.status === 'success') this.worlds = resultWorlds.data;
+    if (resultWorldCyberias.status === 'success') this.worlds = resultWorldCyberias.data;
 
-    const resultBiome = await CyberiaBiomeService.get({ id: 'all-name' });
+    const resultBiomeCyberia = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
-      html: resultBiome.status === 'success' ? Translate.Render(resultBiome.message) : resultBiome.message,
-      status: resultBiome.status,
+      html:
+        resultBiomeCyberia.status === 'success'
+          ? Translate.Render(resultBiomeCyberia.message)
+          : resultBiomeCyberia.message,
+      status: resultBiomeCyberia.status,
     });
     let render = '';
 
@@ -285,14 +295,14 @@ const World = {
           id: `face-${index}`,
           label: html`face ${index + 1}`,
           resetOption: true,
-          resetOnClick: () => (this.WorldScope.face[index] = null),
-          data: resultBiome.data.map((biome) => {
+          resetOnClick: () => (this.WorldCyberiaScope.face[index] = null),
+          data: resultBiomeCyberia.data.map((biome) => {
             return {
               data: biome,
               display: html`${biome.name} <span class="drop-down-option-info">[${biome.biome}]</span>`,
               value: biome._id,
               onClick: async () => {
-                this.WorldScope.face[index] = biome;
+                this.WorldCyberiaScope.face[index] = biome;
                 s(`.btn-generate-world`).click();
               },
             };
@@ -303,18 +313,22 @@ const World = {
     setTimeout(() => {
       EventsUI.onClick(`.btn-generate-world`, async () => {
         for (const index of range(0, 5)) {
-          if (!DropDown.Tokens[`face-${index}`].value) delete this.WorldScope.face[index];
+          if (!DropDown.Tokens[`face-${index}`].value) delete this.WorldCyberiaScope.face[index];
           await this.renderFace(index);
         }
       });
       EventsUI.onClick(`.btn-generate-random-world`, async () => {
         for (const index of range(0, 5)) {
-          s(`.dropdown-option-face-${index}-${resultBiome.data[random(0, resultBiome.data.length - 1)]._id}`).click();
+          s(
+            `.dropdown-option-face-${index}-${
+              resultBiomeCyberia.data[random(0, resultBiomeCyberia.data.length - 1)]._id
+            }`,
+          ).click();
           // await this.renderFace(index);
         }
       });
       EventsUI.onClick(`.btn-upload-world`, async () => {
-        const body = newInstance(this.WorldScope);
+        const body = newInstance(this.WorldCyberiaScope);
         body.face = body.face.map((face) => {
           if (face && face._id) return face._id;
           return null;
@@ -344,12 +358,12 @@ const World = {
             <div class="in sub-title-modal"><i class="fa-solid fa-sliders"></i> ${Translate.Render('config')}</div>
             <div class="in">
               ${render}
-              <div class="in section-mp">
+              <div class="inl section-mp">
                 ${await DropDown.Render({
                   value: 'width',
                   label: html`${Translate.Render('type')}`,
                   data: ['width', 'height'].map((worldType) => {
-                    const infoType = WorldType[worldType].worldFaces;
+                    const infoType = WorldCyberiaType[worldType].worldFaces;
                     return {
                       display: html`
                       <i class="fa-solid fa-text-${worldType}"></i></i> ${Translate.Render(worldType)} 
@@ -357,7 +371,7 @@ const World = {
                       value: worldType,
                       data: worldType,
                       onClick: () => {
-                        this.WorldScope.type = worldType;
+                        this.WorldCyberiaScope.type = worldType;
                       },
                     };
                   }),
@@ -420,7 +434,7 @@ const World = {
                 { field: 'face', headerName: 'face' },
                 { field: 'name', headerName: 'Name' },
                 { field: 'type', headerName: 'type' },
-                { headerName: '', cellRenderer: LoadWorldRenderer },
+                { headerName: '', cellRenderer: LoadWorldCyberiaRenderer },
               ],
             },
           })}
@@ -430,11 +444,11 @@ const World = {
   },
   renderFace: async function (index) {
     if (
-      this.WorldScope.face[index] &&
-      this.WorldScope.face[index].fileId &&
-      this.WorldScope.face[index].topLevelColorFileId
+      this.WorldCyberiaScope.face[index] &&
+      this.WorldCyberiaScope.face[index].fileId &&
+      this.WorldCyberiaScope.face[index].topLevelColorFileId
     ) {
-      const resultFile = await FileService.get({ id: this.WorldScope.face[index].fileId });
+      const resultFile = await FileService.get({ id: this.WorldCyberiaScope.face[index].fileId });
 
       const imageData = resultFile.data[0];
 
@@ -444,7 +458,9 @@ const World = {
 
       const imageSrc = URL.createObjectURL(imageFile);
 
-      const resultTopLevelColorFile = await FileService.get({ id: this.WorldScope.face[index].topLevelColorFileId });
+      const resultTopLevelColorFile = await FileService.get({
+        id: this.WorldCyberiaScope.face[index].topLevelColorFileId,
+      });
 
       const imageTopLevelColorData = resultTopLevelColorFile.data[0];
 
@@ -473,7 +489,7 @@ const World = {
       );
       return;
     }
-    this.WorldScope.face[index] = null;
+    this.WorldCyberiaScope.face[index] = null;
     htmls(`.world-${index}`, html`<div class="abs center" style="${borderChar(2, 'black')}">${index + 1}</div>`);
   },
   renderAllFace: async function () {
@@ -481,4 +497,4 @@ const World = {
   },
 };
 
-export { World, WorldManagement, WorldLimit };
+export { WorldCyberia, WorldCyberiaManagement, WorldCyberiaLimit };

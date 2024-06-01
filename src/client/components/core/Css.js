@@ -1,6 +1,7 @@
 import { CssCoreDark, CssCoreLight } from './CssCore.js';
-import { LoadingAnimation } from './LoadingAnimation.js';
+import { DropDown } from './DropDown.js';
 import { Modal } from './Modal.js';
+import { Translate } from './Translate.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
 let ThemesScope = [];
@@ -109,6 +110,8 @@ const Css = {
           input {
             outline: none !important;
             border: none;
+            padding-block: 0;
+            padding-inline: 0;
           }
           input::file-selector-button {
             outline: none !important;
@@ -120,9 +123,9 @@ const Css = {
           }
           /*
 
-placeholder
+          placeholder
 
-*/
+          */
 
           ::placeholder {
             color: black;
@@ -145,9 +148,9 @@ placeholder
 
           /*
 
-selection
+          selection
 
-*/
+          */
 
           ::-moz-selection {
             /* Code for Firefox */
@@ -176,19 +179,19 @@ selection
 
           /*
 
-scrollbar
+          scrollbar
 
-Hide scrollbar for Chrome, Safari and Opera
-[TAG]::-webkit-scrollbar {
-display: none;
-}
-Hide scrollbar for IE, Edge and Firefox
-[TAG] {
--ms-overflow-style: none;
-scrollbar-width: none;
-}
+          Hide scrollbar for Chrome, Safari and Opera
+          [TAG]::-webkit-scrollbar {
+          display: none;
+          }
+          Hide scrollbar for IE, Edge and Firefox
+          [TAG] {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+          }
 
-*/
+          */
 
           ::-webkit-scrollbar {
             width: 10px;
@@ -229,6 +232,21 @@ scrollbar-width: none;
       `,
     );
     return await Themes[theme](options);
+  },
+  RenderSetting: async function () {
+    return html` <div class="in section-mp">
+      ${await DropDown.Render({
+        value: Css.currentTheme,
+        label: html`${Translate.Render('theme')}`,
+        data: ThemesScope.map((themeOption) => {
+          return {
+            display: html`<i class="fa-solid fa-brush"></i> ${themeOption.theme}`,
+            value: themeOption.theme,
+            onClick: async () => await Themes[themeOption.theme](),
+          };
+        }),
+      })}
+    </div>`;
   },
 };
 

@@ -1,11 +1,11 @@
 import { Responsive } from '../core/Responsive.js';
 import { s, append } from '../core/VanillaJs.js';
-import { CyberiaBaseMatrix, CyberiaParams } from './CommonCyberia.js';
-import { Elements } from './Elements.js';
+import { BaseMatrixCyberia, CyberiaParams } from './CommonCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 
-const Matrix = {
+const MatrixCyberia = {
   Data: {
-    ...CyberiaBaseMatrix(),
+    ...BaseMatrixCyberia(),
     biomeDataId: '',
   },
   Render: {
@@ -27,14 +27,14 @@ const Matrix = {
   },
   InitCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    if (!Elements.Interval[type][id]['camera']) {
-      await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id], true);
-      await this.UpdateCamera('.pixi-canvas-top-level', Elements.Data[type][id], true);
-      await this.UpdateCamera('.PointAndClickMovement-container', Elements.Data[type][id]);
-      Elements.Interval[type][id]['camera'] = setInterval(async () => {
-        await this.UpdateCamera('.pixi-canvas', Elements.Data[type][id], true);
-        await this.UpdateCamera('.pixi-canvas-top-level', Elements.Data[type][id], true);
-        await this.UpdateCamera('.PointAndClickMovement-container', Elements.Data[type][id]);
+    if (!ElementsCyberia.Interval[type][id]['camera']) {
+      await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
+      await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
+      await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
+      ElementsCyberia.Interval[type][id]['camera'] = setInterval(async () => {
+        await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
+        await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
+        await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
       }, CyberiaParams.EVENT_CALLBACK_TIME);
     }
   },
@@ -124,4 +124,4 @@ const Matrix = {
   },
 };
 
-export { Matrix };
+export { MatrixCyberia };

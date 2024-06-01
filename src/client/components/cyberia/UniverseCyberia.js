@@ -5,10 +5,10 @@
 // |   1  |   |   2  |   |   3  |
 // +------+   +------+   +------+
 
-const Universe = {
+const UniverseCyberia = {
   Render: async function () {
     return html` <div></div> `;
   },
 };
 
-export { Universe };
+export { UniverseCyberia };

@@ -1,7 +1,9 @@
+import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
 import { loggerFactory } from './Logger.js';
 import { LoadRouter } from './Router.js';
+import { Translate } from './Translate.js';
 import { getProxyPath, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
@@ -189,12 +191,32 @@ const Worker = {
     });
   },
   // TODO: GPS management
-  loadSettingUI: async function () {
-    EventsUI.onClick(`.btn-clean-cache`, async (e) => {
-      e.preventDefault();
-      await this.update();
-      await this.reload();
+  RenderSetting: async function () {
+    setTimeout(() => {
+      EventsUI.onClick(`.btn-clean-cache`, async (e) => {
+        e.preventDefault();
+        await this.update();
+        await this.reload();
+      });
     });
+    return html` <div class="in">
+      ${await BtnIcon.Render({
+        class: 'inl section-mp btn-custom btn-install-service-controller hide',
+        label: html`<i class="fas fa-download"></i> ${Translate.Render('Install control service')}`,
+      })}
+      ${await BtnIcon.Render({
+        class: 'inl section-mp btn-custom btn-uninstall-service-controller hide',
+        label: html`<i class="far fa-trash-alt"></i> ${Translate.Render('Uninstall control service')}`,
+      })}
+      ${await BtnIcon.Render({
+        class: 'inl section-mp btn-custom btn-clean-cache',
+        label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clean-cache')}`,
+      })}
+      ${await BtnIcon.Render({
+        class: 'inl section-mp btn-custom btn-reload hide',
+        label: html`<i class="fas fa-sync-alt"></i> ${Translate.Render('Reload')}`,
+      })}
+    </div>`;
     return;
     s(`.btn-uninstall-service-controller`).classList.add('hide');
     EventsUI.onClick(`.btn-install-service-controller`, async (e) => {

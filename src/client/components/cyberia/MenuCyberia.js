@@ -17,18 +17,18 @@ import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
-import { Bag } from './Bag.js';
-import { BiomeEngine } from './Biome.js';
-import { Character } from './Character.js';
-import { Elements } from './Elements.js';
+import { BagCyberia } from './BagCyberia.js';
+import { BiomeCyberiaEngine } from './BiomeCyberia.js';
+import { CharacterCyberia } from './CharacterCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 import { RouterCyberia } from './RoutesCyberia.js';
-import { Settings } from './Settings.js';
+import { SettingsCyberia } from './SettingsCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
-import { Tile } from './Tile.js';
-import { World } from './World.js';
+import { TileCyberia } from './TileCyberia.js';
+import { WorldCyberia } from './WorldCyberia.js';
 import Sortable from 'sortablejs';
 
-const Menu = {
+const MenuCyberia = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
@@ -102,12 +102,12 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-biome',
-            label: renderMenuLabel({ img: 'engine.png', text: 'Biome Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'BiomeCyberia Engine' }),
             attrs: `data-id="11"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-tile',
-            label: renderMenuLabel({ img: 'engine.png', text: 'Tile Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'TileCyberia Engine' }),
             attrs: `data-id="12"`,
           })}
           ${await BtnIcon.Render({
@@ -117,7 +117,7 @@ const Menu = {
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-world',
-            label: renderMenuLabel({ img: 'engine.png', text: 'World Engine' }),
+            label: renderMenuLabel({ img: 'engine.png', text: 'WorldCyberia Engine' }),
             attrs: `data-id="14"`,
           })}
           ${await BtnIcon.Render({
@@ -213,7 +213,7 @@ const Menu = {
         route: 'settings',
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'settings.png', text: Translate.Render('settings') }),
-        html: async () => await Settings.Render(),
+        html: async () => await SettingsCyberia.Render(),
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
@@ -230,7 +230,7 @@ const Menu = {
         route: 'bag',
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'bag.png', text: Translate.Render('bag') }),
-        html: async () => await Bag.Render({ id: 'cyberia-bag', idModal: 'modal-bag' }),
+        html: async () => await BagCyberia.Render({ id: 'cyberia-bag', idModal: 'modal-bag' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -264,8 +264,8 @@ const Menu = {
         id: 'modal-biome',
         route: 'biome',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'Biome engine' }),
-        html: async () => await BiomeEngine.Render({ idModal: 'modal-biome' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'BiomeCyberia engine' }),
+        html: async () => await BiomeCyberiaEngine.Render({ idModal: 'modal-biome' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -282,8 +282,8 @@ const Menu = {
         id: 'modal-tile-engine',
         route: 'tile',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'Tile engine' }),
-        html: async () => await Tile.Render({ idModal: 'modal-tile-engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'TileCyberia engine' }),
+        html: async () => await TileCyberia.Render({ idModal: 'modal-tile-engine' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -328,8 +328,8 @@ const Menu = {
         id: 'modal-world-engine',
         route: 'world',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'World Engine' }),
-        html: async () => await World.Render({ idModal: 'modal-world-engine' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'WorldCyberia Engine' }),
+        html: async () => await WorldCyberia.Render({ idModal: 'modal-world-engine' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -420,7 +420,8 @@ const Menu = {
         route: 'account',
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'account.png', text: Translate.Render('account') }),
-        html: async () => await Account.Render({ idModal: 'modal-account', user: Elements.Data.user.main.model.user }),
+        html: async () =>
+          await Account.Render({ idModal: 'modal-account', user: ElementsCyberia.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -474,7 +475,7 @@ const Menu = {
         route: 'character',
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'character.png', text: 'character' }),
-        html: async () => await Character.Render({ idModal: 'modal-character' }),
+        html: async () => await CharacterCyberia.Render({ idModal: 'modal-character' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -516,7 +517,7 @@ const Menu = {
             events: {
               'change-server': async ({ server }) => {
                 setURI(server);
-                await SocketIo.Init({ channels: Elements.Data });
+                await SocketIo.Init({ channels: ElementsCyberia.Data });
                 return await SocketIoCyberia.Init();
               },
             },
@@ -533,4 +534,4 @@ const Menu = {
   },
 };
 
-export { Menu };
+export { MenuCyberia };

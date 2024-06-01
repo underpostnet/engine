@@ -234,7 +234,10 @@ const Modal = {
                     style: {
                       resize: 'none',
                       'max-width': '450px',
-                      'max-height': '300px',
+                      height:
+                        this.mobileModal() && window.innerWidth < 445
+                          ? `${window.innerHeight - originHeightTopBar}px !important`
+                          : '300px !important',
                       'z-index': 7,
                     },
                     dragDisabled: true,
@@ -323,11 +326,19 @@ const Modal = {
                   heightTopBar: originHeightTopBar,
                   heightBottomBar: originHeightBottomBar,
                 });
-
+                const maxWidthInputSearchBox = 450;
+                const paddingInputSearchBox = 5;
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
-                  s(`.top-bar-search-box-container`).style.width = `${window.innerWidth - originHeightTopBar}px`;
-                  s(`.top-bar-search-box`).style.width = `${window.innerWidth - originHeightTopBar * 2.5}px`;
+                  const widthInputSearchBox =
+                    window.innerWidth > maxWidthInputSearchBox ? maxWidthInputSearchBox : window.innerWidth;
+                  s(`.top-bar-search-box-container`).style.width = `${widthInputSearchBox - originHeightTopBar - 1}px`;
+                  s(`.top-bar-search-box`).style.width = `${
+                    widthInputSearchBox -
+                    originHeightTopBar * 2 -
+                    paddingInputSearchBox * 2 /*padding input*/ -
+                    10 /* right-margin */
+                  }px`;
                   s(`.top-bar-search-box`).style.top = `${
                     (originHeightTopBar - s(`.top-bar-search-box`).clientHeight) / 2
                   }px`;
@@ -354,9 +365,6 @@ const Modal = {
                     .top-bar-search-box-container {
                       height: 100%;
                       overflow: hidden;
-                    }
-                    .top-bar-search-box {
-                      max-width: 300px;
                     }
                     .bottom-bar {
                       overflow: hidden;

@@ -2,7 +2,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 
 const LogInCyberiaPortal = async function () {
   LogIn.Event['LogInCyberiaPortal'] = async (options) => {
@@ -10,7 +10,7 @@ const LogInCyberiaPortal = async function () {
 
     localStorage.setItem('jwt', token);
     Auth.setToken(token);
-    Elements.Data.user.main.model.user = user;
+    ElementsCyberiaPortal.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';
     s(`.main-btn-sign-up`).style.display = 'none';

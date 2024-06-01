@@ -270,10 +270,11 @@ const CssCoreDark = {
           font-size: 20px;
           padding: 10px;
         }
-        .box-option {
+        .toggle-form-container {
           border: 2px solid #313131;
+          cursor: pointer;
         }
-        .box-option,
+        .toggle-form-container,
         .dropdown-option {
           width: 238px;
           font-size: 20px;
@@ -304,6 +305,16 @@ const CssCoreDark = {
         .content-render {
           font-size: 16px;
           font-family: monospace;
+        }
+        .input-extension {
+          background: #1a1a1a;
+        }
+        .btn-input-extension {
+          margin: 5px 0 0 0;
+          padding: 5px;
+          font-size: 16px;
+        }
+        .btn-input-extension:hover {
         }
       </style>
     `,
@@ -551,11 +562,12 @@ const CssCoreLight = {
           font-size: 20px;
           padding: 10px;
         }
-        .box-option {
+        .toggle-form-container {
           border-radius: 5px;
           border: 2px solid #bbb;
+          cursor: pointer;
         }
-        .box-option,
+        .toggle-form-container,
         .dropdown-option {
           width: 238px;
           font-size: 20px;
@@ -596,6 +608,16 @@ const CssCoreLight = {
         .content-render {
           font-size: 16px;
           font-family: monospace;
+        }
+        .input-extension {
+          background: #eaeaea;
+        }
+        .btn-input-extension {
+          margin: 5px 0 0 0;
+          padding: 5px;
+          font-size: 16px;
+        }
+        .btn-input-extension:hover {
         }
       </style>
     `,

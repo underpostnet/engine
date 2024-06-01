@@ -1,17 +1,17 @@
 import Sortable from 'sortablejs';
 import { getId, range, timer, uniqueArray } from '../core/CommonJs.js';
-import { ItemModal, Slot, SlotEvents } from './Bag.js';
-import { CharacterSlotType, updateMovementDirection } from './CommonCyberia.js';
-import { Elements } from './Elements.js';
+import { ItemModal, Slot, SlotEvents } from './BagCyberia.js';
+import { CharacterCyberiaSlotType, updateMovementDirection } from './CommonCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { loggerFactory } from '../core/Logger.js';
-import { MainUser } from './MainUser.js';
-import { Pixi } from './Pixi.js';
+import { MainUserCyberia } from './MainUserCyberia.js';
+import { PixiCyberia } from './PixiCyberia.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta);
 
-const Character = {
+const CharacterCyberia = {
   Data: {},
   Render: async function (options) {
     const idModal = options.idModal ? options.idModal : getId(this.Data, 'character-');
@@ -26,18 +26,18 @@ const Character = {
     setTimeout(async () => {
       const type = 'user';
       const id = 'main';
-      for (const componentType of Object.keys(CharacterSlotType)) {
-        if (!Elements.Data[type][id].components[componentType]) continue;
-        this.RenderCharacterSLot({ type, id, componentType });
+      for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
+        if (!ElementsCyberia.Data[type][id].components[componentType]) continue;
+        this.RenderCharacterCyberiaSLot({ type, id, componentType });
       }
-      for (const skillKey of Object.keys(Elements.Data.user.main.skill.keys))
-        this.RenderCharacterSkillSLot({
+      for (const skillKey of Object.keys(ElementsCyberia.Data.user.main.skill.keys))
+        this.RenderCharacterCyberiaSkillSLot({
           type,
           id,
           skillKey,
         });
-      this.renderCharacterStat();
-      this.renderCharacterPreView();
+      this.renderCharacterCyberiaStat();
+      this.renderCharacterCyberiaPreView();
       LoadingAnimation.img.play(`.character-preview-loading`, 'points');
     });
     const onEnd = function (/**Event*/ evt) {
@@ -45,7 +45,7 @@ const Character = {
         // console.log('Sortable onEnd', evt);
         // console.log('evt.oldIndex', evt.oldIndex);
         // console.log('evt.newIndex', evt.newIndex);
-        const toElements = {
+        const toElementsCyberia = {
           srcElement: evt.originalEvent.srcElement,
           target: evt.originalEvent.target,
           toElement: evt.originalEvent.toElement,
@@ -53,58 +53,63 @@ const Character = {
 
         const { item } = evt; // parentElement parentNode children(array)
 
-        const dataBagFrom = {
+        const dataBagCyberiaFrom = {
           type: Array.from(item.children)[2].innerHTML,
           id: Array.from(item.children)[3].innerHTML,
         };
-        const dataBagTo = {};
+        const dataBagCyberiaTo = {};
 
-        let dataClassBagFrom = [];
-        let dataClassBagTo = [];
+        let dataClassBagCyberiaFrom = [];
+        let dataClassBagCyberiaTo = [];
 
-        for (const toElementKey of Object.keys(toElements)) {
+        for (const toElementKey of Object.keys(toElementsCyberia)) {
           try {
-            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentNode.classList));
-          } catch (error) {
-            logger.warn(error);
-          }
-          try {
-            dataClassBagTo = dataClassBagTo.concat(Array.from(toElements[toElementKey].parentElement.classList));
-          } catch (error) {
-            logger.warn(error);
-          }
-          try {
-            dataClassBagTo = dataClassBagTo.concat(
-              Array.from(toElements[toElementKey].parentNode.parentNode.classList),
+            dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+              Array.from(toElementsCyberia[toElementKey].parentNode.classList),
             );
           } catch (error) {
             logger.warn(error);
           }
           try {
-            dataClassBagTo = dataClassBagTo.concat(
-              Array.from(toElements[toElementKey].parentElement.parentElement.classList),
+            dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+              Array.from(toElementsCyberia[toElementKey].parentElement.classList),
+            );
+          } catch (error) {
+            logger.warn(error);
+          }
+          try {
+            dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+              Array.from(toElementsCyberia[toElementKey].parentNode.parentNode.classList),
+            );
+          } catch (error) {
+            logger.warn(error);
+          }
+          try {
+            dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+              Array.from(toElementsCyberia[toElementKey].parentElement.parentElement.classList),
             );
           } catch (error) {
             logger.warn(error);
           }
         }
 
-        dataClassBagTo = uniqueArray(dataClassBagTo);
+        dataClassBagCyberiaTo = uniqueArray(dataClassBagCyberiaTo);
 
-        logger.info('Sortable Bag From:', { dataClassBagFrom, dataBagFrom });
-        logger.info('Sortable Bag To:', { dataClassBagTo, dataBagTo });
-        if (dataBagFrom.type.split('<br>')[1]) dataBagFrom.type = dataBagFrom.type.split('<br>')[1];
+        logger.info('Sortable BagCyberia From:', { dataClassBagCyberiaFrom, dataBagCyberiaFrom });
+        logger.info('Sortable BagCyberia To:', { dataClassBagCyberiaTo, dataBagCyberiaTo });
+        if (dataBagCyberiaFrom.type.split('<br>')[1])
+          dataBagCyberiaFrom.type = dataBagCyberiaFrom.type.split('<br>')[1];
 
         if (
-          (Object.values(dataClassBagTo).find(
+          (Object.values(dataClassBagCyberiaTo).find(
             (c) => c.startsWith(`character-`) || c.startsWith(`character-container-stat`),
           ) === undefined ||
-            Object.values(dataClassBagTo).find((c) => c.startsWith(`character-container-view`))) &&
-          ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagFrom.type)
+            Object.values(dataClassBagCyberiaTo).find((c) => c.startsWith(`character-container-view`))) &&
+          ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagCyberiaFrom.type)
         ) {
           const payLoadEquip = { type: 'user', id: 'main' };
-          payLoadEquip[dataBagFrom.type] = { id: dataBagFrom.id };
-          ItemModal.Unequip[dataBagFrom.type](payLoadEquip);
+          payLoadEquip[dataBagCyberiaFrom.type] = { id: dataBagCyberiaFrom.id };
+          ItemModal.Unequip[dataBagCyberiaFrom.type](payLoadEquip);
           return;
         }
 
@@ -129,7 +134,7 @@ const Character = {
       <div class="fl">
         <div class="in fll section-mp character-container">
           <div class="in character-equip-container">
-            ${Object.keys(CharacterSlotType)
+            ${Object.keys(CharacterCyberiaSlotType)
               .map((slotType, i) => {
                 setTimeout(() => {
                   this.Data[idModal].sortable[slotType] = new Sortable(s(`.character-slot-container-${slotType}`), {
@@ -146,14 +151,14 @@ const Character = {
                 });
                 return html`<div class="abs center character-slot character-slot-container-${slotType}">
                   <div data-id="0" class="in sub-character-slot character-slot-${slotType}">
-                    ${this.renderEmptyCharacterSlot(slotType)}
+                    ${this.renderEmptyCharacterCyberiaSlot(slotType)}
                   </div>
                 </div>`;
               })
               .join('')}
           </div>
           <div class="in character-skill-container">
-            ${Object.keys(Elements.Data.user.main.skill.keys)
+            ${Object.keys(ElementsCyberia.Data.user.main.skill.keys)
               .map((skillKey) => {
                 skillKey = `${skillKey}-skill`;
                 setTimeout(() => {
@@ -172,7 +177,7 @@ const Character = {
                 return html`
                   <div class="abs center character-slot-skill character-slot-container-${skillKey}">
                     <div data-id="0" class="in sub-character-slot character-slot-${skillKey}">
-                      ${this.renderEmptyCharacterSlot(skillKey)}
+                      ${this.renderEmptyCharacterCyberiaSlot(skillKey)}
                     </div>
                   </div>
                 `;
@@ -187,9 +192,9 @@ const Character = {
       </div>
     `;
   },
-  RenderCharacterSLot: function (options = { id: 'main', type: 'user', componentType: 'skin' }) {
+  RenderCharacterCyberiaSLot: function (options = { id: 'main', type: 'user', componentType: 'skin' }) {
     const { id, type, componentType } = options;
-    const component = Elements.Data[type][id].components[componentType].find((e) => e.current);
+    const component = ElementsCyberia.Data[type][id].components[componentType].find((e) => e.current);
     if (component)
       Slot[componentType].render({
         slotId: `character-slot-${componentType}`,
@@ -197,48 +202,51 @@ const Character = {
         disabledCount: true,
       });
     else if (s(`.character-slot-${componentType}`))
-      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
-    this.renderCharacterPreView();
+      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterCyberiaSlot(componentType));
+    this.renderCharacterCyberiaPreView();
   },
-  RenderCharacterSkillSLot: function (options = { id: 'main', type: 'user', skillKey: '' }) {
+  RenderCharacterCyberiaSkillSLot: function (options = { id: 'main', type: 'user', skillKey: '' }) {
     const { type, id, skillKey } = options;
     const componentType = `${skillKey}-skill`;
-    if (Elements.Data[type][id].skill.keys[skillKey]) {
+    if (ElementsCyberia.Data[type][id].skill.keys[skillKey]) {
       Slot.skill.render({
         slotId: `character-slot-${componentType}`,
-        displayId: Elements.Data[type][id].skill.keys[skillKey],
+        displayId: ElementsCyberia.Data[type][id].skill.keys[skillKey],
         disabledCount: true,
       });
     } else if (s(`.character-slot-${componentType}`))
-      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterSlot(componentType));
+      htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterCyberiaSlot(componentType));
   },
-  renderCharacterPreView: async function () {
+  renderCharacterCyberiaPreView: async function () {
     const type = 'user';
     const id = 'main';
 
     if (!s(`.character-container-view`)) return;
 
-    if (Pixi.Data[type][id].components['lifeBar']) Pixi.Data[type][id].components['lifeBar'].visible = false;
-    if (Pixi.Data[type][id].components['coinIndicator'].container)
-      Pixi.Data[type][id].components['coinIndicator'].container.visible = false;
-    if (Pixi.Data[type][id].components['lifeIndicator'].container)
-      Pixi.Data[type][id].components['lifeIndicator'].container.visible = false;
-    if (Pixi.Data[type][id].components['username'].container)
-      Pixi.Data[type][id].components['username'].container.visible = false;
+    if (PixiCyberia.Data[type][id].components['lifeBar'])
+      PixiCyberia.Data[type][id].components['lifeBar'].visible = false;
+    if (PixiCyberia.Data[type][id].components['coinIndicator'].container)
+      PixiCyberia.Data[type][id].components['coinIndicator'].container.visible = false;
+    if (PixiCyberia.Data[type][id].components['lifeIndicator'].container)
+      PixiCyberia.Data[type][id].components['lifeIndicator'].container.visible = false;
+    if (PixiCyberia.Data[type][id].components['username'].container)
+      PixiCyberia.Data[type][id].components['username'].container.visible = false;
 
     const frames = [];
     for (const frame of range(0, 2)) {
-      Elements.Data.user.main = updateMovementDirection({
+      ElementsCyberia.Data.user.main = updateMovementDirection({
         direction: 's',
-        element: Elements.Data.user.main,
+        element: ElementsCyberia.Data.user.main,
         suffix: '0',
       });
-      Elements.Data.user.main.components.skin = Elements.Data.user.main.components.skin.map((s) => {
+      ElementsCyberia.Data.user.main.components.skin = ElementsCyberia.Data.user.main.components.skin.map((s) => {
         s.enabled = s.current ? true : false;
         return s;
       });
-      Pixi.triggerUpdateDisplay({ type, id });
-      const characterImg = await MainUser.PixiMainUser.renderer.extract.image(MainUser.PixiMainUser.stage);
+      PixiCyberia.triggerUpdateDisplay({ type, id });
+      const characterImg = await MainUserCyberia.PixiCyberiaMainUserCyberia.renderer.extract.image(
+        MainUserCyberia.PixiCyberiaMainUserCyberia.stage,
+      );
       frames[frame] = characterImg.currentSrc;
       await timer(200);
     }
@@ -257,37 +265,38 @@ const Character = {
     );
 
     let frame = 0;
-    if (this.CharacterPreViewInterval) clearInterval(this.CharacterPreViewInterval);
-    this.CharacterPreViewInterval = setInterval(() => {
-      if (!s(`.character-container-view`)) return clearInterval(this.CharacterPreViewInterval);
+    if (this.CharacterCyberiaPreViewInterval) clearInterval(this.CharacterCyberiaPreViewInterval);
+    this.CharacterCyberiaPreViewInterval = setInterval(() => {
+      if (!s(`.character-container-view`)) return clearInterval(this.CharacterCyberiaPreViewInterval);
       s(`.character-view-img-frame-${frame}`).classList.add('hide');
       frame++;
       if (frame === frames.length) frame = 0;
       s(`.character-view-img-frame-${frame}`).classList.remove('hide');
     }, 200);
 
-    if (Pixi.Data[type][id].components['lifeBar']) Pixi.Data[type][id].components['lifeBar'].visible = true;
-    if (Pixi.Data[type][id].components['coinIndicator'].container)
-      Pixi.Data[type][id].components['coinIndicator'].container.visible = true;
-    if (Pixi.Data[type][id].components['lifeIndicator'].container)
-      Pixi.Data[type][id].components['lifeIndicator'].container.visible = true;
-    if (Pixi.Data[type][id].components['username'].container)
-      Pixi.Data[type][id].components['username'].container.visible = true;
+    if (PixiCyberia.Data[type][id].components['lifeBar'])
+      PixiCyberia.Data[type][id].components['lifeBar'].visible = true;
+    if (PixiCyberia.Data[type][id].components['coinIndicator'].container)
+      PixiCyberia.Data[type][id].components['coinIndicator'].container.visible = true;
+    if (PixiCyberia.Data[type][id].components['lifeIndicator'].container)
+      PixiCyberia.Data[type][id].components['lifeIndicator'].container.visible = true;
+    if (PixiCyberia.Data[type][id].components['username'].container)
+      PixiCyberia.Data[type][id].components['username'].container.visible = true;
 
-    Elements.Data.user.main.components.skin = Elements.Data.user.main.components.skin.map((s) => {
-      s.enabled = Elements.Data.user.main.life > 0 ? s.current : s.displayId === 'ghost';
+    ElementsCyberia.Data.user.main.components.skin = ElementsCyberia.Data.user.main.components.skin.map((s) => {
+      s.enabled = ElementsCyberia.Data.user.main.life > 0 ? s.current : s.displayId === 'ghost';
       return s;
     });
-    Pixi.triggerUpdateDisplay({ type, id });
+    PixiCyberia.triggerUpdateDisplay({ type, id });
   },
-  renderEmptyCharacterSlot: function (slotType) {
-    this.renderCharacterPreView();
+  renderEmptyCharacterCyberiaSlot: function (slotType) {
+    this.renderCharacterCyberiaPreView();
     return html` <div class="abs center character-slot-type-text">${slotType.replace('-', html`<br />`)}</div>`;
   },
-  renderCharacterStat: function () {
+  renderCharacterCyberiaStat: function () {
     if (s(`.character-container-stats`))
-      htmls(`.character-container-stats`, ItemModal.RenderStat(Elements.Data.user.main));
+      htmls(`.character-container-stats`, ItemModal.RenderStat(ElementsCyberia.Data.user.main));
   },
 };
 
-export { Character };
+export { CharacterCyberia };

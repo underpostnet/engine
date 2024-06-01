@@ -1,10 +1,10 @@
 import { getId, newInstance, objectEquals, random, timer } from '../../../client/components/core/CommonJs.js';
 import {
   BaseElement,
-  CyberiaBaseMatrix,
+  BaseMatrixCyberia,
   CyberiaParams,
   Stat,
-  WorldType,
+  WorldCyberiaType,
   isElementCollision,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
@@ -24,7 +24,7 @@ const logger = loggerFactory(import.meta);
 const CyberiaWsSkillManagement = {
   element: {},
   localElementScope: {},
-  matrixData: CyberiaBaseMatrix(),
+  matrixData: BaseMatrixCyberia(),
   instance: async function (wsManagementId = '') {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
@@ -122,7 +122,7 @@ const CyberiaWsSkillManagement = {
                   (parent.type === 'bot' ||
                     (parent.type === 'user' &&
                       world.instance[
-                        WorldType[world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
+                        WorldCyberiaType[world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
                       ].type === 'pvp')) &&
                   CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                   isElementCollision({

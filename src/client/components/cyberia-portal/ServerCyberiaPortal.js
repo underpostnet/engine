@@ -9,6 +9,7 @@ const ServerCyberiaPortal = {
   instances: [
     { server: 'dim32', port: 4002, status: 'online' },
     { server: 'hhworld', port: 4003, status: 'online' },
+    { server: 'interior32', port: 4004, status: 'online' },
   ],
   Render: async function (options = { idModal: '', events: {} }) {
     const id = options?.idModal ? options.idModal : getId(this.Tokens, 'server-cyberia-');

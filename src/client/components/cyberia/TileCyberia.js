@@ -12,7 +12,7 @@ import { htmls, s } from '../core/VanillaJs.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
-const Tile = {
+const TileCyberia = {
   Render: async function (options) {
     let mouseDown = false;
     let dataColor = [];
@@ -34,13 +34,13 @@ const Tile = {
         `.tile-object-container`,
         JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
       );
-      this.TileApp.stage.removeChildren();
+      this.TileCyberiaApp.stage.removeChildren();
 
-      const rangeTile = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
-      const dim = this.TileAppDim / rangeTile.length;
+      const rangeTileCyberia = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
+      const dim = this.TileCyberiaAppDim / rangeTileCyberia.length;
 
-      for (const y of rangeTile)
-        for (const x of rangeTile) {
+      for (const y of rangeTileCyberia)
+        for (const x of rangeTileCyberia) {
           if (dataColor[y] && dataColor[y][x]) {
             const cell = new Sprite(Texture.WHITE);
             cell.x = dim * x;
@@ -48,12 +48,12 @@ const Tile = {
             cell.width = dim;
             cell.height = dim;
             cell.tint = dataColor[y][x];
-            this.TileApp.stage.addChild(cell);
+            this.TileCyberiaApp.stage.addChild(cell);
           }
         }
     };
     setTimeout(() => {
-      const RenderTileGrid = () => {
+      const RenderTileCyberiaGrid = () => {
         dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
           range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
             if (dataColor[y] && dataColor[y][x] !== undefined) return dataColor[y][x];
@@ -105,24 +105,24 @@ const Tile = {
           `,
         );
       };
-      s(`.tile-dim`).oninput = RenderTileGrid;
-      s(`.tile-dim`).onblur = RenderTileGrid;
-      s(`.tile-dimPaintByCell`).oninput = RenderTileGrid;
-      s(`.tile-dimPaintByCell`).onblur = RenderTileGrid;
-      RenderTileGrid();
+      s(`.tile-dim`).oninput = RenderTileCyberiaGrid;
+      s(`.tile-dim`).onblur = RenderTileCyberiaGrid;
+      s(`.tile-dimPaintByCell`).oninput = RenderTileCyberiaGrid;
+      s(`.tile-dimPaintByCell`).onblur = RenderTileCyberiaGrid;
+      RenderTileCyberiaGrid();
 
-      this.TileAppDim = 600;
-      this.TileApp = new Application({
-        width: this.TileAppDim,
-        height: this.TileAppDim,
+      this.TileCyberiaAppDim = 600;
+      this.TileCyberiaApp = new Application({
+        width: this.TileCyberiaAppDim,
+        height: this.TileCyberiaAppDim,
         background: 'gray',
       });
 
-      s('.tile-pixi-container').appendChild(this.TileApp.view);
+      s('.tile-pixi-container').appendChild(this.TileCyberiaApp.view);
       // s('canvas').classList.add('');
 
       EventsUI.onClick(`.btn-upload-tile`, async () => {
-        const tileImg = await this.TileApp.renderer.extract.image(this.TileApp.stage);
+        const tileImg = await this.TileCyberiaApp.renderer.extract.image(this.TileCyberiaApp.stage);
         const imageSrc = tileImg.currentSrc;
         const res = await fetch(imageSrc);
         const blob = await res.blob();
@@ -206,24 +206,24 @@ const Tile = {
           })}
           ${await Input.Render({
             id: `tile-solid`,
-            label: html`<i class="fa-solid fa-ruler"></i> matrix object
-              <div class="in sub-container">
-                ${await ToggleSwitch.Render({
-                  id: 'solid-toggle',
-                  checked: solidMode,
-                  on: {
-                    unchecked: () => {
-                      solidMode = false;
-                    },
-                    checked: () => {
-                      solidMode = true;
-                    },
-                  },
-                })}
-              </div>`,
+            label: html`<i class="fa-solid fa-ruler"></i> matrix object `,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             value: 1,
+            extension: async () => html` <div class="in">
+              ${await ToggleSwitch.Render({
+                id: 'solid-toggle',
+                checked: solidMode,
+                on: {
+                  unchecked: () => {
+                    solidMode = false;
+                  },
+                  checked: () => {
+                    solidMode = true;
+                  },
+                },
+              })}
+            </div>`,
           })}
 
           <div class="in">
@@ -252,4 +252,4 @@ const Tile = {
   },
 };
 
-export { Tile };
+export { TileCyberia };

@@ -7,9 +7,9 @@ import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
-import { CyberiaWebhook } from './CyberiaWebhook.js';
-import { Elements } from './Elements.js';
-import { MainUser } from './MainUser.js';
+import { WebhookCyberia } from './WebhookCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
+import { MainUserCyberia } from './MainUserCyberia.js';
 
 const LogOutCyberia = function () {
   LogOut.Event['LogOutCyberia'] = async () => {
@@ -24,12 +24,12 @@ const LogOutCyberia = function () {
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
-    const oldElement = newInstance(Elements.Data[type][id]);
-    Elements.Data[type][id] = BaseElement()[type][id];
+    const oldElement = newInstance(ElementsCyberia.Data[type][id]);
+    ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     Webhook.unregister();
-    CyberiaWebhook.unregister();
+    WebhookCyberia.unregister();
     Auth.deleteToken();
-    await MainUser.Update({ oldElement });
+    await MainUserCyberia.Update({ oldElement });
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),

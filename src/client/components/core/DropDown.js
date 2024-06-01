@@ -13,7 +13,7 @@ const DropDown = {
     options.data.push({
       value: 'reset',
       display: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
-      onClick: function () {
+      onClick: () => {
         console.log('DropDown onClick', this.value);
         if (options && options.resetOnClick) options.resetOnClick();
         this.Tokens[id].value = undefined;

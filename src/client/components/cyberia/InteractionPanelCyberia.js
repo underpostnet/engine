@@ -3,41 +3,44 @@ import { Css, Themes, borderChar } from '../core/Css.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { WorldType, isElementCollision } from './CommonCyberia.js';
-import { Elements } from './Elements.js';
-import { Matrix } from './Matrix.js';
-import { Pixi } from './Pixi.js';
-import { PointAndClickMovement } from './PointAndClickMovement.js';
-import { WorldManagement } from './World.js';
+import { WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
+import { ElementsCyberia } from './ElementsCyberia.js';
+import { MatrixCyberia } from './MatrixCyberia.js';
+import { PixiCyberia } from './PixiCyberia.js';
+import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
+import { WorldCyberiaManagement } from './WorldCyberia.js';
 
-const InteractionPanel = {
+const InteractionPanelCyberia = {
   Data: {},
   PanelRender: {
     element: function ({ type, id }) {
       htmls(
         `.display-current-element`,
-        html`${type} <span style="color: white">${Elements.getDisplayName({ type, id })}</span>`,
+        html`${type} <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>`,
       );
       setTimeout(() => {
-        if (!InteractionPanel.Data['element-interaction-panel']) return;
-        Pixi.displayPointerArrow({
-          oldElement: InteractionPanel.Data['element-interaction-panel'].element.current,
+        if (!InteractionPanelCyberia.Data['element-interaction-panel']) return;
+        PixiCyberia.displayPointerArrow({
+          oldElement: InteractionPanelCyberia.Data['element-interaction-panel'].element.current,
           newElement: { type, id },
         });
-        InteractionPanel.Data['element-interaction-panel'].element.current = { type, id };
+        InteractionPanelCyberia.Data['element-interaction-panel'].element.current = { type, id };
       });
     },
     map: function ({ face }) {
-      const indexFace = WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces.findIndex(
-        (f) => f === face,
-      );
-      range(0, WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces.length - 1).map((i) => {
+      const indexFace = WorldCyberiaType[
+        WorldCyberiaManagement.Data['user']['main'].model.world.type
+      ].worldFaces.findIndex((f) => f === face);
+      range(
+        0,
+        WorldCyberiaType[WorldCyberiaManagement.Data['user']['main'].model.world.type].worldFaces.length - 1,
+      ).map((i) => {
         htmls(
           `.map-face-symbol-text-${i}`,
           html`
-            ${WorldManagement.Data['user']['main'].model.world.instance[i].type}
+            ${WorldCyberiaManagement.Data['user']['main'].model.world.instance[i].type}
             <br />
-            ${WorldType[WorldManagement.Data['user']['main'].model.world.type].worldFaces[i]}
+            ${WorldCyberiaType[WorldCyberiaManagement.Data['user']['main'].model.world.type].worldFaces[i]}
           `,
         );
         s(`.map-face-slot-${i}`).style.background = `#80751980`;
@@ -70,15 +73,15 @@ const InteractionPanel = {
         style.top = '160px';
 
         render = async () => html`<span class="display-current-element" style="${borderChar(2, 'black')}"></span>`;
-        PointAndClickMovement.Event[id] = ({ x, y }) => {
+        PointAndClickMovementCyberia.Event[id] = ({ x, y }) => {
           let mainUserPanel = false;
           for (const type of ['user', 'bot']) {
-            for (const elementId of Object.keys(Elements.Data[type])) {
+            for (const elementId of Object.keys(ElementsCyberia.Data[type])) {
               if (
                 isElementCollision({
                   A: { x, y, dim: 1 },
-                  B: Elements.Data[type][elementId],
-                  dimPaintByCell: Matrix.Data.dimPaintByCell,
+                  B: ElementsCyberia.Data[type][elementId],
+                  dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
                 })
               ) {
                 if (type === 'user' && elementId === 'main') mainUserPanel = true;
@@ -134,4 +137,4 @@ const InteractionPanel = {
   },
 };
 
-export { InteractionPanel };
+export { InteractionPanelCyberia };
