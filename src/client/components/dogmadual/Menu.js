@@ -80,7 +80,7 @@ const Menu = {
           const srcLogo = darkTheme
             ? `${getProxyPath()}assets/logo/dogmadual-white-t.png`
             : `${getProxyPath()}assets/logo/dogmadual-black-t.png`;
-          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';

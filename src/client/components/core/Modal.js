@@ -10,6 +10,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
 import { Input } from './Input.js';
+import { Validator } from './Validator.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -32,11 +33,16 @@ const Modal = {
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
     options.heightTopBar = options.heightTopBar + options.heightBottomBar;
     options.heightBottomBar = 0;
-    const ResponsiveData = Responsive.getResponsiveData();
     let width = 300;
     let height = 400;
-    let top = `${ResponsiveData.height / 2 - height / 2}px`;
-    let left = `${ResponsiveData.width / 2 - width / 2}px`;
+    let top = 0;
+    let left = 0;
+    const setCenterRestore = () => {
+      const ResponsiveData = Responsive.getResponsiveData();
+      top = `${ResponsiveData.height / 2 - height / 2}px`;
+      left = `${ResponsiveData.width / 2 - width / 2}px`;
+    };
+    setCenterRestore();
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const slideMenuWidth = 320;
     const minWidth = width;
@@ -178,18 +184,26 @@ const Modal = {
             };
             transition += `, width 0.3s`;
 
+            const inputSearchBoxId = `top-bar-search-box`;
             append(
               'body',
               html` <div class="fix modal slide-menu-top-bar">
                 <div class="fl top-bar" style="height: ${originHeightTopBar}px;">
                   ${await BtnIcon.Render({
                     style: `height: 100%`,
-                    class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-app-icon',
-                    label: html` <div class="${contentIconClass} bottom-btn-app-icon-render"></div>`,
+                    class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
+                    label: html` <div class="${contentIconClass} action-btn-close-render">
+                      <i class="fa-solid fa-xmark"></i>
+                    </div>`,
+                  })}
+                  ${await BtnIcon.Render({
+                    style: `height: 100%`,
+                    class: 'in fll main-btn-menu action-bar-box action-btn-app-icon',
+                    label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
                   })}
                   <div class="in fll top-bar-search-box-container hover">
                     ${await Input.Render({
-                      id: `top-bar-search-box`,
+                      id: inputSearchBoxId,
                       placeholder: Translate.Render('search', '.top-bar-search-box'), // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
                       placeholderIcon: html`<div
                         class="in fll"
@@ -204,13 +218,24 @@ const Modal = {
                 </div>
               </div>`,
             );
+            const formDataInfoNode = [
+              { model: 'search-box', id: inputSearchBoxId, rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/ },
+            ];
+            s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
+            htmls(`.input-info-${inputSearchBoxId}`, '');
+            const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
+            s(`.input-info-${inputSearchBoxId}`).remove();
             {
               let hoverHistBox = false;
               let hoverInputBox = false;
               const id = 'search-box-history';
               const searchBoxHistoryClose = () =>
                 setTimeout(() => {
-                  if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) Modal.removeModal(id);
+                  if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) {
+                    Modal.removeModal(id);
+                    s(`.action-btn-app-icon`).classList.remove('hide');
+                    s(`.action-btn-close`).classList.add('hide');
+                  }
                 });
 
               const searchBoxHistoryOpen = async () => {
@@ -222,6 +247,7 @@ const Modal = {
                   barConfig.buttons.minimize.disabled = true;
                   barConfig.buttons.restore.disabled = true;
                   barConfig.buttons.menu.disabled = true;
+                  barConfig.buttons.close.disabled = true;
                   await Modal.Render({
                     id,
                     barConfig,
@@ -251,6 +277,16 @@ const Modal = {
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('in');
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('fll');
                   s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
+
+                  s(`.action-btn-app-icon`).classList.add('hide');
+                  s(`.action-btn-close`).classList.remove('hide');
+                  this.Data[id].onCloseListener[id] = () => {
+                    s(`.action-btn-app-icon`).classList.remove('hide');
+                    s(`.action-btn-close`).classList.add('hide');
+                  };
+
+                  prepend(`.btn-bar-modal-container-${id}`, inputInfoNode.outerHTML);
+                  const searchBoxValidator = await Validator.instance(formDataInfoNode);
 
                   s('.top-bar-search-box').onblur = searchBoxHistoryClose;
                   s(`.top-bar-search-box-container`).onmouseover = () => {
@@ -369,7 +405,7 @@ const Modal = {
                     .bottom-bar {
                       overflow: hidden;
                     }
-                    .bottom-bar-btn {
+                    .action-bar-box {
                       margin: 0px;
                       border: none;
                       width: 50px;
@@ -378,7 +414,7 @@ const Modal = {
                   <div class="fl" style="height: ${originHeightBottomBar}px;">
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in fll main-btn-menu bottom-bar-btn bottom-btn-center',
+                      class: 'in fll main-btn-menu action-bar-box action-btn-center',
                       label: html`
                         <div class="${contentIconClass}">
                           <i class="far fa-square btn-bar-center-icon-square hide"></i>
@@ -389,27 +425,27 @@ const Modal = {
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-lang',
-                      label: html` <div class="${contentIconClass} bottom-btn-lang-render"></div>`,
+                      class: 'in flr main-btn-menu action-bar-box action-btn-lang',
+                      label: html` <div class="${contentIconClass} action-btn-lang-render"></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-theme',
-                      label: html` <div class="${contentIconClass} bottom-btn-theme-render"></div>`,
+                      class: 'in flr main-btn-menu action-bar-box action-btn-theme',
+                      label: html` <div class="${contentIconClass} action-btn-theme-render"></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-home',
+                      class: 'in flr main-btn-menu action-bar-box action-btn-home',
                       label: html` <div class="${contentIconClass}"><i class="fas fa-home"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-right',
+                      class: 'in flr main-btn-menu action-bar-box action-btn-right',
                       label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu bottom-bar-btn bottom-btn-left',
+                      class: 'in flr main-btn-menu action-bar-box action-btn-left',
                       label: html`<div class="${contentIconClass}"><i class="fas fa-chevron-left"></i></div>`,
                     })}
                   </div>
@@ -441,47 +477,47 @@ const Modal = {
                   };
                   Responsive.Event[`view-${id}`]();
                 }
-                s(`.bottom-btn-left`).onclick = (e) => {
+                s(`.action-btn-left`).onclick = (e) => {
                   e.preventDefault();
                   window.history.back();
                 };
-                s(`.bottom-btn-center`).onclick = (e) => {
+                s(`.action-btn-center`).onclick = (e) => {
                   e.preventDefault();
                   // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
                   if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
                   if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
                 };
-                s(`.bottom-btn-right`).onclick = (e) => {
+                s(`.action-btn-right`).onclick = (e) => {
                   e.preventDefault();
                   window.history.forward();
                 };
-                s(`.bottom-btn-home`).onclick = () => s(`.main-btn-home`).click();
-                s(`.bottom-btn-app-icon`).onclick = () => location.reload();
+                s(`.action-btn-home`).onclick = () => s(`.main-btn-home`).click();
+                s(`.action-btn-app-icon`).onclick = () => s(`.action-btn-home`).click();
               }
 
               {
-                ThemeEvents['bottom-btn-theme'] = () => {
+                ThemeEvents['action-btn-theme'] = () => {
                   htmls(
-                    `.bottom-btn-theme-render`,
+                    `.action-btn-theme-render`,
                     html` ${darkTheme ? html` <i class="fas fa-moon"></i>` : html`<i class="far fa-sun"></i>`}`,
                   );
                 };
-                ThemeEvents['bottom-btn-theme']();
+                ThemeEvents['action-btn-theme']();
 
-                EventsUI.onClick(`.bottom-btn-theme`, async () => {
+                EventsUI.onClick(`.action-btn-theme`, async () => {
                   const themePair = ThemesScope.find((t) => t.theme === Css.currentTheme).themePair;
                   const theme = themePair ? themePair : ThemesScope.find((t) => t.dark === !darkTheme).theme;
                   if (s(`.dropdown-option-${theme}`)) s(`.dropdown-option-${theme}`).click();
                   else await Themes[theme]();
                 });
                 if (!(ThemesScope.find((t) => t.dark) && ThemesScope.find((t) => !t.dark))) {
-                  s(`.bottom-btn-theme`).classList.add('hide');
+                  s(`.action-btn-theme`).classList.add('hide');
                 }
               }
 
               {
-                htmls(`.bottom-btn-lang-render`, html` ${s('html').lang}`);
-                EventsUI.onClick(`.bottom-btn-lang`, () => {
+                htmls(`.action-btn-lang-render`, html` ${s('html').lang}`);
+                EventsUI.onClick(`.action-btn-lang`, () => {
                   let lang = 'en';
                   if (s('html').lang === 'en') lang = 'es';
                   if (s(`.dropdown-option-${lang}`)) s(`.dropdown-option-${lang}`).click();
@@ -606,7 +642,7 @@ const Modal = {
         <div class="in modal-html-${idModal}">
           <div class="stq bar-default-modal bar-default-modal-${idModal}">
             <div
-              class="in btn-bar-modal-container btn-bar-modal-container-${idModal} ${options?.btnBarModalClass
+              class="fl btn-bar-modal-container btn-bar-modal-container-${idModal} ${options?.btnBarModalClass
                 ? options.btnBarModalClass
                 : ''}"
             >
@@ -789,6 +825,7 @@ const Modal = {
       s(`.${idModal}`).style.transform = null;
       s(`.${idModal}`).style.height = null;
       s(`.${idModal}`).style.width = null;
+      setCenterRestore();
       s(`.${idModal}`).style.top = top;
       s(`.${idModal}`).style.left = left;
       dragInstance = setDragInstance();

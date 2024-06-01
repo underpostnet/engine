@@ -50,7 +50,7 @@ const Input = {
         ${options?.label ? html`<div class="in input-label input-label-${id}">${options.label}</div>` : ''}
         ${options.type === 'password' && !options.disabledEye
           ? html`
-              <div class="fl">
+              <div class="fl input-row-${id}">
                 <div class="in fll" style="width: 80%;">${inputElement}</div>
                 <div class="in fll btn-eye-password btn-eye-${id}" style="width: 20%;">
                   <i class="fas fa-eye fa-eye-${id} eye-password"></i>
@@ -59,7 +59,7 @@ const Input = {
               </div>
             `
           : options?.placeholderIcon
-          ? html` <div class="fl">${options.placeholderIcon} ${inputElement}</div> `
+          ? html` <div class="fl input-row-${id}">${options.placeholderIcon} ${inputElement}</div> `
           : inputElement}
         <div class="in input-info input-info-${id}">&nbsp</div>
       </div>

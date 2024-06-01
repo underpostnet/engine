@@ -78,7 +78,7 @@ const Menu = {
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
           const srcLogo = `${getProxyPath()}assets/logo/cryptokoyn.png`;
-          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';

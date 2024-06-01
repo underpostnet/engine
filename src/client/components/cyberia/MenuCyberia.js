@@ -142,7 +142,7 @@ const MenuCyberia = {
           const srcLogo = darkTheme
             ? `${getProxyPath()}assets/splash/favicon-white-alpha.png`
             : `${getProxyPath()}assets/splash/favicon-black-alpha.png`;
-          htmls('.bottom-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';

@@ -99,7 +99,7 @@ const Menu = {
         ThemeEvents['titleRender'] = () => {
           const srcLogo = `${getProxyPath()}assets/splash/mstile-144x144.png`;
           htmls(
-            '.bottom-btn-app-icon-render',
+            '.action-btn-app-icon-render',
             html`<img
               class="inl top-bar-app-icon"
               src="${srcLogo}"

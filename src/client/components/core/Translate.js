@@ -39,7 +39,7 @@ const Translate = {
   renderLang: function (language) {
     localStorage.setItem('lang', language);
     this.Parse(language);
-    if (s(`.bottom-btn-lang-render`)) htmls(`.bottom-btn-lang-render`, s('html').lang);
+    if (s(`.action-btn-lang-render`)) htmls(`.action-btn-lang-render`, s('html').lang);
   },
   RenderSetting: async function () {
     return html` <div class="in section-mp">

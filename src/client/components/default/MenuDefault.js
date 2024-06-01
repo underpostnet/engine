@@ -84,7 +84,7 @@ const MenuDefault = {
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
-      titleRender: () => htmls(`.bottom-btn-app-icon-render`, html`APP`),
+      titleRender: () => htmls(`.action-btn-app-icon-render`, html`APP`),
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,
