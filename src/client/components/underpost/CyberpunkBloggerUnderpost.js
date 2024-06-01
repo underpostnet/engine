@@ -27,19 +27,7 @@ const CyberpunkBloggerUnderpost = {
         s(`.slide-menu-top-bar`).classList.add('hide');
       });
     }
-    let render = html`
-      <style>
-        a {
-          color: #d0d0d0;
-          margin: 3px;
-        }
-        a:hover {
-          color: white;
-          margin: 3px;
-        }
-      </style>
-      ${renderBlog}
-    `;
+    let render = html`${renderBlog} `;
 
     return html` ${render} 
     <b>Metacultural</b><br /><br />

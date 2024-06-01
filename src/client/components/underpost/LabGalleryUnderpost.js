@@ -52,6 +52,12 @@ const LabGalleryUnderpost = {
         };
       });
       render += html`
+        <style>
+          .iframe-gallery {
+            border: none;
+            min-height: 400px;
+          }
+        </style>
         <div class="in">
           ${await BtnIcon.Render({
             class: `wfa btn-lab-gallery btn-${viewLabId}`,
