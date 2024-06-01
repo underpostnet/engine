@@ -3,14 +3,14 @@ import { s4 } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsBms } from './ElementsBms.js';
 
 const logger = loggerFactory(import.meta);
 
 const SocketIoBms = {
   Init: function () {
     return new Promise((resolve) => {
-      for (const type of Object.keys(Elements.Data)) {
+      for (const type of Object.keys(ElementsBms.Data)) {
         SocketIo.Event[type][s4()] = async (args) => {
           args = JSON.parse(args[0]);
           switch (type) {
@@ -24,10 +24,10 @@ const SocketIoBms = {
         };
       }
       SocketIo.Event.connect[s4()] = async (reason) => {
-        // Elements.Init({ type, id, element });
+        // ElementsBms.Init({ type, id, element });
       };
       SocketIo.Event.disconnect[s4()] = async (reason) => {
-        // Elements.removeAll();
+        // ElementsBms.removeAll();
       };
       return resolve();
     });

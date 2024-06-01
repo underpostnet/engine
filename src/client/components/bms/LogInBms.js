@@ -2,7 +2,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsBms } from './ElementsBms.js';
 
 const LogInBms = async function () {
   LogIn.Event['LogInBms'] = async (options) => {
@@ -10,7 +10,7 @@ const LogInBms = async function () {
 
     localStorage.setItem('jwt', token);
     Auth.setToken(token);
-    Elements.Data.user.main.model.user = user;
+    ElementsBms.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';
     s(`.main-btn-sign-up`).style.display = 'none';
