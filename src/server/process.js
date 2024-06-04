@@ -32,6 +32,13 @@ const ProcessController = {
     return this.SIG.map((sig) =>
       process.on(sig, (...args) => {
         this.logger.info(`process on ${sig}`, args);
+        switch (sig) {
+          case 'SIGINT':
+            return process.exit();
+
+          default:
+            break;
+        }
       }),
     );
   },
