@@ -129,13 +129,13 @@ const buildClient = async () => {
         });
 
       if (components)
-        Object.keys(components).map((module) => {
+        for (const module of Object.keys(components)) {
           if (!fs.existsSync(`${rootClientPath}/components/${module}`))
             fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
 
-          components[module].map((component) => {
+          for (const component of components[module]) {
             const jsSrc = componentFormatted(
-              srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
+              await srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
               module,
               dists,
               path,
@@ -147,8 +147,8 @@ const buildClient = async () => {
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
-          });
-        });
+          }
+        }
 
       if (services)
         for (const module of services) {
@@ -156,7 +156,7 @@ const buildClient = async () => {
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
 
           const jsSrc = componentFormatted(
-            srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
+            await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
             module,
             dists,
             path,
@@ -184,7 +184,7 @@ const buildClient = async () => {
           logger.info('View build', buildPath);
 
           const jsSrc = viewFormatted(
-            srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')),
+            await srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')),
             dists,
             path,
             baseHost,
@@ -212,7 +212,7 @@ const buildClient = async () => {
           // build service worker
           if (path === '/') {
             const jsSrc = viewFormatted(
-              srcFormatted(
+              await srcFormatted(
                 fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
                   ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
                   : fs.readFileSync(`./src/client/sw/default.sw.js`, 'utf8'),
@@ -237,7 +237,9 @@ const buildClient = async () => {
 
             for (const ssrHeadComponent of confSSR[view.ssr].head) {
               let SrrComponent;
-              eval(srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')));
+              eval(
+                await srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')),
+              );
 
               switch (ssrHeadComponent) {
                 case 'Pwa':
@@ -319,13 +321,15 @@ const buildClient = async () => {
 
             for (const ssrBodyComponent of confSSR[view.ssr].body) {
               let SrrComponent;
-              eval(srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')));
+              eval(
+                await srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')),
+              );
               ssrBodyComponents += SrrComponent();
             }
           }
 
           let Render = () => '';
-          eval(srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
+          eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
           const htmlSrc = Render({
             title,

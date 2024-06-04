@@ -40,6 +40,7 @@ const Config = {
             'CssCore',
             'HomeBackground',
             'Worker',
+            'FullScreen',
           ],
           default: [
             'MenuDefault',

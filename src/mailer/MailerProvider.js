@@ -41,7 +41,7 @@ const MailerProvider = {
       this.instance[id] = {
         ...options,
         transporter,
-        templates: EmailRender.getTemplates(options),
+        templates: await EmailRender.getTemplates(options),
       };
 
       return this.instance[id];

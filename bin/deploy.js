@@ -264,7 +264,7 @@ try {
       }
       break;
 
-    case 'sync-package':
+    case 'update-package':
       const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
       const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
       for (const relativePath of files) {
