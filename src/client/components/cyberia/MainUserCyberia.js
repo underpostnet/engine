@@ -242,11 +242,8 @@ const MainUserCyberia = {
     };
 
     SkillCyberia.setMainKeysSkillCyberia();
-    // Slot.coin.update({ bagId: 'cyberia-bag', type, id });
     await BagCyberia.updateAll({ bagId: 'cyberia-bag', type, id });
-    // console.log(type, id, ElementsCyberia.Data[type][id]);
-    // PixiCyberia.setComponents({ type, id });
-    PixiCyberia.setDisplayComponent({ type, id });
+    PixiCyberia.setComponents({ type, id });
     CharacterCyberia.renderCharacterCyberiaStat();
     PixiCyberia.updateLife({ type, id });
     PixiCyberia.setUsername({ type, id });
@@ -254,24 +251,6 @@ const MainUserCyberia = {
     PixiCyberia.topLevelCallBack({ type, id });
 
     LoadingAnimation.removeSplashScreen();
-  },
-  renderPixiCyberiaMainUserCyberiaBackground: function () {
-    const type = 'user';
-    const id = 'main';
-    const dim =
-      (PixiCyberia.MetaData.dim / MatrixCyberia.Data.dim) *
-      MatrixCyberia.Data.dimAmplitude *
-      ElementsCyberia.Data.user.main.dim;
-    if (this.MainUserCyberiaBackground) this.MainUserCyberiaBackground.destroy();
-
-    this.MainUserCyberiaBackground = new Sprite(); // Texture.WHITE
-    this.MainUserCyberiaBackground.x = -1 * dim * 0.25; // PixiCyberia.MetaData.dim / 2; //  - backgroundWidth / 2;
-    this.MainUserCyberiaBackground.y = -1 * dim * 0.25; // PixiCyberia.MetaData.dim / 2; //  - backgroundWidth / 2;
-    this.MainUserCyberiaBackground.width = dim * 1.5;
-    this.MainUserCyberiaBackground.height = dim * 1.5;
-    // this.MainUserCyberiaBackground.tint = `#ffffff00`;
-    this.MainUserCyberiaBackground.visible = true;
-    PixiCyberia.Data[type][id].components['layer-1'].container.addChild(this.MainUserCyberiaBackground);
   },
 };
 

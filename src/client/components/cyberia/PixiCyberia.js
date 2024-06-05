@@ -149,6 +149,23 @@ const PixiCyberia = {
     this.Data.biome.floorContainer.y = 0;
     this.App.stage.addChild(this.Data.biome.floorContainer);
 
+    // elements container
+    {
+      const channelType = 'elements';
+      this.Data[channelType] = {};
+      this.Data[channelType].container = new Container();
+      this.Data[channelType].container.width = this.MetaData.dim;
+      this.Data[channelType].container.height = this.MetaData.dim;
+      this.Data[channelType].container.x = 0;
+      this.Data[channelType].container.y = 0;
+      this.App.stage.addChild(this.Data[channelType].container);
+
+      if (this.zOrderInterval) clearInterval(this.zOrderInterval);
+      this.zOrderInterval = setInterval(() => {
+        this.Data[channelType].container.children.sort((itemA, itemB) => itemA.zIndex - itemB.zIndex);
+      }, CyberiaParams.EVENT_CALLBACK_TIME);
+    }
+
     // channels container
 
     for (const channelType of Object.keys(ElementsCyberia.Data)) {
@@ -222,16 +239,21 @@ const PixiCyberia = {
       );
     }
   },
+  setZIndex: function ({ type, id, dim }) {
+    this.Data[type][id].zIndex = newInstance(
+      dim * ElementsCyberia.Data[type][id].y + dim * ElementsCyberia.Data[type][id].dim,
+    );
+  },
   setComponents: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
     let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     if (this.Data[type][id]) this.removeElement({ type, id });
     this.Data[type][id] = new Container();
     this.Data[type][id].width = dim * ElementsCyberia.Data[type][id].dim;
     this.Data[type][id].height = dim * ElementsCyberia.Data[type][id].dim;
     this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
     this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+    this.setZIndex({ type, id, dim });
     this.Data[type][id].components = {
       'layer-1': { container: new Container() },
       layer0: { container: new Container() },
@@ -251,12 +273,7 @@ const PixiCyberia = {
 
     this.Data[type][id].intervals = {};
     let index;
-    if (type === 'user' && id === 'main') {
-      this.Data[type][id].x = this.MetaData.dim / 2 - dim * ElementsCyberia.Data[type][id].x * 0.5;
-      this.Data[type][id].y = this.MetaData.dim / 2 - dim * ElementsCyberia.Data[type][id].y * 0.5;
-      MainUserCyberia.PixiCyberiaMainUserCyberia.stage.addChild(this.Data[type][id]);
-      MainUserCyberia.renderPixiCyberiaMainUserCyberiaBackground();
-    } else this.Data[type].container.addChild(this.Data[type][id]);
+    this.Data['elements'].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(ElementsCyberia.Data[type][id].components)) {
       if (!this.Data[type][id].components[componentType]) this.Data[type][id].components[componentType] = {};
       if (!this.Data[type][id].intervals[componentType]) this.Data[type][id].intervals[componentType] = {};
@@ -372,7 +389,7 @@ const PixiCyberia = {
                   new TextStyle({
                     fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
+                    fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,
@@ -426,7 +443,7 @@ const PixiCyberia = {
                   new TextStyle({
                     fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
+                    fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,
@@ -459,7 +476,6 @@ const PixiCyberia = {
     const { type, id } = options;
 
     let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
 
     for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
       if (!this.Data[type][id].components[componentType]) continue;
@@ -597,12 +613,10 @@ const PixiCyberia = {
       }
     }
     this.updateLifeBarWidth({ type, id, dim });
-    if (type === 'user' && id === 'main') MainUserCyberia.renderPixiCyberiaMainUserCyberiaBackground();
   },
   updateLife: function (options) {
     const { type, id } = options;
     let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     this.Data[type][id].components['lifeBar'].width =
       dim *
       ElementsCyberia.Data[type][id].dim *
@@ -636,11 +650,11 @@ const PixiCyberia = {
         status: 'update-position',
         element: { x: ElementsCyberia.Data[type][id].x, y: ElementsCyberia.Data[type][id].y },
       });
-    } else {
-      const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-      this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
-      this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
     }
+    const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+    this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+    this.setZIndex({ type, id, dim });
   },
   topLevelCallBack: function ({ type, id }) {
     if (!BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId]) return;
@@ -772,7 +786,6 @@ const PixiCyberia = {
     // https://pixijs.io/pixi-text-style/#
     const componentType = 'username';
     let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    if (type === 'user' && id === 'main') dim = dim * MatrixCyberia.Data.dimAmplitude;
     {
       if (this.Data[type][id].components[componentType] && this.Data[type][id].components[componentType].container)
         this.Data[type][id].components[componentType].container.destroy();
@@ -791,7 +804,7 @@ const PixiCyberia = {
           new TextStyle({
             fill: '#dcdcdc',
             fontFamily: 'retro-font-sensitive',
-            fontSize: 100 * (type === 'user' && id === 'main' ? 1 : 1 / MatrixCyberia.Data.dimAmplitude),
+            fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
             // fontWeight: 'bold',
             dropShadow: true,
             dropShadowAngle: 1,
