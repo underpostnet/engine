@@ -1,5 +1,5 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { getId, newInstance, range, round10, timer } from '../core/CommonJs.js';
+import { getId, insertTransitionCoordinates, newInstance, range, round10, timer } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { MatrixCyberia } from './MatrixCyberia.js';
@@ -175,6 +175,52 @@ const PixiCyberia = {
       this.Data[channelType].container.x = 0;
       this.Data[channelType].container.y = 0;
       this.App.stage.addChild(this.Data[channelType].container);
+    }
+
+    {
+      const id = 'main';
+      const type = 'user';
+      const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+      const timeInterval = CyberiaParams.EVENT_CALLBACK_TIME * 4;
+      const frames = 20;
+
+      let lastX;
+      let lastY;
+
+      setInterval(() => {
+        if (!this.Data[type] || !this.Data[type][id] || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id])
+          return;
+        if (lastX === undefined || lastY === undefined) {
+          lastX = newInstance(ElementsCyberia.Data[type][id].x);
+          lastY = newInstance(ElementsCyberia.Data[type][id].y);
+          return;
+        }
+        const x1 = lastX;
+        const y1 = lastY;
+        const x2 = ElementsCyberia.Data[type][id].x;
+        const y2 = ElementsCyberia.Data[type][id].y;
+        lastX = newInstance(ElementsCyberia.Data[type][id].x);
+        lastY = newInstance(ElementsCyberia.Data[type][id].y);
+        const path = insertTransitionCoordinates(
+          [
+            [x1, y1],
+            [x2, y2],
+          ],
+          frames,
+        );
+        for (const time of range(0, frames - 1)) {
+          setTimeout(() => {
+            if (this.Data[type] && this.Data[type][id]) {
+              const [x, y] = path[time];
+              this.Data[type][id].x = dim * x;
+              this.Data[type][id].y = dim * y;
+              // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+              // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+              MatrixCyberia.UpdateAllCamera();
+            }
+          }, time * (timeInterval / frames));
+        }
+      }, timeInterval);
     }
   },
   currentBiomeCyberiaContainer: String,
@@ -652,8 +698,14 @@ const PixiCyberia = {
       });
     }
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
-    this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+    if (type === 'user' && id === 'main' && !this.positionUpdateId) {
+      // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+      // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+    } else {
+      this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+      this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+    }
+
     this.setZIndex({ type, id, dim });
   },
   topLevelCallBack: function ({ type, id }) {

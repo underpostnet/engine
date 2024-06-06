@@ -25,18 +25,11 @@ const MatrixCyberia = {
       );
     },
   },
-  InitCamera: async function (options = { type: 'user', id: 'main' }) {
+  UpdateAllCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    if (!ElementsCyberia.Interval[type][id]['camera']) {
-      await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
-      await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
-      await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
-      ElementsCyberia.Interval[type][id]['camera'] = setInterval(async () => {
-        await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
-        await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
-        await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
-      }, CyberiaParams.EVENT_CALLBACK_TIME);
-    }
+    await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
+    await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
+    await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
   },
   UpdateAdjacentLimit: function (params) {
     const { leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;
