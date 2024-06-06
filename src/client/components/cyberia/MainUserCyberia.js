@@ -49,7 +49,6 @@ const MainUserCyberia = {
     } catch (error) {
       console.error(error);
     }
-    MatrixCyberia.InitCamera({ type, id });
 
     const idEvent = `${type}.${id}`;
 
