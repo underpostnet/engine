@@ -192,6 +192,7 @@ const WorldCyberiaManagement = {
   },
   EmitNewWorldCyberiaFace: (options) => {
     const { type, id } = options;
+    if (type === 'user' && id === 'main') ElementsCyberia.LocalDataScope[type][id].isChangeFace = true;
     for (const elementType of Object.keys(ElementsCyberia.Data)) {
       for (const elementId of Object.keys(ElementsCyberia.Data[elementType])) {
         if (elementId !== 'main') {
