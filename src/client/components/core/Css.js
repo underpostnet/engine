@@ -87,7 +87,9 @@ const Css = {
           }
 
           .wfa {
-            width: -webkit-fill-available;
+            width: -moz-available; /* WebKit-based browsers will ignore this. */
+            width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
+            width: fill-available;
           }
 
           .no-drag {
