@@ -27,9 +27,9 @@ const MatrixCyberia = {
   },
   UpdateAllCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    await this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
-    await this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
-    await this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
+    this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
+    this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
+    this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
   },
   UpdateAdjacentLimit: function (params) {
     const { leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;

@@ -8,7 +8,7 @@ import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
-import { append, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, s } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
@@ -250,6 +250,31 @@ const MainUserCyberia = {
     PixiCyberia.topLevelCallBack({ type, id });
 
     LoadingAnimation.removeSplashScreen();
+  },
+  renderCenterRedTriangle: function () {
+    // const fontSize = 1;
+    if (!this.MainUserCyberiaContainer) {
+      const dim = PixiCyberia.MetaData.dim / 5;
+
+      this.MainUserCyberiaContainer = new Container();
+      this.MainUserCyberiaContainer.x = PixiCyberia.MetaData.dim / 2 - (dim * 3) / 2;
+      this.MainUserCyberiaContainer.y = PixiCyberia.MetaData.dim / 2 - dim / 2;
+      this.MainUserCyberiaContainer.width = dim * 3;
+      this.MainUserCyberiaContainer.height = dim;
+      this.MainUserCyberiaContainer.visible = true;
+
+      // this.MainUserCyberiaBackground = new Sprite(Texture.WHITE);
+      // this.MainUserCyberiaBackground.tint = `#ff0000ff`;
+      this.MainUserCyberiaBackground = Sprite.from(`${getProxyPath()}assets/util/down-pj-pointer.png`);
+      this.MainUserCyberiaBackground.x = 0;
+      this.MainUserCyberiaBackground.y = 0;
+      this.MainUserCyberiaBackground.width = dim * 3;
+      this.MainUserCyberiaBackground.height = dim;
+      this.MainUserCyberiaBackground.visible = true;
+
+      this.MainUserCyberiaContainer.addChild(this.MainUserCyberiaBackground);
+      this.PixiCyberiaMainUserCyberia.stage.addChild(this.MainUserCyberiaContainer);
+    }
   },
 };
 

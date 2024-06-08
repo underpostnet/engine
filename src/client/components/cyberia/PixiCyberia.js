@@ -1,5 +1,13 @@
 import { s, append, getProxyPath } from '../core/VanillaJs.js';
-import { getId, insertTransitionCoordinates, newInstance, range, round10, timer } from '../core/CommonJs.js';
+import {
+  getDistance,
+  getId,
+  insertTransitionCoordinates,
+  newInstance,
+  range,
+  round10,
+  timer,
+} from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 
 import { MatrixCyberia } from './MatrixCyberia.js';
@@ -182,7 +190,6 @@ const PixiCyberia = {
       const type = 'user';
       const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
       const timeInterval = CyberiaParams.EVENT_CALLBACK_TIME * 4;
-      const frames = 20;
 
       let lastX;
       let lastY;
@@ -199,8 +206,19 @@ const PixiCyberia = {
         const y1 = lastY;
         const x2 = ElementsCyberia.Data[type][id].x;
         const y2 = ElementsCyberia.Data[type][id].y;
+        const frameFactor = 10;
+        let frames = round10(getDistance(x1, y1, x2, y2) * frameFactor);
+        if (frames === 0) frames = 1;
         lastX = newInstance(ElementsCyberia.Data[type][id].x);
         lastY = newInstance(ElementsCyberia.Data[type][id].y);
+        if (ElementsCyberia.LocalDataScope[type][id].isChangeFace) {
+          delete ElementsCyberia.LocalDataScope[type][id].isChangeFace;
+          const x = lastX;
+          const y = lastY;
+          this.Data[type][id].x = dim * x;
+          this.Data[type][id].y = dim * y;
+          return;
+        }
         const path = insertTransitionCoordinates(
           [
             [x1, y1],
