@@ -317,6 +317,13 @@ const getProxyPath = () => {
   return path;
 };
 
+/**
+ * The function `isNavigator` checks if the user agent string contains a specified name.
+ * @param name - The `name` parameter is a string that represents the name of a browser or device to
+ * check against the user agent string of the browser.
+ */
+const isNavigator = (name) => navigator.userAgent.toLowerCase().match(name.toLowerCase());
+
 export {
   s,
   htmls,
@@ -338,4 +345,5 @@ export {
   getProxyPath,
   getRawContentFile,
   getBlobFromUint8ArrayFile,
+  isNavigator,
 };
