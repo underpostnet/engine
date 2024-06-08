@@ -4,6 +4,7 @@ import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
+import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -18,13 +19,14 @@ const InteractionPanelCyberia = {
         `.display-current-element`,
         html`${type} <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>`,
       );
-      setTimeout(() => {
+      setTimeout(async () => {
         if (!InteractionPanelCyberia.Data['element-interaction-panel']) return;
         PixiCyberia.displayPointerArrow({
           oldElement: InteractionPanelCyberia.Data['element-interaction-panel'].element.current,
           newElement: { type, id },
         });
         InteractionPanelCyberia.Data['element-interaction-panel'].element.current = { type, id };
+        await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
       });
     },
     map: function ({ face }) {
@@ -71,8 +73,10 @@ const InteractionPanelCyberia = {
     switch (id) {
       case 'element-interaction-panel':
         style.top = '160px';
-
-        render = async () => html`<span class="display-current-element" style="${borderChar(2, 'black')}"></span>`;
+        style.height = '200px';
+        render = async () =>
+          html`<div class="in"><span class="display-current-element" style="${borderChar(2, 'black')}"></span></div>
+            <div class="in">${await ElementPreviewCyberia.Render({ renderId: 'element-interaction-panel' })}</div>`;
         PointAndClickMovementCyberia.Event[id] = ({ x, y }) => {
           let mainUserPanel = false;
           for (const type of ['user', 'bot']) {
@@ -96,7 +100,7 @@ const InteractionPanelCyberia = {
         };
         break;
       case 'map-interaction-panel':
-        style.top = '211px';
+        style.top = `${411 - 40}px`;
         // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
         render = async () => html`
           <div class="fl">
