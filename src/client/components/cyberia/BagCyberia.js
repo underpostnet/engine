@@ -555,7 +555,7 @@ const Slot = {
         html` <div class="abs bag-slot-count">
             <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBagCyberia}">0</span></div>
           </div>
-          <div class="abs center xp-icon">XP</div>
+          <div class="abs center text-icon">XP</div>
           <div class="in bag-slot-type-text">experience</div>
           <div class="in bag-slot-name-text">level 0</div>`,
       );

@@ -354,7 +354,7 @@ const CssCyberiaDark = {
             font-size: 20px;
             text-align: center;
           }
-          .xp-icon {
+          .text-icon {
             font-size: 70px;
             color: black;
           }
@@ -562,6 +562,9 @@ const CssCyberiaDark = {
             width: 90%;
             height: 90%;
           }
+          .bag-slot:hover .text-icon {
+            font-size: 75px;
+          }
           .item-modal-section-cell {
             /* border: 2px solid red;
            min-height: 100px; */
@@ -642,7 +645,7 @@ const CssCyberiaDark = {
           '.text-btn-square-view-title',
           '.map-face-symbol-text',
         ])}
-        ${borderChar(2, 'yellow', ['.xp-icon'])}
+        ${borderChar(2, 'yellow', ['.text-icon'])}
       `
     );
   },
