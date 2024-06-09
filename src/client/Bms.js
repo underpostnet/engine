@@ -14,18 +14,20 @@ import { SocketIoBms } from './components/bms/SocketIoBms.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
-Worker.instance({
-  router: RouterBms,
-  render: async () => {
-    await Css.loadThemes();
-    await TranslateCore.Init();
-    await Responsive.Init();
-    await MenuBms.Render();
-    await SocketIo.Init({ channels: ElementsBms.Data });
-    await SocketIoBms.Init();
-    await LogInBms();
-    await LogOutBms();
-    await SignUpBms();
-    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  },
-});
+
+window.onload = () =>
+  Worker.instance({
+    router: RouterBms,
+    render: async () => {
+      await Css.loadThemes();
+      await TranslateCore.Init();
+      await Responsive.Init();
+      await MenuBms.Render();
+      await SocketIo.Init({ channels: ElementsBms.Data });
+      await SocketIoBms.Init();
+      await LogInBms();
+      await LogOutBms();
+      await SignUpBms();
+      await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+    },
+  });

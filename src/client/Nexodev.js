@@ -16,18 +16,19 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 
-Worker.instance({
-  router: RouterNexodev,
-  render: async () => {
-    await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
-    await TranslateCore.Init();
-    await Responsive.Init();
-    await Menu.Render();
-    await SocketIo.Init({ channels: Elements.Data });
-    await SocketIoNexodev.Init();
-    await LogInNexodev();
-    await LogOutNexodev();
-    await SignUpNexodev();
-    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterNexodev,
+    render: async () => {
+      await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
+      await TranslateCore.Init();
+      await Responsive.Init();
+      await Menu.Render();
+      await SocketIo.Init({ channels: Elements.Data });
+      await SocketIoNexodev.Init();
+      await LogInNexodev();
+      await LogOutNexodev();
+      await SignUpNexodev();
+      await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
+    },
+  });

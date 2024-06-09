@@ -12,17 +12,18 @@ import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyb
 import { Worker } from './components/core/Worker.js';
 import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberia-portal/CssCyberiaPortal.js';
 
-Worker.instance({
-  router: RouterCyberiaPortal,
-  render: async () => {
-    await Css.loadThemes([CssCyberiaPortalDark, CssCyberiaPortalLight]);
-    await TranslateCore.Init();
-    await TranslateCyberiaPortal.Init();
-    await Responsive.Init();
-    await MenuCyberiaPortal.Render();
-    await LogInCyberiaPortal();
-    await LogOutCyberiaPortal();
-    await SignUpCyberiaPortal();
-    // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterCyberiaPortal,
+    render: async () => {
+      await Css.loadThemes([CssCyberiaPortalDark, CssCyberiaPortalLight]);
+      await TranslateCore.Init();
+      await TranslateCyberiaPortal.Init();
+      await Responsive.Init();
+      await MenuCyberiaPortal.Render();
+      await LogInCyberiaPortal();
+      await LogOutCyberiaPortal();
+      await SignUpCyberiaPortal();
+      // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+    },
+  });

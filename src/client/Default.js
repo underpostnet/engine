@@ -13,17 +13,18 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 
-Worker.instance({
-  router: RouterDefault,
-  render: async () => {
-    await Css.loadThemes();
-    await TranslateCore.Init();
-    await TranslateDefault.Init();
-    await Responsive.Init();
-    await MenuDefault.Render();
-    await LogInDefault();
-    await LogOutDefault();
-    await SignUpDefault();
-    await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterDefault,
+    render: async () => {
+      await Css.loadThemes();
+      await TranslateCore.Init();
+      await TranslateDefault.Init();
+      await Responsive.Init();
+      await MenuDefault.Render();
+      await LogInDefault();
+      await LogOutDefault();
+      await SignUpDefault();
+      await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+    },
+  });

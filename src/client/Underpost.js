@@ -11,16 +11,17 @@ import { RouterUnderpost } from './components/underpost/RoutesUnderpost.js';
 import { TranslateUnderpost } from './components/underpost/TranslateUnderpost.js';
 import { Worker } from './components/core/Worker.js';
 
-Worker.instance({
-  router: RouterUnderpost,
-  render: async () => {
-    await Css.loadThemes();
-    await TranslateCore.Init();
-    await TranslateUnderpost.Init();
-    await Responsive.Init();
-    await MenuUnderpost.Render();
-    await LogInUnderpost();
-    await LogOutUnderpost();
-    await SignUpUnderpost();
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterUnderpost,
+    render: async () => {
+      await Css.loadThemes();
+      await TranslateCore.Init();
+      await TranslateUnderpost.Init();
+      await Responsive.Init();
+      await MenuUnderpost.Render();
+      await LogInUnderpost();
+      await LogOutUnderpost();
+      await SignUpUnderpost();
+    },
+  });

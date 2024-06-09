@@ -20,26 +20,28 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanelCyberia } from './components/cyberia/InteractionPanelCyberia.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { Worker } from './components/core/Worker.js';
-Worker.instance({
-  router: RouterCyberia,
-  render: async () => {
-    await Css.loadThemes([CssCyberiaDark]);
-    await TranslateCore.Init();
-    await TranslateCyberia.Init();
-    await MainUserCyberia.Render();
-    await PixiCyberia.Init();
-    await Responsive.Init();
-    await MenuCyberia.Render();
-    await SkillCyberia.renderMainKeysSlots();
-    await PointAndClickMovementCyberia.Render();
-    await InteractionPanelCyberia.Render({ id: 'map-interaction-panel' });
-    await InteractionPanelCyberia.Render({ id: 'element-interaction-panel' });
-    await SocketIo.Init({ channels: ElementsCyberia.Data });
-    await SocketIoCyberia.Init();
-    await LogOutCyberia();
-    await SignUpCyberia();
-    disableOptionsClick('html', ['drag', 'select', 'menu']);
-    await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
-    await JoyStickCyberia.Render();
-  },
-});
+
+window.onload = () =>
+  Worker.instance({
+    router: RouterCyberia,
+    render: async () => {
+      await Css.loadThemes([CssCyberiaDark]);
+      await TranslateCore.Init();
+      await TranslateCyberia.Init();
+      await MainUserCyberia.Render();
+      await PixiCyberia.Init();
+      await Responsive.Init();
+      await MenuCyberia.Render();
+      await SkillCyberia.renderMainKeysSlots();
+      await PointAndClickMovementCyberia.Render();
+      await InteractionPanelCyberia.Render({ id: 'map-interaction-panel' });
+      await InteractionPanelCyberia.Render({ id: 'element-interaction-panel' });
+      await SocketIo.Init({ channels: ElementsCyberia.Data });
+      await SocketIoCyberia.Init();
+      await LogOutCyberia();
+      await SignUpCyberia();
+      disableOptionsClick('html', ['drag', 'select', 'menu']);
+      await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
+      await JoyStickCyberia.Render();
+    },
+  });

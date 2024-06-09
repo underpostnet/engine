@@ -10,15 +10,16 @@ import { MenuCryptokoyn } from './components/cryptokoyn/MenuCryptokoyn.js';
 import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
 import { Worker } from './components/core/Worker.js';
 
-Worker.instance({
-  router: RouterCryptokoyn,
-  render: async () => {
-    await Css.loadThemes();
-    await TranslateCore.Init();
-    await Responsive.Init();
-    await MenuCryptokoyn.Render();
-    await LogInCryptokoyn();
-    await LogOutCryptokoyn();
-    await SignUpCryptokoyn();
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterCryptokoyn,
+    render: async () => {
+      await Css.loadThemes();
+      await TranslateCore.Init();
+      await Responsive.Init();
+      await MenuCryptokoyn.Render();
+      await LogInCryptokoyn();
+      await LogOutCryptokoyn();
+      await SignUpCryptokoyn();
+    },
+  });

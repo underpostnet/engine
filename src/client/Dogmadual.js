@@ -11,15 +11,16 @@ import { RouterDogmadual } from './components/dogmadual/RoutesDogmadual.js';
 import { CssDogmadualDark, CssDogmadualLight } from './components/dogmadual/CssDogmadual.js';
 import { Worker } from './components/core/Worker.js';
 
-Worker.instance({
-  router: RouterDogmadual,
-  render: async () => {
-    await Css.loadThemes([CssDogmadualDark, CssDogmadualLight]);
-    await TranslateCore.Init();
-    await Responsive.Init();
-    await MenuDogmadual.Render();
-    await LogInDogmadual();
-    await LogOutDogmadual();
-    await SignUpDogmadual();
-  },
-});
+window.onload = () =>
+  Worker.instance({
+    router: RouterDogmadual,
+    render: async () => {
+      await Css.loadThemes([CssDogmadualDark, CssDogmadualLight]);
+      await TranslateCore.Init();
+      await Responsive.Init();
+      await MenuDogmadual.Render();
+      await LogInDogmadual();
+      await LogOutDogmadual();
+      await SignUpDogmadual();
+    },
+  });

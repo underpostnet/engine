@@ -15,13 +15,13 @@ const Worker = {
     const isInstall = await this.status();
     if (!isInstall) await this.install();
     else if (location.hostname === 'localhost') await this.update();
-    setTimeout(async () => {
-      const isInstall = await this.status();
-      if (isInstall && !success) {
-        await this.update();
-        await this.reload();
-      }
-    }, 1000 * 70 * 1); // 70s limit
+    // setTimeout(async () => {
+    //   const isInstall = await this.status();
+    //   if (isInstall && !success) {
+    //     await this.update();
+    //     await this.reload();
+    //   }
+    // }, 1000 * 70 * 1); // 70s limit
     this.RouterInstance = router();
     await render();
     LoadRouter(this.RouterInstance);
@@ -31,6 +31,7 @@ const Worker = {
     });
     navigator.serviceWorker.ready.then((worker) => {
       logger.info('Ready', worker);
+      window.serviceWorkerReady = true;
       // event message
       navigator.serviceWorker.addEventListener('message', (event) => {
         logger.info('Received event message', event.data);
@@ -140,12 +141,12 @@ const Worker = {
         navigator.serviceWorker
           .getRegistrations()
           .then(async (registrations) => {
+            const cacheNames = await caches.keys();
+            for (const cacheName of cacheNames) await caches.delete(cacheName);
             for (const registration of registrations) {
               logger.info('remove', registration);
               registration.unregister();
             }
-            const cacheNames = await caches.keys();
-            for (const cacheName of cacheNames) await caches.delete(cacheName);
           })
           .catch((...args) => {
             logger.error(...args);
