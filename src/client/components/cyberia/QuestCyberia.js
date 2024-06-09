@@ -2,4 +2,10 @@ const QuestManagementCyberia = {
   Load: async function () {},
 };
 
-export { QuestManagementCyberia };
+const QuestCyberia = {
+  Render: async function () {
+    return html``;
+  },
+};
+
+export { QuestManagementCyberia, QuestCyberia };

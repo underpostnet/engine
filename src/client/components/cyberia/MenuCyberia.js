@@ -21,6 +21,7 @@ import { BagCyberia } from './BagCyberia.js';
 import { BiomeCyberiaEngine } from './BiomeCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
+import { QuestCyberia } from './QuestCyberia.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { SettingsCyberia } from './SettingsCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
@@ -134,6 +135,11 @@ const MenuCyberia = {
             class: 'in fll main-btn-square-menu main-btn-server',
             label: renderMenuLabel({ img: 'server.png', text: 'Server' }),
             attrs: `data-id="17"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-quest',
+            label: renderMenuLabel({ img: 'quest.png', text: 'quest' }),
+            attrs: `data-id="18"`,
           })}
         </div>
       `,
@@ -494,6 +500,24 @@ const MenuCyberia = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'cloud.png', text: 'cloud' }),
         html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-quest`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-quest',
+        route: 'quest',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'quest.png', text: 'quest' }),
+        html: async () => await QuestCyberia.Render({ idModal: 'modal-quest' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
