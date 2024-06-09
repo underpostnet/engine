@@ -569,68 +569,17 @@ const PixiCyberia = {
             }`;
             const componentInstance = Sprite.from(src);
             let componentContainer;
-            switch (displayId) {
-              case 'green-power':
-              case 'red-power':
-                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim * 0.5;
-                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.5;
-                componentInstance.x =
-                  (dim * ElementsCyberia.Data[type][id].dim) / 2 - (dim * ElementsCyberia.Data[type][id].dim * 0.5) / 2;
-                componentInstance.y =
-                  (dim * ElementsCyberia.Data[type][id].dim) / 2 - (dim * ElementsCyberia.Data[type][id].dim * 0.5) / 2;
-                break;
-              case 'tim-knife':
-                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
-                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                componentInstance.x = 0;
-                componentInstance.y = dim * ElementsCyberia.Data[type][id].dim * 0.15;
-                break;
-              case 'brown-wing':
-                switch (positionId) {
-                  case '08':
-                  case '18':
-                    componentContainer = 'layer0';
-                    componentInstance.width =
-                      dim * ElementsCyberia.Data[type][id].dim + (dim * ElementsCyberia.Data[type][id].dim) / 2.5;
-                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
-                    componentInstance.y = 0;
-                    break;
-                  case '02':
-                  case '12':
-                    componentInstance.width =
-                      dim * ElementsCyberia.Data[type][id].dim + (dim * ElementsCyberia.Data[type][id].dim) / 2.5;
-                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
-                    componentInstance.y = 0;
-                    break;
-                  case '06':
-                  case '16':
-                    componentInstance.width = (dim * ElementsCyberia.Data[type][id].dim) / 2;
-                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                    componentInstance.x = -1 * ((dim * ElementsCyberia.Data[type][id].dim) / 5);
-                    componentInstance.y = 0;
-                    break;
-                  case '04':
-                  case '14':
-                    componentInstance.width = (dim * ElementsCyberia.Data[type][id].dim) / 2;
-                    componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                    componentInstance.x =
-                      dim * ElementsCyberia.Data[type][id].dim - (dim * ElementsCyberia.Data[type][id].dim) / 4.5;
-                    componentInstance.y = 0;
-                    break;
-
-                  default:
-                    break;
-                }
-                break;
-              default:
-                componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
-                componentInstance.height = dim * ElementsCyberia.Data[type][id].dim;
-                componentInstance.x = 0;
-                componentInstance.y = 0;
-                break;
+            const dataSpriteFormat = this.formatSpriteComponent({
+              displayId,
+              positionId,
+              dim,
+              element: ElementsCyberia.Data[type][id],
+            });
+            for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
+              componentInstance[attr] = dataSpriteFormat.componentInstance[attr];
             }
+            if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;
+
             componentInstance.visible = position === positionId && frame === 0 && enabled;
             this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
 
@@ -903,6 +852,68 @@ const PixiCyberia = {
       const { type, id } = newElement;
       if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = true;
     }
+  },
+  formatSpriteComponent: function ({ displayId, positionId, dim, element }) {
+    let indexLayer = 1;
+    let componentInstance = {};
+    switch (displayId) {
+      case 'green-power':
+      case 'red-power':
+        componentInstance.width = dim * element.dim * 0.5;
+        componentInstance.height = dim * element.dim * 0.5;
+        componentInstance.x = (dim * element.dim) / 2 - (dim * element.dim * 0.5) / 2;
+        componentInstance.y = (dim * element.dim) / 2 - (dim * element.dim * 0.5) / 2;
+        break;
+      case 'tim-knife':
+        componentInstance.width = dim * element.dim;
+        componentInstance.height = dim * element.dim;
+        componentInstance.x = 0;
+        componentInstance.y = dim * element.dim * 0.15;
+        break;
+      case 'brown-wing':
+        switch (positionId) {
+          case '08':
+          case '18':
+            indexLayer = 0;
+            componentInstance.width = dim * element.dim + (dim * element.dim) / 2.5;
+            componentInstance.height = dim * element.dim;
+            componentInstance.x = -1 * ((dim * element.dim) / 5);
+            componentInstance.y = 0;
+            break;
+          case '02':
+          case '12':
+            componentInstance.width = dim * element.dim + (dim * element.dim) / 2.5;
+            componentInstance.height = dim * element.dim;
+            componentInstance.x = -1 * ((dim * element.dim) / 5);
+            componentInstance.y = 0;
+            break;
+          case '06':
+          case '16':
+            componentInstance.width = (dim * element.dim) / 2;
+            componentInstance.height = dim * element.dim;
+            componentInstance.x = -1 * ((dim * element.dim) / 5);
+            componentInstance.y = 0;
+            break;
+          case '04':
+          case '14':
+            componentInstance.width = (dim * element.dim) / 2;
+            componentInstance.height = dim * element.dim;
+            componentInstance.x = dim * element.dim - (dim * element.dim) / 4.5;
+            componentInstance.y = 0;
+            break;
+
+          default:
+            break;
+        }
+        break;
+      default:
+        componentInstance.width = dim * element.dim;
+        componentInstance.height = dim * element.dim;
+        componentInstance.x = 0;
+        componentInstance.y = 0;
+        break;
+    }
+    return { componentInstance, indexLayer };
   },
 };
 

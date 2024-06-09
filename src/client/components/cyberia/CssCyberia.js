@@ -27,6 +27,9 @@ const CssCommonCyberia = async () => {
       position: relative;
       top: 4px;
     }
+    .display-current-element-header {
+      height: 70px;
+    }
   </style>`;
 };
 

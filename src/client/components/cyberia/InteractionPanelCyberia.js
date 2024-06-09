@@ -17,7 +17,12 @@ const InteractionPanelCyberia = {
     element: function ({ type, id }) {
       htmls(
         `.display-current-element`,
-        html`${type} <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>`,
+        html`<div class="in display-current-element-header">
+          <div class="abs center">
+            ${type} <br />
+            <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>
+          </div>
+        </div>`,
       );
       setTimeout(async () => {
         if (!InteractionPanelCyberia.Data['element-interaction-panel']) return;

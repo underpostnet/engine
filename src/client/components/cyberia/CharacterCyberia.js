@@ -8,6 +8,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -220,35 +221,19 @@ const CharacterCyberia = {
   renderCharacterCyberiaPreView: async function () {
     const type = 'user';
     const id = 'main';
+    const intervalTime = 200;
+    const totalFrames = 5;
 
     if (!s(`.character-container-view`)) return;
-
-    if (PixiCyberia.Data[type][id].components['lifeBar'])
-      PixiCyberia.Data[type][id].components['lifeBar'].visible = false;
-    if (PixiCyberia.Data[type][id].components['coinIndicator'].container)
-      PixiCyberia.Data[type][id].components['coinIndicator'].container.visible = false;
-    if (PixiCyberia.Data[type][id].components['lifeIndicator'].container)
-      PixiCyberia.Data[type][id].components['lifeIndicator'].container.visible = false;
-    if (PixiCyberia.Data[type][id].components['username'].container)
-      PixiCyberia.Data[type][id].components['username'].container.visible = false;
+    await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
 
     const frames = [];
-    for (const frame of range(0, 2)) {
-      ElementsCyberia.Data.user.main = updateMovementDirection({
-        direction: 's',
-        element: ElementsCyberia.Data.user.main,
-        suffix: '0',
-      });
-      ElementsCyberia.Data.user.main.components.skin = ElementsCyberia.Data.user.main.components.skin.map((s) => {
-        s.enabled = s.current ? true : false;
-        return s;
-      });
-      PixiCyberia.triggerUpdateDisplay({ type, id });
-      const characterImg = await MainUserCyberia.PixiCyberiaMainUserCyberia.renderer.extract.image(
-        MainUserCyberia.PixiCyberiaMainUserCyberia.stage,
-      );
+    for (const frame of range(0, totalFrames - 1)) {
+      const characterImg = await ElementPreviewCyberia.Tokens[
+        `element-interaction-panel`
+      ].AppInstance.renderer.extract.image(ElementPreviewCyberia.Tokens[`element-interaction-panel`].AppInstance.stage);
       frames[frame] = characterImg.currentSrc;
-      await timer(200);
+      await timer(intervalTime);
     }
 
     htmls(
@@ -263,7 +248,6 @@ const CharacterCyberia = {
         )
         .join(''),
     );
-
     let frame = 0;
     if (this.CharacterCyberiaPreViewInterval) clearInterval(this.CharacterCyberiaPreViewInterval);
     this.CharacterCyberiaPreViewInterval = setInterval(() => {
@@ -272,22 +256,7 @@ const CharacterCyberia = {
       frame++;
       if (frame === frames.length) frame = 0;
       s(`.character-view-img-frame-${frame}`).classList.remove('hide');
-    }, 200);
-
-    if (PixiCyberia.Data[type][id].components['lifeBar'])
-      PixiCyberia.Data[type][id].components['lifeBar'].visible = true;
-    if (PixiCyberia.Data[type][id].components['coinIndicator'].container)
-      PixiCyberia.Data[type][id].components['coinIndicator'].container.visible = true;
-    if (PixiCyberia.Data[type][id].components['lifeIndicator'].container)
-      PixiCyberia.Data[type][id].components['lifeIndicator'].container.visible = true;
-    if (PixiCyberia.Data[type][id].components['username'].container)
-      PixiCyberia.Data[type][id].components['username'].container.visible = true;
-
-    ElementsCyberia.Data.user.main.components.skin = ElementsCyberia.Data.user.main.components.skin.map((s) => {
-      s.enabled = ElementsCyberia.Data.user.main.life > 0 ? s.current : s.displayId === 'ghost';
-      return s;
-    });
-    PixiCyberia.triggerUpdateDisplay({ type, id });
+    }, intervalTime);
   },
   renderEmptyCharacterCyberiaSlot: function (slotType) {
     this.renderCharacterCyberiaPreView();
