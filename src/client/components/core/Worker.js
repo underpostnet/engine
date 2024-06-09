@@ -16,7 +16,6 @@ const Worker = {
     });
     navigator.serviceWorker.ready.then((worker) => {
       logger.info('Ready', worker);
-      window.serviceWorkerReady = true;
       // event message
       navigator.serviceWorker.addEventListener('message', (event) => {
         logger.info('Received event message', event.data);
@@ -59,6 +58,7 @@ const Worker = {
     this.RouterInstance = router();
     await render();
     LoadRouter(this.RouterInstance);
+    window.serviceWorkerReady = true;
   },
   // Get the current service worker registration.
   getRegistration: async function () {
