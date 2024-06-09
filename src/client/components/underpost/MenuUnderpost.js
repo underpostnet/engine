@@ -100,14 +100,7 @@ const MenuUnderpost = {
           const srcLogo = `${getProxyPath()}assets/splash/mstile-144x144.png`;
           htmls(
             '.action-btn-app-icon-render',
-            html`<img
-              class="inl top-bar-app-icon"
-              src="${srcLogo}"
-              ${darkTheme
-                ? ''
-                : `style="   -webkit-filter: invert(1);
-          filter: invert(1);"`}
-            />`,
+            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : `negative-color`}" src="${srcLogo}" />`,
           );
         };
         setTimeout(ThemeEvents['titleRender']);

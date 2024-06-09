@@ -87,18 +87,32 @@ const Css = {
           }
 
           .wfa {
-            width: -moz-available; /* WebKit-based browsers will ignore this. */
-            width: -webkit-fill-available; /* Mozilla-based browsers will ignore this. */
             width: fill-available;
+            width: -webkit-fill-available;
+            width: -moz-available;
+            width: -ms-available;
+            width: -o-fill-available;
+          }
+
+          .negative-color {
+            filter: invert(1);
+            -webkit-filter: invert(1);
+            -moz-filter: invert(1);
+            -ms-filter: invert(1);
+            -o-filter: invert(1);
           }
 
           .no-drag {
             user-drag: none;
             -webkit-user-drag: none;
+            -moz-user-drag: none;
+            -ms-user-drag: none;
+            -o-user-drag: none;
             user-select: none;
-            -moz-user-select: none;
             -webkit-user-select: none;
+            -moz-user-select: none;
             -ms-user-select: none;
+            -o-user-select: none;
           }
 
           .center {
