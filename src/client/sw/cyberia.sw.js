@@ -107,9 +107,6 @@ self.addEventListener('fetch', (event) => {
   if (event.request.url.match(location.origin)) path = event.request.url.slice(location.origin.length);
   const preload = path && !path.match('/api');
 
-  // Get the client.
-  // client = await clients.get(event.clientId);
-
   logger.info(`On fetch`, {
     client,
     mode: event.request.mode,
@@ -119,6 +116,15 @@ self.addEventListener('fetch', (event) => {
     path,
     preload,
   });
+
+  (async () => {
+    // Get the client.
+    const client = await clients.get(event.clientId);
+    client.postMessage({
+      status: 'loader',
+      path,
+    });
+  })();
 
   // We only want to call event.respondWith() if this is a navigation request
   // for an HTML page.

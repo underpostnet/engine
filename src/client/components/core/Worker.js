@@ -4,28 +4,13 @@ import { EventsUI } from './EventsUI.js';
 import { loggerFactory } from './Logger.js';
 import { LoadRouter } from './Router.js';
 import { Translate } from './Translate.js';
-import { getProxyPath, s } from './VanillaJs.js';
+import { getProxyPath, htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
 const Worker = {
   instance: async function ({ router, render }) {
     logger.warn('Init');
-    let success = false;
-    const isInstall = await this.status();
-    if (!isInstall) await this.install();
-    else if (location.hostname === 'localhost') await this.update();
-    // setTimeout(async () => {
-    //   const isInstall = await this.status();
-    //   if (isInstall && !success) {
-    //     await this.update();
-    //     await this.reload();
-    //   }
-    // }, 1000 * 70 * 1); // 70s limit
-    this.RouterInstance = router();
-    await render();
-    LoadRouter(this.RouterInstance);
-    success = true;
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       logger.info('The controller of current browsing context has changed.');
     });
@@ -35,6 +20,27 @@ const Worker = {
       // event message
       navigator.serviceWorker.addEventListener('message', (event) => {
         logger.info('Received event message', event.data);
+        const { status } = event.data;
+
+        switch (status) {
+          case 'loader':
+            {
+              if (s(`.ssr-loading-info`)) {
+                const nameSrcLoad = event.data.path;
+                if (nameSrcLoad && nameSrcLoad !== 'undefined')
+                  htmls(
+                    `.ssr-loading-info`,
+                    html`<span style="color: white">Download </span> <br />
+                      <br />
+                      ...${nameSrcLoad.slice(-30)}`,
+                  );
+              }
+            }
+            break;
+
+          default:
+            break;
+        }
       });
       navigator.serviceWorker.controller.postMessage({
         title: 'Hello from Client event message',
@@ -47,6 +53,12 @@ const Worker = {
       channel.postMessage({ title: 'Hello from Client broadcast message' });
       // channel.close();
     });
+    const isInstall = await this.status();
+    if (!isInstall) await this.install();
+    else if (location.hostname === 'localhost') await this.update();
+    this.RouterInstance = router();
+    await render();
+    LoadRouter(this.RouterInstance);
   },
   // Get the current service worker registration.
   getRegistration: async function () {

@@ -314,7 +314,7 @@ const buildClient = async () => {
                   }
                   break;
                 default:
-                  ssrHeadComponents += SrrComponent({ ssrPath });
+                  ssrHeadComponents += SrrComponent({ ssrPath, host, path });
                   break;
               }
             }
@@ -324,7 +324,7 @@ const buildClient = async () => {
               eval(
                 await srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')),
               );
-              ssrBodyComponents += SrrComponent();
+              ssrBodyComponents += SrrComponent({ ssrPath, host, path });
             }
           }
 

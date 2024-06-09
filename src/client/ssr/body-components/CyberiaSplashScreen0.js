@@ -1,4 +1,4 @@
-SrrComponent = () => html` <div class="ssr-background" style="opacity: 1">
+SrrComponent = ({ host, path }) => html` <div class="ssr-background" style="opacity: 1">
   <style>
     .ssr-background {
       position: absolute;
@@ -54,6 +54,14 @@ SrrComponent = () => html` <div class="ssr-background" style="opacity: 1">
       background: #ffcc00;
       float: left;
     }
+    .ssr-loading-info {
+      display: block;
+      position: relative;
+      text-align: center;
+      width: 200px;
+      margin: auto;
+      font-size: 10px;
+    }
     @keyframes ssr-blink-animation {
       50% {
         opacity: 0;
@@ -71,5 +79,11 @@ SrrComponent = () => html` <div class="ssr-background" style="opacity: 1">
     />
     <br /><br />
     <div class="ssr-loading-bar"><div class="ssr-loading-bar-block ssr-blink-bar"></div></div>
+    <br /><br />
+    <div class="ssr-loading-info">
+      <span style="color: white">connecting </span> <br />
+      <br />
+      ...${`${host}${path}`.slice(-30)}
+    </div>
   </div>
 </div>`;
