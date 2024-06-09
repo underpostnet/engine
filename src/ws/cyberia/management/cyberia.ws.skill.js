@@ -83,114 +83,119 @@ const CyberiaWsSkillManagement = {
     }
     this.localElementScope[wsManagementId][id].movement = {
       Callback: async () => {
-        await timer(CyberiaParams.EVENT_CALLBACK_TIME);
-        if (!this.element[wsManagementId][id]) return;
-        for (const directionCode of direction) {
-          switch (directionCode) {
-            case 's':
-              this.element[wsManagementId][id].y += this.element[wsManagementId][id].vel;
-              break;
-            case 'n':
-              this.element[wsManagementId][id].y -= this.element[wsManagementId][id].vel;
-              break;
-            case 'e':
-              this.element[wsManagementId][id].x += this.element[wsManagementId][id].vel;
-              break;
-            case 'w':
-              this.element[wsManagementId][id].x -= this.element[wsManagementId][id].vel;
-              break;
-            default:
-              break;
+        try {
+          await timer(CyberiaParams.EVENT_CALLBACK_TIME);
+          if (!this.element[wsManagementId][id]) return;
+          for (const directionCode of direction) {
+            switch (directionCode) {
+              case 's':
+                this.element[wsManagementId][id].y += this.element[wsManagementId][id].vel;
+                break;
+              case 'n':
+                this.element[wsManagementId][id].y -= this.element[wsManagementId][id].vel;
+                break;
+              case 'e':
+                this.element[wsManagementId][id].x += this.element[wsManagementId][id].vel;
+                break;
+              case 'w':
+                this.element[wsManagementId][id].x -= this.element[wsManagementId][id].vel;
+                break;
+              default:
+                break;
+            }
           }
-        }
-        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-          if (
-            objectEquals(
-              parentElement.model.world,
-              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-            )
-          ) {
-            CyberiaWsEmit(CyberiaWsSkillChannel.channel, CyberiaWsSkillChannel.client[clientId], {
-              status: 'update-position',
-              id,
-              element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
-            });
-            switch (parent.type) {
-              case 'user':
-              case 'bot':
-                if (
-                  (parent.type === 'bot' ||
-                    (parent.type === 'user' &&
-                      world.instance[
-                        WorldCyberiaType[world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
-                      ].type === 'pvp')) &&
-                  CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
-                  isElementCollision({
-                    A: this.element[wsManagementId][id],
-                    B: CyberiaWsUserManagement.element[wsManagementId][clientId],
-                    dimPaintByCell: this.matrixData.dimPaintByCell,
-                  })
-                )
-                  if (!(parent.type === 'user' && parent.id === clientId))
-                    CyberiaWsUserManagement.updateLife({
+          for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+            if (
+              objectEquals(
+                parentElement.model.world,
+                CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+              )
+            ) {
+              CyberiaWsEmit(CyberiaWsSkillChannel.channel, CyberiaWsSkillChannel.client[clientId], {
+                status: 'update-position',
+                id,
+                element: { x: this.element[wsManagementId][id].x, y: this.element[wsManagementId][id].y },
+              });
+              switch (parent.type) {
+                case 'user':
+                case 'bot':
+                  if (
+                    (parent.type === 'bot' ||
+                      (parent.type === 'user' &&
+                        world.instance[
+                          WorldCyberiaType[world.type].worldFaces.findIndex((f) => f === parentElement.model.world.face)
+                        ].type === 'pvp')) &&
+                    CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
+                    isElementCollision({
+                      A: this.element[wsManagementId][id],
+                      B: CyberiaWsUserManagement.element[wsManagementId][clientId],
+                      dimPaintByCell: this.matrixData.dimPaintByCell,
+                    })
+                  )
+                    if (!(parent.type === 'user' && parent.id === clientId))
+                      CyberiaWsUserManagement.updateLife({
+                        wsManagementId,
+                        id: clientId,
+                        life:
+                          CyberiaWsUserManagement.element[wsManagementId][clientId].life -
+                          skillData.damage -
+                          parentElement.damage,
+                      });
+                  break;
+
+                default:
+                  break;
+              }
+            }
+          }
+          for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
+            if (
+              objectEquals(parentElement.model.world, CyberiaWsBotManagement.element[wsManagementId][botId].model.world)
+            ) {
+              switch (parent.type) {
+                case 'user':
+                  if (
+                    CyberiaWsBotManagement.localElementScope[wsManagementId][botId].metaDataBot.type ===
+                      'user-hostile' &&
+                    CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
+                    isElementCollision({
+                      A: this.element[wsManagementId][id],
+                      B: CyberiaWsBotManagement.element[wsManagementId][botId],
+                      dimPaintByCell: this.matrixData.dimPaintByCell,
+                    })
+                  ) {
+                    const newLife =
+                      CyberiaWsBotManagement.element[wsManagementId][botId].life -
+                      skillData.damage -
+                      parentElement.damage;
+                    CyberiaWsBotManagement.updateLife({
                       wsManagementId,
-                      id: clientId,
-                      life:
-                        CyberiaWsUserManagement.element[wsManagementId][clientId].life -
-                        skillData.damage -
-                        parentElement.damage,
+                      id: botId,
+                      life: newLife,
                     });
-                break;
-
-              default:
-                break;
-            }
-          }
-        }
-        for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
-          if (
-            objectEquals(parentElement.model.world, CyberiaWsBotManagement.element[wsManagementId][botId].model.world)
-          ) {
-            switch (parent.type) {
-              case 'user':
-                if (
-                  CyberiaWsBotManagement.localElementScope[wsManagementId][botId].metaDataBot.type === 'user-hostile' &&
-                  CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
-                  isElementCollision({
-                    A: this.element[wsManagementId][id],
-                    B: CyberiaWsBotManagement.element[wsManagementId][botId],
-                    dimPaintByCell: this.matrixData.dimPaintByCell,
-                  })
-                ) {
-                  const newLife =
-                    CyberiaWsBotManagement.element[wsManagementId][botId].life -
-                    skillData.damage -
-                    parentElement.damage;
-                  CyberiaWsBotManagement.updateLife({
-                    wsManagementId,
-                    id: botId,
-                    life: newLife,
-                  });
-                  if (newLife <= 0) {
-                    CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
-                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
-                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
-                    );
-                    CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
-                      status: 'update-coin',
-                      id: parent.id,
-                      element: {
-                        coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
-                      },
-                    });
+                    if (newLife <= 0) {
+                      CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
+                        CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
+                        CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
+                      );
+                      CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
+                        status: 'update-coin',
+                        id: parent.id,
+                        element: {
+                          coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
+                        },
+                      });
+                    }
                   }
-                }
-                break;
+                  break;
 
-              default:
-                break;
+                default:
+                  break;
+              }
             }
           }
+        } catch (error) {
+          logger.error(error, { stack: error.stack, wsManagementId, id });
         }
         this.localElementScope[wsManagementId][id].movement.Callback();
       },
