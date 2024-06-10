@@ -52,6 +52,7 @@
         "rust-lang.rust-analyzer",
         "steoates.autoimport",
         "streetsidesoftware.code-spell-checker",
+        "tamasfe.even-better-toml",
         "tobermory.es6-string-html",
         "twxs.cmake",
         "visualstudioexptteam.intellicode-api-usage-examples",
