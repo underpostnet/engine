@@ -43,7 +43,7 @@ const CyberiaWsBotManagement = {
   botFactory: function ({ biome, instanceIndex, botIndex, wsManagementId, metaDataBot }) {
     let skinId = 'anon';
 
-    switch (metaDataBot.type) {
+    switch (metaDataBot.behavior) {
       case 'quest-passive':
         skinId = metaDataBot.displayIds[botIndex];
         break;
@@ -385,10 +385,10 @@ const CyberiaWsBotManagement = {
         },
       },
     };
-
+    bot.behavior = metaDataBot.behavior;
     this.element[wsManagementId][id] = bot;
 
-    switch (metaDataBot.type) {
+    switch (metaDataBot.behavior) {
       case 'quest-passive':
         break;
       case 'user-hostile':
@@ -447,10 +447,10 @@ const CyberiaWsBotManagement = {
               metaDataBot,
               botIndex,
             });
-            // if (metaDataBot.type === 'quest-passive')
+            // if (metaDataBot.behavior === 'quest-passive')
             //   logger.info(`${wsManagementId} Load bot`, {
             //     index: botIndex,
-            //     type: metaDataBot.type,
+            //     behavior: metaDataBot.behavior,
             //     face: bot.model.world.face,
             //     x: bot.x,
             //     y: bot.y,

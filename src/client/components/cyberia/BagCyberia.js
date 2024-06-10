@@ -314,6 +314,7 @@ const ItemModal = {
       'damage',
       'lifeRegeneration',
       'lifeRegenerationVel',
+      'behavior',
     ];
     let statsRender = '';
     if (options)

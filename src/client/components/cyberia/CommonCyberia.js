@@ -239,6 +239,7 @@ const QuestComponent = {
 const ComponentElement = {
   user: () => {
     let base = {
+      behavior: 'user',
       components: {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [
@@ -305,6 +306,7 @@ const ComponentElement = {
   },
   bot: () => {
     let base = {
+      behavior: 'user-hostile',
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
         skin: [
@@ -669,6 +671,18 @@ const CharacterCyberiaSlotType = {
   talisman: {},
 };
 
+const BehaviorElement = {
+  user: {
+    color: 'yellow',
+  },
+  'user-hostile': {
+    color: 'red',
+  },
+  'quest-passive': {
+    color: 'yellow',
+  },
+};
+
 const CyberiaParams = {
   EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
@@ -696,4 +710,5 @@ export {
   SkillCyberiaData,
   SkillCyberiaType,
   QuestComponent,
+  BehaviorElement,
 };

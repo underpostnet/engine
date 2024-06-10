@@ -14,7 +14,7 @@ import { WorldCyberiaManagement } from './WorldCyberia.js';
 const InteractionPanelCyberia = {
   Data: {},
   PanelRender: {
-    element: function ({ type, id }) {
+    element: async function ({ type, id }) {
       htmls(
         `.display-current-element`,
         html`<div class="in display-current-element-header">
@@ -24,15 +24,15 @@ const InteractionPanelCyberia = {
           </div>
         </div>`,
       );
-      setTimeout(async () => {
+      setTimeout(() => {
         if (!InteractionPanelCyberia.Data['element-interaction-panel']) return;
         PixiCyberia.displayPointerArrow({
           oldElement: InteractionPanelCyberia.Data['element-interaction-panel'].element.current,
           newElement: { type, id },
         });
         InteractionPanelCyberia.Data['element-interaction-panel'].element.current = { type, id };
-        await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
       });
+      await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
     },
     map: function ({ face }) {
       const indexFace = WorldCyberiaType[
@@ -82,7 +82,7 @@ const InteractionPanelCyberia = {
         render = async () =>
           html`<div class="in"><span class="display-current-element" style="${borderChar(2, 'black')}"></span></div>
             <div class="in">${await ElementPreviewCyberia.Render({ renderId: 'element-interaction-panel' })}</div>`;
-        PointAndClickMovementCyberia.Event[id] = ({ x, y }) => {
+        PointAndClickMovementCyberia.Event[id] = async ({ x, y }) => {
           let mainUserPanel = false;
           for (const type of ['user', 'bot']) {
             for (const elementId of Object.keys(ElementsCyberia.Data[type])) {
@@ -95,13 +95,13 @@ const InteractionPanelCyberia = {
               ) {
                 if (type === 'user' && elementId === 'main') mainUserPanel = true;
                 else {
-                  this.PanelRender.element({ type, id: elementId });
+                  await this.PanelRender.element({ type, id: elementId });
                   return;
                 }
               }
             }
           }
-          if (mainUserPanel) this.PanelRender.element({ type: 'user', id: 'main' });
+          if (mainUserPanel) await this.PanelRender.element({ type: 'user', id: 'main' });
         };
         break;
       case 'map-interaction-panel':

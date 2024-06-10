@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, ThemeEvents, Themes } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -78,7 +78,10 @@ const MenuCryptokoyn = {
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
           const srcLogo = `${getProxyPath()}assets/logo/cryptokoyn.png`;
-          htmls('.action-btn-app-icon-render', html`<img class="inl top-bar-app-icon" src="${srcLogo}" />`);
+          htmls(
+            '.action-btn-app-icon-render',
+            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+          );
         };
         setTimeout(ThemeEvents['titleRender']);
         return '';

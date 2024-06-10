@@ -1,14 +1,13 @@
 import Sortable from 'sortablejs';
 import { getId, range, timer, uniqueArray } from '../core/CommonJs.js';
 import { ItemModal, Slot, SlotEvents } from './BagCyberia.js';
-import { CharacterCyberiaSlotType, updateMovementDirection } from './CommonCyberia.js';
+import { CharacterCyberiaSlotType } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { loggerFactory } from '../core/Logger.js';
-import { MainUserCyberia } from './MainUserCyberia.js';
-import { PixiCyberia } from './PixiCyberia.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
+import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -225,7 +224,8 @@ const CharacterCyberia = {
     const totalFrames = 5;
 
     if (!s(`.character-container-view`)) return;
-    await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
+
+    await InteractionPanelCyberia.PanelRender.element({ type: 'user', id: 'main' });
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {

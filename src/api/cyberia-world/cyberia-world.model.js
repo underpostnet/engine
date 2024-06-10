@@ -18,7 +18,7 @@ const CyberiaWorldSchema = new Schema({
             {
               min: { type: Number },
               max: { type: Number },
-              type: { type: String, enum: ['user-hostile', 'quest-passive'] },
+              behavior: { type: String, enum: ['user-hostile', 'quest-passive'] },
               displayIds: [{ type: String }],
             },
           ],
@@ -32,13 +32,13 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 3,
             max: 3,
-            type: 'quest-passive',
+            behavior: 'quest-passive',
             displayIds: ['agent', 'ayleen', 'punk'],
           },
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],
@@ -49,7 +49,7 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],
@@ -60,7 +60,7 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],
@@ -71,7 +71,7 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],
@@ -82,7 +82,7 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],
@@ -93,7 +93,7 @@ const CyberiaWorldSchema = new Schema({
           {
             min: 5,
             max: 10,
-            type: 'user-hostile',
+            behavior: 'user-hostile',
             displayIds: ['purple', 'kishins'],
           },
         ],

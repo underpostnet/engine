@@ -74,7 +74,7 @@ const LogInCyberia = async function () {
       await initAnonSession();
     }
   } else await initAnonSession();
-  InteractionPanelCyberia.PanelRender.element({ type: 'user', id: 'main' });
+  await InteractionPanelCyberia.PanelRender.element({ type: 'user', id: 'main' });
 };
 
 export { LogInCyberia };

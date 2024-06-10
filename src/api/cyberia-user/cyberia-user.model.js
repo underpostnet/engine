@@ -17,6 +17,7 @@ const CyberiaUserSchema = new Schema({
   damage: { type: Number, default: 10 },
   lifeRegeneration: { type: Number, default: 5 },
   lifeRegenerationVel: { type: Number, default: 1500 },
+  behavior: { type: String, default: 'user' },
   skill: {
     keys: {
       basic: { type: String, default: 'red-power' },

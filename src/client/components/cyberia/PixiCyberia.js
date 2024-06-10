@@ -16,8 +16,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CharacterCyberiaSlotType, CyberiaParams } from './CommonCyberia.js';
-import { MainUserCyberia } from './MainUserCyberia.js';
+import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 
 const PixiCyberia = {
@@ -367,14 +366,10 @@ const PixiCyberia = {
 
         case 'pointerArrow':
           {
-            const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type, id });
-            const arrowColor = ['purple', 'kishins'].includes(displayId) ? 'red' : 'yellow';
-            // if (WorldCyberiaManagement.Data['user'] && WorldCyberiaManagement.Data['user']['main'])
-            //   for (const instance of WorldCyberiaManagement.Data['user']['main'].model.world.instances) {
-            //     if (instance.bot.find((b) => b.displayIds.includes(displayId) && b.type === 'user-hostile')) {
-            //       arrowColor = 'red';
-            //     }
-            //   }
+            // const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type, id });
+
+            const arrowColor = BehaviorElement[ElementsCyberia.Data[type][id].behavior].color;
+
             const src = `${getProxyPath()}assets/icons/${arrowColor}-pointer-arrow.png`;
             const componentInstance = Sprite.from(src);
             componentInstance.width = dim * 0.5;

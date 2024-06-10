@@ -246,7 +246,7 @@ const MainUserCyberia = {
     CharacterCyberia.renderCharacterCyberiaStat();
     PixiCyberia.updateLife({ type, id });
     PixiCyberia.setUsername({ type, id });
-    InteractionPanelCyberia.PanelRender.element({ type, id });
+    await InteractionPanelCyberia.PanelRender.element({ type, id });
     PixiCyberia.topLevelCallBack({ type, id });
 
     LoadingAnimation.removeSplashScreen();

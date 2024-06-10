@@ -155,7 +155,7 @@ const CyberiaWsSkillManagement = {
               switch (parent.type) {
                 case 'user':
                   if (
-                    CyberiaWsBotManagement.localElementScope[wsManagementId][botId].metaDataBot.type ===
+                    CyberiaWsBotManagement.localElementScope[wsManagementId][botId].metaDataBot.behavior ===
                       'user-hostile' &&
                     CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
                     isElementCollision({
