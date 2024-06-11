@@ -18,6 +18,8 @@ RUN apt-get update --fix-missing && \
     apt-get -yq install openssh-server supervisor && \
     # Few handy utilities which are nice to have
     apt-get -y install nano vim less --no-install-recommends && \
+    # json tools
+    apt-get install jq && \
     apt-get clean
 
 # install ssh
