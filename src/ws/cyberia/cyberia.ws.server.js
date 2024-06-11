@@ -34,22 +34,24 @@ const createIoServer = async (httpServer, options) => {
     user: {},
   };
 
-  const biomeId = CyberiaWsInstanceScope[wsManagementId].world.instance.face[0];
+  if (CyberiaWsInstanceScope[wsManagementId].world.instance) {
+    const biomeId = CyberiaWsInstanceScope[wsManagementId].world.instance.face[0];
 
-  /** @type {import('../../api/cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
-  const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome;
+    /** @type {import('../../api/cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome;
 
-  const biome = await CyberiaBiome.findOne({ _id: biomeId });
+    const biome = await CyberiaBiome.findOne({ _id: biomeId });
 
-  const { x, y } = getRandomAvailablePositionCyberia({
-    biomeData: biome._doc,
-    element: BaseElement({
-      worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
-    })['user'].main,
-  });
+    const { x, y } = getRandomAvailablePositionCyberia({
+      biomeData: biome._doc,
+      element: BaseElement({
+        worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+      })['user'].main,
+    });
 
-  CyberiaWsInstanceScope[wsManagementId].user.x = x;
-  CyberiaWsInstanceScope[wsManagementId].user.y = y;
+    CyberiaWsInstanceScope[wsManagementId].user.x = x;
+    CyberiaWsInstanceScope[wsManagementId].user.y = y;
+  }
 
   CyberiaWsUserManagement.instance(wsManagementId);
   CyberiaWsBotManagement.instance(wsManagementId);

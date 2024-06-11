@@ -21,6 +21,7 @@ import {
   isBiomeCyberiaCollision,
   Stat,
   updateMovementDirection,
+  QuestComponent,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
@@ -41,18 +42,7 @@ const CyberiaWsBotManagement = {
   element: {},
   localElementScope: {},
   botFactory: function ({ biome, instanceIndex, botIndex, wsManagementId, metaDataBot }) {
-    let skinId = 'anon';
-
-    switch (metaDataBot.behavior) {
-      case 'quest-passive':
-        skinId = metaDataBot.displayIds[botIndex];
-        break;
-      case 'user-hostile':
-        skinId = metaDataBot.displayIds[random(0, metaDataBot.displayIds.length - 1)];
-        break;
-      default:
-        break;
-    }
+    const skinId = metaDataBot.displayIds[botIndex];
 
     let bot = BaseElement({ worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString() }).bot.main;
 
@@ -62,14 +52,18 @@ const CyberiaWsBotManagement = {
       return skinData;
     });
 
-    bot.components.skin.push({
-      current: true,
-      enabled: true,
-      displayId: skinId,
-      position: '08',
-      positions: PositionsComponent.default(),
-      assetFolder: 'skin',
-    });
+    const questItemData = QuestComponent.components.find((c) => c.displayId === skinId);
+    if (questItemData) {
+      bot.components.skin.push({ ...questItemData, current: true, enabled: true });
+    } else
+      bot.components.skin.push({
+        current: true,
+        enabled: true,
+        displayId: skinId,
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+      });
 
     bot.model.world.face = instanceIndex + 1;
 
@@ -439,12 +433,29 @@ const CyberiaWsBotManagement = {
         if (!biome) continue;
 
         for (const metaDataBot of instance.bots) {
-          for (const botIndex of range(0, random(metaDataBot.min - 1, metaDataBot.max - 1))) {
+          const displayIds = [];
+
+          for (const displayBotMetaData of metaDataBot.displayIds) {
+            if (displayBotMetaData.quantity[0] !== undefined && displayBotMetaData.quantity[1] !== undefined) {
+              for (const _ of range(
+                0,
+                random(displayBotMetaData.quantity[0] - 1, displayBotMetaData.quantity[1] - 1),
+              )) {
+                displayIds.push(displayBotMetaData.id);
+              }
+            } else if (displayBotMetaData.quantity[0] !== undefined) {
+              for (const _ of range(0, displayBotMetaData.quantity[0] - 1)) {
+                displayIds.push(displayBotMetaData.id);
+              }
+            }
+          }
+
+          for (const botIndex of range(0, displayIds.length - 1)) {
             const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
               biome,
               instanceIndex,
               wsManagementId,
-              metaDataBot,
+              metaDataBot: { behavior: metaDataBot.behavior, displayIds },
               botIndex,
             });
             // if (metaDataBot.behavior === 'quest-passive')

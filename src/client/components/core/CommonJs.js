@@ -38,7 +38,13 @@ const getRawCsvFromArray = (array) =>
         .join('')
     : '';
 
-const newInstance = (obj) => JSON.parse(JSON.stringify(obj));
+const newInstance = (obj) => {
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (error) {
+    return { error: error.message };
+  }
+};
 
 const cap = (str) =>
   str

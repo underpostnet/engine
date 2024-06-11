@@ -101,9 +101,10 @@ const CyberiaWorldService = {
         break;
 
       default:
-        result = await CyberiaWorld.find({
-          _id: options.cyberia.world.instance._id.toString(),
-        });
+        if (options.cyberia.world.instance)
+          result = await CyberiaWorld.find({
+            _id: options.cyberia.world.instance._id.toString(),
+          });
         break;
     }
     return result;

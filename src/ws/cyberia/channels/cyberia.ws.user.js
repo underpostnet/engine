@@ -85,9 +85,11 @@ const CyberiaWsUserController = {
         break;
       case 'unregister-cyberia-user':
         {
-          CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
-            worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
-          }).user.main;
+          if (CyberiaWsInstanceScope[wsManagementId].world.instance)
+            CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
+              worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+            }).user.main;
+          else CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement().user.main;
           propagate();
         }
         break;
@@ -226,9 +228,12 @@ const CyberiaWsUserController = {
     }
   },
   connection: function (socket, client, wsManagementId) {
-    CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
-      worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
-    })[channel].main;
+    if (CyberiaWsInstanceScope[wsManagementId].world.instance)
+      CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement({
+        worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString(),
+      })[channel].main;
+    else CyberiaWsUserManagement.element[wsManagementId][socket.id] = BaseElement()[channel].main;
+
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
       direction: 's',
     };

@@ -27,6 +27,16 @@ const ModelElement = {
 };
 
 const PositionsComponent = {
+  frames1: () => [
+    { positionId: '02', frames: 1 },
+    { positionId: '04', frames: 1 },
+    { positionId: '06', frames: 1 },
+    { positionId: '08', frames: 1 },
+    { positionId: '12', frames: 1 },
+    { positionId: '14', frames: 1 },
+    { positionId: '16', frames: 1 },
+    { positionId: '18', frames: 1 },
+  ],
   default: () => [
     { positionId: '02', frames: 1 },
     { positionId: '04', frames: 1 },
@@ -217,23 +227,31 @@ const Stat = {
 };
 
 const QuestComponent = {
-  'floki-bone': {
-    type: 'search',
-    provider: {
-      displayId: 'ayleen',
-      quantity: 1,
+  Data: {
+    'floki-bone': {
+      type: 'search',
     },
-    searchItems: [
-      {
-        id: 'bone',
-        quantity: 2,
-      },
-      {
-        id: 'bone-brown',
-        quantity: 1,
-      },
-    ],
   },
+  components: [
+    {
+      displayId: 'bone',
+      position: '08',
+      positions: PositionsComponent.frames1(),
+      velFrame: 250,
+      enabled: false,
+      assetFolder: 'quest',
+      extension: 'gif',
+    },
+    {
+      displayId: 'bone-brown',
+      position: '08',
+      positions: PositionsComponent.frames1(),
+      velFrame: 250,
+      enabled: false,
+      assetFolder: 'quest',
+      extension: 'gif',
+    },
+  ],
 };
 
 const ComponentElement = {
@@ -679,6 +697,9 @@ const BehaviorElement = {
     color: 'red',
   },
   'quest-passive': {
+    color: 'yellow',
+  },
+  'item-quest': {
     color: 'yellow',
   },
 };

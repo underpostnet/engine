@@ -1,6 +1,6 @@
 import { loggerFactory } from '../core/Logger.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { QuestComponent, isElementCollision } from './CommonCyberia.js';
+import { isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
@@ -27,7 +27,7 @@ const QuestManagementCyberia = {
             for (const elementTargetId of Object.keys(ElementsCyberia.Data[typeTarget])) {
               const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type: typeTarget, id: elementTargetId });
               if (
-                botQuestData.displayIds.includes(displayId) &&
+                botQuestData.displayIds.find((d) => d.id === displayId) &&
                 isElementCollision({
                   A: {
                     dim: ElementsCyberia.Data[typeTarget][elementTargetId].dim * radius,
@@ -75,9 +75,7 @@ const QuestManagementCyberia = {
 
 const QuestCyberia = {
   RenderPanelQuest: async function ({ id, questMetaData }) {
-    return html`<pre>
-${JSON.stringify({ id, questMetaData, QuestComponent: QuestComponent[questMetaData.id] }, null, 4)}</pre
-    >`;
+    return html`<pre>${JSON.stringify({ id, questMetaData }, null, 4)}</pre>`;
   },
   Render: async function ({ idModal }) {
     QuestManagementCyberia.onChangeCurrentQuestAvailable[idModal] = {

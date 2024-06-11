@@ -16,10 +16,8 @@ const CyberiaWorldSchema = new Schema({
         bots: {
           type: [
             {
-              min: { type: Number },
-              max: { type: Number },
-              behavior: { type: String, enum: ['user-hostile', 'quest-passive'] },
-              displayIds: [{ type: String }],
+              behavior: { type: String, enum: ['user-hostile', 'quest-passive', 'item-quest'] },
+              displayIds: [{ id: { type: String }, quantity: [{ type: Number }] }],
             },
           ],
         },
@@ -30,38 +28,26 @@ const CyberiaWorldSchema = new Schema({
         type: 'pve',
         bots: [
           {
-            min: 3,
-            max: 3,
             behavior: 'quest-passive',
-            displayIds: ['agent', 'ayleen', 'punk'],
+            displayIds: [
+              { id: 'agent', quantity: [1] },
+              { id: 'ayleen', quantity: [1] },
+              { id: 'punk', quantity: [1] },
+            ],
           },
           {
-            min: 5,
-            max: 10,
-            behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
+            behavior: 'item-quest',
+            displayIds: [
+              { id: 'bone', quantity: [2] },
+              { id: 'bone-brown', quantity: [1] },
+            ],
           },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
           {
-            min: 5,
-            max: 10,
             behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
-          },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
-          {
-            min: 5,
-            max: 10,
-            behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
           },
         ],
       },
@@ -69,10 +55,11 @@ const CyberiaWorldSchema = new Schema({
         type: 'pvp',
         bots: [
           {
-            min: 5,
-            max: 10,
             behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
           },
         ],
       },
@@ -80,10 +67,11 @@ const CyberiaWorldSchema = new Schema({
         type: 'pvp',
         bots: [
           {
-            min: 5,
-            max: 10,
             behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
           },
         ],
       },
@@ -91,10 +79,35 @@ const CyberiaWorldSchema = new Schema({
         type: 'pvp',
         bots: [
           {
-            min: 5,
-            max: 10,
             behavior: 'user-hostile',
-            displayIds: ['purple', 'kishins'],
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
+          {
+            behavior: 'user-hostile',
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
+          {
+            behavior: 'user-hostile',
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
           },
         ],
       },
