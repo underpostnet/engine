@@ -80,6 +80,7 @@ const Cmd = {
 };
 
 const deployRun = async (dataDeploy, reset) => {
+  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   for (const deploy of dataDeploy) {
     await Cmd.copy(Cmd.delete(deploy));
