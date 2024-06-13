@@ -9,12 +9,17 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
+import { QuestManagementCyberia } from './QuestCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const InteractionPanelCyberia = {
   Data: {},
   PanelRender: {
     actionPanelTokens: {},
+    removeActionPanel: async function (idPanel) {
+      s(`.${idPanel}`).remove();
+      delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
+    },
     action: async function ({ idPanel, type, id, html }) {
       const maxHeight = 80;
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
@@ -142,6 +147,9 @@ const InteractionPanelCyberia = {
                 if (type === 'user' && elementId === 'main') mainUserPanel = true;
                 else {
                   await this.PanelRender.element({ type, id: elementId });
+                  QuestManagementCyberia.questClosePanels = QuestManagementCyberia.questClosePanels.filter(
+                    (p) => p !== `action-panel-${type}-${elementId}`,
+                  );
                   return;
                 }
               }

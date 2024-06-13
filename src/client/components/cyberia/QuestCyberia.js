@@ -1,7 +1,8 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { objectEquals } from '../core/CommonJs.js';
-import { typeWriter } from '../core/Css.js';
+import { Css, Themes, typeWriter } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
+import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
@@ -16,10 +17,12 @@ const logger = loggerFactory(import.meta);
 
 const QuestManagementCyberia = {
   IntervalQuestDetector: null,
+  questClosePanels: [],
   Data: {},
   Load: async function ({ type, id }) {
     const radius = 3.5;
     const typeTarget = 'bot';
+    this.questClosePanels = [];
 
     if (this.IntervalQuestDetector) clearInterval(this.IntervalQuestDetector);
 
@@ -33,7 +36,10 @@ const QuestManagementCyberia = {
           for (const botQuestData of botsQuest) {
             for (const elementTargetId of Object.keys(ElementsCyberia.Data[typeTarget])) {
               const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type: typeTarget, id: elementTargetId });
+              const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
               if (
+                !s(`.modal-panel-quest-${idPanel}`) &&
+                !this.questClosePanels.includes(idPanel) &&
                 botQuestData.displayIds.find((d) => d.id === displayId) &&
                 isElementCollision({
                   A: {
@@ -51,7 +57,6 @@ const QuestManagementCyberia = {
               ) {
                 // const targetElement = { type: typeTarget, id: elementTargetId };
                 // logger.warn('quest provider detector', targetElement);
-                const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
                 panels.push(idPanel);
                 const questData = QuestComponent.getQuestByDisplayId({ displayId })[0];
                 await InteractionPanelCyberia.PanelRender.action({
@@ -61,8 +66,29 @@ const QuestManagementCyberia = {
                   html: questData
                     ? async () => {
                         setTimeout(() => {
-                          s(`.action-panel-close-${idPanel} `).onclick = () => alert();
-                          s(`.action-panel-quest-${idPanel} `).onclick = () => alert();
+                          s(`.action-panel-close-${idPanel}`).onclick = async () => {
+                            this.questClosePanels.push(idPanel);
+                            await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+                          };
+                          s(`.action-panel-quest-${idPanel}`).onclick = async () => {
+                            await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+                            const { barConfig } = await Themes[Css.currentTheme]();
+                            await Modal.Render({
+                              id: `modal-panel-quest-${idPanel}`,
+                              barConfig,
+                              title: renderViewTitle({
+                                'ui-icon': questData.icon.id,
+                                assetFolder: questData.icon.folder,
+                                text: html`${Translate.Render(`${questData.questKey}-title`)}`,
+                              }),
+                              html: html`<div class="in section-mp">
+                                ${Translate.Render(`${questData.questKey}-description`)}
+                              </div>`,
+                              maximize: true,
+                              mode: 'view',
+                              slideMenu: 'modal-menu',
+                            });
+                          };
                         });
                         return html`
                           <div class="fl">
@@ -101,10 +127,7 @@ const QuestManagementCyberia = {
         }
 
         for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens)) {
-          if (!panels.includes(idPanel)) {
-            s(`.${idPanel}`).remove();
-            delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
-          }
+          if (!panels.includes(idPanel)) await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
         }
       }, 500);
 

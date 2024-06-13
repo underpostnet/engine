@@ -234,8 +234,8 @@ const QuestComponent = {
         displayIds: [{ id: 'ayleen', quantity: [1] }],
       },
       icon: {
-        folder: 'quest',
-        id: 'bone',
+        folder: 'quest/bone',
+        id: 'animation.gif',
       },
       title: {
         en: `floki's bone`,

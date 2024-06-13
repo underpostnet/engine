@@ -948,12 +948,14 @@ const renderMenuLabel = ({ img, text, icon }) => {
     <div class="abs center main-btn-menu-text">${text}</div>`;
 };
 
-const renderViewTitle = (options = { icon: '', img: '', text: '', 'ui-icons': '' }) => {
+const renderViewTitle = (options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '' }) => {
   const { img, text, icon } = options;
   if (!img && !options['ui-icon']) return html`<span class="view-title-icon">${icon}</span> ${text}`;
   return html`<img
       class="abs img-btn-square-view-title"
-      src="${options['ui-icon'] ? `${getProxyPath()}assets/ui-icons/${options['ui-icon']}` : img}"
+      src="${options['ui-icon']
+        ? `${getProxyPath()}assets/${options.assetFolder ? options.assetFolder : 'ui-icons'}/${options['ui-icon']}`
+        : img}"
     />
     <div class="in text-btn-square-view-title">${text}</div>`;
 };
