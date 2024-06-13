@@ -18,8 +18,6 @@ RUN apt-get update --fix-missing && \
     apt-get -yq install openssh-server supervisor && \
     # Few handy utilities which are nice to have
     apt-get -y install nano vim less --no-install-recommends && \
-    # json tools
-    apt-get install jq && \
     apt-get clean
 
 # install ssh
@@ -67,6 +65,9 @@ RUN curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/fi
 
 # Install mongodb necessary libs
 RUN apt-get update && apt-get install -y apt-utils wget gnupg gnupg2 curl
+
+# Install json tools
+RUN sudo apt install jq
 
 # Install mongodb
 RUN wget -qO - https://www.mongodb.org/static/pgp/server-4.2.asc | apt-key add -
