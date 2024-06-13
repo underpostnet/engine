@@ -31,11 +31,29 @@ const CssCommonCyberia = async () => {
       height: 70px;
     }
     .action-game-panel {
-      width: 150px;
-      height: 40px;
+      width: 230px;
       background: white;
       z-index: 10;
       color: black;
+      font-size: 20px;
+    }
+    .action-panel-bar-btn-container {
+      width: 40px;
+      height: 40px;
+    }
+    .action-panel-img-icon {
+      width: 20px;
+      height: 20px;
+    }
+    .action-panel-bar-btn-container:hover {
+      background: #c1c1c1;
+    }
+    .action-panel-bar-btn-container:hover .action-panel-img-icon {
+      width: 23px;
+      height: 23px;
+    }
+    .quest-short-description {
+      margin-left: 5px;
     }
   </style>`;
 };

@@ -35,6 +35,7 @@ const PointAndClickMovementCyberia = {
     let idPath;
     s(`.${id}-container`).onclick = async (e = new PointerEvent()) => {
       console.log(e);
+      if (e.target.className.match('action-panel') || e.srcElement.className.match('action-panel')) return;
       idPath = s4() + s4();
       const currentIdPath = idPath;
 

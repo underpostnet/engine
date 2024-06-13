@@ -15,8 +15,8 @@ const InteractionPanelCyberia = {
   Data: {},
   PanelRender: {
     actionPanelTokens: {},
-    action: async function ({ idPanel, type, id }) {
-      const maxHeight = 40;
+    action: async function ({ idPanel, type, id, html }) {
+      const maxHeight = 80;
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
         dimAmplitude: MatrixCyberia.Data.dimAmplitude,
       });
@@ -30,6 +30,8 @@ const InteractionPanelCyberia = {
         (ResponsiveDataAmplitude.minValue / MatrixCyberia.Data.dim) * ElementsCyberia.Data[type][id].x * 1
       }px`;
 
+      const height = `${maxHeight}px`;
+
       if (s(`.${idPanel}`)) {
         s(`.${idPanel}`).style.left = left;
         s(`.${idPanel}`).style.top = top;
@@ -37,10 +39,10 @@ const InteractionPanelCyberia = {
         append(
           `.PointAndClickMovementCyberia-container`,
           html`
-            <div class="abs action-game-panel ${idPanel}" style="top: ${top}; left: ${left};">
+            <div class="abs action-game-panel ${idPanel}" style="top: ${top}; left: ${left}; height: ${height};">
               ${await renderBubbleDialog({
                 id: idPanel,
-                html: async () => typeWriter({ id: idPanel, html: `Hi! Hi! Hi! Hi! Hi!` }),
+                html,
               })}
             </div>
           `,

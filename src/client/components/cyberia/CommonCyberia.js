@@ -241,11 +241,24 @@ const QuestComponent = {
         en: `floki's bone`,
         es: 'Huesos de floki',
       },
+      shortDescription: {
+        en: `Please find Floki's bone`,
+        es: 'Por favor encuentra los huesos de floki',
+      },
       description: {
         en: `Please find Floki's bone`,
         es: 'Por favor encuentra los huesos de floki',
       },
     },
+  },
+  getQuestByDisplayId: function ({ displayId }) {
+    const questData = [];
+    for (const questKey of Object.keys(this.Data)) {
+      if (this.Data[questKey].provide.displayIds.find((q) => q.id === displayId)) {
+        questData.push({ questKey, ...this.Data[questKey] });
+      }
+    }
+    return questData;
   },
   components: [
     {

@@ -1,7 +1,9 @@
+import { BtnIcon } from '../core/BtnIcon.js';
 import { objectEquals } from '../core/CommonJs.js';
+import { typeWriter } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
@@ -47,11 +49,52 @@ const QuestManagementCyberia = {
                   dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
                 })
               ) {
-                const targetElement = { type: typeTarget, id: elementTargetId };
+                // const targetElement = { type: typeTarget, id: elementTargetId };
                 // logger.warn('quest provider detector', targetElement);
                 const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
                 panels.push(idPanel);
-                await InteractionPanelCyberia.PanelRender.action({ idPanel, type: typeTarget, id: elementTargetId });
+                const questData = QuestComponent.getQuestByDisplayId({ displayId })[0];
+                await InteractionPanelCyberia.PanelRender.action({
+                  idPanel,
+                  type: typeTarget,
+                  id: elementTargetId,
+                  html: questData
+                    ? async () => {
+                        setTimeout(() => {
+                          s(`.action-panel-close-${idPanel} `).onclick = () => alert();
+                          s(`.action-panel-quest-${idPanel} `).onclick = () => alert();
+                        });
+                        return html`
+                          <div class="fl">
+                            ${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-quest-${idPanel}`,
+                              label: html`<img
+                                class="abs center action-panel-img-icon"
+                                src="${getProxyPath()}assets/ui-icons/quest.png"
+                              />`,
+                            })}
+                            ${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
+                              label: html`<img
+                                class="abs center action-panel-img-icon"
+                                src="${getProxyPath()}assets/ui-icons/close.png"
+                              />`,
+                            })}
+                          </div>
+                          <div class="in quest-short-description">
+                            ${await typeWriter({
+                              id: idPanel,
+                              html: html`${Translate.Render(`${questData.questKey}-shortDescription`)}`,
+                            })}
+                          </div>
+                        `;
+                      }
+                    : async () =>
+                        await typeWriter({
+                          id: idPanel,
+                          html: html`<div class="in quest-short-description">Hi! Hi! Hi! Hi! Hi!</div>`,
+                        }),
+                });
               }
             }
           }
