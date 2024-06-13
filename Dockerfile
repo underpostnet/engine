@@ -78,13 +78,6 @@ RUN apt-get install -y mongodb-org
 # BIND TO ALL ADAPTERS IN CONTAINER
 RUN sed -i "s,\\(^[[:blank:]]*bindIp:\\) .*,\\1 0.0.0.0," /etc/mongod.conf
 
-# Install xml-to-json
-WORKDIR /bin
-RUN wget "http://stedolan.github.io/jq/download/linux64/jq" && chmod 755 jq
-
-# Define working directory.
-WORKDIR /code
-
 # Bundle app source
 COPY . .
 
