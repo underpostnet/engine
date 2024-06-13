@@ -562,6 +562,15 @@ const typeWriter = async function ({ id, html }) {
   `;
 };
 
+const getStyleAttrFromObject = (selector, options) =>
+  html`<style>
+    ${selector} { ${options && options.style
+      ? Object.keys(options.style)
+          .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
+          .join('')
+      : ''} }
+  </style>`;
+
 export {
   Css,
   Themes,
@@ -581,4 +590,5 @@ export {
   ThemesScope,
   renderBubbleDialog,
   typeWriter,
+  getStyleAttrFromObject,
 };

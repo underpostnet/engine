@@ -51,12 +51,12 @@ const InteractionPanelCyberia = {
     element: async function ({ type, id }) {
       htmls(
         `.display-current-element`,
-        html`<div class="in display-current-element-header">
+        html`
           <div class="abs center">
             ${type} <br />
             <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>
           </div>
-        </div>`,
+        `,
       );
       setTimeout(() => {
         if (!InteractionPanelCyberia.Data['element-interaction-panel']) return;
@@ -102,20 +102,32 @@ const InteractionPanelCyberia = {
     const style = {
       height: '40px',
       width: '180px',
-      'z-index': 3,
+      'z-index': 7,
       'font-size': '18px',
       overflow: 'hidden',
       resize: 'none',
       color: `#ffcc00`,
+      // border: '1px solid red',
+      background: 'none',
     };
     let render = async () => html`${id}`;
     switch (id) {
       case 'element-interaction-panel':
-        style.top = '160px';
-        style.height = '200px';
+        style.top = '50px';
+        style.height = '50px';
         render = async () =>
-          html`<div class="in"><span class="display-current-element" style="${borderChar(2, 'black')}"></span></div>
-            <div class="in">${await ElementPreviewCyberia.Render({ renderId: 'element-interaction-panel' })}</div>`;
+          html`<div class="in fl">
+            <div class="in fll">
+              ${await ElementPreviewCyberia.Render({
+                renderId: 'element-interaction-panel',
+                style: {
+                  height: '50px',
+                  width: '50px',
+                },
+              })}
+            </div>
+            <div class="in fll"><div class="in display-current-element" style="${borderChar(2, 'black')}"></div></div>
+          </div> `;
         PointAndClickMovementCyberia.Event[id] = async ({ x, y }) => {
           let mainUserPanel = false;
           for (const type of ['user', 'bot']) {
@@ -139,7 +151,7 @@ const InteractionPanelCyberia = {
         };
         break;
       case 'map-interaction-panel':
-        style.top = `${411 - 40}px`;
+        style.top = `${5}px`;
         // const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
         render = async () => html`
           <div class="fl">

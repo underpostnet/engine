@@ -152,6 +152,7 @@ const MenuCyberia = {
         setTimeout(ThemeEvents['titleRender']);
         return '';
       },
+      disableTools: ['navigator', 'text-box', 'lang'],
       heightTopBar,
       heightBottomBar,
       barConfig: newInstance(barConfig),

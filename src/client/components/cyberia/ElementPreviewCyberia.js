@@ -4,6 +4,7 @@ import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
+import { getStyleAttrFromObject } from '../core/Css.js';
 
 const ElementPreviewCyberia = {
   Tokens: {},
@@ -33,6 +34,7 @@ const ElementPreviewCyberia = {
           margin: auto;
         }
       </style>
+      ${getStyleAttrFromObject('.element-preview', options)}
       <canvas class="in element-preview ${selector}"></canvas>
     `;
   },

@@ -27,9 +27,6 @@ const CssCommonCyberia = async () => {
       position: relative;
       top: 4px;
     }
-    .display-current-element-header {
-      height: 70px;
-    }
     .action-game-panel {
       width: 230px;
       background: white;
@@ -558,6 +555,8 @@ const CssCyberiaDark = {
           }
           .display-current-element {
             font-family: 'retro-font-sensitive';
+            width: 100px;
+            height: 50px;
           }
           .btn-bar-modal-container {
             text-align: right;

@@ -4,7 +4,16 @@ import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js'
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
-import { Css, ThemeEvents, Themes, ThemesScope, darkTheme, dynamicCol, renderStatus } from './Css.js';
+import {
+  Css,
+  ThemeEvents,
+  Themes,
+  ThemesScope,
+  darkTheme,
+  dynamicCol,
+  getStyleAttrFromObject,
+  renderStatus,
+} from './Css.js';
 import { setDocTitle } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -25,6 +34,7 @@ const Modal = {
       handleType: 'bar',
       mode: '' /* slide-menu */,
       RouterInstance: {},
+      disableTools: [],
     },
   ) {
     if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
@@ -201,7 +211,11 @@ const Modal = {
                     class: 'in fll main-btn-menu action-bar-box action-btn-app-icon',
                     label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
                   })}
-                  <div class="in fll top-bar-search-box-container hover">
+                  <div
+                    class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
+                      ? 'hide'
+                      : ''}"
+                  >
                     ${await Input.Render({
                       id: inputSearchBoxId,
                       placeholder: Translate.Render('search', '.top-bar-search-box'), // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
@@ -425,7 +439,9 @@ const Modal = {
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu action-bar-box action-btn-lang',
+                      class: `in flr main-btn-menu action-bar-box action-btn-lang ${
+                        options?.disableTools?.includes('lang') ? 'hide' : ''
+                      }`,
                       label: html` <div class="${contentIconClass} action-btn-lang-render"></div>`,
                     })}
                     ${await BtnIcon.Render({
@@ -435,17 +451,23 @@ const Modal = {
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu action-bar-box action-btn-home',
+                      class: `in flr main-btn-menu action-bar-box action-btn-home ${
+                        options?.disableTools?.includes('navigator') ? 'hide' : ''
+                      }`,
                       label: html` <div class="${contentIconClass}"><i class="fas fa-home"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu action-bar-box action-btn-right',
+                      class: `in flr main-btn-menu action-bar-box action-btn-right ${
+                        options?.disableTools?.includes('navigator') ? 'hide' : ''
+                      }`,
                       label: html` <div class="${contentIconClass}"><i class="fas fa-chevron-right"></i></div>`,
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu action-bar-box action-btn-left',
+                      class: `in flr main-btn-menu action-bar-box action-btn-left ${
+                        options?.disableTools?.includes('navigator') ? 'hide' : ''
+                      }`,
                       label: html`<div class="${contentIconClass}"><i class="fas fa-chevron-left"></i></div>`,
                     })}
                   </div>
@@ -601,8 +623,6 @@ const Modal = {
       return;
     }
     const render = html` <style class="style-${idModal}">
-
-
         .${idModal} {
           width: ${width}px;
           height: ${height}px;
@@ -613,11 +633,6 @@ const Modal = {
           transition: ${transition};
           opacity: 0;
           z-index: 1;
-          ${options && options.style
-          ? Object.keys(options.style)
-              .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
-              .join('')
-          : ''}
         }
         .bar-default-modal-${idModal} {
           top: 0px;
@@ -637,6 +652,7 @@ const Modal = {
           left: 5%;
         }
       </style>
+      ${getStyleAttrFromObject(`.${idModal}`, options)}
       <div class="fix ${options && options.class ? options.class : ''} modal box-shadow ${idModal}">
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
