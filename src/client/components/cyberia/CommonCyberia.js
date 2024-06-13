@@ -230,6 +230,21 @@ const QuestComponent = {
   Data: {
     'floki-bone': {
       type: 'search',
+      provide: {
+        displayIds: [{ id: 'ayleen', quantity: [1] }],
+      },
+      icon: {
+        folder: 'quest',
+        id: 'bone',
+      },
+      title: {
+        en: `floki's bone`,
+        es: 'Huesos de floki',
+      },
+      description: {
+        en: `Please find Floki's bone`,
+        es: 'Por favor encuentra los huesos de floki',
+      },
     },
   },
   components: [
@@ -700,6 +715,9 @@ const BehaviorElement = {
     color: 'yellow',
   },
   'item-quest': {
+    color: 'yellow',
+  },
+  decor: {
     color: 'yellow',
   },
 };

@@ -12,7 +12,6 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
-import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
@@ -539,11 +538,7 @@ const MenuCyberia = {
           await ServerCyberiaPortal.Render({
             idModal: 'modal-server',
             events: {
-              'change-server': async ({ server }) => {
-                setURI(server);
-                await SocketIo.Init({ channels: ElementsCyberia.Data });
-                return await SocketIoCyberia.Init();
-              },
+              'change-server': async ({ server }) => await SocketIoCyberia.changeServer({ server }),
             },
           }),
         handleType: 'bar',

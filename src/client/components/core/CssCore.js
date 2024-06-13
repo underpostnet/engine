@@ -151,12 +151,12 @@ const CssCoreDark = {
         input::file-selector-button:hover {
           background: #191919;
         }
-        .sub-container {
+        .drop-hover-container {
           background: #232323;
           border: 2px solid #313131;
           transition: 0.3s;
         }
-        .sub-container:hover {
+        .drop-hover-container:hover {
           background: #191919;
           border: 2px solid #313131;
         }
@@ -445,12 +445,12 @@ const CssCoreLight = {
         input::file-selector-button:hover {
           background: #bcbcbc;
         }
-        .sub-container {
+        .drop-hover-container {
           background: #cacaca;
           border: 2px solid #313131;
           transition: 0.3s;
         }
-        .sub-container:hover {
+        .drop-hover-container:hover {
           background: #bcbcbc;
           border: 2px solid #313131;
         }

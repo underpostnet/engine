@@ -1,6 +1,8 @@
+import { objectEquals } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
+import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
-import { isElementCollision } from './CommonCyberia.js';
+import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
@@ -21,6 +23,9 @@ const QuestManagementCyberia = {
 
     if (WorldCyberiaManagement.Data[type] && WorldCyberiaManagement.Data[type][id]) {
       this.IntervalQuestDetector = setInterval(async () => {
+        const panels = [];
+        if (!WorldCyberiaManagement.Data[type] || !WorldCyberiaManagement.Data[type][id])
+          return clearInterval(this.IntervalQuestDetector);
         for (const instance of WorldCyberiaManagement.Data[type][id].model.world.instance) {
           const botsQuest = instance.bots.filter((b) => b.behavior === 'quest-passive');
           for (const botQuestData of botsQuest) {
@@ -42,10 +47,20 @@ const QuestManagementCyberia = {
                   dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
                 })
               ) {
-                logger.warn('quest provider detector', { type: typeTarget, id: elementTargetId });
-                return await InteractionPanelCyberia.PanelRender.element({ type: typeTarget, id: elementTargetId });
+                const targetElement = { type: typeTarget, id: elementTargetId };
+                // logger.warn('quest provider detector', targetElement);
+                const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
+                panels.push(idPanel);
+                await InteractionPanelCyberia.PanelRender.action({ idPanel, type: typeTarget, id: elementTargetId });
               }
             }
+          }
+        }
+
+        for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens)) {
+          if (!panels.includes(idPanel)) {
+            s(`.${idPanel}`).remove();
+            delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
           }
         }
       }, 500);
@@ -75,7 +90,17 @@ const QuestManagementCyberia = {
 
 const QuestCyberia = {
   RenderPanelQuest: async function ({ id, questMetaData }) {
-    return html`<pre>${JSON.stringify({ id, questMetaData }, null, 4)}</pre>`;
+    const dataScope = { id, questMetaData, QuestComponent: QuestComponent.Data[questMetaData.id] };
+    return html` <div class="in section-mp ">
+      <div class="in section-mp">
+        <div class="in sub-title-modal">${Translate.Render(`${questMetaData.id}-title`)}</div>
+        <div class="in section-mp">${Translate.Render(`${questMetaData.id}-description`)}</div>
+      </div>
+      <div class="in section-mp">
+        <div class="in sub-title-modal">metadata</div>
+        <div class="in"><pre>${JSON.stringify(dataScope, null, 4)}</pre></div>
+      </div>
+    </div>`;
   },
   Render: async function ({ idModal }) {
     QuestManagementCyberia.onChangeCurrentQuestAvailable[idModal] = {

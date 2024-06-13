@@ -1,8 +1,8 @@
 import { getId, range } from '../core/CommonJs.js';
-import { Css, Themes, borderChar } from '../core/Css.js';
+import { Css, Themes, borderChar, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { append, htmls, s } from '../core/VanillaJs.js';
 import { WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
@@ -14,6 +14,38 @@ import { WorldCyberiaManagement } from './WorldCyberia.js';
 const InteractionPanelCyberia = {
   Data: {},
   PanelRender: {
+    actionPanelTokens: {},
+    action: async function ({ idPanel, type, id }) {
+      const maxHeight = 40;
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
+        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
+      });
+
+      this.actionPanelTokens[idPanel] = {};
+
+      const top = `${
+        (ResponsiveDataAmplitude.minValue / MatrixCyberia.Data.dim) * ElementsCyberia.Data[type][id].y * 1 - maxHeight
+      }px`;
+      const left = `${
+        (ResponsiveDataAmplitude.minValue / MatrixCyberia.Data.dim) * ElementsCyberia.Data[type][id].x * 1
+      }px`;
+
+      if (s(`.${idPanel}`)) {
+        s(`.${idPanel}`).style.left = left;
+        s(`.${idPanel}`).style.top = top;
+      } else
+        append(
+          `.PointAndClickMovementCyberia-container`,
+          html`
+            <div class="abs action-game-panel ${idPanel}" style="top: ${top}; left: ${left};">
+              ${await renderBubbleDialog({
+                id: idPanel,
+                html: async () => typeWriter({ id: idPanel, html: `Hi! Hi! Hi! Hi! Hi!` }),
+              })}
+            </div>
+          `,
+        );
+    },
     element: async function ({ type, id }) {
       htmls(
         `.display-current-element`,

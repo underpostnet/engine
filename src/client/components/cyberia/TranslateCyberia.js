@@ -1,4 +1,5 @@
 import { Translate } from '../core/Translate.js';
+import { QuestComponent } from './CommonCyberia.js';
 
 const TranslateCyberia = {
   Init: async function () {
@@ -38,6 +39,13 @@ const TranslateCyberia = {
     Translate.Data['success-world'] = { en: 'Success load World(s)', es: 'Mundo cargado con exito' };
 
     Translate.Data['space'] = { en: 'Space', es: 'Espacial' };
+
+    {
+      for (const key of Object.keys(QuestComponent.Data)) {
+        Translate.Data[`${key}-title`] = QuestComponent.Data[key].title;
+        Translate.Data[`${key}-description`] = QuestComponent.Data[key].description;
+      }
+    }
   },
 };
 

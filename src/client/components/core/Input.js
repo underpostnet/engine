@@ -118,7 +118,7 @@ const InputFile = {
       s(`.drop-zone-${id}`).addEventListener(
         'dragover',
         function (e) {
-          this.classList.add('sub-container');
+          this.classList.add('drop-hover-container');
         },
         false,
       );
@@ -126,14 +126,14 @@ const InputFile = {
       s(`.drop-zone-${id}`).addEventListener(
         'dragleave',
         function (e) {
-          this.classList.remove('sub-container');
+          this.classList.remove('drop-hover-container');
         },
         false,
       );
       s(`.drop-zone-${id}`).addEventListener(
         'drop',
         function (e) {
-          this.classList.remove('sub-container');
+          this.classList.remove('drop-hover-container');
           const files = e.dataTransfer.files;
           const dataTransfer = new DataTransfer();
 

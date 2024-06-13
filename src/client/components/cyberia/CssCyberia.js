@@ -30,6 +30,13 @@ const CssCommonCyberia = async () => {
     .display-current-element-header {
       height: 70px;
     }
+    .action-game-panel {
+      width: 150px;
+      height: 40px;
+      background: white;
+      z-index: 10;
+      color: black;
+    }
   </style>`;
 };
 
@@ -223,15 +230,6 @@ const CssCyberiaDark = {
           }
           .tile-object-container {
             font-size: 8px;
-          }
-          .sub-container {
-            background: #232323;
-            border: 2px solid #313131;
-            transition: 0.3s;
-          }
-          .sub-container:hover {
-            background: #191919;
-            border: 2px solid #313131;
           }
           .inside-input-btn {
             text-align: left;

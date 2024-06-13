@@ -73,7 +73,19 @@ const Css = {
           }
 
           .inl {
+            display: inline-block;
+            display: -webkit-fill-inline-block;
+            display: -moz-inline-block;
+            display: -ms-inline-block;
+            display: -o-fill-inline-block;
+          }
+
+          .inlt {
             display: inline-table;
+            display: -webkit-fill-inline-table;
+            display: -moz-inline-table;
+            display: -ms-inline-table;
+            display: -o-fill-inline-table;
           }
 
           .fix {
@@ -504,6 +516,52 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
   return html` <style class="style-${id}-col"></style>`;
 };
 
+const renderBubbleDialog = async function (options = { id: '', html: async () => '' }) {
+  const { id, html } = options;
+  return html`<div class="inl bubble-dialog-${id}">${await html()}</div>`;
+};
+
+const typeWriter = async function ({ id, html }) {
+  // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
+  // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
+  const typingAnimationTransitionStyle = [`1s linear`, `2s steps(30, end)`, `1s forwards`];
+  return html`
+    <style>
+      .tw-${id}-container {
+      }
+      .tw-${id}-typed-out {
+        overflow: hidden;
+        border-right: 0.15em solid orange;
+        white-space: nowrap;
+        animation: typing-${id} ${typingAnimationTransitionStyle[1]}, blink-caret-${id} 0.5s step-end infinite;
+        animation-fill-mode: forwards;
+        width: 0;
+      }
+      @keyframes typing-${id} {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      @keyframes blink-caret-${id} {
+        from,
+        to {
+          border-color: transparent;
+        }
+        50% {
+          border-color: orange;
+        }
+      }
+    </style>
+    <div class="inl tw-${id}-container">
+      <div class="tw-${id}-typed-out">${html}</div>
+    </div>
+  `;
+};
+
 export {
   Css,
   Themes,
@@ -521,4 +579,6 @@ export {
   ThemeEvents,
   TriggerThemeEvents,
   ThemesScope,
+  renderBubbleDialog,
+  typeWriter,
 };
