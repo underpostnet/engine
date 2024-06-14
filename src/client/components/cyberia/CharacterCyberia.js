@@ -225,7 +225,7 @@ const CharacterCyberia = {
 
     if (!s(`.character-container-view`)) return;
 
-    await InteractionPanelCyberia.PanelRender.element({ type: 'user', id: 'main' });
+    await InteractionPanelCyberia.PanelRender.element({ type, id });
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {
@@ -238,15 +238,25 @@ const CharacterCyberia = {
 
     htmls(
       `.character-container-view`,
-      frames
-        .map(
-          (v, i) =>
-            html`<img
-              class="abs center character-view-img character-view-img-frame-${i} ${i === 0 ? '' : 'hide'}"
-              src="${v}"
-            />`,
-        )
-        .join(''),
+      html`
+        <div class="in character-container-view-header">
+          <div class="abs center" style="font-family: 'retro-font-sensitive';">
+            <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span
+            ><br />${ElementsCyberia.getDisplayName({ type, id })}
+          </div>
+        </div>
+        <div class="in character-container-view-body">
+          ${frames
+            .map(
+              (v, i) =>
+                html`<img
+                  class="abs center character-view-img character-view-img-frame-${i} ${i === 0 ? '' : 'hide'}"
+                  src="${v}"
+                />`,
+            )
+            .join('')}
+        </div>
+      `,
     );
     let frame = 0;
     if (this.CharacterCyberiaPreViewInterval) clearInterval(this.CharacterCyberiaPreViewInterval);

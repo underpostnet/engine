@@ -58,7 +58,7 @@ const InteractionPanelCyberia = {
         `.display-current-element`,
         html`
           <div class="abs center">
-            ${type} <br />
+            ${ElementsCyberia.getDisplayTitle({ type, id })} <br />
             <span style="color: white">${ElementsCyberia.getDisplayName({ type, id })}</span>
           </div>
         `,

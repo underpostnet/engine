@@ -432,8 +432,8 @@ const Modal = {
                       label: html`
                         <div class="${contentIconClass}">
                           <i class="far fa-square btn-bar-center-icon-square hide"></i>
-                          <i class="fa-solid fa-xmark btn-bar-center-icon-close hide"></i>
-                          <i class="fa-solid fa-bars btn-bar-center-icon-menu"></i>
+                          <span class="btn-bar-center-icon-close hide">${barConfig.buttons.close.label}</span>
+                          <span class="btn-bar-center-icon-menu">${barConfig.buttons.menu.label}</span>
                         </div>
                       `,
                     })}

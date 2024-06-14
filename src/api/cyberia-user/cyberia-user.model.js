@@ -107,6 +107,7 @@ const CyberiaUserSchema = new Schema({
     lifeIndicator: { type: Object, default: {} },
     coinIndicator: { type: Object, default: {} },
     username: { type: Object, default: {} },
+    title: { type: Object, default: {} },
     pointerArrow: { type: Object, default: {} },
   },
   model: {

@@ -63,63 +63,62 @@ const QuestManagementCyberia = {
                   idPanel,
                   type: typeTarget,
                   id: elementTargetId,
-                  html: questData
-                    ? async () => {
-                        setTimeout(() => {
-                          s(`.action-panel-close-${idPanel}`).onclick = async () => {
-                            this.questClosePanels.push(idPanel);
-                            await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
-                          };
-                          s(`.action-panel-quest-${idPanel}`).onclick = async () => {
-                            await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
-                            const { barConfig } = await Themes[Css.currentTheme]();
-                            await Modal.Render({
-                              id: `modal-panel-quest-${idPanel}`,
-                              barConfig,
-                              title: renderViewTitle({
-                                'ui-icon': questData.icon.id,
-                                assetFolder: questData.icon.folder,
-                                text: html`${Translate.Render(`${questData.questKey}-title`)}`,
-                              }),
-                              html: html`<div class="in section-mp">
-                                ${Translate.Render(`${questData.questKey}-description`)}
-                              </div>`,
-                              maximize: true,
-                              mode: 'view',
-                              slideMenu: 'modal-menu',
-                            });
-                          };
-                        });
-                        return html`
-                          <div class="fl">
-                            ${await BtnIcon.Render({
+                  html: async () => {
+                    setTimeout(() => {
+                      s(`.action-panel-close-${idPanel}`).onclick = async () => {
+                        this.questClosePanels.push(idPanel);
+                        await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+                      };
+                      if (questData)
+                        s(`.action-panel-quest-${idPanel}`).onclick = async () => {
+                          await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+                          const { barConfig } = await Themes[Css.currentTheme]();
+                          await Modal.Render({
+                            id: `modal-panel-quest-${idPanel}`,
+                            barConfig,
+                            title: renderViewTitle({
+                              'ui-icon': questData.icon.id,
+                              assetFolder: questData.icon.folder,
+                              text: html`${Translate.Render(`${questData.questKey}-title`)}`,
+                            }),
+                            html: html`<div class="in section-mp">
+                              ${Translate.Render(`${questData.questKey}-description`)}
+                            </div>`,
+                            maximize: true,
+                            mode: 'view',
+                            slideMenu: 'modal-menu',
+                          });
+                        };
+                    });
+                    return html`
+                      <div class="fl">
+                        ${questData
+                          ? await BtnIcon.Render({
                               class: `in fll action-panel-bar-btn-container action-panel-quest-${idPanel}`,
                               label: html`<img
                                 class="abs center action-panel-img-icon"
                                 src="${getProxyPath()}assets/ui-icons/quest.png"
                               />`,
-                            })}
-                            ${await BtnIcon.Render({
-                              class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
-                              label: html`<img
-                                class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/close.png"
-                              />`,
-                            })}
-                          </div>
-                          <div class="in quest-short-description">
-                            ${await typeWriter({
-                              id: idPanel,
-                              html: html`${Translate.Render(`${questData.questKey}-shortDescription`)}`,
-                            })}
-                          </div>
-                        `;
-                      }
-                    : async () =>
-                        await typeWriter({
+                            })
+                          : ''}
+                        ${await BtnIcon.Render({
+                          class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
+                          label: html`<img
+                            class="abs center action-panel-img-icon"
+                            src="${getProxyPath()}assets/ui-icons/close.png"
+                          />`,
+                        })}
+                      </div>
+                      <div class="in quest-short-description">
+                        ${await typeWriter({
                           id: idPanel,
-                          html: html`<div class="in quest-short-description">Hi! Hi! Hi! Hi! Hi!</div>`,
-                        }),
+                          html: questData
+                            ? html`${Translate.Render(`${questData.questKey}-shortDescription`)}`
+                            : html`Hi! Hi! Hi! Hi! Hi!`,
+                        })}
+                      </div>
+                    `;
+                  },
                 });
               }
             }

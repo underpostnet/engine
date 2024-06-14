@@ -407,7 +407,7 @@ const PixiCyberia = {
 
           componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.2;
           componentInstance.tint = '#00e622ff';
-          componentInstance.visible = true;
+          componentInstance.visible = ElementsCyberia.Data[type][id].behavior !== 'item-quest';
           this.Data[type][id].components[componentType] = componentInstance;
           this.updateLifeBarWidth({ type, id, dim });
           this.Data[type][id].addChild(componentInstance);
@@ -796,29 +796,32 @@ const PixiCyberia = {
     container.destroy();
     delete this.markers[id];
   },
-  setUsername: function ({ type, id }) {
-    // https://pixijs.io/pixi-text-style/#
-    const componentType = 'username';
-    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+  renderText: async function ({ componentType, type, id, dim, color, text, size }) {
     {
       if (this.Data[type][id].components[componentType] && this.Data[type][id].components[componentType].container)
         this.Data[type][id].components[componentType].container.destroy();
       const componentInstance = new Container();
-      componentInstance.x = 0;
-      componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.5;
-      componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
-      componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
+
+      const dataSpriteFormat = this.formatSpriteComponent({
+        displayId: componentType,
+        dim,
+        element: ElementsCyberia.Data[type][id],
+      });
+      for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
+        componentInstance[attr] = dataSpriteFormat.componentInstance[attr];
+      }
+
       this.Data[type][id].components[componentType].container = componentInstance;
       this.Data[type][id].addChild(componentInstance);
     }
     {
       setTimeout(() => {
         const componentInstance = new Text(
-          ElementsCyberia.getDisplayName({ type, id }),
+          text,
           new TextStyle({
-            fill: '#dcdcdc',
+            fill: color ? color : '#dcdcdc',
             fontFamily: 'retro-font-sensitive',
-            fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
+            fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude) * (size ? size : 1),
             // fontWeight: 'bold',
             dropShadow: true,
             dropShadowAngle: 1,
@@ -830,6 +833,19 @@ const PixiCyberia = {
         this.Data[type][id].components[componentType].container.addChild(componentInstance);
       }, 100);
     }
+  },
+  setUsername: function ({ type, id }) {
+    // https://pixijs.io/pixi-text-style/#
+    let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    this.renderText({ componentType: 'username', type, id, dim, text: ElementsCyberia.getDisplayName({ type, id }) });
+    this.renderText({
+      componentType: 'title',
+      type,
+      id,
+      dim,
+      color: '#ffcc00',
+      text: ElementsCyberia.getDisplayTitle({ type, id }),
+    });
   },
   updateLifeBarWidth: function ({ type, id, dim }) {
     if (this.Data[type][id].components['lifeBar'])
@@ -900,6 +916,18 @@ const PixiCyberia = {
           default:
             break;
         }
+        break;
+      case 'username':
+        componentInstance.x = 0;
+        componentInstance.y = -1 * dim * element.dim * 0.5;
+        componentInstance.width = dim * element.dim;
+        componentInstance.height = dim * element.dim * 0.4;
+        break;
+      case 'title':
+        componentInstance.x = 0;
+        componentInstance.y = -1 * dim * element.dim * 0.75;
+        componentInstance.width = dim * element.dim;
+        componentInstance.height = dim * element.dim * 0.4;
         break;
       default:
         componentInstance.width = dim * element.dim;

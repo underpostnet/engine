@@ -345,6 +345,7 @@ const ComponentElement = {
         lifeIndicator: {},
         coinIndicator: {},
         username: {},
+        title: {},
         pointerArrow: {},
       },
     };
@@ -377,6 +378,7 @@ const ComponentElement = {
         lifeBar: {},
         lifeIndicator: {},
         username: {},
+        title: {},
         pointerArrow: {},
       },
     };

@@ -1,3 +1,4 @@
+import { cap } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { BaseElement } from './CommonCyberia.js';
@@ -32,14 +33,39 @@ const ElementsCyberia = {
     const dataSkin = this.Data[type][id].components.skin.find((s) => s.current);
     return dataSkin ? dataSkin.displayId : undefined;
   },
-  getDisplayName: ({ type, id }) => {
-    const displayName =
-      type === 'user' && ElementsCyberia.Data[type][id].model.user.username
-        ? ElementsCyberia.Data[type][id].model.user.username
-        : type === 'user' && id === 'main'
-        ? SocketIo.socket.id
-        : id;
-    return displayName.replace(`${type}-`, '').slice(0, 7);
+  formatDisplayText: (text) => cap(text.replaceAll('-', ' ')),
+  getDisplayTitle: function ({ type, id }) {
+    switch (this.Data[type][id].behavior) {
+      case 'user-hostile':
+        return this.formatDisplayText('creature');
+      case 'quest-passive':
+        return this.formatDisplayText('npc');
+      case 'user':
+        if (this.Data[type][id].model.user.username) return this.formatDisplayText('user');
+        else return this.formatDisplayText('anon user');
+      case 'item-quest':
+      case 'decor':
+      default:
+        return this.formatDisplayText(this.Data[type][id].behavior);
+    }
+  },
+  getDisplayName: function ({ type, id }) {
+    switch (this.Data[type][id].behavior) {
+      case 'user':
+        return this.formatDisplayText(
+          this.Data[type][id].model.user.username
+            ? this.Data[type][id].model.user.username
+            : id === 'main'
+            ? SocketIo.socket.id.slice(0, 7)
+            : id.slice(0, 7),
+        );
+      case 'user-hostile':
+      case 'quest-passive':
+      case 'item-quest':
+      case 'decor':
+      default:
+        return this.formatDisplayText(this.getCurrentSkinDisplayId({ type, id }));
+    }
   },
   removeAll: function () {
     for (const type of Object.keys(this.Data)) {
