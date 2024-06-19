@@ -324,6 +324,11 @@ const getProxyPath = () => {
  */
 const isNavigator = (name) => navigator.userAgent.toLowerCase().match(name.toLowerCase());
 
+/**
+ * The function `getTimeZone` returns the current time zone based on the user's browser settings.
+ */
+const getTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
+
 export {
   s,
   htmls,
@@ -346,4 +351,5 @@ export {
   getRawContentFile,
   getBlobFromUint8ArrayFile,
   isNavigator,
+  getTimeZone,
 };

@@ -526,6 +526,11 @@ const isValidFormat = (value, format) => {
   }
 };
 
+/**
+ * Returns the time difference between UTC time and local time, in minutes.
+ */
+const getTimezoneOffset = () => new Date().getTimezoneOffset();
+
 export {
   s4,
   range,
@@ -568,4 +573,5 @@ export {
   isMonthValid,
   isValidDate,
   isValidFormat,
+  getTimezoneOffset,
 };
