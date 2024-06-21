@@ -59,7 +59,7 @@ const Modal = {
     const heightDefaultTopBar = 0;
     const heightDefaultBottomBar = 0;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
-    this.Data[idModal] = { options, onCloseListener: {} };
+    this.Data[idModal] = { options, onCloseListener: {}, onMenuListener: {} };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
@@ -198,7 +198,10 @@ const Modal = {
             append(
               'body',
               html` <div class="fix modal slide-menu-top-bar">
-                <div class="fl top-bar" style="height: ${originHeightTopBar}px;">
+                <div
+                  class="fl top-bar  ${options.barClass ? options.barClass : ''}"
+                  style="height: ${originHeightTopBar}px;"
+                >
                   ${await BtnIcon.Render({
                     style: `height: 100%`,
                     class: 'in fll main-btn-menu action-bar-box action-btn-close hide',
@@ -208,7 +211,9 @@ const Modal = {
                   })}
                   ${await BtnIcon.Render({
                     style: `height: 100%`,
-                    class: 'in fll main-btn-menu action-bar-box action-btn-app-icon',
+                    class: `in fll main-btn-menu action-bar-box action-btn-app-icon ${
+                      options?.disableTools?.includes('app-icon') ? 'hide' : ''
+                    }`,
                     label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
                   })}
                   <div
@@ -423,12 +428,18 @@ const Modal = {
                       margin: 0px;
                       border: none;
                       width: 50px;
+                      min-height: 50px;
                     }
                   </style>
-                  <div class="fl" style="height: ${originHeightBottomBar}px;">
+                  <div
+                    class="fl ${options.barClass ? options.barClass : ''}"
+                    style="height: ${originHeightBottomBar}px;"
+                  >
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in fll main-btn-menu action-bar-box action-btn-center',
+                      class: `in fll main-btn-menu action-bar-box action-btn-center ${
+                        options?.disableTools?.includes('center') ? 'hide' : ''
+                      }`,
                       label: html`
                         <div class="${contentIconClass}">
                           <i class="far fa-square btn-bar-center-icon-square hide"></i>
@@ -446,7 +457,9 @@ const Modal = {
                     })}
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: 'in flr main-btn-menu action-bar-box action-btn-theme',
+                      class: `in flr main-btn-menu action-bar-box action-btn-theme ${
+                        options?.disableTools?.includes('theme') ? 'hide' : ''
+                      }`,
                       label: html` <div class="${contentIconClass} action-btn-theme-render"></div>`,
                     })}
                     ${await BtnIcon.Render({
@@ -805,7 +818,7 @@ const Modal = {
             if (path[path.length - 1] !== '/') path = `${path}/`;
             let newPath = `${getProxyPath()}`;
             if (path !== newPath) {
-              for (const subIdModal of Object.keys(this.Data)) {
+              for (const subIdModal of Object.keys(this.Data).reverse()) {
                 if (this.Data[subIdModal].options.route) {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
                   // console.warn('SET MODAL URI', newPath);
@@ -890,6 +903,9 @@ const Modal = {
     };
 
     const btnMenuEvent = () => {
+      Object.keys(this.Data[idModal].onMenuListener).map((keyListener) =>
+        this.Data[idModal].onMenuListener[keyListener](),
+      );
       if (options && 'barConfig' in options && options.barConfig.buttons.menu.onClick)
         return options.barConfig.buttons.menu.onClick();
     };

@@ -69,8 +69,8 @@ const QuestManagementCyberia = {
                         this.questClosePanels.push(idPanel);
                         await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                       };
-                      if (questData)
-                        s(`.action-panel-quest-${idPanel}`).onclick = async () => {
+                      if (questData) {
+                        s(`.action-panel-dude-${idPanel}`).onclick = async () => {
                           await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                           const { barConfig } = await Themes[Css.currentTheme]();
                           await Modal.Render({
@@ -89,17 +89,25 @@ const QuestManagementCyberia = {
                             slideMenu: 'modal-menu',
                           });
                         };
+                      }
                     });
                     return html`
                       <div class="fl">
                         ${questData
-                          ? await BtnIcon.Render({
-                              class: `in fll action-panel-bar-btn-container action-panel-quest-${idPanel}`,
+                          ? html`${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel}`,
                               label: html`<img
                                 class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/quest.png"
+                                src="${getProxyPath()}assets/ui-icons/ok.png"
                               />`,
-                            })
+                            })}
+                            ${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
+                              label: html`<img
+                                class="abs center action-panel-img-icon"
+                                src="${getProxyPath()}assets/ui-icons/dude.png"
+                              />`,
+                            })} `
                           : ''}
                         ${await BtnIcon.Render({
                           class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
@@ -147,7 +155,8 @@ const QuestManagementCyberia = {
           index++;
           listRenderQuest += await QuestCyberia.RenderPanelQuest({ id: `${id}-${index}`, questMetaData });
         }
-        htmls(selector, listRenderQuest);
+        // htmls(selector, listRenderQuest);
+        htmls(selector, '');
       }
     }
   },

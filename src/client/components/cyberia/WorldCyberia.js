@@ -187,6 +187,7 @@ const WorldCyberiaManagement = {
       });
       this.LoadAdjacentFaces(type, id);
       InteractionPanelCyberia.PanelRender.map({ face: newFace });
+      InteractionPanelCyberia.PanelRender.element({ type, id });
       this.EmitNewWorldCyberiaFace({ type, id });
     }
   },

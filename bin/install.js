@@ -10,7 +10,7 @@ const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, os, program, hostPath = ''] = process.argv;
+const [exe, dir, os, program, hostPath = '', deployId] = process.argv;
 const [host, path = ''] = hostPath.split('/');
 
 try {
@@ -111,7 +111,12 @@ try {
         const fullPath = `${folderPath}/${urlDownload.split('/').pop()}`;
         logger.info('destination', fullPath);
         if (!fs.existsSync(fullPath)) await Downloader(urlDownload, fullPath);
-        const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+        const confServer = JSON.parse(
+          fs.readFileSync(
+            deployId ? `./engine-private/conf/${deployId}/conf.server.json` : `./conf/conf.server.json`,
+            'utf8',
+          ),
+        );
         const { directory, db } = confServer[host][`/${path}`];
         logger.info('client found', confServer[host][`/${path}`]);
         const zipTargetPath = directory ? directory : `./public/${path ? `${host}/${path}` : host}`;

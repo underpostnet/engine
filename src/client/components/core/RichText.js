@@ -4,6 +4,7 @@ const RichText = {
   Tokens: {},
   Render: async function () {
     const id = getId(this.Tokens, 'rich-text-');
+    this.Tokens[id] = {};
     setTimeout(() => {
       /** @type {import('tinymce').EditorOptions} */
       const options = {

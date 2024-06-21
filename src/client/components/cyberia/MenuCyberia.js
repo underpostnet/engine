@@ -152,14 +152,20 @@ const MenuCyberia = {
         setTimeout(ThemeEvents['titleRender']);
         return '';
       },
-      disableTools: ['navigator', 'text-box', 'lang'],
+      // barClass: 'hide',
+      disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center'],
       heightTopBar,
       heightBottomBar,
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
       mode: 'slide-menu',
-      homeModals: ['map-interaction-panel', 'element-interaction-panel'],
+      homeModals: [
+        'map-interaction-panel',
+        'element-interaction-panel',
+        'menu-interaction-panel',
+        'quest-interaction-panel',
+      ],
     });
 
     this.Data[id].sortable = Modal.mobileModal()

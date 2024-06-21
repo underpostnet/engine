@@ -18,13 +18,14 @@ import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
+import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
 const PixiCyberia = {
   MetaData: {
     dim: 7 * 16 * 3 * 10,
   },
   Data: {},
-  Init: function () {
+  Init: async function () {
     Object.keys(ElementsCyberia.Data).map((type) => (this.Data[type] = {}));
     append(
       'body',
@@ -239,6 +240,15 @@ const PixiCyberia = {
         }
       }, timeInterval);
     }
+    append(
+      'body',
+      html`<div class="hide">
+        ${await ElementPreviewCyberia.Render({
+          renderId: 'element-interaction-panel',
+          style: { height: '50px', width: '50px' },
+        })}
+      </div>`,
+    );
   },
   currentBiomeCyberiaContainer: String,
   clearBiomeCyberiaContainers: function () {

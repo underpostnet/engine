@@ -8,6 +8,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
+import { borderChar } from '../core/Css.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -217,15 +218,17 @@ const CharacterCyberia = {
     } else if (s(`.character-slot-${componentType}`))
       htmls(`.character-slot-${componentType}`, this.renderEmptyCharacterCyberiaSlot(componentType));
   },
-  renderCharacterCyberiaPreView: async function () {
-    const type = 'user';
-    const id = 'main';
+  CharacterCyberiaPreViewInterval: {},
+  renderCharacterCyberiaPreView: async function (
+    options = { container: 'character-container-view', type: 'user', id: 'main' },
+  ) {
+    const { container, type, id } = options;
+
     const intervalTime = 200;
     const totalFrames = 5;
 
-    if (!s(`.character-container-view`)) return;
-
-    await InteractionPanelCyberia.PanelRender.element({ type, id });
+    if (!s(`.${container}`)) return;
+    await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {
@@ -237,20 +240,20 @@ const CharacterCyberia = {
     }
 
     htmls(
-      `.character-container-view`,
+      `.${container}`,
       html`
-        <div class="in character-container-view-header">
-          <div class="abs center" style="font-family: 'retro-font-sensitive';">
-            <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span
-            ><br />${ElementsCyberia.getDisplayName({ type, id })}
+        <div class="in ${container}-header">
+          <div class="abs center" style="font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}">
+            <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span><br />
+            <span style="color: #efefef">${ElementsCyberia.getDisplayName({ type, id })}</span>
           </div>
         </div>
-        <div class="in character-container-view-body">
+        <div class="in ${container}-body">
           ${frames
             .map(
               (v, i) =>
                 html`<img
-                  class="abs center character-view-img character-view-img-frame-${i} ${i === 0 ? '' : 'hide'}"
+                  class="abs center character-view-img character${container}-frame-${i} ${i === 0 ? '' : 'hide'}"
                   src="${v}"
                 />`,
             )
@@ -259,13 +262,14 @@ const CharacterCyberia = {
       `,
     );
     let frame = 0;
-    if (this.CharacterCyberiaPreViewInterval) clearInterval(this.CharacterCyberiaPreViewInterval);
-    this.CharacterCyberiaPreViewInterval = setInterval(() => {
-      if (!s(`.character-container-view`)) return clearInterval(this.CharacterCyberiaPreViewInterval);
-      s(`.character-view-img-frame-${frame}`).classList.add('hide');
+    if (this.CharacterCyberiaPreViewInterval[container]) clearInterval(this.CharacterCyberiaPreViewInterval[container]);
+    this.CharacterCyberiaPreViewInterval[container] = setInterval(() => {
+      if (!s(`.${container}`) || !s(`.character${container}-frame-${frame}`))
+        return clearInterval(this.CharacterCyberiaPreViewInterval[container]);
+      s(`.character${container}-frame-${frame}`).classList.add('hide');
       frame++;
       if (frame === frames.length) frame = 0;
-      s(`.character-view-img-frame-${frame}`).classList.remove('hide');
+      s(`.character${container}-frame-${frame}`).classList.remove('hide');
     }, intervalTime);
   },
   renderEmptyCharacterCyberiaSlot: function (slotType) {

@@ -553,11 +553,6 @@ const CssCyberiaDark = {
             padding-top: 4px;
             padding-bottom: 4px;
           }
-          .display-current-element {
-            font-family: 'retro-font-sensitive';
-            width: 100px;
-            height: 50px;
-          }
           .btn-bar-modal-container {
             text-align: right;
             padding-right: 3px;
@@ -639,6 +634,7 @@ const CssCyberiaDark = {
             width: 320px;
             height: 450px;
           }
+          /** */
           .character-container-view {
             height: 450px;
             width: 320px;
@@ -650,9 +646,30 @@ const CssCyberiaDark = {
           .character-container-view-body {
             height: 350px;
           }
+          /** */
           .character-view-img {
-            width: 320px;
+            width: 100%;
             height: auto;
+          }
+          .action-bar-box:hover {
+            background: none !important;
+          }
+          .action-bar-box:hover .img-btn-square-menu {
+            width: 85%;
+            height: 85%;
+          }
+          .interaction-panel-zone-img-background {
+            width: 100%;
+            height: auto;
+          }
+          .element-interaction-panel-preview {
+            height: 450px;
+          }
+          .element-interaction-panel-preview-header {
+            height: 100px;
+          }
+          .element-interaction-panel-preview-body {
+            height: 350px;
           }
         </style>
 
