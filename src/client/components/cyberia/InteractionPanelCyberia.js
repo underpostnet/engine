@@ -1,6 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, objectEquals, range, timer } from '../core/CommonJs.js';
-import { Css, Themes, borderChar, renderBubbleDialog, typeWriter } from '../core/Css.js';
+import { Css, Themes, borderChar, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
@@ -17,6 +17,22 @@ import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const InteractionPanelCyberia = {
   Data: {},
+  restorePanel: function (id) {
+    const transition = s(`.${id}`).style.transition;
+    s(`.${id}`).style.transition = '0.3s';
+    this.Data[`${id}`].restorePosition(s(`.${id}`).style);
+    s(`.${id}`).style.transform = '';
+    Modal.Data[`${id}`].setDragInstance({
+      defaultPosition: {
+        x: 0,
+        y: 0,
+      },
+    });
+    Modal.Data[`${id}`].onDragEndListener[`${id}`](); // save storage
+    setTimeout(() => {
+      s(`.${id}`).style.transition = transition;
+    }, 400);
+  },
   PanelRender: {
     actionPanelTokens: {},
     removeActionPanel: async function (idPanel) {
@@ -124,6 +140,7 @@ const InteractionPanelCyberia = {
       'box-sizing': 'border-box',
     };
     let render = async () => html`${id}`;
+    let restorePosition = () => null;
     switch (id) {
       case 'menu-interaction-panel':
         {
@@ -161,6 +178,8 @@ const InteractionPanelCyberia = {
                 if (!s(`.map-interaction-panel`)) {
                   await this.Render({ id: 'map-interaction-panel' });
                   await this.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
+                } else {
+                  this.restorePanel('map-interaction-panel');
                 }
               };
               s(`.cy-int-btn-target`).onclick = async () => {
@@ -169,10 +188,15 @@ const InteractionPanelCyberia = {
                   await this.PanelRender.element(
                     InteractionPanelCyberia.Data['element-interaction-panel'].element.current,
                   );
+                } else {
+                  this.restorePanel('element-interaction-panel');
                 }
               };
               s(`.cy-int-btn-quest`).onclick = () => {
                 if (!s(`.quest-interaction-panel`)) this.Render({ id: 'quest-interaction-panel' });
+                else {
+                  this.restorePanel('quest-interaction-panel');
+                }
               };
             });
             return html` <div class="in">
@@ -221,6 +245,13 @@ const InteractionPanelCyberia = {
         }
         break;
       case 'element-interaction-panel':
+        restorePosition = (style = {}) => {
+          style.left = `${window.innerWidth - 210}px`;
+          style.top = `${110}px`;
+          style.height = `${100}px`;
+          style.width = `${200}px`;
+          return style;
+        };
         render = async () => html` <div class="in element-interaction-panel-preview"></div> `;
         PointAndClickMovementCyberia.Event[id] = async ({ x, y }) => {
           let mainUserPanel = false;
@@ -248,6 +279,13 @@ const InteractionPanelCyberia = {
         };
         break;
       case 'map-interaction-panel':
+        restorePosition = (style = {}) => {
+          style.left = `${window.innerWidth - 210}px`;
+          style.top = `${220}px`;
+          style.height = `${300}px`;
+          style.width = `${200}px`;
+          return style;
+        };
         render = async () => html`
           <div class="fl">
             ${range(0, 3)
@@ -264,21 +302,35 @@ const InteractionPanelCyberia = {
           <img class="in interaction-panel-zone-img-background" />
         `;
         break;
+      case 'quest-interaction-panel':
+        restorePosition = (style = {}) => {
+          style.left = `${10}px`;
+          style.top = `${110}px`;
+          style.height = `${300}px`;
+          style.width = `${200}px`;
+          return style;
+        };
+        break;
       default:
         break;
     }
+    this.Data[id].restorePosition = restorePosition;
+    this.Data[id].restorePosition(style);
     const { barConfig } = await Themes[Css.currentTheme]();
     barConfig.buttons.maximize.disabled = true;
     barConfig.buttons.minimize.disabled = true;
     barConfig.buttons.restore.disabled = true;
     barConfig.buttons.menu.disabled = true;
     barConfig.buttons.close.disabled = false;
-    let dragDisabled;
-    let titleClass;
+    let dragDisabled, titleClass, observer;
     if (id === 'menu-interaction-panel') {
       dragDisabled = true;
       barConfig.buttons.close.disabled = true;
       titleClass = 'hide';
+    } else {
+      observer = true;
+      style.resize = 'auto';
+      style.overflow = 'auto';
     }
     await Modal.Render({
       id,
@@ -287,7 +339,60 @@ const InteractionPanelCyberia = {
       titleClass,
       style,
       dragDisabled,
+      observer,
     });
+
+    if (id !== 'menu-interaction-panel') {
+      Modal.Data[id].onCloseListener[id] = () => {
+        const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+        delete interactionPanelStorage[id];
+        localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
+      };
+
+      Modal.Data[id].onDragEndListener[id] = () => {
+        const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+        if (!interactionPanelStorage[id]) interactionPanelStorage[id] = {};
+        const transformValues = getTranslate3d(s(`.${id}`)).map((v) => parseFloat(v.split('px')[0]));
+        interactionPanelStorage[id].x = transformValues[0];
+        interactionPanelStorage[id].y = transformValues[1];
+        localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
+      };
+
+      Modal.Data[id].onObserverListener[id] = ({ width, height }) => {
+        const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+        interactionPanelStorage[id].width = width;
+        interactionPanelStorage[id].height = height;
+        localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
+      };
+
+      const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+
+      if (!interactionPanelStorage[id]) {
+        interactionPanelStorage[id] = {};
+        localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
+      }
+
+      if (interactionPanelStorage[id].width) {
+        s(`.${id}`).style.width = interactionPanelStorage[id].width + 'px';
+      }
+      if (interactionPanelStorage[id].height) {
+        s(`.${id}`).style.height = interactionPanelStorage[id].height + 'px';
+      }
+      if (interactionPanelStorage[id].x !== undefined && interactionPanelStorage[id].y !== undefined)
+        Modal.Data[id].setDragInstance({
+          defaultPosition: {
+            x: interactionPanelStorage[id].x !== undefined ? interactionPanelStorage[id].x : 0,
+            y: interactionPanelStorage[id].y !== undefined ? interactionPanelStorage[id].y : 0,
+          },
+        });
+    }
+
+    if (id === 'menu-interaction-panel') {
+      const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+      for (const idPanel of Object.keys(interactionPanelStorage)) {
+        await InteractionPanelCyberia.Render({ id: idPanel });
+      }
+    }
   },
 };
 

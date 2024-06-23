@@ -34,10 +34,7 @@ window.onload = () =>
       await MenuCyberia.Render();
       await SkillCyberia.renderMainKeysSlots();
       await PointAndClickMovementCyberia.Render();
-      await InteractionPanelCyberia.Render({ id: 'map-interaction-panel' });
-      await InteractionPanelCyberia.Render({ id: 'element-interaction-panel' });
       await InteractionPanelCyberia.Render({ id: 'menu-interaction-panel' });
-      await InteractionPanelCyberia.Render({ id: 'quest-interaction-panel' });
       await SocketIo.Init({ channels: ElementsCyberia.Data });
       await SocketIoCyberia.Init();
       await LogOutCyberia();

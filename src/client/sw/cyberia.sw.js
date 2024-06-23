@@ -120,10 +120,12 @@ self.addEventListener('fetch', (event) => {
   (async () => {
     // Get the client.
     const client = await clients.get(event.clientId);
-    client.postMessage({
-      status: 'loader',
-      path,
-    });
+    if (client)
+      client.postMessage({
+        status: 'loader',
+        path,
+      });
+    else logger.warn('client not found');
   })();
 
   // We only want to call event.respondWith() if this is a navigation request

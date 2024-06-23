@@ -571,6 +571,14 @@ const getStyleAttrFromObject = (selector, options) =>
       : ''} }
   </style>`;
 
+function getTranslate3d(el) {
+  const values = el.style.transform.split(/\w+\(|\);?/);
+  if (!values[1] || !values[1].length) {
+    return [];
+  }
+  return values[1].split(/,\s?/g);
+}
+
 export {
   Css,
   Themes,
@@ -591,4 +599,5 @@ export {
   renderBubbleDialog,
   typeWriter,
   getStyleAttrFromObject,
+  getTranslate3d,
 };

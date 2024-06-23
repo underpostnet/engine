@@ -4,16 +4,7 @@ import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js'
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
-import {
-  Css,
-  ThemeEvents,
-  Themes,
-  ThemesScope,
-  darkTheme,
-  dynamicCol,
-  getStyleAttrFromObject,
-  renderStatus,
-} from './Css.js';
+import { Css, ThemeEvents, Themes, ThemesScope, darkTheme, getStyleAttrFromObject, renderStatus } from './Css.js';
 import { setDocTitle } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -59,21 +50,38 @@ const Modal = {
     const heightDefaultTopBar = 0;
     const heightDefaultBottomBar = 0;
     const idModal = options && 'id' in options ? options.id : getId(this.Data, 'modal-');
-    this.Data[idModal] = { options, onCloseListener: {}, onMenuListener: {} };
+    this.Data[idModal] = {
+      options,
+      onCloseListener: {},
+      onMenuListener: {},
+      onDragEndListener: {},
+      onObserverListener: {},
+      onClickListener: {},
+    };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
         case 'view':
           setTimeout(() => {
-            Object.keys(this.Data).map((_idModal) => {
-              if (this.Data[_idModal].options.mode === 'view' && s(`.${_idModal}`))
-                s(`.${_idModal}`).style.zIndex = '3';
-            });
+            const cleanTopModal = () => {
+              Object.keys(this.Data).map((_idModal) => {
+                if (this.Data[_idModal].options.mode === 'view' && s(`.${_idModal}`))
+                  s(`.${_idModal}`).style.zIndex = '3';
+              });
+            };
             const setTopModal = () => {
               if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '4';
               else setTimeout(setTopModal, 100);
             };
+            cleanTopModal();
             setTopModal();
+            this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
+              if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
+                setURI(`${getProxyPath()}${this.Data[idModal].options.route}`);
+                cleanTopModal();
+                setTopModal();
+              }
+            };
           });
 
           if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
@@ -251,7 +259,7 @@ const Modal = {
               const searchBoxHistoryClose = () =>
                 setTimeout(() => {
                   if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) {
-                    Modal.removeModal(id);
+                    s(`.btn-close-${id}`).click();
                     s(`.action-btn-app-icon`).classList.remove('hide');
                     s(`.action-btn-close`).classList.add('hide');
                   }
@@ -415,6 +423,8 @@ const Modal = {
                 barConfig.buttons.menu.disabled = true;
                 barConfig.buttons.close.disabled = true;
                 const id = 'bottom-bar';
+                if (options && options.homeModals && !options.homeModals.includes(id)) options.homeModals.push(id);
+                else options.homeModals = [id];
                 const html = async () => html`
                   <style>
                     .top-bar-search-box-container {
@@ -738,7 +748,6 @@ const Modal = {
           break;
       }
     } else append(selector, render);
-    let dragInstance;
     let handle = [s(`.bar-default-modal-${idModal}`), s(`.modal-handle-${idModal}`), s(`.modal-html-${idModal}`)];
     if (options && 'handleType' in options) {
       switch (options.handleType) {
@@ -771,7 +780,7 @@ const Modal = {
       default:
         break;
     }
-    const dragOptions = {
+    let dragOptions = {
       // disabled: true,
       handle,
       onDragStart: (data) => {
@@ -787,10 +796,23 @@ const Modal = {
         if (!s(`.${idModal}`)) return;
         // logger.info('Dragging stopped', data);
         s(`.${idModal}`).style.transition = transition;
+        Object.keys(this.Data[idModal].onDragEndListener).map((keyListener) =>
+          this.Data[idModal].onDragEndListener[keyListener](),
+        );
       },
     };
+    let dragInstance;
     // new Draggable(s(`.${idModal}`), { disabled: true });
     const setDragInstance = () => (options?.dragDisabled ? null : new Draggable(s(`.${idModal}`), dragOptions));
+    this.Data[idModal].setDragInstance = (updateDragOptions) => {
+      dragOptions = {
+        ...dragOptions,
+        ...updateDragOptions,
+      };
+      dragInstance = setDragInstance();
+      this.Data[idModal].dragInstance = dragInstance;
+      this.Data[idModal].dragOptions = dragOptions;
+    };
     s(`.${idModal}`).style.transition = '0.15s';
     setTimeout(() => (s(`.${idModal}`).style.opacity = '1'));
     setTimeout(() => (s(`.${idModal}`).style.transition = transition), 150);
@@ -914,12 +936,12 @@ const Modal = {
     dragInstance = setDragInstance();
     if (options && options.maximize) s(`.btn-maximize-${idModal}`).click();
     if (options.observer) {
-      this.Data[idModal].observerEvent = {};
+      this.Data[idModal].onObserverListener = {};
       this.Data[idModal].observerCallBack = () => {
         logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
-        if (this.Data[idModal] && this.Data[idModal].observerEvent)
-          Object.keys(this.Data[idModal].observerEvent).map((eventKey) =>
-            this.Data[idModal].observerEvent[eventKey]({
+        if (this.Data[idModal] && this.Data[idModal].onObserverListener)
+          Object.keys(this.Data[idModal].onObserverListener).map((eventKey) =>
+            this.Data[idModal].onObserverListener[eventKey]({
               width: s(`.${idModal}`).offsetWidth,
               height: s(`.${idModal}`).offsetHeight,
             }),
@@ -931,28 +953,15 @@ const Modal = {
       setTimeout(this.Data[idModal].observerCallBack);
     }
     // cancel: [cancel1, cancel2]
+    s(`.${idModal}`).onclick = () => {
+      Object.keys(this.Data[idModal].onClickListener).map((keyListener) =>
+        this.Data[idModal].onClickListener[keyListener](),
+      );
+    };
     return {
       id: idModal,
-      dragInstance,
-      setDragInstance,
       ...this.Data[idModal],
     };
-  },
-  removeModal: async function (idModal) {
-    return new Promise((resolve) => {
-      if (!s(`.${idModal}`)) resolve();
-      s(`.${idModal}`).style.opacity = '0';
-      setTimeout(() => {
-        if (this.Data[idModal].observer) {
-          this.Data[idModal].observer.disconnect();
-          // this.Data[idModal].observer.unobserve();
-        }
-        s(`.${idModal}`).remove();
-        s(`.style-${idModal}`).remove();
-        delete this.Data[idModal];
-        resolve();
-      });
-    });
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),

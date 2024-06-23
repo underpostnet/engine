@@ -13,7 +13,7 @@ const Chat = {
     const { idModal } = options;
     this.Data[id] = {};
     setTimeout(() => {
-      Modal.Data[idModal].observerEvent[`chat-${id}`] = (options) => {
+      Modal.Data[idModal].onObserverListener[`chat-${id}`] = (options) => {
         const { width, height } = options;
         s(`.chat-box`).style.height = `${height * 0.5}px`;
       };

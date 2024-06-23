@@ -21,7 +21,7 @@ const Docs = {
       const responsive = (args) => {
         if (s(`.docs-iframe`)) s(`.docs-iframe`).style.height = `${args.height * 0.83}px`;
       };
-      Modal.Data[options.idModal].observerEvent[options.idModal] = responsive;
+      Modal.Data[options.idModal].onObserverListener[options.idModal] = responsive;
 
       s(`.btn-src-docs`).onclick = () => {
         htmls(`.docs-render`, this.RenderSrcDoc());
