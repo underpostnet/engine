@@ -86,6 +86,7 @@ const InteractionPanelCyberia = {
         html`<div class="abs center element-interaction-panel-preview-loading"></div>`,
       );
       LoadingAnimation.img.play(`.element-interaction-panel-preview-loading`, 'points');
+      // ->
       await CharacterCyberia.renderCharacterCyberiaPreView({
         type,
         id,
@@ -199,7 +200,8 @@ const InteractionPanelCyberia = {
                 }
               };
             });
-            return html` <div class="in">
+            return html`
+              <div class="in">
                 ${await BtnIcon.Render({
                   class: `inl action-bar-box cy-int-btn-logo`,
                   label: html`<img
@@ -240,7 +242,37 @@ const InteractionPanelCyberia = {
                       src="${getProxyPath()}assets/ui-icons/close-yellow.png"
                     />`,
                 })}
-              </div>`;
+              </div>
+              <style>
+                .btn-modal-default-${'menu-interaction-panel'} {
+                  min-width: 24px;
+                  min-height: 24px;
+                  margin: 3px;
+                  padding: 0;
+                }
+                .btn-modal-default-${'element-interaction-panel'} {
+                  min-width: 24px;
+                  min-height: 24px;
+                  margin: 3px;
+                  padding: 0;
+                }
+                .btn-modal-default-${'map-interaction-panel'} {
+                  min-width: 24px;
+                  min-height: 24px;
+                  margin: 3px;
+                  padding: 0;
+                }
+                .btn-modal-default-${'quest-interaction-panel'} {
+                  min-width: 24px;
+                  min-height: 24px;
+                  margin: 3px;
+                  padding: 0;
+                }
+                .interaction-panel-bar-default-icon {
+                  top: 2px;
+                }
+              </style>
+            `;
           };
         }
         break;
@@ -316,17 +348,16 @@ const InteractionPanelCyberia = {
     }
     this.Data[id].restorePosition = restorePosition;
     this.Data[id].restorePosition(style);
-    const { barConfig } = await Themes[Css.currentTheme]();
+    const { barConfig } = await Themes[Css.currentTheme]({ iconClass: 'interaction-panel-bar-default-icon' });
     barConfig.buttons.maximize.disabled = true;
     barConfig.buttons.minimize.disabled = true;
     barConfig.buttons.restore.disabled = true;
     barConfig.buttons.menu.disabled = true;
     barConfig.buttons.close.disabled = false;
-    let dragDisabled, titleClass, observer;
+    let dragDisabled, observer;
     if (id === 'menu-interaction-panel') {
       dragDisabled = true;
       barConfig.buttons.close.disabled = true;
-      titleClass = 'hide';
     } else {
       observer = true;
       style.resize = 'auto';
@@ -336,10 +367,12 @@ const InteractionPanelCyberia = {
       id,
       barConfig,
       html: render,
-      titleClass,
+      titleClass: 'hide',
       style,
       dragDisabled,
       observer,
+      btnContainerClass: 'inl',
+      btnIconContainerClass: 'abs center',
     });
 
     if (id !== 'menu-interaction-panel') {

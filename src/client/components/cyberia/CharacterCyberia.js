@@ -242,6 +242,18 @@ const CharacterCyberia = {
     htmls(
       `.${container}`,
       html`
+        <style>
+          .${container}-header {
+            height: 100px;
+          }
+          .${container}-body {
+            height: 350px;
+          }
+          .${container}-img {
+            width: 100%;
+            height: auto;
+          }
+        </style>
         <div class="in ${container}-header">
           <div class="abs center" style="font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}">
             <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span><br />
@@ -253,7 +265,7 @@ const CharacterCyberia = {
             .map(
               (v, i) =>
                 html`<img
-                  class="abs center character-view-img character${container}-frame-${i} ${i === 0 ? '' : 'hide'}"
+                  class="abs center ${container}-img character${container}-frame-${i} ${i === 0 ? '' : 'hide'}"
                   src="${v}"
                 />`,
             )

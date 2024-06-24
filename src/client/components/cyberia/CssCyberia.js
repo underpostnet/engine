@@ -634,22 +634,10 @@ const CssCyberiaDark = {
             width: 320px;
             height: 450px;
           }
-          /** */
           .character-container-view {
             height: 450px;
             width: 320px;
             overflow: hidden;
-          }
-          .character-container-view-header {
-            height: 100px;
-          }
-          .character-container-view-body {
-            height: 350px;
-          }
-          /** */
-          .character-view-img {
-            width: 100%;
-            height: auto;
           }
           .action-bar-box:hover {
             background: none !important;
@@ -664,12 +652,6 @@ const CssCyberiaDark = {
           }
           .element-interaction-panel-preview {
             height: 450px;
-          }
-          .element-interaction-panel-preview-header {
-            height: 100px;
-          }
-          .element-interaction-panel-preview-body {
-            height: 350px;
           }
         </style>
 

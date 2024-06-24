@@ -278,21 +278,36 @@ const Css = {
   },
 };
 
-const barLabels = () => {
+const barLabels = (options) => {
   return {
     img: {
-      close: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/close.png" />`,
-      maximize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/maximize.png" />`,
-      minimize: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/minimize.png" />`,
-      restore: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/restore.png" />`,
-      menu: html`<img class="inl bar-default-modal-icon" src="${getProxyPath()}assets/icons/menu.png" />`,
+      close: html`<img
+        class="inl bar-default-modal-icon ${options.iconClass ? options.iconClass : ''}"
+        src="${getProxyPath()}assets/icons/close.png"
+      />`,
+      maximize: html`<img
+        class="inl bar-default-modal-icon ${options.iconClass ? options.iconClass : ''}"
+        src="${getProxyPath()}assets/icons/maximize.png"
+      />`,
+      minimize: html`<img
+        class="inl bar-default-modal-icon ${options.iconClass ? options.iconClass : ''}"
+        src="${getProxyPath()}assets/icons/minimize.png"
+      />`,
+      restore: html`<img
+        class="inl bar-default-modal-icon ${options.iconClass ? options.iconClass : ''}"
+        src="${getProxyPath()}assets/icons/restore.png"
+      />`,
+      menu: html`<img
+        class="inl bar-default-modal-icon ${options.iconClass ? options.iconClass : ''}"
+        src="${getProxyPath()}assets/icons/menu.png"
+      />`,
     },
     fontawesome: {
-      close: html`<i class="fa-solid fa-xmark"></i>`,
-      maximize: html`<i class="fa-regular fa-square"></i>`,
-      minimize: html`<i class="fa-solid fa-window-minimize"></i>`,
-      restore: html`<i class="fa-regular fa-window-restore"></i>`,
-      menu: html`<i class="fa-solid fa-bars"></i>`,
+      close: html`<i class="fa-solid fa-xmark ${options.iconClass ? options.iconClass : ''}"></i>`,
+      maximize: html`<i class="fa-regular fa-square ${options.iconClass ? options.iconClass : ''}"></i>`,
+      minimize: html`<i class="fa-solid fa-window-minimize ${options.iconClass ? options.iconClass : ''}"></i>`,
+      restore: html`<i class="fa-regular fa-window-restore ${options.iconClass ? options.iconClass : ''}"></i>`,
+      menu: html`<i class="fa-solid fa-bars ${options.iconClass ? options.iconClass : ''}"></i>`,
     },
     default: {
       close: html`X`,
@@ -310,23 +325,23 @@ const barConfig = (options) => {
     buttons: {
       close: {
         disabled: false,
-        label: barLabels()[barButtonsIconTheme].close,
+        label: barLabels(options)[barButtonsIconTheme].close,
       },
       maximize: {
         disabled: false,
-        label: barLabels()[barButtonsIconTheme].maximize,
+        label: barLabels(options)[barButtonsIconTheme].maximize,
       },
       minimize: {
         disabled: false,
-        label: barLabels()[barButtonsIconTheme].minimize,
+        label: barLabels(options)[barButtonsIconTheme].minimize,
       },
       restore: {
         disabled: false,
-        label: barLabels()[barButtonsIconTheme].restore,
+        label: barLabels(options)[barButtonsIconTheme].restore,
       },
       menu: {
         disabled: true,
-        label: barLabels()[barButtonsIconTheme].menu,
+        label: barLabels(options)[barButtonsIconTheme].menu,
       },
     },
   };
@@ -334,7 +349,7 @@ const barConfig = (options) => {
 
 const renderDefaultWindowsModalButtonContent = (options) => {
   const { barButtonsIconTheme, htmlRender } = options;
-  const barConfigInstance = barConfig({ barButtonsIconTheme });
+  const barConfigInstance = barConfig(options);
   if (htmlRender)
     Object.keys(Modal.Data).map((idModal) => {
       if (s(`.btn-minimize-${idModal}`)) htmls(`.btn-minimize-${idModal}`, barConfigInstance.buttons.minimize.label);
@@ -357,7 +372,7 @@ const Themes = {};
 
 const addTheme = (options) => {
   ThemesScope.push(options);
-  Themes[options.theme] = async () => {
+  Themes[options.theme] = async (barOptions) => {
     if (!options.dark) options.dark = false;
     if (!options.barButtonsIconTheme) options.barButtonsIconTheme = 'fontawesome';
     const htmlRender = Css.currentTheme !== options.theme;
@@ -372,7 +387,11 @@ const addTheme = (options) => {
       TriggerThemeEvents();
     }
     return {
-      ...renderDefaultWindowsModalButtonContent({ barButtonsIconTheme: options.barButtonsIconTheme, htmlRender }),
+      ...renderDefaultWindowsModalButtonContent({
+        barButtonsIconTheme: options.barButtonsIconTheme,
+        htmlRender,
+        ...barOptions,
+      }),
     };
   };
 };
