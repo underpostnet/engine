@@ -650,9 +650,6 @@ const CssCyberiaDark = {
             width: 100%;
             height: auto;
           }
-          .element-interaction-panel-preview {
-            height: 450px;
-          }
         </style>
 
         ${borderChar(2, 'black', [

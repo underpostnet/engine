@@ -86,11 +86,30 @@ const InteractionPanelCyberia = {
         html`<div class="abs center element-interaction-panel-preview-loading"></div>`,
       );
       LoadingAnimation.img.play(`.element-interaction-panel-preview-loading`, 'points');
-      await CharacterCyberia.renderCharacterCyberiaPreView({
-        type,
-        id,
-        container: 'element-interaction-panel-preview',
-      });
+      {
+        const container = 'element-interaction-panel-preview';
+        await CharacterCyberia.renderCharacterCyberiaPreView({
+          type,
+          id,
+          container,
+          customStyle: html`<style>
+            .${container}-header {
+              height: 100%;
+              width: 50%;
+              float: left;
+            }
+            .${container}-body {
+              height: 100%;
+              width: 50%;
+              float: left;
+            }
+            .${container}-img {
+              width: 100%;
+              height: auto;
+            }
+          </style>`,
+        });
+      }
     },
     map: function ({ face }) {
       if (!s(`.map-interaction-panel`)) return;
@@ -284,6 +303,9 @@ const InteractionPanelCyberia = {
                   color: #ffcc00;
                   top: -3px;
                 }
+                .element-interaction-panel-preview {
+                  overflow: hidden;
+                }
               </style>
             `;
           };
@@ -297,7 +319,7 @@ const InteractionPanelCyberia = {
           style.width = `${200}px`;
           return style;
         };
-        render = async () => html` <div class="in element-interaction-panel-preview"></div> `;
+        render = async () => html` <div class="fl element-interaction-panel-preview"></div> `;
         PointAndClickMovementCyberia.Event[id] = async ({ x, y }) => {
           let mainUserPanel = false;
           for (const type of ['user', 'bot']) {
@@ -456,6 +478,14 @@ const InteractionPanelCyberia = {
         interactionPanelStorage[id].width = width;
         interactionPanelStorage[id].height = height;
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
+        switch (id) {
+          case 'element-interaction-panel':
+            s(`.element-interaction-panel-preview`).style.height = `${height - 40}px`;
+            break;
+
+          default:
+            break;
+        }
       };
 
       const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};

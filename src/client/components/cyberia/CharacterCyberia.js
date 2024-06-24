@@ -242,18 +242,20 @@ const CharacterCyberia = {
     htmls(
       `.${container}`,
       html`
-        <style>
-          .${container}-header {
-            height: 100px;
-          }
-          .${container}-body {
-            height: 350px;
-          }
-          .${container}-img {
-            width: 100%;
-            height: auto;
-          }
-        </style>
+        ${options.customStyle
+          ? options.customStyle
+          : html`<style>
+              .${container}-header {
+                height: 100px;
+              }
+              .${container}-body {
+                height: 350px;
+              }
+              .${container}-img {
+                width: 100%;
+                height: auto;
+              }
+            </style>`}
         <div class="in ${container}-header">
           <div class="abs center" style="font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}">
             <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span><br />
