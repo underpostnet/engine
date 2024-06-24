@@ -4,7 +4,7 @@ import { Css, Themes, borderChar, getTranslate3d, renderBubbleDialog, typeWriter
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
-import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, htmls, prepend, s } from '../core/VanillaJs.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
@@ -86,7 +86,6 @@ const InteractionPanelCyberia = {
         html`<div class="abs center element-interaction-panel-preview-loading"></div>`,
       );
       LoadingAnimation.img.play(`.element-interaction-panel-preview-loading`, 'points');
-      // ->
       await CharacterCyberia.renderCharacterCyberiaPreView({
         type,
         id,
@@ -271,6 +270,20 @@ const InteractionPanelCyberia = {
                 .interaction-panel-bar-default-icon {
                   top: 2px;
                 }
+                .interaction-panel-container-title {
+                  top: 5px;
+                  left: 5px;
+                }
+                .interaction-panel-container-title-icon {
+                  width: 20px;
+                  height: 20px;
+                }
+                .interaction-panel-container-text {
+                  font-size: 12px;
+                  font-family: 'retro-font-title';
+                  color: #ffcc00;
+                  top: -3px;
+                }
               </style>
             `;
           };
@@ -376,6 +389,53 @@ const InteractionPanelCyberia = {
     });
 
     if (id !== 'menu-interaction-panel') {
+      switch (id) {
+        case 'element-interaction-panel':
+          prepend(
+            `.btn-bar-modal-container-${id}`,
+            html`
+              <div class="abs interaction-panel-container-title">
+                <img
+                  class="inl interaction-panel-container-title-icon"
+                  src="${getProxyPath()}assets/ui-icons/target.png"
+                />
+                <div class="inl interaction-panel-container-text">Target</div>
+              </div>
+            `,
+          );
+          break;
+        case 'map-interaction-panel':
+          prepend(
+            `.btn-bar-modal-container-${id}`,
+            html`
+              <div class="abs interaction-panel-container-title">
+                <img
+                  class="inl interaction-panel-container-title-icon"
+                  src="${getProxyPath()}assets/ui-icons/map.png"
+                />
+                <div class="inl interaction-panel-container-text">Map</div>
+              </div>
+            `,
+          );
+          break;
+        case 'quest-interaction-panel':
+          prepend(
+            `.btn-bar-modal-container-${id}`,
+            html`
+              <div class="abs interaction-panel-container-title">
+                <img
+                  class="inl interaction-panel-container-title-icon"
+                  src="${getProxyPath()}assets/ui-icons/quest.png"
+                />
+                <div class="inl interaction-panel-container-text">Quest</div>
+              </div>
+            `,
+          );
+          break;
+        default:
+          break;
+      }
+
       Modal.Data[id].onCloseListener[id] = () => {
         const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
         delete interactionPanelStorage[id];
