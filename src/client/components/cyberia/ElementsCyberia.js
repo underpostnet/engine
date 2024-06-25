@@ -42,7 +42,7 @@ const ElementsCyberia = {
         return this.formatDisplayText('npc');
       case 'user':
         if (this.Data[type][id].model.user.username) return this.formatDisplayText('user');
-        else return this.formatDisplayText('anon user');
+        else return this.formatDisplayText('guest user');
       case 'item-quest':
       case 'decor':
       default:

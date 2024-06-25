@@ -116,6 +116,22 @@ const InteractionPanelCyberia = {
       const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
       const zoneNames = ['vlit6', 'ubrig', 'df23', 'ecc0'];
 
+      Responsive.Event[`map-interaction-panel`]();
+
+      htmls(
+        `.map-interaction-panel-cell-0`,
+        html` ${(WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width' ? range(0, 3) : range(3, 0))
+          .map(
+            (v, i) =>
+              html` <div class="in fll map-face-slot-container">
+                <div class="abs center map-face-slot map-face-slot-${v}">
+                  <div class="abs center map-face-symbol-text map-face-symbol-text-${v}"></div>
+                </div>
+              </div>`,
+          )
+          .join('')}`,
+      );
+
       const indexFace = WorldCyberiaType[
         WorldCyberiaManagement.Data['user']['main'].model.world.type
       ].worldFaces.findIndex((f) => f === face);
@@ -134,6 +150,30 @@ const InteractionPanelCyberia = {
       });
       s(`.map-face-slot-${indexFace}`).style.background = `#f5dd11d9`;
       s(`.interaction-panel-zone-img-background`).src = BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].imageSrc;
+
+      if (WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width') {
+        s(`.map-interaction-panel-cell-0`).style.width = `100%`;
+        s(`.map-interaction-panel-cell-1`).style.width = `100%`;
+        htmls(
+          `.map-interaction-panel-style`,
+          html`<style>
+            .map-face-slot-container {
+              width: 25%;
+            }
+          </style>`,
+        );
+      } else {
+        s(`.map-interaction-panel-cell-0`).style.width = `30%`;
+        s(`.map-interaction-panel-cell-1`).style.width = `70%`;
+        htmls(
+          `.map-interaction-panel-style`,
+          html`<style>
+            .map-face-slot-container {
+              width: 100%;
+            }
+          </style>`,
+        );
+      }
     },
   },
   Render: async function (options = { id: 'interaction-panel' }) {
@@ -313,10 +353,15 @@ const InteractionPanelCyberia = {
         break;
       case 'element-interaction-panel':
         restorePosition = (style = {}) => {
-          style.left = `${window.innerWidth - 210}px`;
           style.top = `${110}px`;
           style.height = `${100}px`;
-          style.width = `${200}px`;
+          if (Modal.mobileModal()) {
+            style.left = `10px`;
+            style.width = `${window.innerWidth - 20}px`;
+          } else {
+            style.left = `${window.innerWidth - 210}px`;
+            style.width = `${200}px`;
+          }
           return style;
         };
         render = async () => html` <div class="fl element-interaction-panel-preview"></div> `;
@@ -347,34 +392,40 @@ const InteractionPanelCyberia = {
         break;
       case 'map-interaction-panel':
         restorePosition = (style = {}) => {
-          style.left = `${window.innerWidth - 210}px`;
-          style.top = `${220}px`;
           style.height = `${300}px`;
-          style.width = `${200}px`;
+          if (Modal.mobileModal()) {
+            style.left = `10px`;
+            style.width = `${window.innerWidth - 20}px`;
+            style.top = `${110}px`;
+          } else {
+            style.left = `${window.innerWidth - 210}px`;
+            style.width = `${200}px`;
+            style.top = `${220}px`;
+          }
           return style;
         };
+
         render = async () => html`
+          <div class="map-interaction-panel-style"></div>
           <div class="fl">
-            ${range(0, 3)
-              .map(
-                (v, i) =>
-                  html` <div class="in fll map-face-slot-container">
-                    <div class="abs center map-face-slot map-face-slot-${i}">
-                      <div class="abs center map-face-symbol-text map-face-symbol-text-${i}"></div>
-                    </div>
-                  </div>`,
-              )
-              .join('')}
+            <div class="in fll map-interaction-panel-cell map-interaction-panel-cell-0"></div>
+            <div class="in fll map-interaction-panel-cell map-interaction-panel-cell-1">
+              <img class="in interaction-panel-zone-img-background" />
+            </div>
           </div>
-          <img class="in interaction-panel-zone-img-background" />
         `;
         break;
       case 'quest-interaction-panel':
         restorePosition = (style = {}) => {
-          style.left = `${10}px`;
           style.top = `${110}px`;
           style.height = `${300}px`;
-          style.width = `${200}px`;
+          if (Modal.mobileModal()) {
+            style.left = `10px`;
+            style.width = `${window.innerWidth - 20}px`;
+          } else {
+            style.left = `${10}px`;
+            style.width = `${200}px`;
+          }
           return style;
         };
         break;
@@ -473,19 +524,39 @@ const InteractionPanelCyberia = {
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
       };
 
+      Responsive.Event[id] = () => {
+        if (!s(`.${id}`)) return;
+        const height = s(`.${id}`).offsetHeight;
+        const width = s(`.${id}`).offsetWidth;
+
+        switch (id) {
+          case 'element-interaction-panel':
+            s(`.element-interaction-panel-preview`).style.height = `${height - 40}px`;
+            break;
+          case 'map-interaction-panel':
+            if (WorldCyberiaManagement.Data['user'] && WorldCyberiaManagement.Data['user']['main']) {
+              if (WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width') {
+                s(`.map-interaction-panel-cell-0`).style.height = `${(height - 40) * 0.3}px`;
+                s(`.map-interaction-panel-cell-1`).style.height = `${(height - 40) * 0.7}px`;
+              } else {
+                s(`.map-interaction-panel-cell-0`).style.height = `${(height - 40) * 1}px`;
+                s(`.map-interaction-panel-cell-1`).style.height = `${(height - 40) * 1}px`;
+              }
+            }
+            break;
+          default:
+            break;
+        }
+      };
+
+      Responsive.Event[id]();
+
       Modal.Data[id].onObserverListener[id] = ({ width, height }) => {
         const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
         interactionPanelStorage[id].width = width;
         interactionPanelStorage[id].height = height;
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
-        switch (id) {
-          case 'element-interaction-panel':
-            s(`.element-interaction-panel-preview`).style.height = `${height - 40}px`;
-            break;
-
-          default:
-            break;
-        }
+        Responsive.Event[id]();
       };
 
       const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
@@ -495,22 +566,32 @@ const InteractionPanelCyberia = {
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
       }
 
-      if (interactionPanelStorage[id].width) {
-        s(`.${id}`).style.width = interactionPanelStorage[id].width + 'px';
+      if (!Modal.mobileModal()) {
+        if (interactionPanelStorage[id].width) {
+          s(`.${id}`).style.width = interactionPanelStorage[id].width + 'px';
+        }
+        if (interactionPanelStorage[id].height) {
+          s(`.${id}`).style.height = interactionPanelStorage[id].height + 'px';
+        }
+        if (interactionPanelStorage[id].x !== undefined && interactionPanelStorage[id].y !== undefined)
+          Modal.Data[id].setDragInstance({
+            defaultPosition: {
+              x: interactionPanelStorage[id].x !== undefined ? interactionPanelStorage[id].x : 0,
+              y: interactionPanelStorage[id].y !== undefined ? interactionPanelStorage[id].y : 0,
+            },
+          });
       }
-      if (interactionPanelStorage[id].height) {
-        s(`.${id}`).style.height = interactionPanelStorage[id].height + 'px';
+
+      if (Modal.mobileModal()) {
+        for (const idModal of ['map-interaction-panel', 'quest-interaction-panel', 'element-interaction-panel']) {
+          if (idModal !== id && s(`.${idModal}`)) {
+            s(`.btn-close-${idModal}`).click();
+          }
+        }
       }
-      if (interactionPanelStorage[id].x !== undefined && interactionPanelStorage[id].y !== undefined)
-        Modal.Data[id].setDragInstance({
-          defaultPosition: {
-            x: interactionPanelStorage[id].x !== undefined ? interactionPanelStorage[id].x : 0,
-            y: interactionPanelStorage[id].y !== undefined ? interactionPanelStorage[id].y : 0,
-          },
-        });
     }
 
-    if (id === 'menu-interaction-panel') {
+    if (id === 'menu-interaction-panel' && !Modal.mobileModal()) {
       const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
       for (const idPanel of Object.keys(interactionPanelStorage)) {
         await InteractionPanelCyberia.Render({ id: idPanel });

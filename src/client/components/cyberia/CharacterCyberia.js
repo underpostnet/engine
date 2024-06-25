@@ -239,6 +239,8 @@ const CharacterCyberia = {
       await timer(intervalTime);
     }
 
+    if (!s(`.${container}`)) return;
+
     htmls(
       `.${container}`,
       html`

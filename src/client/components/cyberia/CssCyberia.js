@@ -504,7 +504,6 @@ const CssCyberiaDark = {
             left: 80%;
           }
           .map-face-slot-container {
-            width: 25%;
             height: 30px;
           }
           .map-face-slot {

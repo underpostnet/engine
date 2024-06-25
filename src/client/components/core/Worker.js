@@ -41,9 +41,11 @@ const Worker = {
             break;
         }
       });
-      navigator.serviceWorker.controller.postMessage({
-        title: 'Hello from Client event message',
-      });
+
+      if (navigator.serviceWorker.controller)
+        navigator.serviceWorker.controller.postMessage({
+          title: 'Hello from Client event message',
+        });
       // broadcast message
       const channel = new BroadcastChannel('sw-messages');
       channel.addEventListener('message', (event) => {

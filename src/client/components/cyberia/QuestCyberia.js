@@ -29,7 +29,11 @@ const QuestManagementCyberia = {
     if (WorldCyberiaManagement.Data[type] && WorldCyberiaManagement.Data[type][id]) {
       this.IntervalQuestDetector = setInterval(async () => {
         const panels = [];
-        if (!WorldCyberiaManagement.Data[type] || !WorldCyberiaManagement.Data[type][id])
+        if (
+          !WorldCyberiaManagement.Data[type] ||
+          !WorldCyberiaManagement.Data[type][id] ||
+          !WorldCyberiaManagement.Data[type][id].model.world
+        )
           return clearInterval(this.IntervalQuestDetector);
         for (const instance of WorldCyberiaManagement.Data[type][id].model.world.instance) {
           const botsQuest = instance.bots.filter((b) => b.behavior === 'quest-passive');
