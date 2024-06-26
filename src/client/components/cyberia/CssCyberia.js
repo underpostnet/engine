@@ -645,10 +645,6 @@ const CssCyberiaDark = {
             width: 85%;
             height: 85%;
           }
-          .interaction-panel-zone-img-background {
-            width: 100%;
-            height: auto;
-          }
         </style>
 
         ${borderChar(2, 'black', [

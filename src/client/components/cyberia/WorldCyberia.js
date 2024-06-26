@@ -224,7 +224,6 @@ const WorldCyberiaManagement = {
     let indexFace = -1;
     for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
-
       if (ElementsCyberia.Data.user.main.model.world.face - 1 === indexFace) {
         await this.biomeRender.load({
           data: await this.biomeRender.loadData({
@@ -236,9 +235,10 @@ const WorldCyberiaManagement = {
         await this.biomeRender.loadData({
           data: { _id },
         });
-      this.LoadAdjacentFaces(type, id);
-      InteractionPanelCyberia.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
     }
+
+    this.LoadAdjacentFaces(type, id);
+    InteractionPanelCyberia.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
 
     if (this.Data[type][id].model.world.type === 'height') {
       s(`.adjacent-map-background-top`).style.background = `rgba(0,0,0,0.5)`;

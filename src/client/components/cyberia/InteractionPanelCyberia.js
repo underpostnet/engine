@@ -116,20 +116,21 @@ const InteractionPanelCyberia = {
       const displaySymbol = ['༺', 'Ⓐ', '⌘', 'Ξ', '†', '⨁', '◶', '✪', '◍', '⚉', '⨂'];
       const zoneNames = ['vlit6', 'ubrig', 'df23', 'ecc0'];
 
-      Responsive.Event[`map-interaction-panel`]();
-
       htmls(
         `.map-interaction-panel-cell-0`,
-        html` ${(WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width' ? range(0, 3) : range(3, 0))
-          .map(
-            (v, i) =>
-              html` <div class="in fll map-face-slot-container">
-                <div class="abs center map-face-slot map-face-slot-${v}">
-                  <div class="abs center map-face-symbol-text map-face-symbol-text-${v}"></div>
-                </div>
-              </div>`,
-          )
-          .join('')}`,
+        html` <div class="abs center map-face-slot-center-container">
+          ${(WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width' ? range(0, 3) : range(3, 0))
+            .map(
+              (v, i) =>
+                html` <div class="in fll map-face-slot-container map-face-slot-container-${v}">
+                  <img class="abs center map-face-slot-img map-face-slot-img-${v}" />
+                  <div class="abs center map-face-slot map-face-slot-${v}">
+                    <div class="abs center map-face-symbol-text map-face-symbol-text-${v}"></div>
+                  </div>
+                </div>`,
+            )
+            .join('')}
+        </div>`,
       );
 
       const indexFace = WorldCyberiaType[
@@ -151,29 +152,17 @@ const InteractionPanelCyberia = {
       s(`.map-face-slot-${indexFace}`).style.background = `#f5dd11d9`;
       s(`.interaction-panel-zone-img-background`).src = BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].imageSrc;
 
-      if (WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width') {
-        s(`.map-interaction-panel-cell-0`).style.width = `100%`;
-        s(`.map-interaction-panel-cell-1`).style.width = `100%`;
-        htmls(
-          `.map-interaction-panel-style`,
-          html`<style>
-            .map-face-slot-container {
-              width: 25%;
-            }
-          </style>`,
-        );
-      } else {
-        s(`.map-interaction-panel-cell-0`).style.width = `30%`;
-        s(`.map-interaction-panel-cell-1`).style.width = `70%`;
-        htmls(
-          `.map-interaction-panel-style`,
-          html`<style>
-            .map-face-slot-container {
-              width: 100%;
-            }
-          </style>`,
-        );
+      let index = -1;
+      for (const indexFace of WorldCyberiaType[WorldCyberiaManagement.Data['user']['main'].model.world.type]
+        .worldFaces) {
+        index++;
+        s(`.map-face-slot-img-${index}`).src =
+          BiomeCyberiaScope.Data[
+            `biome-${WorldCyberiaManagement.Data['user']['main'].model.world.face[indexFace - 1]}`
+          ].imageSrc;
       }
+
+      Responsive.Event[`map-interaction-panel`]();
     },
   },
   Render: async function (options = { id: 'interaction-panel' }) {
@@ -346,6 +335,14 @@ const InteractionPanelCyberia = {
                 .element-interaction-panel-preview {
                   overflow: hidden;
                 }
+                .map-face-slot-container {
+                  /* border: 2px solid red; */
+                  box-sizing: border-box;
+                }
+                .map-face-slot-img {
+                  width: 100%;
+                  height: auto;
+                }
               </style>
             `;
           };
@@ -409,8 +406,8 @@ const InteractionPanelCyberia = {
           <div class="map-interaction-panel-style"></div>
           <div class="fl">
             <div class="in fll map-interaction-panel-cell map-interaction-panel-cell-0"></div>
-            <div class="in fll map-interaction-panel-cell map-interaction-panel-cell-1">
-              <img class="in interaction-panel-zone-img-background" />
+            <div class="in fll map-interaction-panel-cell map-interaction-panel-cell-1 hide">
+              <img class="abs center interaction-panel-zone-img-background" style="width: 100%; height: auto" />
             </div>
           </div>
         `;
@@ -526,22 +523,77 @@ const InteractionPanelCyberia = {
 
       Responsive.Event[id] = () => {
         if (!s(`.${id}`)) return;
-        const height = s(`.${id}`).offsetHeight;
+        const height = s(`.${id}`).offsetHeight - 30;
         const width = s(`.${id}`).offsetWidth;
 
         switch (id) {
           case 'element-interaction-panel':
-            s(`.element-interaction-panel-preview`).style.height = `${height - 40}px`;
+            s(`.element-interaction-panel-preview`).style.height = `${height}px`;
             break;
           case 'map-interaction-panel':
             if (WorldCyberiaManagement.Data['user'] && WorldCyberiaManagement.Data['user']['main']) {
               if (WorldCyberiaManagement.Data['user']['main'].model.world.type === 'width') {
-                s(`.map-interaction-panel-cell-0`).style.height = `${(height - 40) * 0.3}px`;
-                s(`.map-interaction-panel-cell-1`).style.height = `${(height - 40) * 0.7}px`;
+                if (width / 4 > height) {
+                  htmls(
+                    `.map-interaction-panel-style`,
+                    html`<style>
+                      .map-face-slot-container {
+                        width: ${height}px;
+                        height: ${height}px;
+                      }
+                      .map-face-slot-center-container {
+                        width: ${height * 4}px;
+                      }
+                    </style>`,
+                  );
+                } else {
+                  htmls(
+                    `.map-interaction-panel-style`,
+                    html`<style>
+                      .map-face-slot-container {
+                        width: ${width / 4}px;
+                        height: ${width / 4}px;
+                      }
+                      .map-face-slot-center-container {
+                        width: ${width}px;
+                      }
+                    </style>`,
+                  );
+                }
               } else {
-                s(`.map-interaction-panel-cell-0`).style.height = `${(height - 40) * 1}px`;
-                s(`.map-interaction-panel-cell-1`).style.height = `${(height - 40) * 1}px`;
+                if (height / 4 > width) {
+                  htmls(
+                    `.map-interaction-panel-style`,
+                    html`<style>
+                      .map-face-slot-container {
+                        width: ${width}px;
+                        height: ${width}px;
+                      }
+                      .map-face-slot-center-container {
+                        width: ${width / 4}px;
+                      }
+                    </style>`,
+                  );
+                } else {
+                  htmls(
+                    `.map-interaction-panel-style`,
+                    html`<style>
+                      .map-face-slot-container {
+                        width: ${height / 4}px;
+                        height: ${height / 4}px;
+                      }
+                      .map-face-slot-center-container {
+                        width: ${height / 4}px;
+                      }
+                    </style>`,
+                  );
+                }
               }
+
+              s(`.map-interaction-panel-cell-0`).style.width = `100%`;
+              s(`.map-interaction-panel-cell-1`).style.width = `100%`;
+              s(`.map-interaction-panel-cell-0`).style.height = `${height}px`;
+              s(`.map-interaction-panel-cell-1`).style.height = `${height}px`;
             }
             break;
           default:
