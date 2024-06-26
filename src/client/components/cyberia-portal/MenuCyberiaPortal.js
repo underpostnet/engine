@@ -91,9 +91,16 @@ const MenuCyberiaPortal = {
         </div>
       `,
       htmlMainBody: async () => {
-        let render = '';
-        for (const _ of range(0, 0)) render += await ServerCyberiaPortal.Render();
-        return render;
+        return await ServerCyberiaPortal.Render({
+          idModal: 'modal-server-body',
+          events: {
+            'change-server-body': async ({ server }) => {
+              // await SocketIoCyberia.changeServer({ server })
+              const { protocol, hostname } = window.location;
+              return (location.href = `${protocol}//${hostname}/${server}`);
+            },
+          },
+        });
       },
       barConfig: newInstance(barConfig),
       title: NameApp,
@@ -284,7 +291,17 @@ const MenuCyberiaPortal = {
           icon: html` <i class="fas fa-server"></i>`,
           text: Translate.Render('server'),
         }),
-        html: async () => await ServerCyberiaPortal.Render({ idModal: 'modal-server' }),
+        html: async () =>
+          await ServerCyberiaPortal.Render({
+            idModal: 'modal-server',
+            events: {
+              'change-server': async ({ server }) => {
+                // await SocketIoCyberia.changeServer({ server })
+                const { protocol, hostname } = window.location;
+                return (location.href = `${protocol}//${hostname}/${server}`);
+              },
+            },
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

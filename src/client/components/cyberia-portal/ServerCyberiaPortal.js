@@ -17,10 +17,7 @@ const ServerCyberiaPortal = {
       events: {},
     };
     if (options && options.events)
-      this.Tokens[id].events = {
-        ...this.Tokens[id].events,
-        ...options.events,
-      };
+      for (const keyEvent of Object.keys(options.events)) this.Tokens[id].events[keyEvent] = options.events[keyEvent];
 
     class LoadGridServerActionsRenderer {
       eGui;
@@ -41,10 +38,7 @@ const ServerCyberiaPortal = {
               for (const keyEvent of keyEvents)
                 await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: `/${server}` });
               if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
-              return;
             }
-            const { protocol, hostname } = window.location;
-            location.href = `${protocol}//${hostname}/${server}`;
           };
         });
       }

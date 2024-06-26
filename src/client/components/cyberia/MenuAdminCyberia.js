@@ -1,25 +1,29 @@
 import { Account } from '../core/Account.js';
+import { BlockChainManagement } from '../core/BlockChain.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
+import { ColorPalette } from '../core/ColorPalette.js';
 import { getId, newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { FileExplorer } from '../core/FileExplorer.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
 import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
-import { Wallet } from '../core/Wallet.js';
-import { BagCyberia } from './BagCyberia.js';
-import { CharacterCyberia } from './CharacterCyberia.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
+import { BiomeCyberiaEngine } from './BiomeCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
-import { QuestCyberia } from './QuestCyberia.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { SettingsCyberia } from './SettingsCyberia.js';
+import { TileCyberia } from './TileCyberia.js';
+import { WorldCyberia } from './WorldCyberia.js';
 import Sortable from 'sortablejs';
 
-const MenuCyberia = {
+const MenuAdminCyberia = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
@@ -40,56 +44,76 @@ const MenuCyberia = {
             attrs: `data-id="0"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-character',
-            label: renderMenuLabel({ img: 'character.png', text: Translate.Render('character') }),
+            class: 'in fll main-btn-square-menu main-btn-colors',
+            label: renderMenuLabel({ img: 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
             attrs: `data-id="1"`,
-          })}
-          ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-bag',
-            label: renderMenuLabel({ img: 'bag.png', text: Translate.Render('bag') }),
-            attrs: `data-id="2"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-settings',
             label: renderMenuLabel({ img: 'settings.png', text: Translate.Render('settings') }),
-            attrs: `data-id="3"`,
+            attrs: `data-id="2"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-in',
             label: renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
-            attrs: `data-id="4"`,
+            attrs: `data-id="3"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-sign-up',
             label: renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
-            attrs: `data-id="5"`,
-          })}
-          ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-wallet',
-            label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
-            attrs: `data-id="6"`,
+            attrs: `data-id="4"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-out',
             label: renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
-            attrs: `data-id="7"`,
+            attrs: `data-id="5"`,
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-account',
             label: renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
             style: 'display: none',
-            attrs: `data-id="8"`,
+            attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-chat',
             label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
+            attrs: `data-id="7"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-biome',
+            label: renderMenuLabel({ img: 'engine.png', text: 'BiomeCyberia Engine' }),
+            attrs: `data-id="8"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-tile',
+            label: renderMenuLabel({ img: 'engine.png', text: 'TileCyberia Engine' }),
             attrs: `data-id="9"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-quest',
-            label: renderMenuLabel({ img: 'quest.png', text: 'quest' }),
+            class: 'in fll main-btn-square-menu main-btn-3d',
+            label: renderMenuLabel({ img: 'engine.png', text: '3D Engine' }),
             attrs: `data-id="10"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-world',
+            label: renderMenuLabel({ img: 'engine.png', text: 'WorldCyberia Engine' }),
+            attrs: `data-id="11"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-blockchain',
+            label: renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
+            attrs: `data-id="12"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-cloud',
+            label: renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
+            attrs: `data-id="13"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-server',
+            label: renderMenuLabel({ img: 'server.png', text: 'Server' }),
+            attrs: `data-id="14"`,
           })}
         </div>
       `,
@@ -104,19 +128,14 @@ const MenuCyberia = {
         return '';
       },
       // barClass: 'hide',
-      disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center'],
+      // disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center'],
       heightTopBar,
       heightBottomBar,
       barConfig: newInstance(barConfig),
       title: NameApp,
       // titleClass: 'hide',
       mode: 'slide-menu',
-      homeModals: [
-        'map-interaction-panel',
-        'element-interaction-panel',
-        'menu-interaction-panel',
-        'quest-interaction-panel',
-      ],
+      homeModals: [],
     });
 
     this.Data[id].sortable = Modal.mobileModal()
@@ -186,14 +205,95 @@ const MenuCyberia = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-bag`, async () => {
+    EventsUI.onClick(`.main-btn-colors`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-bag',
-        route: 'bag',
+        id: 'modal-pallet-colors',
+        route: 'colors',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'bag.png', text: Translate.Render('bag') }),
-        html: async () => await BagCyberia.Render({ id: 'cyberia-bag', idModal: 'modal-bag' }),
+        title: renderViewTitle({ 'ui-icon': 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
+        html: async () => await ColorPalette.Render(),
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-biome`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-biome',
+        route: 'biome',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'BiomeCyberia engine' }),
+        html: async () => await BiomeCyberiaEngine.Render({ idModal: 'modal-biome' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-tile`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-tile-engine',
+        route: 'tile',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'TileCyberia engine' }),
+        html: async () => await TileCyberia.Render({ idModal: 'modal-tile-engine' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-3d`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-3d-engine',
+        route: '3d',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: '3d Engine' }),
+        html: async () =>
+          await Polyhedron.Render({
+            idModal: 'modal-3d-engine',
+            style: {
+              face: {
+                background: `rgba(0, 0, 0, 0.5)`,
+                border: `2px solid #620000ff`,
+                'font-size': `30px`,
+              },
+            },
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-world`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-world-engine',
+        route: 'world',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'WorldCyberia Engine' }),
+        html: async () => await WorldCyberia.Render({ idModal: 'modal-world-engine' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -296,14 +396,14 @@ const MenuCyberia = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-wallet`, async () => {
+    EventsUI.onClick(`.main-btn-blockchain`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-wallet',
-        route: 'wallet',
+        id: 'modal-blockchain',
+        route: 'blockchain',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'wallet.png', text: 'Wallet' }),
-        html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'blockchain' }),
+        html: async () => await BlockChainManagement.Render({ idModal: 'modal-blockchain' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -314,14 +414,14 @@ const MenuCyberia = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-character`, async () => {
+    EventsUI.onClick(`.main-btn-cloud`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-character',
-        route: 'character',
+        id: 'modal-cloud',
+        route: 'cloud',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'character.png', text: 'character' }),
-        html: async () => await CharacterCyberia.Render({ idModal: 'modal-character' }),
+        title: renderViewTitle({ 'ui-icon': 'cloud.png', text: 'cloud' }),
+        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -332,14 +432,24 @@ const MenuCyberia = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-quest`, async () => {
+    EventsUI.onClick(`.main-btn-server`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-quest',
-        route: 'quest',
+        id: 'modal-server',
+        route: 'server',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'quest.png', text: 'quest' }),
-        html: async () => await QuestCyberia.Render({ idModal: 'modal-quest' }),
+        title: renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
+        html: async () =>
+          await ServerCyberiaPortal.Render({
+            idModal: 'modal-server',
+            events: {
+              'change-server': async ({ server }) => {
+                // await SocketIoCyberia.changeServer({ server })
+                const { protocol, hostname } = window.location;
+                return (location.href = `${protocol}//${hostname}/${server}`);
+              },
+            },
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -352,4 +462,4 @@ const MenuCyberia = {
   },
 };
 
-export { MenuCyberia };
+export { MenuAdminCyberia };

@@ -1,6 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, objectEquals, range, timer } from '../core/CommonJs.js';
-import { Css, Themes, borderChar, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
+import { Css, Themes, borderChar, dashRange, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
@@ -124,6 +124,7 @@ const InteractionPanelCyberia = {
               (v, i) =>
                 html` <div class="in fll map-face-slot-container map-face-slot-container-${v}">
                   <img class="abs center map-face-slot-img map-face-slot-img-${v}" />
+                  <div class="abs center map-face-slot-dash map-face-slot-dash-${v}"></div>
                   <div class="abs center map-face-slot map-face-slot-${v}">
                     <div class="abs center map-face-symbol-text map-face-symbol-text-${v}"></div>
                   </div>
@@ -160,6 +161,8 @@ const InteractionPanelCyberia = {
           BiomeCyberiaScope.Data[
             `biome-${WorldCyberiaManagement.Data['user']['main'].model.world.face[indexFace - 1]}`
           ].imageSrc;
+        if (indexFace === face) s(`.map-face-slot-dash-${index}`).classList.remove('hide');
+        else s(`.map-face-slot-dash-${index}`).classList.add('hide');
       }
 
       Responsive.Event[`map-interaction-panel`]();
@@ -343,7 +346,12 @@ const InteractionPanelCyberia = {
                   width: 100%;
                   height: auto;
                 }
+                .map-face-slot-dash {
+                  width: 50%;
+                  height: 50%;
+                }
               </style>
+              ${dashRange({ selector: 'map-face-slot-dash', color: `#ffcc00` })}
             `;
           };
         }

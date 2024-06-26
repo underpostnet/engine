@@ -598,6 +598,30 @@ function getTranslate3d(el) {
   return values[1].split(/,\s?/g);
 }
 
+const dashRange = ({ selector, color }) => {
+  return html`
+    <style>
+      .${selector} {
+        background: linear-gradient(90deg, ${color} 50%, transparent 50%),
+          linear-gradient(90deg, ${color} 50%, transparent 50%), linear-gradient(0deg, ${color} 50%, transparent 50%),
+          linear-gradient(0deg, ${color} 50%, transparent 50%);
+        background-repeat: repeat-x, repeat-x, repeat-y, repeat-y;
+        background-size: 16px 4px, 16px 4px, 4px 16px, 4px 16px;
+        background-position: 0% 0%, 100% 100%, 0% 100%, 100% 0px;
+        border-radius: 5px;
+        padding: 10px;
+        animation: ${selector}_dash_range 5s linear infinite;
+      }
+
+      @keyframes ${selector}_dash_range {
+        to {
+          background-position: 100% 0%, 0% 100%, 0% 0%, 100% 100%;
+        }
+      }
+    </style>
+  `;
+};
+
 export {
   Css,
   Themes,
@@ -619,4 +643,5 @@ export {
   typeWriter,
   getStyleAttrFromObject,
   getTranslate3d,
+  dashRange,
 };
