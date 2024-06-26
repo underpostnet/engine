@@ -21,12 +21,13 @@ const EmailRender = {
     Object.keys(classObj).map((classKey) => ` ${classKey}: ${classObj[classKey]};`).join(`
         `),
 
-  getTemplates: async function (options = { templates: ['TemplateSrrComponent'] }) {
+  getTemplates: async function (options = { templates: {} }) {
     const templates = {};
-    for (const ssrEmailComponent of options.templates) {
+    for (const templateKey of Object.keys(options.templates)) {
+      const ssrEmailComponent = options.templates[templateKey];
       let SrrComponent;
       eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/email-components/${ssrEmailComponent}.js`, 'utf8')));
-      templates[ssrEmailComponent] = SrrComponent(this, options);
+      templates[templateKey] = SrrComponent(this, options);
     }
     return templates;
   },

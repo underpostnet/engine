@@ -46,7 +46,7 @@ const UserService = {
                     to: req.body.email, // req.auth.user.email, // list of receivers
                     subject: 'Email Confirmed', // Subject line
                     text: 'Email Confirmed', // plain text body
-                    html: MailerProvider.instance[id].templates['CyberiaVerifyEmail'].replace('{{TOKEN}}', token), // html body
+                    html: MailerProvider.instance[id].templates.userVerifyEmail.replace('{{TOKEN}}', token), // html body
                     attachments: [
                       // {
                       //   filename: 'logo.png',
