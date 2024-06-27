@@ -100,18 +100,20 @@ const Account = {
             placeholder: true,
             autocomplete: 'email',
             disabled: false,
-            extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
-              ? async () => html`<div class="in verify-email-status"></div>
-                  ${await BtnIcon.Render({
-                    class: `wfa btn-input-extension btn-confirm-email`,
-                    type: 'button',
-                    style: 'text-align: left',
-                    label: html`<div class="in">
-                      <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                      ${Translate.Render('verify-email')}
-                    </div> `,
-                  })}`
-              : undefined,
+            extension: async () => html`<div
+              class="in ${options && options.disabled && options.disabled.includes('emailConfirm') ? 'hide' : ''}"
+            >
+              <div class="in verify-email-status"></div>
+              ${await BtnIcon.Render({
+                class: `wfa btn-input-extension btn-confirm-email`,
+                type: 'button',
+                style: 'text-align: left',
+                label: html`<div class="in">
+                  <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                  ${Translate.Render('verify-email')}
+                </div> `,
+              })}
+            </div>`,
           })}
         </div>
         <div class="in">

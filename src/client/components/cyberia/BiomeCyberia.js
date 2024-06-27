@@ -799,6 +799,8 @@ const BiomeCyberia = {
   },
 };
 
+const getBiomeId = (params) => `biome-${params.data._id}`;
+
 const BiomeCyberiaScope = {
   CurrentKey: Object.keys(BiomeCyberia)[0],
   Keys: {},
@@ -806,88 +808,9 @@ const BiomeCyberiaScope = {
   Grid: [],
 };
 
-class LoadBiomeCyberiaRenderer {
-  eGui;
-
-  idFactory(params) {
-    return `biome-${params.data._id}`;
-  }
-
-  async init(params) {
-    console.log('LoadBiomeCyberiaRenderer created', params);
-    const rowId = this.idFactory(params);
-
-    this.eGui = document.createElement('div');
-    this.eGui.innerHTML = html`
-      ${await BtnIcon.Render({
-        class: `in ag-btn-renderer btn-load-biome-${rowId}`,
-        label: html`<i class="fa-solid fa-bolt"></i><br />
-          ${Translate.Render(`load`)}`,
-      })}
-      ${await BtnIcon.Render({
-        class: `in ag-btn-renderer btn-delete-biome-${rowId}`,
-        label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
-          ${Translate.Render(`delete`)}`,
-      })}
-    `;
-
-    setTimeout(() => {
-      EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
-        if (!BiomeCyberiaScope.Data[rowId]) await this.loadData(params);
-        BiomeCyberiaScope.Keys[params.data.biome] = BiomeCyberiaScope.Data[rowId];
-        BiomeCyberiaScope.CurrentKey = params.data.biome;
-
-        await BiomeCyberiaEngine.renderPixiCyberiaBiomeCyberia(BiomeCyberiaScope.Data[rowId]);
-        s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
-        s(`.dropdown-option-${params.data.biome}`).click();
-      });
-      EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
-        const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
-        NotificationManager.Push({
-          html:
-            biomeDeleteResult.status === 'success'
-              ? Translate.Render(biomeDeleteResult.message)
-              : biomeDeleteResult.message,
-          status: biomeDeleteResult.status,
-        });
-
-        const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
-        NotificationManager.Push({
-          html:
-            fileDeleteResult.status === 'success'
-              ? Translate.Render(fileDeleteResult.message)
-              : fileDeleteResult.message,
-          status: fileDeleteResult.status,
-        });
-
-        const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
-        NotificationManager.Push({
-          html:
-            topLevelColorFileDeleteResult.status === 'success'
-              ? Translate.Render(topLevelColorFileDeleteResult.message)
-              : topLevelColorFileDeleteResult.message,
-          status: topLevelColorFileDeleteResult.status,
-        });
-
-        setTimeout(() => {
-          BiomeCyberiaScope.Grid = BiomeCyberiaScope.Grid.filter((biome) => biome._id !== params.data._id);
-          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeCyberiaScope.Grid);
-        });
-      });
-    });
-  }
-
-  getGui() {
-    return this.eGui;
-  }
-
-  refresh(params) {
-    console.log('LoadBiomeCyberiaRenderer refreshed', params);
-    return true;
-  }
-
-  async loadData(params) {
-    const rowId = this.idFactory(params);
+const BiomeCyberiaRender = {
+  loadData: async function (params) {
+    const rowId = getBiomeId(params);
 
     if (!(rowId in BiomeCyberiaScope.Data)) {
       const resultBiomeCyberia = await CyberiaBiomeService.get({ id: params.data._id });
@@ -942,10 +865,9 @@ class LoadBiomeCyberiaRenderer {
     }
 
     return BiomeCyberiaScope.Data[rowId];
-  }
-
-  async load(params) {
-    const rowId = this.idFactory(params);
+  },
+  load: async function (params) {
+    const rowId = getBiomeId(params);
 
     MatrixCyberia.Data.dim = BiomeCyberiaScope.Data[rowId].dim;
     MatrixCyberia.Data.dimPaintByCell = BiomeCyberiaScope.Data[rowId].dimPaintByCell;
@@ -953,6 +875,83 @@ class LoadBiomeCyberiaRenderer {
     // MatrixCyberia.Data.dimAmplitude = BiomeCyberiaScope.Data[rowId].dimAmplitude;
     PixiCyberia.setFloor(BiomeCyberiaScope.Data[rowId].imageSrc);
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
+  },
+};
+
+class LoadBiomeCyberiaRenderer {
+  eGui;
+
+  async init(params) {
+    console.log('LoadBiomeCyberiaRenderer created', params);
+    const rowId = getBiomeId(params);
+
+    this.eGui = document.createElement('div');
+    this.eGui.innerHTML = html`
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-load-biome-${rowId}`,
+        label: html`<i class="fa-solid fa-bolt"></i><br />
+          ${Translate.Render(`load`)}`,
+      })}
+      ${await BtnIcon.Render({
+        class: `in ag-btn-renderer btn-delete-biome-${rowId}`,
+        label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
+          ${Translate.Render(`delete`)}`,
+      })}
+    `;
+
+    setTimeout(() => {
+      EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
+        if (!BiomeCyberiaScope.Data[rowId]) await BiomeCyberiaRender.loadData(params);
+        BiomeCyberiaScope.Keys[params.data.biome] = BiomeCyberiaScope.Data[rowId];
+        BiomeCyberiaScope.CurrentKey = params.data.biome;
+
+        await BiomeCyberiaEngine.renderPixiCyberiaBiomeCyberia(BiomeCyberiaScope.Data[rowId]);
+        s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
+        s(`.dropdown-option-${params.data.biome}`).click();
+      });
+      EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
+        const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
+        NotificationManager.Push({
+          html:
+            biomeDeleteResult.status === 'success'
+              ? Translate.Render(biomeDeleteResult.message)
+              : biomeDeleteResult.message,
+          status: biomeDeleteResult.status,
+        });
+
+        const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
+        NotificationManager.Push({
+          html:
+            fileDeleteResult.status === 'success'
+              ? Translate.Render(fileDeleteResult.message)
+              : fileDeleteResult.message,
+          status: fileDeleteResult.status,
+        });
+
+        const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
+        NotificationManager.Push({
+          html:
+            topLevelColorFileDeleteResult.status === 'success'
+              ? Translate.Render(topLevelColorFileDeleteResult.message)
+              : topLevelColorFileDeleteResult.message,
+          status: topLevelColorFileDeleteResult.status,
+        });
+
+        setTimeout(() => {
+          BiomeCyberiaScope.Grid = BiomeCyberiaScope.Grid.filter((biome) => biome._id !== params.data._id);
+          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeCyberiaScope.Grid);
+        });
+      });
+    });
+  }
+
+  getGui() {
+    return this.eGui;
+  }
+
+  refresh(params) {
+    console.log('LoadBiomeCyberiaRenderer refreshed', params);
+    return true;
   }
 }
 
@@ -1357,4 +1356,11 @@ const BiomeCyberiaEngine = {
   },
 };
 
-export { BiomeCyberia, BiomeCyberiaEngine, BiomeCyberiaScope, LoadBiomeCyberiaRenderer };
+export {
+  BiomeCyberia,
+  BiomeCyberiaEngine,
+  BiomeCyberiaScope,
+  LoadBiomeCyberiaRenderer,
+  getBiomeId,
+  BiomeCyberiaRender,
+};

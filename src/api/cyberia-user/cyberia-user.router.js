@@ -23,7 +23,19 @@ const CyberiaUserRouter = (options) => {
           instance: await CyberiaWorld.findOne({ name: options.path.slice(1) }),
           default: await CyberiaWorld.findOne({ name: process.env.CYBERIA_DEFAULT_WORLD_NAME }),
         },
+        biome: {
+          instance: {},
+        },
       };
+      if (options.cyberia.world.instance) {
+        /** @type {import('../cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
+        const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+
+        for (const biomeId of options.cyberia.world.instance.face) {
+          if (!options.cyberia.biome.instance[biomeId])
+            options.cyberia.biome.instance[biomeId] = await CyberiaBiome.findOne({ _id: biomeId.toString() });
+        }
+      }
     })();
 
   router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaUserController.post(req, res, options));

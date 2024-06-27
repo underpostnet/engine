@@ -14,21 +14,21 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
-import { BiomeCyberiaEngine } from './BiomeCyberia.js';
-import { ElementsCyberia } from './ElementsCyberia.js';
-import { RouterCyberia } from './RoutesCyberia.js';
-import { SettingsCyberia } from './SettingsCyberia.js';
-import { TileCyberia } from './TileCyberia.js';
-import { WorldCyberia } from './WorldCyberia.js';
+import { BiomeCyberiaEngine } from '../cyberia/BiomeCyberia.js';
+import { ElementsCyberiaAdmin } from './ElementsCyberiaAdmin.js';
+import { RouterCyberiaAdmin } from './RoutesCyberiaAdmin.js';
+import { ServerCyberiaAdmin } from './ServerCyberiaAdmin.js';
+import { SettingsCyberiaAdmin } from './SettingsCyberiaAdmin.js';
+import { TileCyberia } from '../cyberia/TileCyberia.js';
+import { WorldCyberia } from '../cyberia/WorldCyberia.js';
 import Sortable from 'sortablejs';
 
-const MenuAdminCyberia = {
+const MenuCyberiaAdmin = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
-    const RouterInstance = RouterCyberia();
+    const RouterInstance = RouterCyberiaAdmin();
     const { NameApp } = RouterInstance;
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
@@ -195,7 +195,7 @@ const MenuAdminCyberia = {
         route: 'settings',
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'settings.png', text: Translate.Render('settings') }),
-        html: async () => await SettingsCyberia.Render(),
+        html: async () => await SettingsCyberiaAdmin.Render(),
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
@@ -385,7 +385,7 @@ const MenuAdminCyberia = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'account.png', text: Translate.Render('account') }),
         html: async () =>
-          await Account.Render({ idModal: 'modal-account', user: ElementsCyberia.Data.user.main.model.user }),
+          await Account.Render({ idModal: 'modal-account', user: ElementsCyberiaAdmin.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -440,11 +440,10 @@ const MenuAdminCyberia = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
         html: async () =>
-          await ServerCyberiaPortal.Render({
+          await ServerCyberiaAdmin.Render({
             idModal: 'modal-server',
             events: {
               'change-server': async ({ server }) => {
-                // await SocketIoCyberia.changeServer({ server })
                 const { protocol, hostname } = window.location;
                 return (location.href = `${protocol}//${hostname}/${server}`);
               },
@@ -462,4 +461,4 @@ const MenuAdminCyberia = {
   },
 };
 
-export { MenuAdminCyberia };
+export { MenuCyberiaAdmin };

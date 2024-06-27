@@ -95,7 +95,6 @@ const MenuCyberiaPortal = {
           idModal: 'modal-server-body',
           events: {
             'change-server-body': async ({ server }) => {
-              // await SocketIoCyberia.changeServer({ server })
               const { protocol, hostname } = window.location;
               return (location.href = `${protocol}//${hostname}/${server}`);
             },
@@ -296,7 +295,6 @@ const MenuCyberiaPortal = {
             idModal: 'modal-server',
             events: {
               'change-server': async ({ server }) => {
-                // await SocketIoCyberia.changeServer({ server })
                 const { protocol, hostname } = window.location;
                 return (location.href = `${protocol}//${hostname}/${server}`);
               },

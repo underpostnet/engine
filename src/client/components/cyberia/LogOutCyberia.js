@@ -23,6 +23,8 @@ const LogOutCyberia = function () {
     s(`.main-btn-sign-up`).style.display = null;
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
+    s(`.main-btn-server`).classList.add('hide');
+    s(`.main-btn-admin`).classList.add('hide');
 
     Webhook.unregister();
     WebhookCyberia.unregister();

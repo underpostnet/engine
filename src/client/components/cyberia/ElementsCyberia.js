@@ -41,6 +41,8 @@ const ElementsCyberia = {
       case 'quest-passive':
         return this.formatDisplayText('npc');
       case 'user':
+        if (this.Data[type][id].model.user.role === 'admin') return this.formatDisplayText('admin');
+        if (this.Data[type][id].model.user.role === 'moderator') return this.formatDisplayText('moderator');
         if (this.Data[type][id].model.user.username) return this.formatDisplayText('user');
         else return this.formatDisplayText('guest user');
       case 'item-quest':

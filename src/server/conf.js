@@ -524,6 +524,29 @@ const buildWsSrc = async (
   }
 };
 
+const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
+  const toClientVariableName = buildClientVariableName(toOptions.componentsFolder);
+  const fromClientVariableName = buildClientVariableName(fromOptions.componentsFolder);
+
+  const formattedSrc = (src) =>
+    src
+      .replaceAll(fromClientVariableName, toClientVariableName)
+      .replaceAll(fromOptions.componentsFolder, toOptions.componentsFolder);
+
+  const confFromFolder = `./src/client/components/${fromOptions.componentsFolder}`;
+  const confToFolder = `./src/client/components/${toOptions.componentsFolder}`;
+
+  fs.mkdirSync(confToFolder, { recursive: true });
+
+  const files = await fs.readdir(confFromFolder);
+  for (const relativePath of files) {
+    const fromFilePath = dir.resolve(`${confFromFolder}/${relativePath}`);
+    const toFilePath = dir.resolve(`${confToFolder}/${relativePath}`);
+
+    fs.writeFileSync(formattedSrc(toFilePath), formattedSrc(fs.readFileSync(fromFilePath, 'utf8')), 'utf8');
+  }
+};
+
 export {
   Config,
   loadConf,
@@ -536,4 +559,5 @@ export {
   addClientConf,
   addWsConf,
   buildWsSrc,
+  cloneSrcComponents,
 };

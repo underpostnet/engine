@@ -145,14 +145,18 @@ self.addEventListener('fetch', (event) => {
             const cache = await caches.open(path);
             if (!preloadCache) {
               logger.warn('install', path);
-              await cache.add(new Request(event.request.url, { cache: 'reload' }));
+              // await cache.add(new Request(event.request.url, { cache: 'reload' }));
+
               // Other option:
               // The resource wasn't found in the cache, so fetch it from the network.
-              // const fetchResponse = await fetch(event.request.url);
-              // Put the response in cache.
-              // await cache.put(event.request.url, fetchResponse.clone());
-              // And return the response.
-              // return fetchResponse;
+              const fetchResponse = await fetch(event.request.url);
+
+              if (fetchResponse.status === 200) {
+                // Put the response in cache.
+                await cache.put(event.request.url, fetchResponse.clone());
+                // And return the response.
+                return fetchResponse;
+              } else throw new Error(await fetchResponse.text());
             }
             // logger.info('cache response', path);
             return await cache.match(path);
@@ -166,7 +170,7 @@ self.addEventListener('fetch', (event) => {
           // due to a network error.
           // If fetch() returns a valid HTTP response with a response code in
           // the 4xx or 5xx range, the catch() will NOT be called.
-          logger.info('Fetch failed; returning offline page instead.', error);
+          logger.error('Fetch failed; returning offline page instead.', error);
 
           // const cache = await caches.open(CACHE_NAME);
           // const cachedResponse = await cache.match(OFFLINE_URL);

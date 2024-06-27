@@ -190,10 +190,6 @@ const DashboardBms = {
                   { field: 'Deadline', headerName: 'Deadline' },
                   { field: 'ProgressStatus', headerName: 'ProgressStatus' },
                   { field: 'WeightedScore', headerName: 'WeightedScore' },
-                  // { field: '_id', headerName: 'ID' },
-                  // { field: 'biome', headerName: 'Biome' },
-                  // { field: 'name', headerName: 'Name' },
-                  // { headerName: '', cellRenderer: LoadBiomeRenderer },
                 ],
               },
             })}

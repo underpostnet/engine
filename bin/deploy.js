@@ -16,6 +16,7 @@ import {
   loadReplicas,
   addWsConf,
   buildWsSrc,
+  cloneSrcComponents,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad } from '../src/client/components/core/CommonJs.js';
@@ -122,6 +123,13 @@ try {
         const toOptions = { deployId: process.argv[3], clientId: process.argv[4] };
         const fromOptions = { deployId: process.argv[5], clientId: process.argv[6] };
         cloneConf({ toOptions, fromOptions });
+      }
+      break;
+    case 'clone-nodejs-src-client-components':
+      {
+        const fromOptions = { componentsFolder: process.argv[3] };
+        const toOptions = { componentsFolder: process.argv[4] };
+        cloneSrcComponents({ toOptions, fromOptions });
       }
       break;
     case 'build-nodejs-src-app':

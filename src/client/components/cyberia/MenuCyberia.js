@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { getId, newInstance, random } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -11,6 +11,7 @@ import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
+import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 import { BagCyberia } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
@@ -18,6 +19,7 @@ import { QuestCyberia } from './QuestCyberia.js';
 import { RouterCyberia } from './RoutesCyberia.js';
 import { SettingsCyberia } from './SettingsCyberia.js';
 import Sortable from 'sortablejs';
+import { SocketIoCyberia } from './SocketIoCyberia.js';
 
 const MenuCyberia = {
   Data: {},
@@ -90,6 +92,16 @@ const MenuCyberia = {
             class: 'in fll main-btn-square-menu main-btn-quest',
             label: renderMenuLabel({ img: 'quest.png', text: 'quest' }),
             attrs: `data-id="10"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-server hide',
+            label: renderMenuLabel({ img: 'server.png', text: 'server' }),
+            attrs: `data-id="11"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-admin hide',
+            label: renderMenuLabel({ img: 'engine.png', text: 'admin' }),
+            attrs: `data-id="12"`,
           })}
         </div>
       `,
@@ -349,6 +361,40 @@ const MenuCyberia = {
         heightBottomBar,
       });
     });
+
+    EventsUI.onClick(`.main-btn-server`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-server',
+        route: 'server',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-server"></i>`,
+          text: Translate.Render('server'),
+        }),
+        html: async () =>
+          await ServerCyberiaPortal.Render({
+            idModal: 'modal-server',
+            events: {
+              'change-server': async ({ server }) => {
+                await SocketIoCyberia.changeServer({ server });
+              },
+            },
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    s(`.main-btn-admin`).onclick = () => {
+      const { protocol, hostname } = window.location;
+      return (location.href = `${protocol}//${hostname}/admin${['', 0][random(0, 1)]}`);
+    };
   },
 };
 

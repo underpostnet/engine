@@ -54,6 +54,10 @@ const LogInCyberia = async function () {
     if (resultUserCyberia.status === 'success') {
       ElementsCyberia.Init({ type, id, element: resultUserCyberia.data });
       WebhookCyberia.register({ user: resultUserCyberia.data });
+      if (user.role === 'admin') {
+        s(`.main-btn-server`).classList.remove('hide');
+        s(`.main-btn-admin`).classList.remove('hide');
+      }
     }
     ElementsCyberia.Data[type][id].model.user = user;
 

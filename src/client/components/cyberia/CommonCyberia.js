@@ -743,6 +743,10 @@ const CyberiaParams = {
   CYBERIA_WORLD_ID: '',
 };
 
+const CyberiaServer = {
+  instances: [{ server: 'dim32' }, { server: 'hhworld' }, { server: 'interior32' }, { server: 'lol' }],
+};
+
 export {
   BaseElement,
   MatrixElement,
@@ -765,4 +769,5 @@ export {
   SkillCyberiaType,
   QuestComponent,
   BehaviorElement,
+  CyberiaServer,
 };

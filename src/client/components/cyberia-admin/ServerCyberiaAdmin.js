@@ -5,7 +5,7 @@ import { darkTheme } from '../core/Css.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 import { CyberiaServer } from '../cyberia/CommonCyberia.js';
 
-const ServerCyberiaPortal = {
+const ServerCyberiaAdmin = {
   Tokens: {},
   instances: CyberiaServer.instances,
   Render: async function (options = { idModal: '', events: {} }) {
@@ -30,10 +30,10 @@ const ServerCyberiaPortal = {
 
         setTimeout(() => {
           s(`.btn-server-${server}-${id}`).onclick = async () => {
-            const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
+            const keyEvents = Object.keys(ServerCyberiaAdmin.Tokens[id].events);
             if (keyEvents.length > 0) {
               for (const keyEvent of keyEvents)
-                await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: `/${server}` });
+                await ServerCyberiaAdmin.Tokens[id].events[keyEvent]({ server: `/${server}` });
               if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
             }
           };
@@ -118,4 +118,4 @@ const ServerCyberiaPortal = {
   },
 };
 
-export { ServerCyberiaPortal };
+export { ServerCyberiaAdmin };
