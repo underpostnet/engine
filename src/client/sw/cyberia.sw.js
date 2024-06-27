@@ -156,7 +156,10 @@ self.addEventListener('fetch', (event) => {
                 await cache.put(event.request.url, fetchResponse.clone());
                 // And return the response.
                 return fetchResponse;
-              } else throw new Error(await fetchResponse.text());
+              } else {
+                await caches.delete(path);
+                throw new Error(await fetchResponse.text());
+              }
             }
             // logger.info('cache response', path);
             return await cache.match(path);

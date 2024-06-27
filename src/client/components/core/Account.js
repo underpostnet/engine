@@ -66,17 +66,18 @@ const Account = {
         }
       });
 
-      EventsUI.onClick(`.btn-confirm-email`, async (e) => {
-        e.preventDefault();
-        const result = await UserService.post({
-          id: 'mailer/verify-email',
-          body: { email: s(`.account-email`).value },
+      if (s(`.btn-confirm-email`))
+        EventsUI.onClick(`.btn-confirm-email`, async (e) => {
+          e.preventDefault();
+          const result = await UserService.post({
+            id: 'mailer/verify-email',
+            body: { email: s(`.account-email`).value },
+          });
+          NotificationManager.Push({
+            html: result.status === 'error' ? result.message : Translate.Render(`email send`),
+            status: result.status,
+          });
         });
-        NotificationManager.Push({
-          html: result.status === 'error' ? result.message : Translate.Render(`email send`),
-          status: result.status,
-        });
-      });
       this.renderVerifyEmailStatus(user);
     });
     return html`
@@ -100,20 +101,18 @@ const Account = {
             placeholder: true,
             autocomplete: 'email',
             disabled: false,
-            extension: async () => html`<div
-              class="in ${options && options.disabled && options.disabled.includes('emailConfirm') ? 'hide' : ''}"
-            >
-              <div class="in verify-email-status"></div>
-              ${await BtnIcon.Render({
-                class: `wfa btn-input-extension btn-confirm-email`,
-                type: 'button',
-                style: 'text-align: left',
-                label: html`<div class="in">
-                  <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                  ${Translate.Render('verify-email')}
-                </div> `,
-              })}
-            </div>`,
+            extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
+              ? async () => html`<div class="in verify-email-status"></div>
+                  ${await BtnIcon.Render({
+                    class: `wfa btn-input-extension btn-confirm-email`,
+                    type: 'button',
+                    style: 'text-align: left',
+                    label: html`<div class="in">
+                      <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                      ${Translate.Render('verify-email')}
+                    </div> `,
+                  })}`
+              : undefined,
           })}
         </div>
         <div class="in">

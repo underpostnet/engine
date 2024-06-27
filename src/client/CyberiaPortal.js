@@ -11,6 +11,9 @@ import { RouterCyberiaPortal } from './components/cyberia-portal/RoutesCyberiaPo
 import { TranslateCyberiaPortal } from './components/cyberia-portal/TranslateCyberiaPortal.js';
 import { Worker } from './components/core/Worker.js';
 import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberia-portal/CssCyberiaPortal.js';
+import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyberiaPortal.js';
+import { SocketIo } from './components/core/SocketIo.js';
+import { ElementsCyberiaPortal } from './components/cyberia-portal/ElementsCyberiaPortal.js';
 
 window.onload = () =>
   Worker.instance({
@@ -21,6 +24,8 @@ window.onload = () =>
       await TranslateCyberiaPortal.Init();
       await Responsive.Init();
       await MenuCyberiaPortal.Render();
+      await SocketIo.Init({ channels: ElementsCyberiaPortal.Data });
+      await SocketIoCyberiaPortal.Init();
       await LogInCyberiaPortal();
       await LogOutCyberiaPortal();
       await SignUpCyberiaPortal();

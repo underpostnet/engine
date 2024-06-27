@@ -13,7 +13,15 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-sign-up`).style.display = null;
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
-
+    s(`.main-btn-colors`).classList.add('hide');
+    s(`.main-btn-chat`).classList.add('hide');
+    s(`.main-btn-biome`).classList.add('hide');
+    s(`.main-btn-tile`).classList.add('hide');
+    s(`.main-btn-3d`).classList.add('hide');
+    s(`.main-btn-world`).classList.add('hide');
+    s(`.main-btn-blockchain`).classList.add('hide');
+    s(`.main-btn-cloud`).classList.add('hide');
+    s(`.main-btn-server`).classList.add('hide');
     Auth.deleteToken();
 
     NotificationManager.Push({

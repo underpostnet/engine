@@ -9,6 +9,9 @@ import { LogInCyberiaAdmin } from './components/cyberia-admin/LogInCyberiaAdmin.
 import { SignUpCyberiaAdmin } from './components/cyberia-admin/SignUpCyberiaAdmin.js';
 import { LogOutCyberiaAdmin } from './components/cyberia-admin/LogOutCyberiaAdmin.js';
 import { RouterCyberiaAdmin } from './components/cyberia-admin/RoutesCyberiaAdmin.js';
+import { SocketIo } from './components/core/SocketIo.js';
+import { SocketIoCyberiaAdmin } from './components/cyberia-admin/SocketIoCyberiaAdmin.js';
+import { ElementsCyberiaAdmin } from './components/cyberia-admin/ElementsCyberiaAdmin.js';
 
 window.onload = () =>
   Worker.instance({
@@ -19,6 +22,8 @@ window.onload = () =>
       await TranslateCyberia.Init();
       await Responsive.Init();
       await MenuCyberiaAdmin.Render();
+      await SocketIo.Init({ channels: ElementsCyberiaAdmin.Data });
+      await SocketIoCyberiaAdmin.Init();
       await LogInCyberiaAdmin();
       await SignUpCyberiaAdmin();
       await LogOutCyberiaAdmin();

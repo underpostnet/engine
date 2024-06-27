@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance, range } from '../core/CommonJs.js';
+import { getId, newInstance, random, range } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
+import { Chat } from '../core/Chat.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -87,6 +88,22 @@ const MenuCyberiaPortal = {
               text: html`${Translate.Render('server')}`,
             }),
             attrs: `data-id="6"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-chat',
+            label: renderMenuLabel({
+              icon: html`<i class="far fa-comments"></i>`,
+              text: html`${Translate.Render('chat')}`,
+            }),
+            attrs: `data-id="7"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-admin hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-user-tie"></i>`,
+              text: html`${Translate.Render('admin')}`,
+            }),
+            attrs: `data-id="8"`,
           })}
         </div>
       `,
@@ -280,6 +297,28 @@ const MenuCyberiaPortal = {
       });
     });
 
+    EventsUI.onClick(`.main-btn-chat`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-chat',
+        route: 'chat',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="far fa-comments"></i>`,
+          text: Translate.Render('chat'),
+        }),
+        html: async () => await Chat.Render({ idModal: 'modal-chat' }),
+        handleType: 'bar',
+        maximize: true,
+        observer: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
     EventsUI.onClick(`.main-btn-server`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
@@ -309,6 +348,11 @@ const MenuCyberiaPortal = {
         heightBottomBar,
       });
     });
+
+    s(`.main-btn-admin`).onclick = () => {
+      const { protocol, hostname } = window.location;
+      return (location.href = `${protocol}//${hostname}/admin${['', 0][random(0, 1)]}`);
+    };
   },
 };
 

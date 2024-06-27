@@ -44,7 +44,7 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="0"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-colors',
+            class: 'in fll main-btn-square-menu main-btn-colors hide',
             label: renderMenuLabel({ img: 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
             attrs: `data-id="1"`,
           })}
@@ -59,7 +59,7 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="3"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-sign-up',
+            class: 'in fll main-btn-square-menu main-btn-sign-up hide',
             label: renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
             attrs: `data-id="4"`,
           })}
@@ -76,42 +76,42 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-chat',
+            class: 'in fll main-btn-square-menu main-btn-chat hide',
             label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
             attrs: `data-id="7"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-biome',
+            class: 'in fll main-btn-square-menu main-btn-biome hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'BiomeCyberia Engine' }),
             attrs: `data-id="8"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-tile',
+            class: 'in fll main-btn-square-menu main-btn-tile hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'TileCyberia Engine' }),
             attrs: `data-id="9"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-3d',
+            class: 'in fll main-btn-square-menu main-btn-3d hide',
             label: renderMenuLabel({ img: 'engine.png', text: '3D Engine' }),
             attrs: `data-id="10"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-world',
+            class: 'in fll main-btn-square-menu main-btn-world hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'WorldCyberia Engine' }),
             attrs: `data-id="11"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-blockchain',
+            class: 'in fll main-btn-square-menu main-btn-blockchain hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
             attrs: `data-id="12"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-cloud',
+            class: 'in fll main-btn-square-menu main-btn-cloud hide',
             label: renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
             attrs: `data-id="13"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-server',
+            class: 'in fll main-btn-square-menu main-btn-server hide',
             label: renderMenuLabel({ img: 'server.png', text: 'Server' }),
             attrs: `data-id="14"`,
           })}
