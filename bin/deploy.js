@@ -355,10 +355,12 @@ try {
       ];
       let port = 0;
       for (const deployId of dataDeploy) {
+        const proxyInstance = deployId.match('proxy') || deployId.match('dns');
+
         for (const envInstanceObj of dataEnv) {
           const envPath = `./engine-private/conf/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = envInstanceObj.port + port;
+          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port;
 
           fs.writeFileSync(
             envPath,
@@ -371,7 +373,7 @@ try {
         const serverConf = loadReplicas(
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
         );
-        for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
+        if (!proxyInstance) for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
       }
       break;
     default:
