@@ -29,4 +29,6 @@ const UserSchema = new Schema({
 
 const UserModel = model('User', UserSchema);
 
-export { UserSchema, UserModel, userRoleEnum };
+const ProviderSchema = UserSchema;
+
+export { UserSchema, UserModel, userRoleEnum, ProviderSchema };

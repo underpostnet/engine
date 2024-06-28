@@ -4,7 +4,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import { cap, getDirname } from '../src/client/components/core/CommonJs.js';
 import { shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
-import { buildClientVariableName } from '../src/server/conf.js';
+import { getCapVariableName } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -25,7 +25,7 @@ path = path.join('/');
 
 const file = `${rawPath}`.split('/').pop();
 const ext = file.split('.')[1];
-let name = buildClientVariableName(file.split('.')[0]);
+let name = getCapVariableName(file.split('.')[0]);
 
 logger.info('File metadata', { path, file, ext, name });
 

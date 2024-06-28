@@ -126,7 +126,8 @@ const CyberiaUserSchema = new Schema({
     },
   },
 });
-
 const CyberiaUserModel = model('CyberiaUser', CyberiaUserSchema);
 
-export { CyberiaUserSchema, CyberiaUserModel };
+const ProviderSchema = CyberiaUserSchema;
+
+export { CyberiaUserSchema, CyberiaUserModel, ProviderSchema };

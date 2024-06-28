@@ -14,4 +14,6 @@ const CryptoSchema = new Schema({
 
 const CryptoModel = model('Crypto', CryptoSchema);
 
-export { CryptoSchema, CryptoModel };
+const ProviderSchema = CryptoSchema;
+
+export { CryptoSchema, CryptoModel, ProviderSchema };

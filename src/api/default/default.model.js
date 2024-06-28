@@ -6,4 +6,6 @@ const DefaultSchema = new Schema({});
 
 const DefaultModel = model('Default', DefaultSchema);
 
-export { DefaultSchema, DefaultModel };
+const ProviderSchema = DefaultSchema;
+
+export { DefaultSchema, DefaultModel, ProviderSchema };

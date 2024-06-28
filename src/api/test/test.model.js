@@ -9,4 +9,6 @@ const TestSchema = new Schema({
 
 const TestModel = model('Test', TestSchema);
 
-export { TestSchema, TestModel };
+const ProviderSchema = TestSchema;
+
+export { TestSchema, TestModel, ProviderSchema };

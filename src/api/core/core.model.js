@@ -6,4 +6,6 @@ const CoreSchema = new Schema({});
 
 const CoreModel = model('Core', CoreSchema);
 
-export { CoreSchema, CoreModel };
+const ProviderSchema = CoreSchema;
+
+export { CoreSchema, CoreModel, ProviderSchema };

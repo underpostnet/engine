@@ -63,4 +63,6 @@ const BlockChainSchema = new Schema({
 
 const BlockChainModel = model('BlockChain', BlockChainSchema);
 
-export { BlockChainSchema, BlockChainModel };
+const ProviderSchema = BlockChainSchema;
+
+export { BlockChainSchema, BlockChainModel, ProviderSchema };

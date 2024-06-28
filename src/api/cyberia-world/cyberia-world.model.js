@@ -131,4 +131,6 @@ const CyberiaWorldSchema = new Schema({
 
 const CyberiaWorldModel = model('CyberiaWorld', CyberiaWorldSchema);
 
-export { CyberiaWorldSchema, CyberiaWorldModel };
+const ProviderSchema = CyberiaWorldSchema;
+
+export { CyberiaWorldSchema, CyberiaWorldModel, ProviderSchema };

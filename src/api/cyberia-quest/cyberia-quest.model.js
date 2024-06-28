@@ -6,4 +6,6 @@ const CyberiaQuestSchema = new Schema({});
 
 const CyberiaQuestModel = model('CyberiaQuest', CyberiaQuestSchema);
 
-export { CyberiaQuestSchema, CyberiaQuestModel };
+const ProviderSchema = CyberiaQuestSchema;
+
+export { CyberiaQuestSchema, CyberiaQuestModel, ProviderSchema };

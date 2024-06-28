@@ -18,7 +18,7 @@ const DataBaseProvider = {
         case 'mongoose':
           {
             const conn = await MongooseDB.connect(db.host, db.name);
-            this.instance[`${host}${path}`][db.provider] = MongooseDB.loadModels({ conn, apis });
+            this.instance[`${host}${path}`][db.provider] = await MongooseDB.loadModels({ conn, apis });
           }
           break;
         default:

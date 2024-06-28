@@ -16,4 +16,6 @@ const CyberiaTileSchema = new Schema({
 
 const CyberiaTileModel = model('CyberiaTile', CyberiaTileSchema);
 
-export { CyberiaTileSchema, CyberiaTileModel };
+const ProviderSchema = CyberiaTileSchema;
+
+export { CyberiaTileSchema, CyberiaTileModel, ProviderSchema };

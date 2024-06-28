@@ -12,4 +12,6 @@ const PinSchema = new Schema({
 
 const PinModel = model('Pin', PinSchema);
 
-export { PinSchema, PinModel };
+const ProviderSchema = PinSchema;
+
+export { PinSchema, PinModel, ProviderSchema };

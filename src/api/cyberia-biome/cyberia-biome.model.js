@@ -21,4 +21,6 @@ const CyberiaBiomeSchema = new Schema({
 
 const CyberiaBiomeModel = model('CyberiaBiome', CyberiaBiomeSchema);
 
-export { CyberiaBiomeSchema, CyberiaBiomeModel };
+const ProviderSchema = CyberiaBiomeSchema;
+
+export { CyberiaBiomeSchema, CyberiaBiomeModel, ProviderSchema };

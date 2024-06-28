@@ -14,4 +14,6 @@ const FileSchema = new Schema({
 
 const FileModel = model('File', FileSchema);
 
-export { FileSchema, FileModel };
+const ProviderSchema = FileSchema;
+
+export { FileSchema, FileModel, ProviderSchema };

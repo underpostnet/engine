@@ -259,7 +259,7 @@ const loadReplicas = (confServer) => {
   return confServer;
 };
 
-const buildClientVariableName = (clientId = 'default') => cap(clientId.replaceAll('-', ' ')).replaceAll(' ', '');
+const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')).replaceAll(' ', '');
 
 const cloneConf = async (
   { toOptions, fromOptions },
@@ -271,8 +271,8 @@ const cloneConf = async (
   const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
   const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
 
-  const toClientVariableName = buildClientVariableName(toOptions.clientId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+  const toClientVariableName = getCapVariableName(toOptions.clientId);
+  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
 
   const formattedSrc = (dataConf) =>
     JSON.stringify(dataConf, null, 4)
@@ -317,8 +317,8 @@ const addClientConf = async (
   const toClientConf = JSON.parse(fs.readFileSync(`${confToFolder}/conf.client.json`, 'utf8'));
   const fromClientConf = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.client.json`, 'utf8'));
 
-  const toClientVariableName = buildClientVariableName(toOptions.clientId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+  const toClientVariableName = getCapVariableName(toOptions.clientId);
+  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
 
   const { host, path } = toOptions;
 
@@ -353,8 +353,8 @@ const buildClientSrc = async (
   const confFromFolder = `./src/client/components/${fromOptions.clientId}`;
   const confToFolder = `./src/client/components/${toOptions.clientId}`;
 
-  const toClientVariableName = buildClientVariableName(toOptions.clientId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.clientId);
+  const toClientVariableName = getCapVariableName(toOptions.clientId);
+  const fromClientVariableName = getCapVariableName(fromOptions.clientId);
 
   const formattedSrc = (src) =>
     src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.clientId, toOptions.clientId);
@@ -393,8 +393,8 @@ const buildApiSrc = async (
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
 
-  const toClientVariableName = buildClientVariableName(toOptions.apiId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+  const toClientVariableName = getCapVariableName(toOptions.apiId);
+  const fromClientVariableName = getCapVariableName(fromOptions.apiId);
 
   const formattedSrc = (src) =>
     src.replaceAll(fromClientVariableName, toClientVariableName).replaceAll(fromOptions.apiId, toOptions.apiId);
@@ -413,25 +413,6 @@ const buildApiSrc = async (
     );
   }
 
-  fs.writeFileSync(
-    `./src/db/mongo/MongooseDB.js`,
-    fs
-      .readFileSync(`./src/db/mongo/MongooseDB.js`, 'utf8')
-      .replaceAll(
-        `/*import-render*/`,
-        `import { ${toClientVariableName}Schema } from '../../api/${toOptions.apiId}/${toOptions.apiId}.model.js';
-/*import-render*/`,
-      )
-      .replaceAll(
-        `/*case-render*/`,
-        `case '${toOptions.apiId}':
-          models.${toClientVariableName} = conn.model('${toClientVariableName}', ${toClientVariableName}Schema);
-          break;
-        /*case-render*/`,
-      ),
-    'utf8',
-  );
-
   fs.mkdirSync(`./src/client/services/${toOptions.apiId}`, { recursive: true });
   fs.writeFileSync(
     `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.service.js`,
@@ -448,8 +429,8 @@ const addApiConf = async (
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
 
-  const toClientVariableName = buildClientVariableName(toOptions.apiId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+  const toClientVariableName = getCapVariableName(toOptions.apiId);
+  const fromClientVariableName = getCapVariableName(fromOptions.apiId);
 
   const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
   const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
@@ -474,8 +455,8 @@ const addWsConf = async (
   if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
   if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
 
-  const toClientVariableName = buildClientVariableName(toOptions.apiId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.apiId);
+  const toClientVariableName = getCapVariableName(toOptions.apiId);
+  const fromClientVariableName = getCapVariableName(fromOptions.apiId);
 
   const confFromFolder = `./engine-private/conf/${fromOptions.deployId}`;
   const confToFolder = `./engine-private/conf/${toOptions.deployId}`;
@@ -499,8 +480,8 @@ const buildWsSrc = async (
   if (!fromOptions.host) fromOptions.host = fromDefaultOptions.host;
   if (!fromOptions.paths) fromOptions.paths = fromDefaultOptions.paths;
 
-  const toClientVariableName = buildClientVariableName(toOptions.wsId);
-  const fromClientVariableName = buildClientVariableName(fromOptions.wsId);
+  const toClientVariableName = getCapVariableName(toOptions.wsId);
+  const fromClientVariableName = getCapVariableName(fromOptions.wsId);
 
   const confFromFolder = `./src/ws/${fromOptions.wsId}`;
   const confToFolder = `./src/ws/${toOptions.wsId}`;
@@ -525,8 +506,8 @@ const buildWsSrc = async (
 };
 
 const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
-  const toClientVariableName = buildClientVariableName(toOptions.componentsFolder);
-  const fromClientVariableName = buildClientVariableName(fromOptions.componentsFolder);
+  const toClientVariableName = getCapVariableName(toOptions.componentsFolder);
+  const fromClientVariableName = getCapVariableName(fromOptions.componentsFolder);
 
   const formattedSrc = (src) =>
     src
@@ -552,7 +533,7 @@ export {
   loadConf,
   loadReplicas,
   cloneConf,
-  buildClientVariableName,
+  getCapVariableName,
   buildClientSrc,
   buildApiSrc,
   addApiConf,

@@ -73,14 +73,6 @@ const Css = {
           }
 
           .inl {
-            display: inline-block;
-            display: -webkit-fill-inline-block;
-            display: -moz-inline-block;
-            display: -ms-inline-block;
-            display: -o-fill-inline-block;
-          }
-
-          .inlt {
             display: inline-table;
             display: -webkit-fill-inline-table;
             display: -moz-inline-table;

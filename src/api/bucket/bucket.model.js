@@ -16,4 +16,6 @@ const BucketSchema = new Schema({
 
 const BucketModel = model('Bucket', BucketSchema);
 
-export { BucketSchema, BucketModel };
+const ProviderSchema = BucketSchema;
+
+export { BucketSchema, BucketModel, ProviderSchema };
