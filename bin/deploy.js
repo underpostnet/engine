@@ -20,7 +20,7 @@ import {
   cloneSrcComponents,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
-import { range, setPad } from '../src/client/components/core/CommonJs.js';
+import { range, setPad, timer } from '../src/client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -75,9 +75,11 @@ const Cmd = {
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   copy: async (cmd) => {
-    logger.info('cmd', cmd);
-    await ncp.copy(cmd);
-    await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+    // logger.info('cmd', cmd);
+    // await ncp.copy(cmd);
+    // await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+    shellExec(cmd);
+    await timer(4000);
   },
 };
 
