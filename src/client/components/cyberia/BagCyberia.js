@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { SkillCyberiaData, Stat } from './CommonCyberia.js';
+import { SkillCyberiaData, Stat, getK } from './CommonCyberia.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -352,7 +352,9 @@ const Slot = {
         `.${bagId}-${indexBagCyberia}`,
         html` <div class="abs bag-slot-count">
             <div class="abs center">
-              x<span class="bag-slot-value-${bagId}-${indexBagCyberia}">${ElementsCyberia.Data.user.main.coin}</span>
+              x<span class="bag-slot-value-${bagId}-${indexBagCyberia}"
+                >${getK(ElementsCyberia.Data.user.main.coin)}</span
+              >
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
@@ -363,7 +365,8 @@ const Slot = {
       return indexBagCyberia;
     },
     update: ({ bagId, type, id }) => {
-      if (s(`.bag-slot-value-${bagId}-0`)) htmls(`.bag-slot-value-${bagId}-0`, ElementsCyberia.Data[type][id].coin);
+      if (s(`.bag-slot-value-${bagId}-0`))
+        htmls(`.bag-slot-value-${bagId}-0`, getK(ElementsCyberia.Data[type][id].coin));
     },
   },
   skin: {
@@ -376,7 +379,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${count}</span>
+              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${displayId}/08/0.png" />
@@ -420,7 +423,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${count}</span>
+              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/weapon/${displayId}/animation.gif" />
@@ -464,7 +467,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${count}</span>
+              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/breastplate/${displayId}/animation.gif" />
@@ -511,7 +514,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${count}</span>
+              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
@@ -563,13 +566,35 @@ const Slot = {
       return indexBagCyberia;
     },
   },
+  wallet: {
+    renderBagCyberiaSlots: ({ bagId, indexBagCyberia }) => {
+      htmls(
+        `.${bagId}-${indexBagCyberia}`,
+        html` <div class="abs bag-slot-count">
+            <div class="abs center">x<span class="bag-slot-value-${bagId}-${indexBagCyberia}">1</span></div>
+          </div>
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/ui-icons/wallet.png" />
+          <div class="in bag-slot-type-text">wallet</div>
+          <div class="in bag-slot-name-text">simple leather</div>`,
+      );
+      const slotId = `${bagId}-${indexBagCyberia}`;
+      SlotEvents[slotId] = {};
+      SlotEvents[slotId].onClick = async (e) => {
+        s(`.main-btn-wallet`).click();
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
+
+      indexBagCyberia++;
+      return indexBagCyberia;
+    },
+  },
 };
 
 const BagCyberia = {
   Tokens: {},
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
-    const totalSlots = 10;
+    const totalSlots = 15;
     this.Tokens[bagId] = { ...options, bagId, totalSlots };
     setTimeout(async () => {
       this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
@@ -699,6 +724,7 @@ const BagCyberia = {
       indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
     });
     return html`
       <div class="fl ${bagId}">

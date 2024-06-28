@@ -358,7 +358,7 @@ const MenuBms = {
         html: async () =>
           await SignUp.Render({
             idModal: 'modal-sign-up',
-            footerRender: html` <div class="in section-mp">
+            bottomRender: async () => html` <div class="in section-mp">
               ${await DropDown.Render({
                 label: html`${Translate.Render('select-role')}`,
                 type: 'checkbox',

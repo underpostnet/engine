@@ -11,7 +11,7 @@ import { htmls, s } from './VanillaJs.js';
 
 const Account = {
   UpdateEvent: {},
-  Render: async function (options = { user: {} }) {
+  Render: async function (options = { user: {}, bottomRender: async () => '' }) {
     let { user } = options;
     setTimeout(async () => {
       const formData = [
@@ -127,6 +127,7 @@ const Account = {
             disabledEye: true,
           })}
         </div>
+        ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-account',

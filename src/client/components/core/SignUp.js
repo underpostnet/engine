@@ -13,7 +13,7 @@ const SignUp = {
   Trigger: async function (options) {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
   },
-  Render: async function (options = { footerRender: '' }) {
+  Render: async function (options = { bottomRender: async () => '' }) {
     setTimeout(async () => {
       const formData = [
         {
@@ -94,7 +94,7 @@ const SignUp = {
             placeholder: true,
           })}
         </div>
-        ${options?.footerRender ? options.footerRender : ``}
+        ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-sign-up',

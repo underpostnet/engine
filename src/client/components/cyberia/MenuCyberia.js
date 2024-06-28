@@ -67,12 +67,12 @@ const MenuCyberia = {
             attrs: `data-id="5"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-wallet',
+            class: 'in fll main-btn-square-menu main-btn-wallet hide',
             label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
             attrs: `data-id="6"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-log-out',
+            class: 'in fll main-btn-square-menu main-btn-log-out hide',
             label: renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
             attrs: `data-id="7"`,
             style: 'display: none',
@@ -297,7 +297,24 @@ const MenuCyberia = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'account.png', text: Translate.Render('account') }),
         html: async () =>
-          await Account.Render({ idModal: 'modal-account', user: ElementsCyberia.Data.user.main.model.user }),
+          await Account.Render({
+            idModal: 'modal-account',
+            user: ElementsCyberia.Data.user.main.model.user,
+            bottomRender: async () => {
+              setTimeout(() => {
+                s(`.btn-account-log-out`).onclick = () => {
+                  LogOut.Trigger();
+                };
+              });
+              return html` <div class="in">
+                ${await BtnIcon.Render({
+                  class: 'section-mp form-button btn-account-log-out',
+                  label: Translate.Render('log-out'),
+                  type: 'button',
+                })}
+              </div>`;
+            },
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -368,10 +385,7 @@ const MenuCyberia = {
         id: 'modal-server',
         route: 'server',
         barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-server"></i>`,
-          text: Translate.Render('server'),
-        }),
+        title: renderViewTitle({ 'ui-icon': 'server.png', text: 'server' }),
         html: async () =>
           await ServerCyberiaPortal.Render({
             idModal: 'modal-server',

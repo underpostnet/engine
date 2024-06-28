@@ -737,6 +737,33 @@ const BehaviorElement = {
   },
 };
 
+const getK = (value) => {
+  /*
+
+    TOP DEFINITION
+
+    1kk
+    1kk means million where each K represents 000.
+
+    1k = 1 000
+    1kk = 1 000 000
+    1kkk =1 000 000 000
+
+    Mostly used in games.
+    I'm selling this item for 1kk
+    by Aelos03 May 22, 2014
+
+    */
+
+  const limitK = 1000;
+  const limitKK = 1000000;
+  const limitKKK = 1000000000;
+  if (value < limitK) return value;
+  else if (value >= limitK && value < limitKK) return round10(value / limitK, -2) + 'k';
+  else if (value >= limitKK && value < limitKKK) return round10(value / limitKK, -2) + 'kk';
+  else if (value >= limitKKK) return round10(value / limitKKK, -2) + 'kkk';
+};
+
 const CyberiaParams = {
   EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
@@ -770,4 +797,5 @@ export {
   QuestComponent,
   BehaviorElement,
   CyberiaServer,
+  getK,
 };
