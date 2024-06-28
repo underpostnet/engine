@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
+import { userRoleEnum } from '../api/user/user.model.js';
 
 dotenv.config();
 
@@ -112,4 +113,67 @@ const authMiddleware = (req, res, next) => {
   }
 };
 
-export { authMiddleware, hashPassword, verifyPassword, hashJWT, verifyJWT };
+/**
+ * The `adminGuard` function checks if the user has admin role permission and returns an error message
+ * if not.
+ * @param req - The `req` parameter typically represents the HTTP request object in Node.js. It
+ * contains information about the incoming request such as the request headers, parameters, body, and
+ * more. In the context of your `adminGuard` function, `req` is the request object that is being passed
+ * to the middleware
+ * @param res - The `res` parameter in the `adminGuard` function is the response object in Express.js.
+ * It is used to send a response back to the client making the HTTP request.
+ * @param next - The `next` parameter in the `adminGuard` function is a callback function that is used
+ * to pass control to the next middleware function in the stack. When called, it executes the next
+ * middleware function. If there are no more middleware functions in the stack, it will proceed to the
+ * route handler.
+ * @returns The `adminGuard` function is returning either a 403 status with an error message if the
+ * user role is not 'admin', or it is calling the `next()` function to proceed to the next middleware
+ * if the user role is 'admin'. If an error occurs during the process, it will log the error and return
+ * a 400 status with the error message.
+ */
+const adminGuard = (req, res, next) => {
+  try {
+    if (!(userRoleEnum.indexOf(req.auth.user.role) === userRoleEnum.indexOf('admin')))
+      return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
+    return next();
+  } catch (error) {
+    logger.error(error, error.stack);
+    return res.status(400).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+};
+
+/**
+ * The function `moderatorGuard` checks if the user's role is at least a moderator and handles errors
+ * accordingly.
+ * @param req - The `req` parameter in the `moderatorGuard` function typically represents the HTTP
+ * request object, which contains information about the incoming request such as headers, parameters,
+ * body, etc. It is commonly used to access data sent from the client to the server.
+ * @param res - The `res` parameter in the `moderatorGuard` function is the response object in
+ * Express.js. It is used to send a response back to the client making the HTTP request.
+ * @param next - The `next` parameter in the `moderatorGuard` function is a callback function that is
+ * used to pass control to the next middleware function in the stack. When called, it will execute the
+ * next middleware function. In the context of Express.js middleware, `next` is typically called to
+ * move to
+ * @returns In the `moderatorGuard` function, if the user's role is not a moderator or higher, a 403
+ * status with an error message "Insufficient permission" is returned. If there is an error during the
+ * process, a 400 status with the error message is returned. If everything is successful, the `next()`
+ * function is called to proceed to the next middleware in the chain.
+ */
+const moderatorGuard = (req, res, next) => {
+  try {
+    if (!(userRoleEnum.indexOf(req.auth.user.role) <= userRoleEnum.indexOf('moderator')))
+      return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
+    return next();
+  } catch (error) {
+    logger.error(error, error.stack);
+    return res.status(400).json({
+      status: 'error',
+      message: error.message,
+    });
+  }
+};
+
+export { authMiddleware, hashPassword, verifyPassword, hashJWT, verifyJWT, adminGuard, moderatorGuard };

@@ -3,6 +3,8 @@ import validator from 'validator';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
+const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
+
 const UserSchema = new Schema({
   email: {
     type: String,
@@ -16,7 +18,7 @@ const UserSchema = new Schema({
   emailConfirmed: { type: Boolean, default: false },
   password: { type: String, trim: true, required: 'Password is required' },
   username: { type: String, trim: true, unique: true, required: 'Username is required' },
-  role: { type: String, enum: ['admin', 'moderator', 'user', 'guest'], default: 'guest' },
+  role: { type: String, enum: userRoleEnum, default: 'guest' },
   publicKey: [
     {
       type: Schema.Types.ObjectId,
@@ -27,4 +29,4 @@ const UserSchema = new Schema({
 
 const UserModel = model('User', UserSchema);
 
-export { UserSchema, UserModel };
+export { UserSchema, UserModel, userRoleEnum };
