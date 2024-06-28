@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import axios from 'axios';
 import ncp from 'copy-paste';
 import read from 'read';
+import dotenv from 'dotenv';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
@@ -340,6 +341,35 @@ try {
         fs.writeFileSync(promConfigPath, rawConfig, 'utf8');
 
         await Cmd.copy(`docker-compose -f engine-private/prometheus/prometheus-service.yml up -d`);
+      }
+      break;
+
+    case 'sync-env-port':
+      const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8'));
+      const dataEnv = [
+        { env: 'production', port: 3000 },
+        { env: 'development', port: 4000 },
+        { env: 'test', port: 5000 },
+      ];
+      let port = 0;
+      for (const deployId of dataDeploy) {
+        for (const envInstanceObj of dataEnv) {
+          const envPath = `./engine-private/conf/${deployId}/.env.${envInstanceObj.env}`;
+          const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+          envObj.PORT = envInstanceObj.port + port;
+
+          fs.writeFileSync(
+            envPath,
+            Object.keys(envObj)
+              .map((key) => `${key}=${envObj[key]}`)
+              .join(`\n`),
+            'utf8',
+          );
+        }
+        const serverConf = loadReplicas(
+          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+        );
+        for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
       }
       break;
     default:
