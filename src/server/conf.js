@@ -263,7 +263,7 @@ const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')
 
 const cloneConf = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
@@ -306,7 +306,7 @@ const cloneConf = async (
 
 const addClientConf = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
@@ -345,7 +345,7 @@ const addClientConf = async (
 
 const buildClientSrc = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { deployId: 'default-3001', clientId: 'default' },
+  fromDefaultOptions = { deployId: 'dd-default', clientId: 'default' },
 ) => {
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
   if (!fromOptions.clientId) fromOptions.clientId = fromDefaultOptions.clientId;
@@ -387,7 +387,7 @@ const buildClientSrc = async (
 
 const buildApiSrc = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
+  fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
 ) => {
   if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -423,7 +423,7 @@ const buildApiSrc = async (
 
 const addApiConf = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { apiId: 'default', deployId: 'default-3001', clientId: 'default' },
+  fromDefaultOptions = { apiId: 'default', deployId: 'dd-default', clientId: 'default' },
 ) => {
   if (!fromOptions.apiId) fromOptions.apiId = fromDefaultOptions.apiId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -448,7 +448,7 @@ const addApiConf = async (
 
 const addWsConf = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
+  fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
 ) => {
   if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
@@ -473,7 +473,7 @@ const addWsConf = async (
 
 const buildWsSrc = async (
   { toOptions, fromOptions },
-  fromDefaultOptions = { wsId: 'default', deployId: 'default-3001', host: 'default.net', paths: '/' },
+  fromDefaultOptions = { wsId: 'default', deployId: 'dd-default', host: 'default.net', paths: '/' },
 ) => {
   if (!fromOptions.wsId) fromOptions.wsId = fromDefaultOptions.wsId;
   if (!fromOptions.deployId) fromOptions.deployId = fromDefaultOptions.deployId;
