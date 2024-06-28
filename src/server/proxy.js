@@ -15,10 +15,45 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-const validateSecureContext = (host) =>
-  fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
-  fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
-  fs.existsSync(`./engine-private/ssl/${host}/ca_bundle.crt`);
+const buildSSL = (host) => {
+  const sslPath = process.env.CERTBOT_LIVE_PATH;
+
+  const privateKeyPath = `${sslPath}/${host}/privkey.pem`;
+  const certificatePath = `${sslPath}/${host}/cert.pem`;
+  const caPath = `${sslPath}/${host}/chain.pem`;
+
+  if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath) && fs.existsSync(caPath)) {
+    const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+    const certificate = fs.readFileSync(certificatePath, 'utf8');
+    const ca = fs.readFileSync(caPath, 'utf8');
+
+    logger.info(`SSL files update`, {
+      privateKey,
+      certificate,
+      ca,
+    });
+
+    if (!fs.existsSync(`./engine-private/ssl/${host}`))
+      fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
+
+    fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
+    fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
+    fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, ca, 'utf8');
+
+    fs.unlinkSync(privateKeyPath);
+    fs.unlinkSync(certificatePath);
+    fs.unlinkSync(caPath);
+  }
+};
+
+const validateSecureContext = (host) => {
+  buildSSL(host);
+  return (
+    fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
+    fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
+    fs.existsSync(`./engine-private/ssl/${host}/ca_bundle.crt`)
+  );
+};
 
 const buildSecureContext = (host) => {
   return {
@@ -171,4 +206,4 @@ const buildProxy = async () => {
   }
 };
 
-export { buildProxy };
+export { buildProxy, buildSSL, validateSecureContext, buildSecureContext };

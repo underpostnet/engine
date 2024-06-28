@@ -1,10 +1,14 @@
 import fs from 'fs';
 import read from 'read';
 import ncp from 'copy-paste';
+import dotenv from 'dotenv';
 
 import { getRootDirectory } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { loadConf } from '../src/server/conf.js';
+import { buildSSL } from '../src/server/proxy.js';
+
+dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
@@ -34,24 +38,7 @@ try {
       // Certificate
       switch (os) {
         case 'windows':
-          (() => {
-            const sslPath = 'c:/Certbot/live';
-            const privateKey = fs.readFileSync(`${sslPath}/${host}/privkey.pem`, 'utf8');
-            const certificate = fs.readFileSync(`${sslPath}/${host}/cert.pem`, 'utf8');
-            const ca = fs.readFileSync(`${sslPath}/${host}/chain.pem`, 'utf8');
-
-            console.log(`SSL files found`, {
-              privateKey,
-              certificate,
-              ca,
-            });
-
-            if (!fs.existsSync(`./engine-private/ssl/${host}`))
-              fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
-            fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
-            fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
-            fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, ca, 'utf8');
-          })();
+          buildSSL(host);
           break;
 
         default:

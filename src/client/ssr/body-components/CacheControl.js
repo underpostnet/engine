@@ -8,11 +8,10 @@ const CacheControl = function () {
           .getRegistrations()
           .then((registrations) => {
             for (const registration of registrations) {
-              if (registration.installing) console.log('installing', registration);
-              else if (registration.waiting) console.log('waiting', registration);
+              if (registration.installing) console.log('[sw-cache-control] installing', registration);
+              else if (registration.waiting) console.log('[sw-cache-control] waiting', registration);
               else if (registration.active) {
-                console.log('active', registration);
-                this.updateServiceWorker = () => registration.update();
+                console.log('[sw-cache-control] active', registration);
               }
             }
             if (registrations.length > 0) status = true;
@@ -22,11 +21,11 @@ const CacheControl = function () {
             return resolve(false);
           })
           .finally((...args) => {
-            console.log('Finally status', args);
+            console.log('[sw-cache-control] finally status', args);
             return resolve(status);
           });
       } else {
-        console.warn('Disabled');
+        console.warn('[sw-cache-control] disabled');
         disable = true;
         return resolve(false);
       }
@@ -39,7 +38,7 @@ const CacheControl = function () {
             const cacheNames = await caches.keys();
             for (const cacheName of cacheNames) await caches.delete(cacheName);
             for (const registration of registrations) {
-              console.log('remove', registration);
+              console.log('[sw-cache-control] remove', registration);
               registration.unregister();
             }
           })
@@ -48,7 +47,7 @@ const CacheControl = function () {
             return resolve(args);
           })
           .finally((...args) => {
-            console.log('Finally uninstall', args);
+            console.log('[sw-cache-control] finally uninstall', args);
             return resolve(args);
           });
       });
