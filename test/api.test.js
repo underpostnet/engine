@@ -2,6 +2,8 @@
 
 import axios from 'axios';
 import dotenv from 'dotenv';
+import https from 'https';
+
 import { expect } from 'chai';
 import { loggerFactory } from '../src/server/logger.js';
 
@@ -17,6 +19,13 @@ const BASE_URL =
   process.env.NODE_ENV === 'development'
     ? `http://localhost:${PORT}/${process.env.BASE_API}`
     : `https://www.nexodev.org/api`;
+
+axios.defaults.baseURL = BASE_URL;
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+axios.defaults.httpsAgent = httpsAgent;
 
 describe(`GET 'Test' API Request `, async () => {
   {
