@@ -2,7 +2,7 @@
 
 import express from 'express';
 import https from 'https';
-import fs from 'fs';
+import fs from 'fs-extra';
 import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -40,9 +40,7 @@ const buildSSL = (host) => {
     fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
     fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, ca, 'utf8');
 
-    fs.unlinkSync(privateKeyPath);
-    fs.unlinkSync(certificatePath);
-    fs.unlinkSync(caPath);
+    fs.removeSync(`${sslPath}/${host}`);
   }
 };
 
