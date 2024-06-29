@@ -2,6 +2,7 @@
 
 import shell from 'shelljs';
 import dotenv from 'dotenv';
+import fs from 'fs-extra';
 
 import { loggerFactory } from './logger.js';
 
@@ -48,6 +49,7 @@ const ProcessController = {
       this.logger.info(`process on exit`, args);
     });
     this.onSigListen();
+    if (process.argv[2] && fs.existsSync(`./tmp/.${process.argv[2]}`)) fs.remove(`./tmp/.${process.argv[2]}`);
   },
 };
 

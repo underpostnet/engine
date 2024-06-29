@@ -18,6 +18,7 @@ import {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
+  cliSpinner,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer } from '../src/client/components/core/CommonJs.js';
@@ -74,14 +75,27 @@ const Cmd = {
     `node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${deploy.deployId} docs`,
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
-  copy: async (cmd) => {
+  exec: async (cmd, deployId) => {
     logger.info('cmd', cmd);
     if (process.argv[4] === 'copy') {
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
     } else {
       shellExec(cmd);
-      await timer(4000);
+      if (deployId)
+        await new Promise(async (resolve) => {
+          const message = `Load instance [${deployId}]`;
+          cliSpinner(1000, message);
+          await timer(1000);
+          cliSpinner(2000, message);
+          const processMonitor = setInterval(() => {
+            if (!fs.existsSync(`./tmp/${deployId}`)) {
+              clearInterval(processMonitor);
+              return resolve();
+            }
+            cliSpinner(2000, message);
+          }, 2000);
+        });
     }
   },
 };
@@ -90,8 +104,8 @@ const deployRun = async (dataDeploy, reset) => {
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   for (const deploy of dataDeploy) {
-    await Cmd.copy(Cmd.delete(deploy));
-    await Cmd.copy(Cmd.run(deploy));
+    await Cmd.exec(Cmd.delete(deploy), deploy);
+    await Cmd.exec(Cmd.run(deploy), deploy);
   }
   const { failed } = await deployTest(dataDeploy);
   for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
@@ -345,7 +359,7 @@ try {
 
         fs.writeFileSync(promConfigPath, rawConfig, 'utf8');
 
-        await Cmd.copy(`docker-compose -f engine-private/prometheus/prometheus-service.yml up -d`);
+        await Cmd.exec(`docker-compose -f engine-private/prometheus/prometheus-service.yml up -d`);
       }
       break;
 

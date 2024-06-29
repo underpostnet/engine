@@ -5,6 +5,9 @@ import * as dir from 'path';
 import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
+import colors from 'colors';
+
+colors.enable();
 
 // monitoring: https://app.pm2.io/
 
@@ -183,7 +186,10 @@ const Config = {
   },
   build: async function (options = { folder: '' }) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) return loadConf(process.argv[2]);
+    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) {
+      fs.writeFileSync(`./tmp/.${process.argv[2]}`, '', 'utf8');
+      return loadConf(process.argv[2]);
+    }
     if (process.argv[2] === 'deploy') return;
     if (process.argv[2] === 'proxy') {
       this.default.server = {};
@@ -563,12 +569,12 @@ const cliBar = async (time = 5000) => {
   b.stop();
 };
 
-const cliSpinner = async (time = 5000, type = 'dots') => {
+const cliSpinner = async (time = 5000, message, type = 'dots') => {
   const { frames, interval } = cliSpinners[type];
   const steps = parseInt(time / interval);
   let index = 0;
   for (const step of range(1, steps)) {
-    logUpdate(frames[index]);
+    logUpdate(`${frames[index]}${message ? ` ${message}` : ''}`.yellow);
     await timer(interval);
     index++;
     if (index === frames.length) index = 0;
