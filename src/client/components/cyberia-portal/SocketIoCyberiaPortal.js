@@ -1,3 +1,4 @@
+import { Account } from '../core/Account.js';
 import { Chat } from '../core/Chat.js';
 import { s4 } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -18,6 +19,19 @@ const SocketIoCyberiaPortal = {
               if (s(`.chat-box`)) Chat.appendChatBox(args);
               break;
 
+            default:
+              break;
+          }
+
+          // logger.info('ws on event', args);
+          const { id, element, status } = args;
+
+          switch (status) {
+            case 'email-confirmed':
+              const newUser = { ...ElementsCyberiaPortal.Data.user.main.model.user, emailConfirmed: true };
+              Account.renderVerifyEmailStatus(newUser);
+              Account.triggerUpdateEvent({ user: newUser });
+              break;
             default:
               break;
           }
