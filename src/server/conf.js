@@ -3,6 +3,8 @@ import dotenv from 'dotenv';
 import { cap, newInstance, range, timer } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 import cliProgress from 'cli-progress';
+import cliSpinners from 'cli-spinners';
+import logUpdate from 'log-update';
 
 // monitoring: https://app.pm2.io/
 
@@ -561,6 +563,18 @@ const cliBar = async (time = 5000) => {
   b.stop();
 };
 
+const cliSpinner = async (time = 5000, type = 'dots') => {
+  const { frames, interval } = cliSpinners[type];
+  const steps = parseInt(time / interval);
+  let index = 0;
+  for (const step of range(1, steps)) {
+    logUpdate(frames[index]);
+    await timer(interval);
+    index++;
+    if (index === frames.length) index = 0;
+  }
+};
+
 export {
   Config,
   loadConf,
@@ -575,4 +589,5 @@ export {
   buildWsSrc,
   cloneSrcComponents,
   cliBar,
+  cliSpinner,
 };
