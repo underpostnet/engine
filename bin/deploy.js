@@ -82,20 +82,23 @@ const Cmd = {
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
     } else {
       shellExec(cmd);
-      if (deployId)
-        await new Promise(async (resolve) => {
-          const message = `Load instance [${deployId}]`;
-          cliSpinner(1000, message);
-          await timer(1000);
-          cliSpinner(2000, message);
-          const processMonitor = setInterval(() => {
-            if (!fs.existsSync(`./tmp/${deployId}`)) {
-              clearInterval(processMonitor);
-              return resolve();
-            }
-            cliSpinner(2000, message);
-          }, 2000);
-        });
+      await new Promise(async (resolve) => {
+        const message0 = `[deploy.js] `;
+        const message1 = ` Load instance`;
+        const color = 'yellow';
+        let attempts = 1;
+        cliSpinner(1000, message0, message1 + ` ${attempts * 1000}ms`, color);
+        await timer(1000);
+        cliSpinner(2000, message0, message1 + ` ${attempts * 2000}ms`, color);
+        const processMonitor = setInterval(() => {
+          if (!fs.existsSync(`./tmp/await-deploy`)) {
+            clearInterval(processMonitor);
+            return resolve();
+          }
+          cliSpinner(2000, message0, message1 + ` ${attempts * 2000}ms`, color);
+          attempts++;
+        }, 2000);
+      });
     }
   },
 };
@@ -104,8 +107,8 @@ const deployRun = async (dataDeploy, reset) => {
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   for (const deploy of dataDeploy) {
-    await Cmd.exec(Cmd.delete(deploy), deploy);
-    await Cmd.exec(Cmd.run(deploy), deploy);
+    await Cmd.exec(Cmd.delete(deploy));
+    await Cmd.exec(Cmd.run(deploy));
   }
   const { failed } = await deployTest(dataDeploy);
   for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));

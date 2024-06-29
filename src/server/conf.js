@@ -190,7 +190,8 @@ const Config = {
       fs.writeFileSync(`./tmp/${process.argv[2]}`, '', 'utf8');
       return loadConf(process.argv[2]);
     }
-    if (process.argv[2] === 'deploy') return;
+    if (process.argv[2] === 'deploy') return fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
+
     if (process.argv[2] === 'proxy') {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
@@ -569,12 +570,13 @@ const cliBar = async (time = 5000) => {
   b.stop();
 };
 
-const cliSpinner = async (time = 5000, message, type = 'dots') => {
+const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots') => {
   const { frames, interval } = cliSpinners[type];
   const steps = parseInt(time / interval);
   let index = 0;
   for (const step of range(1, steps)) {
-    logUpdate(`${frames[index]}${message ? ` ${message}` : ''}`.yellow);
+    const msg = `${message0 ? message0 : ''}${frames[index]}${message1 ? message1 : ''}`;
+    logUpdate(color ? msg[color] : msg);
     await timer(interval);
     index++;
     if (index === frames.length) index = 0;
