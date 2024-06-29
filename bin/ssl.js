@@ -32,6 +32,10 @@ try {
       // You can get multi domain cert by specifying (extra) -d
       // For example
       // certbot -d example.com -d example.net -d www.example.org
+
+      // delete all file (no increment live folder)
+      // certbot delete --cert-name <domain>
+
       logger.info(`Run the following command`, cmd);
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
