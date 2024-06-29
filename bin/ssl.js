@@ -42,7 +42,7 @@ try {
       // Certificate
       switch (os) {
         case 'windows':
-          buildSSL(host);
+          await buildSSL(host);
           break;
 
         default:

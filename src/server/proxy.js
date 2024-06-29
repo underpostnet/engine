@@ -15,43 +15,50 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-const buildSSL = (host) => {
+const buildSSL = async (host) => {
   const sslPath = process.env.CERTBOT_LIVE_PATH;
 
-  const privateKeyPath = `${sslPath}/${host}/privkey.pem`;
-  const certificatePath = `${sslPath}/${host}/cert.pem`;
-  const caPath = `${sslPath}/${host}/chain.pem`;
-  const caFullPath = `${sslPath}/${host}/fullchain.pem`;
+  const files = await fs.readdir(sslPath);
 
-  if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath) && fs.existsSync(caPath)) {
-    const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
-    const certificate = fs.readFileSync(certificatePath, 'utf8');
-    const ca = fs.readFileSync(caPath, 'utf8');
-    const caFull = fs.readFileSync(caFullPath, 'utf8');
+  for (const folderHost of files)
+    if (folderHost.match(host)) {
+      const privateKeyPath = `${sslPath}/${folderHost}/privkey.pem`;
+      const certificatePath = `${sslPath}/${folderHost}/cert.pem`;
+      const caPath = `${sslPath}/${folderHost}/chain.pem`;
+      const caFullPath = `${sslPath}/${folderHost}/fullchain.pem`;
 
-    logger.info(`SSL files update`, {
-      privateKey,
-      certificate,
-      ca,
-      caFull,
-    });
+      if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath) && fs.existsSync(caPath)) {
+        const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+        const certificate = fs.readFileSync(certificatePath, 'utf8');
+        const ca = fs.readFileSync(caPath, 'utf8');
+        const caFull = fs.readFileSync(caFullPath, 'utf8');
 
-    if (!fs.existsSync(`./engine-private/ssl/${host}`))
-      fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
+        logger.info(`SSL files update`, {
+          privateKey,
+          certificate,
+          ca,
+          caFull,
+        });
 
-    fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
-    fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
-    fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, caFull, 'utf8');
+        if (!fs.existsSync(`./engine-private/ssl/${host}`))
+          fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
 
-    fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
-    fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
+        fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
+        fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
+        fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, caFull, 'utf8');
 
-    fs.removeSync(`${sslPath}/${host}`);
-  }
+        fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
+        fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
+
+        fs.removeSync(`${sslPath}/${host}`);
+      }
+      return true;
+    }
+  return false;
 };
 
-const validateSecureContext = (host) => {
-  buildSSL(host);
+const validateSecureContext = async (host) => {
+  await buildSSL(host);
   return (
     fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
     fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
@@ -192,16 +199,17 @@ const buildProxy = async () => {
     const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
 
     if (port === 443) {
-      Object.keys(hosts).map((host) => {
+      for (const host of Object.keys(hosts)) {
         const { redirect } = hosts[host];
         const [hostSSL, path = ''] = host.split('/');
-        if (validateSecureContext(hostSSL)) {
+        const validSSL = await validateSecureContext(hostSSL);
+        if (validSSL) {
           if (!('key' in OptionSSL)) {
             OptionSSL = { ...buildSecureContext(hostSSL) };
             ServerSSL = https.createServer(OptionSSL, app);
           } else ServerSSL.addContext(hostSSL, buildSecureContext(hostSSL));
         }
-      });
+      }
 
       if (ServerSSL) await listenPortController(ServerSSL, port, runningData);
     } else await listenPortController(app, port, runningData);
