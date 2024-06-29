@@ -2,6 +2,7 @@ import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
+import { Webhook } from '../core/Webhook.js';
 import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 
 const LogInCyberiaPortal = async function () {
@@ -11,6 +12,7 @@ const LogInCyberiaPortal = async function () {
     localStorage.setItem('jwt', token);
     Auth.setToken(token);
     ElementsCyberiaPortal.Data.user.main.model.user = user;
+    await Webhook.register({ user });
 
     s(`.main-btn-log-in`).style.display = 'none';
     s(`.main-btn-sign-up`).style.display = 'none';
