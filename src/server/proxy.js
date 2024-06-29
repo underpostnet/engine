@@ -27,7 +27,12 @@ const buildSSL = async (host) => {
       const caPath = `${sslPath}/${folderHost}/chain.pem`;
       const caFullPath = `${sslPath}/${folderHost}/fullchain.pem`;
 
-      if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath) && fs.existsSync(caPath)) {
+      if (
+        fs.existsSync(privateKeyPath) &&
+        fs.existsSync(certificatePath) &&
+        fs.existsSync(caPath) &&
+        fs.existsSync(caFullPath)
+      ) {
         const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
         const certificate = fs.readFileSync(certificatePath, 'utf8');
         const ca = fs.readFileSync(caPath, 'utf8');
@@ -51,8 +56,8 @@ const buildSSL = async (host) => {
         fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
 
         fs.removeSync(`${sslPath}/${host}`);
+        return true;
       }
-      return true;
     }
   return false;
 };
