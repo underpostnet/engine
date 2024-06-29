@@ -21,16 +21,19 @@ const buildSSL = (host) => {
   const privateKeyPath = `${sslPath}/${host}/privkey.pem`;
   const certificatePath = `${sslPath}/${host}/cert.pem`;
   const caPath = `${sslPath}/${host}/chain.pem`;
+  const caFullPath = `${sslPath}/${host}/fullchain.pem`;
 
   if (fs.existsSync(privateKeyPath) && fs.existsSync(certificatePath) && fs.existsSync(caPath)) {
     const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
     const certificate = fs.readFileSync(certificatePath, 'utf8');
     const ca = fs.readFileSync(caPath, 'utf8');
+    const caFull = fs.readFileSync(caFullPath, 'utf8');
 
     logger.info(`SSL files update`, {
       privateKey,
       certificate,
       ca,
+      caFull,
     });
 
     if (!fs.existsSync(`./engine-private/ssl/${host}`))
@@ -38,7 +41,10 @@ const buildSSL = (host) => {
 
     fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
     fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
-    fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, ca, 'utf8');
+    fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, caFull, 'utf8');
+
+    fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
+    fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
 
     fs.removeSync(`${sslPath}/${host}`);
   }
