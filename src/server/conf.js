@@ -187,7 +187,7 @@ const Config = {
   build: async function (options = { folder: '' }) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) {
-      fs.writeFileSync(`./tmp/.${process.argv[2]}`, '', 'utf8');
+      fs.writeFileSync(`./tmp/${process.argv[2]}`, '', 'utf8');
       return loadConf(process.argv[2]);
     }
     if (process.argv[2] === 'deploy') return;

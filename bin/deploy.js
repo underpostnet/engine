@@ -109,7 +109,10 @@ const deployRun = async (dataDeploy, reset) => {
   }
   const { failed } = await deployTest(dataDeploy);
   for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
-  if (failed.length > 0) await deployRun(failed);
+  if (failed.length > 0) {
+    process.argv[4] = 'copy';
+    await deployRun(failed);
+  }
 };
 
 try {
