@@ -76,10 +76,13 @@ const Cmd = {
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   copy: async (cmd) => {
     logger.info('cmd', cmd);
-    await ncp.copy(cmd);
-    await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-    // shellExec(cmd);
-    // await timer(4000);
+    if (process.argv[4] === 'copy') {
+      await ncp.copy(cmd);
+      await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+    } else {
+      shellExec(cmd);
+      await timer(4000);
+    }
   },
 };
 
