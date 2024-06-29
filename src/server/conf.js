@@ -1,7 +1,8 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { cap, newInstance } from '../client/components/core/CommonJs.js';
+import { cap, newInstance, range, timer } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
+import cliProgress from 'cli-progress';
 
 // monitoring: https://app.pm2.io/
 
@@ -528,6 +529,38 @@ const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
   }
 };
 
+const cliBar = async (time = 5000) => {
+  // create new progress bar
+  const b = new cliProgress.SingleBar({
+    format: 'Delay | {bar} | {percentage}% || {value}/{total} Chunks || Speed: {speed}',
+    barCompleteChar: '\u2588',
+    barIncompleteChar: '\u2591',
+    hideCursor: true,
+  });
+
+  const maxValueDisplay = 200;
+  const minValueDisplay = 0;
+  const steps = 10;
+  const incrementValue = 200 / steps;
+  const delayTime = time / steps;
+  // initialize the bar - defining payload token "speed" with the default value "N/A"
+  b.start(maxValueDisplay, minValueDisplay, {
+    speed: 'N/A',
+  });
+
+  // update values
+  // b1.increment();
+  // b1.update(20);
+
+  for (const step of range(1, steps)) {
+    b.increment(incrementValue);
+    await timer(delayTime);
+  }
+
+  // stop the bar
+  b.stop();
+};
+
 export {
   Config,
   loadConf,
@@ -541,4 +574,5 @@ export {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
+  cliBar,
 };

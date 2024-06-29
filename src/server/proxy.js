@@ -202,7 +202,7 @@ const buildProxy = async () => {
       if (ServerSSL) await listenPortController(ServerSSL, port, runningData);
     } else await listenPortController(app, port, runningData);
 
-    logger.info('Proxy running', options);
+    logger.info('Proxy running', { port, options });
   }
 };
 
