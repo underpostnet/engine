@@ -22,10 +22,8 @@ const SocketIoCyberiaPortal = {
             default:
               break;
           }
-
           // logger.info('ws on event', args);
           const { id, element, status } = args;
-
           switch (status) {
             case 'email-confirmed':
               const newUser = { ...ElementsCyberiaPortal.Data.user.main.model.user, emailConfirmed: true };

@@ -22,20 +22,19 @@ const SocketIoCyberiaAdmin = {
             default:
               break;
           }
+          // logger.info('ws on event', args);
+          const { id, element, status } = args;
+
+          switch (status) {
+            case 'email-confirmed':
+              const newUser = { ...ElementsCyberiaAdmin.Data.user.main.model.user, emailConfirmed: true };
+              Account.renderVerifyEmailStatus(newUser);
+              Account.triggerUpdateEvent({ user: newUser });
+              break;
+            default:
+              break;
+          }
         };
-
-        // logger.info('ws on event', args);
-        const { id, element, status } = args;
-
-        switch (status) {
-          case 'email-confirmed':
-            const newUser = { ...ElementsCyberiaAdmin.Data.user.main.model.user, emailConfirmed: true };
-            Account.renderVerifyEmailStatus(newUser);
-            Account.triggerUpdateEvent({ user: newUser });
-            break;
-          default:
-            break;
-        }
       }
       SocketIo.Event.connect[s4()] = async (reason) => {
         // ElementsCyberiaAdmin.Init({ type, id, element });
