@@ -327,6 +327,7 @@ try {
 
     case 'run-macro':
       {
+        if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const silent = true;
         shellExec(`git pull origin master`, { silent });
         shellCd(`engine-private`);
@@ -345,6 +346,7 @@ try {
 
     case 'run-macro-build':
       {
+        if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const silent = true;
         shellExec(`git pull origin master`, { silent });
         shellCd(`engine-private`);
