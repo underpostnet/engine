@@ -86,10 +86,11 @@ const Cmd = {
       shellExec(cmd);
       return await new Promise(async (resolve) => {
         const maxTime = 1000 * 60 * 5;
+        const minTime = 10000;
         const intervalTime = 1000;
         let currentTime = 0;
         const attempt = () => {
-          if (!fs.existsSync(`./tmp/await-deploy`)) {
+          if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
             clearInterval(processMonitor);
             return resolve(true);
           }
