@@ -13,6 +13,7 @@ import { shellExec } from './process.js';
 import swaggerAutoGen from 'swagger-autogen';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
+import { buildTextImg } from './client-icons.js';
 
 dotenv.config();
 
@@ -25,7 +26,17 @@ const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
   fs.writeFileSync(`${acmeChallengeFullPath}/.gitkeep`, '', 'utf8');
 };
 
-const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChallengeFullPath, publicClientId }) => {
+const fullBuild = async ({
+  logger,
+  client,
+  db,
+  dists,
+  rootClientPath,
+  acmeChallengeFullPath,
+  publicClientId,
+  iconsBuild,
+  metadata,
+}) => {
   logger.warn('Full build', rootClientPath);
 
   fs.removeSync(rootClientPath);
@@ -33,6 +44,13 @@ const fullBuild = async ({ logger, client, db, dists, rootClientPath, acmeChalle
   buildAcmeChallengePath(acmeChallengeFullPath);
 
   if (fs.existsSync(`./src/client/public/${publicClientId}`)) {
+    if (iconsBuild) {
+      const defaultBaseIconFolderPath = `src/client/public/${publicClientId}/assets/logo`;
+      if (!fs.existsSync(defaultBaseIconFolderPath)) fs.mkdirSync(defaultBaseIconFolderPath, { recursive: true });
+      const defaultBaseIconPath = `${defaultBaseIconFolderPath}/base-icon.png`;
+      if (!fs.existsSync(defaultBaseIconPath))
+        await buildTextImg(metadata.title, { debugFilename: defaultBaseIconPath });
+    }
     fs.copySync(
       `./src/client/public/${publicClientId}`,
       rootClientPath /* {
@@ -88,7 +106,8 @@ const buildClient = async () => {
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
-      const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis } = confServer[host][path];
+      const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis, iconsBuild } =
+        confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
       if (metadata) {
@@ -126,6 +145,8 @@ const buildClient = async () => {
           rootClientPath,
           acmeChallengeFullPath,
           publicClientId,
+          iconsBuild,
+          metadata,
         });
 
       if (components)

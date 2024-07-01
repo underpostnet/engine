@@ -16,7 +16,7 @@ const Config = {
     client: {
       default: {
         metadata: {
-          title: 'App',
+          title: 'APP',
         },
         components: {
           core: [
@@ -145,6 +145,7 @@ const Config = {
           apis: ['user', 'test'],
           origins: [],
           minifyBuild: false,
+          iconsBuild: true,
           lightBuild: false,
           proxy: [80, 443],
           db: {
