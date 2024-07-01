@@ -76,7 +76,6 @@ const Cmd = {
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   exec: async (cmd, deployId) => {
-    logger.info('cmd', cmd);
     if (process.argv[4] === 'copy') {
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
@@ -84,28 +83,30 @@ const Cmd = {
       return false;
     } else {
       shellExec(cmd);
-      return await new Promise(async (resolve) => {
-        const maxTime = 1000 * 60 * 5;
-        const minTime = 10000;
-        const intervalTime = 1000;
-        let currentTime = 0;
-        const attempt = () => {
-          if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
-            clearInterval(processMonitor);
-            return resolve(true);
-          }
-          cliSpinner(
-            intervalTime,
-            `[deploy.js] `,
-            ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
-            'yellow',
-            'material',
-          );
-          currentTime += intervalTime;
-          if (currentTime === maxTime) return resolve(false);
-        };
-        const processMonitor = setInterval(attempt, intervalTime);
-      });
+      if (!cmd.match('delete'))
+        return await new Promise(async (resolve) => {
+          const maxTime = 1000 * 60 * 5;
+          const minTime = 10000;
+          const intervalTime = 1000;
+          let currentTime = 0;
+          const attempt = () => {
+            if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
+              clearInterval(processMonitor);
+              return resolve(true);
+            }
+            cliSpinner(
+              intervalTime,
+              `[deploy.js] `,
+              ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
+              'yellow',
+              'material',
+            );
+            currentTime += intervalTime;
+            if (currentTime === maxTime) return resolve(false);
+          };
+          const processMonitor = setInterval(attempt, intervalTime);
+        });
+      else return true;
     }
   },
 };
