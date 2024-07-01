@@ -24,6 +24,11 @@ const ModelElement = {
       },
     };
   },
+  quests: () => {
+    return {
+      quests: [],
+    };
+  },
 };
 
 const PositionsComponent = {
@@ -230,6 +235,10 @@ const QuestComponent = {
   Data: {
     'floki-bone': {
       type: 'search',
+      displaySearchObjects: [
+        { id: 'bone', quantity: 2, current: 0 },
+        { id: 'bone-brown', quantity: 1, current: 0 },
+      ],
       provide: {
         displayIds: [{ id: 'ayleen', quantity: [1] }],
       },
@@ -249,13 +258,17 @@ const QuestComponent = {
         en: `Please find Floki's bone`,
         es: 'Por favor encuentra los huesos de floki',
       },
+      successDescription: {
+        en: ``,
+        es: '',
+      },
     },
   },
   getQuestByDisplayId: function ({ displayId }) {
     const questData = [];
-    for (const questKey of Object.keys(this.Data)) {
-      if (this.Data[questKey].provide.displayIds.find((q) => q.id === displayId)) {
-        questData.push({ questKey, ...this.Data[questKey] });
+    for (const id of Object.keys(this.Data)) {
+      if (this.Data[id].provide.displayIds.find((q) => q.id === displayId)) {
+        questData.push({ id, ...this.Data[id] });
       }
     }
     return questData;
@@ -492,6 +505,7 @@ const BaseElement = (options = { worldId: undefined }) => {
         model: {
           ...ModelElement.world(options),
           ...ModelElement.user(),
+          ...ModelElement.quests(),
         },
       },
     },

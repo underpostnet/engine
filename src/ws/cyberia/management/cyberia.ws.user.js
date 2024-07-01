@@ -108,6 +108,14 @@ const CyberiaWsUserManagement = {
       }
     }, this.element[wsManagementId][id].deadTime);
   },
+  getCyberiaUserWsId: function (wsManagementId = '', id = '') {
+    for (const cyberiaUserWsId of Object.keys(this.element[wsManagementId])) {
+      if (this.element[wsManagementId][cyberiaUserWsId]._id === id) {
+        return cyberiaUserWsId;
+      }
+    }
+    return undefined;
+  },
 };
 
 export { CyberiaWsUserManagement };

@@ -25,7 +25,11 @@ const CyberiaQuestRouter = (options) => {
         },
       };
     })();
-
+  router.post(
+    `/${endpoint}/take/:questId`,
+    authMiddleware,
+    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take', ...options }),
+  );
   router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.post(`/${endpoint}`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.get(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));

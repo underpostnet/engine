@@ -124,6 +124,18 @@ const CyberiaUserSchema = new Schema({
       },
       face: { type: Number },
     },
+    quests: {
+      type: [
+        {
+          id: { type: String },
+          displaySearchObjects: {
+            type: [{ id: { type: String }, quantity: { type: Number }, current: { type: Number, default: 0 } }],
+            default: [],
+          },
+        },
+      ],
+      default: [],
+    },
   },
 });
 const CyberiaUserModel = model('CyberiaUser', CyberiaUserSchema);

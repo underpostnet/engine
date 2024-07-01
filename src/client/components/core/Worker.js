@@ -25,14 +25,18 @@ const Worker = {
           case 'loader':
             {
               if (s(`.ssr-loading-info`)) {
-                const nameSrcLoad = event.data.path;
-                if (!event.data.path.match('assets') && nameSrcLoad && nameSrcLoad !== 'undefined')
-                  htmls(
-                    `.ssr-loading-info`,
-                    html`<span style="color: white">Download </span> <br />
-                      <br />
-                      ...${nameSrcLoad.slice(-30)}`,
-                  );
+                let nameSrcLoad = event.data.path;
+                if (nameSrcLoad) {
+                  if (nameSrcLoad.match('assets')) nameSrcLoad = location.hostname + location.pathname + 'assets';
+                  else if (!nameSrcLoad.match('api')) nameSrcLoad = undefined;
+                  if (nameSrcLoad)
+                    htmls(
+                      `.ssr-loading-info`,
+                      html`<span style="color: white">Download </span> <br />
+                        <br />
+                        ...${nameSrcLoad.slice(-30)}`,
+                    );
+                }
               }
             }
             break;

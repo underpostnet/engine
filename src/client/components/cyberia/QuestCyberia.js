@@ -1,3 +1,4 @@
+import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { objectEquals } from '../core/CommonJs.js';
 import { Css, Themes, typeWriter } from '../core/Css.js';
@@ -73,6 +74,14 @@ const QuestManagementCyberia = {
                         this.questClosePanels.push(idPanel);
                         await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                       };
+                      if (s(`.action-panel-ok-${idPanel}`))
+                        s(`.action-panel-ok-${idPanel}`).onclick = async () => {
+                          ElementsCyberia.Data.user['main'].model.quests.push(questData);
+                          const result = await CyberiaQuestService.post({ id: `take/${questData.id}` });
+                          // post take quest
+                          // interaction panel info and shortcut
+                          // modal quest render
+                        };
                       if (questData) {
                         s(`.action-panel-dude-${idPanel}`).onclick = async () => {
                           await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
@@ -83,11 +92,12 @@ const QuestManagementCyberia = {
                             title: renderViewTitle({
                               'ui-icon': questData.icon.id,
                               assetFolder: questData.icon.folder,
-                              text: html`${Translate.Render(`${questData.questKey}-title`)}`,
+                              text: html`${Translate.Render(`${questData.id}-title`)}`,
                             }),
                             html: html`<div class="in section-mp">
-                              ${Translate.Render(`${questData.questKey}-description`)}
-                            </div>`,
+                              <div class="in">${Translate.Render(`${questData.id}-description`)}</div>
+                              <div class="in"></div>
+                            </div> `,
                             maximize: true,
                             mode: 'view',
                             slideMenu: 'modal-menu',
@@ -125,7 +135,7 @@ const QuestManagementCyberia = {
                         ${await typeWriter({
                           id: idPanel,
                           html: questData
-                            ? html`${Translate.Render(`${questData.questKey}-shortDescription`)}`
+                            ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
                             : html`Hi! Hi! Hi! Hi! Hi!`,
                         })}
                       </div>
