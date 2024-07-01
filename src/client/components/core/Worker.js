@@ -26,7 +26,7 @@ const Worker = {
             {
               if (s(`.ssr-loading-info`)) {
                 const nameSrcLoad = event.data.path;
-                if (nameSrcLoad && nameSrcLoad !== 'undefined')
+                if (!event.data.path.match('assets') && nameSrcLoad && nameSrcLoad !== 'undefined')
                   htmls(
                     `.ssr-loading-info`,
                     html`<span style="color: white">Download </span> <br />

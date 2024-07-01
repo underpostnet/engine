@@ -80,24 +80,30 @@ const Cmd = {
     if (process.argv[4] === 'copy') {
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+      if (!fs.existsSync(`./tmp/await-deploy`)) return true;
+      return false;
     } else {
       shellExec(cmd);
-      await new Promise(async (resolve) => {
-        const message0 = `[deploy.js] `;
-        const message1 = ` Load instance`;
-        const color = 'yellow';
-        let attempts = 1;
-        cliSpinner(1000, message0, message1 + ` ${attempts * 1000}ms`, color);
-        await timer(1000);
-        cliSpinner(2000, message0, message1 + ` ${attempts * 2000}ms`, color);
-        const processMonitor = setInterval(() => {
+      return await new Promise(async (resolve) => {
+        const maxTime = 1000 * 60 * 5;
+        const intervalTime = 1000;
+        let currentTime = 0;
+        const attempt = () => {
           if (!fs.existsSync(`./tmp/await-deploy`)) {
             clearInterval(processMonitor);
-            return resolve();
+            return resolve(true);
           }
-          cliSpinner(2000, message0, message1 + ` ${attempts * 2000}ms`, color);
-          attempts++;
-        }, 2000);
+          cliSpinner(
+            intervalTime,
+            `[deploy.js] `,
+            ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
+            'yellow',
+            'material',
+          );
+          currentTime += intervalTime;
+          if (currentTime === maxTime) return resolve(false);
+        };
+        const processMonitor = setInterval(attempt, intervalTime);
       });
     }
   },
@@ -107,8 +113,15 @@ const deployRun = async (dataDeploy, reset) => {
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   for (const deploy of dataDeploy) {
-    await Cmd.exec(Cmd.delete(deploy));
-    await Cmd.exec(Cmd.run(deploy));
+    const deployRunAttempt = async () => {
+      await Cmd.exec(Cmd.delete(deploy));
+      const execResult = await Cmd.exec(Cmd.run(deploy));
+      if (!execResult) {
+        logger.error('Deploy time out deploy restart', { dataDeploy, reset });
+        await deployRunAttempt();
+      }
+    };
+    await deployRunAttempt();
   }
   const { failed } = await deployTest(dataDeploy);
   for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));

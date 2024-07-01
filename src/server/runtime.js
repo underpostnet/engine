@@ -65,6 +65,8 @@ const buildRuntime = async () => {
         redirectTarget = redirect[redirect.length - 1] === '/' ? redirect.slice(0, -1) : redirect;
       }
 
+      logger.info('Build runtime', `${host}${path}`);
+
       switch (runtime) {
         case 'lampp':
           if (!Lampp.enabled()) continue;

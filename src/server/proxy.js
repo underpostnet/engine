@@ -63,7 +63,6 @@ const buildSSL = async (host) => {
 };
 
 const validateSecureContext = async (host) => {
-  await buildSSL(host);
   return (
     fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
     fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
@@ -207,6 +206,7 @@ const buildProxy = async () => {
       for (const host of Object.keys(hosts)) {
         const { redirect } = hosts[host];
         const [hostSSL, path = ''] = host.split('/');
+        if (process.env.NODE_ENV === 'production') await buildSSL(host);
         const validSSL = await validateSecureContext(hostSSL);
         if (validSSL) {
           if (!('key' in OptionSSL)) {

@@ -49,7 +49,7 @@ const ProcessController = {
       this.logger.info(`process on exit`, args);
     });
     this.onSigListen();
-    if (process.argv[2] === 'deploy' && fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
+    if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
   },
 };
 
