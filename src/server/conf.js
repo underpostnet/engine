@@ -8,6 +8,7 @@ import logUpdate from 'log-update';
 import colors from 'colors';
 
 colors.enable();
+dotenv.config();
 
 // monitoring: https://app.pm2.io/
 
@@ -139,7 +140,7 @@ const Config = {
     },
     ssr: {
       Default: {
-        head: ['PwaDefault', 'DefaultScripts'], // 'Seo'
+        head: ['PwaDefault', 'DefaultScripts'],
         body: ['CacheControl'],
       },
     },
@@ -203,9 +204,10 @@ const Config = {
     if (process.argv[2] === 'proxy') {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
-        const serverConf = loadReplicas(
-          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-        );
+        let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
+        const confDevPath = `./engine-private/conf/${deployId}/conf.server.dev.json`;
+        if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
+        const serverConf = loadReplicas(JSON.parse(fs.readFileSync(confPath, 'utf8')));
         // this.default.server = {
         //   ...this.default.server,
         //   ...serverConf,
@@ -245,6 +247,10 @@ const loadConf = (deployId) => {
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
+    if (process.env.NODE_ENV === 'development' && typeConf === 'server') {
+      const devConfPath = `${folder}/conf.${typeConf}.dev.json`;
+      if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
+    }
     if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(JSON.parse(srcConf)), null, 4);
     fs.writeFileSync(`./conf/conf.${typeConf}.json`, srcConf, 'utf8');
   }
