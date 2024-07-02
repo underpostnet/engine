@@ -52,6 +52,11 @@ const CssCommonCyberia = async () => {
     .quest-short-description {
       margin-left: 5px;
     }
+    .quest-provide-img {
+      width: 95%;
+      height: auto;
+      margin: auto;
+    }
   </style>`;
 };
 

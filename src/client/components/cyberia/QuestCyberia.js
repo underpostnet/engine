@@ -84,6 +84,9 @@ const QuestManagementCyberia = {
                         };
                       if (questData) {
                         s(`.action-panel-dude-${idPanel}`).onclick = async () => {
+                          const currentQuestData = ElementsCyberia.Data.user['main'].model.quests.find(
+                            (q) => q.id === questData.id,
+                          );
                           await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                           const { barConfig } = await Themes[Css.currentTheme]();
                           await Modal.Render({
@@ -96,7 +99,19 @@ const QuestManagementCyberia = {
                             }),
                             html: html`<div class="in section-mp">
                               <div class="in">${Translate.Render(`${questData.id}-description`)}</div>
-                              <div class="in"></div>
+                              <div class="fl">
+                                <div class="in fll" style="width: 50%">
+                                  ${currentQuestData.displaySearchObjects
+                                    .map((q) => html`<div class="in">${q.id} ${q.current} / ${q.quantity}</div>`)
+                                    .join('')}
+                                </div>
+                                <div class="in fll" style="width: 50%">
+                                  <img
+                                    class="in quest-provide-img"
+                                    src="${getProxyPath()}assets/skin/${questData.provide.displayIds[0].id}/08/0.png"
+                                  />
+                                </div>
+                              </div>
                             </div> `,
                             maximize: true,
                             mode: 'view',
