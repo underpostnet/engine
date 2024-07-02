@@ -1,6 +1,6 @@
 import { getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setURI, getProxyPath, htmls } from './VanillaJs.js';
+import { append, s, prepend, setURI, getProxyPath, htmls, sa } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -675,7 +675,7 @@ const Modal = {
           left: 5%;
         }
       </style>
-      ${getStyleAttrFromObject(`.${idModal}`, options)}
+      ${getStyleAttrFromObject(`style-${idModal}`, `.${idModal}`, options)}
       <div class="fix ${options && options.class ? options.class : ''} modal box-shadow ${idModal}">
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
@@ -837,7 +837,9 @@ const Modal = {
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
         s(`.${idModal}`).remove();
-        s(`.style-${idModal}`).remove();
+        sa(`.style-${idModal}`).forEach((element) => {
+          element.remove();
+        });
         delete this.Data[idModal];
         // Router
         if (options.route)

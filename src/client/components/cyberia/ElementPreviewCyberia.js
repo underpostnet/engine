@@ -34,7 +34,7 @@ const ElementPreviewCyberia = {
           margin: auto;
         }
       </style>
-      ${getStyleAttrFromObject('.element-preview', options)}
+      ${getStyleAttrFromObject('style-element-preview', '.element-preview', options)}
       <canvas class="in element-preview ${selector}"></canvas>
     `;
   },

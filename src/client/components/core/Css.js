@@ -573,8 +573,8 @@ const typeWriter = async function ({ id, html }) {
   `;
 };
 
-const getStyleAttrFromObject = (selector, options) =>
-  html`<style>
+const getStyleAttrFromObject = (styleSelector = 'style-abc', selector, options) =>
+  html`<style class="${styleSelector}">
     ${selector} { ${options && options.style
       ? Object.keys(options.style)
           .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
