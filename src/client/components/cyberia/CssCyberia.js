@@ -29,9 +29,7 @@ const CssCommonCyberia = async () => {
     }
     .action-game-panel {
       width: 230px;
-      background: white;
       z-index: 10;
-      color: black;
       font-size: 20px;
     }
     .action-panel-bar-btn-container {
@@ -56,6 +54,13 @@ const CssCommonCyberia = async () => {
       width: 95%;
       height: auto;
       margin: auto;
+    }
+    .bubble-dialog {
+      background: white;
+      color: black;
+      padding: 10px;
+      border: 3px solid black;
+      font-family: 'retro-font-sensitive';
     }
   </style>`;
 };

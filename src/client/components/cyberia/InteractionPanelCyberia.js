@@ -64,10 +64,7 @@ const InteractionPanelCyberia = {
           `.PointAndClickMovementCyberia-container`,
           html`
             <div class="abs action-game-panel ${idPanel}" style="top: ${top}; left: ${left}; height: ${height};">
-              ${await renderBubbleDialog({
-                id: idPanel,
-                html,
-              })}
+              ${await html()}
             </div>
           `,
         );

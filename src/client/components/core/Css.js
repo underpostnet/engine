@@ -529,7 +529,7 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
 
 const renderBubbleDialog = async function (options = { id: '', html: async () => '' }) {
   const { id, html } = options;
-  return html`<div class="inl bubble-dialog-${id}">${await html()}</div>`;
+  return html`<div class="inl bubble-dialog bubble-dialog-${id}">${await html()}</div>`;
 };
 
 const typeWriter = async function ({ id, html }) {

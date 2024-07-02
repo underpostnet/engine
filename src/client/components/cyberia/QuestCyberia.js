@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { objectEquals } from '../core/CommonJs.js';
-import { Css, Themes, typeWriter } from '../core/Css.js';
+import { Css, Themes, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
@@ -98,7 +98,12 @@ const QuestManagementCyberia = {
                               text: html`${Translate.Render(`${questData.id}-title`)}`,
                             }),
                             html: html`<div class="in section-mp">
-                              <div class="in">${Translate.Render(`${questData.id}-description`)}</div>
+                              <div class="in">
+                                ${await renderBubbleDialog({
+                                  id: `${idPanel}-bubble-description`,
+                                  html: async () => html`${Translate.Render(`${questData.id}-description`)}`,
+                                })}
+                              </div>
                               <div class="fl">
                                 <div class="in fll" style="width: 50%">
                                   ${currentQuestData.displaySearchObjects
@@ -120,41 +125,44 @@ const QuestManagementCyberia = {
                         };
                       }
                     });
-                    return html`
-                      <div class="fl">
-                        ${questData
-                          ? html`${await BtnIcon.Render({
-                              class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel}`,
-                              label: html`<img
-                                class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/ok.png"
-                              />`,
-                            })}
-                            ${await BtnIcon.Render({
-                              class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
-                              label: html`<img
-                                class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/dude.png"
-                              />`,
-                            })} `
-                          : ''}
-                        ${await BtnIcon.Render({
-                          class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
-                          label: html`<img
-                            class="abs center action-panel-img-icon"
-                            src="${getProxyPath()}assets/ui-icons/close.png"
-                          />`,
-                        })}
-                      </div>
-                      <div class="in quest-short-description">
-                        ${await typeWriter({
-                          id: idPanel,
-                          html: questData
-                            ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
-                            : html`Hi! Hi! Hi! Hi! Hi!`,
-                        })}
-                      </div>
-                    `;
+                    return await renderBubbleDialog({
+                      id: idPanel,
+                      html: async () => html`
+                        <div class="fl">
+                          ${questData
+                            ? html`${await BtnIcon.Render({
+                                class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel}`,
+                                label: html`<img
+                                  class="abs center action-panel-img-icon"
+                                  src="${getProxyPath()}assets/ui-icons/ok.png"
+                                />`,
+                              })}
+                              ${await BtnIcon.Render({
+                                class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
+                                label: html`<img
+                                  class="abs center action-panel-img-icon"
+                                  src="${getProxyPath()}assets/ui-icons/dude.png"
+                                />`,
+                              })} `
+                            : ''}
+                          ${await BtnIcon.Render({
+                            class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
+                            label: html`<img
+                              class="abs center action-panel-img-icon"
+                              src="${getProxyPath()}assets/ui-icons/close.png"
+                            />`,
+                          })}
+                        </div>
+                        <div class="in quest-short-description">
+                          ${await typeWriter({
+                            id: idPanel,
+                            html: questData
+                              ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
+                              : html`Hi! Hi! Hi! Hi! Hi!`,
+                          })}
+                        </div>
+                      `,
+                    });
                   },
                 });
               }
