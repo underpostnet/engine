@@ -1,43 +1,60 @@
 import { favicons } from 'favicons';
 import textToImage from 'text-to-image';
 import { loggerFactory } from './logger.js';
+import fs from 'fs-extra';
+import { getCapVariableName } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
 const defaultBaseTextImgOptions = {
   debug: true,
-  maxWidth: 70,
-  customHeight: 70,
-  fontSize: 25,
   fontFamily: 'Arial',
   fontWeight: 'bold',
-  margin: 10,
   bgColor: 'black',
   textColor: 'white',
   debugFilename: 'src/client/public/text-image.png',
   verticalAlign: 'center',
+  textAlign: 'center',
+};
+
+const defaultBaseTextImgOptionsSizes = {
+  '70x70': {
+    maxWidth: 70,
+    customHeight: 70,
+    fontSize: 25,
+    margin: 10,
+  },
+  '1200x1200': {
+    maxWidth: 1200,
+    customHeight: 1200,
+    fontSize: 500,
+    margin: 50,
+  },
 };
 
 const buildTextImg = async (text = 'APP', options) => {
-  options = { ...defaultBaseTextImgOptions, ...options };
+  options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes['1200x1200'], ...options };
   await textToImage.generate(text, options);
 };
 
-const buildIcons = async ({ metadata: { title, description, keywords, author, thumbnail, themeColor } }) => {
-  const source = 'test/logo.png'; // Source image(s). `string`, `buffer` or array of `string`
+const buildIcons = async ({
+  publicClientId,
+  metadata: { title, description, keywords, author, thumbnail, themeColor },
+}) => {
+  const source = `src/client/public/${publicClientId}/assets/logo/base-icon.png`; // Source image(s). `string`, `buffer` or array of `string`
 
   const configuration = {
     path: '/', // Path for overriding default icons path. `string`
-    appName: null, // Your application's name. `string`
-    appShortName: null, // Your application's short_name. `string`. Optional. If not set, appName will be used
-    appDescription: null, // Your application's description. `string`
-    developerName: null, // Your (or your developer's) name. `string`
-    developerURL: null, // Your (or your developer's) URL. `string`
+    appName: title ? title : null, // Your application's name. `string`
+    appShortName: title ? title : null, // Your application's short_name. `string`. Optional. If not set, appName will be used
+    appDescription: description ? description : null, // Your application's description. `string`
+    developerName: author ? author : null, // Your (or your developer's) name. `string`
+    developerURL: author ? author : null, // Your (or your developer's) URL. `string`
     cacheBustingQueryParam: null, // Query parameter added to all URLs that acts as a cache busting system. `string | null`
     dir: 'auto', // Primary text direction for name, short_name, and description
     lang: 'en-US', // Primary language for name and short_name
-    background: '#fff', // Background colour for flattened icons. `string`
-    theme_color: '#fff', // Theme color user for example in Android's task switcher. `string`
+    background: themeColor ? themeColor : '#fff', // Background colour for flattened icons. `string`
+    theme_color: themeColor ? themeColor : '#fff', // Theme color user for example in Android's task switcher. `string`
     appleStatusBarStyle: 'black-translucent', // Style for Apple status bar: "black-translucent", "default", "black". `string`
     display: 'standalone', // Preferred display mode: "fullscreen", "standalone", "minimal-ui" or "browser". `string`
     orientation: 'any', // Default orientation: "any", "natural", "portrait" or "landscape". `string`
@@ -47,8 +64,8 @@ const buildIcons = async ({ metadata: { title, description, keywords, author, th
     relatedApplications: undefined, // Information about the native companion apps. This will only be used if `preferRelatedApplications` is `true`. `Array<{ id: string, url: string, platform: string }>`
     version: '1.0', // Your application's version string. `string`
     pixel_art: false, // Keeps pixels "sharp" when scaling up, for pixel art.  Only supported in offline mode.
-    loadManifestWithCredentials: false, // Browsers don't send cookies when fetching a manifest, enable this to fix that. `boolean`
-    manifestMaskable: false, // Maskable source image(s) for manifest.json. "true" to use default source. More information at https://web.dev/maskable-icon/. `boolean`, `string`, `buffer` or array of `string`
+    loadManifestWithCredentials: true, // Browsers don't send cookies when fetching a manifest, enable this to fix that. `boolean`
+    manifestMaskable: true, // Maskable source image(s) for manifest.json. "true" to use default source. More information at https://web.dev/maskable-icon/. `boolean`, `string`, `buffer` or array of `string`
     icons: {
       // Platform Options:
       // - offset - offset in percentage
@@ -67,13 +84,13 @@ const buildIcons = async ({ metadata: { title, description, keywords, author, th
     shortcuts: [
       // Your applications's Shortcuts (see: https://developer.mozilla.org/docs/Web/Manifest/shortcuts)
       // Array of shortcut objects:
-      {
-        name: 'View your Inbox', // The name of the shortcut. `string`
-        short_name: 'inbox', // optionally, falls back to name. `string`
-        description: 'View your inbox messages', // optionally, not used in any implemention yet. `string`
-        url: '/inbox', // The URL this shortcut should lead to. `string`
-        icon: 'test/inbox_shortcut.png', // source image(s) for that shortcut. `string`, `buffer` or array of `string`
-      },
+      // {
+      //   name: 'View your Inbox', // The name of the shortcut. `string`
+      //   short_name: 'inbox', // optionally, falls back to name. `string`
+      //   description: 'View your inbox messages', // optionally, not used in any implemention yet. `string`
+      //   url: '/inbox', // The URL this shortcut should lead to. `string`
+      //   icon: 'test/inbox_shortcut.png', // source image(s) for that shortcut. `string`, `buffer` or array of `string`
+      // },
       // more shortcuts objects
     ],
   };
@@ -81,11 +98,21 @@ const buildIcons = async ({ metadata: { title, description, keywords, author, th
   try {
     const response = await favicons(source, configuration);
 
-    console.log(response.images); // Array of { name: string, contents: <buffer> }
-    console.log(response.files); // Array of { name: string, contents: <string> }
-    console.log(response.html); // Array of strings (html elements)
+    // console.log(response.images); // Array of { name: string, contents: <buffer> }
+    // console.log(response.files); // Array of { name: string, contents: <string> }
+    // console.log(response.html); // Array of strings (html elements)
+
+    for (const image of response.images)
+      fs.writeFileSync(`./src/client/public/${publicClientId}/${image.name}`, image.contents);
+
+    for (const file of response.files)
+      fs.writeFileSync(`./src/client/public/${publicClientId}/${file.name}`, file.contents, 'utf8');
+
+    const ssrPath = `./src/client/ssr/head-components/Pwa${getCapVariableName(publicClientId)}.js`;
+    if (!fs.existsSync(ssrPath))
+      fs.writeFileSync(ssrPath, 'SrrComponent = () => html`' + response.html.join(`\n`) + '`;', 'utf8');
   } catch (error) {
-    console.log(error.message); // Error description e.g. "An unknown error has occurred"
+    logger.error(error.message); // Error description e.g. "An unknown error has occurred"
   }
 };
 

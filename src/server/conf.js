@@ -69,6 +69,12 @@ const Config = {
             ssr: 'Default',
           },
           {
+            path: '/home',
+            title: 'Home',
+            client: 'Default',
+            ssr: 'Default',
+          },
+          {
             path: '/settings',
             client: 'Default',
             ssr: 'Default',
@@ -133,8 +139,8 @@ const Config = {
     },
     ssr: {
       Default: {
-        head: ['DefaultScripts'],
-        body: [],
+        head: ['PwaDefault', 'DefaultScripts'], // 'Seo'
+        body: ['CacheControl'],
       },
     },
     server: {

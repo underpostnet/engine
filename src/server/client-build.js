@@ -13,7 +13,7 @@ import { shellExec } from './process.js';
 import swaggerAutoGen from 'swagger-autogen';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
-import { buildTextImg } from './client-icons.js';
+import { buildIcons, buildTextImg } from './client-icons.js';
 
 dotenv.config();
 
@@ -27,6 +27,7 @@ const buildAcmeChallengePath = (acmeChallengeFullPath = '') => {
 };
 
 const fullBuild = async ({
+  path,
   logger,
   client,
   db,
@@ -50,6 +51,9 @@ const fullBuild = async ({
       const defaultBaseIconPath = `${defaultBaseIconFolderPath}/base-icon.png`;
       if (!fs.existsSync(defaultBaseIconPath))
         await buildTextImg(metadata.title, { debugFilename: defaultBaseIconPath });
+
+      if (path === '/' && !fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`))
+        await buildIcons({ publicClientId, metadata });
     }
     fs.copySync(
       `./src/client/public/${publicClientId}`,
@@ -138,6 +142,7 @@ const buildClient = async () => {
       if (process.argv[2] !== 'l' && !confServer[host][path].lightBuild)
         //  !(confServer[host]['/'] && confServer[host]['/'].lightBuild)
         await fullBuild({
+          path,
           logger,
           client,
           db,
