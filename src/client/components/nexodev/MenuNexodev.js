@@ -9,7 +9,7 @@ import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
-import { Elements } from './Elements.js';
+import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
 import { Blog } from '../core/Blog.js';
@@ -20,9 +20,10 @@ import { Docs } from '../core/Docs.js';
 import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
-import { Settings } from './Settings.js';
+import { SettingsNexodev } from './SettingsNexodev.js';
+import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthcare.js';
 
-const Menu = {
+const MenuNexodev = {
   Data: {},
   Render: async function () {
     const id = getId(this.Data, 'menu-');
@@ -150,6 +151,14 @@ const Menu = {
             }),
             style: 'display: none',
             attrs: `data-id="4"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-healthcare-appointment',
+            label: renderMenuLabel({
+              icon: html` <i class="fas fa-medkit"></i>`,
+              text: html`${Translate.Render('healthcare-appointment')}`,
+            }),
+            attrs: `data-id="14"`,
           })}
         </div>
       `,
@@ -319,7 +328,7 @@ const Menu = {
         html: async () =>
           await Account.Render({
             idModal: 'modal-account',
-            user: Elements.Data.user.main.model.user,
+            user: ElementsNexodev.Data.user.main.model.user,
             disabled: ['emailConfirm'],
           }),
         handleType: 'bar',
@@ -490,7 +499,28 @@ const Menu = {
           icon: html` <i class="fas fa-sliders-h"></i>`,
           text: Translate.Render('settings'),
         }),
-        html: async () => await Settings.Render({ idModal: 'modal-settings' }),
+        html: async () => await SettingsNexodev.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-healthcare-appointment`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-healthcare-appointment',
+        route: 'healthcare-appointment',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-medkit"></i>`,
+          text: Translate.Render('healthcare-appointment'),
+        }),
+        html: async () => await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -528,4 +558,4 @@ const Menu = {
   },
 };
 
-export { Menu };
+export { MenuNexodev };

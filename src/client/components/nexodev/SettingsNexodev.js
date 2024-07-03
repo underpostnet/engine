@@ -3,7 +3,7 @@ import { FullScreen } from '../core/FullScreen.js';
 import { Translate } from '../core/Translate.js';
 import { Worker } from '../core/Worker.js';
 
-const Settings = {
+const SettingsNexodev = {
   Render: async function () {
     let render = await FullScreen.RenderSetting();
     render += await Css.RenderSetting();
@@ -13,4 +13,4 @@ const Settings = {
   },
 };
 
-export { Settings };
+export { SettingsNexodev };
