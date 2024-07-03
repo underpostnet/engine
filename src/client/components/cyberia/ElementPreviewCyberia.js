@@ -1,10 +1,13 @@
 import { getId, newInstance, range } from '../core/CommonJs.js';
-import { Application, Container, Sprite, Texture } from 'pixi.js';
+import { AnimatedSprite, Application, Container, Sprite, Texture } from 'pixi.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { getStyleAttrFromObject } from '../core/Css.js';
+import { loggerFactory } from '../core/Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const ElementPreviewCyberia = {
   Tokens: {},
@@ -38,12 +41,17 @@ const ElementPreviewCyberia = {
       <canvas class="in element-preview ${selector}"></canvas>
     `;
   },
+  cleanElement: async function ({ renderId }) {
+    if (this.Tokens[renderId].AppInstance && this.Tokens[renderId])
+      this.Tokens[renderId].AppInstance.stage.removeChildren();
+    else logger.warn('not found renderId', { renderId });
+  },
   renderElement: async function ({ type, id, renderId }) {
-    this.Tokens[renderId].AppInstance.stage.removeChildren();
+    this.cleanElement({ renderId });
 
-    for (const interval of Object.keys(this.Tokens[renderId].intervals)) {
-      clearInterval(this.Tokens[renderId].intervals[interval]);
-    }
+    // for (const interval of Object.keys(this.Tokens[renderId].intervals)) {
+    //   clearInterval(this.Tokens[renderId].intervals[interval]);
+    // }
 
     const appDim = this.Tokens[renderId].appDim;
 
@@ -107,12 +115,18 @@ const ElementPreviewCyberia = {
         default:
           {
             const positionId = '18';
+            const pixiFrames = [];
             const positionData = positions.find((p) => p.positionId === positionId);
             const sprites = [];
             for (const frame of range(0, positionData.frames - 1)) {
               const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
                 extension ? extension : `png`
               }`;
+
+              pixiFrames.push(Texture.from(src));
+
+              continue;
+
               const sprite = Sprite.from(src);
 
               const { indexLayer, componentInstance } = PixiCyberia.formatSpriteComponent({
@@ -144,6 +158,23 @@ const ElementPreviewCyberia = {
                 );
               }
             }
+
+            // Create an AnimatedSprite (brings back memories from the days of Flash, right ?)
+            const anim = new AnimatedSprite(pixiFrames);
+            const { indexLayer, componentInstance } = PixiCyberia.formatSpriteComponent({
+              displayId,
+              positionId,
+              dim,
+              element: ElementsCyberia.Data[type][id],
+            });
+            for (const attr of Object.keys(componentInstance)) {
+              anim[attr] = componentInstance[attr];
+            }
+            anim.animationSpeed = 0.07; // 0 - 1
+
+            anim.play();
+
+            layers[indexLayer].addChild(anim);
           }
 
           break;

@@ -238,6 +238,7 @@ const CharacterCyberia = {
       frames[frame] = characterImg.currentSrc;
       await timer(intervalTime);
     }
+    ElementPreviewCyberia.cleanElement({ renderId: 'element-interaction-panel' });
 
     if (!s(`.${container}`)) return;
 
