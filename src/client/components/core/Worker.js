@@ -27,7 +27,12 @@ const Worker = {
               if (s(`.ssr-loading-info`)) {
                 let nameSrcLoad = event.data.path;
                 if (nameSrcLoad) {
-                  if (nameSrcLoad.match('assets')) nameSrcLoad = location.hostname + location.pathname + 'assets';
+                  if (nameSrcLoad.match('assets'))
+                    nameSrcLoad =
+                      location.hostname +
+                      location.pathname +
+                      (location.pathname[location.pathname.length - 1] !== '/' ? '/' : '') +
+                      'assets';
                   else if (!nameSrcLoad.match('api')) nameSrcLoad = undefined;
                   if (nameSrcLoad)
                     htmls(

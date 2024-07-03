@@ -189,6 +189,7 @@ const MainUserCyberia = {
                   );
                 break;
             }
+            PixiCyberia.triggerUpdateDisplay({ type, id });
             SocketIo.Emit(type, {
               status: 'update-skin-position',
               element: { components: { skin: ElementsCyberia.Data[type][id].components.skin } },

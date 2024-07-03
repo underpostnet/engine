@@ -371,14 +371,6 @@ const ComponentElement = {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
         skin: [
           {
-            displayId: 'purple',
-            position: '08',
-            positions: PositionsComponent.default(),
-            enabled: true,
-            current: true,
-            assetFolder: 'skin',
-          },
-          {
             displayId: 'ghost',
             position: '08',
             positions: PositionsComponent.ghost(),

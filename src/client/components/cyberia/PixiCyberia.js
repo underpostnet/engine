@@ -13,7 +13,7 @@ import { Responsive } from '../core/Responsive.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
-import { Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
+import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './CommonCyberia.js';
@@ -551,27 +551,43 @@ const PixiCyberia = {
       // clear
       if (this.Data[type][id].intervals && this.Data[type][id].intervals[componentType]) {
         for (const componentIntervalKey of Object.keys(this.Data[type][id].intervals[componentType])) {
-          clearInterval(this.Data[type][id].intervals[componentType][componentIntervalKey].interval);
+          if (this.Data[type][id].intervals[componentType][componentIntervalKey].callBack)
+            clearInterval(this.Data[type][id].intervals[componentType][componentIntervalKey].interval);
+          else if (this.Data[type][id].intervals[componentType][componentIntervalKey].pixiFrames) {
+            if (this.Data[type][id].intervals[componentType][componentIntervalKey].anim.stop)
+              this.Data[type][id].intervals[componentType][componentIntervalKey].anim.stop();
+            if (this.Data[type][id].intervals[componentType][componentIntervalKey].anim.destroy)
+              this.Data[type][id].intervals[componentType][componentIntervalKey].anim.destroy();
+          }
         }
       }
 
       if (this.Data[type][id].components[componentType]) {
         for (const componentKeyInstance of Object.keys(this.Data[type][id].components[componentType])) {
-          this.Data[type][id].components[componentType][componentKeyInstance].destroy();
+          if (this.Data[type][id].components[componentType][componentKeyInstance].destroy)
+            this.Data[type][id].components[componentType][componentKeyInstance].destroy();
         }
         this.Data[type][id].components[componentType] = {};
       }
 
+      let skinPosition = '08';
+      const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
+      if (currentDataSkin) skinPosition = currentDataSkin.position;
+
       // set skin
       let index = 0;
       for (const component of ElementsCyberia.Data[type][id].components[componentType]) {
-        const { displayId, position, enabled, positions, velFrame, assetFolder, extension } = component;
+        const { displayId, position, enabled, positions, velFrame, assetFolder, extension, current } = component;
         for (const positionData of positions) {
           const { positionId, frames } = positionData;
+          const pixiFrames = [];
           for (const frame of range(0, frames - 1)) {
             const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
               extension ? extension : `png`
             }`;
+
+            pixiFrames.push(Texture.from(src));
+            continue;
             const componentInstance = Sprite.from(src);
             let componentContainer;
             const dataSpriteFormat = this.formatSpriteComponent({
@@ -626,6 +642,36 @@ const PixiCyberia = {
               };
             }
           }
+
+          // Create an AnimatedSprite (brings back memories from the days of Flash, right ?)
+          const anim = new AnimatedSprite(pixiFrames);
+          const dataSpriteFormat = this.formatSpriteComponent({
+            displayId,
+            positionId,
+            dim,
+            element: ElementsCyberia.Data[type][id],
+          });
+          for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
+            anim[attr] = dataSpriteFormat.componentInstance[attr];
+          }
+          anim.animationSpeed = 0.03; // 0 - 1
+
+          let componentContainer;
+          if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;
+          componentContainer
+            ? this.Data[type][id].components[componentContainer].container.addChild(anim)
+            : this.Data[type][id].addChild(anim);
+
+          this.Data[type][id].intervals[componentType][`${displayId}-${positionId}`] = {
+            pixiFrames,
+            anim,
+          };
+
+          const currentComponentData = ElementsCyberia.Data[type][id].components[componentType].find((s) => s.enabled);
+
+          if (!currentComponentData || displayId !== currentComponentData.displayId || positionId !== skinPosition)
+            anim.visible = false;
+          else anim.play();
         }
         index++;
       }
@@ -732,8 +778,16 @@ const PixiCyberia = {
     if (!this.Data[type][id]) return; // error case -> type: bot, skill, id: main
     for (const componentType of Object.keys(this.Data[type][id].intervals)) {
       for (const keyIntervalInstance of Object.keys(this.Data[type][id].intervals[componentType])) {
-        if (this.Data[type][id].intervals[componentType][keyIntervalInstance].interval)
-          clearInterval(this.Data[type][id].intervals[componentType][keyIntervalInstance].interval);
+        if (this.Data[type][id].intervals[componentType][keyIntervalInstance].interval) {
+          if (this.Data[type][id].intervals[componentType][keyIntervalInstance].callBack)
+            clearInterval(this.Data[type][id].intervals[componentType][keyIntervalInstance].interval);
+          else if (this.Data[type][id].intervals[componentType][keyIntervalInstance].pixiFrames) {
+            if (this.Data[type][id].intervals[componentType][keyIntervalInstance].anim.stop)
+              this.Data[type][id].intervals[componentType][keyIntervalInstance].anim.stop();
+            if (this.Data[type][id].intervals[componentType][keyIntervalInstance].anim.destroy)
+              this.Data[type][id].intervals[componentType][keyIntervalInstance].anim.destroy();
+          }
+        }
       }
     }
     this.Data[type][id].destroy();
@@ -741,10 +795,35 @@ const PixiCyberia = {
   },
   triggerUpdateDisplay: function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
+
+    let skinPosition = '08';
+    const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
+    if (currentDataSkin) skinPosition = currentDataSkin.position;
+
     for (const componentType of Object.keys(CharacterCyberiaSlotType))
-      if (this.Data[type][id].intervals[componentType])
-        for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType]))
-          this.Data[type][id].intervals[componentType][skinInterval].callBack();
+      if (this.Data[type][id].intervals[componentType]) {
+        const currentComponentData = ElementsCyberia.Data[type][id].components[componentType].find((s) => s.enabled);
+
+        for (const skinInterval of Object.keys(this.Data[type][id].intervals[componentType])) {
+          if (this.Data[type][id].intervals[componentType][skinInterval].callBack)
+            this.Data[type][id].intervals[componentType][skinInterval].callBack();
+          else if (this.Data[type][id].intervals[componentType][skinInterval].pixiFrames) {
+            if (
+              currentComponentData &&
+              skinInterval.match(skinPosition) &&
+              skinInterval.match(currentComponentData.displayId)
+            ) {
+              this.Data[type][id].intervals[componentType][skinInterval].anim.visible = true;
+              if (this.Data[type][id].intervals[componentType][skinInterval].anim.play)
+                this.Data[type][id].intervals[componentType][skinInterval].anim.play();
+            } else {
+              this.Data[type][id].intervals[componentType][skinInterval].anim.visible = false;
+              if (this.Data[type][id].intervals[componentType][skinInterval].anim.stop)
+                this.Data[type][id].intervals[componentType][skinInterval].anim.stop();
+            }
+          }
+        }
+      }
   },
   removeAll: function () {
     for (const type of Object.keys(ElementsCyberia.Data)) {
@@ -865,7 +944,7 @@ const PixiCyberia = {
         (ElementsCyberia.Data[type][id].life / ElementsCyberia.Data[type][id].maxLife);
   },
   displayPointerArrow: function ({ oldElement, newElement }) {
-    {
+    if (oldElement) {
       const { type, id } = oldElement;
       if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = false;
     }
