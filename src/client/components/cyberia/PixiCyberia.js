@@ -13,7 +13,7 @@ import { Responsive } from '../core/Responsive.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
-import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture } from 'pixi.js';
+import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './CommonCyberia.js';
@@ -403,11 +403,32 @@ const PixiCyberia = {
               if (frame === frames.length) frame = 0;
             };
 
-            setTimeout(() => callBack());
-            this.Data[type][id].intervals[componentType][`pointer-arrow`] = {
-              callBack,
-              interval: setInterval(callBack, 200),
-            };
+            // setTimeout(() => callBack());
+            // this.Data[type][id].intervals[componentType][`pointer-arrow`] = {
+            //   callBack,
+            //   interval: setInterval(callBack, 200),
+            // };
+
+            {
+              const ticker = new Ticker();
+
+              let deltaSum = 0;
+              // delta: ms last frame
+              ticker.add((delta) => {
+                deltaSum += delta;
+                if (deltaSum >= 15) {
+                  deltaSum = 0;
+                  callBack();
+                }
+              });
+
+              // Controller Interface:
+              // ticker.start();
+              // ticker.destroy();
+              // ticker.stop();
+
+              this.Data[type][id].components[componentType][`pointer-arrow-ticker`] = ticker;
+            }
           }
           break;
 
@@ -950,11 +971,17 @@ const PixiCyberia = {
   displayPointerArrow: function ({ oldElement, newElement }) {
     if (oldElement) {
       const { type, id } = oldElement;
-      if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = false;
+      if (this.Data[type][id]) {
+        this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = false;
+        this.Data[type][id].components['pointerArrow']['pointer-arrow-ticker'].stop();
+      }
     }
     {
       const { type, id } = newElement;
-      if (this.Data[type][id]) this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = true;
+      if (this.Data[type][id]) {
+        this.Data[type][id].components['pointerArrow']['pointer-arrow'].visible = true;
+        this.Data[type][id].components['pointerArrow']['pointer-arrow-ticker'].start();
+      }
     }
   },
   formatSpriteComponent: function ({ displayId, positionId, dim, element }) {
