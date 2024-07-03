@@ -15,6 +15,7 @@ import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
+import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
 
 window.onload = () =>
   Worker.instance({
@@ -22,6 +23,7 @@ window.onload = () =>
     render: async () => {
       await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
       await TranslateCore.Init();
+      await TranslateHealthcare.Init();
       await Responsive.Init();
       await MenuNexodev.Render();
       await SocketIo.Init({ channels: ElementsNexodev.Data });

@@ -92,6 +92,10 @@ const TranslateCore = {
         en: 'This field does not meet specific requirements',
       },
     };
+    Translate.Data['isMobilePhone'] = {
+      en: 'Invalid mobile phone number. Please check the format and try again.',
+      es: 'Número de teléfono móvil no válido. Revisa el formato e intenta nuevamente.',
+    };
     Translate.Data['color-copy'] = { es: 'color copiado en el portapapeles', en: 'color copied to clipboard' };
     Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
     Translate.Data['fullscreen'] = { en: 'Fullscreen', es: 'Pantalla completa' };

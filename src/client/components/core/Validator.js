@@ -38,6 +38,11 @@ const Validator = {
                   errorMessage += this.renderErrorMessage(rule);
                 break;
               default:
+                if (
+                  validator[rule.type] &&
+                  !validator[rule.type](s(`.${validatorData.id}`).value, rule?.options ? rule.options : undefined)
+                )
+                  errorMessage += this.renderErrorMessage(rule);
                 break;
             }
           }

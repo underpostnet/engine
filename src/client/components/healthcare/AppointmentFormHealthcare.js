@@ -18,9 +18,14 @@ const AppointmentFormHealthcare = {
     setTimeout(async () => {
       const formData = [
         {
-          model: 'appointmentname',
-          id: `healthcare-appointment-appointmentname`,
+          model: 'patient',
+          id: `healthcare-appointment-patient`,
           rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+        },
+        {
+          model: 'whatsappNumber',
+          id: `healthcare-appointment-whatsappNumber`,
+          rules: [{ type: 'isEmpty' }, { type: 'isMobilePhone' }],
         },
         { model: 'email', id: `healthcare-appointment-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
       ];
@@ -48,9 +53,18 @@ const AppointmentFormHealthcare = {
       <form class="in">
         <div class="in">
           ${await Input.Render({
-            id: `healthcare-appointment-appointmentname`,
+            id: `healthcare-appointment-patient`,
             type: 'text',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('appointmentname')}`,
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('patient')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            placeholder: true,
+          })}
+        </div>
+        <div class="in">
+          ${await Input.Render({
+            id: `healthcare-appointment-whatsappNumber`,
+            type: 'tel',
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('whatsapp-number')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
           })}

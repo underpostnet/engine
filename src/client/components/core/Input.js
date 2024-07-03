@@ -40,6 +40,10 @@ const Input = {
         ${options?.value !== undefined ? `value="${options.value}"` : ''}
         ${options?.autocomplete ? `autocomplete="${options.autocomplete}"` : ''}
         ${options?.disabled ? `disabled` : ''}
+        ${options?.name !== undefined ? `name="${options.name}"` : ''}
+        ${options?.pattern !== undefined ? `pattern="${options.pattern}"` : ''}
+        ${options?.pattern === undefined && options.type === 'tel' ? `pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"` : ''}
+        ${options?.required ? ` required ` : ''}
       />
       <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
         ${options?.extension ? await options.extension() : ''}
