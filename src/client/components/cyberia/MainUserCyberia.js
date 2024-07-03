@@ -18,6 +18,7 @@ import { BagCyberia, Slot } from './BagCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
+import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -249,6 +250,18 @@ const MainUserCyberia = {
     PixiCyberia.setUsername({ type, id });
     await InteractionPanelCyberia.PanelRender.element({ type, id });
     PixiCyberia.topLevelCallBack({ type, id });
+
+    PointAndClickMovementCyberia.TargetEvent[idEvent] = async ({ type, id }) => {
+      PixiCyberia.displayPointerArrow({
+        oldElement:
+          this.lastArrowElement && ElementsCyberia.Data[this.lastArrowElement.type]?.[this.lastArrowElement.id]
+            ? this.lastArrowElement
+            : undefined,
+        newElement: { type, id },
+      });
+      this.lastArrowElement = newInstance({ type, id });
+    };
+    PointAndClickMovementCyberia.TargetEvent[idEvent]({ type, id });
 
     LoadingAnimation.removeSplashScreen();
   },

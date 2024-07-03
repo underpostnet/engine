@@ -2,12 +2,13 @@ import { JSONmatrix, insertTransitionCoordinates, newInstance, round10, s4, time
 import { Responsive } from '../core/Responsive.js';
 import { append, s } from '../core/VanillaJs.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
-import { CyberiaParams } from './CommonCyberia.js';
+import { CyberiaParams, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 
 const PointAndClickMovementCyberia = {
+  TargetEvent: {},
   Event: {},
   callback: null,
   Render: async function () {
@@ -95,6 +96,30 @@ const PointAndClickMovementCyberia = {
         `,
       );
     };
+    this.Event['main-user'] = async ({ x, y }) => {
+      let mainUserPanel = false;
+      for (const type of ['user', 'bot']) {
+        for (const elementId of Object.keys(ElementsCyberia.Data[type])) {
+          if (
+            isElementCollision({
+              A: { x, y, dim: 1 },
+              B: ElementsCyberia.Data[type][elementId],
+              dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
+            })
+          ) {
+            if (type === 'user' && elementId === 'main') mainUserPanel = true;
+            else {
+              this.TriggerTargetEvents({ type, id: elementId });
+              return;
+            }
+          }
+        }
+      }
+      if (mainUserPanel) this.TriggerTargetEvents({ type: 'user', id: 'main' });
+    };
+  },
+  TriggerTargetEvents: async function ({ type, id }) {
+    for (const eventKey of Object.keys(this.TargetEvent)) this.TargetEvent[eventKey]({ type, id });
   },
 };
 

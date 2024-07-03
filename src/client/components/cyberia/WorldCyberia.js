@@ -21,6 +21,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
+import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -184,6 +185,7 @@ const WorldCyberiaManagement = {
       this.LoadAdjacentFaces(type, id);
       InteractionPanelCyberia.PanelRender.map({ face: newFace });
       InteractionPanelCyberia.PanelRender.element({ type, id });
+      PointAndClickMovementCyberia.TriggerTargetEvents({ type, id });
       this.EmitNewWorldCyberiaFace({ type, id });
     }
   },

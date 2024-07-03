@@ -70,13 +70,6 @@ const InteractionPanelCyberia = {
         );
     },
     element: async function ({ type, id }) {
-      if (InteractionPanelCyberia.Data['element-interaction-panel']) {
-        PixiCyberia.displayPointerArrow({
-          oldElement: InteractionPanelCyberia.Data['element-interaction-panel'].element.current,
-          newElement: { type, id },
-        });
-        InteractionPanelCyberia.Data['element-interaction-panel'].element.current = { type, id };
-      }
       if (!s(`.element-interaction-panel`)) return;
       htmls(
         '.element-interaction-panel-preview',
@@ -367,30 +360,8 @@ const InteractionPanelCyberia = {
           return style;
         };
         render = async () => html` <div class="fl element-interaction-panel-preview"></div> `;
-        PointAndClickMovementCyberia.Event[id] = async ({ x, y }) => {
-          let mainUserPanel = false;
-          for (const type of ['user', 'bot']) {
-            for (const elementId of Object.keys(ElementsCyberia.Data[type])) {
-              if (
-                isElementCollision({
-                  A: { x, y, dim: 1 },
-                  B: ElementsCyberia.Data[type][elementId],
-                  dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
-                })
-              ) {
-                if (type === 'user' && elementId === 'main') mainUserPanel = true;
-                else {
-                  await this.PanelRender.element({ type, id: elementId });
-                  QuestManagementCyberia.questClosePanels = QuestManagementCyberia.questClosePanels.filter(
-                    (p) => p !== `action-panel-${type}-${elementId}`,
-                  );
-                  return;
-                }
-              }
-            }
-          }
-          if (mainUserPanel) await this.PanelRender.element({ type: 'user', id: 'main' });
-        };
+        PointAndClickMovementCyberia.TargetEvent[id] = async ({ type, id }) =>
+          await this.PanelRender.element({ type, id });
         break;
       case 'map-interaction-panel':
         restorePosition = (style = {}) => {

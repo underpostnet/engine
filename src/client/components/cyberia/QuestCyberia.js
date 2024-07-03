@@ -10,6 +10,7 @@ import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
+import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const logger = loggerFactory(import.meta);
@@ -177,6 +178,10 @@ const QuestManagementCyberia = {
 
       await this.triggerQuestAvailableRender({ type, id });
     }
+    PointAndClickMovementCyberia.TargetEvent['quest-event'] = async ({ type, id }) => {
+      if (type !== 'user' && id !== 'main')
+        this.questClosePanels = this.questClosePanels.filter((p) => p !== `action-panel-${type}-${id}`);
+    };
   },
   onChangeCurrentQuestAvailable: {},
   triggerQuestAvailableRender: async function ({ type, id }) {
