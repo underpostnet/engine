@@ -17,7 +17,7 @@ const Config = {
     client: {
       default: {
         metadata: {
-          title: 'APP',
+          title: 'Default',
         },
         components: {
           core: [

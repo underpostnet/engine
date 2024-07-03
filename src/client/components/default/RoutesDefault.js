@@ -3,7 +3,7 @@ import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const NameApp = html`App`;
+const NameApp = html`Default`;
 
 // Router
 const RoutesDefault = () => {
