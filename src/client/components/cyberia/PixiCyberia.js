@@ -20,6 +20,10 @@ import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './Comm
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
+// https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
+// https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
+// https://pixijs.download/v6.5.2/docs/PIXI.AnimatedSprite.html
+
 const PixiCyberia = {
   MetaData: {
     dim: 7 * 16 * 3 * 10,
