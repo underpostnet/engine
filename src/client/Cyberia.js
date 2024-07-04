@@ -20,6 +20,7 @@ import { SignUpCyberia } from './components/cyberia/SignUpCyberia.js';
 import { InteractionPanelCyberia } from './components/cyberia/InteractionPanelCyberia.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { Worker } from './components/core/Worker.js';
+import { MatrixCyberia } from './components/cyberia/MatrixCyberia.js';
 
 window.onload = () =>
   Worker.instance({
@@ -42,5 +43,6 @@ window.onload = () =>
       disableOptionsClick('html', ['drag', 'select', 'menu']);
       await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
       await JoyStickCyberia.Render();
+      await MatrixCyberia.Render();
     },
   });

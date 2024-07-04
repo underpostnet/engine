@@ -8,22 +8,17 @@ const MatrixCyberia = {
     ...BaseMatrixCyberia(),
     biomeDataId: '',
   },
-  Render: {
-    'matrix-center-square': function (container) {
-      append(
-        container,
-        html`
-          <style>
-            .matrix-center-square {
-              width: 30px;
-              height: 30px;
-              border: 2px solid red;
-            }
-          </style>
-          <div class="abs center matrix-center-square"></div>
-        `,
-      );
-    },
+  Render: async function () {
+    let start;
+    const frame = (timeStamp) => {
+      if (start === undefined || timeStamp - start >= 35) {
+        start = timeStamp;
+        this.UpdateAllCamera();
+      }
+
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
   },
   UpdateAllCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;

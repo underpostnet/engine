@@ -113,8 +113,6 @@ const PixiCyberia = {
       this.AppTopLevelColor.stage.addChild(componentInstance);
     })();
 
-    // MatrixCyberia.Render['matrix-center-square']('.pixi-container');
-
     Responsive.Event['pixi-container'] = () => {
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
         dimAmplitude: MatrixCyberia.Data.dimAmplitude,
@@ -238,7 +236,6 @@ const PixiCyberia = {
               this.Data[type][id].y = dim * y;
               // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
               // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
-              MatrixCyberia.UpdateAllCamera();
             }
           }, time * (timeInterval / frames));
         }
@@ -741,7 +738,7 @@ const PixiCyberia = {
       });
     }
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    if (type === 'user' && id === 'main' && !this.positionUpdateId) {
+    if (type === 'user' && id === 'main') {
       // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
       // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
     } else {
