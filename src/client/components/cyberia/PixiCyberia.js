@@ -863,52 +863,32 @@ const PixiCyberia = {
 
     this.markers[id] = { x, y };
 
+    const pixiFrames = [];
+    for (const frame of range(0, 3).concat(range(3, 0))) {
+      const src = `${getProxyPath()}assets/icons/pointer/${frame}.png`;
+      pixiFrames.push(Texture.from(src));
+    }
+
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-    const container = new Container();
-    container.width = dim;
-    container.height = dim;
+    const container = new AnimatedSprite(pixiFrames);
+    container.width = dim * 0.5;
+    container.height = dim * 0.5;
     container.x = dim * x;
     container.y = dim * y;
+    container.animationSpeed = 0.35;
 
-    const sprites = {};
-
-    for (const frame of range(0, 3)) {
-      const src = `${getProxyPath()}assets/icons/pointer/${frame}.png`;
-      sprites[frame] = Sprite.from(src);
-      sprites[frame].width = dim / 2;
-      sprites[frame].height = dim / 2;
-      sprites[frame].x = 0;
-      sprites[frame].y = 0;
-      sprites[frame].visible = frame === 0;
-      container.addChild(sprites[frame]);
-    }
     this.AppTopLevelColor.stage.addChild(container);
+    let repeat = 0;
+    container.onFrameChange = (frame) => {
+      if (frame === pixiFrames.length - 1) repeat++;
+      if (repeat === 3) {
+        container.stop();
+        container.destroy();
+        delete this.markers[id];
+      }
+    };
 
-    await timer(30);
-    sprites[0].visible = false;
-    sprites[1].visible = true;
-    await timer(30);
-    sprites[1].visible = false;
-    sprites[2].visible = true;
-    await timer(30);
-    sprites[2].visible = false;
-    sprites[3].visible = true;
-    await timer(750);
-    sprites[3].visible = false;
-    sprites[2].visible = true;
-    await timer(10);
-    sprites[3].visible = false;
-    sprites[2].visible = true;
-    await timer(10);
-    sprites[2].visible = false;
-    sprites[1].visible = true;
-    await timer(10);
-    sprites[1].visible = false;
-    sprites[0].visible = true;
-    await timer(10);
-
-    container.destroy();
-    delete this.markers[id];
+    container.play();
   },
   renderText: async function ({ componentType, type, id, dim, color, text, size }) {
     {
