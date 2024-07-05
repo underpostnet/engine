@@ -13,7 +13,7 @@ const CyberiaQuestService = {
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
 
     switch (options.uri) {
-      case '/take':
+      case '/take': {
         const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
         if (cyberiaUser) {
           if (!cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
@@ -37,8 +37,31 @@ const CyberiaQuestService = {
             CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.push(questObj);
 
             return 'success take quest';
-          } else throw new Error('quest already take');
+          } else throw new Error('quest has already been taken');
         } else throw new Error('user not found');
+      }
+
+      case '/abandon': {
+        const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
+        if (cyberiaUser) {
+          if (cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
+            const wsManagementId = `${options.host}${options.path}`;
+
+            const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
+              wsManagementId,
+              cyberiaUser._id.toString(),
+            );
+
+            CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests =
+              CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.filter(
+                (q) => q.id !== req.params.questId,
+              );
+
+            return 'success abandon take quest';
+          } else throw new Error('quest has not already been taken');
+        } else throw new Error('user not found');
+        break;
+      }
 
       default:
         break;

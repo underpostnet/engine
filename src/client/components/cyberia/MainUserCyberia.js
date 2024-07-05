@@ -249,6 +249,7 @@ const MainUserCyberia = {
     PixiCyberia.updateLife({ type, id });
     PixiCyberia.setUsername({ type, id });
     await InteractionPanelCyberia.PanelRender.element({ type, id });
+    await InteractionPanelCyberia.PanelRender.AllQuest({ type, id });
     PixiCyberia.topLevelCallBack({ type, id });
 
     PointAndClickMovementCyberia.TargetEvent[idEvent] = async ({ type, id }) => {

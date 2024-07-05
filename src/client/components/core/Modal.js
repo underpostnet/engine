@@ -4,7 +4,16 @@ import { append, s, prepend, setURI, getProxyPath, htmls, sa } from './VanillaJs
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
-import { Css, ThemeEvents, Themes, ThemesScope, darkTheme, getStyleAttrFromObject, renderStatus } from './Css.js';
+import {
+  Css,
+  ThemeEvents,
+  Themes,
+  ThemesScope,
+  darkTheme,
+  renderStyleTag,
+  renderStatus,
+  renderCssAttr,
+} from './Css.js';
 import { setDocTitle } from './Router.js';
 import { NotificationManager } from './NotificationManager.js';
 import { EventsUI } from './EventsUI.js';
@@ -675,7 +684,7 @@ const Modal = {
           left: 5%;
         }
       </style>
-      ${getStyleAttrFromObject(`style-${idModal}`, `.${idModal}`, options)}
+      ${renderStyleTag(`style-${idModal}`, `.${idModal}`, options)}
       <div class="fix ${options && options.class ? options.class : ''} modal box-shadow ${idModal}">
         <div class="abs modal-handle-${idModal}"></div>
         <div class="in modal-html-${idModal}">
@@ -981,16 +990,22 @@ const renderMenuLabel = ({ img, text, icon }) => {
     <div class="abs center main-btn-menu-text">${text}</div>`;
 };
 
-const renderViewTitle = (options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '' }) => {
-  const { img, text, icon } = options;
+const renderViewTitle = (options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '', dim, top }) => {
+  if (options.dim === undefined) options.dim = 60;
+  const { img, text, icon, dim, top } = options;
   if (!img && !options['ui-icon']) return html`<span class="view-title-icon">${icon}</span> ${text}`;
   return html`<img
       class="abs img-btn-square-view-title"
+      style="${renderCssAttr({
+        style: { width: `${dim}px`, height: `${dim}px`, top: top !== undefined ? `${top}px` : `-${dim / 2}px` },
+      })}"
       src="${options['ui-icon']
         ? `${getProxyPath()}assets/${options.assetFolder ? options.assetFolder : 'ui-icons'}/${options['ui-icon']}`
         : img}"
     />
-    <div class="in text-btn-square-view-title">${text}</div>`;
+    <div class="in text-btn-square-view-title" style="${renderCssAttr({ style: { 'padding-left': `${dim}px` } })}">
+      ${text}
+    </div>`;
 };
 
 export { Modal, renderMenuLabel, renderViewTitle };

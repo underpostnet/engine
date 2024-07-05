@@ -292,6 +292,15 @@ const QuestComponent = {
       assetFolder: 'quest',
       extension: 'gif',
     },
+    {
+      displayId: 'ayleen',
+      position: '08',
+      positions: PositionsComponent.default(),
+      velFrame: 250,
+      enabled: false,
+      assetFolder: 'skin',
+      extension: 'png',
+    },
   ],
 };
 

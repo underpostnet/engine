@@ -573,13 +573,18 @@ const typeWriter = async function ({ id, html }) {
   `;
 };
 
-const getStyleAttrFromObject = (styleSelector = 'style-abc', selector, options) =>
-  html`<style class="${styleSelector}">
-    ${selector} { ${options && options.style
+const renderCssAttr = (options) =>
+  `${
+    options && options.style
       ? Object.keys(options.style)
           .map((keyStyle) => `${keyStyle}: ${options.style[keyStyle]};`)
-          .join('')
-      : ''} }
+          .join(`\n`)
+      : ''
+  }`;
+
+const renderStyleTag = (styleSelector = 'style-abc', selector, options) =>
+  html`<style class="${styleSelector}">
+    ${selector} { ${renderCssAttr(options)} }
   </style>`;
 
 function getTranslate3d(el) {
@@ -633,7 +638,8 @@ export {
   ThemesScope,
   renderBubbleDialog,
   typeWriter,
-  getStyleAttrFromObject,
+  renderStyleTag,
+  renderCssAttr,
   getTranslate3d,
   dashRange,
 };

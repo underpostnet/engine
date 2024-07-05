@@ -475,15 +475,6 @@ const CssCyberiaDark = {
             width: 310px;
             margin: auto;
           }
-          .img-btn-square-view-title {
-            width: 60px;
-            height: 60px;
-            top: -30px;
-            left: -1px;
-          }
-          .text-btn-square-view-title {
-            padding-left: 60px;
-          }
           .character-slot-skill {
             width: 50px;
             height: 50px;

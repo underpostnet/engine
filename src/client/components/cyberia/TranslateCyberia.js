@@ -40,6 +40,11 @@ const TranslateCyberia = {
 
     Translate.Data['space'] = { en: 'Space', es: 'Espacial' };
 
+    Translate.Data['dismiss-quest'] = {
+      en: 'Dismiss Quest',
+      es: 'Abandonar Misión',
+    };
+
     {
       for (const key of Object.keys(QuestComponent.Data)) {
         Translate.Data[`${key}-title`] = QuestComponent.Data[key].title;

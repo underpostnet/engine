@@ -4,7 +4,7 @@ import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
-import { getStyleAttrFromObject } from '../core/Css.js';
+import { renderStyleTag } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
 
 const logger = loggerFactory(import.meta);
@@ -37,7 +37,7 @@ const ElementPreviewCyberia = {
           margin: auto;
         }
       </style>
-      ${getStyleAttrFromObject('style-element-preview', '.element-preview', options)}
+      ${renderStyleTag('style-element-preview', '.element-preview', options)}
       <canvas class="in element-preview ${selector}"></canvas>
     `;
   },

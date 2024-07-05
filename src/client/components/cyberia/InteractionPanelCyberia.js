@@ -2,12 +2,13 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, objectEquals, range, timer } from '../core/CommonJs.js';
 import { Css, Themes, borderChar, dashRange, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
-import { Modal } from '../core/Modal.js';
+import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
+import { Translate } from '../core/Translate.js';
 import { append, getProxyPath, htmls, prepend, s } from '../core/VanillaJs.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
-import { WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
+import { QuestComponent, WorldCyberiaType, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -156,6 +157,82 @@ const InteractionPanelCyberia = {
       }
 
       Responsive.Event[`map-interaction-panel`]();
+    },
+    questTokens: {},
+    quest: async function ({ id, questData }) {
+      if (!s(`.quest-interaction-panel`)) return;
+
+      questData = { ...QuestComponent.Data[questData.id], ...questData };
+
+      this.questTokens[id] = { questData, id };
+
+      const currentQuestData = ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id);
+
+      const providerQuestSpriteData = QuestComponent.components.find(
+        (s) => s.displayId === questData.provide.displayIds[0].id,
+      );
+
+      if (!s(`.quest-interaction-panel-${id}`))
+        append(
+          `.quest-interaction-panel-body`,
+          html`<div class="fl quest-interaction-panel-${id}">
+            <div class="in quest-interaction-panel-section">
+              <div class="in quest-interaction-panel-row quest-interaction-panel-row-title-${id}">
+                ${renderViewTitle({
+                  // questData.icon.id,
+                  'ui-icon': `0.${providerQuestSpriteData.extension}`,
+                  // questData.icon.folder,
+                  assetFolder: `${providerQuestSpriteData.assetFolder}/${providerQuestSpriteData.displayId}/${providerQuestSpriteData.position}`,
+                  text: html`${Translate.Render(`${questData.id}-title`)}`,
+                  dim: 20,
+                  top: -2,
+                })}
+              </div>
+              <div class="in quest-interaction-panel-row quest-interaction-panel-row-info-${id}"></div>
+            </div>
+          </div>`,
+        );
+
+      htmls(
+        `.quest-interaction-panel-row-info-${id}`,
+        html` ${questData.displaySearchObjects
+          .map((q) => {
+            if (currentQuestData) {
+              const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
+              if (searchItemData) q.current = searchItemData.current;
+            }
+
+            const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
+
+            return html`<div class="inl quest-interaction-panel-search-object-count">
+              ${renderViewTitle({
+                'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
+                assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
+                text: html`${q.current} / ${q.quantity}`,
+                dim: 20,
+                top: -2,
+              })}
+            </div>`;
+          })
+          .join('')}`,
+      );
+
+      s(`.quest-interaction-panel-${id}`).onclick = async () => {
+        const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
+        await QuestManagementCyberia.RenderModal({ questData, interactionPanelQuestId });
+      };
+    },
+    AllQuest: async function ({ type, id }) {
+      if (!s(`.quest-interaction-panel`)) return;
+
+      htmls(`.quest-interaction-panel-body`, html``);
+
+      for (const currentQuestData of ElementsCyberia.Data[type][id].model.quests) {
+        await this.quest({
+          questData: currentQuestData,
+          id: `interaction-panel-${currentQuestData.id}`,
+        });
+      }
     },
   },
   Render: async function (options = { id: 'interaction-panel' }) {
@@ -340,6 +417,33 @@ const InteractionPanelCyberia = {
                   width: 50%;
                   height: 50%;
                 }
+                .quest-interaction-panel-container {
+                }
+                .quest-interaction-panel-section {
+                  margin: 6px;
+                  padding: 3px;
+                  background: #7d796b33;
+                  cursor: pointer;
+                }
+                .quest-interaction-panel-section:hover {
+                  background: #b6af9b33;
+                }
+                .quest-interaction-panel-body {
+                  overflow: hidden;
+                }
+                .quest-interaction-panel-footer {
+                  height: 50px;
+                  overflow: hidden;
+                }
+                .quest-interaction-panel-row {
+                  height: 25px;
+                  overflow: hidden;
+                }
+                .quest-interaction-panel-search-object-count {
+                  padding: 2px;
+                  color: white;
+                  font-size: 12px;
+                }
               </style>
               ${dashRange({ selector: 'map-face-slot-dash', color: `#ffcc00` })}
             `;
@@ -401,6 +505,12 @@ const InteractionPanelCyberia = {
           }
           return style;
         };
+        style['min-height'] = `200px`;
+
+        render = async () => html`
+          <div class="in quest-interaction-panel-container quest-interaction-panel-body"></div>
+          <div class="in quest-interaction-panel-container quest-interaction-panel-footer"></div>
+        `;
         break;
       default:
         break;
@@ -477,6 +587,7 @@ const InteractionPanelCyberia = {
               </div>
             `,
           );
+          await this.PanelRender.AllQuest({ type: 'user', id: 'main' });
           break;
         default:
           break;
@@ -503,6 +614,9 @@ const InteractionPanelCyberia = {
         const width = s(`.${id}`).offsetWidth;
 
         switch (id) {
+          case 'quest-interaction-panel':
+            s(`.quest-interaction-panel-body`).style.height = `${height - 50}px`;
+            break;
           case 'element-interaction-panel':
             s(`.element-interaction-panel-preview`).style.height = `${height}px`;
             break;
