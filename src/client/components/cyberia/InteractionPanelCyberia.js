@@ -208,7 +208,8 @@ const InteractionPanelCyberia = {
               ${renderViewTitle({
                 'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
                 assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
-                text: html`${q.current} / ${q.quantity}`,
+                text: html`<span class="${questData.id}-${q.id}-current">${q.current}</span> /
+                  <span> ${q.quantity}</span>`,
                 dim: 20,
                 top: -2,
               })}

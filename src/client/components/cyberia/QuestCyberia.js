@@ -5,6 +5,7 @@ import { Css, Themes, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
+import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
@@ -96,6 +97,34 @@ const QuestManagementCyberia = {
                             s(`.action-panel-ok-${idPanel}`).classList.add('hide');
                             await this.takeQuest({ questData });
                           }
+                        };
+
+                      if (s(`.action-panel-hand-${idPanel}`))
+                        s(`.action-panel-hand-${idPanel}`).onclick = () => {
+                          const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
+                            (q) => q.id === questData.id,
+                          );
+                          if (currentQuestDataIndex >= 0) {
+                            const displayIdIndex = ElementsCyberia.Data.user['main'].model.quests[
+                              currentQuestDataIndex
+                            ].displaySearchObjects.findIndex((o) => o.id === displayId);
+                            if (displayIdIndex >= 0) {
+                              ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                .displaySearchObjects[displayIdIndex].current++;
+                              if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
+                                htmls(
+                                  `.${questData.id}-${displayId}-current`,
+                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                    .displaySearchObjects[displayIdIndex].current,
+                                );
+                            }
+                          }
+
+                          // SocketIo.Emit('user', {
+                          //   status: 'take-quest-item',
+                          //   questData: { id: questData.id },
+                          //   id: displayId,
+                          // });
                         };
                       if (questData) {
                         s(`.action-panel-dude-${idPanel}`).onclick = async () =>
