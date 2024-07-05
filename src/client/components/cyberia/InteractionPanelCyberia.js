@@ -41,7 +41,7 @@ const InteractionPanelCyberia = {
       // delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
     },
     action: async function ({ idPanel, type, id, html }) {
-      const maxHeight = 80;
+      const maxHeight = 110;
       const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
         dimAmplitude: MatrixCyberia.Data.dimAmplitude,
       });

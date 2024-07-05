@@ -100,6 +100,22 @@ const QuestManagementCyberia = {
                     return await renderBubbleDialog({
                       id: idPanel,
                       html: async () => html`
+                        <div class="in quest-provider-head">
+                          <span style="color: #d5b019"
+                            >${ElementsCyberia.getDisplayTitle({ type: typeTarget, id: elementTargetId })}</span
+                          >
+                          <span style="color: #2d2d2d"
+                            >${ElementsCyberia.getDisplayName({ type: typeTarget, id: elementTargetId })}</span
+                          >:
+                        </div>
+                        <div class="in quest-short-description">
+                          ${await typeWriter({
+                            id: idPanel,
+                            html: questData
+                              ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
+                              : html`Hi! Hi! Hi! Hi! Hi!`,
+                          })}
+                        </div>
                         <div class="fl">
                           ${questData
                             ? html`${await BtnIcon.Render({
@@ -127,14 +143,6 @@ const QuestManagementCyberia = {
                               class="abs center action-panel-img-icon"
                               src="${getProxyPath()}assets/ui-icons/close.png"
                             />`,
-                          })}
-                        </div>
-                        <div class="in quest-short-description">
-                          ${await typeWriter({
-                            id: idPanel,
-                            html: questData
-                              ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
-                              : html`Hi! Hi! Hi! Hi! Hi!`,
                           })}
                         </div>
                       `,

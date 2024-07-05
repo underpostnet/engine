@@ -63,6 +63,9 @@ const CssCommonCyberia = async () => {
         width: 23px;
         height: 23px;
       }
+      .quest-provider-head {
+        padding-left: 5px;
+      }
       .quest-short-description {
         margin-left: 5px;
       }
