@@ -33,7 +33,7 @@ const ServerCyberiaPortal = {
             const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
             if (keyEvents.length > 0) {
               for (const keyEvent of keyEvents)
-                await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: `/${server}` });
+                await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: `${server}` });
               if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
             }
           };
@@ -94,8 +94,9 @@ const ServerCyberiaPortal = {
         return true;
       }
     }
+    const gridId = `server-grid-${id}`;
     return html` ${await AgGrid.Render({
-      id: `server-grid-${id}`,
+      id: gridId,
       darkTheme,
       // style: {
       //   height: '200px',
@@ -113,6 +114,12 @@ const ServerCyberiaPortal = {
           { field: 'status', flex: 1, headerName: 'status', cellRenderer: LoadGridServerStatusRenderer },
           { headerName: 'play', width: 100, cellRenderer: LoadGridServerActionsRenderer },
         ],
+        rowSelection: 'single',
+        onSelectionChanged: (event) => {
+          const selectedRows = AgGrid.grids[gridId].getSelectedRows();
+          console.log('selectedRows', { gridId, event, selectedRows });
+          s(`.btn-server-${selectedRows[0].server}-${id}`).click();
+        },
       },
     })}`;
   },

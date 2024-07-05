@@ -2,7 +2,7 @@
 // https://www.ag-grid.com/javascript-data-grid/themes/
 
 import { ThemeEvents, darkTheme } from './Css.js';
-import { append, getProxyPath, s } from './VanillaJs.js';
+import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 import * as agGrid from 'ag-grid-community';
 
 const AgGrid = {
@@ -70,6 +70,90 @@ const AgGrid = {
           : 'height: 500px'}"
       ></div>
     `;
+  },
+  RenderStyle: async function (
+    options = {
+      eventThemeId: 'AgGrid',
+      style: {
+        'font-family': '',
+        'font-size': '',
+        'no-cell-focus-style': false,
+        'row-cursor': '',
+      },
+    },
+  ) {
+    /*
+     --ag-foreground-color: rgb(126, 46, 132);
+     --ag-background-color: rgb(249, 245, 227);
+     --ag-header-foreground-color: rgb(204, 245, 172);
+     --ag-header-background-color: rgb(209, 64, 129);
+     --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
+     --ag-header-column-resize-handle-color: rgb(126, 46, 132);
+
+     --ag-font-size: 17px;
+     */
+    ThemeEvents[options.eventThemeId] = () => {
+      htmls(
+        `.ag-grid-style`,
+        html` ${options.style['font-family']
+            ? html`<style>
+                .ag-theme-alpine,
+                .ag-theme-alpine-dark {
+                  --ag-font-family: '{{ag-font-family}}';
+                }
+              </style>`.replaceAll('{{ag-font-family}}', options.style['font-family'])
+            : ''}
+          ${options.style['font-size']
+            ? html`<style>
+                .ag-theme-alpine,
+                .ag-theme-alpine-dark {
+                  --ag-font-size: '{{ag-font-size}}';
+                }
+              </style>`.replaceAll('{{ag-font-size}}', options.style['font-size'])
+            : ''}
+          ${options.style['no-cell-focus-style']
+            ? html`<style>
+                .ag-has-focus .ag-cell-focus {
+                  border: none !important;
+                }
+              </style>`
+            : ''}
+          ${options.style['row-cursor']
+            ? html`<style>
+                .ag-row {
+                  cursor: '{{ag-row-cursor}}';
+                }
+              </style>`.replaceAll(`'{{ag-row-cursor}}'`, options.style['row-cursor'])
+            : ''}
+
+          <style>
+            .ag-btn-renderer {
+              font-size: 16px;
+              min-width: 90px;
+              min-height: 90px;
+            }
+          </style>
+          ${darkTheme
+            ? html`
+                <style>
+                  .ag-cell-data-changed,
+                  .ag-cell-data-changed-animation {
+                    background-color: #6d68ff !important;
+                    background: #6d68ff !important;
+                    color: #e4e4e4 !important;
+                  }
+                </style>
+              `
+            : html`<style>
+                .ag-cell-data-changed,
+                .ag-cell-data-changed-animation {
+                  background-color: #d1d1d1 !important;
+                  background: #d1d1d1 !important;
+                  color: #2e2e2e !important;
+                }
+              </style>`}`,
+      );
+    };
   },
 };
 

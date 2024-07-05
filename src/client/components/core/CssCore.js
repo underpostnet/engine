@@ -1,3 +1,4 @@
+import { AgGrid } from './AgGrid.js';
 import { append, getProxyPath } from './VanillaJs.js';
 
 const CssCommonCore = async () => {
@@ -5,18 +6,20 @@ const CssCommonCore = async () => {
     'head',
     html`<link rel="stylesheet" type="text/css" href="${getProxyPath()}dist/fontawesome/css/all.min.css" />`,
   );
+  await AgGrid.RenderStyle();
   return html`<style>
-    .top-bar-app-icon {
-      width: 35px;
-      height: 35px;
-    }
-    .mini-title {
-      font-size: 15px;
-    }
-    .top-bar-search-box-container {
-      cursor: pointer;
-    }
-  </style>`;
+      .top-bar-app-icon {
+        width: 35px;
+        height: 35px;
+      }
+      .mini-title {
+        font-size: 15px;
+      }
+      .top-bar-search-box-container {
+        cursor: pointer;
+      }
+    </style>
+    <div class="ag-grid-style"></div>`;
 };
 
 const CssCoreDark = {
@@ -243,12 +246,6 @@ const CssCoreDark = {
         .chat-box {
           border: 2px solid #313131;
           overflow: auto;
-        }
-        .ag-cell-data-changed,
-        .ag-cell-data-changed-animation {
-          background-color: #d1d1d1 !important;
-          background: #d1d1d1 !important;
-          color: #2e2e2e !important;
         }
         .sub-title-modal {
           cursor: default;
@@ -534,12 +531,6 @@ const CssCoreLight = {
           border: 2px solid #bbb;
           overflow: auto;
           border-radius: 5px;
-        }
-        .ag-cell-data-changed,
-        .ag-cell-data-changed-animation {
-          background-color: #6d68ff !important;
-          background: #6d68ff !important;
-          color: #e4e4e4 !important;
         }
         .sub-title-modal {
           cursor: default;

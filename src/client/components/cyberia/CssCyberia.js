@@ -1,68 +1,85 @@
+import { AgGrid } from '../core/AgGrid.js';
 import { borderChar } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { getProxyPath } from '../core/VanillaJs.js';
 
 const CssCommonCyberia = async () => {
+  LoadingAnimation.img.load({
+    key: 'points',
+    src: 'assets/util/points-loading.gif',
+    classes: 'inl',
+    style: 'width: 100px; height: 100px',
+  });
+  await AgGrid.RenderStyle({
+    eventThemeId: 'CssCommonCyberia',
+    style: {
+      'font-family': `'retro-font-sensitive'`,
+      'font-size': '24px',
+      'no-cell-focus-style': true,
+      'row-cursor': 'pointer',
+    },
+  });
   return html`<style>
-    @font-face {
-      font-family: 'retro-font-title';
-      src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
-    }
-    @font-face {
-      font-family: 'retro-font';
-      src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
-    }
-    @font-face {
-      font-family: 'retro-font-sensitive';
-      src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
-    }
-    .server-icon {
-      width: 40px;
-      height: 40px;
-      top: 8px;
-    }
-    .server-status-circle {
-      color: green;
-      font-size: 30px;
-      position: relative;
-      top: 4px;
-    }
-    .action-game-panel {
-      width: 230px;
-      z-index: 10;
-      font-size: 20px;
-    }
-    .action-panel-bar-btn-container {
-      width: 40px;
-      height: 40px;
-    }
-    .action-panel-img-icon {
-      width: 20px;
-      height: 20px;
-    }
-    .action-panel-bar-btn-container:hover {
-      background: #c1c1c1;
-    }
-    .action-panel-bar-btn-container:hover .action-panel-img-icon {
-      width: 23px;
-      height: 23px;
-    }
-    .quest-short-description {
-      margin-left: 5px;
-    }
-    .quest-provide-img {
-      width: 95%;
-      height: auto;
-      margin: auto;
-    }
-    .bubble-dialog {
-      background: white;
-      color: black;
-      padding: 10px;
-      border: 3px solid black;
-      font-family: 'retro-font-sensitive';
-    }
-  </style>`;
+      @font-face {
+        font-family: 'retro-font-title';
+        src: URL('${getProxyPath()}assets/fonts/EndlessBossBattleRegular-v7Ey.ttf') format('truetype');
+      }
+      @font-face {
+        font-family: 'retro-font';
+        src: URL('${getProxyPath()}assets/fonts/Pixeboy-z8XGD.ttf') format('truetype');
+      }
+      @font-face {
+        font-family: 'retro-font-sensitive';
+        src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
+      }
+      .server-icon {
+        width: 40px;
+        height: 40px;
+        top: 8px;
+      }
+      .server-status-circle {
+        color: green;
+        font-size: 30px;
+        position: relative;
+        top: 4px;
+      }
+      .action-game-panel {
+        width: 230px;
+        z-index: 10;
+        font-size: 20px;
+      }
+      .action-panel-bar-btn-container {
+        width: 40px;
+        height: 40px;
+      }
+      .action-panel-img-icon {
+        width: 20px;
+        height: 20px;
+      }
+      .action-panel-bar-btn-container:hover {
+        background: #c1c1c1;
+      }
+      .action-panel-bar-btn-container:hover .action-panel-img-icon {
+        width: 23px;
+        height: 23px;
+      }
+      .quest-short-description {
+        margin-left: 5px;
+      }
+      .quest-provide-img {
+        width: 95%;
+        height: auto;
+        margin: auto;
+      }
+      .bubble-dialog {
+        background: white;
+        color: black;
+        padding: 10px;
+        border: 3px solid black;
+        font-family: 'retro-font-sensitive';
+      }
+    </style>
+    <div class="ag-grid-style"></div>`;
 };
 
 const CssCyberiaDark = {
@@ -70,12 +87,6 @@ const CssCyberiaDark = {
   dark: true,
   barButtonsIconTheme: 'img',
   render: async () => {
-    LoadingAnimation.img.load({
-      key: 'points',
-      src: 'assets/util/points-loading.gif',
-      classes: 'inl',
-      style: 'width: 100px; height: 100px',
-    });
     return (
       (await CssCommonCyberia()) +
       html`
@@ -162,26 +173,6 @@ const CssCyberiaDark = {
             /* Microsoft Edge */
             color: #c6c4c4;
             background: none;
-          }
-          .ag-theme-alpine,
-          .ag-theme-alpine-dark {
-            /*
-           --ag-foreground-color: rgb(126, 46, 132);
-           --ag-background-color: rgb(249, 245, 227);
-           --ag-header-foreground-color: rgb(204, 245, 172);
-           --ag-header-background-color: rgb(209, 64, 129);
-           --ag-odd-row-background-color: rgb(0, 0, 0, 0.03);
-           --ag-header-column-resize-handle-color: rgb(126, 46, 132);
-
-           --ag-font-size: 17px;
-           */
-            --ag-font-family: 'retro-font-sensitive';
-            --ag-font-size: 24px;
-          }
-          .ag-btn-renderer {
-            font-size: 16px;
-            min-width: 90px;
-            min-height: 90px;
           }
 
           .width-mini-box {
