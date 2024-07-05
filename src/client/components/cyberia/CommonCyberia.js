@@ -268,7 +268,10 @@ const QuestComponent = {
     const questData = [];
     for (const id of Object.keys(this.Data)) {
       if (this.Data[id].provide.displayIds.find((q) => q.id === displayId)) {
-        questData.push({ id, ...this.Data[id] });
+        questData.push({ id, ...this.Data[id], keyContext: 'provide' });
+      }
+      if (this.Data[id].displaySearchObjects.find((q) => q.id === displayId)) {
+        questData.push({ id, ...this.Data[id], keyContext: 'displaySearchObjects' });
       }
     }
     return questData;

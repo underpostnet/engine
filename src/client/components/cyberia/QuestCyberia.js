@@ -39,14 +39,19 @@ const QuestManagementCyberia = {
         )
           return clearInterval(this.IntervalQuestDetector);
         for (const instance of WorldCyberiaManagement.Data[type][id].model.world.instance) {
-          const botsQuest = instance.bots.filter((b) => b.behavior === 'quest-passive');
+          const botsQuest = instance.bots.filter((b) => b.behavior === 'quest-passive' || b.behavior === 'item-quest');
+
           for (const botQuestData of botsQuest) {
             for (const elementTargetId of Object.keys(ElementsCyberia.Data[typeTarget])) {
               const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type: typeTarget, id: elementTargetId });
               const questData = QuestComponent.getQuestByDisplayId({ displayId })[0];
               const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
               if (
-                (!questData || (questData && !s(`.modal-panel-quest-${questData.id}`))) &&
+                //  (!questData || (questData && !s(`.modal-panel-quest-${questData.id}`)))
+                questData &&
+                (questData.keyContext !== 'displaySearchObjects' ||
+                  ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)) &&
+                !s(`.modal-panel-quest-${questData.id}`) &&
                 !this.questClosePanels.includes(idPanel) &&
                 botQuestData.displayIds.find((d) => d.id === displayId) &&
                 isElementCollision({
@@ -106,9 +111,19 @@ const QuestManagementCyberia = {
                           >
                           <span style="color: #2d2d2d"
                             >${ElementsCyberia.getDisplayName({ type: typeTarget, id: elementTargetId })}</span
-                          >:
+                          >${questData &&
+                          questData.keyContext === 'provide' &&
+                          Translate.Data[`${questData.id}-shortDescription`]
+                            ? ':'
+                            : ''}
                         </div>
-                        <div class="in quest-short-description">
+                        <div
+                          class="in quest-short-description ${questData &&
+                          questData.keyContext === 'provide' &&
+                          Translate.Data[`${questData.id}-shortDescription`]
+                            ? ''
+                            : 'hide'}"
+                        >
                           ${await typeWriter({
                             id: idPanel,
                             html: questData
@@ -117,26 +132,35 @@ const QuestManagementCyberia = {
                           })}
                         </div>
                         <div class="fl">
-                          ${questData
-                            ? html`${await BtnIcon.Render({
-                                class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
-                                  ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)
-                                    ? 'hide'
-                                    : ''
-                                }`,
-                                label: html`<img
-                                  class="abs center action-panel-img-icon"
-                                  src="${getProxyPath()}assets/ui-icons/ok.png"
-                                />`,
-                              })}
-                              ${await BtnIcon.Render({
-                                class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
-                                label: html`<img
-                                  class="abs center action-panel-img-icon"
-                                  src="${getProxyPath()}assets/ui-icons/dude.png"
-                                />`,
-                              })} `
-                            : ''}
+                          <div class="in ${questData && questData.keyContext === 'provide' ? '' : 'hide'}">
+                            ${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
+                                ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)
+                                  ? 'hide'
+                                  : ''
+                              }`,
+                              label: html`<img
+                                class="abs center action-panel-img-icon"
+                                src="${getProxyPath()}assets/ui-icons/ok.png"
+                              />`,
+                            })}
+                            ${await BtnIcon.Render({
+                              class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
+                              label: html`<img
+                                class="abs center action-panel-img-icon"
+                                src="${getProxyPath()}assets/ui-icons/dude.png"
+                              />`,
+                            })}
+                          </div>
+                          ${await BtnIcon.Render({
+                            class: `in fll action-panel-bar-btn-container action-panel-hand-${idPanel}  ${
+                              questData && questData.keyContext === 'displaySearchObjects' ? '' : 'hide'
+                            }`,
+                            label: html`<img
+                              class="abs center action-panel-img-icon"
+                              src="${getProxyPath()}assets/ui-icons/hand.png"
+                            />`,
+                          })}
                           ${await BtnIcon.Render({
                             class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
                             label: html`<img
