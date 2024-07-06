@@ -9,6 +9,7 @@ import { CyberiaWsSkillManagement } from '../management/cyberia.ws.skill.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 import { CyberiaWsSkillChannel } from './cyberia.ws.skill.js';
 import dotenv from 'dotenv';
+import { CyberiaWsBotManagement } from '../management/cyberia.ws.bot.js';
 
 dotenv.config();
 
@@ -48,6 +49,30 @@ const CyberiaWsUserController = {
         break;
       case 'unregister-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user = { _id: '' };
+        break;
+      case 'take-quest-item':
+        {
+          if (element.type === 'bot') {
+            const dataSkin = CyberiaWsBotManagement.element[wsManagementId][element.id].components.skin.find(
+              (s) => s.current,
+            );
+            const questIndex = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests.findIndex((q) =>
+              q.displaySearchObjects.find((s) => s.id === dataSkin.displayId),
+            );
+            if (questIndex >= 0) {
+              const questData = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex];
+              const itemQuestIndex = questData.displaySearchObjects.findIndex((o) => o.id === dataSkin.displayId);
+
+              if (itemQuestIndex >= 0) {
+                const itemData = questData.displaySearchObjects[itemQuestIndex];
+                if (itemData.current < itemData.quantity) {
+                  CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex]
+                    .displaySearchObjects[itemQuestIndex].current++;
+                }
+              }
+            }
+          }
+        }
         break;
       case 'register-cyberia-user':
         {

@@ -47,9 +47,9 @@ const TranslateCyberia = {
 
     {
       for (const key of Object.keys(QuestComponent.Data)) {
-        Translate.Data[`${key}-title`] = QuestComponent.Data[key].title;
-        Translate.Data[`${key}-description`] = QuestComponent.Data[key].description;
-        Translate.Data[`${key}-shortDescription`] = QuestComponent.Data[key].shortDescription;
+        Translate.Data[`${key}-title`] = QuestComponent.Data[key]().title;
+        Translate.Data[`${key}-description`] = QuestComponent.Data[key]().description;
+        Translate.Data[`${key}-shortDescription`] = QuestComponent.Data[key]().shortDescription;
       }
     }
   },

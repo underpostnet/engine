@@ -27,7 +27,7 @@ const CyberiaQuestService = {
             );
 
             const questObj = {
-              displaySearchObjects: QuestComponent.Data[req.params.questId].displaySearchObjects,
+              displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
               id: req.params.questId,
             };
 

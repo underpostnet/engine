@@ -1,6 +1,6 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { objectEquals } from '../core/CommonJs.js';
+import { newInstance, objectEquals } from '../core/CommonJs.js';
 import { Css, Themes, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -11,6 +11,7 @@ import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
+import { MainUserCyberia } from './MainUserCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
@@ -48,13 +49,17 @@ const QuestManagementCyberia = {
               const questData = QuestComponent.getQuestByDisplayId({ displayId })[0];
               const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
               if (
-                //  (!questData || (questData && !s(`.modal-panel-quest-${questData.id}`)))
-                questData &&
-                (questData.keyContext !== 'displaySearchObjects' ||
-                  ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)) &&
-                !s(`.modal-panel-quest-${questData.id}`) &&
-                !this.questClosePanels.includes(idPanel) &&
-                botQuestData.displayIds.find((d) => d.id === displayId) &&
+                ((questData &&
+                  (questData.keyContext !== 'displaySearchObjects' ||
+                    ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)) &&
+                  !this.questClosePanels.includes(idPanel) &&
+                  botQuestData.displayIds.find((d) => d.id === displayId)) ||
+                  (!['user-hostile'].includes(ElementsCyberia.Data[typeTarget][elementTargetId].behavior) &&
+                    !this.questClosePanels.includes(idPanel) &&
+                    MainUserCyberia.lastArrowElement &&
+                    MainUserCyberia.lastArrowElement.type === typeTarget &&
+                    MainUserCyberia.lastArrowElement.id === elementTargetId)) &&
+                (!questData || (questData && !s(`.modal-panel-quest-${questData.id}`))) &&
                 isElementCollision({
                   A: {
                     dim: ElementsCyberia.Data[typeTarget][elementTargetId].dim * radius,
@@ -111,6 +116,10 @@ const QuestManagementCyberia = {
                             if (displayIdIndex >= 0) {
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                 .displaySearchObjects[displayIdIndex].current++;
+                              SocketIo.Emit('user', {
+                                status: 'take-quest-item',
+                                element: { type: typeTarget, id: elementTargetId },
+                              });
                               if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
                                 htmls(
                                   `.${questData.id}-${displayId}-current`,
@@ -119,12 +128,6 @@ const QuestManagementCyberia = {
                                 );
                             }
                           }
-
-                          // SocketIo.Emit('user', {
-                          //   status: 'take-quest-item',
-                          //   questData: { id: questData.id },
-                          //   id: displayId,
-                          // });
                         };
                       if (questData) {
                         s(`.action-panel-dude-${idPanel}`).onclick = async () =>
@@ -164,6 +167,7 @@ const QuestManagementCyberia = {
                           <div class="in ${questData && questData.keyContext === 'provide' ? '' : 'hide'}">
                             ${await BtnIcon.Render({
                               class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
+                                !questData ||
                                 ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)
                                   ? 'hide'
                                   : ''
@@ -183,7 +187,11 @@ const QuestManagementCyberia = {
                           </div>
                           ${await BtnIcon.Render({
                             class: `in fll action-panel-bar-btn-container action-panel-hand-${idPanel}  ${
-                              questData && questData.keyContext === 'displaySearchObjects' ? '' : 'hide'
+                              questData &&
+                              ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) &&
+                              questData.keyContext === 'displaySearchObjects'
+                                ? ''
+                                : 'hide'
                             }`,
                             label: html`<img
                               class="abs center action-panel-img-icon"
@@ -240,7 +248,7 @@ const QuestManagementCyberia = {
   },
   RenderModal: async function ({ questData, interactionPanelQuestId }) {
     questData = {
-      ...QuestComponent.Data[questData.id],
+      ...QuestComponent.Data[questData.id](),
       ...questData,
     };
 
@@ -328,7 +336,7 @@ const QuestManagementCyberia = {
   takeQuest: async function ({ questData }) {
     questData = {
       ...questData,
-      ...QuestComponent.Data[questData.id],
+      ...QuestComponent.Data[questData.id](),
     };
     const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
 

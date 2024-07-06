@@ -1,5 +1,5 @@
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, objectEquals, range, timer } from '../core/CommonJs.js';
+import { getId, newInstance, objectEquals, range, timer } from '../core/CommonJs.js';
 import { Css, Themes, borderChar, dashRange, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
@@ -162,7 +162,7 @@ const InteractionPanelCyberia = {
     quest: async function ({ id, questData }) {
       if (!s(`.quest-interaction-panel`)) return;
 
-      questData = { ...QuestComponent.Data[questData.id], ...questData };
+      questData = { ...QuestComponent.Data[questData.id](), ...questData };
 
       this.questTokens[id] = { questData, id };
 
