@@ -4,7 +4,7 @@ import { s4 } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { htmls, s, setURI } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { Slot } from './BagCyberia.js';
 import { Stat } from './CommonCyberia.js';
@@ -131,7 +131,7 @@ const SocketIoCyberia = {
     });
   },
   changeServer: async function ({ server }) {
-    setURI(server);
+    setURI(getProxyPath() + server);
     await SocketIo.Init({ channels: ElementsCyberia.Data });
     return await this.Init();
   },
