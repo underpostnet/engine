@@ -145,7 +145,7 @@ const updateSrc = () => {
   shellCd(`engine-private`);
   shellExec(`git pull origin master`, { silent });
   shellCd(`..`);
-  shellExec(`npm install && npm install --only=dev`);
+  // shellExec(`npm install && npm install --only=dev`);
 };
 
 try {
