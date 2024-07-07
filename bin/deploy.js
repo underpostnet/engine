@@ -145,7 +145,7 @@ const updateSrc = () => {
   shellCd(`engine-private`);
   shellExec(`git pull origin master`, { silent });
   shellCd(`..`);
-  shellCd(`npm install`);
+  shellExec(`npm install`);
 };
 
 try {
