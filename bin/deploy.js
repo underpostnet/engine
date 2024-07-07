@@ -344,7 +344,6 @@ try {
     case 'run-macro':
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-        const silent = true;
         updateSrc();
         const dataDeploy = getDataDeploy();
         await deployRun(dataDeploy, true);
@@ -356,7 +355,7 @@ try {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         updateSrc();
         const dataDeploy = getDataDeploy();
-        for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent });
+        for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent: true });
         await deployRun(dataDeploy, true);
       }
       break;
