@@ -67,7 +67,9 @@ const CyberiaWsBotManagement = {
 
     bot.model.world.face = instanceIndex + 1;
 
-    const { x, y } = getRandomAvailablePositionCyberia({ biomeData: biome, element: bot });
+    const getRandomPosition = () => getRandomAvailablePositionCyberia({ biomeData: biome, element: bot });
+
+    const { x, y } = getRandomPosition();
     bot.x = x;
     bot.y = y;
     const id = getId(this.element[wsManagementId], 'bot-');
@@ -85,7 +87,10 @@ const CyberiaWsBotManagement = {
     const collisionMatrixCyberia = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
     this.localElementScope[wsManagementId][id] = {
+      api: { getRandomPosition },
       metaDataBot,
+      disabled: false,
+      respawn: 5000,
       drop: {
         coin: {
           range: [5, 40],

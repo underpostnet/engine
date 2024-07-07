@@ -35,6 +35,14 @@ const CyberiaQuestRouter = (options) => {
     authMiddleware,
     async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon', ...options }),
   );
+  router.post(
+    `/${endpoint}/take-anon/:questId`,
+    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take-anon', ...options }),
+  );
+  router.post(
+    `/${endpoint}/abandon-anon/:questId`,
+    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon-anon', ...options }),
+  );
   router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.post(`/${endpoint}`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.get(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));

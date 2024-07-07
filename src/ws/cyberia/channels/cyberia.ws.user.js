@@ -10,6 +10,7 @@ import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 import { CyberiaWsSkillChannel } from './cyberia.ws.skill.js';
 import dotenv from 'dotenv';
 import { CyberiaWsBotManagement } from '../management/cyberia.ws.bot.js';
+import { CyberiaWsBotChannel } from './cyberia.ws.bot.js';
 
 dotenv.config();
 
@@ -52,7 +53,10 @@ const CyberiaWsUserController = {
         break;
       case 'take-quest-item':
         {
-          if (element.type === 'bot') {
+          if (
+            element.type === 'bot' &&
+            !CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].disabled
+          ) {
             const dataSkin = CyberiaWsBotManagement.element[wsManagementId][element.id].components.skin.find(
               (s) => s.current,
             );
@@ -68,6 +72,43 @@ const CyberiaWsUserController = {
                 if (itemData.current < itemData.quantity) {
                   CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex]
                     .displaySearchObjects[itemQuestIndex].current++;
+
+                  CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].disabled = true;
+                  for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                    if (
+                      objectEquals(
+                        CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+                        CyberiaWsBotManagement.element[wsManagementId][element.id].model.world,
+                      )
+                    ) {
+                      CyberiaWsEmit(CyberiaWsBotChannel.channel, client[elementId], {
+                        status: 'disconnect',
+                        id: element.id,
+                      });
+                    }
+                  }
+                  setTimeout(() => {
+                    const { x, y } =
+                      CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].api.getRandomPosition();
+                    CyberiaWsBotManagement.element[wsManagementId][element.id].x = x;
+                    CyberiaWsBotManagement.element[wsManagementId][element.id].y = y;
+
+                    CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].disabled = false;
+                    for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+                      if (
+                        objectEquals(
+                          CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
+                          CyberiaWsBotManagement.element[wsManagementId][element.id].model.world,
+                        )
+                      ) {
+                        CyberiaWsEmit(CyberiaWsBotChannel.channel, client[elementId], {
+                          status: 'connection',
+                          id: element.id,
+                          element: CyberiaWsBotManagement.element[wsManagementId][element.id],
+                        });
+                      }
+                    }
+                  }, CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].respawn);
                 }
               }
             }

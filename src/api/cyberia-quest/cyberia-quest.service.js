@@ -12,6 +12,8 @@ const CyberiaQuestService = {
     /** @type {import('../cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
 
+    const wsManagementId = `${options.host}${options.path}`;
+
     switch (options.uri) {
       case '/take': {
         const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
@@ -40,13 +42,10 @@ const CyberiaQuestService = {
           } else throw new Error('quest has already been taken');
         } else throw new Error('user not found');
       }
-
       case '/abandon': {
         const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
         if (cyberiaUser) {
           if (cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
-            const wsManagementId = `${options.host}${options.path}`;
-
             const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
               wsManagementId,
               cyberiaUser._id.toString(),
@@ -61,6 +60,34 @@ const CyberiaQuestService = {
           } else throw new Error('quest has not already been taken');
         } else throw new Error('user not found');
         break;
+      }
+      case '/take-anon': {
+        if (
+          CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
+            (q) => q.id === req.params.questId,
+          )
+        )
+          throw new Error('quest has already been taken');
+        const questObj = {
+          displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
+          id: req.params.questId,
+        };
+        CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.push(questObj);
+        return 'success take quest';
+      }
+      case '/abandon-anon': {
+        if (
+          !CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
+            (q) => q.id === req.params.questId,
+          )
+        )
+          throw new Error('quest has not already been taken');
+
+        CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests =
+          CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.filter(
+            (q) => q.id !== req.params.questId,
+          );
+        return 'success abandon take quest';
       }
 
       default:

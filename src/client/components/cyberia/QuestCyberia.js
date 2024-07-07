@@ -1,4 +1,5 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
+import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { newInstance, objectEquals } from '../core/CommonJs.js';
 import { Css, Themes, renderBubbleDialog, typeWriter } from '../core/Css.js';
@@ -48,18 +49,26 @@ const QuestManagementCyberia = {
               const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type: typeTarget, id: elementTargetId });
               const questData = QuestComponent.getQuestByDisplayId({ displayId })[0];
               const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
+              const currentQuestData = questData
+                ? ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)
+                : undefined;
+              const currentItemData = currentQuestData
+                ? currentQuestData.displaySearchObjects.find((o) => o.id === displayId)
+                : undefined;
+
+              const enabledQuestPanel = currentItemData && currentItemData.current < currentItemData.quantity;
+
               if (
                 ((questData &&
-                  (questData.keyContext !== 'displaySearchObjects' ||
-                    ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)) &&
-                  !this.questClosePanels.includes(idPanel) &&
+                  (questData.keyContext !== 'displaySearchObjects' || enabledQuestPanel) &&
                   botQuestData.displayIds.find((d) => d.id === displayId)) ||
                   (!['user-hostile'].includes(ElementsCyberia.Data[typeTarget][elementTargetId].behavior) &&
-                    !this.questClosePanels.includes(idPanel) &&
                     MainUserCyberia.lastArrowElement &&
                     MainUserCyberia.lastArrowElement.type === typeTarget &&
                     MainUserCyberia.lastArrowElement.id === elementTargetId)) &&
                 (!questData || (questData && !s(`.modal-panel-quest-${questData.id}`))) &&
+                (!this.questClosePanels.includes(idPanel) ||
+                  (this.questClosePanels.includes(idPanel) && enabledQuestPanel)) &&
                 isElementCollision({
                   A: {
                     dim: ElementsCyberia.Data[typeTarget][elementTargetId].dim * radius,
@@ -114,18 +123,24 @@ const QuestManagementCyberia = {
                               currentQuestDataIndex
                             ].displaySearchObjects.findIndex((o) => o.id === displayId);
                             if (displayIdIndex >= 0) {
-                              ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
-                                .displaySearchObjects[displayIdIndex].current++;
-                              SocketIo.Emit('user', {
-                                status: 'take-quest-item',
-                                element: { type: typeTarget, id: elementTargetId },
-                              });
-                              if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
-                                htmls(
-                                  `.${questData.id}-${displayId}-current`,
-                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
-                                    .displaySearchObjects[displayIdIndex].current,
-                                );
+                              const itemData =
+                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                  .displaySearchObjects[displayIdIndex];
+
+                              if (itemData.current < itemData.quantity) {
+                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                  .displaySearchObjects[displayIdIndex].current++;
+                                SocketIo.Emit('user', {
+                                  status: 'take-quest-item',
+                                  element: { type: typeTarget, id: elementTargetId },
+                                });
+                                if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
+                                  htmls(
+                                    `.${questData.id}-${displayId}-current`,
+                                    ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                      .displaySearchObjects[displayIdIndex].current,
+                                  );
+                              }
                             }
                           }
                         };
@@ -187,9 +202,7 @@ const QuestManagementCyberia = {
                           </div>
                           ${await BtnIcon.Render({
                             class: `in fll action-panel-bar-btn-container action-panel-hand-${idPanel}  ${
-                              questData &&
-                              ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) &&
-                              questData.keyContext === 'displaySearchObjects'
+                              questData && enabledQuestPanel && questData.keyContext === 'displaySearchObjects'
                                 ? ''
                                 : 'hide'
                             }`,
@@ -323,7 +336,14 @@ const QuestManagementCyberia = {
       if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
         s(`.quest-interaction-panel-${interactionPanelQuestId}`).remove();
 
-      const result = await CyberiaQuestService.post({ id: `abandon/${questData.id}` });
+      if (Auth.getToken()) {
+        const result = await CyberiaQuestService.post({ id: `abandon/${questData.id}` });
+      } else {
+        const result = await CyberiaQuestService.post({
+          id: `abandon-anon/${questData.id}`,
+          body: { socketId: SocketIo.socket.id },
+        });
+      }
       s(`.btn-close-${idModal}`).click();
     });
 
@@ -341,7 +361,14 @@ const QuestManagementCyberia = {
     const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
 
     ElementsCyberia.Data.user['main'].model.quests.push(questData);
-    const result = await CyberiaQuestService.post({ id: `take/${questData.id}` });
+    if (Auth.getToken()) {
+      const result = await CyberiaQuestService.post({ id: `take/${questData.id}` });
+    } else {
+      const result = await CyberiaQuestService.post({
+        id: `take-anon/${questData.id}`,
+        body: { socketId: SocketIo.socket.id },
+      });
+    }
     await InteractionPanelCyberia.PanelRender.quest({
       id: interactionPanelQuestId,
       questData,

@@ -131,6 +131,23 @@ const deployRun = async (dataDeploy, reset) => {
   }
 };
 
+const getDataDeploy = () => {
+  return JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map((deployId) => {
+    return {
+      deployId,
+    };
+  });
+};
+
+const updateSrc = () => {
+  const silent = true;
+  shellExec(`git pull origin master`, { silent });
+  shellCd(`engine-private`);
+  shellExec(`git pull origin master`, { silent });
+  shellCd(`..`);
+  shellCd(`npm install`);
+};
+
 try {
   switch (operator) {
     case 'save':
@@ -328,17 +345,8 @@ try {
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const silent = true;
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`engine-private`);
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`..`);
-        const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
-          (deployId) => {
-            return {
-              deployId,
-            };
-          },
-        );
+        updateSrc();
+        const dataDeploy = getDataDeploy();
         await deployRun(dataDeploy, true);
       }
       break;
@@ -346,18 +354,8 @@ try {
     case 'run-macro-build':
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-        const silent = true;
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`engine-private`);
-        shellExec(`git pull origin master`, { silent });
-        shellCd(`..`);
-        const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
-          (deployId) => {
-            return {
-              deployId,
-            };
-          },
-        );
+        updateSrc();
+        const dataDeploy = getDataDeploy();
         for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent });
         await deployRun(dataDeploy, true);
       }

@@ -15,7 +15,10 @@ const CyberiaWsBotController = {
     switch (status) {
       case 'update-world-face':
         for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
-          if (objectEquals(CyberiaWsBotManagement.element[wsManagementId][botId].model.world, element.model.world)) {
+          if (
+            !CyberiaWsBotManagement.localElementScope[wsManagementId][botId].disabled &&
+            objectEquals(CyberiaWsBotManagement.element[wsManagementId][botId].model.world, element.model.world)
+          ) {
             CyberiaWsEmit(channel, client[socket.id], {
               status: 'connection',
               id: botId,
@@ -31,6 +34,7 @@ const CyberiaWsBotController = {
   connection: function (socket, client, wsManagementId) {
     for (const botId of Object.keys(CyberiaWsBotManagement.element[wsManagementId])) {
       if (
+        !CyberiaWsBotManagement.localElementScope[wsManagementId][botId].disabled &&
         objectEquals(
           CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
           CyberiaWsUserManagement.element[wsManagementId][socket.id].model.world,
