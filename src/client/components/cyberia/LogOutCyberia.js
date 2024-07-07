@@ -34,7 +34,7 @@ const LogOutCyberia = function () {
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     // await MainUserCyberia.Update({ oldElement });
 
-    await SocketIoCyberia.changeServer({ server: getProxyPath() });
+    await SocketIoCyberia.changeServer();
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
       status: 'success',

@@ -1,6 +1,7 @@
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
 import { Keyboard } from '../core/Keyboard.js';
+import { Modal } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { SkillCyberiaType, Stat } from './CommonCyberia.js';
@@ -90,6 +91,7 @@ const SkillCyberia = {
       }
 
       s(`.main-skill-slot-${indexSkillCyberia}`).onclick = triggerSkillCyberia;
+      if (Modal.mobileModal()) s(`.main-skill-slot-${indexSkillCyberia}`).onmouseover = triggerSkillCyberia;
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toLowerCase()] = triggerSkillCyberia;
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toUpperCase()] = triggerSkillCyberia;
       ElementsCyberia.LocalDataScope['user']['main']['skill'][indexSkillCyberia] = triggerSkillCyberia;

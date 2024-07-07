@@ -130,8 +130,8 @@ const SocketIoCyberia = {
       };
     });
   },
-  changeServer: async function ({ server }) {
-    setURI(getProxyPath() + server);
+  changeServer: async function (options = { server: '' }) {
+    if (options && options.server) setURI('/' + options.server);
     await SocketIo.Init({ channels: ElementsCyberia.Data });
     return await this.Init();
   },

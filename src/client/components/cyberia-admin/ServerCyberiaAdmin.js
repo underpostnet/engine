@@ -32,8 +32,7 @@ const ServerCyberiaAdmin = {
           s(`.btn-server-${server}-${id}`).onclick = async () => {
             const keyEvents = Object.keys(ServerCyberiaAdmin.Tokens[id].events);
             if (keyEvents.length > 0) {
-              for (const keyEvent of keyEvents)
-                await ServerCyberiaAdmin.Tokens[id].events[keyEvent]({ server: `/${server}` });
+              for (const keyEvent of keyEvents) await ServerCyberiaAdmin.Tokens[id].events[keyEvent]({ server });
               if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
             }
           };
