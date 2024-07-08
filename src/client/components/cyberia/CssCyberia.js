@@ -81,6 +81,11 @@ const CssCommonCyberia = async () => {
         border: 3px solid black;
         font-family: 'retro-font-sensitive';
       }
+      .element-preview {
+        width: 130px;
+        height: 130px;
+        margin: auto;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };

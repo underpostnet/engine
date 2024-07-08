@@ -228,17 +228,19 @@ const CharacterCyberia = {
     const totalFrames = 5;
 
     if (!s(`.${container}`)) return;
-    await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
+    const containerId = await ElementPreviewCyberia.renderElement({ type, id, renderId: 'element-interaction-panel' });
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {
       const characterImg = await ElementPreviewCyberia.Tokens[
         `element-interaction-panel`
-      ].AppInstance.renderer.extract.image(ElementPreviewCyberia.Tokens[`element-interaction-panel`].AppInstance.stage);
+      ].AppInstance.renderer.extract.image(ElementPreviewCyberia.renderElementContainers[containerId]);
       frames[frame] = characterImg.currentSrc;
       await timer(intervalTime);
     }
-    ElementPreviewCyberia.cleanElement({ renderId: 'element-interaction-panel' });
+    ElementPreviewCyberia.renderElementContainers[containerId].removeChildren();
+    ElementPreviewCyberia.renderElementContainers[containerId].destroy();
+    delete ElementPreviewCyberia.renderElementContainers[containerId];
 
     if (!s(`.${container}`)) return;
 

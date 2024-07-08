@@ -30,25 +30,12 @@ const ElementPreviewCyberia = {
       this.Tokens[options.renderId].AppInstance = new Application(this.Tokens[options.renderId].appOption);
     });
     return html`
-      <style>
-        .element-preview {
-          width: 130px;
-          height: 130px;
-          margin: auto;
-        }
-      </style>
-      ${renderStyleTag('style-element-preview', '.element-preview', options)}
+      ${renderStyleTag('style-element-preview', `.${selector}`, options)}
       <canvas class="in element-preview ${selector}"></canvas>
     `;
   },
-  cleanElement: async function ({ renderId }) {
-    if (this.Tokens[renderId].AppInstance && this.Tokens[renderId])
-      this.Tokens[renderId].AppInstance.stage.removeChildren();
-    else logger.warn('not found renderId', { renderId });
-  },
+  renderElementContainers: {},
   renderElement: async function ({ type, id, renderId }) {
-    this.cleanElement({ renderId });
-
     // for (const interval of Object.keys(this.Tokens[renderId].intervals)) {
     //   clearInterval(this.Tokens[renderId].intervals[interval]);
     // }
@@ -63,6 +50,9 @@ const ElementPreviewCyberia = {
     globalContainer.width = appDim;
     globalContainer.height = appDim;
     globalContainer.visible = true;
+    const containerId = getId(this.renderElementContainers, 'element-cyberia-preview-');
+
+    this.renderElementContainers[containerId] = globalContainer;
 
     const container = new Container();
     container.x = appDim / 2 - (dim * ElementsCyberia.Data[type][id].dim) / 2;
@@ -180,8 +170,10 @@ const ElementPreviewCyberia = {
           break;
       }
     }
+    globalContainer.addChild(container);
     this.Tokens[renderId].AppInstance.stage.addChild(globalContainer);
-    this.Tokens[renderId].AppInstance.stage.addChild(container);
+
+    return containerId;
   },
 };
 
