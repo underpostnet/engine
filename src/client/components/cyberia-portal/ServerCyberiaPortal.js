@@ -27,16 +27,6 @@ const ServerCyberiaPortal = {
           label: html`<i class="fas fa-play-circle"></i>`,
           class: `btn-server-${server}-${id}`,
         })}`;
-
-        setTimeout(() => {
-          s(`.btn-server-${server}-${id}`).onclick = async () => {
-            const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
-            if (keyEvents.length > 0) {
-              for (const keyEvent of keyEvents) await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server });
-              if (s(`.btn-close-modal-server`)) s(`.btn-close-modal-server`).click();
-            }
-          };
-        });
       }
 
       getGui() {
@@ -114,10 +104,14 @@ const ServerCyberiaPortal = {
           { headerName: 'play', width: 100, cellRenderer: LoadGridServerActionsRenderer },
         ],
         rowSelection: 'single',
-        onSelectionChanged: (event) => {
+        onSelectionChanged: async (event) => {
           const selectedRows = AgGrid.grids[gridId].getSelectedRows();
           console.log('selectedRows', { gridId, event, selectedRows });
-          s(`.btn-server-${selectedRows[0].server}-${id}`).click();
+          const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
+          if (keyEvents.length > 0) {
+            for (const keyEvent of keyEvents)
+              await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: selectedRows[0].server });
+          }
         },
       },
     })}`;

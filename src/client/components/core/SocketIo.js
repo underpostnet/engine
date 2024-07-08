@@ -27,9 +27,9 @@ const SocketIo = {
     const path = getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined;
     const connectOptions = {
       path,
-      auth: {
-        token: '',
-      },
+      // auth: {
+      //   token: '',
+      // },
       // query: {
       //   'my-key': 'my-value',
       // },
@@ -38,7 +38,7 @@ const SocketIo = {
       // timeout: 10000,
       transports: ['websocket', 'polling', 'flashsocket'],
     };
-    logger.info(`connect options:`, connectOptions);
+    // logger.error(`connect options:`, JSON.stringify(connectOptions, null, 4));
     this.socket = io(this.host, connectOptions);
 
     this.socket.on('connect', () => {
