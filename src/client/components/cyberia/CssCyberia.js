@@ -13,7 +13,7 @@ const CssCommonCyberia = async () => {
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonCyberia',
     style: {
-      'font-family': `'retro-font-sensitive'`,
+      'font-family': `retro-font`,
       'font-size': '24px',
       'no-cell-focus-style': true,
       'row-cursor': 'pointer',
