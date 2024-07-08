@@ -80,6 +80,12 @@ const CssCommonCyberia = async () => {
         padding: 10px;
         border: 3px solid black;
         font-family: 'retro-font-sensitive';
+        margin-bottom: 30px;
+      }
+      .section-mp-btn {
+        margin: 0px;
+      }
+      .bubble-dialog-triangle {
       }
       .element-preview {
         width: 130px;
@@ -388,11 +394,13 @@ const CssCyberiaDark = {
             font-size: 18px;
           }
 
-          .character-container {
+          .character-container,
+          .quest-modal-container {
             border: 2px solid #313131;
           }
 
-          .character-container:hover {
+          .character-container:hover,
+          .quest-modal-container {
             background: rgba(255, 255, 255, 0.03);
           }
 

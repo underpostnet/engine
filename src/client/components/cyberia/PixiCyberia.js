@@ -394,7 +394,7 @@ const PixiCyberia = {
             const frames = [-1.8, -2.0];
             let frame = 0;
             const callBack = function () {
-              if (!componentInstance.visible) return;
+              if (!componentInstance.visible || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id]) return;
               componentInstance.y = frames[frame] * dim * ElementsCyberia.Data[type][id].dim * 0.5;
               frame++;
               if (frame === frames.length) frame = 0;

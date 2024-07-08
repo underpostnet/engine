@@ -140,6 +140,12 @@ const QuestManagementCyberia = {
                                     ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                       .displaySearchObjects[displayIdIndex].current,
                                   );
+                                if (s(`.modal-panel-quest-${questData.id}`))
+                                  htmls(
+                                    `.modal-${questData.id}-${displayId}-current`,
+                                    ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+                                      .displaySearchObjects[displayIdIndex].current,
+                                  );
                               }
                             }
                           }
@@ -281,45 +287,78 @@ const QuestManagementCyberia = {
         text: html`${Translate.Render(`${questData.id}-title`)}`,
       }),
       html: html`<div class="in section-mp">
-        <div class="in">
-          ${await renderBubbleDialog({
-            id: `${idModal}-bubble-description`,
-            html: async () => html`${Translate.Render(`${questData.id}-description`)}`,
-          })}
-        </div>
         <div class="fl">
           <div class="in fll" style="width: 50%">
-            ${questData.displaySearchObjects
-              .map((q) => {
-                if (currentQuestData) {
-                  const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
-                  if (searchItemData) q.current = searchItemData.current;
-                }
-                return html`<div class="in">${q.id} ${q.current} / ${q.quantity}</div>`;
-              })
-              .join('')}
+            <div class="in section-mp quest-modal-container">
+              <div class="in sub-title-item-modal">
+                <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Progress
+              </div>
+              <div class="in section-mp">
+                ${questData.displaySearchObjects
+                  .map((q) => {
+                    if (currentQuestData) {
+                      const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
+                      if (searchItemData) q.current = searchItemData.current;
+                    }
+                    const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
+
+                    return html` <div class="in">
+                      ${renderViewTitle({
+                        'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
+                        assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
+                        text: html`<span style="color: #ffcc00;">${q.id}</span>
+                          <span class="modal-${questData.id}-${q.id}-current">${q.current}</span> /
+                          <span> ${q.quantity}</span>`,
+                        dim: 30,
+                        top: -3,
+                      })}
+                    </div>`;
+                  })
+                  .join('')}
+                <br />
+              </div>
+            </div>
+
+            <div class="in section-mp">
+              ${await BtnIcon.Render({
+                label: html`${renderViewTitle({
+                  'ui-icon': `close.png`,
+                  text: html`${Translate.Render('dismiss-quest')}`,
+                  dim: 30,
+                  top: 4,
+                })}`,
+                type: 'button',
+                class: `wfa section-mp-btn btn-dismiss-quest-${idModal} ${
+                  ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
+                }`,
+              })}
+              ${await BtnIcon.Render({
+                label: html`${renderViewTitle({
+                  'ui-icon': `ok.png`,
+                  text: html`${Translate.Render('take-quest')}`,
+                  dim: 30,
+                  top: 4,
+                })}`,
+                type: 'button',
+                class: `wfa section-mp-btn btn-ok-quest-${idModal} ${
+                  !ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
+                }`,
+              })}
+            </div>
           </div>
           <div class="in fll" style="width: 50%">
-            <img
-              class="in quest-provide-img"
-              src="${getProxyPath()}assets/skin/${questData.provide.displayIds[0].id}/08/0.png"
-            />
-          </div>
-          <div class="in">
-            ${await BtnIcon.Render({
-              label: Translate.Render('dismiss-quest'),
-              type: 'button',
-              class: `btn-dismiss-quest-${idModal} ${
-                ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
-              }`,
-            })}
-            ${await BtnIcon.Render({
-              label: Translate.Render('ok'),
-              type: 'button',
-              class: `btn-ok-quest-${idModal} ${
-                !ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
-              }`,
-            })}
+            <div class="in section-mp">
+              <div class="in">
+                ${await renderBubbleDialog({
+                  id: `${idModal}-bubble-description`,
+                  html: async () => html`${Translate.Render(`${questData.id}-description`)}`,
+                })}
+              </div>
+              <img
+                class="in quest-provide-img"
+                src="${getProxyPath()}assets/skin/${questData.provide.displayIds[0].id}/08/0.png"
+              />
+            </div>
           </div>
         </div>
       </div> `,

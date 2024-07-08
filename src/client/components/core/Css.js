@@ -529,7 +529,27 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
 
 const renderBubbleDialog = async function (options = { id: '', html: async () => '' }) {
   const { id, html } = options;
-  return html`<div class="inl bubble-dialog bubble-dialog-${id}">${await html()}</div>`;
+  return html` <div class="inl bubble-dialog bubble-dialog-${id}">
+    <style class="style-bubble-dialog-triangle-${id}">
+      .bubble-dialog-triangle-${id} {
+        width: 60px;
+        height: 60px;
+        bottom: -45px;
+        left: 5px;
+        /* border: 2px solid red; */
+        box-sizing: border-box;
+      }
+    </style>
+    <div class="abs bubble-dialog-triangle bubble-dialog-triangle-${id}">
+      <div class="abs center">
+        ${triangle.down({ dim: 25, id: id + '-triangle-black', color: 'black', classList: 'inl' })}
+      </div>
+      <div class="abs center" style="top: 43%">
+        ${triangle.down({ dim: 24, id: id + '-triangle-white', color: 'white', classList: 'inl' })}
+      </div>
+    </div>
+    ${await html()}
+  </div>`;
 };
 
 const typeWriter = async function ({ id, html }) {
@@ -618,6 +638,60 @@ const dashRange = ({ selector, color }) => {
     </style>
   `;
 };
+const triangle = {
+  up: ({ id, dim, color, classList }) => {
+    return html`<style class="style-${id}">
+        .arrow-up-${id} {
+          width: 0;
+          height: 0;
+          border-left: ${dim}px solid transparent;
+          border-right: ${dim}px solid transparent;
+
+          border-bottom: ${dim}px solid ${color};
+        }
+      </style>
+      <div class="arrow-up-${id} ${classList}"></div>`;
+  },
+  down: ({ id, dim, color, classList }) => {
+    return html`<style class="style-${id}">
+        .arrow-down-${id} {
+          width: 0;
+          height: 0;
+          border-left: ${dim}px solid transparent;
+          border-right: ${dim}px solid transparent;
+
+          border-top: ${dim}px solid ${color};
+        }
+      </style>
+      <div class="arrow-down-${id} ${classList}"></div>`;
+  },
+  right: ({ id, dim, color, classList }) => {
+    return html` <style class="style-${id}">
+        .arrow-right-${id} {
+          width: 0;
+          height: 0;
+          border-top: ${dim}px solid transparent;
+          border-bottom: ${dim}px solid transparent;
+
+          border-left: ${dim}px solid ${color};
+        }
+      </style>
+      <div class="arrow-right-${id} ${classList}"></div>`;
+  },
+  left: ({ id, dim, color, classList }) => {
+    return html`<style class="style-${id}">
+        .arrow-left-${id} {
+          width: 0;
+          height: 0;
+          border-top: ${dim}px solid transparent;
+          border-bottom: ${dim}px solid transparent;
+
+          border-right: ${dim}px solid ${color};
+        }
+      </style>
+      <div class="arrow-left-${id} ${classList}"></div>`;
+  },
+};
 
 export {
   Css,
@@ -642,4 +716,5 @@ export {
   renderCssAttr,
   getTranslate3d,
   dashRange,
+  triangle,
 };

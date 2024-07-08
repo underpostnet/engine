@@ -34,14 +34,24 @@ const ItemModal = {
         htmls(
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({
-            label: Translate.Render('equip'),
+            label: renderViewTitle({
+              'ui-icon': `equip.png`,
+              text: html`${Translate.Render('equip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-equip-skin-${idModal}`,
+            class: `btn-equip-skin-${idModal} inl wfa`,
           })}
           ${await BtnIcon.Render({
-            label: Translate.Render('unequip'),
+            label: renderViewTitle({
+              'ui-icon': `unequip.png`,
+              text: html`${Translate.Render('unequip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-unequip-skin-${idModal}`,
+            class: `btn-unequip-skin-${idModal} inl wfa`,
           })} `,
         );
         EventsUI.onClick(`.btn-equip-skin-${idModal}`, () => this.Equip.skin({ type: 'user', id: 'main', skin }));
@@ -60,14 +70,24 @@ const ItemModal = {
         htmls(
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({
-            label: Translate.Render('equip'),
+            label: renderViewTitle({
+              'ui-icon': `equip.png`,
+              text: html`${Translate.Render('equip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-equip-weapon-${idModal}`,
+            class: `btn-equip-weapon-${idModal} inl wfa`,
           })}
           ${await BtnIcon.Render({
-            label: Translate.Render('unequip'),
+            label: renderViewTitle({
+              'ui-icon': `unequip.png`,
+              text: html`${Translate.Render('unequip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-unequip-weapon-${idModal}`,
+            class: `btn-unequip-weapon-${idModal} inl wfa`,
           })} `,
         );
         EventsUI.onClick(`.btn-equip-weapon-${idModal}`, () => this.Equip.weapon({ type: 'user', id: 'main', weapon }));
@@ -86,14 +106,24 @@ const ItemModal = {
         htmls(
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({
-            label: Translate.Render('equip'),
+            label: renderViewTitle({
+              'ui-icon': `equip.png`,
+              text: html`${Translate.Render('equip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-equip-breastplate-${idModal}`,
+            class: `btn-equip-breastplate-${idModal} inl wfa`,
           })}
           ${await BtnIcon.Render({
-            label: Translate.Render('unequip'),
+            label: renderViewTitle({
+              'ui-icon': `unequip.png`,
+              text: html`${Translate.Render('unequip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-unequip-breastplate-${idModal}`,
+            class: `btn-unequip-breastplate-${idModal} inl wfa`,
           })} `,
         );
         EventsUI.onClick(`.btn-equip-breastplate-${idModal}`, () =>
@@ -121,14 +151,24 @@ const ItemModal = {
         htmls(
           `.${id0}-render-col-b`,
           html`${await BtnIcon.Render({
-            label: Translate.Render('equip'),
+            label: renderViewTitle({
+              'ui-icon': `equip.png`,
+              text: html`${Translate.Render('equip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-equip-skill-${idModal}`,
+            class: `btn-equip-skill-${idModal} inl wfa`,
           })}
           ${await BtnIcon.Render({
-            label: Translate.Render('unequip'),
+            label: renderViewTitle({
+              'ui-icon': `unequip.png`,
+              text: html`${Translate.Render('unequip')}`,
+              dim: 30,
+              top: 4,
+            }),
             type: 'button',
-            class: `btn-unequip-skill-${idModal}`,
+            class: `btn-unequip-skill-${idModal} inl wfa`,
           })} `,
         );
         EventsUI.onClick(`.btn-equip-skill-${idModal}`, () => this.Equip.skill({ type: 'user', id: 'main', skill }));
