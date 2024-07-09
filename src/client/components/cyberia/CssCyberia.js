@@ -92,6 +92,11 @@ const CssCommonCyberia = async () => {
         height: 130px;
         margin: auto;
       }
+      .quest-keyboard-bubble-info {
+        color: #ffcc00;
+        top: -8px;
+        left: -6px;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
@@ -664,6 +669,7 @@ const CssCyberiaDark = {
           '.main-btn-menu-text',
           '.text-btn-square-view-title',
           '.map-face-symbol-text',
+          '.quest-keyboard-bubble-info',
         ])}
         ${borderChar(2, 'yellow', ['.text-icon'])}
       `
