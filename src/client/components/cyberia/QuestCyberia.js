@@ -2,13 +2,14 @@ import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { newInstance, objectEquals } from '../core/CommonJs.js';
-import { Css, Themes, renderBubbleDialog, typeWriter } from '../core/Css.js';
+import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { Slot } from './BagCyberia.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
@@ -287,9 +288,15 @@ const QuestManagementCyberia = {
         text: html`${Translate.Render(`${questData.id}-title`)}`,
       }),
       html: html`<div class="in section-mp">
-        <div class="fl">
-          <div class="in fll" style="width: 50%">
-            <div class="in section-mp quest-modal-container">
+        ${dynamicCol({
+          id: `quest-dynamic-${questData.id}`,
+          containerSelector: `quest-dynamic-${questData.id}`,
+          type: 'a-50-b-50',
+          limit: 500,
+        })}
+        <div class="fl quest-dynamic-${questData.id}">
+          <div class="in fll quest-dynamic-${questData.id}-col-a">
+            <div class="in section-mp quest-modal-container" style="max-width: 450px">
               <div class="in sub-title-item-modal">
                 <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Progress
               </div>
@@ -319,6 +326,28 @@ const QuestManagementCyberia = {
               </div>
             </div>
 
+            <div class="in section-mp quest-modal-container" style="max-width: 450px">
+              <div class="in sub-title-item-modal">
+                <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/star.png" />
+                ${Translate.Render('reward')}
+              </div>
+              <div class="in section-mp">
+                ${QuestComponent.Data[questData.id]()
+                  .reward.map((r, i) => {
+                    const type = r.type;
+                    const index = i;
+                    const bagId = questData.id + '-reward-slot';
+                    const { quantity } = r;
+                    setTimeout(() => {
+                      Slot[type].renderBagCyberiaSlots({ bagId, indexBagCyberia: index, quantity });
+                    });
+                    return html`<div class="inl bag-slot ${bagId}-${index}"></div>`;
+                  })
+                  .join('')}
+              </div>
+              <br />
+            </div>
+
             <div class="in section-mp">
               ${await BtnIcon.Render({
                 label: html`${renderViewTitle({
@@ -331,6 +360,7 @@ const QuestManagementCyberia = {
                 class: `wfa section-mp-btn btn-dismiss-quest-${idModal} ${
                   ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
                 }`,
+                style: 'max-width: 450px',
               })}
               ${await BtnIcon.Render({
                 label: html`${renderViewTitle({
@@ -343,10 +373,11 @@ const QuestManagementCyberia = {
                 class: `wfa section-mp-btn btn-ok-quest-${idModal} ${
                   !ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
                 }`,
+                style: 'max-width: 450px',
               })}
             </div>
           </div>
-          <div class="in fll" style="width: 50%">
+          <div class="in fll quest-dynamic-${questData.id}-col-b">
             <div class="in section-mp">
               <div class="in">
                 ${await renderBubbleDialog({

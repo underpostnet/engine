@@ -240,6 +240,12 @@ const QuestComponent = {
           { id: 'bone', quantity: 2, current: 0 },
           { id: 'bone-brown', quantity: 1, current: 0 },
         ],
+        reward: [
+          {
+            type: 'coin',
+            quantity: 20,
+          },
+        ],
         provide: {
           displayIds: [{ id: 'ayleen', quantity: [1] }],
         },

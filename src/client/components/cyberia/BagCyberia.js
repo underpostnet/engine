@@ -387,13 +387,13 @@ const SlotEvents = {};
 
 const Slot = {
   coin: {
-    renderBagCyberiaSlots: ({ bagId, indexBagCyberia }) => {
+    renderBagCyberiaSlots: ({ bagId, indexBagCyberia, quantity }) => {
       htmls(
         `.${bagId}-${indexBagCyberia}`,
         html` <div class="abs bag-slot-count">
             <div class="abs center">
               x<span class="bag-slot-value-${bagId}-${indexBagCyberia}"
-                >${getK(ElementsCyberia.Data.user.main.coin)}</span
+                >${getK(quantity !== undefined ? quantity : ElementsCyberia.Data.user.main.coin)}</span
               >
             </div>
           </div>
