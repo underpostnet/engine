@@ -531,12 +531,13 @@ const isValidFormat = (value, format) => {
  */
 const getTimezoneOffset = () => new Date().getTimezoneOffset();
 
+// https://unicode-explorer.com/
 function cleanString(string) {
-  // Define the problematic unicode characters to remove with descriptions
+  // Define the problematic escape sequences unicode characters to remove with descriptions
   const problematicCharacters = {
     '\u0000': 'Null character (Represents absence of a character)',
     '\u0008': 'Backspace character',
-    '\u0002': 'Start of Text (STX) character', // Added
+    '\u0002': 'Start of Text (STX) character',
     '\u0009': 'Horizontal Tab character',
     '\u000B': 'Vertical Tab character',
     '\u000C': 'Form Feed character',
