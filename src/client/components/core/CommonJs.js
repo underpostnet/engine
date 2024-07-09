@@ -531,6 +531,39 @@ const isValidFormat = (value, format) => {
  */
 const getTimezoneOffset = () => new Date().getTimezoneOffset();
 
+function cleanString(string) {
+  // Define the problematic unicode characters to remove with descriptions
+  const problematicCharacters = {
+    '\u0000': 'Null character (Represents absence of a character)',
+    '\u0008': 'Backspace character',
+    '\u0002': 'Start of Text (STX) character', // Added
+    '\u0009': 'Horizontal Tab character',
+    '\u000B': 'Vertical Tab character',
+    '\u000C': 'Form Feed character',
+    '\u000D': 'Carriage Return character',
+    '\u001D': 'Group Separator (GS) character',
+    '\u001F': 'Substitution character',
+    // '\u0020': 'Space character',
+    '\u200B': 'Zero Width Space character',
+    '\u200C': 'Zero Width Non-Joiner character',
+    '\u200D': 'Zero Width Joiner character',
+    '\u200F': 'Right-to-Left Mark character',
+    '\u2028': 'Left-to-Right Mark character',
+    '\u2060': 'Word Spacing character',
+    '\u2061': 'Word Joiner character',
+    '\u2062': 'Invisible Text Character character',
+    '\u2063': 'Inhibit Explicit Word Joining character',
+    '\u2064': 'Invisible Text Processing character',
+  };
+
+  // Replace each problematic character with an empty string
+  return Object.keys(problematicCharacters).reduce((cleanString, character) => {
+    const charDesc = problematicCharacters[character]; // Get character description
+    const charRegex = new RegExp(character, 'g'); // Regular expression for character
+    return cleanString.replace(charRegex, ''); // Replace with empty string
+  }, string);
+}
+
 export {
   s4,
   range,
@@ -574,4 +607,5 @@ export {
   isValidDate,
   isValidFormat,
   getTimezoneOffset,
+  cleanString,
 };
