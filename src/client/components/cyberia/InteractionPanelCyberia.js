@@ -692,6 +692,25 @@ const InteractionPanelCyberia = {
         }
       };
 
+      Responsive.DelayEvent[id] = () => {
+        if (
+          s(`.${id}`) &&
+          (!s(`.${id}`).style.transform || s(`.${id}`).style.transform === 'translate3d(0px, 0px, 0px)')
+        ) {
+          switch (id) {
+            case 'quest-interaction-panel':
+              if (s(`.cy-int-btn-quest`)) s(`.cy-int-btn-quest`).click();
+              break;
+            case 'map-interaction-panel':
+              if (s(`.cy-int-btn-map`)) s(`.cy-int-btn-map`).click();
+              break;
+            case 'element-interaction-panel':
+              if (s(`.cy-int-btn-target`)) s(`.cy-int-btn-target`).click();
+              break;
+          }
+        }
+      };
+
       Responsive.Event[id]();
 
       Modal.Data[id].onObserverListener[id] = ({ width, height }) => {

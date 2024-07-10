@@ -4,6 +4,7 @@ import { getResponsiveData } from './VanillaJs.js';
 const Responsive = {
   Data: {},
   Event: {},
+  DelayEvent: {},
   Observer: ResizeObserver,
   getResponsiveData: function () {
     return newInstance(this.Data);
@@ -24,11 +25,24 @@ const Responsive = {
       Responsive.triggerEvents();
     }
   },
+  resize: 0,
   Init: async function () {
-    this.resizeCallback();
+    Responsive.resizeCallback();
+    window.onresize = () => {
+      Responsive.resize++;
+      const resize = Responsive.resize;
+      Responsive.resizeCallback();
+      setTimeout(() => {
+        if (resize === Responsive.resize) {
+          Responsive.resizeCallback();
+          Responsive.resize = 0;
+          for (const event of Object.keys(Responsive.DelayEvent)) Responsive.DelayEvent[event]();
+        }
+      }, 750);
+    };
+    // alternative option
     // this.Observer = new ResizeObserver(this.resizeCallback);
     // this.Observer.observe(document.documentElement);
-    window.onresize = this.resizeCallback;
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
