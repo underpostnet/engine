@@ -198,8 +198,7 @@ const QuestManagementCyberia = {
                     }
 
                     {
-                      const idKeyboardEvent = 'quest-key-event-close';
-                      Keyboard.Event[idKeyboardEvent] = {
+                      Keyboard.Event['focus'] = {
                         f: () =>
                           s(`.action-panel-close-${idPanel}`) ? s(`.action-panel-close-${idPanel}`).click() : null,
                         F: () =>
@@ -286,6 +285,12 @@ const QuestManagementCyberia = {
 
         for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens)) {
           if (!panels.includes(idPanel)) await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+        }
+        if (panels.length === 0) {
+          Keyboard.Event['focus'] = {
+            f: MainUserCyberia.focusTarget,
+            F: MainUserCyberia.focusTarget,
+          };
         }
       }, 500);
 

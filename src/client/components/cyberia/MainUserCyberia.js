@@ -4,13 +4,21 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
-import { getDirection, newInstance, objectEquals } from '../core/CommonJs.js';
+import {
+  getDirection,
+  getDistance,
+  newInstance,
+  objectEquals,
+  orderArrayFromAttrInt,
+  range,
+  round10,
+} from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
 import { append, getProxyPath, s } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
-import { CyberiaParams, updateMovementDirection } from './CommonCyberia.js';
+import { CyberiaParams, isElementCollision, updateMovementDirection } from './CommonCyberia.js';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { SkillCyberia } from './SkillCyberia.js';
@@ -19,6 +27,7 @@ import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
+import { Modal } from '../core/Modal.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -264,6 +273,13 @@ const MainUserCyberia = {
     };
     PointAndClickMovementCyberia.TargetEvent[idEvent]({ type, id });
 
+    if (!Modal.mobileModal()) {
+      Keyboard.Event['focus'] = {
+        f: this.focusTarget,
+        F: this.focusTarget,
+      };
+    }
+
     LoadingAnimation.removeSplashScreen();
   },
   renderCenterRedTriangle: function () {
@@ -290,6 +306,57 @@ const MainUserCyberia = {
       this.MainUserCyberiaContainer.addChild(this.MainUserCyberiaBackground);
       this.PixiCyberiaMainUserCyberia.stage.addChild(this.MainUserCyberiaContainer);
     }
+  },
+  keyBoardFocusCallback: function () {
+    const keyBoardFocusQueue = [];
+    const posY = round10(ElementsCyberia.Data.user.main.y);
+    const posX = round10(ElementsCyberia.Data.user.main.x);
+    const radius = 8;
+
+    for (const y of range(posY - radius, posY + radius))
+      for (const x of range(posX - radius, posX + radius))
+        for (const type of ['user', 'bot']) {
+          for (const elementId of Object.keys(ElementsCyberia.Data[type])) {
+            if (
+              isElementCollision({
+                A: { x, y, dim: 1 },
+                B: ElementsCyberia.Data[type][elementId],
+                dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
+              }) &&
+              !keyBoardFocusQueue.find((t) => t.type === type && t.id === elementId) &&
+              type !== 'user' &&
+              elementId !== 'main'
+            ) {
+              keyBoardFocusQueue.push({
+                type,
+                id: elementId,
+                distance: getDistance(
+                  ElementsCyberia.Data.user.main.x,
+                  ElementsCyberia.Data.user.main.y,
+                  ElementsCyberia.Data[type][elementId].x,
+                  ElementsCyberia.Data[type][elementId].y,
+                ),
+              });
+            }
+          }
+        }
+
+    MainUserCyberia.keyBoardFocusQueue = orderArrayFromAttrInt(keyBoardFocusQueue, 'distance', true);
+  },
+  keyBoardFocusQueue: [],
+  focusTargetBlock: false,
+  focusTarget: function () {
+    if (MainUserCyberia.focusTargetBlock) return;
+    MainUserCyberia.focusTargetBlock = true;
+    QuestManagementCyberia.questClosePanels = [];
+    MainUserCyberia.keyBoardFocusCallback();
+
+    if (MainUserCyberia.keyBoardFocusQueue.length > 0)
+      PointAndClickMovementCyberia.TriggerTargetEvents(MainUserCyberia.keyBoardFocusQueue.pop());
+
+    setTimeout(() => {
+      MainUserCyberia.focusTargetBlock = false;
+    }, 500);
   },
 };
 
