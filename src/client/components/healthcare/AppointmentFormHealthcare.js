@@ -3,6 +3,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { s } from '../core/VanillaJs.js';
@@ -15,6 +16,7 @@ const AppointmentFormHealthcare = {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
   },
   Render: async function (options = { bottomRender: async () => '' }) {
+    let mode = 'telemedicine';
     setTimeout(async () => {
       const formData = [
         {
@@ -48,6 +50,11 @@ const AppointmentFormHealthcare = {
           await this.Trigger(result.data);
         }
       });
+
+      s(`.toggle-form-container-healthcare-telemedicine`).onclick = () =>
+        ToggleSwitch.Tokens[`healthcare-telemedicine-toggle`].click();
+      s(`.toggle-form-container-healthcare-in-person`).onclick = () =>
+        ToggleSwitch.Tokens[`healthcare-in-person-toggle`].click();
     });
     return html`
       <form class="in">
@@ -78,6 +85,46 @@ const AppointmentFormHealthcare = {
             placeholder: true,
             autocomplete: 'email',
           })}
+        </div>
+
+        <div class="in section-mp toggle-form-container toggle-form-container-healthcare-telemedicine hover">
+          <div class="fl ">
+            <div class="in fll" style="width: 70%">
+              <div class="in"><i class="fas fa-caret-right"></i> ${Translate.Render('telemedicine')}</div>
+            </div>
+            <div class="in fll" style="width: 30%">
+              ${await ToggleSwitch.Render({
+                id: 'healthcare-telemedicine-toggle',
+                containerClass: 'inl',
+                checked: mode === 'telemedicine',
+                disabledOnClick: true,
+                on: {
+                  unchecked: () => {},
+                  checked: () => {},
+                },
+              })}
+            </div>
+          </div>
+        </div>
+
+        <div class="in section-mp toggle-form-container toggle-form-container-healthcare-in-person hover">
+          <div class="fl ">
+            <div class="in fll" style="width: 70%">
+              <div class="in"><i class="fas fa-caret-right"></i> ${Translate.Render('in-person')}</div>
+            </div>
+            <div class="in fll" style="width: 30%">
+              ${await ToggleSwitch.Render({
+                id: 'healthcare-in-person-toggle',
+                containerClass: 'inl',
+                checked: mode === 'in-person',
+                disabledOnClick: true,
+                on: {
+                  unchecked: () => {},
+                  checked: () => {},
+                },
+              })}
+            </div>
+          </div>
         </div>
 
         ${options?.bottomRender ? await options.bottomRender() : ``}

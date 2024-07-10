@@ -18,6 +18,9 @@ const CssCommonCore = async () => {
       .top-bar-search-box-container {
         cursor: pointer;
       }
+      .toggle-switch-active {
+        background: #28b428 !important;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
