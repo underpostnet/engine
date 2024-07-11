@@ -87,10 +87,11 @@ const AppointmentFormHealthcare = {
           })}
         </div>
 
-        <div class="in section-mp toggle-form-container toggle-form-container-healthcare-telemedicine hover">
-          <div class="fl ">
+        <div class="in section-mp toggle-form-container hover">
+          <div class="in input-label"><i class="fas fa-caret-right"></i> ${Translate.Render('mode')}</div>
+          <div class="fl section-mp toggle-form-container-healthcare-telemedicine">
             <div class="in fll" style="width: 70%">
-              <div class="in"><i class="fas fa-caret-right"></i> ${Translate.Render('telemedicine')}</div>
+              <div class="in">${Translate.Render('telemedicine')}</div>
             </div>
             <div class="in fll" style="width: 30%">
               ${await ToggleSwitch.Render({
@@ -105,12 +106,10 @@ const AppointmentFormHealthcare = {
               })}
             </div>
           </div>
-        </div>
 
-        <div class="in section-mp toggle-form-container toggle-form-container-healthcare-in-person hover">
-          <div class="fl ">
+          <div class="fl section-mp toggle-form-container-healthcare-in-person">
             <div class="in fll" style="width: 70%">
-              <div class="in"><i class="fas fa-caret-right"></i> ${Translate.Render('in-person')}</div>
+              <div class="in">${Translate.Render('in-person')}</div>
             </div>
             <div class="in fll" style="width: 30%">
               ${await ToggleSwitch.Render({

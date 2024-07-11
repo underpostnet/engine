@@ -188,6 +188,7 @@ const TranslateCore = {
     Translate.Data['clean-cache'] = { es: 'Limpiar caché', en: 'Clean cache' };
 
     Translate.Data['add'] = { es: 'Agregar', en: 'Add' };
+    Translate.Data['mode'] = { es: 'Modo', en: 'Mode' };
 
     Translate.Data = {
       ...Translate.Data,
