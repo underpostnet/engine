@@ -20,6 +20,7 @@ import { EventsUI } from './EventsUI.js';
 import { Translate } from './Translate.js';
 import { Input } from './Input.js';
 import { Validator } from './Validator.js';
+import { DropDown } from './DropDown.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -561,7 +562,8 @@ const Modal = {
                 EventsUI.onClick(`.action-btn-theme`, async () => {
                   const themePair = ThemesScope.find((t) => t.theme === Css.currentTheme).themePair;
                   const theme = themePair ? themePair : ThemesScope.find((t) => t.dark === !darkTheme).theme;
-                  if (s(`.dropdown-option-${theme}`)) s(`.dropdown-option-${theme}`).click();
+                  if (s(`.dropdown-option-${theme}`))
+                    DropDown.Tokens['settings-theme'].onClickEvents[`dropdown-option-${theme}`]();
                   else await Themes[theme]();
                 });
                 if (!(ThemesScope.find((t) => t.dark) && ThemesScope.find((t) => !t.dark))) {
@@ -574,7 +576,8 @@ const Modal = {
                 EventsUI.onClick(`.action-btn-lang`, () => {
                   let lang = 'en';
                   if (s('html').lang === 'en') lang = 'es';
-                  if (s(`.dropdown-option-${lang}`)) s(`.dropdown-option-${lang}`).click();
+                  if (s(`.dropdown-option-${lang}`))
+                    DropDown.Tokens['settings-lang'].onClickEvents[`dropdown-option-${lang}`]();
                   else Translate.renderLang(lang);
                 });
               }

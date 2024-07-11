@@ -44,6 +44,7 @@ const Translate = {
   RenderSetting: async function () {
     return html` <div class="in section-mp">
       ${await DropDown.Render({
+        id: 'settings-lang',
         value: s('html').lang ? s('html').lang : 'en',
         label: html`${Translate.Render('lang')}`,
         data: ['en', 'es'].map((language) => {

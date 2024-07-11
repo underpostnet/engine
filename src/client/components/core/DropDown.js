@@ -8,7 +8,7 @@ const DropDown = {
   Tokens: {},
   Render: async function (options) {
     const id = options.id ? options.id : getId(this.Tokens, 'dropdown-');
-    this.Tokens[id] = {};
+    this.Tokens[id] = { onClickEvents: {} };
 
     options.data.push({
       value: 'reset',
@@ -54,8 +54,9 @@ const DropDown = {
     for (const optionData of options.data) {
       index++;
       const i = index;
+      const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
       setTimeout(() => {
-        s(`.dropdown-option-${id}-${i}`).onclick = (e) => {
+        const onclick = (e) => {
           if (options.type !== 'checkbox' || optionData.value === 'close' || optionData.value === 'reset')
             s(`.dropdown-option-${id}`).classList.add('hide');
 
@@ -84,8 +85,13 @@ const DropDown = {
             optionData.onClick(e);
           }
         };
+
+        this.Tokens[id].onClickEvents[`dropdown-option-${id}-${i}`] = onclick;
+        this.Tokens[id].onClickEvents[`dropdown-option-${id}-${valueDisplay}`] = onclick;
+        this.Tokens[id].onClickEvents[`dropdown-option-${valueDisplay}`] = onclick;
+
+        s(`.dropdown-option-${id}-${i}`).onclick = onclick;
       });
-      const valueDisplay = optionData.value.trim().replaceAll(' ', '-');
       render += html`
         <div
           class="in dropdown-option dropdown-option-${id}-${i} dropdown-option-${id}-${valueDisplay} dropdown-option-${valueDisplay} ${valueDisplay ===
