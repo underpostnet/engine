@@ -65,7 +65,8 @@ const Worker = {
     });
     const isInstall = await this.status();
     if (!isInstall) await this.install();
-    else if (location.hostname === 'localhost') await this.update();
+    else await this.update();
+    // else if (location.hostname === 'localhost') await this.update();
     this.RouterInstance = router();
     await render();
     LoadRouter(this.RouterInstance);

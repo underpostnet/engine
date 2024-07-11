@@ -39,7 +39,7 @@ const ElementsCyberia = {
       case 'user-hostile':
         return this.formatDisplayText('creature');
       case 'quest-passive':
-        return this.formatDisplayText('npc');
+        return this.formatDisplayText('villager');
       case 'user':
         if (this.Data[type][id].model.user.role === 'admin') return this.formatDisplayText('admin');
         if (this.Data[type][id].model.user.role === 'moderator') return this.formatDisplayText('moderator');
