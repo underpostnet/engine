@@ -79,17 +79,22 @@ const CssCoreDark = {
           cursor: default;
           font-size: 20px;
         }
-        .toggle-switch-content-border,
+        .box-content-border,
         button {
           border: 2px solid #313131;
           padding: 5px;
           cursor: pointer;
         }
-        .toggle-switch-content-border:hover {
+        .box-content-border:hover {
           background: #313131;
         }
         .toggle-switch-content {
           width: 60px;
+        }
+        .toggle-switch-content-checkbox {
+          border: 2px solid #5b5b5b;
+          width: 50px;
+          height: 50px;
         }
         .toggle-switch-circle {
           height: 20px;
@@ -372,17 +377,22 @@ const CssCoreLight = {
         .box-shadow:hover {
           box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3);
         }
-        .toggle-switch-content-border {
+        .box-content-border {
           border: 2px solid #bbb;
           padding: 5px;
           transition: 0.3s;
           cursor: pointer;
         }
-        .toggle-switch-content-border:hover {
+        .box-content-border:hover {
           background: #bbb;
         }
         .toggle-switch-content {
           width: 60px;
+        }
+        .toggle-switch-content-checkbox {
+          border: 2px solid #5b5b5b;
+          width: 50px;
+          height: 50px;
         }
         .toggle-switch-circle {
           height: 20px;

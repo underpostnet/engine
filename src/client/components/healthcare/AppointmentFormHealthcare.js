@@ -89,6 +89,7 @@ const AppointmentFormHealthcare = {
 
         <div class="in section-mp toggle-form-container hover">
           <div class="in input-label"><i class="fas fa-caret-right"></i> ${Translate.Render('mode')}</div>
+
           <div class="fl section-mp toggle-form-container-healthcare-telemedicine">
             <div class="in fll" style="width: 70%">
               <div class="in">${Translate.Render('telemedicine')}</div>
@@ -99,6 +100,7 @@ const AppointmentFormHealthcare = {
                 containerClass: 'inl',
                 checked: mode === 'telemedicine',
                 disabledOnClick: true,
+                displayMode: 'checkbox',
                 on: {
                   unchecked: () => {},
                   checked: () => {},
@@ -117,6 +119,7 @@ const AppointmentFormHealthcare = {
                 containerClass: 'inl',
                 checked: mode === 'in-person',
                 disabledOnClick: true,
+                displayMode: 'checkbox',
                 on: {
                   unchecked: () => {},
                   checked: () => {},

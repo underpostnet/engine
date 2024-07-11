@@ -1,6 +1,6 @@
 import { getId } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { s } from './VanillaJs.js';
+import { htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -14,18 +14,39 @@ const ToggleSwitch = {
     const widthCircle = 20;
 
     setTimeout(() => {
-      s(`.${id}-circle`).style.left = `0px`;
+      switch (options.displayMode) {
+        case 'checkbox':
+          break;
+
+        default:
+          s(`.${id}-circle`).style.left = `0px`;
+          break;
+      }
 
       const onToggle = () => {
-        s(`.${id}-circle`).style.left = `${widthContent - widthCircle}px`;
+        switch (options.displayMode) {
+          case 'checkbox':
+            htmls(`.${id}-circle`, html`<i class="fas fa-check"></i>`);
+            break;
+          default:
+            s(`.${id}-circle`).style.left = `${widthContent - widthCircle}px`;
+            s(`.${id}-circle`).classList.add(`toggle-switch-active`);
+            break;
+        }
         s(`.${id}-checkbox`).checked = true;
-        s(`.${id}-circle`).classList.add(`toggle-switch-active`);
         options?.on?.checked ? options.on.checked() : null;
       };
       const offToggle = () => {
-        s(`.${id}-circle`).style.left = `0px`;
+        switch (options.displayMode) {
+          case 'checkbox':
+            htmls(`.${id}-circle`, html``);
+            break;
+          default:
+            s(`.${id}-circle`).style.left = `0px`;
+            s(`.${id}-circle`).classList.remove(`toggle-switch-active`);
+            break;
+        }
         s(`.${id}-checkbox`).checked = false;
-        s(`.${id}-circle`).classList.remove(`toggle-switch-active`);
         options?.on?.unchecked ? options.on.unchecked() : null;
       };
 
@@ -47,12 +68,18 @@ const ToggleSwitch = {
     if (options.type === 'checkbox') {
     }
     return html`
-      <div class="${options?.containerClass ? options.containerClass : 'inl toggle-switch-content-border'} ${id}">
-        <div class="in ${id}-content toggle-switch-content ">
-          <div class="in ${id}-circle toggle-switch-circle"></div>
-          <input type="checkbox" class="${id}-checkbox" style="display: none" />
-        </div>
-      </div>
+      ${options?.displayMode === 'checkbox'
+        ? html`<div class="${options?.containerClass ? options.containerClass : 'inl box-content-border'} ${id}">
+            <div class="in ${id}-content toggle-switch-content-checkbox">
+              <div class="abs center ${id}-circle toggle-switch-circle-checkbox"></div>
+            </div>
+          </div>`
+        : html`<div class="${options?.containerClass ? options.containerClass : 'inl box-content-border'} ${id}">
+            <div class="in ${id}-content toggle-switch-content ">
+              <div class="in ${id}-circle toggle-switch-circle"></div>
+            </div>
+          </div>`}
+      <input type="checkbox" class="${id}-checkbox" style="display: none" />
     `;
   },
 };
