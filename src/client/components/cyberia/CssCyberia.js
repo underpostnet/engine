@@ -97,6 +97,28 @@ const CssCommonCyberia = async () => {
         top: -8px;
         left: -6px;
       }
+      .quest-step-box {
+        width: 50px;
+        height: 50px;
+        cursor: pointer;
+      }
+      .quest-step-background-img {
+        width: 100%;
+        height: 100%;
+      }
+      .quest-step-box:hover .quest-step-background-img {
+        width: 105%;
+        height: 105%;
+      }
+      .quest-step-box-disable {
+        /* cursor: default !important; */
+        filter: grayscale(1);
+        opacity: 0.7;
+      }
+      .quest-step-box-disable .quest-step-background-img {
+        /* width: 100% !important;
+        height: 100% !important; */
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
@@ -670,6 +692,7 @@ const CssCyberiaDark = {
           '.text-btn-square-view-title',
           '.map-face-symbol-text',
           '.quest-keyboard-bubble-info',
+          '.quest-step-box',
         ])}
         ${borderChar(2, 'yellow', ['.text-icon'])}
       `

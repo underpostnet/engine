@@ -201,6 +201,10 @@ const Css = {
             font-family: monospace;
           }
 
+          .gray {
+            filter: grayscale(1);
+          }
+
           /*
 
           scrollbar

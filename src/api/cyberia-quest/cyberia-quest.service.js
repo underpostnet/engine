@@ -31,6 +31,7 @@ const CyberiaQuestService = {
             const questObj = {
               displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
               id: req.params.questId,
+              currentStep: 0,
             };
 
             if (!CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests)
@@ -71,6 +72,7 @@ const CyberiaQuestService = {
         const questObj = {
           displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
           id: req.params.questId,
+          currentStep: 0,
         };
         CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.push(questObj);
         return 'success take quest';

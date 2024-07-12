@@ -236,9 +236,13 @@ const QuestComponent = {
     'floki-bone': () => {
       return {
         type: 'search',
+        maxStep: 1,
+        currentStep: 0,
         displaySearchObjects: [
-          { id: 'bone', quantity: 2, current: 0 },
-          { id: 'bone-brown', quantity: 1, current: 0 },
+          { id: 'bone', quantity: 2, current: 0, step: 0 },
+          { id: 'bone-brown', quantity: 1, current: 0, step: 0 },
+          { id: 'bone', quantity: 3, current: 0, step: 1 },
+          { id: 'bone-brown', quantity: 3, current: 0, step: 1 },
         ],
         reward: [
           {
@@ -274,7 +278,9 @@ const QuestComponent = {
     'floki-bone-0': () => {
       return {
         type: 'search',
-        displaySearchObjects: [{ id: 'bone-brown', quantity: 5, current: 0 }],
+        maxStep: 0,
+        currentStep: 0,
+        displaySearchObjects: [{ id: 'bone-brown', quantity: 5, current: 0, step: 0 }],
         reward: [
           {
             type: 'coin',

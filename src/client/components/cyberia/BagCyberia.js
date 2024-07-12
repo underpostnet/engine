@@ -13,6 +13,7 @@ import { PixiCyberia } from './PixiCyberia.js';
 import { loggerFactory } from '../core/Logger.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
+import { QuestManagementCyberia } from './QuestCyberia.js';
 
 // https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
 
@@ -273,15 +274,12 @@ const SlotEvents = {};
 
 const Slot = {
   questItem: {
-    render: function ({ slotId, displayId, disabledCount }) {
+    render: function ({ slotId, displayId, disabledCount, bagId }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       let count = 0;
 
-      if (!disabledCount)
-        for (const questData of ElementsCyberia.Data.user.main.model.quests)
-          for (const itemData of questData.displaySearchObjects.filter((o) => o.id === displayId))
-            count += itemData.current;
+      if (!disabledCount) count = QuestManagementCyberia.countQuestItems({ type: 'user', id: 'main', displayId });
 
       if (count === 0) return;
 
@@ -290,7 +288,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
+              x<span class="bag-slot-value-${slotId} bag-slot-value-${bagId}-${displayId}">${getK(count)}</span>
             </div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/quest/${displayId}/animation.gif" />
@@ -301,15 +299,21 @@ const Slot = {
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
       const setQuestItem = uniqueArray(
-        ElementsCyberia.Data.user.main.model.quests.map((q) => q.displaySearchObjects.map((s) => s.id)).flat(),
+        ElementsCyberia.Data.user.main.model.quests
+          .map((q) => q.displaySearchObjects.filter((s) => s.step === q.currentStep).map((s) => s.id))
+          .flat(),
       );
 
       for (const displayId of setQuestItem) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId });
+        this.render({ slotId, displayId, bagId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
+    },
+    update: ({ bagId, displayId, type, id }) => {
+      const value = QuestManagementCyberia.countQuestItems({ type, id, displayId });
+      if (s(`.bag-slot-value-${bagId}-${displayId}`)) htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(value));
     },
   },
   coin: {

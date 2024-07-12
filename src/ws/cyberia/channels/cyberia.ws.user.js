@@ -61,11 +61,15 @@ const CyberiaWsUserController = {
               (s) => s.current,
             );
             const questIndex = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests.findIndex(
-              (q) => q.id === args.questData.id && q.displaySearchObjects.find((s) => s.id === dataSkin.displayId),
+              (q) =>
+                q.id === args.questData.id &&
+                q.displaySearchObjects.find((s) => s.id === dataSkin.displayId && s.step === q.currentStep),
             );
             if (questIndex >= 0) {
               const questData = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex];
-              const itemQuestIndex = questData.displaySearchObjects.findIndex((o) => o.id === dataSkin.displayId);
+              const itemQuestIndex = questData.displaySearchObjects.findIndex(
+                (o) => o.id === dataSkin.displayId && o.step === questData.currentStep,
+              );
 
               if (itemQuestIndex >= 0) {
                 const itemData = questData.displaySearchObjects[itemQuestIndex];

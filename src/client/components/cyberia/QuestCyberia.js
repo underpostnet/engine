@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { newInstance, objectEquals, uniqueArray } from '../core/CommonJs.js';
+import { newInstance, objectEquals, range, uniqueArray } from '../core/CommonJs.js';
 import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Keyboard } from '../core/Keyboard.js';
@@ -102,7 +102,9 @@ const QuestManagementCyberia = {
               ? ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id)
               : undefined;
             const currentItemData = currentQuestData
-              ? currentQuestData.displaySearchObjects.find((o) => o.id === displayId)
+              ? currentQuestData.displaySearchObjects.find(
+                  (o) => o.id === displayId && o.step === currentQuestData.currentStep,
+                )
               : undefined;
 
             const enabledQuestPanel = currentItemData && currentItemData.current < currentItemData.quantity;
@@ -159,7 +161,12 @@ const QuestManagementCyberia = {
                         if (currentQuestDataIndex >= 0) {
                           const displayIdIndex = ElementsCyberia.Data.user['main'].model.quests[
                             currentQuestDataIndex
-                          ].displaySearchObjects.findIndex((o) => o.id === displayId);
+                          ].displaySearchObjects.findIndex(
+                            (o) =>
+                              o.id === displayId &&
+                              o.step ===
+                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep,
+                          );
                           if (displayIdIndex >= 0) {
                             const itemData =
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
@@ -172,6 +179,7 @@ const QuestManagementCyberia = {
                               setTimeout(() => {
                                 delete handBlock[typeTarget][elementTargetId];
                               }, respawn);
+                              Slot.questItem.update({ bagId: 'cyberia-bag', displayId, type: 'user', id: 'main' });
                               SocketIoCyberia.disconnect({ type: typeTarget, id: elementTargetId });
                               SocketIo.Emit('user', {
                                 status: 'take-quest-item',
@@ -374,6 +382,8 @@ const QuestManagementCyberia = {
     if (idPanel) await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
 
     const currentQuestData = ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id);
+    let currentStep = 0;
+    if (currentQuestData) currentStep = currentQuestData.currentStep;
     const { barConfig } = await Themes[Css.currentTheme]();
     const idModal = `modal-panel-quest-${questData.id}`;
 
@@ -398,34 +408,68 @@ const QuestManagementCyberia = {
               <div class="in sub-title-item-modal">
                 <img class="inl header-icon-item-modal" src="${getProxyPath()}assets/ui-icons/stats.png" /> Progress
               </div>
-              <div class="in section-mp">
-                ${questData.displaySearchObjects
-                  .map((q) => {
-                    if (currentQuestData) {
-                      const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
-                      if (searchItemData) q.current = searchItemData.current;
-                    }
-                    const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
 
-                    return html` <div class="in">
-                      ${renderViewTitle({
-                        'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
-                        assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
-                        text: html`<div class="fl">
-                          <div class="in fll" style="width: 60%">
-                            <span style="color: #ffcc00;">${q.id}</span>
-                          </div>
-                          <div class="in fll" style="width: 40%">
-                            <span class="modal-${questData.id}-${q.id}-current">${q.current}</span> /
-                            <span> ${q.quantity}</span>
-                          </div>
-                        </div>`,
-                        dim: 30,
-                        top: -3,
-                      })}
-                    </div>`;
-                  })
+              <div class="in section-mp" style="text-align: center;">
+                ${range(0, questData.maxStep)
+                  .map(
+                    (i) => html`
+                      ${i !== 0 && i % 4 === 0 ? html`<br />` : ''}
+                      <div
+                        class="inl quest-step-box quest-step-box-${i} ${i === currentStep
+                          ? ''
+                          : `quest-step-box-disable`}"
+                      >
+                        <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/util/step.png" />
+                        <div class="abs center">${i + 1}</div>
+                      </div>
+                    `,
+                  )
                   .join('')}
+                <div class="inl quest-step-box quest-step-box-complete quest-step-box-disable">
+                  <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/ui-icons/star.png" />
+                </div>
+              </div>
+
+              <div class="in section-mp">
+                ${range(0, questData.maxStep)
+                  .map(
+                    (i) => html`
+                      <div class="in step-progress-container-${i} ${i === currentStep ? '' : 'hide'}">
+                        ${questData.displaySearchObjects
+                          .map((q) => {
+                            if (q.step !== i) return '';
+                            if (currentQuestData) {
+                              const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
+                              if (searchItemData) q.current = searchItemData.current;
+                            }
+                            const searchObjectQuestSpriteData = QuestComponent.components.find(
+                              (s) => s.displayId === q.id,
+                            );
+
+                            return html` <div class="in">
+                              ${renderViewTitle({
+                                'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
+                                assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
+                                text: html`<div class="fl">
+                                  <div class="in fll" style="width: 60%">
+                                    <span style="color: #ffcc00;">${q.id}</span>
+                                  </div>
+                                  <div class="in fll" style="width: 40%">
+                                    <span class="modal-${questData.id}-${q.id}-current">${q.current}</span> /
+                                    <span> ${q.quantity}</span>
+                                  </div>
+                                </div>`,
+                                dim: 30,
+                                top: -3,
+                              })}
+                            </div>`;
+                          })
+                          .join('')}
+                      </div>
+                    `,
+                  )
+                  .join('')}
+
                 <br />
               </div>
             </div>
@@ -502,6 +546,20 @@ const QuestManagementCyberia = {
       slideMenu: 'modal-menu',
     });
 
+    for (const step of range(0, questData.maxStep)) {
+      s(`.quest-step-box-${step}`).onclick = () => {
+        for (const step0 of range(0, questData.maxStep)) {
+          if (step === step0) {
+            s(`.quest-step-box-${step0}`).classList.remove(`quest-step-box-disable`);
+            s(`.step-progress-container-${step0}`).classList.remove(`hide`);
+          } else if (!s(`.quest-step-box-${step0}`).classList.contains(`quest-step-box-disable`)) {
+            s(`.quest-step-box-${step0}`).classList.add(`quest-step-box-disable`);
+            s(`.step-progress-container-${step0}`).classList.add(`hide`);
+          }
+        }
+      };
+    }
+
     Keyboard.Event[`quest-close-modal`] = {
       F: () => (s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null),
       f: () => (s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null),
@@ -530,6 +588,7 @@ const QuestManagementCyberia = {
       s(`.btn-dismiss-quest-${idModal}`).classList.remove('hide');
       s(`.btn-ok-quest-${idModal}`).classList.add('hide');
       await this.takeQuest({ questData });
+      s(`.btn-close-${idModal}`).click();
     });
   },
   takeQuest: async function ({ questData }) {
@@ -552,9 +611,6 @@ const QuestManagementCyberia = {
       id: interactionPanelQuestId,
       questData,
     });
-    // post take quest
-    // interaction panel info and shortcut
-    // modal quest render
   },
   getIdPanelByQuestId: function ({ questData }) {
     for (const elementTargetId of Object.keys(ElementsCyberia.LocalDataScope['bot'])) {
@@ -564,6 +620,15 @@ const QuestManagementCyberia = {
       )
         return ElementsCyberia.LocalDataScope['bot'][elementTargetId].quest.idPanel;
     }
+  },
+  countQuestItems: function ({ type, id, displayId }) {
+    let count = 0;
+    for (const questData of ElementsCyberia.Data[type][id].model.quests)
+      for (const itemData of questData.displaySearchObjects.filter(
+        (o) => o.id === displayId && o.step === questData.currentStep,
+      ))
+        count += itemData.current;
+    return count;
   },
 };
 

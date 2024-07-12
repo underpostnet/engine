@@ -172,6 +172,8 @@ const InteractionPanelCyberia = {
         (s) => s.displayId === questData.provide.displayIds[0].id,
       );
 
+      const { currentStep } = questData;
+
       if (!s(`.quest-interaction-panel-${id}`))
         append(
           `.quest-interaction-panel-body`,
@@ -197,6 +199,7 @@ const InteractionPanelCyberia = {
         `.quest-interaction-panel-row-info-${id}`,
         html` ${questData.displaySearchObjects
           .map((q) => {
+            if (q.step !== currentStep) return;
             if (currentQuestData) {
               const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
               if (searchItemData) q.current = searchItemData.current;

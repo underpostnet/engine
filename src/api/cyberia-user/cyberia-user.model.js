@@ -128,8 +128,16 @@ const CyberiaUserSchema = new Schema({
       type: [
         {
           id: { type: String },
+          currentStep: { type: Number, default: 0 },
           displaySearchObjects: {
-            type: [{ id: { type: String }, quantity: { type: Number }, current: { type: Number, default: 0 } }],
+            type: [
+              {
+                id: { type: String },
+                quantity: { type: Number },
+                current: { type: Number, default: 0 },
+                step: { type: Number, default: 0 },
+              },
+            ],
             default: [],
           },
         },
