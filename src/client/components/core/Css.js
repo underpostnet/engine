@@ -197,6 +197,10 @@ const Css = {
             font-weight: bold;
           }
 
+          .m {
+            font-family: monospace;
+          }
+
           /*
 
           scrollbar

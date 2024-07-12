@@ -22,6 +22,7 @@ import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
 import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthcare.js';
+import { Wallet } from '../core/Wallet.js';
 
 const MenuNexodev = {
   Data: {},
@@ -159,6 +160,14 @@ const MenuNexodev = {
               text: html`${Translate.Render('healthcare-appointment')}`,
             }),
             attrs: `data-id="14"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-wallet',
+            label: renderMenuLabel({
+              icon: html` <i class="fas fa-wallet"></i>`,
+              text: html`${Translate.Render('wallet')}`,
+            }),
+            attrs: `data-id="15"`,
           })}
         </div>
       `,
@@ -305,6 +314,27 @@ const MenuNexodev = {
           text: Translate.Render('blog'),
         }),
         html: async () => await Blog.Render(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-wallet`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-wallet',
+        route: 'wallet',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-wallet"></i>`,
+          text: Translate.Render('wallet'),
+        }),
+        html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

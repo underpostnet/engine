@@ -1,5 +1,6 @@
 import { CryptoService } from '../../services/crypto/crypto.service.js';
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getId } from './CommonJs.js';
 import { dynamicCol } from './Css.js';
@@ -43,13 +44,15 @@ const Wallet = {
         const displayKeys = JSON.stringify({ privateKey, publicKey }, null, 4);
         htmls('.keys-display', displayKeys);
 
-        const result = await CryptoService.post({
-          body: {
-            data: JSON.stringify(publicKey),
-            format,
-            algorithm,
-          },
-        });
+        if (Auth.getToken()) {
+          const result = await CryptoService.post({
+            body: {
+              data: JSON.stringify(publicKey),
+              format,
+              algorithm,
+            },
+          });
+        }
 
         NotificationManager.Push({
           // html: Translate.Render(`${result.status}-generate-keys`),
@@ -74,7 +77,12 @@ const Wallet = {
         <div class="in fll wallet-${id}-col-a">
           <div class="in section-mp">
             <div class="in sub-title-modal"><i class="fas fa-key"></i> ECDSA Keys Management</div>
-            <div class="in section-mp sub-head-sub-title-modal">Elliptic Curve Digital Signature Algorithm Keys</div>
+            <div class="in section-mp m">
+              Client side elliptic curve digital signature Algorithm keys generator, (<a
+                href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto"
+                >SubtleCrypto</a
+              >) <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto">more info</a>.
+            </div>
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom btn-generate-keys-${id}`,
               label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render('generate')}
