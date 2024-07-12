@@ -60,8 +60,8 @@ const CyberiaWsUserController = {
             const dataSkin = CyberiaWsBotManagement.element[wsManagementId][element.id].components.skin.find(
               (s) => s.current,
             );
-            const questIndex = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests.findIndex((q) =>
-              q.displaySearchObjects.find((s) => s.id === dataSkin.displayId),
+            const questIndex = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests.findIndex(
+              (q) => q.id === args.questData.id && q.displaySearchObjects.find((s) => s.id === dataSkin.displayId),
             );
             if (questIndex >= 0) {
               const questData = CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex];
@@ -76,6 +76,7 @@ const CyberiaWsUserController = {
                   CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].disabled = true;
                   for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
                     if (
+                      elementId !== socket.id &&
                       objectEquals(
                         CyberiaWsUserManagement.element[wsManagementId][elementId].model.world,
                         CyberiaWsBotManagement.element[wsManagementId][element.id].model.world,

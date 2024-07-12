@@ -31,7 +31,7 @@ const CyberiaWorldSchema = new Schema({
             behavior: 'quest-passive',
             displayIds: [
               { id: 'agent', quantity: [1] },
-              { id: 'ayleen', quantity: [1] },
+              { id: 'ayleen', quantity: [3] },
               { id: 'punk', quantity: [1] },
             ],
           },

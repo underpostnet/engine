@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { SkillCyberiaData, Stat, getK } from './CommonCyberia.js';
+import { QuestComponent, SkillCyberiaData, Stat, getK } from './CommonCyberia.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -20,168 +20,54 @@ const logger = loggerFactory(import.meta);
 
 const ItemModal = {
   Render: async function (
-    options = { idModal: '', skin: { id: '' }, weapon: { id: '' }, breastplate: { id: '' }, skill: { id: '' } },
+    options = {
+      idModal: '',
+      item: { type: '', id: '' },
+    },
   ) {
-    const { idModal, skin, weapon, breastplate, skill } = options;
+    const { idModal, item } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
     setTimeout(async () => {
-      if (skin) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[skin.id](), { 'item type': 'skin' }));
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `equip.png`,
-              text: html`${Translate.Render('equip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-equip-skin-${idModal} inl wfa`,
-          })}
-          ${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `unequip.png`,
-              text: html`${Translate.Render('unequip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-unequip-skin-${idModal} inl wfa`,
-          })} `,
-        );
-        EventsUI.onClick(`.btn-equip-skin-${idModal}`, () => this.Equip.skin({ type: 'user', id: 'main', skin }));
-        EventsUI.onClick(`.btn-unequip-skin-${idModal}`, () => this.Unequip.skin({ type: 'user', id: 'main' }));
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id1}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skin/${skin.id}/08/0.png" /> `,
-        );
-      }
-      if (weapon) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[weapon.id](), { 'item type': 'weapon' }));
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `equip.png`,
-              text: html`${Translate.Render('equip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-equip-weapon-${idModal} inl wfa`,
-          })}
-          ${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `unequip.png`,
-              text: html`${Translate.Render('unequip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-unequip-weapon-${idModal} inl wfa`,
-          })} `,
-        );
-        EventsUI.onClick(`.btn-equip-weapon-${idModal}`, () => this.Equip.weapon({ type: 'user', id: 'main', weapon }));
-        EventsUI.onClick(`.btn-unequip-weapon-${idModal}`, () => this.Unequip.weapon({ type: 'user', id: 'main' }));
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id1}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/weapon/${weapon.id}/animation.gif" /> `,
-        );
-      }
-      if (breastplate) {
-        htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[breastplate.id](), { 'item type': 'breastplate' }));
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `equip.png`,
-              text: html`${Translate.Render('equip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-equip-breastplate-${idModal} inl wfa`,
-          })}
-          ${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `unequip.png`,
-              text: html`${Translate.Render('unequip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-unequip-breastplate-${idModal} inl wfa`,
-          })} `,
-        );
-        EventsUI.onClick(`.btn-equip-breastplate-${idModal}`, () =>
-          this.Equip.breastplate({ type: 'user', id: 'main', breastplate }),
-        );
-        EventsUI.onClick(`.btn-unequip-breastplate-${idModal}`, () =>
-          this.Unequip.breastplate({ type: 'user', id: 'main' }),
-        );
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id1}-render-col-a`,
-          html`
-            <img class="in item-modal-img" src="${getProxyPath()}assets/breastplate/${breastplate.id}/animation.gif" />
-          `,
-        );
-      }
-      if (skill) {
-        htmls(
-          `.${id0}-render-col-a`,
-          this.RenderStat(Stat.get[skill.id](), { 'item type': `${SkillCyberiaData[skill.id].type} skill` }),
-        );
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id0}-render-col-b`,
-          html`${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `equip.png`,
-              text: html`${Translate.Render('equip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-equip-skill-${idModal} inl wfa`,
-          })}
-          ${await BtnIcon.Render({
-            label: renderViewTitle({
-              'ui-icon': `unequip.png`,
-              text: html`${Translate.Render('unequip')}`,
-              dim: 30,
-              top: 4,
-            }),
-            type: 'button',
-            class: `btn-unequip-skill-${idModal} inl wfa`,
-          })} `,
-        );
-        EventsUI.onClick(`.btn-equip-skill-${idModal}`, () => this.Equip.skill({ type: 'user', id: 'main', skill }));
-        EventsUI.onClick(`.btn-unequip-skill-${idModal}`, () =>
-          this.Unequip.skill({ type: 'user', id: 'main', skill }),
-        );
-        // -----------------------------------------------------------
-        // -----------------------------------------------------------
-        htmls(
-          `.${id1}-render-col-a`,
-          html` <img class="in item-modal-img" src="${getProxyPath()}assets/skill/${skill.id}/animation.gif" /> `,
-        );
-      }
+      htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[item.id](), { 'item type': item.type }));
+      htmls(
+        `.${id0}-render-col-b`,
+        html`${await BtnIcon.Render({
+          label: renderViewTitle({
+            'ui-icon': `equip.png`,
+            text: html`${Translate.Render('equip')}`,
+            dim: 30,
+            top: 4,
+          }),
+          type: 'button',
+          class: `btn-equip-${item.type}-${idModal} inl wfa`,
+        })}
+        ${await BtnIcon.Render({
+          label: renderViewTitle({
+            'ui-icon': `unequip.png`,
+            text: html`${Translate.Render('unequip')}`,
+            dim: 30,
+            top: 4,
+          }),
+          type: 'button',
+          class: `btn-unequip-${item.type}-${idModal} inl wfa`,
+        })} `,
+      );
+      EventsUI.onClick(`.btn-equip-${item.type}-${idModal}`, () => {
+        const payload = { type: 'user', id: 'main' };
+        payload[item.type] = item;
+        this.Equip[item.type](payload);
+      });
+      EventsUI.onClick(`.btn-unequip-${item.type}-${idModal}`, () => {
+        const payload = { type: 'user', id: 'main' };
+        payload[item.type] = item;
+        this.Unequip[item.type](payload);
+      });
+      htmls(
+        `.${id1}-render-col-a`,
+        html` <img class="in item-modal-img" src="${getProxyPath()}assets/${item.type}/${item.id}/08/0.png" /> `,
+      );
     });
     return html`
       ${dynamicCol({ containerSelector: id0, id: id0, type: 'a-50-b-50', limit: 500 })}
@@ -386,6 +272,46 @@ const ItemModal = {
 const SlotEvents = {};
 
 const Slot = {
+  questItem: {
+    render: function ({ slotId, displayId, disabledCount }) {
+      SlotEvents[slotId] = {};
+      if (!s(`.${slotId}`)) return;
+      let count = 0;
+
+      if (!disabledCount)
+        for (const questData of ElementsCyberia.Data.user.main.model.quests)
+          for (const itemData of questData.displaySearchObjects.filter((o) => o.id === displayId))
+            count += itemData.current;
+
+      if (count === 0) return;
+
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count">
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
+            </div>
+          </div>
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/quest/${displayId}/animation.gif" />
+          <div class="in bag-slot-type-text">quest item</div>
+          <div class="in bag-slot-name-text">${displayId}</div>
+        `,
+      );
+    },
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
+      const setQuestItem = uniqueArray(
+        ElementsCyberia.Data.user.main.model.quests.map((q) => q.displaySearchObjects.map((s) => s.id)).flat(),
+      );
+
+      for (const displayId of setQuestItem) {
+        const slotId = `${bagId}-${indexBagCyberia}`;
+        this.render({ slotId, displayId });
+        indexBagCyberia++;
+      }
+      return indexBagCyberia;
+    },
+  },
   coin: {
     renderBagCyberiaSlots: ({ bagId, indexBagCyberia, quantity }) => {
       htmls(
@@ -436,7 +362,10 @@ const Slot = {
             img: `${getProxyPath()}assets/skin/${displayId}/08/0.png`,
             text: html`${displayId}`,
           }),
-          html: html`${await ItemModal.Render({ idModal: `modal-skin-${slotId}`, skin: { id: displayId } })}`,
+          html: html`${await ItemModal.Render({
+            idModal: `modal-skin-${slotId}`,
+            item: { type: 'skin', id: displayId },
+          })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
           maximize: Modal.mobileModal(),
@@ -480,7 +409,10 @@ const Slot = {
             img: `${getProxyPath()}assets/weapon/${displayId}/animation.gif`,
             text: html`${displayId}`,
           }),
-          html: html`${await ItemModal.Render({ idModal: `modal-weapon-${slotId}`, weapon: { id: displayId } })}`,
+          html: html`${await ItemModal.Render({
+            idModal: `modal-weapon-${slotId}`,
+            item: { type: 'weapon', id: displayId },
+          })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
           maximize: Modal.mobileModal(),
@@ -526,7 +458,7 @@ const Slot = {
           }),
           html: html`${await ItemModal.Render({
             idModal: `modal-breastplate-${slotId}`,
-            breastplate: { id: displayId },
+            item: { type: 'breastplate', id: displayId },
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
@@ -573,7 +505,7 @@ const Slot = {
           }),
           html: html`${await ItemModal.Render({
             idModal: `modal-skill-${slotId}`,
-            skill: { id: displayId },
+            item: { type: 'skill', id: displayId },
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
@@ -765,6 +697,7 @@ const BagCyberia = {
       indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.questItem.renderBagCyberiaSlots({ bagId, indexBagCyberia });
     });
     return html`
       <div class="fl ${bagId}">

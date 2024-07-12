@@ -80,8 +80,7 @@ const SocketIoCyberia = {
               }
               break;
             case 'disconnect':
-              PixiCyberia.removeElement({ type, id });
-              delete ElementsCyberia.Data[type][id];
+              this.disconnect({ type, id });
               break;
             case 'connection':
               ElementsCyberia.Init({ type, id, element });
@@ -134,6 +133,10 @@ const SocketIoCyberia = {
     if (options && options.server) setURI('/' + options.server);
     await SocketIo.Init({ channels: ElementsCyberia.Data });
     return await this.Init();
+  },
+  disconnect: async function ({ type, id }) {
+    PixiCyberia.removeElement({ type, id });
+    ElementsCyberia.remove({ type, id });
   },
 };
 

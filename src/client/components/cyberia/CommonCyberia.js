@@ -247,7 +247,7 @@ const QuestComponent = {
           },
         ],
         provide: {
-          displayIds: [{ id: 'ayleen', quantity: [1] }],
+          displayIds: [{ id: 'ayleen', quantity: [2] }],
         },
         icon: {
           folder: 'quest/bone',
@@ -271,18 +271,70 @@ const QuestComponent = {
         },
       };
     },
+    'floki-bone-0': () => {
+      return {
+        type: 'search',
+        displaySearchObjects: [{ id: 'bone-brown', quantity: 5, current: 0 }],
+        reward: [
+          {
+            type: 'coin',
+            quantity: 50,
+          },
+        ],
+        provide: {
+          displayIds: [{ id: 'ayleen', quantity: [1] }],
+        },
+        icon: {
+          folder: 'quest/bone',
+          id: 'animation.gif',
+        },
+        title: {
+          en: `floki's bone 0`,
+          es: 'Huesos de floki 0',
+        },
+        shortDescription: {
+          en: `Please find Floki's bone 0`,
+          es: 'Por favor encuentra los huesos de floki 0',
+        },
+        description: {
+          en: `Please find Floki's bone 0`,
+          es: 'Por favor encuentra los huesos de floki 0',
+        },
+        successDescription: {
+          en: ``,
+          es: '',
+        },
+      };
+    },
   },
   getQuestByDisplayId: function ({ displayId }) {
     const questData = [];
     for (const id of Object.keys(this.Data)) {
-      if (this.Data[id]().provide.displayIds.find((q) => q.id === displayId)) {
-        questData.push({ id, ...this.Data[id](), keyContext: 'provide' });
-      }
+      const provideDemand = this.Data[id]().provide.displayIds.filter((q) => q.id === displayId);
+
+      if (provideDemand.length > 0)
+        for (const demandUnit of range(0, provideDemand.reduce((sum, el) => sum + el.quantity[0], 0) - 1))
+          questData.push({ id, ...this.Data[id](), demandUnit });
+
+      // if (this.Data[id]().provide.displayIds.find((q) => q.id === displayId)) {
+      //   questData.push({ id, ...this.Data[id]() });
+      // }
       if (this.Data[id]().displaySearchObjects.find((q) => q.id === displayId)) {
-        questData.push({ id, ...this.Data[id](), keyContext: 'displaySearchObjects' });
+        questData.push({ id, ...this.Data[id]() });
       }
     }
     return questData;
+  },
+  componentsScope: {
+    bone: {
+      questKeyContext: 'displaySearchObjects',
+    },
+    'bone-brown': {
+      questKeyContext: 'displaySearchObjects',
+    },
+    ayleen: {
+      questKeyContext: 'provide',
+    },
   },
   components: [
     {

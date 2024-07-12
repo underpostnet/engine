@@ -73,13 +73,24 @@ const ElementsCyberia = {
     for (const type of Object.keys(this.Data)) {
       for (const id of Object.keys(this.Data[type])) {
         if (this.Interval[type] && this.Interval[type][id]) {
-          for (const interval of Object.keys(this.Interval[type][id])) clearInterval(this.Interval[type][id][interval]);
+          this.removeInterval({ type, id });
         }
       }
     }
     this.Interval = {};
     this.Data = BaseElement();
     WorldCyberiaManagement.Data = {};
+  },
+  remove: function ({ type, id }) {
+    if (this.Interval[type]) this.removeInterval({ type, id });
+    if (this.Data[type]) delete this.Data[type][id];
+    if (this.LocalDataScope[type]) delete this.LocalDataScope[type][id];
+    if (WorldCyberiaManagement.Data[type]) delete WorldCyberiaManagement.Data[type][id];
+  },
+  removeInterval: function ({ type, id }) {
+    if (!this.Interval[type][id]) return;
+    for (const interval of Object.keys(this.Interval[type][id])) clearInterval(this.Interval[type][id][interval]);
+    delete this.Interval[type][id];
   },
 };
 
