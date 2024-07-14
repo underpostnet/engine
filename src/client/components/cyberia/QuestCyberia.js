@@ -9,7 +9,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
 import { Slot } from './BagCyberia.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
@@ -159,14 +159,11 @@ const QuestManagementCyberia = {
                           (q) => q.id === questData.id,
                         );
                         if (currentQuestDataIndex >= 0) {
+                          let currentStep =
+                            ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep;
                           const displayIdIndex = ElementsCyberia.Data.user['main'].model.quests[
                             currentQuestDataIndex
-                          ].displaySearchObjects.findIndex(
-                            (o) =>
-                              o.id === displayId &&
-                              o.step ===
-                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep,
-                          );
+                          ].displaySearchObjects.findIndex((o) => o.id === displayId && o.step === currentStep);
                           if (displayIdIndex >= 0) {
                             const itemData =
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
@@ -188,16 +185,39 @@ const QuestManagementCyberia = {
                               });
                               if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
                                 htmls(
-                                  `.${questData.id}-${displayId}-current`,
+                                  `.${questData.id}-${displayId}-${currentStep}-current`,
                                   ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                     .displaySearchObjects[displayIdIndex].current,
                                 );
                               if (s(`.modal-panel-quest-${questData.id}`))
                                 htmls(
-                                  `.modal-${questData.id}-${displayId}-current`,
+                                  `.modal-${questData.id}-${displayId}-${currentStep}-current`,
                                   ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                     .displaySearchObjects[displayIdIndex].current,
                                 );
+
+                              const completeStep = QuestComponent.verifyCompleteQuestStep({
+                                questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+                              });
+                              if (completeStep) {
+                                const completeQuest = QuestComponent.verifyCompleteQuest({
+                                  questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+                                });
+                                if (completeQuest) {
+                                  console.error('complete quest');
+                                  return;
+                                }
+
+                                sa(
+                                  `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
+                                ).forEach((el) => el.classList.add('hide'));
+
+                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep++;
+
+                                sa(
+                                  `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
+                                ).forEach((el) => el.classList.remove('hide'));
+                              }
                             }
                           }
                         }
@@ -386,6 +406,7 @@ const QuestManagementCyberia = {
     if (currentQuestData) currentStep = currentQuestData.currentStep;
     const { barConfig } = await Themes[Css.currentTheme]();
     const idModal = `modal-panel-quest-${questData.id}`;
+    const componentData = QuestComponent.components.find((s) => s.displayId === questData.provide.displayIds[0].id);
 
     await Modal.Render({
       id: idModal,
@@ -439,7 +460,10 @@ const QuestManagementCyberia = {
                           .map((q) => {
                             if (q.step !== i) return '';
                             if (currentQuestData) {
-                              const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
+                              const searchItemData = currentQuestData.displaySearchObjects.find(
+                                (s) => s.id === q.id && s.step === i,
+                              );
+
                               if (searchItemData) q.current = searchItemData.current;
                             }
                             const searchObjectQuestSpriteData = QuestComponent.components.find(
@@ -455,7 +479,8 @@ const QuestManagementCyberia = {
                                     <span style="color: #ffcc00;">${q.id}</span>
                                   </div>
                                   <div class="in fll" style="width: 40%">
-                                    <span class="modal-${questData.id}-${q.id}-current">${q.current}</span> /
+                                    <span class="modal-${questData.id}-${q.id}-${q.step}-current">${q.current}</span>
+                                    /
                                     <span> ${q.quantity}</span>
                                   </div>
                                 </div>`,
@@ -535,7 +560,7 @@ const QuestManagementCyberia = {
               </div>
               <img
                 class="in quest-provide-img"
-                src="${getProxyPath()}assets/skin/${questData.provide.displayIds[0].id}/08/0.png"
+                src="${getProxyPath()}assets/skin/${componentData.displayId}/08/0.${componentData.extension}"
               />
             </div>
           </div>

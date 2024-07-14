@@ -197,27 +197,39 @@ const InteractionPanelCyberia = {
 
       htmls(
         `.quest-interaction-panel-row-info-${id}`,
-        html` ${questData.displaySearchObjects
-          .map((q) => {
-            if (q.step !== currentStep) return;
-            if (currentQuestData) {
-              const searchItemData = currentQuestData.displaySearchObjects.find((s) => s.id === q.id);
-              if (searchItemData) q.current = searchItemData.current;
-            }
+        html` ${range(0, questData.maxStep)
+          .map(
+            (i) =>
+              html`${questData.displaySearchObjects
+                .map((q) => {
+                  if (q.step !== i) return '';
+                  if (currentQuestData) {
+                    const searchItemData = currentQuestData.displaySearchObjects.find(
+                      (s) => s.id === q.id && s.step === i,
+                    );
+                    if (searchItemData) q.current = searchItemData.current;
+                  }
 
-            const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
+                  const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
 
-            return html`<div class="inl quest-interaction-panel-search-object-count">
-              ${renderViewTitle({
-                'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
-                assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
-                text: html`<span class="${questData.id}-${q.id}-current">${q.current}</span> /
-                  <span> ${q.quantity}</span>`,
-                dim: 20,
-                top: -2,
-              })}
-            </div>`;
-          })
+                  return html`<div
+                    class="inl quest-interaction-panel-search-object-count quest-panel-step-${questData.id}-${q.step} ${q.step !==
+                    currentStep
+                      ? 'hide'
+                      : ''}"
+                  >
+                    ${renderViewTitle({
+                      'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
+                      assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
+                      text: html`<span class="${questData.id}-${q.id}-${q.step}-current">${q.current}</span> /
+                        <span> ${q.quantity}</span>`,
+                      dim: 20,
+                      top: -2,
+                    })}
+                  </div>`;
+                })
+                .join('')}`,
+          )
           .join('')}`,
       );
 

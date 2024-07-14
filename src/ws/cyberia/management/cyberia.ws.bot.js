@@ -22,6 +22,7 @@ import {
   Stat,
   updateMovementDirection,
   QuestComponent,
+  DisplayComponent,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
@@ -59,10 +60,7 @@ const CyberiaWsBotManagement = {
       bot.components.skin.push({
         current: true,
         enabled: true,
-        displayId: skinId,
-        position: '08',
-        positions: PositionsComponent.default(),
-        assetFolder: 'skin',
+        ...DisplayComponent.get[skinId](),
       });
 
     bot.model.world.face = instanceIndex + 1;

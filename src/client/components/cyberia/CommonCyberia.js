@@ -98,6 +98,161 @@ const setElementConsistency = (type, element) => {
   return element;
 };
 
+const DisplayComponent = {
+  get: {
+    bone: () => {
+      return {
+        displayId: 'bone',
+        position: '08',
+        positions: PositionsComponent.frames1(),
+        velFrame: 250,
+        assetFolder: 'quest',
+        extension: 'gif',
+      };
+    },
+    'bone-brown': () => {
+      return {
+        displayId: 'bone-brown',
+        position: '08',
+        positions: PositionsComponent.frames1(),
+        velFrame: 250,
+        assetFolder: 'quest',
+        extension: 'gif',
+      };
+    },
+    ayleen: () => {
+      return {
+        displayId: 'ayleen',
+        position: '08',
+        positions: PositionsComponent.default(),
+        velFrame: 250,
+        assetFolder: 'skin',
+        extension: 'png',
+      };
+    },
+    anon: () => {
+      return {
+        displayId: 'anon',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    eiri: () => {
+      return {
+        displayId: 'eiri',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    'scp-2040': () => {
+      return {
+        displayId: 'scp-2040',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    ghost: () => {
+      return {
+        displayId: 'ghost',
+        position: '08',
+        positions: PositionsComponent.ghost(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    purple: () => {
+      return {
+        displayId: 'purple',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    agent: () => {
+      return {
+        displayId: 'agent',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    kishins: () => {
+      return {
+        displayId: 'kishins',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    punk: () => {
+      return {
+        displayId: 'punk',
+        position: '08',
+        positions: PositionsComponent.default(),
+        assetFolder: 'skin',
+        velFrame: 250,
+        extension: 'png',
+      };
+    },
+    'tim-knife': () => {
+      return {
+        displayId: 'tim-knife',
+        position: '08',
+        positions: PositionsComponent['frames3'](),
+        velFrame: 250,
+        assetFolder: 'weapon',
+        extension: 'gif',
+      };
+    },
+    'brown-wing': () => {
+      return {
+        displayId: 'brown-wing',
+        position: '08',
+        positions: PositionsComponent.wing(),
+        velFrame: 250,
+        assetFolder: 'breastplate',
+        extension: 'png',
+      };
+    },
+    'red-power': () => {
+      return {
+        displayId: 'red-power',
+        position: '08',
+        positions: PositionsComponent['frames3'](),
+        velFrame: 250,
+        assetFolder: 'skill',
+        extension: 'png',
+      };
+    },
+    'green-power': () => {
+      return {
+        displayId: 'green-power',
+        position: '08',
+        positions: PositionsComponent['frames3'](),
+        velFrame: 250,
+        assetFolder: 'skill',
+        extension: 'png',
+      };
+    },
+  },
+};
+
 const Stat = {
   get: {
     anon: () => {
@@ -331,6 +486,14 @@ const QuestComponent = {
     }
     return questData;
   },
+  verifyCompleteQuestStep: function ({ currentStep, questData }) {
+    if (!currentStep) currentStep = questData.currentStep;
+    return questData.displaySearchObjects.filter((s) => s.step === currentStep && s.current < s.quantity).length === 0;
+  },
+  verifyCompleteQuest: function ({ currentStep, questData }) {
+    if (!currentStep) currentStep = questData.currentStep;
+    return currentStep === this.Data[questData.id]().maxStep;
+  },
   componentsScope: {
     bone: {
       questKeyContext: 'displaySearchObjects',
@@ -342,35 +505,7 @@ const QuestComponent = {
       questKeyContext: 'provide',
     },
   },
-  components: [
-    {
-      displayId: 'bone',
-      position: '08',
-      positions: PositionsComponent.frames1(),
-      velFrame: 250,
-      enabled: false,
-      assetFolder: 'quest',
-      extension: 'gif',
-    },
-    {
-      displayId: 'bone-brown',
-      position: '08',
-      positions: PositionsComponent.frames1(),
-      velFrame: 250,
-      enabled: false,
-      assetFolder: 'quest',
-      extension: 'gif',
-    },
-    {
-      displayId: 'ayleen',
-      position: '08',
-      positions: PositionsComponent.default(),
-      velFrame: 250,
-      enabled: false,
-      assetFolder: 'skin',
-      extension: 'png',
-    },
-  ],
+  components: [DisplayComponent.get['bone'](), DisplayComponent.get['bone-brown'](), DisplayComponent.get['ayleen']()],
 };
 
 const ComponentElement = {
@@ -380,58 +515,13 @@ const ComponentElement = {
       components: {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [
-          {
-            displayId: 'anon',
-            position: '08',
-            positions: PositionsComponent.default(),
-            enabled: true,
-            current: true,
-            assetFolder: 'skin',
-          },
-          {
-            displayId: 'eiri',
-            position: '08',
-            positions: PositionsComponent.default(),
-            enabled: false,
-            assetFolder: 'skin',
-          },
-          {
-            displayId: 'scp-2040',
-            position: '08',
-            positions: PositionsComponent.default(),
-            enabled: false,
-            assetFolder: 'skin',
-          },
-          {
-            displayId: 'ghost',
-            position: '08',
-            positions: PositionsComponent.ghost(),
-            enabled: false,
-            assetFolder: 'skin',
-          },
+          { enabled: true, current: true, ...DisplayComponent.get['anon']() },
+          DisplayComponent.get['eiri'](),
+          DisplayComponent.get['scp-2040'](),
+          DisplayComponent.get['ghost'](),
         ],
-        weapon: [
-          {
-            displayId: 'tim-knife',
-            position: '08',
-            positions: PositionsComponent['frames3'](),
-            velFrame: 250,
-            enabled: false,
-            assetFolder: 'weapon',
-            extension: 'gif',
-          },
-        ],
-        breastplate: [
-          {
-            displayId: 'brown-wing',
-            position: '08',
-            positions: PositionsComponent.wing(),
-            velFrame: 250,
-            enabled: false,
-            assetFolder: 'breastplate',
-            extension: 'png',
-          },
-        ],
+        weapon: [DisplayComponent.get['tim-knife']()],
+        breastplate: [DisplayComponent.get['brown-wing']()],
         lifeBar: {},
         lifeIndicator: {},
         coinIndicator: {},
@@ -447,15 +537,7 @@ const ComponentElement = {
       behavior: 'user-hostile',
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skin: [
-          {
-            displayId: 'ghost',
-            position: '08',
-            positions: PositionsComponent.ghost(),
-            enabled: false,
-            assetFolder: 'skin',
-          },
-        ],
+        skin: [DisplayComponent.get['ghost']()],
         weapon: [],
         breastplate: [],
         lifeBar: {},
@@ -475,17 +557,7 @@ const ComponentElement = {
       },
       components: {
         background: [{ pixi: { tint: 'purple', visible: true }, enabled: false }],
-        skin: [
-          {
-            displayId: 'red-power',
-            position: '08',
-            positions: PositionsComponent['frames3'](),
-            velFrame: 250,
-            enabled: true,
-            assetFolder: 'skill',
-            current: true,
-          },
-        ],
+        skin: [{ enabled: true, current: true, ...DisplayComponent.get['red-power']() }],
         weapon: [],
         breastplate: [],
       },
@@ -882,4 +954,5 @@ export {
   BehaviorElement,
   CyberiaServer,
   getK,
+  DisplayComponent,
 };

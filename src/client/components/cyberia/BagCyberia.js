@@ -6,7 +6,7 @@ import { Css, Themes, borderChar, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
-import { QuestComponent, SkillCyberiaData, Stat, getK } from './CommonCyberia.js';
+import { DisplayComponent, QuestComponent, SkillCyberiaData, Stat, getK } from './CommonCyberia.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -67,7 +67,14 @@ const ItemModal = {
       });
       htmls(
         `.${id1}-render-col-a`,
-        html` <img class="in item-modal-img" src="${getProxyPath()}assets/${item.type}/${item.id}/08/0.png" /> `,
+        html`
+          <img
+            class="in item-modal-img"
+            src="${getProxyPath()}assets/${item.type}/${item.id}/${item.type === 'skin'
+              ? `08/0.${DisplayComponent.get[item.id]().extension}`
+              : `animation.gif`}"
+          />
+        `,
       );
     });
     return html`
@@ -344,6 +351,7 @@ const Slot = {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       const count = ElementsCyberia.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
+      const componentData = ElementsCyberia.Data.user.main.components.skin.find((s) => s.displayId === displayId);
       htmls(
         `.${slotId}`,
         html`
@@ -352,7 +360,10 @@ const Slot = {
               x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
-          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skin/${displayId}/08/0.png" />
+          <img
+            class="abs center bag-slot-img"
+            src="${getProxyPath()}assets/skin/${displayId}/08/0.${componentData.extension}"
+          />
           <div class="in bag-slot-type-text">skin</div>
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
@@ -363,7 +374,7 @@ const Slot = {
           id: `modal-skin-${slotId}`,
           barConfig,
           title: renderViewTitle({
-            img: `${getProxyPath()}assets/skin/${displayId}/08/0.png`,
+            img: `${getProxyPath()}assets/skin/${displayId}/08/0.${componentData.extension}`,
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({

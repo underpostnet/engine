@@ -1,5 +1,5 @@
 import { objectEquals } from '../../../client/components/core/CommonJs.js';
-import { BaseElement, Stat } from '../../../client/components/cyberia/CommonCyberia.js';
+import { BaseElement, QuestComponent, Stat } from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
@@ -76,6 +76,24 @@ const CyberiaWsUserController = {
                 if (itemData.current < itemData.quantity) {
                   CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex]
                     .displaySearchObjects[itemQuestIndex].current++;
+
+                  const completeStep = QuestComponent.verifyCompleteQuestStep({
+                    questData: CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex],
+                  });
+
+                  if (completeStep) {
+                    const completeQuest = QuestComponent.verifyCompleteQuest({
+                      questData: CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex],
+                    });
+
+                    if (completeQuest) {
+                      CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[
+                        questIndex
+                      ].complete = true;
+                    } else {
+                      CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex].currentStep++;
+                    }
+                  }
 
                   CyberiaWsBotManagement.localElementScope[wsManagementId][element.id].disabled = true;
                   for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {

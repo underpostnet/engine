@@ -1,7 +1,18 @@
 import { Schema, model } from 'mongoose';
-import { PositionsComponent } from '../../client/components/cyberia/CommonCyberia.js';
+import { DisplayComponent, PositionsComponent } from '../../client/components/cyberia/CommonCyberia.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
+
+const DisplaySchema = new Schema({
+  displayId: { type: String },
+  current: { type: Boolean },
+  enabled: { type: Boolean },
+  position: { type: String },
+  positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+  assetFolder: { type: String },
+  extension: { type: String },
+  velFrame: { type: Number },
+});
 
 const CyberiaUserSchema = new Schema({
   x: { type: Number, default: 1 },
@@ -35,68 +46,19 @@ const CyberiaUserSchema = new Schema({
   },
   components: {
     skin: {
-      type: [
-        {
-          displayId: { type: String },
-          current: { type: Boolean },
-          enabled: { type: Boolean },
-          position: { type: String },
-          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
-          assetFolder: { type: String },
-          extension: { type: String },
-        },
-      ],
+      type: [DisplaySchema],
       default: [
-        {
-          displayId: 'anon',
-          position: '08',
-          positions: PositionsComponent.default(),
-          enabled: true,
-          current: true,
-          assetFolder: 'skin',
-        },
-        {
-          displayId: 'eiri',
-          position: '08',
-          positions: PositionsComponent.default(),
-          enabled: false,
-          assetFolder: 'skin',
-        },
-        {
-          displayId: 'ghost',
-          position: '08',
-          positions: PositionsComponent.ghost(),
-          enabled: false,
-          assetFolder: 'skin',
-        },
+        { enabled: true, current: true, ...DisplayComponent.get['anon']() },
+        DisplayComponent.get['eiri'](),
+        DisplayComponent.get['ghost'](),
       ],
     },
     weapon: {
-      type: [
-        {
-          displayId: { type: String },
-          current: { type: Boolean },
-          enabled: { type: Boolean },
-          position: { type: String },
-          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
-          assetFolder: { type: String },
-          extension: { type: String },
-        },
-      ],
+      type: [DisplaySchema],
       default: [],
     },
     breastplate: {
-      type: [
-        {
-          displayId: { type: String },
-          current: { type: Boolean },
-          enabled: { type: Boolean },
-          position: { type: String },
-          positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
-          assetFolder: { type: String },
-          extension: { type: String },
-        },
-      ],
+      type: [DisplaySchema],
       default: [],
     },
     background: {
@@ -129,6 +91,7 @@ const CyberiaUserSchema = new Schema({
         {
           id: { type: String },
           currentStep: { type: Number, default: 0 },
+          complete: { type: Boolean, default: false },
           displaySearchObjects: {
             type: [
               {
