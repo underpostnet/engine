@@ -9,7 +9,7 @@ const NameApp = html`BMS`;
 const RoutesBms = () => {
   return {
     '/': {
-      title: 'Home',
+      title: 'BMS | Streamline Your Brokerage Operations with Our Powerful Management System',
       render: () => s(`.main-btn-home`).click(),
       upperCase: false,
     },
