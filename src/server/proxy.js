@@ -8,7 +8,7 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
-import { newInstance, orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
+import { newInstance, orderArrayFromAttrInt, range } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
 
 dotenv.config();
@@ -22,41 +22,43 @@ const buildSSL = async (host) => {
 
   for (const folderHost of files)
     if (folderHost.match(host)) {
-      const privateKeyPath = `${sslPath}/${folderHost}/privkey.pem`;
-      const certificatePath = `${sslPath}/${folderHost}/cert.pem`;
-      const caPath = `${sslPath}/${folderHost}/chain.pem`;
-      const caFullPath = `${sslPath}/${folderHost}/fullchain.pem`;
+      for (const i of [''].concat(range(1, 10))) {
+        const privateKeyPath = `${sslPath}/${folderHost}/privkey${i}.pem`;
+        const certificatePath = `${sslPath}/${folderHost}/cert${i}.pem`;
+        const caPath = `${sslPath}/${folderHost}/chain${i}.pem`;
+        const caFullPath = `${sslPath}/${folderHost}/fullchain${i}.pem`;
 
-      if (
-        fs.existsSync(privateKeyPath) &&
-        fs.existsSync(certificatePath) &&
-        fs.existsSync(caPath) &&
-        fs.existsSync(caFullPath)
-      ) {
-        const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
-        const certificate = fs.readFileSync(certificatePath, 'utf8');
-        const ca = fs.readFileSync(caPath, 'utf8');
-        const caFull = fs.readFileSync(caFullPath, 'utf8');
+        if (
+          fs.existsSync(privateKeyPath) &&
+          fs.existsSync(certificatePath) &&
+          fs.existsSync(caPath) &&
+          fs.existsSync(caFullPath)
+        ) {
+          const privateKey = fs.readFileSync(privateKeyPath, 'utf8');
+          const certificate = fs.readFileSync(certificatePath, 'utf8');
+          const ca = fs.readFileSync(caPath, 'utf8');
+          const caFull = fs.readFileSync(caFullPath, 'utf8');
 
-        logger.info(`SSL files update`, {
-          privateKey,
-          certificate,
-          ca,
-          caFull,
-        });
+          logger.info(`SSL files update`, {
+            privateKey,
+            certificate,
+            ca,
+            caFull,
+          });
 
-        if (!fs.existsSync(`./engine-private/ssl/${host}`))
-          fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
+          if (!fs.existsSync(`./engine-private/ssl/${host}`))
+            fs.mkdirSync(`./engine-private/ssl/${host}`, { recursive: true });
 
-        fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
-        fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
-        fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, caFull, 'utf8');
+          fs.writeFileSync(`./engine-private/ssl/${host}/key.key`, privateKey, 'utf8');
+          fs.writeFileSync(`./engine-private/ssl/${host}/crt.crt`, certificate, 'utf8');
+          fs.writeFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, caFull, 'utf8');
 
-        fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
-        fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
+          fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
+          fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
 
-        fs.removeSync(`${sslPath}/${folderHost}`);
-        return true;
+          fs.removeSync(`${sslPath}/${folderHost}`);
+          return true;
+        }
       }
     }
   return false;
