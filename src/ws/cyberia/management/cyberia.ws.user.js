@@ -10,6 +10,7 @@ const CyberiaWsUserManagement = {
   updateCyberiaUser: async function (wsManagementId, timeInterval) {
     /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
     const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
+
     await timer(timeInterval);
     for (const elementId of Object.keys(this.element[wsManagementId])) {
       const element = this.element[wsManagementId][elementId];
@@ -18,6 +19,10 @@ const CyberiaWsUserManagement = {
             const saveElement = setElementConsistency('user', element);
             const result = await CyberiaUser.findByIdAndUpdate(element._id, saveElement, {
               runValidators: true,
+              // Create a document if one isn't found. Required
+              // for `setDefaultsOnInsert`
+              upsert: true,
+              setDefaultsOnInsert: true,
             });
           })()
         : null;
