@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { getRootDirectory } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { loadConf } from '../src/server/conf.js';
-import { buildSSL } from '../src/server/proxy.js';
+import { buildSSL } from '../src/server/ssl.js';
 
 dotenv.config();
 
