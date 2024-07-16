@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import https from 'https';
 import { loggerFactory } from './logger.js';
+import { range } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
