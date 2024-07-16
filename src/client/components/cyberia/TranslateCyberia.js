@@ -55,6 +55,14 @@ const TranslateCyberia = {
         Translate.Data[`${key}-title`] = QuestComponent.Data[key]().title;
         Translate.Data[`${key}-description`] = QuestComponent.Data[key]().description;
         Translate.Data[`${key}-shortDescription`] = QuestComponent.Data[key]().shortDescription;
+        Translate.Data[`${key}-successDescription`] = QuestComponent.Data[key]().successDescription;
+
+        QuestComponent.Data[key]().provide.displayIds.forEach((provideData) =>
+          provideData.stepData.forEach(
+            (stepData, i) =>
+              (Translate.Data[`${key}-completeDialog-step-${provideData.id}-${i}`] = stepData.completeDialog),
+          ),
+        );
       }
     }
   },

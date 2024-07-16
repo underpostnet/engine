@@ -153,7 +153,7 @@ const QuestManagementCyberia = {
                       };
 
                     if (s(`.action-panel-hand-${idPanel}`))
-                      s(`.action-panel-hand-${idPanel}`).onclick = () => {
+                      s(`.action-panel-hand-${idPanel}`).onclick = async () => {
                         if (handBlock[typeTarget][elementTargetId]) return;
                         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
                           (q) => q.id === questData.id,
@@ -204,13 +204,23 @@ const QuestManagementCyberia = {
                                   questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
                                 });
                                 if (completeQuest) {
-                                  console.error('complete quest');
+                                  await this.RenderModal({
+                                    questData,
+                                    interactionPanelQuestId,
+                                    completeQuest,
+                                  });
                                   return;
                                 }
 
                                 sa(
                                   `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
                                 ).forEach((el) => el.classList.add('hide'));
+
+                                await this.RenderModal({
+                                  questData,
+                                  interactionPanelQuestId,
+                                  completeStep,
+                                });
 
                                 ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep++;
 
@@ -392,7 +402,7 @@ const QuestManagementCyberia = {
       }
     }
   },
-  RenderModal: async function ({ questData, interactionPanelQuestId }) {
+  RenderModal: async function ({ questData, interactionPanelQuestId, completeStep, completeQuest }) {
     questData = {
       ...QuestComponent.Data[questData.id](),
       ...questData,
@@ -555,7 +565,17 @@ const QuestManagementCyberia = {
               <div class="in">
                 ${await renderBubbleDialog({
                   id: `${idModal}-bubble-description`,
-                  html: async () => html`${Translate.Render(`${questData.id}-description`)}`,
+                  html: async () =>
+                    html`${await typeWriter({
+                      id: idPanel + 'modal',
+                      html: html`${completeQuest !== undefined
+                        ? Translate.Render(`${questData.id}-successDescription`)
+                        : completeStep !== undefined
+                        ? Translate.Render(
+                            `${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`,
+                          )
+                        : Translate.Render(`${questData.id}-description`)}`,
+                    })}`,
                 })}
               </div>
               <img

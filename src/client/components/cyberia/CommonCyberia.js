@@ -396,8 +396,8 @@ const QuestComponent = {
         displaySearchObjects: [
           { id: 'bone', quantity: 2, current: 0, step: 0 },
           { id: 'bone-brown', quantity: 1, current: 0, step: 0 },
-          { id: 'bone', quantity: 3, current: 0, step: 1 },
-          { id: 'bone-brown', quantity: 3, current: 0, step: 1 },
+          { id: 'bone', quantity: 1, current: 0, step: 1 },
+          { id: 'bone-brown', quantity: 1, current: 0, step: 1 },
         ],
         reward: [
           {
@@ -406,7 +406,26 @@ const QuestComponent = {
           },
         ],
         provide: {
-          displayIds: [{ id: 'ayleen', quantity: [2] }],
+          displayIds: [
+            {
+              id: 'ayleen',
+              quantity: [2],
+              stepData: [
+                {
+                  completeDialog: {
+                    en: 'thank '.repeat(50),
+                    es: 'gracias! '.repeat(50),
+                  },
+                },
+                {
+                  completeDialog: {
+                    en: 'thank '.repeat(50),
+                    es: 'gracias! '.repeat(50),
+                  },
+                },
+              ],
+            },
+          ],
         },
         icon: {
           folder: 'quest/bone',
@@ -425,8 +444,8 @@ const QuestComponent = {
           es: 'Por favor encuentra los huesos de floki',
         },
         successDescription: {
-          en: ``,
-          es: '',
+          en: 'complete thank '.repeat(50),
+          es: 'complete gracias! '.repeat(50),
         },
       };
     },
@@ -443,7 +462,20 @@ const QuestComponent = {
           },
         ],
         provide: {
-          displayIds: [{ id: 'ayleen', quantity: [1] }],
+          displayIds: [
+            {
+              id: 'ayleen',
+              quantity: [1],
+              stepData: [
+                {
+                  completeDialog: {
+                    en: 'thank '.repeat(50),
+                    es: 'gracias! '.repeat(50),
+                  },
+                },
+              ],
+            },
+          ],
         },
         icon: {
           folder: 'quest/bone',
@@ -462,8 +494,8 @@ const QuestComponent = {
           es: 'Por favor encuentra los huesos de floki 0',
         },
         successDescription: {
-          en: ``,
-          es: '',
+          en: 'complete thank '.repeat(50),
+          es: 'complete gracias! '.repeat(50),
         },
       };
     },
@@ -492,7 +524,7 @@ const QuestComponent = {
   },
   verifyCompleteQuest: function ({ currentStep, questData }) {
     if (!currentStep) currentStep = questData.currentStep;
-    return currentStep === this.Data[questData.id]().maxStep;
+    return currentStep >= this.Data[questData.id]().maxStep;
   },
   componentsScope: {
     bone: {
