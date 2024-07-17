@@ -185,7 +185,15 @@ const InteractionPanelCyberia = {
                   'ui-icon': `0.${providerQuestSpriteData.extension}`,
                   // questData.icon.folder,
                   assetFolder: `${providerQuestSpriteData.assetFolder}/${providerQuestSpriteData.displayId}/${providerQuestSpriteData.position}`,
-                  text: html`${Translate.Render(`${questData.id}-title`)}`,
+                  text: html`<div
+                      class="inl quest-interaction-panel-containers-step quest-interaction-panel-search-object-count"
+                    >
+                      <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/util/step.png" />
+                      <div class="abs center quest-interaction-panel-current-step-${questData.id}">
+                        ${currentStep + 1}
+                      </div>
+                    </div>
+                    ${Translate.Render(`${questData.id}-title`)}`,
                   dim: 20,
                   top: -2,
                 })}

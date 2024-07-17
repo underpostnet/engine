@@ -227,6 +227,11 @@ const QuestManagementCyberia = {
                                 sa(
                                   `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
                                 ).forEach((el) => el.classList.remove('hide'));
+
+                                htmls(
+                                  `.quest-interaction-panel-current-step-${questData.id}`,
+                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep + 1,
+                                );
                               }
                             }
                           }

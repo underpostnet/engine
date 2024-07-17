@@ -125,6 +125,11 @@ const CssCommonCyberia = async () => {
         /* width: 100% !important;
         height: 100% !important; */
       }
+      .quest-interaction-panel-containers-step {
+        width: 20px;
+        height: 20px;
+        top: -14px;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
@@ -700,6 +705,7 @@ const CssCyberiaDark = {
           '.quest-keyboard-bubble-info',
           '.quest-step-box',
         ])}
+        ${borderChar(1, 'black', ['.quest-interaction-panel-containers-step'])}
         ${borderChar(2, 'yellow', ['.text-icon'])}
       `
     );
