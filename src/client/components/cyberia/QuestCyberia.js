@@ -418,6 +418,10 @@ const QuestManagementCyberia = {
     const idModal = `modal-panel-quest-${questData.id}`;
     const componentData = QuestComponent.components.find((s) => s.displayId === questData.provide.displayIds[0].id);
 
+    let completeQuestStatic = false;
+    if (currentQuestData && !completeQuest)
+      completeQuestStatic = QuestComponent.verifyCompleteQuest({ questData: currentQuestData });
+
     await Modal.Render({
       id: idModal,
       barConfig,
@@ -446,18 +450,33 @@ const QuestManagementCyberia = {
                     (i) => html`
                       ${i !== 0 && i % 4 === 0 ? html`<br />` : ''}
                       <div
-                        class="inl quest-step-box quest-step-box-${i} ${i === currentStep
+                        class="inl quest-step-box quest-step-box-${questData.id}-${i} ${i === currentStep
                           ? ''
-                          : `quest-step-box-disable`}"
+                          : `quest-step-box-disable`} ${!completeQuestStatic && currentStep < i ? 'gray' : ''}"
                       >
                         <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/util/step.png" />
                         <div class="abs center">${i + 1}</div>
+                        <img
+                          class="abs quest-step-check-img quest-step-check-img-${questData.id}-${i} ${!completeQuestStatic &&
+                          currentStep <= i
+                            ? 'hide'
+                            : ''}"
+                          src="${getProxyPath()}assets/ui-icons/check.png"
+                        />
                       </div>
                     `,
                   )
                   .join('')}
-                <div class="inl quest-step-box quest-step-box-complete quest-step-box-disable">
+                <div
+                  class="inl quest-step-box quest-step-box-${questData.id}-${questData.maxStep +
+                  1} quest-step-box-disable ${!completeQuestStatic ? 'gray' : ''}"
+                >
                   <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/ui-icons/star.png" />
+                  <img
+                    class="abs quest-step-check-img quest-step-check-img-${questData.id}-${questData.maxStep +
+                    1} ${!completeQuestStatic ? 'hide' : ''}"
+                    src="${getProxyPath()}assets/ui-icons/check.png"
+                  />
                 </div>
               </div>
 
@@ -465,7 +484,7 @@ const QuestManagementCyberia = {
                 ${range(0, questData.maxStep)
                   .map(
                     (i) => html`
-                      <div class="in step-progress-container-${i} ${i === currentStep ? '' : 'hide'}">
+                      <div class="in step-progress-container-${questData.id}-${i} ${i === currentStep ? '' : 'hide'}">
                         ${questData.displaySearchObjects
                           .map((q) => {
                             if (q.step !== i) return '';
@@ -568,7 +587,7 @@ const QuestManagementCyberia = {
                   html: async () =>
                     html`${await typeWriter({
                       id: idPanel + 'modal',
-                      html: html`${completeQuest !== undefined
+                      html: html`${completeQuest !== undefined || completeQuestStatic
                         ? Translate.Render(`${questData.id}-successDescription`)
                         : completeStep !== undefined
                         ? Translate.Render(
@@ -591,19 +610,35 @@ const QuestManagementCyberia = {
       slideMenu: 'modal-menu',
     });
 
-    for (const step of range(0, questData.maxStep)) {
-      s(`.quest-step-box-${step}`).onclick = () => {
-        for (const step0 of range(0, questData.maxStep)) {
+    for (const step of range(0, questData.maxStep + 1)) {
+      s(`.quest-step-box-${questData.id}-${step}`).onclick = () => {
+        for (const step0 of range(0, questData.maxStep + 1)) {
           if (step === step0) {
-            s(`.quest-step-box-${step0}`).classList.remove(`quest-step-box-disable`);
-            s(`.step-progress-container-${step0}`).classList.remove(`hide`);
-          } else if (!s(`.quest-step-box-${step0}`).classList.contains(`quest-step-box-disable`)) {
-            s(`.quest-step-box-${step0}`).classList.add(`quest-step-box-disable`);
-            s(`.step-progress-container-${step0}`).classList.add(`hide`);
+            s(`.quest-step-box-${questData.id}-${step0}`).classList.remove(`quest-step-box-disable`);
+            if (s(`.step-progress-container-${questData.id}-${step0}`))
+              s(`.step-progress-container-${questData.id}-${step0}`).classList.remove(`hide`);
+          } else if (!s(`.quest-step-box-${questData.id}-${step0}`).classList.contains(`quest-step-box-disable`)) {
+            s(`.quest-step-box-${questData.id}-${step0}`).classList.add(`quest-step-box-disable`);
+            if (s(`.step-progress-container-${questData.id}-${step0}`))
+              s(`.step-progress-container-${questData.id}-${step0}`).classList.add(`hide`);
           }
         }
       };
     }
+
+    if (completeStep || completeQuest)
+      setTimeout(() => {
+        for (const i of range(0, currentStep)) {
+          s(`.quest-step-box-${questData.id}-${i}`).classList.remove('gray');
+          s(`.quest-step-check-img-${questData.id}-${i}`).classList.remove('hide');
+        }
+
+        s(`.quest-step-box-${questData.id}-${currentStep + 1}`).classList.remove('gray');
+        s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
+        if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep + 1}`).classList.remove('hide');
+      }, 1000);
+
+    if (completeQuestStatic) s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
 
     Keyboard.Event[`quest-close-modal`] = {
       F: () => (s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null),

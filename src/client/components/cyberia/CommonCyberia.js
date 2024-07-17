@@ -524,7 +524,7 @@ const QuestComponent = {
   },
   verifyCompleteQuest: function ({ currentStep, questData }) {
     if (!currentStep) currentStep = questData.currentStep;
-    return currentStep >= this.Data[questData.id]().maxStep;
+    return currentStep >= this.Data[questData.id]().maxStep && this.verifyCompleteQuestStep({ questData });
   },
   componentsScope: {
     bone: {

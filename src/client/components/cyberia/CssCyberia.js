@@ -106,13 +106,19 @@ const CssCommonCyberia = async () => {
         width: 100%;
         height: 100%;
       }
+      .quest-step-check-img {
+        width: 40%;
+        height: 40%;
+        top: 60%;
+        left: 60%;
+      }
       .quest-step-box:hover .quest-step-background-img {
         width: 105%;
         height: 105%;
       }
       .quest-step-box-disable {
         /* cursor: default !important; */
-        filter: grayscale(1);
+        /* filter: grayscale(1); */
         opacity: 0.7;
       }
       .quest-step-box-disable .quest-step-background-img {
