@@ -177,7 +177,8 @@ const QuestManagementCyberia = {
                                 delete handBlock[typeTarget][elementTargetId];
                               }, respawn);
                               Slot.questItem.update({ bagId: 'cyberia-bag', displayId, type: 'user', id: 'main' });
-                              SocketIoCyberia.disconnect({ type: typeTarget, id: elementTargetId });
+                              if (QuestComponent.componentsScope[displayId].questKeyContext === 'displaySearchObjects')
+                                SocketIoCyberia.disconnect({ type: typeTarget, id: elementTargetId });
                               SocketIo.Emit('user', {
                                 status: 'take-quest-item',
                                 element: { type: typeTarget, id: elementTargetId },
@@ -237,6 +238,12 @@ const QuestManagementCyberia = {
                           }
                         }
                       };
+
+                    if (s(`.action-panel-dialog-${idPanel}`))
+                      s(`.action-panel-dialog-${idPanel}`).onclick = () => {
+                        s(`.action-panel-hand-${idPanel}`).click();
+                      };
+
                     if (questData) {
                       s(`.action-panel-dude-${idPanel}`).onclick = async () =>
                         await this.RenderModal({ questData, interactionPanelQuestId });
@@ -273,15 +280,27 @@ const QuestManagementCyberia = {
                     questData &&
                     enabledQuestPanel &&
                     QuestComponent.componentsScope[displayId].questKeyContext === 'displaySearchObjects';
+                  const dialogButtonEnabled =
+                    questData &&
+                    enabledQuestPanel &&
+                    QuestComponent.componentsScope[currentItemData.id].questKeyContext === 'provide';
                   {
                     const idKeyboardEvent = 'quest-key-event-hand' + idPanel;
-                    if (!handButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
+                    if (!handButtonEnabled && !dialogButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
                     else
                       Keyboard.Event[idKeyboardEvent] = {
-                        a: () =>
-                          s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null,
-                        A: () =>
-                          s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null,
+                        a: () => {
+                          if (handButtonEnabled)
+                            s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
+                          if (dialogButtonEnabled)
+                            s(`.action-panel-dialog-${idPanel}`) ? s(`.action-panel-dialog-${idPanel}`).click() : null;
+                        },
+                        A: () => {
+                          if (handButtonEnabled)
+                            s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
+                          if (dialogButtonEnabled)
+                            s(`.action-panel-dialog-${idPanel}`) ? s(`.action-panel-dialog-${idPanel}`).click() : null;
+                        },
                       };
                   }
 
@@ -323,6 +342,16 @@ const QuestManagementCyberia = {
                         })}
                       </div>
                       <div class="fl">
+                        ${await BtnIcon.Render({
+                          class: `in fll action-panel-bar-btn-container action-panel-dialog-${idPanel}  ${
+                            dialogButtonEnabled ? '' : 'hide'
+                          }`,
+                          label: html`<img
+                              class="abs center action-panel-img-icon"
+                              src="${getProxyPath()}assets/ui-icons/chat.png"
+                            />
+                            <div class="abs quest-keyboard-bubble-info">A</div>`,
+                        })}
                         <div class="in ${dudeButtonEnabled ? '' : 'hide'}">
                           ${await BtnIcon.Render({
                             class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
@@ -598,6 +627,10 @@ const QuestManagementCyberia = {
                         ? Translate.Render(
                             `${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`,
                           )
+                        : currentStep > 0
+                        ? Translate.Render(
+                            `${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`,
+                          )
                         : Translate.Render(`${questData.id}-description`)}`,
                     })}`,
                 })}
@@ -707,13 +740,17 @@ const QuestManagementCyberia = {
     }
   },
   countQuestItems: function ({ type, id, displayId }) {
-    let count = 0;
-    for (const questData of ElementsCyberia.Data[type][id].model.quests)
-      for (const itemData of questData.displaySearchObjects.filter(
-        (o) => o.id === displayId && o.step === questData.currentStep,
-      ))
-        count += itemData.current;
-    return count;
+    let globalCount = 0;
+    for (const questData of ElementsCyberia.Data[type][id].model.quests) {
+      let count = 0;
+      for (const itemData of questData.displaySearchObjects) {
+        if (itemData.id === displayId) count += itemData.current;
+        if (itemData.delivery && itemData.current >= itemData.quantity) count = 0;
+      }
+      globalCount += count;
+    }
+
+    return globalCount;
   },
 };
 

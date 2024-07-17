@@ -307,7 +307,11 @@ const Slot = {
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
       const setQuestItem = uniqueArray(
         ElementsCyberia.Data.user.main.model.quests
-          .map((q) => q.displaySearchObjects.filter((s) => s.step === q.currentStep).map((s) => s.id))
+          .map((q) =>
+            q.displaySearchObjects
+              .filter((s) => QuestComponent.componentsScope[s.id].questKeyContext === 'displaySearchObjects')
+              .map((s) => s.id),
+          )
           .flat(),
       );
 

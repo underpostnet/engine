@@ -99,6 +99,7 @@ const CyberiaUserSchema = new Schema({
                 quantity: { type: Number },
                 current: { type: Number, default: 0 },
                 step: { type: Number, default: 0 },
+                delivery: { type: Boolean },
               },
             ],
             default: [],

@@ -391,13 +391,15 @@ const QuestComponent = {
     'floki-bone': () => {
       return {
         type: 'search',
-        maxStep: 1,
+        maxStep: 3,
         currentStep: 0,
         displaySearchObjects: [
           { id: 'bone', quantity: 2, current: 0, step: 0 },
           { id: 'bone-brown', quantity: 1, current: 0, step: 0 },
-          { id: 'bone', quantity: 1, current: 0, step: 1 },
-          { id: 'bone-brown', quantity: 1, current: 0, step: 1 },
+          { id: 'ayleen', quantity: 1, current: 0, step: 1, delivery: true },
+          { id: 'bone', quantity: 1, current: 0, step: 2 },
+          { id: 'bone-brown', quantity: 1, current: 0, step: 2 },
+          { id: 'ayleen', quantity: 1, current: 0, step: 3, delivery: true },
         ],
         reward: [
           {
@@ -413,8 +415,20 @@ const QuestComponent = {
               stepData: [
                 {
                   completeDialog: {
-                    en: 'thank '.repeat(50),
-                    es: 'gracias! '.repeat(50),
+                    en: 'Good, now please bring it to me.'.repeat(50),
+                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
+                  },
+                },
+                {
+                  completeDialog: {
+                    en: 'thank, please find more bones'.repeat(50),
+                    es: 'gracias!, porfavor busca mas huesos '.repeat(50),
+                  },
+                },
+                {
+                  completeDialog: {
+                    en: 'Good, now please bring it to me.'.repeat(50),
+                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
                   },
                 },
                 {
@@ -452,9 +466,12 @@ const QuestComponent = {
     'floki-bone-0': () => {
       return {
         type: 'search',
-        maxStep: 0,
+        maxStep: 1,
         currentStep: 0,
-        displaySearchObjects: [{ id: 'bone-brown', quantity: 5, current: 0, step: 0 }],
+        displaySearchObjects: [
+          { id: 'bone-brown', quantity: 5, current: 0, step: 0 },
+          { id: 'ayleen', quantity: 1, current: 0, step: 1, delivery: true },
+        ],
         reward: [
           {
             type: 'coin',
@@ -467,6 +484,12 @@ const QuestComponent = {
               id: 'ayleen',
               quantity: [1],
               stepData: [
+                {
+                  completeDialog: {
+                    en: 'Good, now please bring it to me.'.repeat(50),
+                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
+                  },
+                },
                 {
                   completeDialog: {
                     en: 'thank '.repeat(50),
@@ -513,7 +536,8 @@ const QuestComponent = {
       //   questData.push({ id, ...this.Data[id]() });
       // }
       if (this.Data[id]().displaySearchObjects.find((q) => q.id === displayId)) {
-        questData.push({ id, ...this.Data[id]() });
+        if (this.componentsScope[displayId].questKeyContext === 'displaySearchObjects')
+          questData.push({ id, ...this.Data[id]() });
       }
     }
     return questData;
