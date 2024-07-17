@@ -9,9 +9,9 @@ const DisplaySchema = new Schema({
   enabled: { type: Boolean },
   position: { type: String },
   positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
-  assetFolder: { type: String },
-  extension: { type: String },
-  velFrame: { type: Number },
+  assetFolder: { type: String, default: 'skin' },
+  extension: { type: String, default: 'png' },
+  velFrame: { type: Number, default: 250 },
 });
 
 const CyberiaUserSchema = new Schema({
