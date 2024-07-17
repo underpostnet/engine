@@ -9,6 +9,7 @@ import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
 import { newInstance, orderArrayFromAttrInt, range } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
+import { Lampp } from '../runtime/lampp/Lampp.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
 
 dotenv.config();
@@ -32,7 +33,9 @@ const buildProxy = async () => {
         case 'xampp':
           if (!Xampp.enabled()) continue;
           break;
-
+        case 'lampp':
+          if (!Lampp.enabled()) continue;
+          break;
         default:
           break;
       }
