@@ -43,7 +43,7 @@ const MenuCyberia = {
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-character',
-            label: renderMenuLabel({ img: 'character.png', text: Translate.Render('character') }),
+            label: renderMenuLabel({ img: 'anon.png', text: Translate.Render('character') }),
             attrs: `data-id="1"`,
           })}
           ${await BtnIcon.Render({
@@ -349,7 +349,7 @@ const MenuCyberia = {
         id: 'modal-character',
         route: 'character',
         barConfig,
-        title: renderViewTitle({ 'ui-icon': 'character.png', text: 'character' }),
+        title: renderViewTitle({ 'ui-icon': 'anon.png', text: 'character' }),
         html: async () => await CharacterCyberia.Render({ idModal: 'modal-character' }),
         handleType: 'bar',
         maximize: true,
