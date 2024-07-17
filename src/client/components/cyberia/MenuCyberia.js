@@ -42,12 +42,12 @@ const MenuCyberia = {
             attrs: `data-id="0"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-character',
+            class: 'in fll main-btn-square-menu main-btn-character hide',
             label: renderMenuLabel({ img: 'anon.png', text: Translate.Render('character') }),
             attrs: `data-id="1"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-bag',
+            class: 'in fll main-btn-square-menu main-btn-bag hide',
             label: renderMenuLabel({ img: 'bag.png', text: Translate.Render('bag') }),
             attrs: `data-id="2"`,
           })}
@@ -67,7 +67,7 @@ const MenuCyberia = {
             attrs: `data-id="5"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-wallet hide',
+            class: 'in fll main-btn-square-menu main-btn-wallet',
             label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
             attrs: `data-id="6"`,
           })}
@@ -84,7 +84,7 @@ const MenuCyberia = {
             attrs: `data-id="8"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-chat',
+            class: 'in fll main-btn-square-menu main-btn-chat hide',
             label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
             attrs: `data-id="9"`,
           })}

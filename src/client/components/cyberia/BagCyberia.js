@@ -711,7 +711,7 @@ const BagCyberia = {
       indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      // indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.questItem.renderBagCyberiaSlots({ bagId, indexBagCyberia });
     });
     return html`

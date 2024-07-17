@@ -332,6 +332,16 @@ const InteractionPanelCyberia = {
                   this.restorePanel('quest-interaction-panel');
                 }
               };
+
+              s(`.cy-int-btn-character`).onclick = () => {
+                s(`.main-btn-character`).click();
+              };
+              s(`.cy-int-btn-bag`).onclick = () => {
+                s(`.main-btn-bag`).click();
+              };
+              s(`.cy-int-btn-chat`).onclick = () => {
+                s(`.main-btn-chat`).click();
+              };
             });
             return html`
               <div class="in">
@@ -340,6 +350,20 @@ const InteractionPanelCyberia = {
                   label: html`<img
                     class="abs center img-btn-square-menu"
                     src="${getProxyPath()}assets/ui-icons/cyberia-white.png"
+                  />`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `inl action-bar-box cy-int-btn-character`,
+                  label: html`<img
+                    class="abs center img-btn-square-menu"
+                    src="${getProxyPath()}assets/ui-icons/anon.png"
+                  />`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `inl action-bar-box cy-int-btn-bag`,
+                  label: html`<img
+                    class="abs center img-btn-square-menu"
+                    src="${getProxyPath()}assets/ui-icons/bag.png"
                   />`,
                 })}
                 ${await BtnIcon.Render({
@@ -374,6 +398,13 @@ const InteractionPanelCyberia = {
                       class="abs center img-btn-square-menu img-btn-square-menu-close hide"
                       src="${getProxyPath()}assets/ui-icons/close-yellow.png"
                     />`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `inl action-bar-box cy-int-btn-chat`,
+                  label: html`<img
+                    class="abs center img-btn-square-menu"
+                    src="${getProxyPath()}assets/ui-icons/chat.png"
+                  />`,
                 })}
               </div>
               <style>
