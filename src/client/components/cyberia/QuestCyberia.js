@@ -29,7 +29,7 @@ const QuestManagementCyberia = {
   questClosePanels: [],
   Data: {},
   Load: async function ({ type, id }) {
-    const radius = 3.5;
+    const radius = 5;
     const typeTarget = 'bot';
     this.questClosePanels = [];
 
@@ -239,11 +239,6 @@ const QuestManagementCyberia = {
                         }
                       };
 
-                    if (s(`.action-panel-dialog-${idPanel}`))
-                      s(`.action-panel-dialog-${idPanel}`).onclick = () => {
-                        s(`.action-panel-hand-${idPanel}`).click();
-                      };
-
                     if (questData) {
                       s(`.action-panel-dude-${idPanel}`).onclick = async () =>
                         await this.RenderModal({ questData, interactionPanelQuestId });
@@ -276,30 +271,25 @@ const QuestManagementCyberia = {
                       };
                   }
 
-                  const handButtonEnabled =
+                  const actionButtonEnabled =
                     questData &&
                     enabledQuestPanel &&
-                    QuestComponent.componentsScope[displayId].questKeyContext === 'displaySearchObjects';
-                  const dialogButtonEnabled =
-                    questData &&
-                    enabledQuestPanel &&
-                    QuestComponent.componentsScope[currentItemData.id].questKeyContext === 'provide';
+                    ['displaySearchObjects', 'provide'].includes(
+                      QuestComponent.componentsScope[currentItemData.id].questKeyContext,
+                    );
+
                   {
                     const idKeyboardEvent = 'quest-key-event-hand' + idPanel;
-                    if (!handButtonEnabled && !dialogButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
+                    if (!actionButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
                     else
                       Keyboard.Event[idKeyboardEvent] = {
                         a: () => {
-                          if (handButtonEnabled)
+                          if (actionButtonEnabled)
                             s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
-                          if (dialogButtonEnabled)
-                            s(`.action-panel-dialog-${idPanel}`) ? s(`.action-panel-dialog-${idPanel}`).click() : null;
                         },
                         A: () => {
-                          if (handButtonEnabled)
+                          if (actionButtonEnabled)
                             s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
-                          if (dialogButtonEnabled)
-                            s(`.action-panel-dialog-${idPanel}`) ? s(`.action-panel-dialog-${idPanel}`).click() : null;
                         },
                       };
                   }
@@ -343,13 +333,20 @@ const QuestManagementCyberia = {
                       </div>
                       <div class="fl">
                         ${await BtnIcon.Render({
-                          class: `in fll action-panel-bar-btn-container action-panel-dialog-${idPanel}  ${
-                            dialogButtonEnabled ? '' : 'hide'
+                          class: `in fll action-panel-bar-btn-container action-panel-hand-${idPanel}  ${
+                            actionButtonEnabled ? '' : 'hide'
                           }`,
-                          label: html`<img
-                              class="abs center action-panel-img-icon"
-                              src="${getProxyPath()}assets/ui-icons/chat.png"
-                            />
+                          label: html`${currentItemData && currentItemData.actionIcon
+                              ? html`
+                                  <img
+                                    class="abs center action-panel-img-icon"
+                                    src="${getProxyPath()}${currentItemData.actionIcon}"
+                                  />
+                                `
+                              : html`<img
+                                  class="abs center action-panel-img-icon"
+                                  src="${getProxyPath()}assets/ui-icons/hand.png"
+                                />`}
                             <div class="abs quest-keyboard-bubble-info">A</div>`,
                         })}
                         <div class="in ${dudeButtonEnabled ? '' : 'hide'}">
@@ -372,16 +369,6 @@ const QuestManagementCyberia = {
                               <div class="abs quest-keyboard-bubble-info">S</div>`,
                           })}
                         </div>
-                        ${await BtnIcon.Render({
-                          class: `in fll action-panel-bar-btn-container action-panel-hand-${idPanel}  ${
-                            handButtonEnabled ? '' : 'hide'
-                          }`,
-                          label: html`<img
-                              class="abs center action-panel-img-icon"
-                              src="${getProxyPath()}assets/ui-icons/hand.png"
-                            />
-                            <div class="abs quest-keyboard-bubble-info">A</div>`,
-                        })}
                         ${await BtnIcon.Render({
                           class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
                           label: html`<img
@@ -456,12 +443,45 @@ const QuestManagementCyberia = {
     if (currentQuestData && !completeQuest)
       completeQuestStatic = QuestComponent.verifyCompleteQuest({ questData: currentQuestData });
 
+    const renderMainText = html`${await typeWriter({
+      id: idPanel + 'modal',
+      html: html`${completeQuest !== undefined || completeQuestStatic
+        ? Translate.Render(`${questData.id}-successDescription`)
+        : completeStep !== undefined
+        ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`)
+        : currentStep > 0
+        ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`)
+        : Translate.Render(`${questData.id}-description`)}`,
+    })}`;
+
+    const renderMainImage =
+      completeQuest !== undefined || completeQuestStatic
+        ? html` <img
+            class="in quest-provide-img"
+            src="${getProxyPath()}assets/skin/${componentData.displayId}/08/0.${componentData.extension}"
+          />`
+        : completeStep !== undefined
+        ? html` <img
+            class="in quest-provide-img"
+            src="${getProxyPath()}${questData.provide.displayIds[0].stepData[currentStep].image}"
+          />`
+        : currentStep > 0
+        ? html` <img
+            class="in quest-provide-img"
+            src="${getProxyPath()}${questData.provide.displayIds[0].stepData[currentStep - 1].image}"
+          />`
+        : html` <img
+            class="in quest-provide-img"
+            src="${getProxyPath()}assets/skin/${componentData.displayId}/08/0.${componentData.extension}"
+          />`;
+
     await Modal.Render({
       id: idModal,
       barConfig,
       title: renderViewTitle({
-        'ui-icon': questData.icon.id,
-        assetFolder: questData.icon.folder,
+        // 'ui-icon': questData.icon.id,
+        // assetFolder: questData.icon.folder,
+        'ui-icon': 'quest.png',
         text: html`${Translate.Render(`${questData.id}-title`)}`,
       }),
       html: html`<div class="in section-mp">
@@ -533,24 +553,22 @@ const QuestManagementCyberia = {
                               (s) => s.displayId === q.id,
                             );
 
-                            return html` <div class="in">
-                              ${renderViewTitle({
-                                'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
-                                assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
-                                text: html`<div class="fl">
-                                  <div class="in fll" style="width: 60%">
-                                    <span style="color: #ffcc00;">${q.id}</span>
-                                  </div>
-                                  <div class="in fll" style="width: 40%">
-                                    <span class="modal-${questData.id}-${q.id}-${q.step}-current">${q.current}</span>
-                                    /
-                                    <span> ${q.quantity}</span>
-                                  </div>
-                                </div>`,
-                                dim: 30,
-                                top: -3,
-                              })}
-                            </div>`;
+                            return html`<div class="fl">
+                              <div class="in fll" style="width: 60%">
+                                <div class="in fll quest-modal-panel-containers-quest-img">
+                                  <img
+                                    class="in quest-interaction-panel-icon-img"
+                                    src="${getProxyPath()}assets/${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}/0.${searchObjectQuestSpriteData.extension}"
+                                  />
+                                </div>
+                                ${q.id}
+                              </div>
+                              <div class="in fll" style="width: 40%">
+                                <span class="modal-${questData.id}-${q.id}-${q.step}-current">${q.current}</span>
+                                /
+                                <span> ${q.quantity}</span>
+                              </div>
+                            </div> `;
                           })
                           .join('')}
                       </div>
@@ -616,29 +634,36 @@ const QuestManagementCyberia = {
           <div class="in fll quest-dynamic-${questData.id}-col-b">
             <div class="in section-mp">
               <div class="in">
-                ${await renderBubbleDialog({
-                  id: `${idModal}-bubble-description`,
-                  html: async () =>
-                    html`${await typeWriter({
-                      id: idPanel + 'modal',
-                      html: html`${completeQuest !== undefined || completeQuestStatic
-                        ? Translate.Render(`${questData.id}-successDescription`)
-                        : completeStep !== undefined
-                        ? Translate.Render(
-                            `${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`,
-                          )
-                        : currentStep > 0
-                        ? Translate.Render(
-                            `${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`,
-                          )
-                        : Translate.Render(`${questData.id}-description`)}`,
-                    })}`,
-                })}
+                ${completeQuest !== undefined || completeQuestStatic
+                  ? questData.successDescriptionBubble
+                    ? await renderBubbleDialog({
+                        id: `${idModal}-bubble-description`,
+                        html: async () => renderMainText,
+                      })
+                    : renderMainText
+                  : completeStep !== undefined
+                  ? questData.provide.displayIds[0].stepData[currentStep].bubble
+                    ? await renderBubbleDialog({
+                        id: `${idModal}-bubble-description`,
+                        html: async () => renderMainText,
+                      })
+                    : renderMainText
+                  : currentStep > 0
+                  ? questData.provide.displayIds[0].stepData[currentStep - 1].bubble
+                    ? await renderBubbleDialog({
+                        id: `${idModal}-bubble-description`,
+                        html: async () => renderMainText,
+                      })
+                    : renderMainText
+                  : questData.descriptionBubble
+                  ? await renderBubbleDialog({
+                      id: `${idModal}-bubble-description`,
+                      html: async () => renderMainText,
+                    })
+                  : renderMainText}
               </div>
-              <img
-                class="in quest-provide-img"
-                src="${getProxyPath()}assets/skin/${componentData.displayId}/08/0.${componentData.extension}"
-              />
+
+              ${renderMainImage}
             </div>
           </div>
         </div>

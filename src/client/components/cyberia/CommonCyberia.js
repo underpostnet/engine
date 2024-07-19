@@ -396,10 +396,26 @@ const QuestComponent = {
         displaySearchObjects: [
           { id: 'bone', quantity: 2, current: 0, step: 0 },
           { id: 'bone-brown', quantity: 1, current: 0, step: 0 },
-          { id: 'ayleen', quantity: 1, current: 0, step: 1, delivery: true },
+          {
+            id: 'ayleen',
+            actionIcon: 'assets/ui-icons/hand.png',
+            panelQuestIcons: ['assets/ui-icons/hand.png', 'assets/skin/ayleen/08/0.png'],
+            quantity: 1,
+            current: 0,
+            step: 1,
+            delivery: true,
+          },
           { id: 'bone', quantity: 1, current: 0, step: 2 },
           { id: 'bone-brown', quantity: 1, current: 0, step: 2 },
-          { id: 'ayleen', quantity: 1, current: 0, step: 3, delivery: true },
+          {
+            id: 'ayleen',
+            actionIcon: 'assets/ui-icons/hand.png',
+            panelQuestIcons: ['assets/ui-icons/hand.png', 'assets/skin/ayleen/08/0.png'],
+            quantity: 1,
+            current: 0,
+            step: 3,
+            delivery: true,
+          },
         ],
         reward: [
           {
@@ -414,24 +430,32 @@ const QuestComponent = {
               quantity: [2],
               stepData: [
                 {
+                  image: 'assets/quest/bone/08/0.gif',
+                  bubble: false,
                   completeDialog: {
-                    en: 'Good, now please bring it to me.'.repeat(50),
-                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
+                    en: 'Good, now take the bones to ayleen.'.repeat(50),
+                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
                   },
                 },
                 {
+                  image: 'assets/skin/ayleen/08/0.png',
+                  bubble: true,
                   completeDialog: {
                     en: 'thank, please find more bones'.repeat(50),
                     es: 'gracias!, porfavor busca mas huesos '.repeat(50),
                   },
                 },
                 {
+                  image: 'assets/quest/bone/08/0.gif',
+                  bubble: false,
                   completeDialog: {
-                    en: 'Good, now please bring it to me.'.repeat(50),
-                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
+                    en: 'Good, now take the bones to ayleen.'.repeat(50),
+                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
                   },
                 },
                 {
+                  image: 'assets/skin/ayleen/08/0.png',
+                  bubble: true,
                   completeDialog: {
                     en: 'thank '.repeat(50),
                     es: 'gracias! '.repeat(50),
@@ -457,10 +481,12 @@ const QuestComponent = {
           en: `Please find Floki's bone`,
           es: 'Por favor encuentra los huesos de floki',
         },
+        descriptionBubble: true,
         successDescription: {
           en: 'complete thank '.repeat(50),
           es: 'complete gracias! '.repeat(50),
         },
+        successDescriptionBubble: true,
       };
     },
     'floki-bone-0': () => {
@@ -470,7 +496,15 @@ const QuestComponent = {
         currentStep: 0,
         displaySearchObjects: [
           { id: 'bone-brown', quantity: 5, current: 0, step: 0 },
-          { id: 'ayleen', quantity: 1, current: 0, step: 1, delivery: true },
+          {
+            id: 'ayleen',
+            quantity: 1,
+            current: 0,
+            step: 1,
+            delivery: true,
+            actionIcon: 'assets/ui-icons/hand.png',
+            panelQuestIcons: ['assets/ui-icons/hand.png', 'assets/skin/ayleen/08/0.png'],
+          },
         ],
         reward: [
           {
@@ -485,12 +519,16 @@ const QuestComponent = {
               quantity: [1],
               stepData: [
                 {
+                  image: 'assets/quest/bone/08/0.gif',
+                  bubble: false,
                   completeDialog: {
-                    en: 'Good, now please bring it to me.'.repeat(50),
-                    es: 'Bien, ahora tráemelo por favor.! '.repeat(50),
+                    en: 'Good, now take the bones to ayleen.'.repeat(50),
+                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
                   },
                 },
                 {
+                  image: 'assets/skin/ayleen/08/0.png',
+                  bubble: true,
                   completeDialog: {
                     en: 'thank '.repeat(50),
                     es: 'gracias! '.repeat(50),
@@ -516,10 +554,12 @@ const QuestComponent = {
           en: `Please find Floki's bone 0`,
           es: 'Por favor encuentra los huesos de floki 0',
         },
+        descriptionBubble: true,
         successDescription: {
           en: 'complete thank '.repeat(50),
           es: 'complete gracias! '.repeat(50),
         },
+        successDescriptionBubble: true,
       };
     },
   },

@@ -100,6 +100,8 @@ const CyberiaUserSchema = new Schema({
                 current: { type: Number, default: 0 },
                 step: { type: Number, default: 0 },
                 delivery: { type: Boolean },
+                actionIcon: { type: String },
+                panelQuestIcons: [{ type: String }],
               },
             ],
             default: [],

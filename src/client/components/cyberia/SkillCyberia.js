@@ -91,7 +91,9 @@ const SkillCyberia = {
       }
 
       s(`.main-skill-slot-${indexSkillCyberia}`).onclick = triggerSkillCyberia;
-      if (Modal.mobileModal()) s(`.main-skill-slot-${indexSkillCyberia}`).onmouseover = triggerSkillCyberia;
+      s(`.main-skill-slot-${indexSkillCyberia}`).onmouseover = () => {
+        if (Modal.mobileModal()) triggerSkillCyberia();
+      };
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toLowerCase()] = triggerSkillCyberia;
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toUpperCase()] = triggerSkillCyberia;
       ElementsCyberia.LocalDataScope['user']['main']['skill'][indexSkillCyberia] = triggerSkillCyberia;

@@ -180,23 +180,24 @@ const InteractionPanelCyberia = {
           html`<div class="fl quest-interaction-panel-${id}">
             <div class="in quest-interaction-panel-section">
               <div class="in quest-interaction-panel-row quest-interaction-panel-row-title-${id}">
-                ${renderViewTitle({
-                  // questData.icon.id,
-                  'ui-icon': `0.${providerQuestSpriteData.extension}`,
-                  // questData.icon.folder,
-                  assetFolder: `${providerQuestSpriteData.assetFolder}/${providerQuestSpriteData.displayId}/${providerQuestSpriteData.position}`,
-                  text: html`<div
-                      class="inl quest-interaction-panel-containers-step quest-interaction-panel-search-object-count"
-                    >
-                      <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/util/step.png" />
-                      <div class="abs center quest-interaction-panel-current-step-${questData.id}">
-                        ${currentStep + 1}
-                      </div>
+                <div class="in fll quest-interaction-panel-search-object-container" style="background: none">
+                  <div class="in fll quest-interaction-panel-containers-quest-img">
+                    <img class="abs center quest-step-background-img" src="${getProxyPath()}assets/util/step.png" />
+                    <div class="abs center quest-interaction-panel-current-step-${questData.id}">
+                      ${currentStep + 1}
                     </div>
-                    ${Translate.Render(`${questData.id}-title`)}`,
-                  dim: 20,
-                  top: -2,
-                })}
+                  </div>
+                  <div class="in fll quest-interaction-panel-containers-quest-img">
+                    <img
+                      class="in quest-interaction-panel-icon-img"
+                      src="${getProxyPath()}assets/${providerQuestSpriteData.assetFolder}/${providerQuestSpriteData.displayId}/${providerQuestSpriteData.position}/0.${providerQuestSpriteData.extension}"
+                    />
+                  </div>
+
+                  <span class="quest-interaction-panel-text" style="color: #ffcc00">
+                    ${Translate.Render(`${questData.id}-title`)}
+                  </span>
+                </div>
               </div>
               <div class="in quest-interaction-panel-row quest-interaction-panel-row-info-${id}"></div>
             </div>
@@ -221,19 +222,29 @@ const InteractionPanelCyberia = {
                   const searchObjectQuestSpriteData = QuestComponent.components.find((s) => s.displayId === q.id);
 
                   return html`<div
-                    class="inl quest-interaction-panel-search-object-count quest-panel-step-${questData.id}-${q.step} ${q.step !==
-                    currentStep
-                      ? 'hide'
-                      : ''}"
+                    class="inl quest-panel-step-${questData.id}-${q.step} ${q.step !== currentStep ? 'hide' : ''}"
                   >
-                    ${renderViewTitle({
-                      'ui-icon': `0.${searchObjectQuestSpriteData.extension}`,
-                      assetFolder: `${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}`,
-                      text: html`<span class="${questData.id}-${q.id}-${q.step}-current">${q.current}</span> /
-                        <span> ${q.quantity}</span>`,
-                      dim: 20,
-                      top: -2,
-                    })}
+                    <div class="in fll quest-interaction-panel-search-object-container">
+                      ${q.panelQuestIcons && q.panelQuestIcons.length > 0
+                        ? html`${q.panelQuestIcons
+                            .map(
+                              (srcIcon) => html`<div class="in fll quest-interaction-panel-containers-quest-img">
+                                <img class="in quest-interaction-panel-icon-img" src="${getProxyPath()}${srcIcon}" />
+                              </div>`,
+                            )
+                            .join('')}`
+                        : html`<div class="in fll quest-interaction-panel-containers-quest-img">
+                            <img
+                              class="in quest-interaction-panel-icon-img"
+                              src="${getProxyPath()}assets/${searchObjectQuestSpriteData.assetFolder}/${searchObjectQuestSpriteData.displayId}/${searchObjectQuestSpriteData.position}/0.${searchObjectQuestSpriteData.extension}"
+                            />
+                          </div>`}
+
+                      <span class="quest-interaction-panel-text"
+                        ><span class="${questData.id}-${q.id}-${q.step}-current">${q.current}</span> /
+                        <span> ${q.quantity}</span>
+                      </span>
+                    </div>
                   </div>`;
                 })
                 .join('')}`,
@@ -317,6 +328,7 @@ const InteractionPanelCyberia = {
                 s(`.main-btn-home`).click();
               };
               s(`.cy-int-btn-map`).onclick = async () => {
+                s(`.main-btn-home`).click();
                 if (!s(`.map-interaction-panel`)) {
                   await this.Render({ id: 'map-interaction-panel' });
                   await this.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
@@ -325,6 +337,7 @@ const InteractionPanelCyberia = {
                 }
               };
               s(`.cy-int-btn-target`).onclick = async () => {
+                s(`.main-btn-home`).click();
                 if (!s(`.element-interaction-panel`)) {
                   await this.Render({ id: 'element-interaction-panel' });
                   await this.PanelRender.element(
@@ -335,6 +348,7 @@ const InteractionPanelCyberia = {
                 }
               };
               s(`.cy-int-btn-quest`).onclick = () => {
+                s(`.main-btn-home`).click();
                 if (!s(`.quest-interaction-panel`)) this.Render({ id: 'quest-interaction-panel' });
                 else {
                   this.restorePanel('quest-interaction-panel');
@@ -494,12 +508,24 @@ const InteractionPanelCyberia = {
                   height: 25px;
                   overflow: hidden;
                 }
-                .quest-interaction-panel-search-object-count {
-                  padding: 2px;
+                .quest-interaction-panel-search-object-container {
                   color: white;
-                  font-size: 12px;
+                  font-size: 15px;
+                  box-sizing: border-box;
+                  background: #0000004a;
+                  margin: 2px;
+                  padding: 3px;
+                }
+                .quest-interaction-panel-text {
+                  top: 3px;
+                  position: relative;
+                }
+                .quest-interaction-panel-icon-img {
+                  width: 100%;
+                  height: 100%;
                 }
               </style>
+              ${borderChar(1, 'black', ['.quest-interaction-panel-search-object-container'])}
               ${dashRange({ selector: 'map-face-slot-dash', color: `#ffcc00` })}
             `;
           };
@@ -798,19 +824,20 @@ const InteractionPanelCyberia = {
           });
       }
 
-      if (Modal.mobileModal()) {
-        for (const idModal of ['map-interaction-panel', 'quest-interaction-panel', 'element-interaction-panel']) {
-          if (idModal !== id && s(`.${idModal}`)) {
-            s(`.btn-close-${idModal}`).click();
-          }
-        }
-      }
+      if (Modal.mobileModal()) this.mobileSingleInstance(id);
     }
 
     if (id === 'menu-interaction-panel' && !Modal.mobileModal()) {
       const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
       for (const idPanel of Object.keys(interactionPanelStorage)) {
         await InteractionPanelCyberia.Render({ id: idPanel });
+      }
+    }
+  },
+  mobileSingleInstance: function (id) {
+    for (const idModal of ['map-interaction-panel', 'quest-interaction-panel', 'element-interaction-panel']) {
+      if (idModal !== id && s(`.${idModal}`)) {
+        s(`.btn-close-${idModal}`).click();
       }
     }
   },
