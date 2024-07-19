@@ -7,71 +7,20 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
-import { newInstance, orderArrayFromAttrInt, range } from '../client/components/core/CommonJs.js';
-import { Xampp } from '../runtime/xampp/Xampp.js';
-import { Lampp } from '../runtime/lampp/Lampp.js';
+import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
+import { buildProxyRouter } from './conf.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
 const buildProxy = async () => {
-  let currentPort = parseInt(process.env.PORT);
-
   // default target
-  const defaultTargetPort = newInstance(currentPort);
-  currentPort++;
-  await network.port.portClean(defaultTargetPort);
-  express().listen(defaultTargetPort);
+  await network.port.portClean(process.env.PORT);
+  express().listen(process.env.PORT);
 
-  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const proxyRouter = {};
-  for (const host of Object.keys(confServer)) {
-    for (const path of Object.keys(confServer[host])) {
-      switch (confServer[host][path].runtime) {
-        case 'xampp':
-          if (!Xampp.enabled()) continue;
-          break;
-        case 'lampp':
-          if (!Lampp.enabled()) continue;
-          break;
-        default:
-          break;
-      }
-      confServer[host][path].port = newInstance(currentPort);
-      for (const port of confServer[host][path].proxy) {
-        if (!(port in proxyRouter)) proxyRouter[port] = {};
-        proxyRouter[port][`${host}${path}`] = {
-          // target: `http://${host}:${confServer[host][path].port}${path}`,
-          target: `http://localhost:${confServer[host][path].port}`,
-          // target: `http://127.0.0.1:${confServer[host][path].port}`,
-          proxy: confServer[host][path].proxy,
-          redirect: confServer[host][path].redirect,
-          host,
-          path,
-        };
-      }
-      currentPort++;
-      if (confServer[host][path].peer) {
-        const peerPath = path === '/' ? `/peer` : `${path}/peer`;
-        confServer[host][peerPath] = newInstance(confServer[host][path]);
-        confServer[host][peerPath].port = newInstance(currentPort);
-        for (const port of confServer[host][path].proxy) {
-          if (!(port in proxyRouter)) proxyRouter[port] = {};
-          proxyRouter[port][`${host}${peerPath}`] = {
-            // target: `http://${host}:${confServer[host][peerPath].port}${peerPath}`,
-            target: `http://localhost:${confServer[host][peerPath].port}`,
-            // target: `http://127.0.0.1:${confServer[host][peerPath].port}`,
-            proxy: confServer[host][peerPath].proxy,
-            host,
-            path: peerPath,
-          };
-        }
-        currentPort++;
-      }
-    }
-  }
+  const proxyRouter = buildProxyRouter();
 
   for (let port of Object.keys(proxyRouter)) {
     port = parseInt(port);
@@ -90,7 +39,7 @@ const buildProxy = async () => {
       ws: true,
       // changeOrigin: true,
       // autoRewrite: false,
-      target: `http://localhost:${defaultTargetPort}`,
+      target: `http://localhost:${process.env.PORT}`,
       router: {},
       xfwd: true, // adds x-forward headers
       // preserveHeaderKeyCase: true,

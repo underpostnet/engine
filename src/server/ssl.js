@@ -57,7 +57,7 @@ const buildSSL = async (host) => {
   return false;
 };
 
-const validateSecureContext = async (host) => {
+const validateSecureContext = (host) => {
   return (
     fs.existsSync(`./engine-private/ssl/${host}/key.key`) &&
     fs.existsSync(`./engine-private/ssl/${host}/crt.crt`) &&
@@ -79,7 +79,7 @@ const createSslServer = async (app, hosts) => {
     // const { redirect } = hosts[host];
     const [hostSSL, path = ''] = host.split('/');
     await buildSSL(host);
-    const validSSL = await validateSecureContext(hostSSL);
+    const validSSL = validateSecureContext(hostSSL);
     if (validSSL) {
       if (!ServerSSL) ServerSSL = https.createServer(buildSecureContext(hostSSL), app);
       else ServerSSL.addContext(hostSSL, buildSecureContext(hostSSL));
@@ -98,7 +98,7 @@ const sslRedirectMiddleware = (req, res, port, proxyRouter) => {
     proxyRouter[443] &&
     Object.keys(proxyRouter[443]).find((host) => {
       const [hostSSL, path = ''] = host.split('/');
-      return sslRedirectUrl.match(hostSSL);
+      return sslRedirectUrl.match(hostSSL) && validateSecureContext(hostSSL);
     })
   )
     return res.status(302).redirect(sslRedirectUrl);

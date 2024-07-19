@@ -531,35 +531,35 @@ const isValidFormat = (value, format) => {
  */
 const getTimezoneOffset = () => new Date().getTimezoneOffset();
 
-// https://unicode-explorer.com/
+// https://unicode-explorer.com/c/<unicode>
+// example: https://unicode-explorer.com/c/0000
 function cleanString(string) {
   // Define the problematic escape sequences unicode characters to remove with descriptions
-  const problematicCharacters = {
-    '\u0000': 'Null character (Represents absence of a character)',
-    '\u0008': 'Backspace character',
-    '\u0002': 'Start of Text (STX) character',
-    '\u0009': 'Horizontal Tab character',
-    '\u000B': 'Vertical Tab character',
-    '\u000C': 'Form Feed character',
-    '\u000D': 'Carriage Return character',
-    '\u001D': 'Group Separator (GS) character',
-    '\u001F': 'Substitution character',
-    // '\u0020': 'Space character',
-    '\u200B': 'Zero Width Space character',
-    '\u200C': 'Zero Width Non-Joiner character',
-    '\u200D': 'Zero Width Joiner character',
-    '\u200F': 'Right-to-Left Mark character',
-    '\u2028': 'Left-to-Right Mark character',
-    '\u2060': 'Word Spacing character',
-    '\u2061': 'Word Joiner character',
-    '\u2062': 'Invisible Text Character character',
-    '\u2063': 'Inhibit Explicit Word Joining character',
-    '\u2064': 'Invisible Text Processing character',
-  };
+  const problematicCharacters = [
+    // '\u0000', // Null character (Represents absence of a character) not work
+    '\u0008', // Backspace character
+    '\u0002', // Start of Text (STX) character
+    '\u0009', // Horizontal Tab character
+    '\u000B', // Vertical Tab character
+    '\u000C', // Form Feed character
+    '\u000D', // Carriage Return character
+    '\u001D', // Group Separator (GS) character
+    '\u001F', // Substitution character
+    // '\u0020', // Space character
+    '\u200B', // Zero Width Space character
+    '\u200C', // Zero Width Non-Joiner character
+    '\u200D', // Zero Width Joiner character
+    '\u200F', // Right-to-Left Mark character
+    '\u2028', // Left-to-Right Mark character
+    '\u2060', // Word Spacing character
+    '\u2061', // Word Joiner character
+    '\u2062', // Invisible Text Character character
+    '\u2063', // Inhibit Explicit Word Joining character
+    '\u2064', // Invisible Text Processing character
+  ];
 
   // Replace each problematic character with an empty string
-  return Object.keys(problematicCharacters).reduce((cleanString, character) => {
-    const charDesc = problematicCharacters[character]; // Get character description
+  return problematicCharacters.reduce((cleanString, character) => {
     const charRegex = new RegExp(character, 'g'); // Regular expression for character
     return cleanString.replace(charRegex, ''); // Replace with empty string
   }, string);

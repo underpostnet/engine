@@ -106,6 +106,26 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
+
+          // ErrorDocument 404 /custom_404.html
+          // ErrorDocument 500 /custom_50x.html
+          // ErrorDocument 502 /custom_50x.html
+          // ErrorDocument 503 /custom_50x.html
+          // ErrorDocument 504 /custom_50x.html
+
+          // Respond When Error Pages are Directly Requested
+
+          // <Files "custom_404.html">
+          //     <If "-z %{ENV:REDIRECT_STATUS}">
+          //         RedirectMatch 404 ^/custom_404.html$
+          //     </If>
+          // </Files>
+
+          // <Files "custom_50x.html">
+          //     <If "-z %{ENV:REDIRECT_STATUS}">
+          //         RedirectMatch 404 ^/custom_50x.html$
+          //     </If>
+          // </Files>
           await listenPortController(listenServerFactory(), port, runningData);
           break;
         case 'xampp':
@@ -276,6 +296,15 @@ const buildRuntime = async () => {
                 // logger.info('Load api router', { host, path: apiPath, api });
                 app.use(apiPath, router);
               })();
+
+          app.use(function (req, res, next) {
+            res.status(404).send('Sorry cant find that!');
+          });
+
+          app.use(function (err, req, res, next) {
+            logger.error(err, err.stack);
+            res.status(500).send('Something broke!');
+          });
 
           // instance server
           const server = createServer({}, app);

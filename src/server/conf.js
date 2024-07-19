@@ -552,6 +552,48 @@ const cloneSrcComponents = async ({ toOptions, fromOptions }) => {
   }
 };
 
+const buildProxyRouter = () => {
+  const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  let currentPort = parseInt(process.env.PORT) + 1;
+  const proxyRouter = {};
+  for (const host of Object.keys(confServer)) {
+    for (const path of Object.keys(confServer[host])) {
+      confServer[host][path].port = newInstance(currentPort);
+      for (const port of confServer[host][path].proxy) {
+        if (!(port in proxyRouter)) proxyRouter[port] = {};
+        proxyRouter[port][`${host}${path}`] = {
+          // target: `http://${host}:${confServer[host][path].port}${path}`,
+          target: `http://localhost:${confServer[host][path].port}`,
+          // target: `http://127.0.0.1:${confServer[host][path].port}`,
+          proxy: confServer[host][path].proxy,
+          redirect: confServer[host][path].redirect,
+          host,
+          path,
+        };
+      }
+      currentPort++;
+      if (confServer[host][path].peer) {
+        const peerPath = path === '/' ? `/peer` : `${path}/peer`;
+        confServer[host][peerPath] = newInstance(confServer[host][path]);
+        confServer[host][peerPath].port = newInstance(currentPort);
+        for (const port of confServer[host][path].proxy) {
+          if (!(port in proxyRouter)) proxyRouter[port] = {};
+          proxyRouter[port][`${host}${peerPath}`] = {
+            // target: `http://${host}:${confServer[host][peerPath].port}${peerPath}`,
+            target: `http://localhost:${confServer[host][peerPath].port}`,
+            // target: `http://127.0.0.1:${confServer[host][peerPath].port}`,
+            proxy: confServer[host][peerPath].proxy,
+            host,
+            path: peerPath,
+          };
+        }
+        currentPort++;
+      }
+    }
+  }
+  return proxyRouter;
+};
+
 const cliBar = async (time = 5000) => {
   // create new progress bar
   const b = new cliProgress.SingleBar({
@@ -610,6 +652,7 @@ export {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
+  buildProxyRouter,
   cliBar,
   cliSpinner,
 };
