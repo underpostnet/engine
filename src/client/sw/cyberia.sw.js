@@ -135,15 +135,16 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         try {
           // First, try to use the navigation preload response if it's supported.
-          const preloadResponse = await event.preloadResponse;
-          if (preloadResponse) {
-            return preloadResponse;
-          }
+          // const preloadResponse = await event.preloadResponse;
+          // if (preloadResponse) {
+          //   return preloadResponse;
+          // }
 
           if (preload) {
             const preloadCache = await caches.has(path);
             const cache = await caches.open(path);
-            if (!preloadCache) {
+            const cacheResponse = await cache.match(path);
+            if (!preloadCache || !cacheResponse || cacheResponse.status !== 200) {
               logger.warn('install', path);
               // await cache.add(new Request(event.request.url, { cache: 'reload' }));
 
@@ -162,7 +163,7 @@ self.addEventListener('fetch', (event) => {
               }
             }
             // logger.info('cache response', path);
-            return await cache.match(path);
+            return cacheResponse;
           }
 
           const networkResponse = await fetch(event.request);
