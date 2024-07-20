@@ -72,29 +72,8 @@ const Modal = {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
         case 'view':
-          setTimeout(() => {
-            const cleanTopModal = () => {
-              Object.keys(this.Data).map((_idModal) => {
-                if (this.Data[_idModal].options.mode === 'view' && s(`.${_idModal}`))
-                  s(`.${_idModal}`).style.zIndex = '3';
-              });
-            };
-            const setTopModal = () => {
-              if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '4';
-              else setTimeout(setTopModal, 100);
-            };
-            cleanTopModal();
-            setTopModal();
-            this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
-              if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
-                if (this.Data[idModal].options.route) setURI(`${getProxyPath()}${this.Data[idModal].options.route}`);
-                cleanTopModal();
-                setTopModal();
-              }
-            };
-          });
-
           if (options && options.slideMenu) s(`.btn-close-${options.slideMenu}`).click();
+          options.zIndexSync = true;
 
           options.style = {
             ...options.style,
@@ -657,6 +636,7 @@ const Modal = {
       s(`.btn-maximize-${idModal}`).click();
       return;
     }
+    if (options.zIndexSync) this.zIndexSync({ idModal });
     const render = html` <style class="style-${idModal}">
         .${idModal} {
           width: ${width}px;
@@ -982,6 +962,28 @@ const Modal = {
       id: idModal,
       ...this.Data[idModal],
     };
+  },
+  zIndexSync: function ({ idModal }) {
+    setTimeout(() => {
+      const cleanTopModal = () => {
+        Object.keys(this.Data).map((_idModal) => {
+          if (this.Data[_idModal].options.zIndexSync && s(`.${_idModal}`)) s(`.${_idModal}`).style.zIndex = '3';
+        });
+      };
+      const setTopModal = () => {
+        if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '4';
+        else setTimeout(setTopModal, 100);
+      };
+      cleanTopModal();
+      setTopModal();
+      this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
+        if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
+          if (this.Data[idModal].options.route) setURI(`${getProxyPath()}${this.Data[idModal].options.route}`);
+          cleanTopModal();
+          setTopModal();
+        }
+      };
+    });
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),

@@ -284,7 +284,7 @@ const InteractionPanelCyberia = {
     const style = {
       // height: '40px',
       // width: '180px',
-      'z-index': 3,
+      // 'z-index': 3,
       'font-size': '18px',
       overflow: 'hidden',
       resize: 'none',
@@ -300,8 +300,8 @@ const InteractionPanelCyberia = {
           style.left = `0px`;
           style.top = `0px`;
           style.height = `${100}px`;
-          style.background = 'none';
-          style['z-index'] = 7;
+          // style.background = 'none';
+          // style['z-index'] = 7;
           Responsive.Event[id] = () => {
             s(`.${id}`).style.width = `${window.innerWidth}px`;
           };
@@ -334,6 +334,10 @@ const InteractionPanelCyberia = {
                   await this.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
                 } else {
                   this.restorePanel('map-interaction-panel');
+                  {
+                    const idModal = 'map-interaction-panel';
+                    Modal.zIndexSync({ idModal });
+                  }
                 }
               };
               s(`.cy-int-btn-target`).onclick = async () => {
@@ -345,6 +349,10 @@ const InteractionPanelCyberia = {
                   );
                 } else {
                   this.restorePanel('element-interaction-panel');
+                  {
+                    const idModal = 'element-interaction-panel';
+                    Modal.zIndexSync({ idModal });
+                  }
                 }
               };
               s(`.cy-int-btn-quest`).onclick = () => {
@@ -352,6 +360,10 @@ const InteractionPanelCyberia = {
                 if (!s(`.quest-interaction-panel`)) this.Render({ id: 'quest-interaction-panel' });
                 else {
                   this.restorePanel('quest-interaction-panel');
+                  {
+                    const idModal = 'quest-interaction-panel';
+                    Modal.zIndexSync({ idModal });
+                  }
                 }
               };
 
@@ -623,6 +635,7 @@ const InteractionPanelCyberia = {
       observer,
       btnContainerClass: 'inl',
       btnIconContainerClass: 'abs center',
+      zIndexSync: true,
     });
 
     if (id !== 'menu-interaction-panel') {
@@ -827,11 +840,18 @@ const InteractionPanelCyberia = {
       if (Modal.mobileModal()) this.mobileSingleInstance(id);
     }
 
-    if (id === 'menu-interaction-panel' && !Modal.mobileModal()) {
-      const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
-      for (const idPanel of Object.keys(interactionPanelStorage)) {
-        await InteractionPanelCyberia.Render({ id: idPanel });
+    if (id === 'menu-interaction-panel') {
+      if (!Modal.mobileModal()) {
+        const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
+        for (const idPanel of Object.keys(interactionPanelStorage)) {
+          await InteractionPanelCyberia.Render({ id: idPanel });
+        }
       }
+
+      setTimeout(() => {
+        s(`.top-bar`).classList.add('hide');
+        s(`.bottom-bar`).classList.add('hide');
+      });
     }
   },
   mobileSingleInstance: function (id) {
