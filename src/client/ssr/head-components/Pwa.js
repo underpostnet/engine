@@ -52,7 +52,7 @@ SrrComponent = ({ title, author, keywords, description, themeColor, canonicalURL
     href="${ssrPath}assets/splash/android-chrome-512x512.png"
   />
   <!-- microsoft -->
-  <link rel="shortcut icon" href="${ssrPath}assets/splash/favicon-194x194.png" type="image/png" />
+  <link rel="shortcut icon" href="${ssrPath}assets/splash/favicon-192x192.png" type="image/png" />
   <meta name="msapplication-config" content="${ssrPath}browserconfig.xml" />
   <meta name="application-name" content="${title}" />
   <meta name="msapplication-TileColor" content="${themeColor}" />
