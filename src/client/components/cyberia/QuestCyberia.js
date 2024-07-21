@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { newInstance, objectEquals, range, uniqueArray } from '../core/CommonJs.js';
+import { splitEveryXChar, newInstance, objectEquals, range, s4, uniqueArray } from '../core/CommonJs.js';
 import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Keyboard } from '../core/Keyboard.js';
@@ -9,7 +9,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
+import { append, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
 import { Slot } from './BagCyberia.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
@@ -443,16 +443,13 @@ const QuestManagementCyberia = {
     if (currentQuestData && !completeQuest)
       completeQuestStatic = QuestComponent.verifyCompleteQuest({ questData: currentQuestData });
 
-    const renderMainText = html`${await typeWriter({
-      id: idPanel + 'modal',
-      html: html`${completeQuest !== undefined || completeQuestStatic
-        ? Translate.Render(`${questData.id}-successDescription`)
-        : completeStep !== undefined
-        ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`)
-        : currentStep > 0
-        ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`)
-        : Translate.Render(`${questData.id}-description`)}`,
-    })}`;
+    const renderMainText = html`${completeQuest !== undefined || completeQuestStatic
+      ? Translate.Render(`${questData.id}-successDescription`)
+      : completeStep !== undefined
+      ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep}`)
+      : currentStep > 0
+      ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`)
+      : Translate.Render(`${questData.id}-description`)}`;
 
     const renderMainImage =
       completeQuest !== undefined || completeQuestStatic
@@ -474,6 +471,51 @@ const QuestManagementCyberia = {
             class="in quest-provide-img"
             src="${getProxyPath()}assets/skin/${componentData.displayId}/08/0.${componentData.extension}"
           />`;
+
+    const translateData =
+      completeQuest !== undefined || completeQuestStatic
+        ? questData.successDescription
+        : completeStep !== undefined
+        ? questData.provide.displayIds[0].stepData[currentStep].completeDialog
+        : currentStep > 0
+        ? questData.provide.displayIds[0].stepData[currentStep - 1].completeDialog
+        : questData.description;
+
+    const idSalt = s4() + s4();
+
+    const bubbleMainText = async () => {
+      setTimeout(() => {
+        const everyXWords = parseInt(s(`.${idModal}`).offsetWidth / 25);
+        const phraseArray = splitEveryXChar(
+          translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
+          everyXWords,
+        );
+        let i = -1;
+
+        for (const phrase of phraseArray) {
+          if (i === 6) break;
+          i++;
+          const _i = i;
+          setTimeout(async () => {
+            if (s(`.bubbleMainText-${questData.id}-${idSalt}`)) {
+              append(
+                `.bubbleMainText-${questData.id}-${idSalt}`,
+                await typeWriter({
+                  id: `text-${questData.id}-${_i}-${idSalt}`,
+                  html: phrase,
+                  endHideBlink: _i < phraseArray.length - 1,
+                }),
+              );
+            }
+          }, 2000 * i);
+        }
+      });
+      return await renderBubbleDialog({
+        id: `${idModal}-bubble-description`,
+        html: async () => html`<div class="in bubbleMainText-${questData.id}-${idSalt}"></div>`,
+        classSelectors: 'in',
+      });
+    };
 
     await Modal.Render({
       id: idModal,
@@ -636,30 +678,18 @@ const QuestManagementCyberia = {
               <div class="in">
                 ${completeQuest !== undefined || completeQuestStatic
                   ? questData.successDescriptionBubble
-                    ? await renderBubbleDialog({
-                        id: `${idModal}-bubble-description`,
-                        html: async () => renderMainText,
-                      })
+                    ? await bubbleMainText()
                     : renderMainText
                   : completeStep !== undefined
                   ? questData.provide.displayIds[0].stepData[currentStep].bubble
-                    ? await renderBubbleDialog({
-                        id: `${idModal}-bubble-description`,
-                        html: async () => renderMainText,
-                      })
+                    ? await bubbleMainText()
                     : renderMainText
                   : currentStep > 0
                   ? questData.provide.displayIds[0].stepData[currentStep - 1].bubble
-                    ? await renderBubbleDialog({
-                        id: `${idModal}-bubble-description`,
-                        html: async () => renderMainText,
-                      })
+                    ? await bubbleMainText()
                     : renderMainText
                   : questData.descriptionBubble
-                  ? await renderBubbleDialog({
-                      id: `${idModal}-bubble-description`,
-                      html: async () => renderMainText,
-                    })
+                  ? await bubbleMainText()
                   : renderMainText}
               </div>
 

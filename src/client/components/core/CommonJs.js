@@ -39,6 +39,7 @@ const getRawCsvFromArray = (array) =>
     : '';
 
 const newInstance = (obj) => {
+  // structuredClone() 2022 ES6 feature
   try {
     return JSON.parse(JSON.stringify(obj));
   } catch (error) {
@@ -565,6 +566,23 @@ function cleanString(string) {
   }, string);
 }
 
+function splitEveryXChar(originalString, everyXChar = 30) {
+  let modifiedString = '';
+  const arrayString = [];
+  let i = -1;
+
+  for (let char of originalString) {
+    i++;
+    modifiedString += char;
+    if (i !== 0 && i % everyXChar === 0) {
+      arrayString.push(newInstance(modifiedString));
+      modifiedString = '';
+    }
+  }
+  if (modifiedString) arrayString.push(modifiedString);
+  return arrayString;
+}
+
 export {
   s4,
   range,
@@ -609,4 +627,5 @@ export {
   isValidFormat,
   getTimezoneOffset,
   cleanString,
+  splitEveryXChar,
 };

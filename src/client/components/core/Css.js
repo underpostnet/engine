@@ -536,9 +536,11 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
   return html` <style class="style-${id}-col"></style>`;
 };
 
-const renderBubbleDialog = async function (options = { id: '', html: async () => '' }) {
+const renderBubbleDialog = async function (options = { id: '', html: async () => '', classSelectors }) {
   const { id, html } = options;
-  return html` <div class="inl bubble-dialog bubble-dialog-${id}">
+  return html` <div
+    class="${options?.classSelectors ? options.classSelectors : 'inl'} bubble-dialog bubble-dialog-${id}"
+  >
     <style class="style-bubble-dialog-triangle-${id}">
       .bubble-dialog-triangle-${id} {
         width: 60px;
@@ -561,14 +563,17 @@ const renderBubbleDialog = async function (options = { id: '', html: async () =>
   </div>`;
 };
 
-const typeWriter = async function ({ id, html }) {
+const typeWriter = async function ({ id, html, seconds, endHideBlink }) {
+  if (!seconds) seconds = 2;
   // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
   // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
-  const typingAnimationTransitionStyle = [`1s linear`, `2s steps(30, end)`, `1s forwards`];
+  const typingAnimationTransitionStyle = [`1s linear`, `${seconds}s steps(30, end)`, `1s forwards`];
+  if (endHideBlink)
+    setTimeout(() => {
+      if (endHideBlink && s(`.style-${id}`)) s(`.style-${id}`).remove();
+    }, seconds * 1000);
   return html`
-    <style>
-      .tw-${id}-container {
-      }
+    <style class="style-${id}">
       .tw-${id}-typed-out {
         overflow: hidden;
         border-right: 0.15em solid orange;
@@ -576,6 +581,10 @@ const typeWriter = async function ({ id, html }) {
         animation: typing-${id} ${typingAnimationTransitionStyle[1]}, blink-caret-${id} 0.5s step-end infinite;
         animation-fill-mode: forwards;
         width: 0;
+      }
+    </style>
+    <style>
+      .tw-${id}-container {
       }
       @keyframes typing-${id} {
         from {

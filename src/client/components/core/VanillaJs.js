@@ -91,6 +91,9 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(el).onmouseout = () => null;
 // `0`.repeat(3) -> 000
 
+// s(`.${idModal}`).offsetWidth
+// s(`.${idModal}`).offsetHeight
+
 /**
  * The `copyData` function uses the Clipboard API to copy the provided data to the clipboard and
  * returns a promise that resolves to true if successful or false if unsuccessful.
