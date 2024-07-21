@@ -12,6 +12,7 @@ import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCryptokoyn } from './ElementsCryptokoyn.js';
 import Sortable from 'sortablejs';
 import { RouterCryptokoyn } from './RoutesCryptokoyn.js';
+import { Wallet } from '../core/Wallet.js';
 
 const MenuCryptokoyn = {
   Data: {},
@@ -69,6 +70,14 @@ const MenuCryptokoyn = {
             }),
             style: 'display: none',
             attrs: `data-id="4"`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'wfa main-btn-menu main-btn-wallet',
+            label: renderMenuLabel({
+              icon: html` <i class="fas fa-wallet"></i>`,
+              text: html`${Translate.Render('wallet')}`,
+            }),
+            attrs: `data-id="5"`,
           })}
         </div>
       `,
@@ -220,6 +229,27 @@ const MenuCryptokoyn = {
             user: ElementsCryptokoyn.Data.user.main.model.user,
             disabled: ['emailConfirm'],
           }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-wallet`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-wallet',
+        route: 'wallet',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-wallet"></i>`,
+          text: Translate.Render('wallet'),
+        }),
+        html: async () => await Wallet.Render({ idModal: 'modal-wallet' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

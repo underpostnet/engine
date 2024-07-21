@@ -27,6 +27,7 @@ const RoutesCryptokoyn = () => {
       hideDisplay: true,
       translateTitle: true,
     },
+    '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(), translateTitle: true },
   };
 };
 
