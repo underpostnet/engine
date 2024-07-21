@@ -632,11 +632,11 @@ const Modal = {
           break;
       }
     }
+    if (options.zIndexSync) this.zIndexSync({ idModal });
     if (s(`.${idModal}`)) {
       s(`.btn-maximize-${idModal}`).click();
       return;
     }
-    if (options.zIndexSync) this.zIndexSync({ idModal });
     const render = html` <style class="style-${idModal}">
         .${idModal} {
           width: ${width}px;
