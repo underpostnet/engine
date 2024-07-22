@@ -488,26 +488,46 @@ const QuestManagementCyberia = {
     let toIndex = deltaIndex;
     const bubbleMainText = async () => {
       setTimeout(() => {
-        s(`.quest-bubble-icon-arrow-right`).onclick = () => {
-          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
-          fromIndex += deltaIndex;
-          toIndex += deltaIndex;
-          bubbleMainText();
-        };
-        s(`.quest-bubble-icon-arrow-left`).onclick = () => {
-          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
-          fromIndex -= deltaIndex;
-          toIndex -= deltaIndex;
-          bubbleMainText();
-        };
-
         const everyXWords = parseInt(s(`.${idModal}`).offsetWidth / 50);
         const phraseArray = splitEveryXChar(
           translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
           everyXWords,
         );
-
         let indexAbs = -1;
+
+        const updateArrowAction = () => {
+          if (fromIndex === -1) {
+            s(`.quest-bubble-icon-arrow-left`).style.opacity = '0';
+            s(`.quest-bubble-icon-arrow-left`).style.cursor = 'default';
+          } else {
+            s(`.quest-bubble-icon-arrow-left`).style.opacity = null;
+            s(`.quest-bubble-icon-arrow-left`).style.cursor = null;
+          }
+          if (toIndex >= phraseArray.length) {
+            s(`.quest-bubble-icon-arrow-right`).style.opacity = '0';
+            s(`.quest-bubble-icon-arrow-right`).style.cursor = 'default';
+          } else {
+            s(`.quest-bubble-icon-arrow-right`).style.opacity = null;
+            s(`.quest-bubble-icon-arrow-right`).style.cursor = null;
+          }
+        };
+
+        s(`.quest-bubble-icon-arrow-right`).onclick = () => {
+          if (toIndex >= phraseArray.length) return;
+          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          fromIndex += deltaIndex;
+          toIndex += deltaIndex;
+          bubbleMainText();
+          updateArrowAction();
+        };
+        s(`.quest-bubble-icon-arrow-left`).onclick = () => {
+          if (fromIndex === -1) return;
+          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          fromIndex -= deltaIndex;
+          toIndex -= deltaIndex;
+          bubbleMainText();
+          updateArrowAction();
+        };
 
         for (const index of range(fromIndex, toIndex)) {
           if (!phraseArray[index]) continue;
@@ -551,6 +571,7 @@ const QuestManagementCyberia = {
               })}
               ${await BtnIcon.Render({
                 class: `in flr action-panel-bar-btn-container quest-bubble-icon-arrow-left`,
+                style: 'opacity: 0; cursor: default',
                 label: html`<img
                     class="abs center action-panel-img-icon"
                     src="${getProxyPath()}assets/ui-icons/arrow-left.png"
