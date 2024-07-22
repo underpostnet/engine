@@ -694,6 +694,8 @@ const CssCyberiaDark = {
             width: 85%;
             height: 85%;
           }
+          .bubbleMainText {
+          }
         </style>
 
         ${borderChar(2, 'black', [

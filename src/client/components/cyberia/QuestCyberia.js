@@ -482,37 +482,84 @@ const QuestManagementCyberia = {
         : questData.description;
 
     const idSalt = s4() + s4();
-
+    const deltaIndex = 6;
+    let seconds = 1;
+    let fromIndex = -1;
+    let toIndex = deltaIndex;
     const bubbleMainText = async () => {
       setTimeout(() => {
-        const everyXWords = parseInt(s(`.${idModal}`).offsetWidth / 25);
+        s(`.quest-bubble-icon-arrow-right`).onclick = () => {
+          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          fromIndex += deltaIndex;
+          toIndex += deltaIndex;
+          bubbleMainText();
+        };
+        s(`.quest-bubble-icon-arrow-left`).onclick = () => {
+          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          fromIndex -= deltaIndex;
+          toIndex -= deltaIndex;
+          bubbleMainText();
+        };
+
+        const everyXWords = parseInt(s(`.${idModal}`).offsetWidth / 50);
         const phraseArray = splitEveryXChar(
           translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
           everyXWords,
         );
-        let i = -1;
 
-        for (const phrase of phraseArray) {
-          if (i === 6) break;
-          i++;
-          const _i = i;
+        let indexAbs = -1;
+
+        for (const index of range(fromIndex, toIndex)) {
+          if (!phraseArray[index]) continue;
+          indexAbs++;
+          const subIdSalt = s4() + s4() + s4();
+          append(
+            `.bubbleMainText-${questData.id}-${idSalt}`,
+            html` <div class="bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}"></div> `,
+          );
+
           setTimeout(async () => {
-            if (s(`.bubbleMainText-${questData.id}-${idSalt}`)) {
+            if (s(`.bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}`)) {
               append(
-                `.bubbleMainText-${questData.id}-${idSalt}`,
-                await typeWriter({
-                  id: `text-${questData.id}-${_i}-${idSalt}`,
-                  html: phrase,
-                  endHideBlink: _i < phraseArray.length - 1,
-                }),
+                `.bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}`,
+                html`
+                  ${await typeWriter({
+                    id: `text-${questData.id}-${index}-${idSalt}`,
+                    html: phraseArray[index],
+                    endHideBlink: index < toIndex,
+                    seconds,
+                  })}
+                `,
               );
             }
-          }, 2000 * i);
+          }, seconds * 1000 * indexAbs);
         }
       });
       return await renderBubbleDialog({
         id: `${idModal}-bubble-description`,
-        html: async () => html`<div class="in bubbleMainText-${questData.id}-${idSalt}"></div>`,
+        triangleType: 'right',
+        html: async () =>
+          html`
+            <div class="fl">
+              ${await BtnIcon.Render({
+                class: `in flr action-panel-bar-btn-container quest-bubble-icon-arrow-right`,
+                label: html`<img
+                    class="abs center action-panel-img-icon"
+                    src="${getProxyPath()}assets/ui-icons/arrow-right.png"
+                  />
+                  <!-- <div class="abs quest-keyboard-bubble-info"></div> -->`,
+              })}
+              ${await BtnIcon.Render({
+                class: `in flr action-panel-bar-btn-container quest-bubble-icon-arrow-left`,
+                label: html`<img
+                    class="abs center action-panel-img-icon"
+                    src="${getProxyPath()}assets/ui-icons/arrow-left.png"
+                  />
+                  <!-- <div class="abs quest-keyboard-bubble-info"></div> -->`,
+              })}
+            </div>
+            <div class="in bubbleMainText bubbleMainText-${questData.id}-${idSalt}"></div>
+          `,
         classSelectors: 'in',
       });
     };
@@ -675,25 +722,27 @@ const QuestManagementCyberia = {
           </div>
           <div class="in fll quest-dynamic-${questData.id}-col-b">
             <div class="in section-mp">
-              <div class="in">
-                ${completeQuest !== undefined || completeQuestStatic
-                  ? questData.successDescriptionBubble
+              <div class="fl">
+                <div class="in fll" style="width: 50%">
+                  ${completeQuest !== undefined || completeQuestStatic
+                    ? questData.successDescriptionBubble
+                      ? await bubbleMainText()
+                      : renderMainText
+                    : completeStep !== undefined
+                    ? questData.provide.displayIds[0].stepData[currentStep].bubble
+                      ? await bubbleMainText()
+                      : renderMainText
+                    : currentStep > 0
+                    ? questData.provide.displayIds[0].stepData[currentStep - 1].bubble
+                      ? await bubbleMainText()
+                      : renderMainText
+                    : questData.descriptionBubble
                     ? await bubbleMainText()
-                    : renderMainText
-                  : completeStep !== undefined
-                  ? questData.provide.displayIds[0].stepData[currentStep].bubble
-                    ? await bubbleMainText()
-                    : renderMainText
-                  : currentStep > 0
-                  ? questData.provide.displayIds[0].stepData[currentStep - 1].bubble
-                    ? await bubbleMainText()
-                    : renderMainText
-                  : questData.descriptionBubble
-                  ? await bubbleMainText()
-                  : renderMainText}
-              </div>
+                    : renderMainText}
+                </div>
 
-              ${renderMainImage}
+                <div class="in fll" style="width: 50%">${renderMainImage}</div>
+              </div>
             </div>
           </div>
         </div>

@@ -536,8 +536,31 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
   return html` <style class="style-${id}-col"></style>`;
 };
 
-const renderBubbleDialog = async function (options = { id: '', html: async () => '', classSelectors }) {
+const renderBubbleDialog = async function (
+  options = { id: '', html: async () => '', classSelectors, triangleType: 'down' },
+) {
   const { id, html } = options;
+  let cssPosition = `
+    bottom: -45px;
+    left: 5px;
+  `;
+  let whiteTriangleStyle = `top: 43%`;
+  let blackTriangleStyle = ``;
+  switch (options.triangleType) {
+    case 'right':
+      cssPosition = `
+        right: -40px;
+        top: 5px;
+      `;
+      blackTriangleStyle = `
+        top: 43%;
+        left: 57%;
+      `;
+      break;
+
+    default:
+      break;
+  }
   return html` <div
     class="${options?.classSelectors ? options.classSelectors : 'inl'} bubble-dialog bubble-dialog-${id}"
   >
@@ -545,18 +568,27 @@ const renderBubbleDialog = async function (options = { id: '', html: async () =>
       .bubble-dialog-triangle-${id} {
         width: 60px;
         height: 60px;
-        bottom: -45px;
-        left: 5px;
         /* border: 2px solid red; */
         box-sizing: border-box;
+        ${cssPosition}
       }
     </style>
     <div class="abs bubble-dialog-triangle bubble-dialog-triangle-${id}">
-      <div class="abs center">
-        ${triangle.down({ dim: 25, id: id + '-triangle-black', color: 'black', classList: 'inl' })}
+      <div class="abs center" style="${blackTriangleStyle}">
+        ${triangle[options?.triangleType ? options.triangleType : 'down']({
+          dim: 25,
+          id: id + '-triangle-black',
+          color: 'black',
+          classList: 'inl',
+        })}
       </div>
-      <div class="abs center" style="top: 43%">
-        ${triangle.down({ dim: 24, id: id + '-triangle-white', color: 'white', classList: 'inl' })}
+      <div class="abs center" style="${whiteTriangleStyle}">
+        ${triangle[options?.triangleType ? options.triangleType : 'down']({
+          dim: 24,
+          id: id + '-triangle-white',
+          color: 'white',
+          classList: 'inl',
+        })}
       </div>
     </div>
     ${await html()}
