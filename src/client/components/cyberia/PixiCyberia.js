@@ -16,7 +16,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement } from './CommonCyberia.js';
+import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
@@ -676,7 +676,7 @@ const PixiCyberia = {
           for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
             anim[attr] = dataSpriteFormat.componentInstance[attr];
           }
-          anim.animationSpeed = 0.03; // 0 - 1
+          anim.animationSpeed = DisplayComponent.get[displayId]().velFrame; // 0 - 1
 
           let componentContainer;
           if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;

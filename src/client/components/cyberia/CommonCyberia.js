@@ -82,6 +82,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 3 },
     { positionId: '18', frames: 3 },
   ],
+  frames11: () => [
+    { positionId: '02', frames: 11 },
+    { positionId: '04', frames: 11 },
+    { positionId: '06', frames: 11 },
+    { positionId: '08', frames: 11 },
+    { positionId: '12', frames: 11 },
+    { positionId: '14', frames: 11 },
+    { positionId: '16', frames: 11 },
+    { positionId: '18', frames: 11 },
+  ],
 };
 
 const setElementConsistency = (type, element) => {
@@ -105,7 +115,7 @@ const DisplayComponent = {
         displayId: 'bone',
         position: '08',
         positions: PositionsComponent.frames1(),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'quest',
         extension: 'gif',
       };
@@ -115,7 +125,7 @@ const DisplayComponent = {
         displayId: 'bone-brown',
         position: '08',
         positions: PositionsComponent.frames1(),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'quest',
         extension: 'gif',
       };
@@ -125,7 +135,7 @@ const DisplayComponent = {
         displayId: 'ayleen',
         position: '08',
         positions: PositionsComponent.default(),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'skin',
         extension: 'png',
       };
@@ -136,7 +146,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -146,7 +156,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -156,7 +166,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -166,7 +176,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.ghost(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -176,7 +186,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -186,7 +196,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -196,7 +206,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -206,7 +216,7 @@ const DisplayComponent = {
         position: '08',
         positions: PositionsComponent.default(),
         assetFolder: 'skin',
-        velFrame: 250,
+        velFrame: 0.03,
         extension: 'png',
       };
     },
@@ -215,7 +225,7 @@ const DisplayComponent = {
         displayId: 'tim-knife',
         position: '08',
         positions: PositionsComponent['frames3'](),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'weapon',
         extension: 'gif',
       };
@@ -225,7 +235,7 @@ const DisplayComponent = {
         displayId: 'brown-wing',
         position: '08',
         positions: PositionsComponent.wing(),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'breastplate',
         extension: 'png',
       };
@@ -235,7 +245,7 @@ const DisplayComponent = {
         displayId: 'red-power',
         position: '08',
         positions: PositionsComponent['frames3'](),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'skill',
         extension: 'png',
       };
@@ -245,8 +255,18 @@ const DisplayComponent = {
         displayId: 'green-power',
         position: '08',
         positions: PositionsComponent['frames3'](),
-        velFrame: 250,
+        velFrame: 0.03,
         assetFolder: 'skill',
+        extension: 'png',
+      };
+    },
+    dog: () => {
+      return {
+        displayId: 'dog',
+        position: '08',
+        positions: PositionsComponent['frames11'](),
+        velFrame: 0.1,
+        assetFolder: 'skin',
         extension: 'png',
       };
     },
@@ -341,10 +361,16 @@ const Stat = {
         dim: 1,
       };
     },
+    dog: () => {
+      return {
+        dim: 1,
+      };
+    },
   },
   set: function (type, element, build) {
     if (!build) {
       const oldElement = newInstance(element);
+      // only storage data (no accumulative attributes, example: damage)
       element = BaseElement()[type].main;
       element._id = oldElement._id;
       element.x = oldElement.x;
@@ -427,38 +453,38 @@ const QuestComponent = {
           displayIds: [
             {
               id: 'ayleen',
-              quantity: [2],
+              quantity: [1],
               stepData: [
                 {
                   image: 'assets/quest/bone/08/0.gif',
                   bubble: false,
                   completeDialog: {
-                    en: 'Good, now take the bones to ayleen.'.repeat(50),
-                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
+                    en: 'Good, now take the bones to ayleen',
+                    es: 'Bien, ahora lleva los huesos a ayleen',
                   },
                 },
                 {
                   image: 'assets/skin/ayleen/08/0.png',
                   bubble: true,
                   completeDialog: {
-                    en: 'thank, please find more bones'.repeat(50),
-                    es: 'gracias!, porfavor busca mas huesos '.repeat(50),
+                    en: 'thanks, please find more bones',
+                    es: 'gracias!, porfavor busca mas huesos',
                   },
                 },
                 {
                   image: 'assets/quest/bone/08/0.gif',
                   bubble: false,
                   completeDialog: {
-                    en: 'Good, now take the bones to ayleen.'.repeat(50),
-                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
+                    en: 'Good, now take the bones to ayleen',
+                    es: 'Bien, ahora lleva los huesos a ayleen',
                   },
                 },
                 {
                   image: 'assets/skin/ayleen/08/0.png',
                   bubble: true,
                   completeDialog: {
-                    en: 'thank '.repeat(50),
-                    es: 'gracias! '.repeat(50),
+                    en: 'thanks!',
+                    es: 'gracias!',
                   },
                 },
               ],
@@ -483,81 +509,8 @@ const QuestComponent = {
         },
         descriptionBubble: true,
         successDescription: {
-          en: 'complete thank '.repeat(50),
-          es: 'complete gracias! '.repeat(50),
-        },
-        successDescriptionBubble: true,
-      };
-    },
-    'floki-bone-0': () => {
-      return {
-        type: 'search',
-        maxStep: 1,
-        currentStep: 0,
-        displaySearchObjects: [
-          { id: 'bone-brown', quantity: 5, current: 0, step: 0 },
-          {
-            id: 'ayleen',
-            quantity: 1,
-            current: 0,
-            step: 1,
-            delivery: true,
-            actionIcon: 'assets/ui-icons/hand.png',
-            panelQuestIcons: ['assets/ui-icons/hand.png', 'assets/skin/ayleen/08/0.png'],
-          },
-        ],
-        reward: [
-          {
-            type: 'coin',
-            quantity: 50,
-          },
-        ],
-        provide: {
-          displayIds: [
-            {
-              id: 'ayleen',
-              quantity: [1],
-              stepData: [
-                {
-                  image: 'assets/quest/bone/08/0.gif',
-                  bubble: false,
-                  completeDialog: {
-                    en: 'Good, now take the bones to ayleen.'.repeat(50),
-                    es: 'Bien, ahora lleva los huesos a ayleen. '.repeat(50),
-                  },
-                },
-                {
-                  image: 'assets/skin/ayleen/08/0.png',
-                  bubble: true,
-                  completeDialog: {
-                    en: 'thank '.repeat(50),
-                    es: 'gracias! '.repeat(50),
-                  },
-                },
-              ],
-            },
-          ],
-        },
-        icon: {
-          folder: 'quest/bone',
-          id: 'animation.gif',
-        },
-        title: {
-          en: `floki's bone 0`,
-          es: 'Huesos de floki 0',
-        },
-        shortDescription: {
-          en: `Please find Floki's bone 0`,
-          es: 'Por favor encuentra los huesos de floki 0',
-        },
-        description: {
-          en: `Please find Floki's bone 0`,
-          es: 'Por favor encuentra los huesos de floki 0',
-        },
-        descriptionBubble: true,
-        successDescription: {
-          en: 'complete thank '.repeat(50),
-          es: 'complete gracias! '.repeat(50),
+          en: 'complete thanks!',
+          es: 'complete gracias!',
         },
         successDescriptionBubble: true,
       };
@@ -985,6 +938,9 @@ const BehaviorElement = {
     color: 'yellow',
   },
   decor: {
+    color: 'yellow',
+  },
+  pet: {
     color: 'yellow',
   },
 };

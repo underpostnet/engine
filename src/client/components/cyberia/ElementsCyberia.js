@@ -48,7 +48,9 @@ const ElementsCyberia = {
       case 'item-quest':
       case 'decor':
       default:
-        return this.formatDisplayText(this.Data[type][id].behavior);
+        return this.formatDisplayText(
+          this.Data[type][id].title ? this.Data[type][id].title : this.Data[type][id].behavior,
+        );
     }
   },
   getDisplayName: function ({ type, id }) {
@@ -66,7 +68,9 @@ const ElementsCyberia = {
       case 'item-quest':
       case 'decor':
       default:
-        return this.formatDisplayText(this.getCurrentSkinDisplayId({ type, id }));
+        return this.formatDisplayText(
+          this.Data[type][id].name ? this.Data[type][id].name : this.getCurrentSkinDisplayId({ type, id }),
+        );
     }
   },
   removeAll: function () {

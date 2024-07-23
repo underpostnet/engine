@@ -2,7 +2,7 @@ import { getId, newInstance, range } from '../core/CommonJs.js';
 import { AnimatedSprite, Application, Container, Sprite, Texture } from 'pixi.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
-import { CyberiaParams } from './CommonCyberia.js';
+import { CyberiaParams, DisplayComponent } from './CommonCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { renderStyleTag } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -160,7 +160,7 @@ const ElementPreviewCyberia = {
             for (const attr of Object.keys(componentInstance)) {
               anim[attr] = componentInstance[attr];
             }
-            anim.animationSpeed = 0.07; // 0 - 1
+            anim.animationSpeed = DisplayComponent.get[displayId]().velFrame; // 0 - 1
 
             anim.play();
 

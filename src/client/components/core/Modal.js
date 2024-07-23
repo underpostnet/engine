@@ -987,6 +987,9 @@ const Modal = {
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
+  viewModalOpen: function () {
+    return Object.keys(this.Data).find((idModal) => s(`.${idModal}`) && this.Data[idModal].options.mode === 'view');
+  },
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {

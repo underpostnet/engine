@@ -113,7 +113,7 @@ const QuestManagementCyberia = {
               ((questData &&
                 (QuestComponent.componentsScope[displayId].questKeyContext !== 'displaySearchObjects' ||
                   enabledQuestPanel)) ||
-                (!['user-hostile'].includes(ElementsCyberia.Data[typeTarget][elementTargetId].behavior) &&
+                (!['user-hostile', 'pet'].includes(ElementsCyberia.Data[typeTarget][elementTargetId].behavior) &&
                   MainUserCyberia.lastArrowElement &&
                   MainUserCyberia.lastArrowElement.type === typeTarget &&
                   MainUserCyberia.lastArrowElement.id === elementTargetId)) &&
@@ -252,8 +252,14 @@ const QuestManagementCyberia = {
                     if (okButtonDisabled) delete Keyboard.Event[idKeyboardEvent];
                     else
                       Keyboard.Event[idKeyboardEvent] = {
-                        a: () => (s(`.action-panel-ok-${idPanel}`) ? s(`.action-panel-ok-${idPanel}`).click() : null),
-                        A: () => (s(`.action-panel-ok-${idPanel}`) ? s(`.action-panel-ok-${idPanel}`).click() : null),
+                        a: () =>
+                          s(`.action-panel-ok-${idPanel}`) && !Modal.viewModalOpen()
+                            ? s(`.action-panel-ok-${idPanel}`).click()
+                            : null,
+                        A: () =>
+                          s(`.action-panel-ok-${idPanel}`) && !Modal.viewModalOpen()
+                            ? s(`.action-panel-ok-${idPanel}`).click()
+                            : null,
                       };
                   }
 
@@ -265,9 +271,13 @@ const QuestManagementCyberia = {
                     else
                       Keyboard.Event[idKeyboardEvent] = {
                         s: () =>
-                          s(`.action-panel-dude-${idPanel}`) ? s(`.action-panel-dude-${idPanel}`).click() : null,
+                          s(`.action-panel-dude-${idPanel}`) && !Modal.viewModalOpen()
+                            ? s(`.action-panel-dude-${idPanel}`).click()
+                            : null,
                         S: () =>
-                          s(`.action-panel-dude-${idPanel}`) ? s(`.action-panel-dude-${idPanel}`).click() : null,
+                          s(`.action-panel-dude-${idPanel}`) && !Modal.viewModalOpen()
+                            ? s(`.action-panel-dude-${idPanel}`).click()
+                            : null,
                       };
                   }
 
@@ -285,11 +295,15 @@ const QuestManagementCyberia = {
                       Keyboard.Event[idKeyboardEvent] = {
                         a: () => {
                           if (actionButtonEnabled)
-                            s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
+                            s(`.action-panel-hand-${idPanel}`) && !Modal.viewModalOpen()
+                              ? s(`.action-panel-hand-${idPanel}`).click()
+                              : null;
                         },
                         A: () => {
                           if (actionButtonEnabled)
-                            s(`.action-panel-hand-${idPanel}`) ? s(`.action-panel-hand-${idPanel}`).click() : null;
+                            s(`.action-panel-hand-${idPanel}`) && !Modal.viewModalOpen()
+                              ? s(`.action-panel-hand-${idPanel}`).click()
+                              : null;
                         },
                       };
                   }
@@ -496,6 +510,11 @@ const QuestManagementCyberia = {
         let indexAbs = -1;
 
         const updateArrowAction = () => {
+          if (fromIndex === -1 && toIndex >= phraseArray.length) {
+            s(`.quest-bubble-icon-arrow-left`).style.display = 'none';
+            s(`.quest-bubble-icon-arrow-right`).style.display = 'none';
+            return;
+          }
           if (fromIndex === -1) {
             s(`.quest-bubble-icon-arrow-left`).style.opacity = '0';
             s(`.quest-bubble-icon-arrow-left`).style.cursor = 'default';
@@ -528,6 +547,7 @@ const QuestManagementCyberia = {
           bubbleMainText();
           updateArrowAction();
         };
+        updateArrowAction();
 
         for (const index of range(fromIndex, toIndex)) {
           if (!phraseArray[index]) continue;
@@ -571,7 +591,6 @@ const QuestManagementCyberia = {
               })}
               ${await BtnIcon.Render({
                 class: `in flr action-panel-bar-btn-container quest-bubble-icon-arrow-left`,
-                style: 'opacity: 0; cursor: default',
                 label: html`<img
                     class="abs center action-panel-img-icon"
                     src="${getProxyPath()}assets/ui-icons/arrow-left.png"

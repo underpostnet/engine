@@ -42,8 +42,8 @@ const logger = loggerFactory(import.meta);
 const CyberiaWsBotManagement = {
   element: {},
   localElementScope: {},
-  botFactory: function ({ biome, instanceIndex, botIndex, wsManagementId, metaDataBot }) {
-    const skinId = metaDataBot.displayIds[botIndex];
+  botFactory: function ({ biome, instanceIndex, wsManagementId, displayBotMetaData }) {
+    const skinId = displayBotMetaData.id;
 
     let bot = BaseElement({ worldId: CyberiaWsInstanceScope[wsManagementId].world.instance._id.toString() }).bot.main;
 
@@ -66,8 +66,23 @@ const CyberiaWsBotManagement = {
     bot.model.world.face = instanceIndex + 1;
 
     const getRandomPosition = () => getRandomAvailablePositionCyberia({ biomeData: biome, element: bot });
+    let x, y;
+    switch (displayBotMetaData.behavior) {
+      case 'pet': {
+        const parentBotId = Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find((botId) => {
+          const dataSkin = CyberiaWsBotManagement.element[wsManagementId][botId].components.skin.find((s) => s.current);
+          return dataSkin && dataSkin.displayId === displayBotMetaData.parentId;
+        });
+        x = newInstance(CyberiaWsBotManagement.element[wsManagementId][parentBotId].x);
+        y = newInstance(CyberiaWsBotManagement.element[wsManagementId][parentBotId].y);
+      }
 
-    const { x, y } = getRandomPosition();
+      default: {
+        const positionData = getRandomPosition();
+        x = positionData.x;
+        y = positionData.y;
+      }
+    }
     bot.x = x;
     bot.y = y;
     const id = getId(this.element[wsManagementId], 'bot-');
@@ -86,7 +101,7 @@ const CyberiaWsBotManagement = {
 
     this.localElementScope[wsManagementId][id] = {
       api: { getRandomPosition },
-      metaDataBot,
+      displayBotMetaData,
       disabled: false,
       respawn: 5000,
       drop: {
@@ -382,10 +397,18 @@ const CyberiaWsBotManagement = {
         },
       },
     };
-    bot.behavior = metaDataBot.behavior;
+    bot.behavior = displayBotMetaData.behavior;
+    bot.name = displayBotMetaData.name;
+    bot.parentId = displayBotMetaData.parentId;
+    bot.title = displayBotMetaData.title;
     this.element[wsManagementId][id] = bot;
 
-    switch (metaDataBot.behavior) {
+    switch (displayBotMetaData.behavior) {
+      case 'pet':
+        {
+          this.localElementScope[wsManagementId][id].movement.Callback();
+        }
+        break;
       case 'quest-passive':
         break;
       case 'user-hostile':
@@ -436,7 +459,7 @@ const CyberiaWsBotManagement = {
         if (!biome) continue;
 
         for (const metaDataBot of instance.bots) {
-          const displayIds = [];
+          const displayBots = [];
 
           for (const displayBotMetaData of metaDataBot.displayIds) {
             if (displayBotMetaData.quantity[0] !== undefined && displayBotMetaData.quantity[1] !== undefined) {
@@ -444,32 +467,22 @@ const CyberiaWsBotManagement = {
                 0,
                 random(displayBotMetaData.quantity[0] - 1, displayBotMetaData.quantity[1] - 1),
               )) {
-                displayIds.push(displayBotMetaData.id);
+                displayBots.push({ ...displayBotMetaData._doc, behavior: metaDataBot.behavior });
               }
             } else if (displayBotMetaData.quantity[0] !== undefined) {
               for (const _ of range(0, displayBotMetaData.quantity[0] - 1)) {
-                displayIds.push(displayBotMetaData.id);
+                displayBots.push({ ...displayBotMetaData._doc, behavior: metaDataBot.behavior });
               }
             }
           }
 
-          for (const botIndex of range(0, displayIds.length - 1)) {
+          for (const displayBotMetaData of displayBots) {
             const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
               biome,
               instanceIndex,
               wsManagementId,
-              metaDataBot: { behavior: metaDataBot.behavior, displayIds },
-              botIndex,
+              displayBotMetaData,
             });
-            // if (metaDataBot.behavior === 'quest-passive')
-            //   logger.info(`${wsManagementId} Load bot`, {
-            //     index: botIndex,
-            //     behavior: metaDataBot.behavior,
-            //     face: bot.model.world.face,
-            //     x: bot.x,
-            //     y: bot.y,
-            //     skinId,
-            //   });
           }
         }
       }

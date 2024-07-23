@@ -81,6 +81,7 @@ const CssCommonCyberia = async () => {
         border: 3px solid black;
         font-family: 'retro-font-sensitive';
         margin-bottom: 30px;
+        min-height: 40px;
       }
       .section-mp-btn {
         margin: 0px;
