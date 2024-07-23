@@ -296,14 +296,18 @@ const getRawContentFile = (blob = new Buffer()) =>
   });
 
 /**
- * The function `getBlobFromUint8ArrayFile` creates a Blob object from JSON data.
- * @param json - The `json` parameter in the `getBlobFromUint8ArrayFile` function is an object that contains
- * two properties:
- * @returns A Blob object is being returned, created from the data and mimetype properties of the input
- * JSON object.
+ * The function `getBlobFromUint8ArrayFile` creates a Blob object from a Uint8Array file data with a
+ * specified mimetype.
+ * @param [data] - The `data` parameter in the `getBlobFromUint8ArrayFile` function is an array of
+ * arrays containing Uint8Array data.
+ * @param [mimetype=application/octet-stream] - The `mimetype` parameter in the
+ * `getBlobFromUint8ArrayFile` function is a string that specifies the type of the Blob object being
+ * created. It indicates the MIME type of the data contained in the Blob. For example, common MIME
+ * types include 'image/jpeg' for JPEG images,
+ * @returns A Blob object is being returned, created from the provided Uint8Array data and mimetype.
  */
-const getBlobFromUint8ArrayFile = (json) => {
-  return new Blob([new Uint8Array(json.data.data)], { type: json.mimetype });
+const getBlobFromUint8ArrayFile = (data = [[]], mimetype = 'application/octet-stream') => {
+  return new Blob([new Uint8Array(data)], { type: mimetype });
 };
 
 // Router

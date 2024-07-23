@@ -17,7 +17,7 @@ const Content = {
         } = await FileService.get({ id: queryParams.id });
 
         const ext = file.name.split('.')[file.name.split('.').length - 1];
-        const content = await getRawContentFile(getBlobFromUint8ArrayFile(file));
+        const content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
         switch (ext) {
           case 'md':
             htmls(
