@@ -906,23 +906,21 @@ const PixiCyberia = {
       this.Data[type][id].addChild(componentInstance);
     }
     {
-      setTimeout(() => {
-        const componentInstance = new Text(
-          text,
-          new TextStyle({
-            fill: color ? color : '#dcdcdc',
-            fontFamily: 'retro-font-sensitive',
-            fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude) * (size ? size : 1),
-            // fontWeight: 'bold',
-            dropShadow: true,
-            dropShadowAngle: 1,
-            dropShadowBlur: 3,
-            dropShadowColor: '#121212',
-            dropShadowDistance: 1,
-          }),
-        );
-        this.Data[type][id].components[componentType].container.addChild(componentInstance);
-      }, 100);
+      const componentInstance = new Text(
+        text,
+        new TextStyle({
+          fill: color ? color : '#dcdcdc',
+          fontFamily: 'monospace', // 'retro-font-sensitive',
+          fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude) * (size ? size : 1),
+          // fontWeight: 'bold',
+          dropShadow: true,
+          dropShadowAngle: 1,
+          dropShadowBlur: 3,
+          dropShadowColor: '#121212',
+          dropShadowDistance: 1,
+        }),
+      );
+      this.Data[type][id].components[componentType].container.addChild(componentInstance);
     }
   },
   setUsername: function ({ type, id }) {
