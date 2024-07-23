@@ -115,19 +115,19 @@ const copyData = (data) =>
 const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().then((clipText) => resolve(clipText)));
 
 /**
- * The setPath function updates the browser's history with a new URI, object data, and title.
- * @param uri - The `uri` parameter is the new URI (Uniform Resource Identifier) that you want to set
- * for the browser's history. It represents the new location that you want to navigate to within the
- * same page without a full page reload.
- * @param objData - The `objData` parameter is an object that represents the state data associated with
- * the specified URI. It can include any relevant information that you want to store and associate with
- * the URI for later use. This data will be accessible through the `history.state` property after the
- * URI is updated using `history
- * @param title - The `title` parameter in the `setPath` function is a string that represents the title
- * of the new history entry. This title will be displayed in the browser's history and can help users
- * identify the page when they navigate through their history.
+ * The setPath function in JavaScript updates the browser's history with a new path, state, and title.
+ * @param [path=/] - The `path` parameter is a string that represents the URL path where you want to
+ * navigate or update in the browser history. It is the first parameter in the `setPath` function and
+ * has a default value of `'/'`.
+ * @param [stateStorage] - The `stateStorage` parameter in the `setPath` function is an object that
+ * represents the state object associated with the new history entry. It is used to store data related
+ * to the state of the application when navigating to a new path using `history.pushState()`. This data
+ * can be accessed later
+ * @param [title] - The `title` parameter in the `setPath` function is a string that represents the
+ * title of the new history entry. It is used as the title of the new history entry in the browser's
+ * history.
  */
-const setPath = (uri, objData, title) => history.pushState(objData, title, uri);
+const setPath = (path = '/', stateStorage = {}, title = '') => history.pushState(stateStorage, title, path);
 
 /**
  * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
