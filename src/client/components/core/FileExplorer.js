@@ -11,7 +11,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
-import { copyData, downloadFile, getProxyPath, getQueryParams, s, setURI } from './VanillaJs.js';
+import { copyData, downloadFile, getProxyPath, getQueryParams, s, setPath } from './VanillaJs.js';
 
 class LoadFolderRenderer {
   eGui;
@@ -180,7 +180,7 @@ const FileExplorer = {
         const newLocation = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
         if (newLocation === location) return;
         location = newLocation;
-        setURI(`${window.location.pathname}?location=${location}`);
+        setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
         files = format.files;
@@ -196,7 +196,7 @@ const FileExplorer = {
           s(`.file-explorer-nav`).style.display = 'block';
         } else if (newLocation === location) return;
         else location = newLocation;
-        setURI(`${window.location.pathname}?location=${location}`);
+        setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
         files = format.files;
@@ -269,7 +269,7 @@ const FileExplorer = {
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
             e.preventDefault();
             if (location.href !== url) {
-              setURI(uri);
+              setPath(uri);
               s(`.main-btn-content`).click();
             }
           });
@@ -480,7 +480,7 @@ const FileExplorer = {
                         const newLocation = event.data.location;
                         if (newLocation === location) return;
                         location = newLocation;
-                        setURI(`${window.location.pathname}?location=${location}`);
+                        setPath(`${window.location.pathname}?location=${location}`);
                         s(`.file-explorer-query-nav`).value = location;
                         const format = this.bucketDataFormat({ bucket: bucketInstance, location });
                         files = format.files;
@@ -515,7 +515,7 @@ const FileExplorer = {
                       const newLocation = selectedRows[0].location;
                       if (newLocation === location) return;
                       location = newLocation;
-                      setURI(`${window.location.pathname}?location=${location}`);
+                      setPath(`${window.location.pathname}?location=${location}`);
                       s(`.file-explorer-query-nav`).value = location;
                       const format = this.bucketDataFormat({ bucket: bucketInstance, location });
                       files = format.files;

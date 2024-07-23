@@ -5,7 +5,7 @@ import { newInstance } from '../core/CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { LogIn } from '../core/LogIn.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { s, setURI } from '../core/VanillaJs.js';
+import { s, setPath } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { BaseElement } from './CommonCyberia.js';
 import { WebhookCyberia } from './WebhookCyberia.js';
@@ -46,7 +46,7 @@ const LogInCyberia = async function () {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
       // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
       // return (location.href = redirect);
-      setURI(resultUserCyberia.data.redirect);
+      setPath(resultUserCyberia.data.redirect);
       await SocketIo.Init({ channels: ElementsCyberia.Data });
       return await SocketIoCyberia.Init();
     }

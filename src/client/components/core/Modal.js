@@ -1,6 +1,6 @@
 import { getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setURI, getProxyPath, htmls, sa } from './VanillaJs.js';
+import { append, s, prepend, setPath, getProxyPath, htmls, sa } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -107,7 +107,7 @@ const Modal = {
               const newPath = `${proxyPath}${options.route}`;
               if (path !== newPath) {
                 // console.warn('SET MODAL URI', newPath);
-                setURI(`${newPath}`); // ${location.search}
+                setPath(`${newPath}`); // ${location.search}
                 setDocTitle({ ...options.RouterInstance, route: options.route });
               }
             })();
@@ -844,13 +844,13 @@ const Modal = {
                 if (this.Data[subIdModal].options.route) {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
                   // console.warn('SET MODAL URI', newPath);
-                  setURI(newPath);
+                  setPath(newPath);
                   s(`.${subIdModal}`).style.zIndex = '4';
                   return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }
               // console.warn('SET MODAL URI', newPath);
-              setURI(newPath);
+              setPath(newPath);
               return setDocTitle({ ...options.RouterInstance, route: '' });
             }
           })();
@@ -978,7 +978,7 @@ const Modal = {
       setTopModal();
       this.Data[idModal].onClickListener[`${idModal}-z-index`] = () => {
         if (s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '3') {
-          if (this.Data[idModal].options.route) setURI(`${getProxyPath()}${this.Data[idModal].options.route}`);
+          if (this.Data[idModal].options.route) setPath(`${getProxyPath()}${this.Data[idModal].options.route}`);
           cleanTopModal();
           setTopModal();
         }

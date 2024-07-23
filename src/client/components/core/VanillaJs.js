@@ -115,7 +115,7 @@ const copyData = (data) =>
 const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().then((clipText) => resolve(clipText)));
 
 /**
- * The setURI function updates the browser's history with a new URI, object data, and title.
+ * The setPath function updates the browser's history with a new URI, object data, and title.
  * @param uri - The `uri` parameter is the new URI (Uniform Resource Identifier) that you want to set
  * for the browser's history. It represents the new location that you want to navigate to within the
  * same page without a full page reload.
@@ -123,11 +123,11 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
  * the specified URI. It can include any relevant information that you want to store and associate with
  * the URI for later use. This data will be accessible through the `history.state` property after the
  * URI is updated using `history
- * @param title - The `title` parameter in the `setURI` function is a string that represents the title
+ * @param title - The `title` parameter in the `setPath` function is a string that represents the title
  * of the new history entry. This title will be displayed in the browser's history and can help users
  * identify the page when they navigate through their history.
  */
-const setURI = (uri, objData, title) => history.pushState(objData, title, uri);
+const setPath = (uri, objData, title) => history.pushState(objData, title, uri);
 
 /**
  * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
@@ -340,7 +340,7 @@ export {
   sa,
   copyData,
   pasteData,
-  setURI,
+  setPath,
   getQueryParams,
   preHTML,
   disableOptionsClick,

@@ -1,6 +1,6 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { getProxyPath, getQueryParams, htmls, setURI } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, setPath } from './VanillaJs.js';
 
 // Router
 
@@ -50,7 +50,7 @@ const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'p') => 
   const { queryPath, path } = options;
   const newUri = `${getProxyPath()}${path}${queryPath ? `/?${queryKey}=${queryPath}` : ''}`;
   const currentUri = `${window.location.pathname}${location.search}`;
-  if (currentUri !== newUri && currentUri !== `${newUri}/`) setURI(newUri);
+  if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri);
 };
 
 const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'p') => {

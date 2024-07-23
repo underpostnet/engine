@@ -9,7 +9,7 @@ import { LogOut } from '../core/LogOut.js';
 import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s, setURI } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s, setPath } from '../core/VanillaJs.js';
 import { Wallet } from '../core/Wallet.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 import { BagCyberia } from './BagCyberia.js';
