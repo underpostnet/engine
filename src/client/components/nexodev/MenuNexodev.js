@@ -572,7 +572,7 @@ const MenuNexodev = {
           text: Translate.Render('docs'),
         }),
         html: async () =>
-          await Docs.Render({
+          await Docs.Init({
             idModal: 'modal-docs',
           }),
         handleType: 'bar',

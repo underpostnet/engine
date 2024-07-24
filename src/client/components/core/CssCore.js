@@ -70,6 +70,9 @@ const CssCoreDark = {
         .hover:hover {
           background: #313131;
         }
+        .hover-active {
+          background: #313131;
+        }
         button:hover {
           background: #313131;
         }
@@ -363,6 +366,9 @@ const CssCoreLight = {
           background: #bbbbbb;
         }
         .hover:hover {
+          background: #bbbbbb;
+        }
+        .hover-active {
           background: #bbbbbb;
         }
         .title-modal {
