@@ -65,6 +65,12 @@ const TranslateCyberia = {
         );
       }
     }
+    {
+      for (const key of Object.keys(QuestComponent.componentsScope)) {
+        if (QuestComponent.componentsScope[key].defaultDialog)
+          Translate.Data[`quest-${key}-defaultDialog`] = QuestComponent.componentsScope[key].defaultDialog;
+      }
+    }
   },
 };
 

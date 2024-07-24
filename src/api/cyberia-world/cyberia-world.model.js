@@ -73,8 +73,14 @@ const CyberiaWorldSchema = new Schema({
           {
             behavior: 'quest-passive',
             displayIds: [
-              { id: 'agent', quantity: [1] },
+              {
+                id: 'agent',
+                quantity: [1],
+                title: `SCP Agent`,
+                name: 'Kinoshita',
+              },
               { id: 'punk', quantity: [1] },
+              { id: 'scp-2040', quantity: [1], title: `SCP`, name: '2040' },
             ],
           },
           {
@@ -156,8 +162,14 @@ const CyberiaWorldSchema = new Schema({
           {
             behavior: 'quest-passive',
             displayIds: [
-              { id: 'agent', quantity: [1] },
+              {
+                id: 'agent',
+                quantity: [1],
+                title: `SCP Agent`,
+                name: 'Kinoshita',
+              },
               { id: 'punk', quantity: [1] },
+              { id: 'scp-2040', quantity: [1], title: `SCP`, name: '2040' },
             ],
           },
           {
@@ -187,6 +199,9 @@ const CyberiaWorldSchema = new Schema({
     default: [
       {
         id: 'floki-bone',
+      },
+      {
+        id: 'scp-2040-dialog',
       },
     ],
   },

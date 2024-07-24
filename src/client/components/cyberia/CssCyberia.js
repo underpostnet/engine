@@ -696,6 +696,7 @@ const CssCyberiaDark = {
             height: 85%;
           }
           .bubbleMainText {
+            font-size: 18px;
           }
         </style>
 

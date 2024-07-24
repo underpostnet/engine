@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { splitEveryXChar, newInstance, objectEquals, range, s4, uniqueArray } from '../core/CommonJs.js';
+import { splitEveryXChar, newInstance, objectEquals, range, s4, uniqueArray, ceil10 } from '../core/CommonJs.js';
 import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Keyboard } from '../core/Keyboard.js';
@@ -122,6 +122,16 @@ const QuestManagementCyberia = {
                 (this.questClosePanels.includes(idPanel) && enabledQuestPanel)) &&
               isCollision
             ) {
+              const enableShortDescription =
+                questData &&
+                QuestComponent.componentsScope[displayId].questKeyContext === 'provide' &&
+                Translate.Data[`${questData.id}-shortDescription`];
+
+              const enableDefaultDialog =
+                QuestComponent.componentsScope[displayId] &&
+                QuestComponent.componentsScope[displayId].defaultDialog &&
+                Translate.Data[`quest-${displayId}-defaultDialog`];
+
               // const targetElement = { type: typeTarget, id: elementTargetId };
               // logger.warn('quest provider detector', targetElement);
               panels.push(idPanel);
@@ -281,12 +291,7 @@ const QuestManagementCyberia = {
                       };
                   }
 
-                  const actionButtonEnabled =
-                    questData &&
-                    enabledQuestPanel &&
-                    ['displaySearchObjects', 'provide'].includes(
-                      QuestComponent.componentsScope[currentItemData.id].questKeyContext,
-                    );
+                  const actionButtonEnabled = questData && enabledQuestPanel;
 
                   {
                     const idKeyboardEvent = 'quest-key-event-hand' + idPanel;
@@ -332,18 +337,25 @@ const QuestManagementCyberia = {
                           : ''}
                       </div>
                       <div
-                        class="in quest-short-description ${questData &&
-                        QuestComponent.componentsScope[displayId].questKeyContext === 'provide' &&
-                        Translate.Data[`${questData.id}-shortDescription`]
+                        class="in quest-short-description ${enableDefaultDialog || enableShortDescription
                           ? ''
                           : 'hide'}"
                       >
-                        ${await typeWriter({
-                          id: idPanel,
-                          html: questData
-                            ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
-                            : html`Hi! Hi! Hi! Hi! Hi!`,
-                        })}
+                        ${enableShortDescription
+                          ? html` ${await typeWriter({
+                              id: idPanel,
+                              html: questData
+                                ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
+                                : html`Hi! Hi! Hi! Hi! Hi!`,
+                            })}`
+                          : enableDefaultDialog
+                          ? html` ${await typeWriter({
+                              id: idPanel,
+                              html: questData
+                                ? html`${Translate.Render(`quest-${displayId}-defaultDialog`)}`
+                                : html`Hi! Hi! Hi! Hi! Hi!`,
+                            })}`
+                          : ''}
                       </div>
                       <div class="fl">
                         ${await BtnIcon.Render({
@@ -451,7 +463,10 @@ const QuestManagementCyberia = {
     if (currentQuestData) currentStep = currentQuestData.currentStep;
     const { barConfig } = await Themes[Css.currentTheme]();
     const idModal = `modal-panel-quest-${questData.id}`;
-    const componentData = QuestComponent.components.find((s) => s.displayId === questData.provide.displayIds[0].id);
+    const displayIdIndex = 0;
+    const componentData = QuestComponent.components.find(
+      (s) => s.displayId === questData.provide.displayIds[displayIdIndex].id,
+    );
 
     let completeQuestStatic = false;
     if (currentQuestData && !completeQuest)
@@ -465,6 +480,22 @@ const QuestManagementCyberia = {
       ? Translate.Render(`${questData.id}-completeDialog-step-${componentData.displayId}-${currentStep - 1}`)
       : Translate.Render(`${questData.id}-description`)}`;
 
+    const mainDisplayId =
+      completeQuest !== undefined || completeQuestStatic
+        ? componentData.displayId
+        : completeStep !== undefined
+        ? questData.provide.displayIds[displayIdIndex].stepData[currentStep].displayId
+        : currentStep > 0
+        ? questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].displayId
+        : componentData.displayId;
+
+    const elementType = 'bot';
+    const elementId = mainDisplayId
+      ? Object.keys(ElementsCyberia.Data.bot).find(
+          (botId) => ElementsCyberia.getCurrentSkinDisplayId({ id: botId, type: elementType }) === mainDisplayId,
+        )
+      : undefined;
+
     const renderMainImage =
       completeQuest !== undefined || completeQuestStatic
         ? html` <img
@@ -474,12 +505,12 @@ const QuestManagementCyberia = {
         : completeStep !== undefined
         ? html` <img
             class="in quest-provide-img"
-            src="${getProxyPath()}${questData.provide.displayIds[0].stepData[currentStep].image}"
+            src="${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep].image}"
           />`
         : currentStep > 0
         ? html` <img
             class="in quest-provide-img"
-            src="${getProxyPath()}${questData.provide.displayIds[0].stepData[currentStep - 1].image}"
+            src="${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].image}"
           />`
         : html` <img
             class="in quest-provide-img"
@@ -490,22 +521,22 @@ const QuestManagementCyberia = {
       completeQuest !== undefined || completeQuestStatic
         ? questData.successDescription
         : completeStep !== undefined
-        ? questData.provide.displayIds[0].stepData[currentStep].completeDialog
+        ? questData.provide.displayIds[displayIdIndex].stepData[currentStep].completeDialog
         : currentStep > 0
-        ? questData.provide.displayIds[0].stepData[currentStep - 1].completeDialog
+        ? questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].completeDialog
         : questData.description;
 
     const idSalt = s4() + s4();
     const deltaIndex = 6;
-    let seconds = 1;
     let fromIndex = -1;
     let toIndex = deltaIndex;
     const bubbleMainText = async () => {
       setTimeout(() => {
-        const everyXWords = parseInt(s(`.${idModal}`).offsetWidth / 50);
+        const everyXChar = parseInt(s(`.${idModal}`).offsetWidth / 60);
         const phraseArray = splitEveryXChar(
           translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
-          everyXWords,
+          everyXChar,
+          ' ',
         );
         let indexAbs = -1;
 
@@ -548,14 +579,16 @@ const QuestManagementCyberia = {
           updateArrowAction();
         };
         updateArrowAction();
-
-        for (const index of range(fromIndex, toIndex)) {
+        let cumulativeSeconds = 0;
+        for (const index of range(fromIndex + 1, toIndex - 1)) {
           if (!phraseArray[index]) continue;
           indexAbs++;
           const subIdSalt = s4() + s4() + s4();
+          const seconds = phraseArray[index].trim().length * 0.05;
+
           append(
             `.bubbleMainText-${questData.id}-${idSalt}`,
-            html` <div class="bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}"></div> `,
+            html` <div class="bubbleMainText bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}"></div> `,
           );
 
           setTimeout(async () => {
@@ -565,14 +598,15 @@ const QuestManagementCyberia = {
                 html`
                   ${await typeWriter({
                     id: `text-${questData.id}-${index}-${idSalt}`,
-                    html: phraseArray[index],
+                    html: phraseArray[index].trim(),
                     endHideBlink: index < toIndex,
                     seconds,
                   })}
                 `,
               );
             }
-          }, seconds * 1000 * indexAbs);
+          }, cumulativeSeconds * 1000);
+          cumulativeSeconds += seconds;
         }
       });
       return await renderBubbleDialog({
@@ -764,16 +798,17 @@ const QuestManagementCyberia = {
             <div class="in section-mp">
               <div class="fl">
                 <div class="in fll" style="width: 50%">
+                  <div class="in" style="height: 60px"></div>
                   ${completeQuest !== undefined || completeQuestStatic
                     ? questData.successDescriptionBubble
                       ? await bubbleMainText()
                       : renderMainText
                     : completeStep !== undefined
-                    ? questData.provide.displayIds[0].stepData[currentStep].bubble
+                    ? questData.provide.displayIds[displayIdIndex].stepData[currentStep].bubble
                       ? await bubbleMainText()
                       : renderMainText
                     : currentStep > 0
-                    ? questData.provide.displayIds[0].stepData[currentStep - 1].bubble
+                    ? questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].bubble
                       ? await bubbleMainText()
                       : renderMainText
                     : questData.descriptionBubble
@@ -781,7 +816,26 @@ const QuestManagementCyberia = {
                     : renderMainText}
                 </div>
 
-                <div class="in fll" style="width: 50%">${renderMainImage}</div>
+                <div class="in fll" style="width: 50%">
+                  <div class="in" style="height: 60px">
+                    ${mainDisplayId && elementId
+                      ? html` <div class="abs center">
+                          ${ElementsCyberia.getDisplayTitle({
+                            type: elementType,
+                            id: elementId,
+                            htmlTemplate: true,
+                          })}
+                          <br />
+                          ${ElementsCyberia.getDisplayName({
+                            type: elementType,
+                            id: elementId,
+                            htmlTemplate: true,
+                          })}
+                        </div>`
+                      : ''}
+                  </div>
+                  ${renderMainImage}
+                </div>
               </div>
             </div>
           </div>

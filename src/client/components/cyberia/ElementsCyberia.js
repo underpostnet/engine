@@ -1,4 +1,5 @@
 import { cap } from '../core/CommonJs.js';
+import { borderChar } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { BaseElement } from './CommonCyberia.js';
@@ -34,43 +35,58 @@ const ElementsCyberia = {
     return dataSkin ? dataSkin.displayId : undefined;
   },
   formatDisplayText: (text) => cap(text.replaceAll('-', ' ')),
-  getDisplayTitle: function ({ type, id }) {
+  getDisplayTitle: function ({ type, id, htmlTemplate }) {
+    const htmlDisplay = (value) =>
+      htmlTemplate
+        ? html`<span style="color: #ffcc00; font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}"
+            >${value}</span
+          >`
+        : value;
+
+    if (this.Data[type][id].title) return htmlDisplay(this.formatDisplayText(this.Data[type][id].title));
     switch (this.Data[type][id].behavior) {
       case 'user-hostile':
-        return this.formatDisplayText('creature');
+        return htmlDisplay(this.formatDisplayText('creature'));
       case 'quest-passive':
-        return this.formatDisplayText('villager');
+        return htmlDisplay(this.formatDisplayText('villager'));
       case 'user':
-        if (this.Data[type][id].model.user.role === 'admin') return this.formatDisplayText('admin');
-        if (this.Data[type][id].model.user.role === 'moderator') return this.formatDisplayText('moderator');
-        if (this.Data[type][id].model.user.username) return this.formatDisplayText('user');
-        else return this.formatDisplayText('guest user');
+        if (this.Data[type][id].model.user.role === 'admin') return htmlDisplay(this.formatDisplayText('admin'));
+        if (this.Data[type][id].model.user.role === 'moderator')
+          return htmlDisplay(this.formatDisplayText('moderator'));
+        if (this.Data[type][id].model.user.username) return htmlDisplay(this.formatDisplayText('newbie'));
+        else return htmlDisplay(this.formatDisplayText('anon newbie'));
       case 'item-quest':
       case 'decor':
       default:
-        return this.formatDisplayText(
-          this.Data[type][id].title ? this.Data[type][id].title : this.Data[type][id].behavior,
-        );
+        return this.formatDisplayText(this.Data[type][id].behavior);
     }
   },
-  getDisplayName: function ({ type, id }) {
+  getDisplayName: function ({ type, id, htmlTemplate }) {
+    const htmlDisplay = (value) =>
+      htmlTemplate
+        ? html`<span style="color: #efefef; font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}"
+            >${value}</span
+          >`
+        : value;
+
+    if (this.Data[type][id].name) return htmlDisplay(this.formatDisplayText(this.Data[type][id].name));
     switch (this.Data[type][id].behavior) {
       case 'user':
-        return this.formatDisplayText(
-          this.Data[type][id].model.user.username
-            ? this.Data[type][id].model.user.username
-            : id === 'main'
-            ? SocketIo.socket.id.slice(0, 7)
-            : id.slice(0, 7),
+        return htmlDisplay(
+          this.formatDisplayText(
+            this.Data[type][id].model.user.username
+              ? this.Data[type][id].model.user.username
+              : id === 'main'
+              ? SocketIo.socket.id.slice(0, 7)
+              : id.slice(0, 7),
+          ),
         );
       case 'user-hostile':
       case 'quest-passive':
       case 'item-quest':
       case 'decor':
       default:
-        return this.formatDisplayText(
-          this.Data[type][id].name ? this.Data[type][id].name : this.getCurrentSkinDisplayId({ type, id }),
-        );
+        return htmlDisplay(this.formatDisplayText(this.getCurrentSkinDisplayId({ type, id })));
     }
   },
   removeAll: function () {

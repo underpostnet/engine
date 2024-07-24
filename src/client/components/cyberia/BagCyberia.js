@@ -384,6 +384,7 @@ const Slot = {
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
       );
+      if (['ghost'].includes(displayId)) s(`.${slotId}`).classList.add('hide');
       SlotEvents[slotId].onClick = async (e) => {
         const { barConfig } = await Themes[Css.currentTheme]();
         await Modal.Render({

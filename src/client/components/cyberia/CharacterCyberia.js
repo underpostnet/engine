@@ -262,9 +262,9 @@ const CharacterCyberia = {
               }
             </style>`}
         <div class="in ${container}-header">
-          <div class="abs center" style="font-family: 'retro-font-sensitive'; ${borderChar(2, 'black')}">
-            <span style="color: #ffcc00">${ElementsCyberia.getDisplayTitle({ type, id })}</span><br />
-            <span style="color: #efefef">${ElementsCyberia.getDisplayName({ type, id })}</span>
+          <div class="abs center">
+            ${ElementsCyberia.getDisplayTitle({ type, id, htmlTemplate: true })}<br />
+            ${ElementsCyberia.getDisplayName({ type, id, htmlTemplate: true })}
           </div>
         </div>
         <div class="in ${container}-body">

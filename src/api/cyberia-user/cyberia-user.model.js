@@ -39,7 +39,7 @@ const CyberiaUserSchema = new Schema({
     tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }] },
   },
   weapon: {
-    tree: { type: [{ id: { type: String } }], default: [{ id: 'tim-knife' }] },
+    tree: { type: [{ id: { type: String } }], default: [] },
   },
   breastplate: {
     tree: { type: [{ id: { type: String } }], default: [] },
@@ -47,11 +47,7 @@ const CyberiaUserSchema = new Schema({
   components: {
     skin: {
       type: [DisplaySchema],
-      default: [
-        { enabled: true, current: true, ...DisplayComponent.get['anon']() },
-        DisplayComponent.get['eiri'](),
-        DisplayComponent.get['ghost'](),
-      ],
+      default: [{ enabled: true, current: true, ...DisplayComponent.get['anon']() }, DisplayComponent.get['ghost']()],
     },
     weapon: {
       type: [DisplaySchema],

@@ -566,17 +566,19 @@ function cleanString(string) {
   }, string);
 }
 
-function splitEveryXChar(originalString, everyXChar = 30) {
+function splitEveryXChar(originalString, everyXChar = 30, nextCharSplit) {
   let modifiedString = '';
   const arrayString = [];
   let i = -1;
-
+  let charSplit = false;
   for (let char of originalString) {
     i++;
     modifiedString += char;
-    if (i !== 0 && i % everyXChar === 0) {
+    if (i !== 0 && i % everyXChar === 0) charSplit = true;
+    if (charSplit && (!nextCharSplit || nextCharSplit === char)) {
       arrayString.push(newInstance(modifiedString));
       modifiedString = '';
+      charSplit = false;
     }
   }
   if (modifiedString) arrayString.push(modifiedString);
