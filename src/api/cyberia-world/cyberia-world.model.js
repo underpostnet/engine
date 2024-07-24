@@ -71,6 +71,13 @@ const CyberiaWorldSchema = new Schema({
         type: 'pvp',
         bots: [
           {
+            behavior: 'quest-passive',
+            displayIds: [
+              { id: 'agent', quantity: [1] },
+              { id: 'punk', quantity: [1] },
+            ],
+          },
+          {
             behavior: 'user-hostile',
             displayIds: [
               { id: 'purple', quantity: [4, 7] },
@@ -84,6 +91,68 @@ const CyberiaWorldSchema = new Schema({
               { id: 'bone-brown', quantity: [1] },
             ],
           },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
+          {
+            behavior: 'user-hostile',
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+          {
+            behavior: 'item-quest',
+            displayIds: [
+              { id: 'bone', quantity: [2] },
+              { id: 'bone-brown', quantity: [1] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
+          {
+            behavior: 'user-hostile',
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+          {
+            behavior: 'item-quest',
+            displayIds: [
+              { id: 'bone', quantity: [2] },
+              { id: 'bone-brown', quantity: [1] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
+          {
+            behavior: 'user-hostile',
+            displayIds: [
+              { id: 'purple', quantity: [4, 7] },
+              { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+          {
+            behavior: 'item-quest',
+            displayIds: [
+              { id: 'bone', quantity: [2] },
+              { id: 'bone-brown', quantity: [1] },
+            ],
+          },
+        ],
+      },
+      {
+        type: 'pvp',
+        bots: [
           {
             behavior: 'quest-passive',
             displayIds: [
@@ -91,11 +160,6 @@ const CyberiaWorldSchema = new Schema({
               { id: 'punk', quantity: [1] },
             ],
           },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
           {
             behavior: 'user-hostile',
             displayIds: [
@@ -108,70 +172,6 @@ const CyberiaWorldSchema = new Schema({
             displayIds: [
               { id: 'bone', quantity: [2] },
               { id: 'bone-brown', quantity: [1] },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
-          {
-            behavior: 'user-hostile',
-            displayIds: [
-              { id: 'purple', quantity: [4, 7] },
-              { id: 'kishins', quantity: [2, 5] },
-            ],
-          },
-          {
-            behavior: 'item-quest',
-            displayIds: [
-              { id: 'bone', quantity: [2] },
-              { id: 'bone-brown', quantity: [1] },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
-          {
-            behavior: 'user-hostile',
-            displayIds: [
-              { id: 'purple', quantity: [4, 7] },
-              { id: 'kishins', quantity: [2, 5] },
-            ],
-          },
-          {
-            behavior: 'item-quest',
-            displayIds: [
-              { id: 'bone', quantity: [2] },
-              { id: 'bone-brown', quantity: [1] },
-            ],
-          },
-        ],
-      },
-      {
-        type: 'pvp',
-        bots: [
-          {
-            behavior: 'user-hostile',
-            displayIds: [
-              { id: 'purple', quantity: [4, 7] },
-              { id: 'kishins', quantity: [2, 5] },
-            ],
-          },
-          {
-            behavior: 'item-quest',
-            displayIds: [
-              { id: 'bone', quantity: [2] },
-              { id: 'bone-brown', quantity: [1] },
-            ],
-          },
-          {
-            behavior: 'quest-passive',
-            displayIds: [
-              { id: 'agent', quantity: [1] },
-              { id: 'punk', quantity: [1] },
             ],
           },
         ],

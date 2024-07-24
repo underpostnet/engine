@@ -111,7 +111,7 @@ const CyberiaWsBotManagement = {
       },
       target: {
         Interval: 8, // detector target check time (ms)
-        Radius: 5,
+        Radius: 3,
         Active: false,
         IndexPoint: -1,
         Direction: 'n',
@@ -240,7 +240,21 @@ const CyberiaWsBotManagement = {
                               ][1],
                               Path[Path.length - 1] ? ([0] ? Path[Path.length - 1][0] : undefined) : undefined,
                               Path[Path.length - 1] ? ([1] ? Path[Path.length - 1][1] : undefined) : undefined,
-                            ) > 1.5
+                            ) > 1.5 &&
+                            !Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find(
+                              (botId) =>
+                                objectEquals(
+                                  this.element[wsManagementId][id].model.world,
+                                  CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
+                                ) &&
+                                CyberiaWsBotManagement.element[wsManagementId][botId].behavior === 'quest-passive' &&
+                                getDistance(
+                                  CyberiaWsBotManagement.element[wsManagementId][botId].x,
+                                  CyberiaWsBotManagement.element[wsManagementId][botId].y,
+                                  Path[Path.length - 1][0],
+                                  Path[Path.length - 1][1],
+                                ) < 4,
+                            )
                           ) {
                             Path.pop();
                             Path.pop();

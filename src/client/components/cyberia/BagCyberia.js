@@ -239,6 +239,7 @@ const ItemModal = {
     },
   },
   RenderStat: function (statData, options) {
+    // TODO: xp, and level feature
     const displayStats = [
       'dim',
       'vel',
@@ -342,10 +343,21 @@ const Slot = {
           <div class="in bag-slot-type-text">currency</div>
           <div class="in bag-slot-name-text">coin</div>`,
       );
+      if (!ElementsCyberia.Data['user']['main'].coin) {
+        const bagId = 'cyberia-bag';
+        if (s(`.${bagId}-${indexBagCyberia}`)) s(`.${bagId}-${indexBagCyberia}`).classList.add('hide');
+      }
       indexBagCyberia++;
       return indexBagCyberia;
     },
     update: ({ bagId, type, id }) => {
+      if (type === 'user' && id === 'main') {
+        const bagId = 'cyberia-bag';
+        if (s(`.${bagId}-0`))
+          if (!ElementsCyberia.Data[type][id].coin) s(`.${bagId}-0`).classList.add('hide');
+          else if (s(`.${bagId}-0`).classList.contains('hide')) s(`.${bagId}-0`).classList.remove('hide');
+      }
+
       if (s(`.bag-slot-value-${bagId}-0`))
         htmls(`.bag-slot-value-${bagId}-0`, getK(ElementsCyberia.Data[type][id].coin));
     },
@@ -710,7 +722,7 @@ const BagCyberia = {
 
       let indexBagCyberia = 0;
       indexBagCyberia = await Slot.coin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.xp.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      // indexBagCyberia = await Slot.xp.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.skin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });

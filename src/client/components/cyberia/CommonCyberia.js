@@ -510,7 +510,7 @@ const QuestComponent = {
         descriptionBubble: true,
         successDescription: {
           en: 'complete thanks!',
-          es: 'complete gracias!',
+          es: 'completo gracias!',
         },
         successDescriptionBubble: true,
       };
