@@ -3,6 +3,7 @@ import axios from 'axios';
 import ncp from 'copy-paste';
 import read from 'read';
 import dotenv from 'dotenv';
+import plantuml from 'plantuml';
 
 import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
@@ -22,6 +23,7 @@ import {
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer } from '../src/client/components/core/CommonJs.js';
+import toJsonSchema from 'to-json-schema';
 
 const logger = loggerFactory(import.meta);
 
@@ -409,6 +411,34 @@ try {
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
         );
         if (!proxyInstance) for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
+      }
+      break;
+
+    case 'build-uml':
+      {
+        // const staticHost = 'https://raw.githubusercontent.com/';
+        // const user = 'underpostnet';
+        // const repo = 'engine';
+        const folder = `./src/client/public/default/plantuml`;
+        for (const typeConf of Object.keys(Config.default)) {
+          if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+          {
+            const svg = await plantuml(`
+              @startjson
+                ${JSON.stringify(Config.default[typeConf])}
+              @endjson
+            `);
+            fs.writeFileSync(`${folder}/${typeConf}-conf-default.svg`, svg);
+          }
+          {
+            const svg = await plantuml(`
+            @startjson
+              ${JSON.stringify(toJsonSchema(Config.default[typeConf]))}
+            @endjson
+          `);
+            fs.writeFileSync(`${folder}/${typeConf}-schema-default.svg`, svg);
+          }
+        }
       }
       break;
     default:
