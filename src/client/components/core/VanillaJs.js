@@ -319,6 +319,7 @@ const getBlobFromUint8ArrayFile = (data = [[]], mimetype = 'application/octet-st
  * a key in the `window.Routes` object, it returns `/`.
  */
 const getProxyPath = () => {
+  // warning: evaluates headers html source
   let path = location.pathname.split('/')[1] ? `/${location.pathname.split('/')[1]}/` : '/';
   if (window.Routes && path !== '/' && path.slice(0, -1) in window.Routes()) path = '/';
   return path;
