@@ -102,13 +102,12 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  let path, client;
+  let path;
 
   if (event.request.url.match(location.origin)) path = event.request.url.slice(location.origin.length);
   const preload = path && !path.match('/api');
 
   logger.info(`On fetch`, {
-    client,
     mode: event.request.mode,
     url: event.request.url,
     referrer: event.request.referrer,
