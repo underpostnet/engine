@@ -912,7 +912,7 @@ const PixiCyberia = {
           fill: color ? color : '#dcdcdc',
           fontFamily: 'monospace', // 'retro-font-sensitive',
           fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude) * (size ? size : 1),
-          // fontWeight: 'bold',
+          fontWeight: 'bold',
           dropShadow: true,
           dropShadowAngle: 1,
           dropShadowBlur: 3,
