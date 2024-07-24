@@ -15,8 +15,6 @@
 #### Installation
 
 ```bash
-npm run install-global
-
 npm install
 ```
 
