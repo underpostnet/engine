@@ -1,9 +1,14 @@
-const CssCommonNexodev = async () => html`<style>
-  .top-bar-app-icon {
-    width: 50px;
-    height: 40px;
-  }
-</style>`;
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
+
+const CssCommonNexodev = async () => {
+  LoadingAnimation.setLightColor(`#800080`);
+  return html`<style>
+    .top-bar-app-icon {
+      width: 50px;
+      height: 40px;
+    }
+  </style>`;
+};
 
 const CssNexodevDark = {
   themePair: 'nexodev-light',
