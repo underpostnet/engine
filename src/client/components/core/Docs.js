@@ -23,12 +23,7 @@ const Docs = {
       id: ModalId,
       html: async () => {
         return html`
-          <iframe
-            class="in iframe-${ModalId}"
-            style="width: 100%; border: none; background: gray"
-            src="${docData.url()}"
-          >
-          </iframe>
+          <iframe class="in iframe-${ModalId}" style="width: 100%; border: none;" src="${docData.url()}"> </iframe>
         `;
       },
       maximize: true,
