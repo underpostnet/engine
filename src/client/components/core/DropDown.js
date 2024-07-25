@@ -141,7 +141,9 @@ const DropDown = {
           <i class="fa-solid fa-caret-down"> </i> ${options.label}
         </div>
         <div
-          class="in dropdown-option dropdown-current-${id} ${options && options.disableSelectLabel ? 'hide' : ''}"
+          class="in dropdown-option dropdown-current-${id} ${options && options.disableSelectOptionsLabel
+            ? 'hide'
+            : ''}"
         ></div>
         <div class="in dropdown-option-${id} hide">
           <div class="in dropdown-option ${options && options.disableSearchBox ? 'hide' : ''}">
