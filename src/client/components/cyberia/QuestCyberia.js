@@ -901,7 +901,8 @@ const QuestManagementCyberia = {
     const phraseArray = (translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'])
       .split('.')
       .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
-      .flat();
+      .flat()
+      .filter((p) => p.trim());
 
     {
       let currentIndex = [0];

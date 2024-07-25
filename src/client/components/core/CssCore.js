@@ -21,6 +21,14 @@ const CssCommonCore = async () => {
       .toggle-switch-active {
         background: #28b428 !important;
       }
+      .progress-bar {
+        top: 0;
+        left: 0;
+        transition: 0.3s;
+        height: 5px;
+        width: 100%;
+        z-index: 11;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
@@ -104,14 +112,6 @@ const CssCoreDark = {
           width: 20px;
           background: gray;
           transition: 0.3s;
-        }
-        .progress-bar {
-          top: 0;
-          left: 0;
-          transition: 0.3s;
-          height: 10px;
-          width: 100%;
-          z-index: 11;
         }
         .diagonal-bar-background-animation {
           background: repeating-linear-gradient(45deg, #cacaca, #d5d5d5 5%, #545454 5%, #505050 10%);

@@ -1,5 +1,6 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { s4 } from './CommonJs.js';
+import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { append, getProxyPath, htmls, s } from './VanillaJs.js';
 
@@ -13,20 +14,27 @@ const LoadingAnimation = {
       const id = this.getId(container);
       const idEvent = s4() + s4() + s4();
       this.tokens[container] = `${idEvent}`;
+      // diagonal-bar-background-animation
+      // #6d68ff #790079
       append(
         'body',
-        html` <div class="fix progress-bar diagonal-bar-background-animation ${id}" style="left: -100%"></div> `,
+        html`
+          <div
+            class="fix progress-bar box-shadow ${id}"
+            style="left: -100%; background: ${darkTheme ? `#c9c9c9` : `#515151`};"
+          ></div>
+        `,
       );
       for (const frame of [
         { time: 500, value: 35 },
         { time: 1250, value: 15 },
-        { time: 3000, value: 2 },
+        { time: 3000, value: 5 },
         { time: 5000, value: 1 },
       ])
         setTimeout(() => {
           if (this.tokens[container] === idEvent && s(`.${id}`)) {
             s(`.${id}`).style.left = `-${frame.value}%`;
-            if (s('.loading-progress')) htmls('.loading-progress', html`${100 - frame.value}%`);
+            // const percentageRender = html`${100 - frame.value}%`;
           }
         }, frame.time);
     },
