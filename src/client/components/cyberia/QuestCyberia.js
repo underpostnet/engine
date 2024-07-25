@@ -527,33 +527,26 @@ const QuestManagementCyberia = {
         : questData.description;
 
     const idSalt = s4() + s4();
-    const deltaIndex = 6;
-    let fromIndex = -1;
-    let toIndex = deltaIndex;
+    const sectionsIndex = [];
+    let currentSectionIndex = 0;
     const bubbleMainText = async () => {
       setTimeout(() => {
-        const everyXChar = parseInt(s(`.${idModal}`).offsetWidth / 60);
-        const phraseArray = splitEveryXChar(
-          translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
-          everyXChar,
-          ' ',
-        );
         let indexAbs = -1;
 
         const updateArrowAction = () => {
-          if (fromIndex === -1 && toIndex >= phraseArray.length) {
+          if (currentSectionIndex === 0 && currentSectionIndex === sectionsIndex.length - 1) {
             s(`.quest-bubble-icon-arrow-left`).style.display = 'none';
             s(`.quest-bubble-icon-arrow-right`).style.display = 'none';
             return;
           }
-          if (fromIndex === -1) {
+          if (currentSectionIndex === 0) {
             s(`.quest-bubble-icon-arrow-left`).style.opacity = '0';
             s(`.quest-bubble-icon-arrow-left`).style.cursor = 'default';
           } else {
             s(`.quest-bubble-icon-arrow-left`).style.opacity = null;
             s(`.quest-bubble-icon-arrow-left`).style.cursor = null;
           }
-          if (toIndex >= phraseArray.length) {
+          if (currentSectionIndex === sectionsIndex.length - 1) {
             s(`.quest-bubble-icon-arrow-right`).style.opacity = '0';
             s(`.quest-bubble-icon-arrow-right`).style.cursor = 'default';
           } else {
@@ -563,25 +556,22 @@ const QuestManagementCyberia = {
         };
 
         s(`.quest-bubble-icon-arrow-right`).onclick = () => {
-          if (toIndex >= phraseArray.length) return;
+          if (currentSectionIndex === sectionsIndex.length - 1) return;
           htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
-          fromIndex += deltaIndex;
-          toIndex += deltaIndex;
+          currentSectionIndex++;
           bubbleMainText();
           updateArrowAction();
         };
         s(`.quest-bubble-icon-arrow-left`).onclick = () => {
-          if (fromIndex === -1) return;
+          if (currentSectionIndex === 0) return;
           htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
-          fromIndex -= deltaIndex;
-          toIndex -= deltaIndex;
+          currentSectionIndex--;
           bubbleMainText();
           updateArrowAction();
         };
         updateArrowAction();
         let cumulativeSeconds = 0;
-        for (const index of range(fromIndex + 1, toIndex - 1)) {
-          if (!phraseArray[index]) continue;
+        for (const index of range(...sectionsIndex[currentSectionIndex])) {
           indexAbs++;
           const subIdSalt = s4() + s4() + s4();
           const seconds = phraseArray[index].trim().length * 0.05;
@@ -599,7 +589,7 @@ const QuestManagementCyberia = {
                   ${await typeWriter({
                     id: `text-${questData.id}-${index}-${idSalt}`,
                     html: phraseArray[index].trim(),
-                    endHideBlink: index < toIndex,
+                    endHideBlink: index < sectionsIndex[currentSectionIndex][1],
                     seconds,
                   })}
                 `,
@@ -906,6 +896,30 @@ const QuestManagementCyberia = {
       await this.takeQuest({ questData });
       s(`.btn-close-${idModal}`).click();
     });
+
+    const everyXChar = parseInt(s(`.${idModal}`).offsetWidth / 60);
+    const phraseArray = (translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'])
+      .split('.')
+      .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
+      .flat();
+
+    {
+      let currentIndex = [0];
+      let pi = -1;
+      for (const p of phraseArray) {
+        pi++;
+        if (p.indexOf('.') !== -1) {
+          currentIndex.push(newInstance(pi));
+          sectionsIndex.push(newInstance(currentIndex));
+          if (phraseArray[pi + 1]) currentIndex = [newInstance(pi + 1)];
+          else currentIndex = [];
+        }
+      }
+      if (currentIndex[0] && !currentIndex[1]) {
+        currentIndex[1] = phraseArray.length - 1;
+        sectionsIndex.push(newInstance(currentIndex));
+      }
+    }
   },
   takeQuest: async function ({ questData }) {
     questData = {
