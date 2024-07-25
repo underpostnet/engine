@@ -902,7 +902,7 @@ const QuestManagementCyberia = {
       .split('.')
       .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
       .flat()
-      .filter((p) => p.trim());
+      .filter((p) => p !== '.' && p.trim());
 
     {
       let currentIndex = [0];
