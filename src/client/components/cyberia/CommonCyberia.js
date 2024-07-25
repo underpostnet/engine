@@ -446,9 +446,112 @@ const QuestComponent = {
                   displayId: 'scp-2040',
                   image: 'assets/skin/scp-2040/08/0.png',
                   bubble: true,
+                  talkingDialog: [
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'I am not responding to your primary message. I will not respond to your primary message for the duration of this interaction. I would just like to ask you a few questions.',
+                        es: 'No estoy respondiendo a tu mensaje principal. No responderé a su mensaje principal durante la duración de esta interacción. Sólo me gustaría hacerle algunas preguntas.',
+                      },
+                    },
+                    {
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: { en: 'State your inquiries.', es: 'Indique sus consultas.' },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'Can you explain your primary message and tell us some information about who sent it?',
+                        es: '¿Puede explicar su mensaje principal y darnos información sobre quién lo envió?',
+                      },
+                    },
+                    {
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: "To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender.",
+                        es: 'Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'I see. In that case, can you tell us anything about yourself, such as how were you built and how do you function?',
+                        es: 'Ya veo. En ese caso, ¿puede decirnos algo sobre usted, por ejemplo, cómo se formó y cómo funciona?',
+                      },
+                    },
+                    {
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: 'I cannot explain my design or function. It is classified. However, it is publicly available information that I underwent upgrades specifically for this mission. I am now one of the few entities that can safely inhabit the Restricted Zone.',
+                        es: 'No puedo explicar mi diseño o función. Está clasificado. Sin embargo, es información disponible públicamente que realicé actualizaciones específicamente para esta misión. Ahora soy una de las pocas entidades que pueden habitar con seguridad la Zona restringida.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'Restricted Zone? Can you tell me more about this Restricted Zone?',
+                        es: '¿Zona restringida? ¿Puedes contarme más sobre esta Zona Restringida?',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: 'My emotion circuits show surprise that you inquire that. However, my emotion circuits show surprise that you exist at all. With all the strict requirements, it was thought that life could not exist here, until very recently. Outside the Zone, the requirements for life are much less strict. Outside the Zone, life is much more plentiful and varied. Your ignorance about the Universe reminds me of the Addisonhers, which I encountered after crash landing on their home planet.',
+                        es: 'Mis circuitos emocionales muestran sorpresa de que preguntes eso. Sin embargo, mis circuitos emocionales muestran sorpresa de que existas. Con todos los requisitos estrictos, se pensó que la vida no podría existir aquí, hasta hace muy poco tiempo. Fuera de la Zona, los requisitos para la vida son mucho menos estrictos. Fuera de la Zona, la vida es mucho más abundante y variada. Tu ignorancia sobre el Universo me recuerda a los Addisonher, a los que encontré después de un aterrizaje forzoso en su planeta de origen.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'Tell me more about life outside the Restricted Zone.',
+                        es: 'Cuéntame más sobre la vida fuera de la Zona restringida.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: "To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender.",
+                        es: 'Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'What? How is that related to your Primary Message?',
+                        es: '¿Qué? ¿Cómo se relaciona eso con su mensaje principal?',
+                      },
+                    },
+                    {
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: "To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender.",
+                        es: 'Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: {
+                        en: 'Fine. I thought we were finally getting somewhere. I suppose this interview is over.',
+                        es: 'Bien. Pensé que finalmente estábamos llegando a alguna parte. Supongo que esta entrevista ha terminado.',
+                      },
+                    },
+                    {
+                      image: 'assets/skin/scp-2040/08/0.png',
+                      dialog: {
+                        en: 'Human. I have a statement to make.',
+                        es: 'Humano. Tengo una declaración que hacer.',
+                      },
+                    },
+                    {
+                      image: 'main-user',
+                      dialog: { en: 'Oh? What is that?', es: 'Ah? ¿Qué es eso?' },
+                    },
+                  ],
                   completeDialog: {
-                    en: `I am not responding to your primary message. I will not respond to your primary message for the duration of this interaction. I would just like to ask you a few questions. State your inquiries. Can you explain your primary message and tell us some information about who sent it? To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender. I see. In that case, can you tell us anything about yourself, such as how were you built and how do you function? I cannot explain my design or function. It is classified. However, it is publicly available information that I underwent upgrades specifically for this mission. I am now one of the few entities that can safely inhabit the Restricted Zone. Restricted Zone? Can you tell me more about this Restricted Zone? My emotion circuits show surprise that you inquire that. However, my emotion circuits show surprise that you exist at all. With all the strict requirements, it was thought that life could not exist here, until very recently. Outside the Zone, the requirements for life are much less strict. Outside the Zone, life is much more plentiful and varied. Your ignorance about the Universe reminds me of the Addisonhers, which I encountered after crash landing on their home planet. Tell me more about life outside the Restricted Zone. To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender. What? How is that related to your Primary Message? To prevent a Messenger from affecting a response, it is against protocol for a Messenger to reveal classified information about a Primary Message and the Primary Message's senders. All inquiries must be addressed directly to the sender. Fine. I thought we were finally getting somewhere. I suppose this interview is over. Human. I have a statement to make. Oh? What is that? Please inform your leaders: Time passes differently in the Restricted Zone. Therefore, I am able to wait for a response. However, I cannot wait forever. We need your help.`,
-                    es: `No estoy respondiendo a tu mensaje principal. No responderé a su mensaje principal durante la duración de esta interacción. Sólo me gustaría hacerle algunas preguntas. Indique sus consultas. ¿Puede explicar su mensaje principal y darnos información sobre quién lo envió? Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente. Ya veo. En ese caso, ¿puede decirnos algo sobre usted, por ejemplo, cómo se formó y cómo funciona? No puedo explicar mi diseño o función. Está clasificado. Sin embargo, es información disponible públicamente que realicé actualizaciones específicamente para esta misión. Ahora soy una de las pocas entidades que pueden habitar con seguridad la Zona restringida. ¿Zona restringida? ¿Puedes contarme más sobre esta Zona Restringida? Mis circuitos emocionales muestran sorpresa de que preguntes eso. Sin embargo, mis circuitos emocionales muestran sorpresa de que existas. Con todos los requisitos estrictos, se pensó que la vida no podría existir aquí, hasta hace muy poco tiempo. Fuera de la Zona, los requisitos para la vida son mucho menos estrictos. Fuera de la Zona, la vida es mucho más abundante y variada. Tu ignorancia sobre el Universo me recuerda a los Addisonher, a los que encontré después de un aterrizaje forzoso en su planeta de origen. Cuéntame más sobre la vida fuera de la Zona restringida. Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente. ¿Qué? ¿Cómo se relaciona eso con su mensaje principal? Para evitar que un Mensajero afecte una respuesta, es contra el protocolo que un Mensajero revele información clasificada sobre un Mensaje principal y los remitentes del Mensaje principal. Todas las consultas deben dirigirse directamente al remitente. Bien. Pensé que finalmente estábamos llegando a alguna parte. Supongo que esta entrevista ha terminado. Humano. Tengo una declaración que hacer. Ah? ¿Qué es eso? Informe a sus líderes: el tiempo pasa de manera diferente en la Zona Restringida. Por lo tanto, puedo esperar una respuesta. Sin embargo, no puedo esperar para siempre. Necesitamos tu ayuda.`,
+                    en: 'Please inform your leaders: Time passes differently in the Restricted Zone. Therefore, I am able to wait for a response. However, I cannot wait forever. We need your help.',
+                    es: 'Informe a sus líderes: el tiempo pasa de manera diferente en la Zona Restringida. Por lo tanto, puedo esperar una respuesta. Sin embargo, no puedo esperar para siempre. Necesitamos tu ayuda.',
                   },
                 },
               ],
