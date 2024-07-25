@@ -21,7 +21,13 @@ const LoadingAnimation = {
         html`
           <div
             class="fix progress-bar box-shadow ${id}"
-            style="left: -100%; background: ${darkTheme ? `#c9c9c9` : `#515151`};"
+            style="left: -100%; background: ${darkTheme
+              ? LoadingAnimation.darkColor
+                ? LoadingAnimation.darkColor
+                : `#c9c9c9`
+              : LoadingAnimation.lightColor
+              ? LoadingAnimation.lightColor
+              : `#515151`};"
           ></div>
         `,
       );
@@ -112,6 +118,14 @@ const LoadingAnimation = {
         s(`.main-user-container`).style.display = 'block';
       }, 300);
     });
+  },
+  lightColor: null,
+  setLightColor: function (color) {
+    this.lightColor = color;
+  },
+  darkColor: null,
+  setDarkColor: function (color) {
+    this.darkColor = color;
   },
 };
 export { LoadingAnimation };

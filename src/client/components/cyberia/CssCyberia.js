@@ -10,6 +10,8 @@ const CssCommonCyberia = async () => {
     classes: 'inl',
     style: 'width: 100px; height: 100px',
   });
+  LoadingAnimation.setDarkColor('#ffcc00');
+  LoadingAnimation.setLightColor('#ffcc00');
   await AgGrid.RenderStyle({
     eventThemeId: 'CssCommonCyberia',
     style: {
