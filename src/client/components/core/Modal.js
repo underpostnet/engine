@@ -828,11 +828,7 @@ const Modal = {
       }
       setTimeout(() => {
         if (!s(`.${idModal}`)) return;
-        s(`.${idModal}`).remove();
-        sa(`.style-${idModal}`).forEach((element) => {
-          element.remove();
-        });
-        delete this.Data[idModal];
+        this.removeModal(idModal);
         // Router
         if (options.route)
           (() => {
@@ -954,9 +950,11 @@ const Modal = {
     }
     // cancel: [cancel1, cancel2]
     s(`.${idModal}`).onclick = () => {
-      Object.keys(this.Data[idModal].onClickListener).map((keyListener) =>
-        this.Data[idModal].onClickListener[keyListener](),
-      );
+      this.Data[idModal]?.onClickListener
+        ? Object.keys(this.Data[idModal].onClickListener).map((keyListener) =>
+            this.Data[idModal].onClickListener[keyListener](),
+          )
+        : null;
     };
     return {
       id: idModal,
@@ -989,6 +987,14 @@ const Modal = {
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
   viewModalOpen: function () {
     return Object.keys(this.Data).find((idModal) => s(`.${idModal}`) && this.Data[idModal].options.mode === 'view');
+  },
+  removeModal: function (idModal) {
+    if (!s(`.${idModal}`)) return;
+    s(`.${idModal}`).remove();
+    sa(`.style-${idModal}`).forEach((element) => {
+      element.remove();
+    });
+    delete this.Data[idModal];
   },
 };
 

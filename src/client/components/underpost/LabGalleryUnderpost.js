@@ -30,8 +30,10 @@ const LabGalleryUnderpost = {
           const ModalId = `modal-${viewLabId}`;
           const { barConfig } = await Themes[Css.currentTheme]();
           barConfig.buttons.close.onClick = () => {
-            setQueryPath({ path: 'lab-gallery' });
-            s(`.btn-close-${ModalId}`).click();
+            setTimeout(() => {
+              setQueryPath({ path: 'lab-gallery' });
+            });
+            Modal.removeModal(ModalId);
           };
           await Modal.Render({
             barConfig,

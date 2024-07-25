@@ -1,7 +1,7 @@
 import { BtnIcon } from './BtnIcon.js';
-import { dynamicCol } from './Css.js';
+import { Css, dynamicCol, Themes } from './Css.js';
 import { DropDown } from './DropDown.js';
-import { Modal, renderMenuLabel } from './Modal.js';
+import { Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
@@ -9,23 +9,104 @@ import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 
 const Docs = {
-  viewUrl: {
-    src: function () {
-      return `${getProxyPath()}docs/engine/2.0.0`;
-    },
-    api: function () {
-      return `${getProxyPath()}api-docs`;
-    },
-    repo: function () {
-      return `https://github.com/underpostnet/engine/releases/tag/v2.0.0`;
-    },
+  RenderModal: async function (type) {
+    const docData = this.Data.find((d) => d.type === type);
+    const ModalId = `modal-docs-${docData.type}`;
+    const { barConfig } = await Themes[Css.currentTheme]();
+    barConfig.buttons.close.onClick = () => {
+      setQueryPath({ path: 'docs' });
+      Modal.removeModal(ModalId);
+    };
+    await Modal.Render({
+      barConfig,
+      title: renderViewTitle(docData),
+      id: ModalId,
+      html: async () => {
+        return html`
+          <iframe
+            class="in iframe-${ModalId}"
+            style="width: 100%; border: none; background: gray"
+            src="${docData.url()}"
+          >
+          </iframe>
+        `;
+      },
+      maximize: true,
+      mode: 'view',
+      slideMenu: 'modal-menu',
+      observer: true,
+    });
+    Modal.Data[ModalId].onObserverListener[ModalId] = () => {
+      if (s(`.iframe-${ModalId}`)) s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - 110}px`;
+    };
+    Modal.Data[ModalId].onObserverListener[ModalId]();
   },
+  Data: [
+    {
+      type: 'src',
+      icon: html`<i class="fa-brands fa-osi"></i>`,
+      text: 'Source Docs',
+      url: function () {
+        return `${getProxyPath()}docs/engine/2.0.0`;
+      },
+    },
+    {
+      type: 'api',
+      icon: html`<i class="fa-solid fa-arrows-turn-to-dots"></i>`,
+      text: `Api Docs`,
+      url: function () {
+        return `${getProxyPath()}api-docs`;
+      },
+    },
+    {
+      type: 'repo',
+      icon: html`<i class="fab fa-github"></i>`,
+      text: `Last Release`,
+      url: function () {
+        return `https://github.com/underpostnet/engine/`;
+      },
+    },
+  ],
   Init: async function (options) {
-    return html`<div class="in section-mp">
+    const { idModal } = options;
+    setTimeout(() => {
+      s(`.btn-docs-src`).onclick = async () => {
+        setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'src' }));
+        await this.RenderModal('src', idModal);
+      };
+      s(`.btn-docs-api`).onclick = async () => {
+        setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'api' }));
+        await this.RenderModal('api', idModal);
+      };
+      s(`.btn-docs-repo`).onclick = () => {
+        const docData = this.Data.find((d) => d.type === 'repo');
+        location.href = docData.url();
+      };
+      // if (!getQueryParams().p) s(`.btn-docs-src`).click();
+      listenQueryPathInstance({
+        id: options.idModal,
+        routeId: 'docs',
+        event: (path) => {
+          if (s(`.btn-docs-${path}`)) s(`.btn-docs-${path}`).click();
+        },
+      });
+    });
+    let docMenuRender = '';
+    for (const docData of this.Data) {
+      docMenuRender += html` <div class="in">
+        ${await BtnIcon.Render({
+          class: `inl section-mp btn-custom btn-docs-${docData.type}`,
+          label: html`${docData.icon} ${docData.text}`,
+        })}
+      </div>`;
+    }
+    return html` <div class="in section-mp">${docMenuRender}</div>`;
+    return html` <div class="in section-mp">
       ${await DropDown.Render({
         id: 'dropdown-docs',
         disableClose: true,
         disableSelectLabel: true,
+        disableSelectOptionsLabel: true,
         disableSearchBox: true,
         open: true,
         lastSelectClass: 'hover-active',
@@ -34,14 +115,7 @@ const Docs = {
           text: html`${Translate.Render('docs')}`,
         }),
         containerClass: '',
-        data: [
-          {
-            type: 'src',
-            label: html`<i class="fa-brands fa-osi"></i> Source Docs`,
-          },
-          { type: 'api', label: html`<i class="fa-solid fa-arrows-turn-to-dots"></i> Api Docs` },
-          { type: 'repo', label: html`<i class="fab fa-github"></i> Last Release` },
-        ].map((docTypeData) => {
+        data: this.Data.map((docTypeData) => {
           return {
             display: docTypeData.label,
             value: docTypeData.type,
