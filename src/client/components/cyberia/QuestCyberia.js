@@ -1,8 +1,16 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { splitEveryXChar, newInstance, objectEquals, range, s4, uniqueArray, ceil10 } from '../core/CommonJs.js';
-import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
+import { range, s4 } from '../core/CommonJs.js';
+import {
+  Css,
+  Themes,
+  dynamicCol,
+  getSectionsStringData,
+  renderBubbleDialog,
+  typeWriteSectionsString,
+  typeWriter,
+} from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Keyboard } from '../core/Keyboard.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
@@ -184,6 +192,8 @@ const QuestManagementCyberia = {
                             const displayStepData =
                               QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
 
+                            //  <pre>${JSON.stringify(displayStepData.talkingDialog, null, 4)}</pre>
+
                             if (displayStepData.talkingDialog) {
                               const idModal = `modal-quest-dialog-${questData.id}`;
                               const { barConfig } = await Themes[Css.currentTheme]();
@@ -201,26 +211,23 @@ const QuestManagementCyberia = {
                                 slideMenu: 'modal-menu',
                                 html: async () => {
                                   return html`
+                                    <div class="in ${idModal}-talking-loading-container" style="min-height: 300px;">
+                                      <div class="abs center ${idModal}-talking-loading"></div>
+                                    </div>
+                                    <div class="in render-bubble-${questData.id}" style="padding: 10px"></div>
                                     <div class="fl">
-                                      <div class="in fll quest-talking-cell">
-                                        <div class="${idModal}-element-0">
-                                          <div class="abs center ${idModal}-element-loading-0"></div>
-                                        </div>
+                                      <div class="in fll" style="width: 50%;">
+                                        <div class="${idModal}-element-0 hide"></div>
                                       </div>
-                                      <div class="in fll quest-talking-cell">
-                                        <pre>${JSON.stringify(displayStepData.talkingDialog, null, 4)}</pre>
-                                      </div>
-                                      <div class="in fll quest-talking-cell">
-                                        <div class="${idModal}-element-1">
-                                          <div class="abs center ${idModal}-element-loading-1"></div>
-                                        </div>
+                                      <div class="in fll" style="width: 50%;">
+                                        <div class="${idModal}-element-1 hide"></div>
                                       </div>
                                     </div>
                                   `;
                                 },
                               });
-                              LoadingAnimation.img.play(`.${idModal}-element-loading-0`, 'points');
-                              LoadingAnimation.img.play(`.${idModal}-element-loading-1`, 'points');
+
+                              LoadingAnimation.img.play(`.${idModal}-talking-loading`, 'points');
 
                               CharacterCyberia.renderCharacterCyberiaPreView({
                                 type: 'user',
@@ -228,12 +235,30 @@ const QuestManagementCyberia = {
                                 container: `${idModal}-element-0`,
                               });
 
-                              CharacterCyberia.renderCharacterCyberiaPreView({
+                              await CharacterCyberia.renderCharacterCyberiaPreView({
                                 type: typeTarget,
                                 id: elementTargetId,
                                 container: `${idModal}-element-1`,
                               });
 
+                              s(`.${idModal}-talking-loading-container`).remove();
+                              s(`.${idModal}-element-0`).classList.remove('hide');
+                              s(`.${idModal}-element-1`).classList.remove('hide');
+
+                              htmls(
+                                `.render-bubble-${questData.id}`,
+                                html`${await renderBubbleDialog({
+                                  id: `${idModal}-element-bubble-a`,
+                                  // triangleType: 'left',
+                                  html: async () =>
+                                    html`${Translate.Render(
+                                      `${questData.id}-completeDialog-step-${
+                                        QuestComponent.Data[questData.id]().provide.displayIds[0].id
+                                      }-${currentStep}-${0}`,
+                                    )}`,
+                                  classSelectors: 'in',
+                                })}`,
+                              );
                               return;
                             }
 
@@ -585,12 +610,10 @@ const QuestManagementCyberia = {
         : questData.description;
 
     const idSalt = s4() + s4();
-    const sectionsIndex = [];
+    let sectionsIndex, phraseArray;
     let currentSectionIndex = 0;
     const bubbleMainText = async () => {
       setTimeout(() => {
-        let indexAbs = -1;
-
         const updateArrowAction = () => {
           if (sectionsIndex.length > 1 && s(`.dialog-step-container-${questData.id}`).classList.contains('hide')) {
             s(`.dialog-step-container-${questData.id}`).classList.remove('hide');
@@ -633,34 +656,11 @@ const QuestManagementCyberia = {
           updateArrowAction();
         };
         updateArrowAction();
-        let cumulativeSeconds = 0;
-        for (const index of range(...sectionsIndex[currentSectionIndex])) {
-          indexAbs++;
-          const subIdSalt = s4() + s4() + s4();
-          const seconds = phraseArray[index].trim().length * 0.05;
-
-          append(
-            `.bubbleMainText-${questData.id}-${idSalt}`,
-            html` <div class="bubbleMainText bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}"></div> `,
-          );
-
-          setTimeout(async () => {
-            if (s(`.bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}`)) {
-              append(
-                `.bubbleMainText-${questData.id}-${idSalt}-${subIdSalt}`,
-                html`
-                  ${await typeWriter({
-                    id: `text-${questData.id}-${index}-${idSalt}`,
-                    html: phraseArray[index].trim(),
-                    endHideBlink: index < sectionsIndex[currentSectionIndex][1],
-                    seconds,
-                  })}
-                `,
-              );
-            }
-          }, cumulativeSeconds * 1000);
-          cumulativeSeconds += seconds;
-        }
+        typeWriteSectionsString({
+          id: `${questData.id}-${idSalt}`,
+          phraseArray,
+          rangeArraySectionIndex: sectionsIndex[currentSectionIndex],
+        });
       });
       return await renderBubbleDialog({
         id: `${idModal}-bubble-description`,
@@ -968,30 +968,12 @@ const QuestManagementCyberia = {
       s(`.btn-close-${idModal}`).click();
     });
 
-    const everyXChar = parseInt(s(`.${idModal}`).offsetWidth / 60);
-    const phraseArray = (translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'])
-      .split('.')
-      .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
-      .flat()
-      .filter((p) => p !== '.' && p.trim());
-
-    {
-      let currentIndex = [0];
-      let pi = -1;
-      for (const p of phraseArray) {
-        pi++;
-        if (p.indexOf('.') !== -1) {
-          currentIndex.push(newInstance(pi));
-          sectionsIndex.push(newInstance(currentIndex));
-          if (phraseArray[pi + 1]) currentIndex = [newInstance(pi + 1)];
-          else currentIndex = [];
-        }
-      }
-      if (currentIndex[0] && !currentIndex[1]) {
-        currentIndex[1] = phraseArray.length - 1;
-        sectionsIndex.push(newInstance(currentIndex));
-      }
-    }
+    const sectionStringData = getSectionsStringData(
+      idModal,
+      translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
+    );
+    phraseArray = sectionStringData.phraseArray;
+    sectionsIndex = sectionStringData.sectionsIndex;
   },
   takeQuest: async function ({ questData }) {
     questData = {

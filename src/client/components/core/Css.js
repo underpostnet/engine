@@ -1,3 +1,4 @@
+import { newInstance, range, s4, splitEveryXChar } from './CommonJs.js';
 import { CssCoreDark, CssCoreLight } from './CssCore.js';
 import { DropDown } from './DropDown.js';
 import { Modal } from './Modal.js';
@@ -743,6 +744,58 @@ const triangle = {
   },
 };
 
+const getSectionsStringData = (selector, text) => {
+  const sectionsIndex = [];
+  const everyXChar = parseInt(s(`.${selector}`).offsetWidth / 60);
+  const phraseArray = text
+    .split('.')
+    .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
+    .flat()
+    .filter((p) => p !== '.' && p.trim());
+
+  let currentIndex = [0];
+  let pi = -1;
+  for (const p of phraseArray) {
+    pi++;
+    if (p.indexOf('.') !== -1) {
+      currentIndex.push(newInstance(pi));
+      sectionsIndex.push(newInstance(currentIndex));
+      if (phraseArray[pi + 1]) currentIndex = [newInstance(pi + 1)];
+      else currentIndex = [];
+    }
+  }
+  if (currentIndex[0] && !currentIndex[1]) {
+    currentIndex[1] = phraseArray.length - 1;
+    sectionsIndex.push(newInstance(currentIndex));
+  }
+  return { phraseArray, sectionsIndex };
+};
+
+const typeWriteSectionsString = ({ id, phraseArray, rangeArraySectionIndex }) => {
+  let cumulativeSeconds = 0;
+  for (const index of range(...rangeArraySectionIndex)) {
+    const subIdSalt = s4() + s4() + s4();
+    const seconds = phraseArray[index].trim().length * 0.05;
+    append(`.bubbleMainText-${id}`, html` <div class="bubbleMainText bubbleMainText-${id}-${subIdSalt}"></div> `);
+    setTimeout(async () => {
+      if (s(`.bubbleMainText-${id}-${subIdSalt}`)) {
+        append(
+          `.bubbleMainText-${id}-${subIdSalt}`,
+          html`
+            ${await typeWriter({
+              id: `text-${index}-${id}`,
+              html: phraseArray[index].trim(),
+              endHideBlink: index < rangeArraySectionIndex[1],
+              seconds,
+            })}
+          `,
+        );
+      }
+    }, cumulativeSeconds * 1000);
+    cumulativeSeconds += seconds;
+  }
+};
+
 export {
   Css,
   Themes,
@@ -767,4 +820,6 @@ export {
   getTranslate3d,
   dashRange,
   triangle,
+  getSectionsStringData,
+  typeWriteSectionsString,
 };

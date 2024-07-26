@@ -700,13 +700,6 @@ const CssCyberiaDark = {
           .bubbleMainText {
             font-size: 18px;
           }
-          .quest-talking-cell {
-            box-sizing: border-box;
-            border: 2px solid red;
-            width: 33.33%;
-            overflow: hidden;
-            min-height: 400px;
-          }
           .dialog-step-container {
             margin: 10px;
             font-size: 18px;
