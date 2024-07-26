@@ -707,6 +707,10 @@ const CssCyberiaDark = {
             overflow: hidden;
             min-height: 400px;
           }
+          .dialog-step-container {
+            margin: 10px;
+            font-size: 18px;
+          }
         </style>
 
         ${borderChar(2, 'black', [

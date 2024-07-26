@@ -592,6 +592,11 @@ const QuestManagementCyberia = {
         let indexAbs = -1;
 
         const updateArrowAction = () => {
+          if (sectionsIndex.length > 1 && s(`.dialog-step-container-${questData.id}`).classList.contains('hide')) {
+            s(`.dialog-step-container-${questData.id}`).classList.remove('hide');
+            htmls(`.dialog-step-container-total-${questData.id}`, sectionsIndex.length);
+          }
+          htmls(`.dialog-step-container-current-${questData.id}`, currentSectionIndex + 1);
           if (currentSectionIndex === 0 && currentSectionIndex === sectionsIndex.length - 1) {
             s(`.quest-bubble-icon-arrow-left`).style.display = 'none';
             s(`.quest-bubble-icon-arrow-right`).style.display = 'none';
@@ -679,6 +684,14 @@ const QuestManagementCyberia = {
                   />
                   <!-- <div class="abs quest-keyboard-bubble-info"></div> -->`,
               })}
+            </div>
+            <div class="fl">
+              <div class="in flr">
+                <div class="dialog-step-container dialog-step-container-${questData.id} hide">
+                  <span class="dialog-step-container-current-${questData.id}"></span> /
+                  <span class="dialog-step-container-total-${questData.id}"></span>
+                </div>
+              </div>
             </div>
             <div class="in bubbleMainText bubbleMainText-${questData.id}-${idSalt}"></div>
           `,
