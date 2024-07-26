@@ -78,18 +78,20 @@ const AgGrid = {
 
      --ag-font-size: 17px;
      */
-    append(
-      'head',
-      html`<link
-          rel="stylesheet"
-          type="text/css"
-          href="${getProxyPath()}styles/ag-grid-community/ag-grid.min.css"
-        /><link
-          rel="stylesheet"
-          type="text/css"
-          href="${getProxyPath()}styles/ag-grid-community/${this.theme}.min.css"
-        />`,
-    );
+    if (!s(`.ag-grid-base-style`))
+      append(
+        'head',
+        html`<link
+            class="ag-grid-base-style"
+            rel="stylesheet"
+            type="text/css"
+            href="${getProxyPath()}styles/ag-grid-community/ag-grid.min.css"
+          /><link
+            rel="stylesheet"
+            type="text/css"
+            href="${getProxyPath()}styles/ag-grid-community/${this.theme}.min.css"
+          />`,
+      );
     ThemeEvents[options.eventThemeId] = () => {
       htmls(
         `.ag-grid-style`,
