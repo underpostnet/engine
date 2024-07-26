@@ -639,10 +639,15 @@ const QuestManagementCyberia = {
         : questData.description;
 
     const idSalt = s4() + s4();
-    let sectionsIndex, phraseArray;
     let currentSectionIndex = 0;
+
     const bubbleMainText = async () => {
       setTimeout(() => {
+        const { phraseArray, sectionsIndex } = getSectionsStringData(
+          `typeWriteSectionsString-${questData.id}-${idSalt}`,
+          translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
+        );
+
         const updateArrowAction = () => {
           if (sectionsIndex.length > 1 && s(`.dialog-step-container-${questData.id}`).classList.contains('hide')) {
             s(`.dialog-step-container-${questData.id}`).classList.remove('hide');
@@ -996,13 +1001,6 @@ const QuestManagementCyberia = {
       await this.takeQuest({ questData });
       s(`.btn-close-${idModal}`).click();
     });
-
-    const sectionStringData = getSectionsStringData(
-      `typeWriteSectionsString-${questData.id}-${idSalt}`,
-      translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
-    );
-    phraseArray = sectionStringData.phraseArray;
-    sectionsIndex = sectionStringData.sectionsIndex;
   },
   takeQuest: async function ({ questData }) {
     questData = {
