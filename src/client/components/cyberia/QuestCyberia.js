@@ -211,6 +211,12 @@ const QuestManagementCyberia = {
                                 slideMenu: 'modal-menu',
                                 html: async () => {
                                   return html`
+                                    <style>
+                                      .${idModal}-element-0-body,
+                                      .${idModal}-element-1-body {
+                                        overflow: hidden;
+                                      }
+                                    </style>
                                     <div class="in ${idModal}-talking-loading-container" style="min-height: 300px;">
                                       <div class="abs center ${idModal}-talking-loading"></div>
                                     </div>
@@ -233,12 +239,14 @@ const QuestManagementCyberia = {
                                 type: 'user',
                                 id: 'main',
                                 container: `${idModal}-element-0`,
+                                positionId: '06',
                               });
 
                               await CharacterCyberia.renderCharacterCyberiaPreView({
                                 type: typeTarget,
                                 id: elementTargetId,
                                 container: `${idModal}-element-1`,
+                                positionId: '04',
                               });
 
                               s(`.${idModal}-talking-loading-container`).remove();
@@ -251,14 +259,35 @@ const QuestManagementCyberia = {
                                   id: `${idModal}-element-bubble-a`,
                                   // triangleType: 'left',
                                   html: async () =>
-                                    html`${Translate.Render(
-                                      `${questData.id}-completeDialog-step-${
-                                        QuestComponent.Data[questData.id]().provide.displayIds[0].id
-                                      }-${currentStep}-${0}`,
-                                    )}`,
+                                    html` <div
+                                      class="in typeWriteSectionsString typeWriteSectionsString-${idModal}"
+                                    ></div>`,
                                   classSelectors: 'in',
                                 })}`,
                               );
+
+                              // const renderTranslateData = Translate.Render(
+                              //   `${questData.id}-completeDialog-step-${
+                              //     QuestComponent.Data[questData.id]().provide.displayIds[0].id
+                              //   }-${currentStep}-${currentDialogIndex}`,
+                              // );
+
+                              let currentDialogIndex = 0;
+                              const renderTalkingDialog = () => {
+                                const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
+                                const { phraseArray, sectionsIndex } = getSectionsStringData(
+                                  idModal,
+                                  translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
+                                );
+                                let currentPhraseArrayIndex = 0;
+                                typeWriteSectionsString({
+                                  container: `typeWriteSectionsString-${idModal}`,
+                                  phraseArray,
+                                  rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
+                                });
+                              };
+                              renderTalkingDialog();
+
                               return;
                             }
 
@@ -643,21 +672,21 @@ const QuestManagementCyberia = {
 
         s(`.quest-bubble-icon-arrow-right`).onclick = () => {
           if (currentSectionIndex === sectionsIndex.length - 1) return;
-          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          htmls(`.typeWriteSectionsString-${questData.id}-${idSalt}`, '');
           currentSectionIndex++;
           bubbleMainText();
           updateArrowAction();
         };
         s(`.quest-bubble-icon-arrow-left`).onclick = () => {
           if (currentSectionIndex === 0) return;
-          htmls(`.bubbleMainText-${questData.id}-${idSalt}`, '');
+          htmls(`.typeWriteSectionsString-${questData.id}-${idSalt}`, '');
           currentSectionIndex--;
           bubbleMainText();
           updateArrowAction();
         };
         updateArrowAction();
         typeWriteSectionsString({
-          id: `${questData.id}-${idSalt}`,
+          container: `typeWriteSectionsString-${questData.id}-${idSalt}`,
           phraseArray,
           rangeArraySectionIndex: sectionsIndex[currentSectionIndex],
         });
@@ -693,7 +722,7 @@ const QuestManagementCyberia = {
                 </div>
               </div>
             </div>
-            <div class="in bubbleMainText bubbleMainText-${questData.id}-${idSalt}"></div>
+            <div class="in typeWriteSectionsString typeWriteSectionsString-${questData.id}-${idSalt}"></div>
           `,
         classSelectors: 'in',
       });
@@ -969,7 +998,7 @@ const QuestManagementCyberia = {
     });
 
     const sectionStringData = getSectionsStringData(
-      idModal,
+      `typeWriteSectionsString-${questData.id}-${idSalt}`,
       translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
     );
     phraseArray = sectionStringData.phraseArray;

@@ -575,7 +575,7 @@ function splitEveryXChar(originalString, everyXChar = 30, nextCharSplit) {
     i++;
     modifiedString += char;
     if (i !== 0 && i % everyXChar === 0) charSplit = true;
-    if (charSplit && (!nextCharSplit || nextCharSplit.includes(char))) {
+    if (modifiedString.length >= everyXChar && charSplit && (!nextCharSplit || nextCharSplit.includes(char))) {
       arrayString.push(newInstance(modifiedString));
       modifiedString = '';
       charSplit = false;

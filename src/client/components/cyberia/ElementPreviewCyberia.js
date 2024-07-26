@@ -35,7 +35,8 @@ const ElementPreviewCyberia = {
     `;
   },
   renderElementContainers: {},
-  renderElement: async function ({ type, id, renderId }) {
+  renderElement: async function ({ type, id, renderId, positionId }) {
+    if (!positionId) positionId = '18';
     // for (const interval of Object.keys(this.Tokens[renderId].intervals)) {
     //   clearInterval(this.Tokens[renderId].intervals[interval]);
     // }
@@ -104,7 +105,6 @@ const ElementPreviewCyberia = {
       switch (displayId) {
         default:
           {
-            const positionId = '18';
             const pixiFrames = [];
             const positionData = positions.find((p) => p.positionId === positionId);
             const sprites = [];

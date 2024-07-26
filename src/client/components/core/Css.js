@@ -746,7 +746,7 @@ const triangle = {
 
 const getSectionsStringData = (selector, text) => {
   const sectionsIndex = [];
-  const everyXChar = parseInt(s(`.${selector}`).offsetWidth / 60);
+  const everyXChar = parseInt(s(`.${selector}`).offsetWidth / 4);
   const phraseArray = text
     .split('.')
     .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
@@ -771,19 +771,19 @@ const getSectionsStringData = (selector, text) => {
   return { phraseArray, sectionsIndex };
 };
 
-const typeWriteSectionsString = ({ id, phraseArray, rangeArraySectionIndex }) => {
+const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) => {
   let cumulativeSeconds = 0;
   for (const index of range(...rangeArraySectionIndex)) {
     const subIdSalt = s4() + s4() + s4();
     const seconds = phraseArray[index].trim().length * 0.05;
-    append(`.bubbleMainText-${id}`, html` <div class="bubbleMainText bubbleMainText-${id}-${subIdSalt}"></div> `);
+    append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
     setTimeout(async () => {
-      if (s(`.bubbleMainText-${id}-${subIdSalt}`)) {
+      if (s(`.${container}-${subIdSalt}`)) {
         append(
-          `.bubbleMainText-${id}-${subIdSalt}`,
+          `.${container}-${subIdSalt}`,
           html`
             ${await typeWriter({
-              id: `text-${index}-${id}`,
+              id: `typeWriter-${index}-${container}`,
               html: phraseArray[index].trim(),
               endHideBlink: index < rangeArraySectionIndex[1],
               seconds,

@@ -697,7 +697,7 @@ const CssCyberiaDark = {
             width: 85%;
             height: 85%;
           }
-          .bubbleMainText {
+          .typeWriteSectionsString {
             font-size: 18px;
           }
           .dialog-step-container {
