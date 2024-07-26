@@ -5,12 +5,14 @@ import { splitEveryXChar, newInstance, objectEquals, range, s4, uniqueArray, cei
 import { Css, Themes, dynamicCol, renderBubbleDialog, typeWriter } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Keyboard } from '../core/Keyboard.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
 import { Slot } from './BagCyberia.js';
+import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
@@ -178,6 +180,62 @@ const QuestManagementCyberia = {
                             const itemData =
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                 .displaySearchObjects[displayIdIndex];
+
+                            const displayStepData =
+                              QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
+
+                            if (displayStepData.talkingDialog) {
+                              const idModal = `modal-quest-dialog-${questData.id}`;
+                              const { barConfig } = await Themes[Css.currentTheme]();
+                              await Modal.Render({
+                                id: idModal,
+                                barConfig,
+                                title: renderViewTitle({
+                                  // 'ui-icon': questData.icon.id,
+                                  // assetFolder: questData.icon.folder,
+                                  'ui-icon': 'quest.png',
+                                  text: html`${Translate.Render(`${questData.id}-title`)}`,
+                                }),
+                                maximize: true,
+                                mode: 'view',
+                                slideMenu: 'modal-menu',
+                                html: async () => {
+                                  return html`
+                                    <div class="fl">
+                                      <div class="in fll quest-talking-cell">
+                                        <div class="${idModal}-element-0">
+                                          <div class="abs center ${idModal}-element-loading-0"></div>
+                                        </div>
+                                      </div>
+                                      <div class="in fll quest-talking-cell">
+                                        <pre>${JSON.stringify(displayStepData.talkingDialog, null, 4)}</pre>
+                                      </div>
+                                      <div class="in fll quest-talking-cell">
+                                        <div class="${idModal}-element-1">
+                                          <div class="abs center ${idModal}-element-loading-1"></div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  `;
+                                },
+                              });
+                              LoadingAnimation.img.play(`.${idModal}-element-loading-0`, 'points');
+                              LoadingAnimation.img.play(`.${idModal}-element-loading-1`, 'points');
+
+                              CharacterCyberia.renderCharacterCyberiaPreView({
+                                type: 'user',
+                                id: 'main',
+                                container: `${idModal}-element-0`,
+                              });
+
+                              CharacterCyberia.renderCharacterCyberiaPreView({
+                                type: typeTarget,
+                                id: elementTargetId,
+                                container: `${idModal}-element-1`,
+                              });
+
+                              return;
+                            }
 
                             if (itemData.current < itemData.quantity) {
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
