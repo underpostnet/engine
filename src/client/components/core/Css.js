@@ -744,9 +744,9 @@ const triangle = {
   },
 };
 
-const getSectionsStringData = (selector, text) => {
+const getSectionsStringData = (offsetWidth, text) => {
   const sectionsIndex = [];
-  const everyXChar = parseInt(s(`.${selector}`).offsetWidth / 4);
+  const everyXChar = parseInt(offsetWidth / 4);
   const phraseArray = text
     .split('.')
     .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))

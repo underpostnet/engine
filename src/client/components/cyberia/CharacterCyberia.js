@@ -237,10 +237,14 @@ const CharacterCyberia = {
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {
-      const characterImg = await ElementPreviewCyberia.Tokens[
-        `element-interaction-panel`
-      ].AppInstance.renderer.extract.image(ElementPreviewCyberia.renderElementContainers[containerId]);
-      frames[frame] = characterImg.currentSrc;
+      try {
+        const characterImg = await ElementPreviewCyberia.Tokens[
+          `element-interaction-panel`
+        ].AppInstance.renderer.extract.image(ElementPreviewCyberia.renderElementContainers[containerId]);
+        frames[frame] = characterImg.currentSrc;
+      } catch (error) {
+        logger.error(error);
+      }
       await timer(intervalTime);
     }
     ElementPreviewCyberia.renderElementContainers[containerId].removeChildren();

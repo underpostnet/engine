@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { range, s4 } from '../core/CommonJs.js';
+import { newInstance, range, s4 } from '../core/CommonJs.js';
 import {
   Css,
   Themes,
@@ -276,7 +276,7 @@ const QuestManagementCyberia = {
                               const renderTalkingDialog = () => {
                                 const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
                                 const { phraseArray, sectionsIndex } = getSectionsStringData(
-                                  idModal,
+                                  s(`.${idModal}`).offsetWidth,
                                   translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
                                 );
                                 let currentPhraseArrayIndex = 0;
@@ -368,7 +368,9 @@ const QuestManagementCyberia = {
                   });
 
                   const okButtonDisabled =
-                    !questData || ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id);
+                    !questData ||
+                    ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ||
+                    QuestComponent.componentsScope[displayId].questKeyContext !== 'provide';
                   {
                     const idKeyboardEvent = 'quest-key-event-ok' + idPanel;
                     if (okButtonDisabled) delete Keyboard.Event[idKeyboardEvent];
@@ -487,26 +489,26 @@ const QuestManagementCyberia = {
                                 />`}
                             <div class="abs quest-keyboard-bubble-info">A</div>`,
                         })}
-                        <div class="in ${dudeButtonEnabled ? '' : 'hide'}">
-                          ${await BtnIcon.Render({
-                            class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
-                              okButtonDisabled ? 'hide' : ''
-                            }`,
-                            label: html`<img
-                                class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/ok.png"
-                              />
-                              <div class="abs quest-keyboard-bubble-info">A</div>`,
-                          })}
-                          ${await BtnIcon.Render({
-                            class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel}`,
-                            label: html`<img
-                                class="abs center action-panel-img-icon"
-                                src="${getProxyPath()}assets/ui-icons/dude.png"
-                              />
-                              <div class="abs quest-keyboard-bubble-info">S</div>`,
-                          })}
-                        </div>
+                        ${await BtnIcon.Render({
+                          class: `in fll action-panel-bar-btn-container action-panel-ok-${idPanel} ${
+                            okButtonDisabled ? 'hide' : ''
+                          }`,
+                          label: html`<img
+                              class="abs center action-panel-img-icon"
+                              src="${getProxyPath()}assets/ui-icons/ok.png"
+                            />
+                            <div class="abs quest-keyboard-bubble-info">A</div>`,
+                        })}
+                        ${await BtnIcon.Render({
+                          class: `in fll action-panel-bar-btn-container action-panel-dude-${idPanel} ${
+                            dudeButtonEnabled ? '' : 'hide'
+                          }`,
+                          label: html`<img
+                              class="abs center action-panel-img-icon"
+                              src="${getProxyPath()}assets/ui-icons/dude.png"
+                            />
+                            <div class="abs quest-keyboard-bubble-info">S</div>`,
+                        })}
                         ${await BtnIcon.Render({
                           class: `in fll action-panel-bar-btn-container action-panel-close-${idPanel}`,
                           label: html`<img
@@ -644,7 +646,7 @@ const QuestManagementCyberia = {
     const bubbleMainText = async () => {
       setTimeout(() => {
         const { phraseArray, sectionsIndex } = getSectionsStringData(
-          `typeWriteSectionsString-${questData.id}-${idSalt}`,
+          newInstance(s(`.typeWriteSectionsString-${questData.id}-${idSalt}`).offsetWidth),
           translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
         );
 
@@ -675,26 +677,28 @@ const QuestManagementCyberia = {
           }
         };
 
+        const typeWriteRender = () => {
+          updateArrowAction();
+          typeWriteSectionsString({
+            container: `typeWriteSectionsString-${questData.id}-${idSalt}`,
+            phraseArray,
+            rangeArraySectionIndex: sectionsIndex[currentSectionIndex],
+          });
+        };
+
         s(`.quest-bubble-icon-arrow-right`).onclick = () => {
           if (currentSectionIndex === sectionsIndex.length - 1) return;
           htmls(`.typeWriteSectionsString-${questData.id}-${idSalt}`, '');
           currentSectionIndex++;
-          bubbleMainText();
-          updateArrowAction();
+          typeWriteRender();
         };
         s(`.quest-bubble-icon-arrow-left`).onclick = () => {
           if (currentSectionIndex === 0) return;
           htmls(`.typeWriteSectionsString-${questData.id}-${idSalt}`, '');
           currentSectionIndex--;
-          bubbleMainText();
-          updateArrowAction();
+          typeWriteRender();
         };
-        updateArrowAction();
-        typeWriteSectionsString({
-          container: `typeWriteSectionsString-${questData.id}-${idSalt}`,
-          phraseArray,
-          rangeArraySectionIndex: sectionsIndex[currentSectionIndex],
-        });
+        typeWriteRender();
       });
       return await renderBubbleDialog({
         id: `${idModal}-bubble-description`,
