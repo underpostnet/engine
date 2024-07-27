@@ -253,6 +253,9 @@ const QuestManagementCyberia = {
                               s(`.${idModal}-element-0`).classList.remove('hide');
                               s(`.${idModal}-element-1`).classList.remove('hide');
 
+                              const offsetWidth = s(`.${idModal}`).offsetWidth;
+                              const triangleWidth = 60;
+
                               htmls(
                                 `.render-bubble-${questData.id}`,
                                 html`${await renderBubbleDialog({
@@ -263,6 +266,9 @@ const QuestManagementCyberia = {
                                       class="in typeWriteSectionsString typeWriteSectionsString-${idModal}"
                                     ></div>`,
                                   classSelectors: 'in',
+                                  bubbleCss: 'width: 80%',
+                                  triangleWidth,
+                                  triangleCustomCss: `top: 80%; left: ${offsetWidth / 4 - triangleWidth / 2}px`,
                                 })}`,
                               );
 
@@ -276,7 +282,7 @@ const QuestManagementCyberia = {
                               const renderTalkingDialog = () => {
                                 const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
                                 const { phraseArray, sectionsIndex } = getSectionsStringData(
-                                  s(`.${idModal}`).offsetWidth,
+                                  offsetWidth,
                                   translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
                                 );
                                 let currentPhraseArrayIndex = 0;

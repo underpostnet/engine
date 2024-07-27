@@ -538,10 +538,18 @@ const dynamicCol = (options = { containerSelector: '', id: '', type: '', limit: 
 };
 
 const renderBubbleDialog = async function (
-  options = { id: '', html: async () => '', classSelectors, triangleType: 'down' },
+  options = {
+    id: '',
+    html: async () => '',
+    classSelectors,
+    triangleType: 'down',
+    triangleCustomCss: '',
+    triangleDim: 0,
+    bubbleCss: '',
+  },
 ) {
   const { id, html } = options;
-  let cssPosition = `
+  let cssTrianglePosition = `
     bottom: -45px;
     left: 5px;
   `;
@@ -549,7 +557,7 @@ const renderBubbleDialog = async function (
   let blackTriangleStyle = ``;
   switch (options.triangleType) {
     case 'right':
-      cssPosition = `
+      cssTrianglePosition = `
         right: -40px;
         top: 5px;
       `;
@@ -562,16 +570,18 @@ const renderBubbleDialog = async function (
     default:
       break;
   }
+  if (options.triangleCustomCss) cssTrianglePosition = options.triangleCustomCss;
   return html` <div
     class="${options?.classSelectors ? options.classSelectors : 'inl'} bubble-dialog bubble-dialog-${id}"
+    ${options.bubbleCss ? `style='${options.bubbleCss}'` : ''}
   >
     <style class="style-bubble-dialog-triangle-${id}">
       .bubble-dialog-triangle-${id} {
-        width: 60px;
-        height: 60px;
+        width: ${options.triangleDim ? options.triangleDim : 60}px;
+        height: ${options.triangleDim ? options.triangleDim : 60}px;
         /* border: 2px solid red; */
         box-sizing: border-box;
-        ${cssPosition}
+        ${cssTrianglePosition}
       }
     </style>
     <div class="abs bubble-dialog-triangle bubble-dialog-triangle-${id}">
