@@ -282,7 +282,7 @@ const QuestManagementCyberia = {
                               const renderTalkingDialog = () => {
                                 const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
                                 const { phraseArray, sectionsIndex } = getSectionsStringData(
-                                  offsetWidth,
+                                  offsetWidth * 0.3,
                                   translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
                                 );
                                 let currentPhraseArrayIndex = 0;
@@ -651,8 +651,9 @@ const QuestManagementCyberia = {
 
     const bubbleMainText = async () => {
       setTimeout(() => {
+        const offsetWidth = s(`.${idModal}`).offsetWidth;
         const { phraseArray, sectionsIndex } = getSectionsStringData(
-          newInstance(s(`.typeWriteSectionsString-${questData.id}-${idSalt}`).offsetWidth),
+          offsetWidth * 0.07,
           translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
         );
 
