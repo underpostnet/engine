@@ -46,7 +46,6 @@ const CssCommonCyberia = async () => {
         top: 4px;
       }
       .action-game-panel {
-        width: 230px;
         z-index: 10;
         font-size: 20px;
       }
