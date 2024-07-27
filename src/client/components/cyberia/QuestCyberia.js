@@ -1,7 +1,7 @@
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { newInstance, range, s4 } from '../core/CommonJs.js';
+import { newInstance, range, s4, timer } from '../core/CommonJs.js';
 import {
   Css,
   Themes,
@@ -156,7 +156,24 @@ const QuestManagementCyberia = {
                 id: elementTargetId,
                 html: async () => {
                   const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
-                  setTimeout(() => {
+                  setTimeout(async () => {
+                    if (s(`.typeWriter-render-shortDescription-${questData.id}`))
+                      typeWriter({
+                        id: `${questData.id}-shortDescription-typeWriter`,
+                        html: questData
+                          ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
+                          : html`Hi! Hi! Hi! Hi! Hi!`,
+                        container: `typeWriter-render-shortDescription-${questData.id}`,
+                      });
+                    if (s(`.typeWriter-render-defaultDialog-${displayId}`))
+                      typeWriter({
+                        id: `quest-${displayId}-defaultDialog-typeWriter`,
+                        html: questData
+                          ? html`${Translate.Render(`quest-${displayId}-defaultDialog`)}`
+                          : html`Hi! Hi! Hi! Hi! Hi!`,
+                        container: `typeWriter-render-defaultDialog-${displayId}`,
+                      });
+
                     s(`.action-panel-close-${idPanel}`).onclick = async () => {
                       this.questClosePanels.push(idPanel);
                       await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
@@ -268,7 +285,18 @@ const QuestManagementCyberia = {
                                   classSelectors: 'in',
                                   bubbleCss: 'width: 80%',
                                   triangleWidth,
-                                  triangleCustomCss: `top: 80%; left: ${offsetWidth / 4 - triangleWidth / 2}px`,
+                                  triangleCustomCss: `top: 80%; left: ${offsetWidth * 0.25 - triangleWidth / 2}px`,
+                                })}${await renderBubbleDialog({
+                                  id: `${idModal}-element-bubble-b`,
+                                  // triangleType: 'left',
+                                  html: async () =>
+                                    html` <div
+                                      class="in typeWriteSectionsString typeWriteSectionsString-${idModal}"
+                                    ></div>`,
+                                  classSelectors: 'in hide',
+                                  bubbleCss: 'left: 20%; width: 80%',
+                                  triangleWidth,
+                                  triangleCustomCss: `top: 80%; left: ${offsetWidth * 0.75 - triangleWidth / 2}px`,
                                 })}`,
                               );
 
@@ -279,18 +307,25 @@ const QuestManagementCyberia = {
                               // );
 
                               let currentDialogIndex = 0;
-                              const renderTalkingDialog = () => {
+                              const renderTalkingDialog = async () => {
                                 const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
                                 const { phraseArray, sectionsIndex } = getSectionsStringData(
                                   offsetWidth * 0.3,
                                   translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
                                 );
-                                let currentPhraseArrayIndex = 0;
-                                typeWriteSectionsString({
-                                  container: `typeWriteSectionsString-${idModal}`,
-                                  phraseArray,
-                                  rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
-                                });
+                                let currentPhraseArrayIndex = -1;
+                                const renderPhrase = async () => {
+                                  currentPhraseArrayIndex++;
+                                  htmls(`.typeWriteSectionsString-${idModal}`, '');
+                                  await typeWriteSectionsString({
+                                    container: `typeWriteSectionsString-${idModal}`,
+                                    phraseArray,
+                                    rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
+                                  });
+                                  await timer(1500);
+                                  if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
+                                };
+                                renderPhrase();
                               };
                               renderTalkingDialog();
 
@@ -462,19 +497,9 @@ const QuestManagementCyberia = {
                           : 'hide'}"
                       >
                         ${enableShortDescription
-                          ? html` ${await typeWriter({
-                              id: idPanel,
-                              html: questData
-                                ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
-                                : html`Hi! Hi! Hi! Hi! Hi!`,
-                            })}`
+                          ? html`<div class="typeWriter-render-shortDescription-${questData.id}"></div>`
                           : enableDefaultDialog
-                          ? html` ${await typeWriter({
-                              id: idPanel,
-                              html: questData
-                                ? html`${Translate.Render(`quest-${displayId}-defaultDialog`)}`
-                                : html`Hi! Hi! Hi! Hi! Hi!`,
-                            })}`
+                          ? html`<div class="typeWriter-render-defaultDialog-${displayId}"></div>`
                           : ''}
                       </div>
                       <div class="fl">
@@ -684,9 +709,9 @@ const QuestManagementCyberia = {
           }
         };
 
-        const typeWriteRender = () => {
+        const typeWriteRender = async () => {
           updateArrowAction();
-          typeWriteSectionsString({
+          await typeWriteSectionsString({
             container: `typeWriteSectionsString-${questData.id}-${idSalt}`,
             phraseArray,
             rangeArraySectionIndex: sectionsIndex[currentSectionIndex],

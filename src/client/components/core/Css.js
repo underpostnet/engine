@@ -606,52 +606,55 @@ const renderBubbleDialog = async function (
   </div>`;
 };
 
-const typeWriter = async function ({ id, html, seconds, endHideBlink }) {
+const typeWriter = async function ({ id, html, seconds, endHideBlink, container }) {
   if (!seconds) seconds = 2;
-  // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
-  // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
-  const typingAnimationTransitionStyle = [`1s linear`, `${seconds}s steps(30, end)`, `1s forwards`];
-  if (endHideBlink)
-    setTimeout(() => {
-      if (endHideBlink && s(`.style-${id}`)) s(`.style-${id}`).remove();
-    }, seconds * 1000);
-  return html`
-    <style class="style-${id}">
-      .tw-${id}-typed-out {
-        overflow: hidden;
-        border-right: 0.15em solid orange;
-        white-space: nowrap;
-        animation: typing-${id} ${typingAnimationTransitionStyle[1]}, blink-caret-${id} 0.5s step-end infinite;
-        animation-fill-mode: forwards;
-        width: 0;
-      }
-    </style>
-    <style>
-      .tw-${id}-container {
-      }
-      @keyframes typing-${id} {
-        from {
+  return new Promise((resolve) => {
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
+    // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
+    const typingAnimationTransitionStyle = [`1s linear`, `${seconds}s steps(30, end)`, `1s forwards`];
+    const render = html`
+      <style class="style-${id}">
+        .tw-${id}-typed-out {
+          overflow: hidden;
+          border-right: 0.15em solid orange;
+          white-space: nowrap;
+          animation: typing-${id} ${typingAnimationTransitionStyle[1]}, blink-caret-${id} 0.5s step-end infinite;
+          animation-fill-mode: forwards;
           width: 0;
         }
-        to {
-          width: 100%;
+      </style>
+      <style>
+        .tw-${id}-container {
         }
-      }
+        @keyframes typing-${id} {
+          from {
+            width: 0;
+          }
+          to {
+            width: 100%;
+          }
+        }
 
-      @keyframes blink-caret-${id} {
-        from,
-        to {
-          border-color: transparent;
+        @keyframes blink-caret-${id} {
+          from,
+          to {
+            border-color: transparent;
+          }
+          50% {
+            border-color: orange;
+          }
         }
-        50% {
-          border-color: orange;
-        }
-      }
-    </style>
-    <div class="inl tw-${id}-container">
-      <div class="tw-${id}-typed-out">${html}</div>
-    </div>
-  `;
+      </style>
+      <div class="inl tw-${id}-container">
+        <div class="tw-${id}-typed-out">${html}</div>
+      </div>
+    `;
+    htmls(`.${container}`, render);
+    setTimeout(() => {
+      if (endHideBlink && s(`.style-${id}`)) s(`.style-${id}`).remove();
+      resolve(render);
+    }, seconds * 1000);
+  });
 };
 
 const renderCssAttr = (options) =>
@@ -781,30 +784,29 @@ const getSectionsStringData = (offsetWidth, text) => {
   return { phraseArray, sectionsIndex };
 };
 
-const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) => {
-  let cumulativeSeconds = 0;
-  for (const index of range(...rangeArraySectionIndex)) {
-    const subIdSalt = s4() + s4() + s4();
-    const seconds = phraseArray[index].trim().length * 0.05;
-    append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
-    setTimeout(async () => {
-      if (s(`.${container}-${subIdSalt}`)) {
-        append(
-          `.${container}-${subIdSalt}`,
-          html`
-            ${await typeWriter({
-              id: `typeWriter-${index}-${container}`,
-              html: phraseArray[index].trim(),
-              endHideBlink: index < rangeArraySectionIndex[1],
-              seconds,
-            })}
-          `,
-        );
-      }
-    }, cumulativeSeconds * 1000);
-    cumulativeSeconds += seconds;
-  }
-};
+const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) =>
+  new Promise((resolve) => {
+    let cumulativeSeconds = 0;
+    for (const index of range(...rangeArraySectionIndex)) {
+      const subIdSalt = s4() + s4() + s4();
+      const seconds = phraseArray[index].trim().length * 0.05;
+      append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
+      setTimeout(async () => {
+        if (s(`.${container}-${subIdSalt}`)) {
+          append(`.${container}-${subIdSalt}`, html` <div class="render-typeWriter-${container}-${subIdSalt}"></div> `);
+          await typeWriter({
+            id: `typeWriter-${index}-${container}`,
+            html: phraseArray[index].trim(),
+            endHideBlink: index < rangeArraySectionIndex[1],
+            seconds,
+            container: `render-typeWriter-${container}-${subIdSalt}`,
+          });
+        }
+        if (index === rangeArraySectionIndex[1]) resolve();
+      }, cumulativeSeconds * 1000);
+      cumulativeSeconds += seconds;
+    }
+  });
 
 export {
   Css,
