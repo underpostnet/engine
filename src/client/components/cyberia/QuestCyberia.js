@@ -214,6 +214,9 @@ const QuestManagementCyberia = {
                             if (displayStepData.talkingDialog) {
                               const idModal = `modal-quest-dialog-${questData.id}`;
                               const { barConfig } = await Themes[Css.currentTheme]();
+                              barConfig.buttons.maximize.disabled = true;
+                              barConfig.buttons.minimize.disabled = true;
+                              barConfig.buttons.restore.disabled = true;
                               await Modal.Render({
                                 id: idModal,
                                 barConfig,
@@ -272,32 +275,37 @@ const QuestManagementCyberia = {
 
                               const offsetWidth = s(`.${idModal}`).offsetWidth;
                               const triangleWidth = 60;
+                              const dialogQuestIdSalt = s4() + s4() + s4();
 
                               htmls(
                                 `.render-bubble-${questData.id}`,
-                                html`${await renderBubbleDialog({
-                                  id: `${idModal}-element-bubble-a`,
-                                  // triangleType: 'left',
-                                  html: async () =>
-                                    html` <div
-                                      class="in typeWriteSectionsString typeWriteSectionsString-${idModal}"
-                                    ></div>`,
-                                  classSelectors: 'in',
-                                  bubbleCss: 'width: 80%',
-                                  triangleWidth,
-                                  triangleCustomCss: `top: 80%; left: ${offsetWidth * 0.25 - triangleWidth / 2}px`,
-                                })}${await renderBubbleDialog({
-                                  id: `${idModal}-element-bubble-b`,
-                                  // triangleType: 'left',
-                                  html: async () =>
-                                    html` <div
-                                      class="in typeWriteSectionsString typeWriteSectionsString-${idModal}"
-                                    ></div>`,
-                                  classSelectors: 'in hide',
-                                  bubbleCss: 'left: 20%; width: 80%',
-                                  triangleWidth,
-                                  triangleCustomCss: `top: 80%; left: ${offsetWidth * 0.75 - triangleWidth / 2}px`,
-                                })}`,
+                                html`<div class="fl" style="width: 85%; margin: auto">
+                                  ${await renderBubbleDialog({
+                                    id: `${idModal}-element-bubble-${dialogQuestIdSalt}-a`,
+                                    // triangleType: 'left',
+                                    html: async () =>
+                                      html` <div
+                                        class="in typeWriteSectionsString typeWriteSectionsString-${idModal}-${dialogQuestIdSalt}-a"
+                                      ></div>`,
+                                    classSelectors: 'in fll',
+                                    bubbleCss: 'width: 80%',
+                                    triangleWidth,
+                                    trianglePositionCss: `bottom: -45px; left: 25%;`,
+                                    triangleCss: `border-left: none`,
+                                  })}${await renderBubbleDialog({
+                                    id: `${idModal}-element-bubble-${dialogQuestIdSalt}-b`,
+                                    // triangleType: 'left',
+                                    html: async () =>
+                                      html` <div
+                                        class="in typeWriteSectionsString typeWriteSectionsString-${idModal}-${dialogQuestIdSalt}-b"
+                                      ></div>`,
+                                    classSelectors: 'in flr hide',
+                                    bubbleCss: 'width: 80%',
+                                    triangleWidth,
+                                    trianglePositionCss: `bottom: -45px; right: 25%;`,
+                                    triangleCss: `border-right: none`,
+                                  })}
+                                </div>`,
                               );
 
                               // const renderTranslateData = Translate.Render(
@@ -306,26 +314,70 @@ const QuestManagementCyberia = {
                               //   }-${currentStep}-${currentDialogIndex}`,
                               // );
 
-                              let currentDialogIndex = 0;
+                              let currentDialogIndex = -1;
+                              let currentBubbleId = 'a';
                               const renderTalkingDialog = async () => {
+                                currentDialogIndex++;
                                 const translateData = displayStepData.talkingDialog[currentDialogIndex].dialog;
                                 const { phraseArray, sectionsIndex } = getSectionsStringData(
-                                  offsetWidth * 0.3,
+                                  Modal.mobileModal() ? offsetWidth * 0.2 : offsetWidth * 0.3,
                                   translateData[s('html').lang] ? translateData[s('html').lang] : translateData['en'],
                                 );
                                 let currentPhraseArrayIndex = -1;
                                 const renderPhrase = async () => {
+                                  if (!s(`.typeWriteSectionsString-${idModal}-${dialogQuestIdSalt}-${currentBubbleId}`))
+                                    return;
                                   currentPhraseArrayIndex++;
-                                  htmls(`.typeWriteSectionsString-${idModal}`, '');
+                                  htmls(
+                                    `.typeWriteSectionsString-${idModal}-${dialogQuestIdSalt}-${currentBubbleId}`,
+                                    '',
+                                  );
                                   await typeWriteSectionsString({
-                                    container: `typeWriteSectionsString-${idModal}`,
+                                    container: `typeWriteSectionsString-${idModal}-${dialogQuestIdSalt}-${currentBubbleId}`,
                                     phraseArray,
                                     rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
                                   });
                                   await timer(1500);
                                   if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
                                 };
-                                renderPhrase();
+                                await renderPhrase();
+                                if (currentDialogIndex + 1 < displayStepData.talkingDialog.length) {
+                                  if (
+                                    s(
+                                      `.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`,
+                                    ).classList.contains('hide')
+                                  )
+                                    s(
+                                      `.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`,
+                                    ).classList.remove('hide');
+                                  else
+                                    s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.add(
+                                      'hide',
+                                    );
+
+                                  if (
+                                    s(
+                                      `.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-b`,
+                                    ).classList.contains('hide')
+                                  )
+                                    s(
+                                      `.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-b`,
+                                    ).classList.remove('hide');
+                                  else
+                                    s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-b`).classList.add(
+                                      'hide',
+                                    );
+
+                                  if (
+                                    s(
+                                      `.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`,
+                                    ).classList.contains('hide')
+                                  )
+                                    currentBubbleId = 'b';
+                                  else currentBubbleId = 'a';
+
+                                  await renderTalkingDialog();
+                                }
                               };
                               renderTalkingDialog();
 
