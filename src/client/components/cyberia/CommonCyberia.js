@@ -561,6 +561,15 @@ const QuestComponent = {
                     es: 'Informe a sus líderes: el tiempo pasa de manera diferente en la Zona Restringida. Por lo tanto, puedo esperar una respuesta. Sin embargo, no puedo esperar para siempre. Necesitamos tu ayuda.',
                   },
                 },
+                {
+                  displayId: 'agent',
+                  image: 'assets/skin/agent/08/0.png',
+                  bubble: true,
+                  completeDialog: {
+                    es: `Hasta la fecha, es la información más útil proporcionada por SCP-2040 sin cambiar el tema de su Mensaje principal.`,
+                    en: `To date, it is the most useful information given by SCP-2040 without it changing the subject to its Primary Message.`,
+                  },
+                },
               ],
             },
           ],
