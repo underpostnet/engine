@@ -703,6 +703,22 @@ const CssCyberiaDark = {
             margin: 10px;
             font-size: 18px;
           }
+          .button-quest-modal-forward {
+            width: 70px;
+            height: 70px;
+            bottom: 10px;
+            right: 20px;
+            cursor: pointer;
+            z-index: 4;
+          }
+          .button-quest-modal-forward:hover .button-quest-modal-img {
+            width: 85%;
+            height: 85%;
+          }
+          .button-quest-modal-img {
+            width: 80%;
+            height: 80%;
+          }
         </style>
 
         ${borderChar(2, 'black', [

@@ -240,18 +240,41 @@ const QuestManagementCyberia = {
                                     <div class="in ${idModal}-talking-loading-container" style="min-height: 300px;">
                                       <div class="abs center ${idModal}-talking-loading"></div>
                                     </div>
-                                    <div class="in render-bubble-${questData.id}" style="padding: 10px"></div>
-                                    <div class="fl">
-                                      <div class="in fll" style="width: 50%;">
-                                        <div class="${idModal}-element-0 hide"></div>
-                                      </div>
-                                      <div class="in fll" style="width: 50%;">
-                                        <div class="${idModal}-element-1 hide"></div>
+                                    <div class="abs" style="top: 80px; width: 100%;">
+                                      <div class="fl">
+                                        <div class="in fll" style="width: 50%;">
+                                          <div class="${idModal}-element-0 hide"></div>
+                                        </div>
+                                        <div class="in fll" style="width: 50%;">
+                                          <div class="${idModal}-element-1 hide"></div>
+                                        </div>
                                       </div>
                                     </div>
+                                    <div class="in render-bubble-${questData.id}" style="padding: 10px"></div>
                                   `;
                                 },
                               });
+
+                              append(
+                                'body',
+                                html` <div
+                                  class="abs button-quest-modal-forward button-quest-modal-forward-${questData.id}"
+                                >
+                                  <img
+                                    class="abs center button-quest-modal-img"
+                                    src="${getProxyPath()}assets/ui-icons/forward.png"
+                                  />
+                                </div>`,
+                              );
+
+                              Modal.Data[idModal].onCloseListener[idModal] = () => {
+                                if (s(`.button-quest-modal-forward-${questData.id}`))
+                                  s(`.button-quest-modal-forward-${questData.id}`).remove();
+                              };
+
+                              s(`.button-quest-modal-forward-${questData.id}`).onclick = () => {
+                                alert();
+                              };
 
                               LoadingAnimation.img.play(`.${idModal}-talking-loading`, 'points');
 
