@@ -543,7 +543,8 @@ const renderBubbleDialog = async function (
     html: async () => '',
     classSelectors,
     triangleType: 'down',
-    triangleCustomCss: '',
+    trianglePositionCss: '',
+    triangleCss: '',
     triangleDim: 0,
     bubbleCss: '',
   },
@@ -570,7 +571,7 @@ const renderBubbleDialog = async function (
     default:
       break;
   }
-  if (options.triangleCustomCss) cssTrianglePosition = options.triangleCustomCss;
+  if (options.trianglePositionCss) cssTrianglePosition = options.trianglePositionCss;
   return html` <div
     class="${options?.classSelectors ? options.classSelectors : 'inl'} bubble-dialog bubble-dialog-${id}"
     ${options.bubbleCss ? `style='${options.bubbleCss}'` : ''}
@@ -591,6 +592,7 @@ const renderBubbleDialog = async function (
           id: id + '-triangle-black',
           color: 'black',
           classList: 'inl',
+          customStyle: options.triangleCss,
         })}
       </div>
       <div class="abs center" style="${whiteTriangleStyle}">
@@ -599,6 +601,7 @@ const renderBubbleDialog = async function (
           id: id + '-triangle-white',
           color: 'white',
           classList: 'inl',
+          customStyle: options.triangleCss,
         })}
       </div>
     </div>
@@ -703,57 +706,65 @@ const dashRange = ({ selector, color }) => {
   `;
 };
 const triangle = {
-  up: ({ id, dim, color, classList }) => {
+  up: ({ id, dim, color, classList, customStyle }) => {
     return html`<style class="style-${id}">
         .arrow-up-${id} {
           width: 0;
           height: 0;
           border-left: ${dim}px solid transparent;
           border-right: ${dim}px solid transparent;
-
           border-bottom: ${dim}px solid ${color};
         }
       </style>
-      <div class="arrow-up-${id} ${classList}"></div>`;
+      <div
+        class="arrow-up-${id} ${classList}"
+        ${customStyle ? `style="${customStyle ? customStyle : ''}"` : ''}
+      ></div>`;
   },
-  down: ({ id, dim, color, classList }) => {
+  down: ({ id, dim, color, classList, customStyle }) => {
     return html`<style class="style-${id}">
         .arrow-down-${id} {
           width: 0;
           height: 0;
           border-left: ${dim}px solid transparent;
           border-right: ${dim}px solid transparent;
-
           border-top: ${dim}px solid ${color};
         }
       </style>
-      <div class="arrow-down-${id} ${classList}"></div>`;
+      <div
+        class="arrow-down-${id} ${classList}"
+        ${customStyle ? `style="${customStyle ? customStyle : ''}"` : ''}
+      ></div>`;
   },
-  right: ({ id, dim, color, classList }) => {
+  right: ({ id, dim, color, classList, customStyle }) => {
     return html` <style class="style-${id}">
         .arrow-right-${id} {
           width: 0;
           height: 0;
           border-top: ${dim}px solid transparent;
           border-bottom: ${dim}px solid transparent;
-
           border-left: ${dim}px solid ${color};
         }
       </style>
-      <div class="arrow-right-${id} ${classList}"></div>`;
+      <div
+        class="arrow-right-${id} ${classList}"
+        ${customStyle ? `style="${customStyle ? customStyle : ''}"` : ''}
+      ></div>`;
   },
-  left: ({ id, dim, color, classList }) => {
+  left: ({ id, dim, color, classList, customStyle }) => {
     return html`<style class="style-${id}">
         .arrow-left-${id} {
           width: 0;
           height: 0;
           border-top: ${dim}px solid transparent;
           border-bottom: ${dim}px solid transparent;
-
           border-right: ${dim}px solid ${color};
         }
       </style>
-      <div class="arrow-left-${id} ${classList}"></div>`;
+      <div
+        class="arrow-left-${id} ${classList}"
+        ${customStyle ? `style="${customStyle ? customStyle : ''}"` : ''}
+      ></div>`;
   },
 };
 
