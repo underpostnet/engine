@@ -376,6 +376,9 @@ const InteractionPanelCyberia = {
               s(`.cy-int-btn-chat`).onclick = () => {
                 s(`.main-btn-chat`).click();
               };
+              s(`.cy-int-btn-wallet`).onclick = () => {
+                s(`.main-btn-wallet`).click();
+              };
             });
             return html`
               <div class="in">
@@ -438,6 +441,13 @@ const InteractionPanelCyberia = {
                   label: html`<img
                     class="abs center img-btn-square-menu"
                     src="${getProxyPath()}assets/ui-icons/chat.png"
+                  />`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `inl action-bar-box cy-int-btn-wallet`,
+                  label: html`<img
+                    class="abs center img-btn-square-menu"
+                    src="${getProxyPath()}assets/ui-icons/wallet.png"
                   />`,
                 })}
               </div>
