@@ -67,7 +67,7 @@ const MenuCyberia = {
             attrs: `data-id="5"`,
           })}
           ${await BtnIcon.Render({
-            class: 'in fll main-btn-square-menu main-btn-wallet',
+            class: 'in fll main-btn-square-menu main-btn-wallet hide',
             label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
             attrs: `data-id="6"`,
           })}
