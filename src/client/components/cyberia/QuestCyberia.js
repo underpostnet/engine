@@ -157,22 +157,24 @@ const QuestManagementCyberia = {
                 html: async () => {
                   const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
                   setTimeout(async () => {
-                    if (s(`.typeWriter-render-shortDescription-${questData.id}`))
-                      typeWriter({
-                        id: `${questData.id}-shortDescription-typeWriter`,
-                        html: questData
-                          ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
-                          : html`Hi! Hi! Hi! Hi! Hi!`,
-                        container: `typeWriter-render-shortDescription-${questData.id}`,
-                      });
-                    if (s(`.typeWriter-render-defaultDialog-${displayId}`))
-                      typeWriter({
-                        id: `quest-${displayId}-defaultDialog-typeWriter`,
-                        html: questData
-                          ? html`${Translate.Render(`quest-${displayId}-defaultDialog`)}`
-                          : html`Hi! Hi! Hi! Hi! Hi!`,
-                        container: `typeWriter-render-defaultDialog-${displayId}`,
-                      });
+                    if (questData) {
+                      if (s(`.typeWriter-render-shortDescription-${questData.id}`))
+                        typeWriter({
+                          id: `${questData.id}-shortDescription-typeWriter`,
+                          html: questData
+                            ? html`${Translate.Render(`${questData.id}-shortDescription`)}`
+                            : html`Hi! Hi! Hi! Hi! Hi!`,
+                          container: `typeWriter-render-shortDescription-${questData.id}`,
+                        });
+                      if (s(`.typeWriter-render-defaultDialog-${displayId}`))
+                        typeWriter({
+                          id: `quest-${displayId}-defaultDialog-typeWriter`,
+                          html: questData
+                            ? html`${Translate.Render(`quest-${displayId}-defaultDialog`)}`
+                            : html`Hi! Hi! Hi! Hi! Hi!`,
+                          container: `typeWriter-render-defaultDialog-${displayId}`,
+                        });
+                    }
 
                     s(`.action-panel-close-${idPanel}`).onclick = async () => {
                       this.questClosePanels.push(idPanel);
