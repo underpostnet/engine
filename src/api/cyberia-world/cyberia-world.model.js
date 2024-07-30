@@ -203,6 +203,9 @@ const CyberiaWorldSchema = new Schema({
       {
         id: 'scp-2040-dialog',
       },
+      {
+        id: 'subkishins-0',
+      },
     ],
   },
   type: { type: String, enum: ['width', 'height'], default: 'width' },

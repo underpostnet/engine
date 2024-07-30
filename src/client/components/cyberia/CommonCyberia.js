@@ -414,6 +414,85 @@ const Stat = {
 
 const QuestComponent = {
   Data: {
+    'subkishins-0': () => {
+      return {
+        maxStep: 1,
+        currentStep: 0,
+        title: {
+          en: 'Protesis subkishin',
+          es: 'Subkishin Prosthesis',
+        },
+        displaySearchObjects: [
+          {
+            id: 'kishins',
+            actionIcon: 'assets/ui-icons/chat.png',
+            panelQuestIcons: ['assets/ui-icons/skull.png', 'assets/skin/kishins/08/0.png'],
+            quantity: 2,
+            current: 0,
+            step: 0,
+          },
+          {
+            id: 'punk',
+            actionIcon: 'assets/ui-icons/chat.png',
+            panelQuestIcons: ['assets/ui-icons/chat.png', 'assets/skin/punk/08/0.png'],
+            quantity: 1,
+            current: 0,
+            step: 1,
+          },
+        ],
+        provide: {
+          displayIds: [
+            {
+              id: 'punk',
+              quantity: [1],
+              stepData: [
+                {
+                  displayId: 'kishins',
+                  image: 'assets/skin/kishins/08/0.png',
+                  completeDialog: {
+                    es: `Well inform tim.`,
+                    en: `Bien informa a tim.`,
+                  },
+                },
+                {
+                  displayId: 'punk',
+                  image: 'assets/skin/punk/08/0.png',
+                  bubble: true,
+                  completeDialog: {
+                    es: `Excelente trabajo, toma unas monedas.`,
+                    en: `Excellent work, take some coins.`,
+                  },
+                },
+              ],
+            },
+          ],
+        },
+        reward: [
+          {
+            type: 'coin',
+            quantity: 80,
+          },
+        ],
+        icon: {
+          folder: 'skin/kishins/08',
+          id: '0.png',
+        },
+        shortDescription: {
+          es: `Sub Mutante Kishin conocido como virus KSV, es el objetivo de esta misión.`,
+          en: 'KSV (Kishin SubMutant Virus), the target in this quest.',
+        },
+        description: {
+          en: `KSV (Kishin SubMutant Virus), the target in this quest. Researchers from our lab observed the virus infected an old prosthesis arm that we stop using because it is obsolete. The virus took the DNA of the arm and spread to its host cell. The infected cells produced antibodies, which that instead of killing the parasite itself, it adapts to it. Then I mutate and  now he is a fuck demon that roams the streets of cyberia. Give me a sample of the virus, a reward awaits you`,
+          es: `Sub Mutante Kishin conocido como virus KSV (Kishin SubMutant Virus), es el objetivo de esta misión. Investigadores de nuestro laboratorio observaron que el virus infectó una antigua prótesis de brazo que dejamos de usar por obsoleta. El virus tomó el ADN del brazo y se propagó a su célula huésped. Las células infectadas produjeron anticuerpos, que en lugar de matar al propio parásito, se adaptaron a él. Luego muto y ahora es un jodido demonio que deambula por las calles de Cyberia. Consigue una muestra del virus, te espera una recompensa`,
+        },
+        descriptionBubble: true,
+        successDescription: {
+          es: `Excelente trabajo, toma unas monedas.`,
+          en: `Excellent work, take some coins.`,
+        },
+        successDescriptionBubble: true,
+      };
+    },
     'scp-2040-dialog': () => {
       return {
         maxStep: 1,
@@ -735,17 +814,20 @@ const QuestComponent = {
     return currentStep >= this.Data[questData.id]().maxStep && this.verifyCompleteQuestStep({ questData });
   },
   componentsScope: {
-    bone: {
-      questKeyContext: 'displaySearchObjects',
-    },
-    'bone-brown': {
-      questKeyContext: 'displaySearchObjects',
-    },
     ayleen: {
       questKeyContext: 'provide',
     },
     agent: {
       questKeyContext: 'provide',
+    },
+    punk: {
+      questKeyContext: 'provide',
+    },
+    bone: {
+      questKeyContext: 'displaySearchObjects',
+    },
+    'bone-brown': {
+      questKeyContext: 'displaySearchObjects',
     },
     'scp-2040': {
       questKeyContext: 'displaySearchDialog',
@@ -754,6 +836,9 @@ const QuestComponent = {
         es: `No estoy respondiendo a tu mensaje principal`,
       },
     },
+    kishins: {
+      questKeyContext: 'displayKillObjects',
+    },
   },
   components: [
     DisplayComponent.get['bone'](),
@@ -761,6 +846,8 @@ const QuestComponent = {
     DisplayComponent.get['ayleen'](),
     DisplayComponent.get['agent'](),
     DisplayComponent.get['scp-2040'](),
+    DisplayComponent.get['punk'](),
+    DisplayComponent.get['kishins'](),
   ],
 };
 
