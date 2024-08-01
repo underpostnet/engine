@@ -447,8 +447,11 @@ const QuestComponent = {
               quantity: [1],
               stepData: [
                 {
-                  displayId: 'kishins',
-                  image: 'assets/skin/kishins/08/0.png',
+                  image: 'assets/ui-icons/check.png',
+                  imageStyle: {
+                    'max-width': '80px',
+                    'max-height': '80px',
+                  },
                   completeDialog: {
                     en: `Well inform tim.`,
                     es: `Bien informa a tim.`,
@@ -724,7 +727,11 @@ const QuestComponent = {
               quantity: [1],
               stepData: [
                 {
-                  image: 'assets/quest/bone/08/0.gif',
+                  image: 'assets/ui-icons/check.png',
+                  imageStyle: {
+                    'max-width': '80px',
+                    'max-height': '80px',
+                  },
                   bubble: false,
                   completeDialog: {
                     en: 'Good, now take the bones to ayleen',
@@ -741,7 +748,11 @@ const QuestComponent = {
                   },
                 },
                 {
-                  image: 'assets/quest/bone/08/0.gif',
+                  image: 'assets/ui-icons/check.png',
+                  imageStyle: {
+                    'max-width': '80px',
+                    'max-height': '80px',
+                  },
                   bubble: false,
                   completeDialog: {
                     en: 'Good, now take the bones to ayleen',

@@ -8,6 +8,7 @@ import {
   dynamicCol,
   getSectionsStringData,
   renderBubbleDialog,
+  renderCssAttr,
   typeWriteSectionsString,
   typeWriter,
 } from '../core/Css.js';
@@ -695,11 +696,21 @@ const QuestManagementCyberia = {
         ? html` <img
             class="in quest-provide-img"
             src="${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep].image}"
+            ${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep].imageStyle
+              ? `style="${renderCssAttr({
+                  style: questData.provide.displayIds[displayIdIndex].stepData[currentStep].imageStyle,
+                })}"`
+              : ''}
           />`
         : currentStep > 0
         ? html` <img
             class="in quest-provide-img"
             src="${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].image}"
+            ${getProxyPath()}${questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].imageStyle
+              ? `style="${renderCssAttr({
+                  style: questData.provide.displayIds[displayIdIndex].stepData[currentStep - 1].imageStyle,
+                })}"`
+              : ''}
           />`
         : html` <img
             class="in quest-provide-img"
