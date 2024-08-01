@@ -370,6 +370,7 @@ const Modal = {
                     background: 'none',
                     resize: 'none',
                     'min-width': `${minWidth}px`,
+                    width: '100%',
                     // border: '3px solid red',
                   },
                   dragDisabled: true,
