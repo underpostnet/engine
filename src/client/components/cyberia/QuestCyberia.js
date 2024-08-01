@@ -275,8 +275,9 @@ const QuestManagementCyberia = {
                                     s(`.button-quest-modal-forward-${questData.id}`).remove();
                                 };
 
-                                s(`.button-quest-modal-forward-${questData.id}`).onclick = () => {
+                                s(`.button-quest-modal-forward-${questData.id}`).onclick = async () => {
                                   s(`.btn-close-${idModal}`).click();
+                                  await timer(500);
                                   resolve();
                                 };
 
@@ -504,12 +505,19 @@ const QuestManagementCyberia = {
                       };
                   }
 
+                  let keyBoardFocusBlock = false;
+                  const keyBoardFocusTrigger = () => {
+                    if (keyBoardFocusBlock) return;
+                    keyBoardFocusBlock = true;
+                    setTimeout(() => (keyBoardFocusBlock = false), 500);
+                    if (s(`.action-panel-close-${idPanel}`)) s(`.action-panel-close-${idPanel}`).click();
+                    if (s(`.button-quest-modal-forward-${questData.id}`))
+                      s(`.button-quest-modal-forward-${questData.id}`).click();
+                  };
                   {
                     Keyboard.Event['focus'] = {
-                      f: () =>
-                        s(`.action-panel-close-${idPanel}`) ? s(`.action-panel-close-${idPanel}`).click() : null,
-                      F: () =>
-                        s(`.action-panel-close-${idPanel}`) ? s(`.action-panel-close-${idPanel}`).click() : null,
+                      f: keyBoardFocusTrigger,
+                      F: keyBoardFocusTrigger,
                     };
                   }
                   return await renderBubbleDialog({
