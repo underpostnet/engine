@@ -248,7 +248,7 @@ const loadConf = (deployId) => {
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
     if (process.env.NODE_ENV === 'development' && typeConf === 'server') {
-      const devConfPath = `${folder}/conf.${typeConf}.dev.json`;
+      const devConfPath = `${folder}/conf.${typeConf}.dev${process.argv[3] ? `.${process.argv[3]}` : ''}.json`;
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
     }
     if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(JSON.parse(srcConf)), null, 4);
