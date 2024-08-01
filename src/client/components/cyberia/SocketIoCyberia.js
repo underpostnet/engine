@@ -13,6 +13,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { LogInCyberia } from './LogInCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
+import { QuestManagementCyberia } from './QuestCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -104,6 +105,23 @@ const SocketIoCyberia = {
               if (type === 'user' && id === 'main') {
                 ElementsCyberia.Data[type][id].coin = element.coin;
                 Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+              }
+              break;
+            case 'update-quantity-quest-item':
+              if (type === 'user' && id === 'main') {
+                const { questData, displayId, questIndex, itemQuestIndex } = args;
+                const currentQuestData = ElementsCyberia.Data.user.main.model.quests.find((q) => q.id === questData.id);
+                if (currentQuestData) {
+                  const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
+                  QuestManagementCyberia.updateQuestItemProgressDisplay({
+                    interactionPanelQuestId,
+                    displayId,
+                    questData,
+                    currentQuestDataIndex: questIndex,
+                    currentStep: currentQuestData.currentStep,
+                    searchObjectIndex: itemQuestIndex,
+                  });
+                }
               }
               break;
             default:

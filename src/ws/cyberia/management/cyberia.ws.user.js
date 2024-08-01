@@ -1,5 +1,5 @@
 import { newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
-import { setElementConsistency } from '../../../client/components/cyberia/CommonCyberia.js';
+import { QuestComponent, setElementConsistency } from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
@@ -78,12 +78,9 @@ const CyberiaWsUserManagement = {
       return s;
     });
 
-    for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+    for (const clientId of Object.keys(this.element[wsManagementId])) {
       if (
-        objectEquals(
-          this.element[wsManagementId][id].model.world,
-          CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-        )
+        objectEquals(this.element[wsManagementId][id].model.world, this.element[wsManagementId][clientId].model.world)
       )
         CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[clientId], {
           status: 'update-skin-position',
@@ -98,12 +95,9 @@ const CyberiaWsUserManagement = {
         s.enabled = s.current === true;
         return s;
       });
-      for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+      for (const clientId of Object.keys(this.element[wsManagementId])) {
         if (
-          objectEquals(
-            this.element[wsManagementId][id].model.world,
-            CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-          )
+          objectEquals(this.element[wsManagementId][id].model.world, this.element[wsManagementId][clientId].model.world)
         )
           CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[clientId], {
             status: 'update-skin-position',
@@ -120,6 +114,41 @@ const CyberiaWsUserManagement = {
       }
     }
     return undefined;
+  },
+  verifyCompleteQuest: async function ({ wsManagementId, elementId, questIndex }) {
+    const completeStep = QuestComponent.verifyCompleteQuestStep({
+      questData: this.element[wsManagementId][elementId].model.quests[questIndex],
+    });
+
+    if (completeStep) {
+      const completeQuest = QuestComponent.verifyCompleteQuest({
+        questData: this.element[wsManagementId][elementId].model.quests[questIndex],
+      });
+
+      if (completeQuest) {
+        this.element[wsManagementId][elementId].model.quests[questIndex].complete = true;
+
+        for (const reward of QuestComponent.Data[this.element[wsManagementId][elementId].model.quests[questIndex].id]()
+          .reward)
+          switch (reward.type) {
+            case 'coin':
+              this.element[wsManagementId][elementId].coin += reward.quantity;
+              CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[elementId], {
+                status: 'update-coin',
+                id: elementId,
+                element: {
+                  coin: this.element[wsManagementId][elementId].coin,
+                },
+              });
+              break;
+
+            default:
+              break;
+          }
+      } else {
+        this.element[wsManagementId][elementId].model.quests[questIndex].currentStep++;
+      }
+    }
   },
 };
 

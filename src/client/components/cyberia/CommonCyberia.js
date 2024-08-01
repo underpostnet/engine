@@ -419,8 +419,8 @@ const QuestComponent = {
         maxStep: 1,
         currentStep: 0,
         title: {
-          en: 'Protesis subkishin',
-          es: 'Subkishin Prosthesis',
+          es: 'Protesis subkishin',
+          en: 'Subkishin Prosthesis',
         },
         displaySearchObjects: [
           {
@@ -450,8 +450,8 @@ const QuestComponent = {
                   displayId: 'kishins',
                   image: 'assets/skin/kishins/08/0.png',
                   completeDialog: {
-                    es: `Well inform tim.`,
-                    en: `Bien informa a tim.`,
+                    en: `Well inform tim.`,
+                    es: `Bien informa a tim.`,
                   },
                 },
                 {

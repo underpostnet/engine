@@ -3,6 +3,7 @@ import {
   BaseElement,
   BaseMatrixCyberia,
   CyberiaParams,
+  QuestComponent,
   Stat,
   WorldCyberiaType,
   isElementCollision,
@@ -185,6 +186,52 @@ const CyberiaWsSkillManagement = {
                           coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
                         },
                       });
+                      const componentData = CyberiaWsBotManagement.element[wsManagementId][botId].components.skin.find(
+                        (s) => s.current,
+                      );
+                      if (componentData) {
+                        const questIndex = CyberiaWsUserManagement.element[wsManagementId][
+                          parent.id
+                        ].model.quests.findIndex((q) =>
+                          q.displaySearchObjects.find(
+                            (s) => s.id === componentData.displayId && s.step === q.currentStep,
+                          ),
+                        );
+                        if (questIndex >= 0) {
+                          const questData =
+                            CyberiaWsUserManagement.element[wsManagementId][parent.id].model.quests[questIndex];
+
+                          const itemQuestIndex = questData.displaySearchObjects.findIndex(
+                            (o) => o.id === componentData.displayId && o.step === questData.currentStep,
+                          );
+
+                          if (itemQuestIndex >= 0) {
+                            const itemData = questData.displaySearchObjects[itemQuestIndex];
+                            if (
+                              QuestComponent.componentsScope[itemData.id].questKeyContext === 'displayKillObjects' &&
+                              itemData.current < itemData.quantity
+                            ) {
+                              CyberiaWsUserManagement.element[wsManagementId][parent.id].model.quests[questIndex]
+                                .displaySearchObjects[itemQuestIndex].current++;
+                              CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
+                                status: 'update-quantity-quest-item',
+                                id: parent.id,
+                                displayId: componentData.displayId,
+                                questIndex,
+                                itemQuestIndex,
+                                questData: {
+                                  id: questData.id,
+                                },
+                              });
+                              CyberiaWsUserManagement.verifyCompleteQuest({
+                                wsManagementId,
+                                questIndex,
+                                elementId: parent.id,
+                              });
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                   break;

@@ -413,8 +413,6 @@ const QuestManagementCyberia = {
                               });
 
                             if (itemData.current < itemData.quantity) {
-                              ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
-                                .displaySearchObjects[displayIdIndex].current++;
                               handBlock[typeTarget][elementTargetId] = true;
                               setTimeout(() => {
                                 delete handBlock[typeTarget][elementTargetId];
@@ -427,56 +425,14 @@ const QuestManagementCyberia = {
                                 element: { type: typeTarget, id: elementTargetId },
                                 questData: { id: questData.id },
                               });
-                              if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
-                                htmls(
-                                  `.${questData.id}-${displayId}-${currentStep}-current`,
-                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
-                                    .displaySearchObjects[displayIdIndex].current,
-                                );
-                              if (s(`.modal-panel-quest-${questData.id}`))
-                                htmls(
-                                  `.modal-${questData.id}-${displayId}-${currentStep}-current`,
-                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
-                                    .displaySearchObjects[displayIdIndex].current,
-                                );
-
-                              const completeStep = QuestComponent.verifyCompleteQuestStep({
-                                questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+                              this.updateQuestItemProgressDisplay({
+                                interactionPanelQuestId,
+                                currentQuestDataIndex,
+                                currentStep,
+                                displayId,
+                                questData,
+                                searchObjectIndex: displayIdIndex,
                               });
-                              if (completeStep) {
-                                const completeQuest = QuestComponent.verifyCompleteQuest({
-                                  questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
-                                });
-                                if (completeQuest) {
-                                  await this.RenderModal({
-                                    questData,
-                                    interactionPanelQuestId,
-                                    completeQuest,
-                                  });
-                                  return;
-                                }
-
-                                sa(
-                                  `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
-                                ).forEach((el) => el.classList.add('hide'));
-
-                                await this.RenderModal({
-                                  questData,
-                                  interactionPanelQuestId,
-                                  completeStep,
-                                });
-
-                                ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep++;
-
-                                sa(
-                                  `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
-                                ).forEach((el) => el.classList.remove('hide'));
-
-                                htmls(
-                                  `.quest-interaction-panel-current-step-${questData.id}`,
-                                  ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep + 1,
-                                );
-                              }
                             }
                           }
                         }
@@ -1117,6 +1073,68 @@ const QuestManagementCyberia = {
       await this.takeQuest({ questData });
       s(`.btn-close-${idModal}`).click();
     });
+  },
+  updateQuestItemProgressDisplay: async function ({
+    interactionPanelQuestId,
+    currentQuestDataIndex,
+    currentStep,
+    displayId,
+    questData,
+    searchObjectIndex,
+  }) {
+    ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].displaySearchObjects[searchObjectIndex]
+      .current++;
+    if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
+      htmls(
+        `.${questData.id}-${displayId}-${currentStep}-current`,
+        ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].displaySearchObjects[searchObjectIndex]
+          .current,
+      );
+
+    if (s(`.modal-panel-quest-${questData.id}`))
+      htmls(
+        `.modal-${questData.id}-${displayId}-${currentStep}-current`,
+        ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].displaySearchObjects[searchObjectIndex]
+          .current,
+      );
+
+    const completeStep = QuestComponent.verifyCompleteQuestStep({
+      questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+    });
+    if (completeStep) {
+      const completeQuest = QuestComponent.verifyCompleteQuest({
+        questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+      });
+      if (completeQuest) {
+        await this.RenderModal({
+          questData,
+          interactionPanelQuestId,
+          completeQuest,
+        });
+        return;
+      }
+
+      sa(
+        `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
+      ).forEach((el) => el.classList.add('hide'));
+
+      await this.RenderModal({
+        questData,
+        interactionPanelQuestId,
+        completeStep,
+      });
+
+      ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep++;
+
+      sa(
+        `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
+      ).forEach((el) => el.classList.remove('hide'));
+
+      htmls(
+        `.quest-interaction-panel-current-step-${questData.id}`,
+        ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep + 1,
+      );
+    }
   },
   takeQuest: async function ({ questData }) {
     questData = {

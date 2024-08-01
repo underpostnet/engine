@@ -77,40 +77,11 @@ const CyberiaWsUserController = {
                   CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex]
                     .displaySearchObjects[itemQuestIndex].current++;
 
-                  const completeStep = QuestComponent.verifyCompleteQuestStep({
-                    questData: CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex],
+                  await CyberiaWsUserManagement.verifyCompleteQuest({
+                    wsManagementId,
+                    questIndex,
+                    elementId: socket.id,
                   });
-
-                  if (completeStep) {
-                    const completeQuest = QuestComponent.verifyCompleteQuest({
-                      questData: CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex],
-                    });
-
-                    if (completeQuest) {
-                      CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[
-                        questIndex
-                      ].complete = true;
-
-                      for (const reward of QuestComponent.Data[args.questData.id]().reward)
-                        switch (reward.type) {
-                          case 'coin':
-                            CyberiaWsUserManagement.element[wsManagementId][socket.id].coin += reward.quantity;
-                            CyberiaWsEmit(channel, socket, {
-                              status: 'update-coin',
-                              id: socket.id,
-                              element: {
-                                coin: CyberiaWsUserManagement.element[wsManagementId][socket.id].coin,
-                              },
-                            });
-                            break;
-
-                          default:
-                            break;
-                        }
-                    } else {
-                      CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests[questIndex].currentStep++;
-                    }
-                  }
 
                   switch (QuestComponent.componentsScope[itemData.id].questKeyContext) {
                     case 'displaySearchObjects':
