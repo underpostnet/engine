@@ -736,12 +736,26 @@ const BiomeCyberia = {
       },
     ];
     // 7x6 (16*3)
-    const dim = BiomeCyberiaEngine.PixiCyberiaBiomeCyberiaDim / 7; // 16 * 3 * 10; // this.MetaData.dim * 0.17;
-    const sumFactor = 1;
+    const cut = {
+      enable: true,
+      x1: 1,
+      y1: 1,
+      x2: 2,
+      y2: 2,
+    };
+    const dim = BiomeCyberiaEngine.PixiCyberiaBiomeCyberiaDim / (cut.enable ? cut.x2 - cut.x1 + 1 : 7); // 16 * 3 * 10; // this.MetaData.dim * 0.17;
+    const sumFactor = 1; // center
     const solid = {};
+
+    if (cut.enable) {
+      BiomeCyberiaMatrixCyberia.dim = 16 * (cut.x2 - cut.x1 + 1);
+    }
+
     for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
+      if (cut.enable && (y < cut.y1 || y > cut.y2)) continue;
       solid[y] = {};
       for (const x of range(-1 + sumFactor, 5 + sumFactor)) {
+        if (cut.enable && (x < cut.x1 || x > cut.x2)) continue;
         const dataSection = mapData.find(
           (d) => d.position && d.position[0] + sumFactor === x && d.position[1] + sumFactor === y,
         );
@@ -760,7 +774,8 @@ const BiomeCyberia = {
 
           sectionSolidMatrixCyberia = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));
         } else {
-          sectionSolidMatrixCyberia = range(0, 15).map((row) => range(0, 15).map(() => 0));
+          const maxAbsRange = cut.enable ? cut.x2 - cut.x1 : 15;
+          sectionSolidMatrixCyberia = range(0, maxAbsRange).map((row) => range(0, maxAbsRange).map(() => 0));
         }
 
         sectionSolidMatrixCyberia = amplifyMatrix(sectionSolidMatrixCyberia, 3);
@@ -770,12 +785,15 @@ const BiomeCyberia = {
         BiomeCyberiaMatrixCyberia.setBiomeCyberia.push({
           src,
           dim,
-          x,
-          y,
+          x: x - sumFactor,
+          y: y - sumFactor,
         });
       }
     }
     BiomeCyberiaMatrixCyberia.solid = mergeMatrices(solid);
+
+    s(`.biome-dim`).value = BiomeCyberiaMatrixCyberia.dim;
+    s(`.biome-dimPaintByCell`).value = BiomeCyberiaMatrixCyberia.dimPaintByCell;
 
     return BiomeCyberiaMatrixCyberia;
   },
