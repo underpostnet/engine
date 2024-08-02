@@ -23,8 +23,6 @@ const Dns = {
 
     const confDnsPath = fs.existsSync(privateDnsConfPath) ? privateDnsConfPath : './conf/conf.dns.json';
 
-    console.log('confDnsPath', confDnsPath);
-
     let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
     if (confDnsData.ipDaemon.disabled) return;
     this.ip = confDnsData.ipDaemon.ip;

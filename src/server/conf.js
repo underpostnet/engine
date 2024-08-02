@@ -205,7 +205,11 @@ const Config = {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
         let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const confDevPath = `./engine-private/conf/${deployId}/conf.server.dev.json`;
+        const privateConfDevPath = `./engine-private/conf/${deployId}/conf.server.dev.${process.argv[4]}.json`;
+        const confDevPath = fs.existsSync(privateConfDevPath)
+          ? privateConfDevPath
+          : `./engine-private/conf/${deployId}/conf.server.dev.json`;
+
         if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
         const serverConf = loadReplicas(JSON.parse(fs.readFileSync(confPath, 'utf8')));
         // this.default.server = {
