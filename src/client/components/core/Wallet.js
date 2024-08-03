@@ -76,12 +76,11 @@ const Wallet = {
       <div class="fl">
         <div class="in fll wallet-${id}-col-a">
           <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="fas fa-key"></i> ECDSA Keys Management</div>
+            <div class="in sub-title-modal"><i class="fas fa-key"></i> JWK Management</div>
             <div class="in section-mp m">
-              Client side elliptic curve digital signature Algorithm keys generator, (<a
-                href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto"
-                >SubtleCrypto</a
-              >) <a href="https://developer.mozilla.org/en-US/docs/Web/API/Crypto">more info</a>.
+              Client side <b>JSON Web Keys</b> (<a href="https://datatracker.ietf.org/doc/html/rfc7517">RFC7517</a>)
+              generator based on elliptic curve digital signature
+              <a href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto">more info</a>.
             </div>
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom btn-generate-keys-${id}`,
