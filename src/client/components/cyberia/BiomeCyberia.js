@@ -739,10 +739,10 @@ const BiomeCyberia = {
     // 7x6 (16*3)
     const cut = {
       enable: true,
-      x1: 1,
-      y1: 1,
-      x2: 2,
-      y2: 2,
+      x1: 3,
+      y1: 3,
+      x2: 4,
+      y2: 4,
     };
     const dim = BiomeCyberiaEngine.PixiCyberiaBiomeCyberiaDim / (cut.enable ? cut.x2 - cut.x1 + 1 : 7); // 16 * 3 * 10; // this.MetaData.dim * 0.17;
     const sumFactor = 1; // center
@@ -789,8 +789,9 @@ const BiomeCyberia = {
         BiomeCyberiaMatrixCyberia.setBiomeCyberia.push({
           src,
           dim,
-          x: x - sumFactor,
-          y: y - sumFactor,
+          // camera
+          x: x - sumFactor + (1 - cut.x1),
+          y: y - sumFactor + (1 - cut.y1),
         });
       }
     }
@@ -838,6 +839,7 @@ const BiomeCyberia = {
               while (BiomeCyberiaMatrixCyberia.solid[y0][x] === 1) {
                 y0AbsIndex++;
                 y0++;
+                if (BiomeCyberiaMatrixCyberia.solid[y0] === undefined) BiomeCyberiaMatrixCyberia.solid[y0] = [];
               }
               BiomeCyberiaMatrixCyberia.solid[y0 - parseInt(y0AbsIndex / 2) - 2][x] = 3;
 
