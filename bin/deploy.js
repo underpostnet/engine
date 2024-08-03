@@ -319,11 +319,17 @@ try {
     case 'build-full-client':
       {
         const { deployId, folder } = loadConf(process.argv[3]);
+        const argHost = process.argv[4].split(',');
+        const argPath = process.argv[5].split(',');
         const serverConf = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
-            serverConf[host][path].lightBuild = false;
-            serverConf[host][path].minifyBuild = true;
+            if (argHost && argPath && (!argHost.includes(host) || !argPath.includes(path))) {
+              delete serverConf[host][path];
+            } else {
+              serverConf[host][path].lightBuild = false;
+              serverConf[host][path].minifyBuild = true;
+            }
           }
         }
         fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');
