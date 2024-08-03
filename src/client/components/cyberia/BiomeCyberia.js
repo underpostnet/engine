@@ -7,6 +7,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import {
   JSONmatrix,
   amplifyMatrix,
+  getMostFrequentValue,
   mergeMatrices,
   newInstance,
   random,
@@ -603,7 +604,7 @@ const BiomeCyberia = {
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
-      topLevelColor: {},
+      topLevelColor: [],
       setBiomeCyberia: [],
       container: 'seed-city',
       timeOut: 1000,
@@ -740,14 +741,15 @@ const BiomeCyberia = {
     // 7x6 (16*3)
     const cut = {
       enable: true,
-      x1: 3,
-      y1: 3,
-      x2: 4,
-      y2: 4,
+      x1: 5,
+      y1: 5,
+      x2: 6,
+      y2: 6,
     };
     const dim = BiomeCyberiaEngine.PixiCyberiaBiomeCyberiaDim / (cut.enable ? cut.x2 - cut.x1 + 1 : 7); // 16 * 3 * 10; // this.MetaData.dim * 0.17;
     const sumFactor = 1; // center
     const solid = {};
+    const color = {};
 
     if (cut.enable) {
       BiomeCyberiaMatrixCyberia.dim = 16 * (cut.x2 - cut.x1 + 1);
@@ -756,6 +758,7 @@ const BiomeCyberia = {
     for (const y of range(-1 + sumFactor, 5 + sumFactor)) {
       if (cut.enable && (y < cut.y1 || y > cut.y2)) continue;
       solid[y] = {};
+      color[y] = {};
       for (const x of range(-1 + sumFactor, 5 + sumFactor)) {
         if (cut.enable && (x < cut.x1 || x > cut.x2)) continue;
         const dataSection = mapData.find(
@@ -765,8 +768,12 @@ const BiomeCyberia = {
         let src;
         if (dataSection) {
           src = `${getProxyPath()}assets/custom-biome/seed-city/${dataSection.name_map}.PNG`;
-
+          let sectionColorMatrixCyberia;
           const result = await CyberiaTileService.post({ id: 'hex-matrix-from-png', body: { src } });
+
+          sectionColorMatrixCyberia = result.data.hexMatrix;
+
+          color[y][x] = newInstance(sectionColorMatrixCyberia);
 
           // get hex color matrix
         } else src = `${getProxyPath()}assets/custom-biome/seed-city/void.PNG`;
@@ -798,7 +805,35 @@ const BiomeCyberia = {
         });
       }
     }
+
+    delete BiomeCyberiaMatrixCyberia.setBiomeCyberia;
     BiomeCyberiaMatrixCyberia.solid = mergeMatrices(solid);
+    BiomeCyberiaMatrixCyberia.color = mergeMatrices(color);
+
+    const defaultMatrixColor = getMostFrequentValue(BiomeCyberiaMatrixCyberia.color.flat());
+
+    const dimPixel = (cut.x2 - cut.x1 + 1) * 16 * BiomeCyberiaMatrixCyberia.dimPaintByCell;
+
+    for (const y of range(0, dimPixel - 1)) {
+      if (BiomeCyberiaMatrixCyberia.solid[y] === undefined)
+        BiomeCyberiaMatrixCyberia.solid[y] = new Array(dimPixel).fill().map(() => 0);
+      else
+        for (const x of range(0, dimPixel - 1))
+          if (BiomeCyberiaMatrixCyberia.solid[y][x] === undefined) BiomeCyberiaMatrixCyberia.solid[y][x] = 0;
+
+      if (BiomeCyberiaMatrixCyberia.color[y] === undefined)
+        BiomeCyberiaMatrixCyberia.color[y] = new Array(dimPixel).fill().map(() => undefined);
+      else
+        for (const x of range(0, dimPixel - 1))
+          if (BiomeCyberiaMatrixCyberia.color[y][x] === undefined) BiomeCyberiaMatrixCyberia.color[y][x] = undefined;
+
+      BiomeCyberiaMatrixCyberia.topLevelColor[y] = new Array(dimPixel).fill().map(() => '');
+    }
+
+    BiomeCyberiaMatrixCyberia.color[dimPixel - 1][dimPixel - 1] = defaultMatrixColor;
+
+    console.error(BiomeCyberiaMatrixCyberia);
+
     // top level solid
     {
       let newSolid = newInstance(BiomeCyberiaMatrixCyberia.solid);
@@ -862,9 +897,10 @@ const BiomeCyberia = {
               for (const yt of range(topLevelY1, topLevelY2)) {
                 for (const xt of range(topLevelX1, topLevelX2)) {
                   newSolid[yt][xt] = 0;
-                  if (BiomeCyberiaMatrixCyberia.topLevelColor[yt] === undefined)
-                    BiomeCyberiaMatrixCyberia.topLevelColor[yt] = {};
-                  BiomeCyberiaMatrixCyberia.topLevelColor[yt][xt] = `#ff0000`;
+                  BiomeCyberiaMatrixCyberia.topLevelColor[yt][xt] = newInstance(
+                    BiomeCyberiaMatrixCyberia.color[yt][xt],
+                  );
+                  BiomeCyberiaMatrixCyberia.color[yt][xt] = defaultMatrixColor;
                 }
               }
             }
@@ -873,11 +909,11 @@ const BiomeCyberia = {
       }
 
       if (BiomeCyberiaMatrixCyberia.topLevelColor[0] === undefined) BiomeCyberiaMatrixCyberia.topLevelColor[0] = {};
-      BiomeCyberiaMatrixCyberia.topLevelColor[0][0] = `#ff0000`;
+      BiomeCyberiaMatrixCyberia.topLevelColor[0][0] = defaultMatrixColor;
 
-      if (BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1] === undefined)
-        BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1] = {};
-      BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1][newSolid.length - 1] = `#ff0000`;
+      if (BiomeCyberiaMatrixCyberia.topLevelColor[newSolid[0].length - 1] === undefined)
+        BiomeCyberiaMatrixCyberia.topLevelColor[newSolid[0].length - 1] = [];
+      BiomeCyberiaMatrixCyberia.topLevelColor[newSolid[0].length - 1][newSolid[0].length - 1] = defaultMatrixColor;
 
       BiomeCyberiaMatrixCyberia.solid = newSolid;
     }

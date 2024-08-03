@@ -585,6 +585,12 @@ function splitEveryXChar(originalString, everyXChar = 30, nextCharSplit) {
   return arrayString;
 }
 
+const getMostFrequentValue = (arr) =>
+  arr.sort((a, b) => arr.filter((v) => v === a).length - arr.filter((v) => v === b).length).pop();
+
+const getFillMatrix = (maxX, maxY, value = 0) =>
+  new Array(maxY).fill().map(() => new Array(maxX).fill().map(() => value));
+
 export {
   s4,
   range,
@@ -630,4 +636,6 @@ export {
   getTimezoneOffset,
   cleanString,
   splitEveryXChar,
+  getMostFrequentValue,
+  getFillMatrix,
 };

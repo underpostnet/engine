@@ -2,12 +2,61 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { Downloader } from '../../server/downloader.js';
 import fs from 'fs-extra';
+import Jimp from 'jimp';
+import Color from 'color';
+
+import { range } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
 const select = {
   'all-name': { _id: 1, name: 1, fileId: 1 },
 };
+
+const rgba2Hexa = (rgba) => {
+  const a = rgba.a;
+  delete rgba.a;
+  return Color(rgba).alpha(a).hexa();
+};
+
+const getHexMatrix = ({ imageFilePath }) =>
+  new Promise((resolve) => {
+    const hexMatrix = [];
+    Jimp.read(imageFilePath)
+      .then((image) => {
+        // console.log(image);
+        // bitmap: {
+        //   width: 575,
+        //   height: 574,
+        // }
+
+        const cellPixelDim = parseInt(image.bitmap.width / (16 * 3));
+        // console.log('cellPixelDim', cellPixelDim, cellPixelDim * 16);
+
+        for (const y of range(0, image.bitmap.height - 1)) {
+          let row;
+          for (const x of range(0, image.bitmap.width - 1)) {
+            if (y !== 0 && x !== 0 && x % cellPixelDim === 0 && y % cellPixelDim === 0) {
+              if (!row) row = [];
+              const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+              // { r: 146, g: 146, b: 146, a: 255 }
+              row.push(rgba2Hexa(rgba));
+            }
+          }
+          if (row) {
+            // if (row.length < 16 * 3) row.unshift(`#282828`);
+            hexMatrix.push(row);
+          }
+        }
+        // hexMatrix.push(new Array(hexMatrix[0].length).fill().map(() => `#282828`));
+        // console.log(hexMatrix.length, hexMatrix[0].length);
+        resolve(hexMatrix);
+      })
+      .catch((error) => {
+        logger.error(error, { message: error.message, error: error.stack });
+        resolve();
+      });
+  });
 
 const CyberiaTileService = {
   post: async (req, res, options) => {
@@ -19,11 +68,13 @@ const CyberiaTileService = {
         {
           const imageFilePath = await Downloader(req.body.src, `./tmp/${req.body.src.split(`/`).pop()}`);
 
-          logger.info({ imageFilePath });
+          // logger.info('imageFilePath', { imageFilePath });
+
+          const hexMatrix = await getHexMatrix({ imageFilePath });
 
           fs.remove(imageFilePath);
 
-          return { imageFilePath };
+          return { imageFilePath, hexMatrix };
         }
         break;
 
