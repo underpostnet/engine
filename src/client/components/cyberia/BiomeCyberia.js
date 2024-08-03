@@ -797,7 +797,7 @@ const BiomeCyberia = {
     BiomeCyberiaMatrixCyberia.solid = mergeMatrices(solid);
     // top level solid
     {
-      let newSolid = [];
+      let newSolid = newInstance(BiomeCyberiaMatrixCyberia.solid);
 
       let y = -1;
       for (const row of BiomeCyberiaMatrixCyberia.solid) {
@@ -848,10 +848,33 @@ const BiomeCyberia = {
                 x0++;
               }
               BiomeCyberiaMatrixCyberia.solid[y0 - parseInt(y0AbsIndex / 2) - 2][x0 - 1] = 4;
+
+              const topLevelX1 = newInstance(x);
+              const topLevelY1 = newInstance(y);
+              const topLevelX2 = newInstance(x0 - 1);
+              const topLevelY2 = newInstance(y0 - parseInt(y0AbsIndex / 2) - 2);
+
+              for (const yt of range(topLevelY1, topLevelY2)) {
+                for (const xt of range(topLevelX1, topLevelX2)) {
+                  newSolid[yt][xt] = 0;
+                  if (BiomeCyberiaMatrixCyberia.topLevelColor[yt] === undefined)
+                    BiomeCyberiaMatrixCyberia.topLevelColor[yt] = {};
+                  BiomeCyberiaMatrixCyberia.topLevelColor[yt][xt] = `#ff0000`;
+                }
+              }
             }
           }
         }
       }
+
+      if (BiomeCyberiaMatrixCyberia.topLevelColor[0] === undefined) BiomeCyberiaMatrixCyberia.topLevelColor[0] = {};
+      BiomeCyberiaMatrixCyberia.topLevelColor[0][0] = `#ff0000`;
+
+      if (BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1] === undefined)
+        BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1] = {};
+      BiomeCyberiaMatrixCyberia.topLevelColor[newSolid.length - 1][newSolid.length - 1] = `#ff0000`;
+
+      BiomeCyberiaMatrixCyberia.solid = newSolid;
     }
 
     s(`.biome-dim`).value = BiomeCyberiaMatrixCyberia.dim;
@@ -1379,10 +1402,6 @@ const BiomeCyberiaEngine = {
           BiomeCyberiaScope.Keys[biome].imageTopLevelColorFile = new File([blob], `${biome}.png`, {
             type: 'image/png',
           });
-          console.error(
-            'BiomeCyberiaScope.Keys[biome].imageTopLevelColorFile',
-            BiomeCyberiaScope.Keys[biome].imageTopLevelColorFile,
-          );
         }
       },
       BiomeCyberiaMatrixCyberia.timeOut ? BiomeCyberiaMatrixCyberia.timeOut : 0,
@@ -1391,23 +1410,16 @@ const BiomeCyberiaEngine = {
   renderPixiCyberiaBiomeCyberia: async function (BiomeCyberiaMatrixCyberia) {
     this.PixiCyberiaBiomeCyberia.stage.removeChildren();
     this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.removeChildren();
+    const rangeBiomeCyberia = range(0, BiomeCyberiaMatrixCyberia.dim * BiomeCyberiaMatrixCyberia.dimPaintByCell - 1);
+    const dim = this.PixiCyberiaBiomeCyberiaDim / rangeBiomeCyberia.length;
 
     if (BiomeCyberiaMatrixCyberia.biome === 'seed-city' && !BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
       const biomeData = await BiomeCyberia['seed-city']();
       BiomeCyberiaMatrixCyberia.setBiomeCyberia = biomeData.setBiomeCyberia;
     }
 
-    if (BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
-      for (const cellData of BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
-        const { src, dim, x, y } = cellData;
-        // case from png static url
-        const cell = Sprite.from(src);
-        cell.x = dim * x;
-        cell.y = dim * y;
-        cell.width = dim;
-        cell.height = dim;
-        this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
-
+    for (const y of rangeBiomeCyberia)
+      for (const x of rangeBiomeCyberia) {
         if (
           BiomeCyberiaMatrixCyberia.topLevelColor &&
           BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
@@ -1422,11 +1434,20 @@ const BiomeCyberiaEngine = {
           this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.addChild(cell);
         }
       }
+
+    if (BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
+      for (const cellData of BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
+        const { src, dim, x, y } = cellData;
+        // case from png static url
+        const cell = Sprite.from(src);
+        cell.x = dim * x;
+        cell.y = dim * y;
+        cell.width = dim;
+        cell.height = dim;
+        this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
+      }
       return;
     }
-
-    const rangeBiomeCyberia = range(0, BiomeCyberiaMatrixCyberia.dim * BiomeCyberiaMatrixCyberia.dimPaintByCell - 1);
-    const dim = this.PixiCyberiaBiomeCyberiaDim / rangeBiomeCyberia.length;
 
     for (const y of rangeBiomeCyberia)
       for (const x of rangeBiomeCyberia) {
@@ -1438,19 +1459,6 @@ const BiomeCyberiaEngine = {
           cell.height = dim;
           cell.tint = BiomeCyberiaMatrixCyberia.color[y][x];
           this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
-        }
-        if (
-          BiomeCyberiaMatrixCyberia.topLevelColor &&
-          BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
-          BiomeCyberiaMatrixCyberia.topLevelColor[y][x]
-        ) {
-          const cell = new Sprite(Texture.WHITE);
-          cell.x = dim * x;
-          cell.y = dim * y;
-          cell.width = dim;
-          cell.height = dim;
-          cell.tint = BiomeCyberiaMatrixCyberia.topLevelColor[y][x];
-          this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.addChild(cell);
         }
       }
   },
