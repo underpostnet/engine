@@ -319,8 +319,8 @@ try {
     case 'build-full-client':
       {
         const { deployId, folder } = loadConf(process.argv[3]);
-        const argHost = process.argv[4].split(',');
-        const argPath = process.argv[5].split(',');
+        const argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
+        const argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
         const serverConf = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
