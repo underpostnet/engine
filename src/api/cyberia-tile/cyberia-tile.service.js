@@ -1,5 +1,8 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { Downloader } from '../../server/downloader.js';
+import fs from 'fs-extra';
+
 const logger = loggerFactory(import.meta);
 
 const select = {
@@ -10,6 +13,23 @@ const CyberiaTileService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
+
+    switch (req.params.id) {
+      case 'hex-matrix-from-png':
+        {
+          const imageFilePath = await Downloader(req.body.src, `./tmp/${req.body.src.split(`/`).pop()}`);
+
+          logger.info({ imageFilePath });
+
+          fs.remove(imageFilePath);
+
+          return { imageFilePath };
+        }
+        break;
+
+      default:
+        break;
+    }
 
     const { _id } = CyberiaTile(req.body).save();
     const [result] = await CyberiaTile.find({

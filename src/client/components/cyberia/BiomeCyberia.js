@@ -1,5 +1,6 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
+import { CyberiaTileService } from '../../services/cyberia-tile/cyberia-tile.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
@@ -764,6 +765,8 @@ const BiomeCyberia = {
         let src;
         if (dataSection) {
           src = `${getProxyPath()}assets/custom-biome/seed-city/${dataSection.name_map}.PNG`;
+
+          const result = await CyberiaTileService.post({ id: 'hex-matrix-from-png', body: { src } });
 
           // get hex color matrix
         } else src = `${getProxyPath()}assets/custom-biome/seed-city/void.PNG`;
