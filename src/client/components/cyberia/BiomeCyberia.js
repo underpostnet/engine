@@ -741,10 +741,10 @@ const BiomeCyberia = {
     // 7x6 (16*3)
     const cut = {
       enable: true,
-      x1: 5,
-      y1: 5,
-      x2: 6,
-      y2: 6,
+      x1: 4,
+      y1: 4,
+      x2: 5,
+      y2: 5,
     };
     const dim = BiomeCyberiaEngine.PixiCyberiaBiomeCyberiaDim / (cut.enable ? cut.x2 - cut.x1 + 1 : 7); // 16 * 3 * 10; // this.MetaData.dim * 0.17;
     const sumFactor = 1; // center
@@ -832,10 +832,9 @@ const BiomeCyberia = {
 
     BiomeCyberiaMatrixCyberia.color[dimPixel - 1][dimPixel - 1] = defaultMatrixColor;
 
-    console.error(BiomeCyberiaMatrixCyberia);
-
     // top level solid
     {
+      const originColor = newInstance(BiomeCyberiaMatrixCyberia.color);
       let newSolid = newInstance(BiomeCyberiaMatrixCyberia.solid);
 
       let y = -1;
@@ -897,9 +896,7 @@ const BiomeCyberia = {
               for (const yt of range(topLevelY1, topLevelY2)) {
                 for (const xt of range(topLevelX1, topLevelX2)) {
                   newSolid[yt][xt] = 0;
-                  BiomeCyberiaMatrixCyberia.topLevelColor[yt][xt] = newInstance(
-                    BiomeCyberiaMatrixCyberia.color[yt][xt],
-                  );
+                  BiomeCyberiaMatrixCyberia.topLevelColor[yt][xt] = newInstance(originColor[yt][xt]);
                   BiomeCyberiaMatrixCyberia.color[yt][xt] = defaultMatrixColor;
                 }
               }

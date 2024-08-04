@@ -9,12 +9,12 @@ const loggerFactory = (meta) => {
         console.info = () => null;
         console.warn = () => null;
       }
-      let stack;
-      try {
-        _stack;
-      } catch (error) {
-        stack = error.stack.split('Logger.js')[2].split(')')[1];
-      }
+      let stack = '';
+      // try {
+      //   _stack;
+      // } catch (error) {
+      //   stack = error.stack.split('Logger.js')[2].split(')')[1];
+      // }
       return location.hostname === 'localhost'
         ? console[type](
             `[${meta}] ${new Date().toISOString()} ${type}:`,
