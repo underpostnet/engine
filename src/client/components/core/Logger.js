@@ -1,4 +1,4 @@
-const loggerFactory = (meta) => {
+const loggerFactory = (meta, stackLog = false) => {
   meta = meta.url.split('/').pop();
   const types = ['error', 'warn', 'info', 'debug'];
   const logger = {
@@ -10,18 +10,19 @@ const loggerFactory = (meta) => {
         console.warn = () => null;
       }
       let stack = '';
-      // try {
-      //   _stack;
-      // } catch (error) {
-      //   stack = error.stack.split('Logger.js')[2].split(')')[1];
-      // }
+      if (stackLog)
+        try {
+          _stack;
+        } catch (error) {
+          stack = error.stack.split('Logger.js')[2].split(')')[1];
+        }
       return location.hostname === 'localhost'
         ? console[type](
             `[${meta}] ${new Date().toISOString()} ${type}:`,
             args[0],
             args[1] ? args[1] : args,
             args[1] ? args : stack,
-            args[1] ? stack : undefined,
+            args[1] ? stack : '',
           )
         : null;
     },
