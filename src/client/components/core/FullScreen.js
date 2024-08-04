@@ -9,7 +9,7 @@ const FullScreen = {
     Responsive.Event['full-screen-settings'] = () => {
       let fullScreenMode = checkFullScreen();
       if ((fullScreenSwitch && !fullScreenMode) || (!fullScreenSwitch && fullScreenMode))
-        if (s('.fullscreen-toggle')) s('.fullscreen-toggle').click();
+        if (s('.fullscreen-toggle')) ToggleSwitch.Tokens[`fullscreen-toggle`].click();
     };
     setTimeout(
       () => (s(`.toggle-form-container-fullscreen`).onclick = () => ToggleSwitch.Tokens[`fullscreen-toggle`].click()),

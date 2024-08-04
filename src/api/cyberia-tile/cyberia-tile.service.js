@@ -24,7 +24,7 @@ const getHexMatrix = ({ imageFilePath }) =>
     let hexMatrix = [];
     Jimp.read(imageFilePath)
       .then(async (image) => {
-        console.log(image);
+        // console.log(image);
         // bitmap: {
         //   width: 575,
         //   height: 574,
@@ -69,8 +69,10 @@ const getHexMatrix = ({ imageFilePath }) =>
         // hexMatrix.push(new Array(hexMatrix[0].length).fill().map(() => `#282828`));
         // console.log(hexMatrix.length, hexMatrix[0].length);
 
-        if (fixX) hexMatrix = hexMatrix.map((a) => [a[0]].concat(a));
-        if (fixY) hexMatrix.unshift(hexMatrix[0]);
+        // if (fixX)
+        hexMatrix = hexMatrix.map((a) => [a[0]].concat(a));
+        // if (fixY)
+        hexMatrix.unshift(hexMatrix[0]);
         resolve(hexMatrix);
       })
       .catch((error) => {
