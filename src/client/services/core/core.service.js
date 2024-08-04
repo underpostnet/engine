@@ -30,7 +30,7 @@ const CoreService = {
           return await res.text();
         })
         .then((res) => {
-          logger.info(res);
+          // logger.info(res);
           return resolve(res);
         })
         .catch((error) => {
