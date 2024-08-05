@@ -43,9 +43,9 @@ const BiomeCyberiaParamsScope = BaseMatrixCyberia();
 
 const cut = {
   enable: false,
-  x1: 4,
+  x1: 1,
   y1: 2,
-  x2: 5,
+  x2: 2,
   y2: 3,
 };
 
@@ -708,6 +708,7 @@ const BiomeCyberia = {
       },
       {
         name_map: 'orange-over-purple',
+        // src: 'orange-over-purple0',
         position: [0, 1],
       },
       {
@@ -770,7 +771,9 @@ const BiomeCyberia = {
         // #282828
         let src;
         if (dataSection) {
-          src = `${getProxyPath()}assets/custom-biome/seed-city/${dataSection.name_map}.PNG`;
+          src = `${getProxyPath()}assets/custom-biome/seed-city/${
+            dataSection.src ? dataSection.src : dataSection.name_map
+          }.PNG`;
           if (cut.enable) {
             let sectionColorMatrixCyberia;
             const result = await CyberiaTileService.post({ id: 'hex-matrix-from-png', body: { src } });
@@ -813,6 +816,22 @@ const BiomeCyberia = {
 
     if (cut.enable) delete BiomeCyberiaMatrixCyberia.setBiomeCyberia;
     BiomeCyberiaMatrixCyberia.solid = mergeMatrices(solid);
+
+    // slice force length
+    console.error({ color });
+
+    // const newColor = {};
+    // for (const key of Object.keys(color)) {
+    //   newColor[key] = {};
+    //   for (const key0 of Object.keys(color[key])) {
+    //     newColor[key][key0] = color[key][key0]
+    //       .slice(0, color[key][key0].length > 16 * 3 ? -1 * (color[key][key0].length - 16 * 3) : undefined)
+    //       .map((y) => y.slice(0, y.length > 16 * 3 ? -1 * (y.length - 16 * 3) : undefined));
+    //   }
+    // }
+    // console.error({ newColor });
+    // if (cut.enable) BiomeCyberiaMatrixCyberia.color = mergeMatrices(newColor);
+
     if (cut.enable) BiomeCyberiaMatrixCyberia.color = mergeMatrices(color);
 
     // top level solid
@@ -1558,10 +1577,10 @@ const BiomeCyberiaEngine = {
     const rangeBiomeCyberia = range(0, BiomeCyberiaMatrixCyberia.dim * BiomeCyberiaMatrixCyberia.dimPaintByCell - 1);
     const dim = this.PixiCyberiaBiomeCyberiaDim / rangeBiomeCyberia.length;
 
-    if (BiomeCyberiaMatrixCyberia.biome === 'seed-city' && !BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
-      const biomeData = await BiomeCyberia['seed-city']();
-      BiomeCyberiaMatrixCyberia.setBiomeCyberia = biomeData.setBiomeCyberia;
-    }
+    // if (BiomeCyberiaMatrixCyberia.biome === 'seed-city' && !BiomeCyberiaMatrixCyberia.setBiomeCyberia) {
+    //   const biomeData = await BiomeCyberia['seed-city']();
+    //   BiomeCyberiaMatrixCyberia.setBiomeCyberia = biomeData.setBiomeCyberia;
+    // }
 
     for (const y of rangeBiomeCyberia)
       for (const x of rangeBiomeCyberia) {

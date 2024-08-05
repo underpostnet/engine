@@ -24,7 +24,7 @@ const getHexMatrix = ({ imageFilePath }) =>
     let hexMatrix = [];
     Jimp.read(imageFilePath)
       .then(async (image) => {
-        // console.log(image);
+        // console.log(imageFilePath, image);
         // bitmap: {
         //   width: 575,
         //   height: 574,
@@ -48,15 +48,32 @@ const getHexMatrix = ({ imageFilePath }) =>
         //   await image.writeAsync(imageFilePath);
         //   return resolve(await getHexMatrix({ imageFilePath }));
         // }
+        const fileId = imageFilePath.split('/').pop();
+        console.log(imageFilePath, { fileId, fixX, fixY });
 
-        // console.log({ fixX, fixY });
+        image.resize(pixelDim, pixelDim);
+        // image.posterize(20);
 
         for (const y of range(0, image.bitmap.height - 1)) {
           let row;
           for (const x of range(0, image.bitmap.width - 1)) {
             if (y !== 0 && x !== 0 && x % cellPixelDim === 0 && y % cellPixelDim === 0) {
               if (!row) row = [];
-              const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+              // const rgba = Jimp.intToRGBA(
+              //   image.getPixelColor(x - (x < image.bitmap.width / 2 ? 0 : 1), y - (x < image.bitmap.width / 2 ? 0 : 1)),
+              // );
+              let rgba;
+              switch (fileId) {
+                case 'orange-over-purple.PNG':
+                case 'orange-over-purple0.PNG':
+                  if (x < image.bitmap.width / 2) rgba = Jimp.intToRGBA(image.getPixelColor(x + 1, y + 1));
+                  else rgba = Jimp.intToRGBA(image.getPixelColor(x - 1, y - 1));
+
+                  break;
+
+                default:
+                  rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+              }
               // { r: 146, g: 146, b: 146, a: 255 }
               row.push(rgba2Hexa(rgba));
             }
@@ -71,7 +88,6 @@ const getHexMatrix = ({ imageFilePath }) =>
 
         // if (fixX)
         hexMatrix = hexMatrix.map((a) => [a[0]].concat(a));
-        // if (fixY)
         hexMatrix.unshift(hexMatrix[0]);
         resolve(hexMatrix);
       })
@@ -89,6 +105,7 @@ const CyberiaTileService = {
     switch (req.params.id) {
       case 'hex-matrix-from-png':
         {
+          logger.info('download', req.body.src);
           const imageFilePath = await Downloader(req.body.src, `./tmp/${req.body.src.split(`/`).pop()}`);
 
           // logger.info('imageFilePath', { imageFilePath });
