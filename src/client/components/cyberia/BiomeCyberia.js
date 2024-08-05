@@ -43,9 +43,9 @@ const BiomeCyberiaParamsScope = BaseMatrixCyberia();
 
 const cut = {
   enable: false,
-  x1: 1,
+  x1: 4,
   y1: 2,
-  x2: 2,
+  x2: 5,
   y2: 3,
 };
 
@@ -770,17 +770,15 @@ const BiomeCyberia = {
         );
         // #282828
         let src;
+        let sectionColorMatrixCyberia;
         if (dataSection) {
           src = `${getProxyPath()}assets/custom-biome/seed-city/${
             dataSection.src ? dataSection.src : dataSection.name_map
           }.PNG`;
           if (cut.enable) {
-            let sectionColorMatrixCyberia;
             const result = await CyberiaTileService.post({ id: 'hex-matrix-from-png', body: { src } });
 
             sectionColorMatrixCyberia = result.data.hexMatrix;
-
-            color[y][x] = newInstance(sectionColorMatrixCyberia);
           }
 
           // get hex color matrix
@@ -796,13 +794,14 @@ const BiomeCyberia = {
 
           sectionSolidMatrixCyberia = allData.matrix.map((row) => row.map((value) => (value === 1 ? 1 : 0)));
         } else {
-          const maxAbsRange = cut.enable ? cut.x2 - cut.x1 : 15;
-          sectionSolidMatrixCyberia = range(0, maxAbsRange).map((row) => range(0, maxAbsRange).map(() => 0));
+          // new Array(48) -> [empty x 48]
+          sectionSolidMatrixCyberia = new Array(16).fill().map(() => new Array(16).fill().map(() => 0));
+          sectionColorMatrixCyberia = new Array(48).fill().map(() => new Array(48).fill().map(() => ''));
         }
 
-        sectionSolidMatrixCyberia = amplifyMatrix(sectionSolidMatrixCyberia, 3);
+        color[y][x] = sectionColorMatrixCyberia;
 
-        solid[y][x] = newInstance(sectionSolidMatrixCyberia);
+        solid[y][x] = amplifyMatrix(sectionSolidMatrixCyberia, 3);
 
         BiomeCyberiaMatrixCyberia.setBiomeCyberia.push({
           src,
@@ -815,11 +814,10 @@ const BiomeCyberia = {
     }
 
     if (cut.enable) delete BiomeCyberiaMatrixCyberia.setBiomeCyberia;
+    console.warn('seed-city generator matrix', { solid });
     BiomeCyberiaMatrixCyberia.solid = mergeMatrices(solid);
 
     // slice force length
-    console.error({ color });
-
     // const newColor = {};
     // for (const key of Object.keys(color)) {
     //   newColor[key] = {};
@@ -831,7 +829,7 @@ const BiomeCyberia = {
     // }
     // console.error({ newColor });
     // if (cut.enable) BiomeCyberiaMatrixCyberia.color = mergeMatrices(newColor);
-
+    console.warn('seed-city generator matrix', { color });
     if (cut.enable) BiomeCyberiaMatrixCyberia.color = mergeMatrices(color);
 
     // top level solid
