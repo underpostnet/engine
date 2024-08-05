@@ -97,7 +97,10 @@ const CyberiaTileService = {
       case 'hex-matrix-from-png':
         {
           logger.info('download', req.body.src);
-          const imageFilePath = await Downloader(req.body.src, `./tmp/${req.body.src.split(`/`).pop()}`);
+          const imageFilePath = await Downloader(
+            process.env.NODE_ENV === 'production' ? `https://www.cyberiaonline.com${req.body.src}` : req.body.src,
+            `./tmp/${req.body.src.split(`/`).pop()}`,
+          );
 
           // logger.info('imageFilePath', { imageFilePath });
 
