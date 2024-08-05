@@ -1,14 +1,22 @@
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
+import { GameInputs, GameInputTestRender } from '../core/GameInputs.js';
 import { Keyboard } from '../core/Keyboard.js';
+import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { SkillCyberiaType, Stat } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
+const logger = loggerFactory(import.meta);
+
 const SkillCyberia = {
   renderMainKeysSlots: async function () {
+    // append('body', html` <div class="abs main-skill-container" style="background: red"></div>`);
+    // GameInputTestRender(s(`.main-skill-container`));
+    // return;
+
     append(
       'body',
       html`

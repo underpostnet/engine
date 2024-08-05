@@ -9,7 +9,7 @@ function DefaultOptions() {
   this.disabled = false;
 }
 
-export class GameInputs {
+class GameInputs {
   /**
    *   Simple inputs manager to abstract key/mouse inputs.
    *
@@ -18,7 +18,7 @@ export class GameInputs {
    */
 
   constructor(domElement, options) {
-    var opts = Object.assign({}, new DefaultOptions(), options || {});
+    let opts = Object.assign({}, new DefaultOptions(), options || {});
 
     // settings
     /** The HTMLElement that `inputs` is bound to. */
@@ -126,7 +126,7 @@ export class GameInputs {
    */
   bind(bindingName, ...keys) {
     keys.forEach((code) => {
-      var bindings = this._keyBindmap[code] || [];
+      let bindings = this._keyBindmap[code] || [];
       if (bindings.includes(bindingName)) return;
       bindings.push(bindingName);
       this._keyBindmap[code] = bindings;
@@ -142,9 +142,9 @@ export class GameInputs {
    * `inputs.unbind('move-player-left')
    */
   unbind(bindingName) {
-    for (var code in this._keyBindmap) {
-      var bindings = this._keyBindmap[code];
-      var i = bindings.indexOf(bindingName);
+    for (let code in this._keyBindmap) {
+      let bindings = this._keyBindmap[code];
+      let i = bindings.indexOf(bindingName);
       if (i > -1) {
         bindings.splice(i, 1);
       }
@@ -161,9 +161,9 @@ export class GameInputs {
    * ```
    */
   getBindings() {
-    var res = {};
-    for (var code in this._keyBindmap) {
-      var bindings = this._keyBindmap[code];
+    let res = {};
+    for (let code in this._keyBindmap) {
+      let bindings = this._keyBindmap[code];
       bindings.forEach((bindingName) => {
         res[bindingName] = res[bindingName] || [];
         res[bindingName].push(code);
@@ -183,7 +183,7 @@ export class GameInputs {
 }
 
 function zeroAllProperties(obj) {
-  for (var key in obj) obj[key] = 0;
+  for (let key in obj) obj[key] = 0;
 }
 
 /*
@@ -199,7 +199,7 @@ function initEvents(inputs) {
   window.addEventListener('keyup', onKeyEvent.bind(null, inputs, false), false);
 
   // pointer/mouse events
-  var pointerOpts = { passive: true };
+  let pointerOpts = { passive: true };
   if (window.PointerEvent) {
     inputs.element.addEventListener('pointerdown', onPointerEvent.bind(null, inputs, true), pointerOpts);
     window.document.addEventListener('pointerup', onPointerEvent.bind(null, inputs, false), pointerOpts);
@@ -240,7 +240,7 @@ function onPointerEvent(inputs, nowDown, ev) {
       inputs._touches.currID = null;
     }
   }
-  var button = 'button' in ev ? ev.button + 1 : 1;
+  let button = 'button' in ev ? ev.button + 1 : 1;
   handleKeyEvent('Mouse' + button, nowDown, inputs, ev);
   return false;
 }
@@ -251,7 +251,7 @@ function onPointerMove(inputs, ev) {
     if (inputs._touches.currID !== ev.pointerId) return;
   }
   // fire no events, just expose the state data
-  var dx = ev.movementX || ev.mozMovementX || 0,
+  let dx = ev.movementX || ev.mozMovementX || 0,
     dy = ev.movementY || ev.mozMovementY || 0;
   inputs.pointerState.dx += dx;
   inputs.pointerState.dy += dy;
@@ -264,7 +264,7 @@ function onPointerMove(inputs, ev) {
  */
 
 function onWheelEvent(inputs, ev) {
-  var scale = 1;
+  let scale = 1;
   switch (ev.deltaMode) {
     case 0:
       scale = 1;
@@ -300,7 +300,7 @@ function onWindowBlur(inputs) {
   // at least some browsers handle mouse events correctly here
   // but not keys, so on window blur simulate a keyUp for all pressed keys
   // there may be a better way to handle this someday..
-  for (var code in inputs._keyStates) {
+  for (let code in inputs._keyStates) {
     if (!inputs._keyStates[code]) continue;
     if (/^Mouse\d/.test(code)) continue;
     handleKeyEvent(code, false, inputs, {
@@ -322,16 +322,16 @@ function onWindowBlur(inputs) {
 
 // tracks the state/counts of individual physical keys
 function handleKeyEvent(code, nowDown, inputs, ev) {
-  var bindings = inputs._keyBindmap[code];
+  let bindings = inputs._keyBindmap[code];
   if (!bindings) return;
 
   // if the key state has changed, handle the event for all bindings
-  var prevState = inputs._keyStates[code];
+  let prevState = inputs._keyStates[code];
   if (XOR(prevState, nowDown)) {
     inputs._keyStates[code] = nowDown;
     bindings.forEach((bindingName) => {
       // allow client to filter events if applicable
-      var allow = inputs.filterEvents ? inputs.filterEvents(ev, bindingName) : true;
+      let allow = inputs.filterEvents ? inputs.filterEvents(ev, bindingName) : true;
       if (!allow) return;
       // finally emit the event
       handleBindingEvent(bindingName, nowDown, inputs, ev);
@@ -350,10 +350,10 @@ function handleKeyEvent(code, nowDown, inputs, ev) {
 // tracks the state/counts of virtual bindings
 function handleBindingEvent(bindingName, pressed, inputs, ev) {
   // externally, track *cumulative* press/release counts
-  var counter = pressed ? inputs.pressCount : inputs.releaseCount;
+  let counter = pressed ? inputs.pressCount : inputs.releaseCount;
   counter[bindingName] = (counter[bindingName] || 0) + 1;
   // internally, track *current* press count (to handle overlapping keybinds)
-  var ct = inputs._bindPressCount[bindingName] || 0;
+  let ct = inputs._bindPressCount[bindingName] || 0;
   ct += pressed ? 1 : -1;
   if (ct < 0) {
     ct = 0;
@@ -361,10 +361,10 @@ function handleBindingEvent(bindingName, pressed, inputs, ev) {
   inputs._bindPressCount[bindingName] = ct;
 
   // emit event if binding's state has changed
-  var currstate = inputs.state[bindingName];
+  let currstate = inputs.state[bindingName];
   if (XOR(currstate, ct)) {
     inputs.state[bindingName] = ct > 0;
-    var emitter = pressed ? inputs.down : inputs.up;
+    let emitter = pressed ? inputs.down : inputs.up;
     if (!inputs.disabled) emitter.emit(bindingName, ev);
   }
 }
@@ -391,13 +391,13 @@ function XOR(a, b) {
  */
 
 function workaroundMacBug(down, inputs, ev) {
-  var isMeta = /^Meta/.test(ev.code);
+  let isMeta = /^Meta/.test(ev.code);
   if (ev.metaKey && !isMeta && down) {
     // remember any key codes that were pressed while meta is down
     inputs._pressedDuringMeta[ev.code] = true;
   } else if (isMeta && !down) {
     // when meta released, maybe issue keyUps for them
-    for (var code in inputs._pressedDuringMeta) {
+    for (let code in inputs._pressedDuringMeta) {
       if (!inputs._keyStates[code]) continue;
       if (/^Mouse\d/.test(code)) continue;
       handleKeyEvent(code, false, inputs, {
@@ -410,3 +410,86 @@ function workaroundMacBug(down, inputs, ev) {
     inputs._pressedDuringMeta = {};
   }
 }
+
+const GameInputTestRender = (domElement, timeInterval) => {
+  // instantiate
+  // let domElement = s(`.${id}`);
+
+  let inputs = new GameInputs(domElement, {
+    preventDefaults: true,
+    allowContextMenu: false,
+  });
+
+  // bind an arbitrary event name to one or more physical key codes
+  inputs.bind('move-fwd', 'KeyW');
+  inputs.bind('move-left', 'KeyA', 'ArrowLeft');
+
+  // listen to that event name for press/release events
+  inputs.down.on('move-fwd', (ev) => {
+    console.log('move-fwd', ev);
+    // startMovingFwd();
+  });
+  inputs.up.on('move-fwd', (ev) => {
+    console.log('move-fwd', ev);
+    // stopMovingFwd();
+  });
+
+  // mouse/pointer buttons are bindable as `Mouse1`, `Mouse2`, ...
+  inputs.bind('shoot', 'Mouse1');
+  inputs.bind('RMB', 'Mouse3');
+
+  // you can also query various input states in the game loop
+  function myGameLoop() {
+    console.log('---');
+
+    // current boolean state of a key or mouse button
+    let leftCurrentlyPressed = inputs.state['move-left'];
+    let shootButtonPressed = inputs.state['shoot'];
+    console.log(JSON.stringify({ leftCurrentlyPressed, shootButtonPressed }, null, 4));
+
+    // pointer movement and scroll/wheel data
+    let mouseMovedBy = [inputs.pointerState.dx, inputs.pointerState.dy];
+    let scrolledBy = inputs.pointerState.scrolly;
+    console.log(JSON.stringify({ mouseMovedBy, scrolledBy }, null, 4));
+
+    // accumulated number of presses/releases since the last tick
+    let fwdPresses = inputs.pressCount['move-fwd'];
+    let fwdReleases = inputs.releaseCount['move-fwd'];
+    console.log(JSON.stringify({ fwdPresses, fwdReleases }, null, 4));
+
+    // {
+    //   "leftCurrentlyPressed": false,
+    //   "shootButtonPressed": false
+    // }
+    // SkillCyberia.js:56 {
+    //     "mouseMovedBy": [
+    //         0,
+    //         0
+    //     ],
+    //     "scrolledBy": 0
+    // }
+    // SkillCyberia.js:60 {
+    //     "fwdPresses": 0,
+    //     "fwdReleases": 0
+    // }
+
+    // calling tick() zeroes out cumulative mouse/scroll/press/release values
+    inputs.tick();
+  }
+
+  // you can optionally filter events before they occur - e.g. if you want
+  // keyboard events not to fire if control keys are pressed
+  inputs.filterEvents = (ev, bindingName) => {
+    if (/^Key/.test(ev.code) && ev.ctrlKey) return false;
+    return true;
+  };
+
+  setInterval(
+    () => {
+      myGameLoop();
+    },
+    timeInterval ? timeInterval : 500,
+  );
+};
+
+export { GameInputs, GameInputTestRender };
