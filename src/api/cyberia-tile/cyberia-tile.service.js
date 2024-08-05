@@ -43,7 +43,7 @@ const getHexMatrix = ({ imageFilePath }) =>
         const fileId = imageFilePath.split('/').pop();
         console.log(imageFilePath, { fileId, fixX, fixY });
 
-        image.resize(pixelDim, pixelDim);
+        image.resize(pixelDim + 1, pixelDim + 1);
         // image.posterize(20);
 
         for (const y of range(0, image.bitmap.height - 1)) {
@@ -52,17 +52,8 @@ const getHexMatrix = ({ imageFilePath }) =>
             if (y !== 0 && x !== 0 && x % cellPixelDim === 0 && y % cellPixelDim === 0) {
               if (!row) row = [];
               let rgba;
-              switch (fileId) {
-                case 'orange-over-purple.PNG':
-                case 'orange-over-purple0.PNG':
-                  if (x < image.bitmap.width / 2) rgba = Jimp.intToRGBA(image.getPixelColor(x + 1, y + 1));
-                  else rgba = Jimp.intToRGBA(image.getPixelColor(x - 1, y - 1));
-
-                  break;
-
-                default:
-                  rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
-              }
+              if (x < image.bitmap.width / 2) rgba = Jimp.intToRGBA(image.getPixelColor(x + 1, y + 1));
+              else rgba = Jimp.intToRGBA(image.getPixelColor(x - 1, y - 1));
               // { r: 146, g: 146, b: 146, a: 255 }
               row.push(rgba2Hexa(rgba));
             }
