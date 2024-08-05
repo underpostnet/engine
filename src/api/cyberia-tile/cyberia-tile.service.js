@@ -40,14 +40,6 @@ const getHexMatrix = ({ imageFilePath }) =>
         const fixX = ceil10((pixelDim - image.bitmap.width) / 3);
         const fixY = ceil10((pixelDim - image.bitmap.height) / 3);
 
-        // if (image.bitmap.width !== pixelDim || image.bitmap.height !== pixelDim) {
-        //   image.resize(pixelDim, pixelDim);
-        //   // image.cover(pixelDim, pixelDim, Jimp.RESIZE_BICUBIC);
-        //   // image.scaleToFit(pixelDim, pixelDim, Jimp.RESIZE_BICUBIC);
-
-        //   await image.writeAsync(imageFilePath);
-        //   return resolve(await getHexMatrix({ imageFilePath }));
-        // }
         const fileId = imageFilePath.split('/').pop();
         console.log(imageFilePath, { fileId, fixX, fixY });
 
@@ -59,9 +51,6 @@ const getHexMatrix = ({ imageFilePath }) =>
           for (const x of range(0, image.bitmap.width - 1)) {
             if (y !== 0 && x !== 0 && x % cellPixelDim === 0 && y % cellPixelDim === 0) {
               if (!row) row = [];
-              // const rgba = Jimp.intToRGBA(
-              //   image.getPixelColor(x - (x < image.bitmap.width / 2 ? 0 : 1), y - (x < image.bitmap.width / 2 ? 0 : 1)),
-              // );
               let rgba;
               switch (fileId) {
                 case 'orange-over-purple.PNG':
@@ -78,17 +67,28 @@ const getHexMatrix = ({ imageFilePath }) =>
               row.push(rgba2Hexa(rgba));
             }
           }
-          if (row) {
-            // if (row.length < 16 * 3) row.unshift(`#282828`);
-            hexMatrix.push(row);
-          }
+          if (row) hexMatrix.push(row);
         }
         // hexMatrix.push(new Array(hexMatrix[0].length).fill().map(() => `#282828`));
-        // console.log(hexMatrix.length, hexMatrix[0].length);
 
-        // if (fixX)
-        hexMatrix = hexMatrix.map((a) => [a[0]].concat(a));
-        hexMatrix.unshift(hexMatrix[0]);
+        // hexMatrix.shift();
+        // hexMatrix.unshift();
+
+        // hexMatrix.pop();
+        // hexMatrix.pop();
+
+        // range(1, 2).map(() => {});
+
+        switch (fileId) {
+          case 'orange-over-purple.PNG':
+          case 'orange-over-purple0.PNG':
+            break;
+          case 'yupark.PNG':
+          case 'zax-shop.PNG':
+            break;
+
+          default:
+        }
         resolve(hexMatrix);
       })
       .catch((error) => {
