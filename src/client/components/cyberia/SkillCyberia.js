@@ -16,7 +16,29 @@ const SkillCyberia = {
     // GameInputTestRender(s(`.main-skill-container`));
 
     if (getProxyPath() === '/test/') {
-      append('body', html` <div class="abs main-skill-container" style="background: red"></div>`);
+      append(
+        'body',
+        html` <div class="abs main-skill-container" style="background: red">
+          <canvas class="abs main-skill-slot main-skill-slot-0"> </canvas>
+          <div class="abs center main-skill-slot-log-0"></div>
+        </div>`,
+      );
+      s(`.main-skill-slot-0`).addEventListener('touchstart', () => {
+        //  handleStart
+        htmls(`.main-skill-slot-log-0`, 'Start');
+      });
+      s(`.main-skill-slot-0`).addEventListener('touchmove', () => {
+        //  handleMove
+        htmls(`.main-skill-slot-log-0`, 'Move');
+      });
+      s(`.main-skill-slot-0`).addEventListener('touchend', () => {
+        //  handleEnd
+        htmls(`.main-skill-slot-log-0`, 'End');
+      });
+      s(`.main-skill-slot-0`).addEventListener('touchcancel', () => {
+        //  handleCancel
+        htmls(`.main-skill-slot-log-0`, 'Cancel');
+      });
       return;
     }
     append(
