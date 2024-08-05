@@ -4,6 +4,9 @@ import { Downloader } from '../../server/downloader.js';
 import fs from 'fs-extra';
 import Jimp from 'jimp';
 import Color from 'color';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 import { ceil10, range } from '../../client/components/core/CommonJs.js';
 
