@@ -1065,48 +1065,50 @@ class LoadBiomeCyberiaRenderer {
     `;
 
     setTimeout(() => {
-      EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
-        if (!BiomeCyberiaScope.Data[rowId]) await BiomeCyberiaRender.loadData(params);
-        BiomeCyberiaScope.Keys[params.data.biome] = BiomeCyberiaScope.Data[rowId];
-        BiomeCyberiaScope.CurrentKey = params.data.biome;
+      if (s(`.btn-load-biome-${rowId}`))
+        EventsUI.onClick(`.btn-load-biome-${rowId}`, async () => {
+          if (!BiomeCyberiaScope.Data[rowId]) await BiomeCyberiaRender.loadData(params);
+          BiomeCyberiaScope.Keys[params.data.biome] = BiomeCyberiaScope.Data[rowId];
+          BiomeCyberiaScope.CurrentKey = params.data.biome;
 
-        await BiomeCyberiaEngine.renderPixiCyberiaBiomeCyberia(BiomeCyberiaScope.Data[rowId]);
-        s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
-        s(`.dropdown-option-${params.data.biome}`).click();
-      });
-      EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
-        const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
-        NotificationManager.Push({
-          html:
-            biomeDeleteResult.status === 'success'
-              ? Translate.Render(biomeDeleteResult.message)
-              : biomeDeleteResult.message,
-          status: biomeDeleteResult.status,
+          await BiomeCyberiaEngine.renderPixiCyberiaBiomeCyberia(BiomeCyberiaScope.Data[rowId]);
+          s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
+          s(`.dropdown-option-${params.data.biome}`).click();
         });
+      if (s(`.btn-delete-biome-${rowId}`))
+        EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
+          const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
+          NotificationManager.Push({
+            html:
+              biomeDeleteResult.status === 'success'
+                ? Translate.Render(biomeDeleteResult.message)
+                : biomeDeleteResult.message,
+            status: biomeDeleteResult.status,
+          });
 
-        const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
-        NotificationManager.Push({
-          html:
-            fileDeleteResult.status === 'success'
-              ? Translate.Render(fileDeleteResult.message)
-              : fileDeleteResult.message,
-          status: fileDeleteResult.status,
-        });
+          const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
+          NotificationManager.Push({
+            html:
+              fileDeleteResult.status === 'success'
+                ? Translate.Render(fileDeleteResult.message)
+                : fileDeleteResult.message,
+            status: fileDeleteResult.status,
+          });
 
-        const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
-        NotificationManager.Push({
-          html:
-            topLevelColorFileDeleteResult.status === 'success'
-              ? Translate.Render(topLevelColorFileDeleteResult.message)
-              : topLevelColorFileDeleteResult.message,
-          status: topLevelColorFileDeleteResult.status,
-        });
+          const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
+          NotificationManager.Push({
+            html:
+              topLevelColorFileDeleteResult.status === 'success'
+                ? Translate.Render(topLevelColorFileDeleteResult.message)
+                : topLevelColorFileDeleteResult.message,
+            status: topLevelColorFileDeleteResult.status,
+          });
 
-        setTimeout(() => {
-          BiomeCyberiaScope.Grid = BiomeCyberiaScope.Grid.filter((biome) => biome._id !== params.data._id);
-          AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeCyberiaScope.Grid);
+          setTimeout(() => {
+            BiomeCyberiaScope.Grid = BiomeCyberiaScope.Grid.filter((biome) => biome._id !== params.data._id);
+            AgGrid.grids[`ag-grid-biome-files`].setGridOption('rowData', BiomeCyberiaScope.Grid);
+          });
         });
-      });
     });
   }
 

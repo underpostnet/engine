@@ -15,7 +15,7 @@ const SkillCyberia = {
   renderMainKeysSlots: async function () {
     // GameInputTestRender(s(`.main-skill-container`));
 
-    if (getProxyPath() === '/test/') {
+    if (getProxyPath().match('test')) {
       append(
         'body',
         html` <div class="abs main-skill-container" style="background: red">
@@ -69,7 +69,7 @@ const SkillCyberia = {
     );
   },
   setMainKeysSkillCyberia: function () {
-    if (getProxyPath() === '/test/') return;
+    if (getProxyPath().match('test')) return;
     let indexSkillCyberiaIteration = -1;
     Keyboard.Event['main-skill'] = {};
     ElementsCyberia.LocalDataScope['user']['main']['skill'] = {};
@@ -133,7 +133,7 @@ const SkillCyberia = {
     }
   },
   renderDeadCooldown: function ({ type, id }) {
-    if (getProxyPath() === '/test/') return;
+    if (getProxyPath().match('test')) return;
     if (ElementsCyberia.LocalDataScope[type][id].skill)
       for (const skillKey of Object.keys(ElementsCyberia.LocalDataScope[type][id].skill)) {
         ElementsCyberia.LocalDataScope[type][id].skill[skillKey](

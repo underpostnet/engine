@@ -42,78 +42,108 @@ const MenuCyberiaAdmin = {
             label: Translate.Render('home'),
             style: 'display: none',
             attrs: `data-id="0"`,
+            tabHref: `${getProxyPath()}`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-colors hide',
             label: renderMenuLabel({ img: 'pallet-colors.png', text: Translate.Render('pallet-colors') }),
             attrs: `data-id="1"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}colors`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-settings',
             label: renderMenuLabel({ img: 'settings.png', text: Translate.Render('settings') }),
             attrs: `data-id="2"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}settings`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-in',
             label: renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
             attrs: `data-id="3"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}log-in`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-sign-up hide',
             label: renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
             attrs: `data-id="4"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}sign-up`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-out',
             label: renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
             attrs: `data-id="5"`,
             style: 'display: none',
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}log-out`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-account',
             label: renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
             style: 'display: none',
             attrs: `data-id="6"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}account`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-chat hide',
             label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
             attrs: `data-id="7"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}chat`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-biome hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'BiomeCyberia Engine' }),
             attrs: `data-id="8"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}biome`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-tile hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'TileCyberia Engine' }),
             attrs: `data-id="9"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}tile`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-3d hide',
             label: renderMenuLabel({ img: 'engine.png', text: '3D Engine' }),
             attrs: `data-id="10"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}3d`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-world hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'WorldCyberia Engine' }),
             attrs: `data-id="11"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}world`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-blockchain hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
             attrs: `data-id="12"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}blockchain`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-cloud hide',
             label: renderMenuLabel({ img: 'cloud.png', text: 'Cloud' }),
             attrs: `data-id="13"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}cloud`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-server hide',
             label: renderMenuLabel({ img: 'server.png', text: 'Server' }),
             attrs: `data-id="14"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}server`,
           })}
         </div>
       `,
@@ -138,55 +168,58 @@ const MenuCyberiaAdmin = {
       homeModals: [],
     });
 
-    this.Data[id].sortable = Modal.mobileModal()
-      ? null
-      : new Sortable(s(`.menu-btn-container`), {
-          animation: 150,
-          group: `menu-sortable`,
-          forceFallback: true,
-          fallbackOnBody: true,
-          store: {
-            /**
-             * Get the order of elements. Called once during initialization.
-             * @param   {Sortable}  sortable
-             * @returns {Array}
-             */
-            get: function (sortable) {
-              const order = localStorage.getItem(sortable.options.group.name);
-              return order ? order.split('|') : [];
-            },
+    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+      animation: 150,
+      group: `menu-sortable`,
+      forceFallback: true,
+      fallbackOnBody: true,
+      handle: '.handle-btn-container',
+      store: {
+        /**
+         * Get the order of elements. Called once during initialization.
+         * @param   {Sortable}  sortable
+         * @returns {Array}
+         */
+        get: function (sortable) {
+          const order = localStorage.getItem(sortable.options.group.name);
+          return order ? order.split('|') : [];
+        },
 
-            /**
-             * Save the order of elements. Called onEnd (when the item is dropped).
-             * @param {Sortable}  sortable
-             */
-            set: function (sortable) {
-              const order = sortable.toArray();
-              localStorage.setItem(sortable.options.group.name, order.join('|'));
-            },
-          },
-          // chosenClass: 'css-class',
-          // ghostClass: 'css-class',
-          // Element dragging ended
-          onEnd: function (/**Event*/ evt) {
-            // console.log('Sortable onEnd', evt);
-            // console.log('evt.oldIndex', evt.oldIndex);
-            // console.log('evt.newIndex', evt.newIndex);
-            const slotId = Array.from(evt.item.classList).pop();
-            // console.log('slotId', slotId);
-            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+        /**
+         * Save the order of elements. Called onEnd (when the item is dropped).
+         * @param {Sortable}  sortable
+         */
+        set: function (sortable) {
+          const order = sortable.toArray();
+          localStorage.setItem(sortable.options.group.name, order.join('|'));
+        },
+      },
+      // chosenClass: 'css-class',
+      // ghostClass: 'css-class',
+      // Element dragging started
+      onStart: function (/**Event*/ evt) {
+        // evt.oldIndex; // element index within parent
+      },
+      // Element dragging ended
+      onEnd: function (/**Event*/ evt) {
+        // console.log('Sortable onEnd', evt);
+        // console.log('evt.oldIndex', evt.oldIndex);
+        // console.log('evt.newIndex', evt.newIndex);
+        const slotId = Array.from(evt.item.classList).pop();
+        // console.log('slotId', slotId);
+        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
 
-            // var itemEl = evt.item; // dragged HTMLElement
-            // evt.to; // target list
-            // evt.from; // previous list
-            // evt.oldIndex; // element's old index within old parent
-            // evt.newIndex; // element's new index within new parent
-            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-            // evt.clone; // the clone element
-            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-          },
-        });
+        // var itemEl = evt.item; // dragged HTMLElement
+        // evt.to; // target list
+        // evt.from; // previous list
+        // evt.oldIndex; // element's old index within old parent
+        // evt.newIndex; // element's new index within new parent
+        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        // evt.clone; // the clone element
+        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+      },
+    });
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
