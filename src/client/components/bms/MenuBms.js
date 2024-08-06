@@ -42,119 +42,147 @@ const MenuBms = {
       html: html`
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-blog hide',
+            class: 'in wfa main-btn-menu main-btn-blog hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-file-invoice"></i>`,
               text: html`${Translate.Render('blog')}`,
             }),
-            attrs: `data-id="5"`,
+            attrs: `data-id="blog"`,
+            tabHref: `${getProxyPath()}blog`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-calendar hide',
+            class: 'in wfa main-btn-menu main-btn-calendar hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
               text: html`${Translate.Render('calendar')}`,
             }),
-            attrs: `data-id="6"`,
+            attrs: `data-id="calendar"`,
+            tabHref: `${getProxyPath()}calendar`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-dashboard hide',
+            class: 'in wfa main-btn-menu main-btn-dashboard hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-chart-line"></i>`,
               text: html`${Translate.Render('dashboard')}`,
             }),
-            attrs: `data-id="7"`,
+            attrs: `data-id="dashboard"`,
+            tabHref: `${getProxyPath()}dashboard`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-stream hide',
+            class: 'in wfa main-btn-menu main-btn-stream hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-video"></i>`,
               text: html`${Translate.Render('stream')}`,
             }),
-            attrs: `data-id="8"`,
+            attrs: `data-id="stream"`,
+            tabHref: `${getProxyPath()}stream`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-docs hide',
+            class: 'in wfa main-btn-menu main-btn-docs hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
               text: html`${Translate.Render('docs')}`,
             }),
-            attrs: `data-id="9"`,
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-content hide',
+            class: 'in wfa main-btn-menu main-btn-content hide',
             label: renderMenuLabel({
               icon: html`<i class="far fa-file"></i>`,
               text: html`${Translate.Render('content')}`,
             }),
-            attrs: `data-id="10"`,
+            attrs: `data-id="content"`,
+            tabHref: `${getProxyPath()}content`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-cloud hide',
+            class: 'in wfa main-btn-menu main-btn-cloud hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-cloud"></i>`,
               text: html`${Translate.Render('cloud')}`,
             }),
-            attrs: `data-id="11"`,
+            attrs: `data-id="cloud"`,
+            tabHref: `${getProxyPath()}cloud`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-chat hide',
+            class: 'in wfa main-btn-menu main-btn-chat hide',
             label: renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
               text: html`${Translate.Render('chat')}`,
             }),
-            attrs: `data-id="12"`,
+            attrs: `data-id="chat"`,
+            tabHref: `${getProxyPath()}chat`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-settings',
+            class: 'in wfa main-btn-menu main-btn-settings',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`${Translate.Render('settings')}`,
             }),
-            attrs: `data-id="13"`,
+            attrs: `data-id="settings"`,
+            tabHref: `${getProxyPath()}settings`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-home',
+            class: 'in wfa main-btn-menu main-btn-home',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`${Translate.Render('home')}`,
             }),
             // style: 'display: none',
-            attrs: `data-id="0"`,
+            attrs: `data-id="home"`,
+            tabHref: `${getProxyPath()}`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-log-in',
+            class: 'in wfa main-btn-menu main-btn-log-in',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`${Translate.Render('log-in')}`,
             }),
-            attrs: `data-id="1"`,
+            attrs: `data-id="log-in"`,
+            tabHref: `${getProxyPath()}log-in`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-sign-up',
+            class: 'in wfa main-btn-menu main-btn-sign-up',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`${Translate.Render('sign-up')}`,
             }),
-            attrs: `data-id="2"`,
+            attrs: `data-id="sign-up"`,
+            tabHref: `${getProxyPath()}sign-up`,
+            handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-log-out',
+            class: 'in wfa main-btn-menu main-btn-log-out',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`${Translate.Render('log-out')}`,
             }),
-            attrs: `data-id="3"`,
+            attrs: `data-id="log-out"`,
+            tabHref: `${getProxyPath()}log-out`,
+            handleContainerClass: 'handle-btn-container',
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-account',
+            class: 'in wfa main-btn-menu main-btn-account',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`${Translate.Render('account')}`,
             }),
             style: 'display: none',
-            attrs: `data-id="4"`,
+            attrs: `data-id="account"`,
+            tabHref: `${getProxyPath()}account`,
+            handleContainerClass: 'handle-btn-container',
           })}
         </div>
       `,
@@ -295,55 +323,54 @@ const MenuBms = {
       },
     });
 
-    this.Data[id].sortable = Modal.mobileModal()
-      ? null
-      : new Sortable(s(`.menu-btn-container`), {
-          animation: 150,
-          group: `menu-sortable`,
-          forceFallback: true,
-          fallbackOnBody: true,
-          store: {
-            /**
-             * Get the order of elements. Called once during initialization.
-             * @param   {Sortable}  sortable
-             * @returns {Array}
-             */
-            get: function (sortable) {
-              const order = localStorage.getItem(sortable.options.group.name);
-              return order ? order.split('|') : [];
-            },
+    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+      animation: 150,
+      group: `menu-sortable`,
+      forceFallback: true,
+      fallbackOnBody: true,
+      handle: '.handle-btn-container',
+      store: {
+        /**
+         * Get the order of elements. Called once during initialization.
+         * @param   {Sortable}  sortable
+         * @returns {Array}
+         */
+        get: function (sortable) {
+          const order = localStorage.getItem(sortable.options.group.name);
+          return order ? order.split('|') : [];
+        },
 
-            /**
-             * Save the order of elements. Called onEnd (when the item is dropped).
-             * @param {Sortable}  sortable
-             */
-            set: function (sortable) {
-              const order = sortable.toArray();
-              localStorage.setItem(sortable.options.group.name, order.join('|'));
-            },
-          },
-          // chosenClass: 'css-class',
-          // ghostClass: 'css-class',
-          // Element dragging ended
-          onEnd: function (/**Event*/ evt) {
-            // console.log('Sortable onEnd', evt);
-            // console.log('evt.oldIndex', evt.oldIndex);
-            // console.log('evt.newIndex', evt.newIndex);
-            const slotId = Array.from(evt.item.classList).pop();
-            // console.log('slotId', slotId);
-            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+        /**
+         * Save the order of elements. Called onEnd (when the item is dropped).
+         * @param {Sortable}  sortable
+         */
+        set: function (sortable) {
+          const order = sortable.toArray();
+          localStorage.setItem(sortable.options.group.name, order.join('|'));
+        },
+      },
+      // chosenClass: 'css-class',
+      // ghostClass: 'css-class',
+      // Element dragging ended
+      onEnd: function (/**Event*/ evt) {
+        // console.log('Sortable onEnd', evt);
+        // console.log('evt.oldIndex', evt.oldIndex);
+        // console.log('evt.newIndex', evt.newIndex);
+        const slotId = Array.from(evt.item.classList).pop();
+        // console.log('slotId', slotId);
+        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
 
-            // var itemEl = evt.item; // dragged HTMLElement
-            // evt.to; // target list
-            // evt.from; // previous list
-            // evt.oldIndex; // element's old index within old parent
-            // evt.newIndex; // element's new index within new parent
-            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-            // evt.clone; // the clone element
-            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-          },
-        });
+        // var itemEl = evt.item; // dragged HTMLElement
+        // evt.to; // target list
+        // evt.from; // previous list
+        // evt.oldIndex; // element's old index within old parent
+        // evt.newIndex; // element's new index within new parent
+        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        // evt.clone; // the clone element
+        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+      },
+    });
 
     EventsUI.onClick(`.main-btn-sign-up`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
