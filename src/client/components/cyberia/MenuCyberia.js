@@ -34,6 +34,15 @@ const MenuCyberia = {
     await Modal.Render({
       id: 'modal-menu',
       html: html`
+        <style>
+          .btn-label-content {
+            top: auto;
+          }
+          .handle-btn-container {
+            top: -2px;
+            right: -2px;
+          }
+        </style>
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-home',

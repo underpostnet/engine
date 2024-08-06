@@ -29,6 +29,23 @@ const CssCommonCore = async () => {
         width: 100%;
         z-index: 11;
       }
+      .handle-btn-container {
+        width: 30px;
+        height: 30px;
+        /* border: 2px solid #5f5f5f; */
+        /* color: #313131; */
+        color: #5f5f5f;
+        cursor: grab;
+        right: 2px;
+        top: -3px;
+      }
+      .handle-btn-container:active {
+        cursor: grabbing !important;
+      }
+      .btn-label-content {
+        height: 100%;
+        top: 15px;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
@@ -142,6 +159,14 @@ const CssCoreDark = {
           transition: none;
           margin: 0;
           border: 0;
+          height: 52px;
+        }
+        .a-btn {
+          text-decoration: none;
+          color: white;
+        }
+        .a-btn:hover {
+          color: white;
         }
         .input-file-sub-col {
           border: 2px solid #313131;
@@ -437,6 +462,14 @@ const CssCoreLight = {
           transition: none;
           margin: 0;
           border: 0;
+          height: 52px;
+        }
+        .a-btn {
+          text-decoration: none;
+          color: black;
+        }
+        .a-btn:hover {
+          color: black;
         }
         .input-file-sub-col {
           border: 2px solid #bbb;

@@ -135,19 +135,6 @@ const CssCommonCyberia = async () => {
         width: 30px;
         height: 30px;
       }
-      .handle-btn-container {
-        top: -2px;
-        right: -2px;
-        width: 30px;
-        height: 30px;
-        /* border: 2px solid #5f5f5f; */
-        /* color: #313131; */
-        color: #5f5f5f;
-        cursor: grab;
-      }
-      .handle-btn-container:active {
-        cursor: grabbing !important;
-      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
