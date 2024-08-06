@@ -28,7 +28,7 @@ const MenuDogmadual = {
       html: html`
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-home',
+            class: 'in wfa main-btn-menu main-btn-home',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`${Translate.Render('home')}`,
@@ -37,7 +37,7 @@ const MenuDogmadual = {
             attrs: `data-id="0"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-log-in',
+            class: 'in wfa main-btn-menu main-btn-log-in',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`${Translate.Render('log-in')}`,
@@ -45,7 +45,7 @@ const MenuDogmadual = {
             attrs: `data-id="1"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-sign-up',
+            class: 'in wfa main-btn-menu main-btn-sign-up',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`${Translate.Render('sign-up')}`,
@@ -53,7 +53,7 @@ const MenuDogmadual = {
             attrs: `data-id="2"`,
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-log-out',
+            class: 'in wfa main-btn-menu main-btn-log-out',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
               text: html`${Translate.Render('log-out')}`,
@@ -62,7 +62,7 @@ const MenuDogmadual = {
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
-            class: 'wfa main-btn-menu main-btn-account',
+            class: 'in wfa main-btn-menu main-btn-account',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
               text: html`${Translate.Render('account')}`,
