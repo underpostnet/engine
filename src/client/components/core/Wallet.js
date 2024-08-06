@@ -79,7 +79,7 @@ const Wallet = {
             <div class="in sub-title-modal"><i class="fas fa-key"></i> JWK Management</div>
             <div class="in section-mp m">
               Client side <b>JSON Web Keys</b> (<a href="https://datatracker.ietf.org/doc/html/rfc7517">RFC7517</a>)
-              generator based on elliptic curve digital signature
+              based on elliptic curve digital signature,
               <a href="https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto">more info</a>.
             </div>
             ${await BtnIcon.Render({
