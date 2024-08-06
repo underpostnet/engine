@@ -140,7 +140,7 @@ const CssCommonCyberia = async () => {
         right: -2px;
         width: 30px;
         height: 30px;
-        border: 2px solid #5f5f5f;
+        /* border: 2px solid #5f5f5f; */
         /* color: #313131; */
         color: #5f5f5f;
         cursor: grab;
