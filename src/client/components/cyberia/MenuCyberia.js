@@ -40,68 +40,94 @@ const MenuCyberia = {
             label: Translate.Render('home'),
             style: 'display: none',
             attrs: `data-id="0"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-character hide',
             label: renderMenuLabel({ img: 'anon.png', text: Translate.Render('character') }),
             attrs: `data-id="1"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}character`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-bag hide',
             label: renderMenuLabel({ img: 'bag.png', text: Translate.Render('bag') }),
             attrs: `data-id="2"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}bag`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-settings',
             label: renderMenuLabel({ img: 'settings.png', text: Translate.Render('settings') }),
             attrs: `data-id="3"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}settings`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-in',
             label: renderMenuLabel({ img: 'log-in.png', text: Translate.Render('log-in') }),
             attrs: `data-id="4"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}log-in`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-sign-up',
             label: renderMenuLabel({ img: 'sign-up.png', text: Translate.Render('sign-up') }),
             attrs: `data-id="5"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}sign-up`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-wallet hide',
             label: renderMenuLabel({ img: 'wallet.png', text: Translate.Render('wallet') }),
             attrs: `data-id="6"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}wallet`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-log-out hide',
             label: renderMenuLabel({ img: 'log-out.png', text: Translate.Render('log-out') }),
             attrs: `data-id="7"`,
             style: 'display: none',
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}log-out`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-account',
             label: renderMenuLabel({ img: 'account.png', text: Translate.Render('account') }),
             style: 'display: none',
             attrs: `data-id="8"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}account`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-chat hide',
             label: renderMenuLabel({ img: 'chat.png', text: 'Chat' }),
             attrs: `data-id="9"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}chat`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-quest hide',
             label: renderMenuLabel({ img: 'quest.png', text: 'quest' }),
             attrs: `data-id="10"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}quest`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-server hide',
             label: renderMenuLabel({ img: 'server.png', text: 'server' }),
             attrs: `data-id="11"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}server`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-admin hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'admin' }),
             attrs: `data-id="12"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `/admin`,
           })}
         </div>
       `,
@@ -131,55 +157,54 @@ const MenuCyberia = {
       ],
     });
 
-    this.Data[id].sortable = Modal.mobileModal()
-      ? null
-      : new Sortable(s(`.menu-btn-container`), {
-          animation: 150,
-          group: `menu-sortable`,
-          forceFallback: true,
-          fallbackOnBody: true,
-          store: {
-            /**
-             * Get the order of elements. Called once during initialization.
-             * @param   {Sortable}  sortable
-             * @returns {Array}
-             */
-            get: function (sortable) {
-              const order = localStorage.getItem(sortable.options.group.name);
-              return order ? order.split('|') : [];
-            },
+    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+      animation: 150,
+      group: `menu-sortable`,
+      forceFallback: true,
+      fallbackOnBody: true,
+      handle: '.handle-btn-container',
+      store: {
+        /**
+         * Get the order of elements. Called once during initialization.
+         * @param   {Sortable}  sortable
+         * @returns {Array}
+         */
+        get: function (sortable) {
+          const order = localStorage.getItem(sortable.options.group.name);
+          return order ? order.split('|') : [];
+        },
 
-            /**
-             * Save the order of elements. Called onEnd (when the item is dropped).
-             * @param {Sortable}  sortable
-             */
-            set: function (sortable) {
-              const order = sortable.toArray();
-              localStorage.setItem(sortable.options.group.name, order.join('|'));
-            },
-          },
-          // chosenClass: 'css-class',
-          // ghostClass: 'css-class',
-          // Element dragging ended
-          onEnd: function (/**Event*/ evt) {
-            // console.log('Sortable onEnd', evt);
-            // console.log('evt.oldIndex', evt.oldIndex);
-            // console.log('evt.newIndex', evt.newIndex);
-            const slotId = Array.from(evt.item.classList).pop();
-            // console.log('slotId', slotId);
-            if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+        /**
+         * Save the order of elements. Called onEnd (when the item is dropped).
+         * @param {Sortable}  sortable
+         */
+        set: function (sortable) {
+          const order = sortable.toArray();
+          localStorage.setItem(sortable.options.group.name, order.join('|'));
+        },
+      },
+      // chosenClass: 'css-class',
+      // ghostClass: 'css-class',
+      // Element dragging ended
+      onEnd: function (/**Event*/ evt) {
+        // console.log('Sortable onEnd', evt);
+        // console.log('evt.oldIndex', evt.oldIndex);
+        // console.log('evt.newIndex', evt.newIndex);
+        const slotId = Array.from(evt.item.classList).pop();
+        // console.log('slotId', slotId);
+        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
 
-            // var itemEl = evt.item; // dragged HTMLElement
-            // evt.to; // target list
-            // evt.from; // previous list
-            // evt.oldIndex; // element's old index within old parent
-            // evt.newIndex; // element's new index within new parent
-            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-            // evt.clone; // the clone element
-            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-          },
-        });
+        // var itemEl = evt.item; // dragged HTMLElement
+        // evt.to; // target list
+        // evt.from; // previous list
+        // evt.oldIndex; // element's old index within old parent
+        // evt.newIndex; // element's new index within new parent
+        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        // evt.clone; // the clone element
+        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+      },
+    });
 
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
