@@ -1,4 +1,5 @@
 import { getId, s4 } from './CommonJs.js';
+import { renderCssAttr } from './Css.js';
 import { s } from './VanillaJs.js';
 
 const BtnIcon = {
@@ -32,7 +33,15 @@ const BtnIcon = {
       ${options?.style ? `style="${options.style}"` : ''}
       ${options?.attrs ? `${options.attrs}` : ''}
     >
-      ${options.tabHref ? html`<a class="a-${tokenId}" href="${options.tabHref}"> ${label}</a>` : label}
+      ${options.tabHref
+        ? html`<a
+            class="abs a-${tokenId}"
+            href="${options.tabHref}"
+            style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0%', left: '0%' } })}"
+          >
+            ${label}</a
+          >`
+        : label}
     </button>`;
     return render;
   },
