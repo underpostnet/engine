@@ -54,6 +54,27 @@ const NotificationManager = {
       if (s(`.btn-close-${idNotification}`)) s(`.btn-close-${idNotification}`).click();
     }, 2000);
   },
+  NotificationScheme: {
+    // Visual Options
+    body: '<String>',
+    icon: '<URL String>',
+    image: '<URL String>',
+    badge: '<URL String>',
+    dir: "<String of 'auto' | 'ltr' | 'rtl'>",
+    timestamp: '<Long>',
+
+    // Both visual & behavioral options
+    actions: '<Array of Strings>',
+    data: '<Anything>',
+
+    // Behavioral Options
+    tag: '<String>',
+    requireInteraction: '<boolean>',
+    renotify: '<Boolean>',
+    vibrate: '<Array of Integers>',
+    sound: '<URL String>',
+    silent: '<Boolean>',
+  },
 };
 
 export { NotificationManager };
