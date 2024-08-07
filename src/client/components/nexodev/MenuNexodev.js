@@ -23,6 +23,7 @@ import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
 import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthcare.js';
 import { Wallet } from '../core/Wallet.js';
+import { Badge } from '../core/Badge.js';
 
 const MenuNexodev = {
   Data: {},
@@ -34,6 +35,7 @@ const MenuNexodev = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -110,10 +112,11 @@ const MenuNexodev = {
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-chat',
-            label: renderMenuLabel({
+            label: html`${renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
               text: html`${Translate.Render('chat')}`,
-            }),
+            })}
+            ${await Badge.Render({ id: 'main-btn-chat', type: 'circle-red', style: badgeNotificationMenuStyle })}`,
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',

@@ -75,10 +75,10 @@ const Css = {
 
           .inl {
             display: inline-table;
-            display: -webkit-fill-inline-table;
+            display: -webkit-inline-table;
             display: -moz-inline-table;
             display: -ms-inline-table;
-            display: -o-fill-inline-table;
+            display: -o-inline-table;
           }
 
           .fix {
@@ -94,9 +94,17 @@ const Css = {
           .wfa {
             width: fill-available;
             width: -webkit-fill-available;
-            width: -moz-available;
-            width: -ms-available;
+            width: -moz-fill-available;
+            width: -ms-fill-available;
             width: -o-fill-available;
+          }
+
+          .wft {
+            width: fit-content;
+            width: -webkit-fit-content;
+            width: -moz-fit-content;
+            width: -ms-fit-content;
+            width: -o-fit-content;
           }
 
           .negative-color {

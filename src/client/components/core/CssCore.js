@@ -46,6 +46,22 @@ const CssCommonCore = async () => {
         height: 100%;
         top: 15px;
       }
+      .badge {
+        min-width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        background: #3b434b;
+        position: relative;
+        font-size: 12px;
+        font-family: arial;
+      }
+      .badge-text {
+        padding: 3px 6px 0px 6px;
+      }
+      .badge-notification-circle-red {
+        background: #bd0c0c;
+        border-radius: 50%;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
