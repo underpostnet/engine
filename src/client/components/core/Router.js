@@ -8,12 +8,15 @@ const logger = loggerFactory(import.meta);
 
 const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => {
   const { Routes, route, NameApp } = options;
-  let title = titleFormatted(Routes()[`/${route}`].title);
+  const title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
   htmls('title', html`${title} | ${NameApp}`);
-  if (s(`.main-btn-${route}`)) {
-    if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
-    if (s(`.main-btn-${route}`)) s(`.main-btn-${route}`).classList.add(`main-btn-menu-active`);
+  {
+    const routeId = route === '' ? 'home' : route;
+    if (s(`.main-btn-${routeId}`)) {
+      if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
+      if (s(`.main-btn-${routeId}`)) s(`.main-btn-${routeId}`).classList.add(`main-btn-menu-active`);
+    }
   }
 };
 
