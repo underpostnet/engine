@@ -1,6 +1,6 @@
 import { titleFormatted } from './CommonJs.js';
 import { loggerFactory } from './Logger.js';
-import { getProxyPath, getQueryParams, htmls, setPath } from './VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s, setPath } from './VanillaJs.js';
 
 // Router
 
@@ -11,6 +11,10 @@ const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => 
   let title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
   htmls('title', html`${title} | ${NameApp}`);
+  if (s(`.main-btn-${route}`)) {
+    if (s(`.main-btn-menu-active`)) s(`.main-btn-menu-active`).classList.remove(`main-btn-menu-active`);
+    if (s(`.main-btn-${route}`)) s(`.main-btn-${route}`).classList.add(`main-btn-menu-active`);
+  }
 };
 
 const RouterEvents = {};

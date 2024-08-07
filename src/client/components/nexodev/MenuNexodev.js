@@ -137,7 +137,7 @@ const MenuNexodev = {
             handleContainerClass: 'handle-btn-container',
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-home',
+            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
               text: html`${Translate.Render('home')}`,
