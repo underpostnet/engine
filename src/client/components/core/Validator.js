@@ -17,7 +17,7 @@ const Validator = {
     for (const validatorData of validators) {
       validatorFunction[validatorData.id] = async () => {
         if (!s(`.${validatorData.id}`)) return;
-        logger.warn(validatorData.id, s(`.${validatorData.id}`).value);
+        // logger.warn(validatorData.id, s(`.${validatorData.id}`).value);
         let errorMessage = '';
         if (validatorData.rules)
           for (const rule of validatorData.rules) {

@@ -18,7 +18,7 @@ const NotificationSchema = new Schema({
 
   // Behavioral Options
   tag: { type: String }, // <String>
-  requireInteraction: '', // <boolean>
+  requireInteraction: { type: Boolean }, // <boolean>
   renotify: { type: Boolean }, // <Boolean>
   vibrate: [{ type: Number }], // <Array of Integers>
   sound: { type: String, validate: [validator.isURL, 'Please fill a valid sound url'] }, // <URL String>
