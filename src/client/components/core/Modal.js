@@ -935,7 +935,7 @@ const Modal = {
     if (options.observer) {
       this.Data[idModal].onObserverListener = {};
       this.Data[idModal].observerCallBack = () => {
-        logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
+        // logger.info('ResizeObserver', `.${idModal}`, s(`.${idModal}`).offsetWidth, s(`.${idModal}`).offsetHeight);
         if (this.Data[idModal] && this.Data[idModal].onObserverListener)
           Object.keys(this.Data[idModal].onObserverListener).map((eventKey) =>
             this.Data[idModal].onObserverListener[eventKey]({
