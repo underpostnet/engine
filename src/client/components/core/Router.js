@@ -8,7 +8,7 @@ const logger = loggerFactory(import.meta);
 
 const setDocTitle = (options = { Routes: () => {}, route: '', NameApp: '' }) => {
   const { Routes, route, NameApp } = options;
-  const title = titleFormatted(Routes()[`/${route}`].title);
+  let title = titleFormatted(Routes()[`/${route}`].title);
   if (Routes()[`/${route}`].upperCase) title = title.toUpperCase();
   htmls('title', html`${title} | ${NameApp}`);
   {
