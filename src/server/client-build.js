@@ -236,7 +236,7 @@ const buildClient = async () => {
           const ssrPath = path === '/' ? path : `${path}/`;
 
           // build service worker
-          if (path === '/') {
+          if (view.path === '/' && path === '/') {
             const jsSrc = viewFormatted(
               await srcFormatted(
                 fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
