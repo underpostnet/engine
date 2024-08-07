@@ -5,15 +5,38 @@ import { NotificationSchema } from '../notification/notification.model.js';
 
 const EventSchema = new Schema(
   {
-    notifications: {
-      type: [{ title: { type: String, required: true }, notification: NotificationSchema }],
-      default: [],
-      immutable: true,
+    notifications: [
+      {
+        notification: NotificationSchema,
+        type: { type: String, enum: ['email', 'sms', 'push'] },
+        recipient: {
+          userId: {
+            type: Schema.Types.ObjectId,
+            ref: 'User',
+          },
+          botId: {
+            type: Schema.Types.ObjectId,
+            ref: 'Bot',
+          },
+        },
+        readAt: { type: Date },
+      },
+    ],
+    message: { type: String, required: true }, // Title
+    type: { type: String, enum: ['error', 'warn', 'info', 'debug' /*test*/] },
+    sender: {
+      userId: {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      botId: {
+        type: Schema.Types.ObjectId,
+        ref: 'Bot',
+      },
     },
-    tags: [{ type: String, immutable: true }],
   },
   {
-    timestamps: true,
+    timestamps: true, // sentAt
   },
 );
 
