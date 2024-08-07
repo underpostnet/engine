@@ -178,6 +178,9 @@ const CssCoreDark = {
           border: 0;
           height: 52px;
         }
+        .main-btn-menu-active {
+          background: #212020;
+        }
         .a-btn {
           text-decoration: none;
           color: white;
@@ -480,6 +483,9 @@ const CssCoreLight = {
           margin: 0;
           border: 0;
           height: 52px;
+        }
+        .main-btn-menu-active {
+          background: #d8d8d8;
         }
         .a-btn {
           text-decoration: none;
