@@ -15,7 +15,10 @@ const SocketIoNexodev = {
           args = JSON.parse(args[0]);
           switch (type) {
             case 'chat':
-              if (s(`.chat-box`)) Chat.appendChatBox(args);
+              {
+                const idModal = 'modal-chat';
+                if (s(`.${idModal}-chat-box`)) Chat.appendChatBox({ idModal, ...args });
+              }
               break;
 
             default:

@@ -116,7 +116,12 @@ const MenuNexodev = {
               icon: html`<i class="far fa-comments"></i>`,
               text: html`${Translate.Render('chat')}`,
             })}
-            ${await Badge.Render({ id: 'main-btn-chat', type: 'circle-red', style: badgeNotificationMenuStyle })}`,
+            ${await Badge.Render({
+              id: 'main-btn-chat',
+              type: 'circle-red',
+              style: badgeNotificationMenuStyle,
+              classList: 'hide',
+            })}`,
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',

@@ -319,7 +319,14 @@ const MenuBms = {
             imageUrl: 'https://example.com/property5.jpg',
           },
         ];
-        return await Panel.Render({ idPanel, formData, heightTopBar, data, scrollClassContainer: 'main-body' });
+        return await Panel.Render({
+          idPanel,
+          formData,
+          heightTopBar,
+          heightBottomBar,
+          data,
+          scrollClassContainer: 'main-body',
+        });
       },
     });
 

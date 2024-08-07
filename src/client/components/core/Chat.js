@@ -9,43 +9,47 @@ import { s, append } from './VanillaJs.js';
 const Chat = {
   Data: {},
   Render: async function (options) {
-    const id = options?.id ? options.id : getId(this.Data, 'chat-');
     const { idModal } = options;
-    this.Data[id] = {};
+    this.Data[idModal] = {};
     setTimeout(() => {
-      Modal.Data[idModal].onObserverListener[`chat-${id}`] = (options) => {
+      Modal.Data[idModal].onObserverListener[`chat-${idModal}`] = (options) => {
         const { width, height } = options;
         s(`.chat-box`).style.height = `${height * 0.5}px`;
       };
-      s(`.btn-send-chat`).onclick = (e) => {
+      s(`.btn-send-chat-${idModal}`).onclick = (e) => {
         e.preventDefault();
-        if (!s(`.input-chat`).value) return;
-        this.appendChatBox({ id: SocketIo.socket.id, message: s(`.input-chat`).value });
+        if (!s(`.input-chat-${idModal}`).value) return;
+        this.appendChatBox({ id: SocketIo.socket.id, idModal, message: s(`.input-chat-${idModal}`).value });
         SocketIo.Emit('chat', {
-          message: s(`.input-chat`).value,
+          message: s(`.input-chat-${idModal}`).value,
         });
-        s(`.input-chat`).value = '';
+        s(`.input-chat-${idModal}`).value = '';
       };
     });
     return html`
       <form>
-        <div class="in section-mp chat-box"></div>
+        <div class="in section-mp chat-box ${idModal}-chat-box"></div>
         ${await Input.Render({
-          id: `input-chat`,
+          id: `input-chat-${idModal}`,
           label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('write')}`,
           containerClass: 'in section-mp width-mini-box-hover input-container-width',
           placeholder: true,
         })}
         <div class="in">
-          ${await BtnIcon.Render({ class: 'btn-send-chat', label: Translate.Render('send'), type: 'submit' })}
+          ${await BtnIcon.Render({
+            class: `btn-send-chat-${idModal}`,
+            label: Translate.Render('send'),
+            type: 'submit',
+          })}
         </div>
       </form>
     `;
   },
   appendChatBox: function (options) {
-    const { id, message } = options;
+    const { idModal, id, message } = options;
+    if (!s(`.${idModal}-chat-box`)) return;
     append(
-      `.chat-box`,
+      `.${idModal}-chat-box`,
       html`
         <div class="in">
           <span class="chat-message-header">${getIsoDate(new Date())} | ${id}:</span><br />
@@ -53,7 +57,7 @@ const Chat = {
         </div>
       `,
     );
-    s(`.chat-box`).scrollTop = s(`.chat-box`).scrollHeight;
+    s(`.${idModal}-chat-box`).scrollTop = s(`.${idModal}-chat-box`).scrollHeight;
   },
 };
 
