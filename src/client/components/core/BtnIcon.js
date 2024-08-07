@@ -45,8 +45,40 @@ const BtnIcon = {
     </button>`;
     return render;
   },
-  RenderTouch: async function () {
-    return html``;
+  // https://developer.mozilla.org/en-US/docs/Games/Techniques/Control_mechanisms/Mobile_touch
+  TouchTokens: {},
+  RenderTouch: async function (options = { id: '', Events: {} }) {
+    const { id } = options;
+    this.TouchTokens[id] = { Events: {}, ...options };
+    setTimeout(() => {
+      const triggerTouchEvents = () => {
+        for (const event of Object.keys(this.TouchTokens[id].Events)) this.TouchTokens[id].Events[event]();
+      };
+      if (s(`.${id}`)) {
+        s(`.${id}`).addEventListener('touchstart', () => {
+          //  handleStart
+          triggerTouchEvents();
+        });
+        s(`.${id}`).addEventListener('touchmove', () => {
+          //  handleMove
+          triggerTouchEvents();
+        });
+        s(`.${id}`).addEventListener('touchend', () => {
+          //  handleEnd
+          triggerTouchEvents();
+        });
+        s(`.${id}`).addEventListener('touchcancel', () => {
+          //  handleCancel
+          triggerTouchEvents();
+        });
+        s(`.${id}`).onclick = triggerTouchEvents;
+      }
+    });
+    return html` <canvas
+      class="abs ${id}"
+      style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0px', left: '0px', border: 'none' } })}"
+    >
+    </canvas>`;
   },
 };
 

@@ -1,3 +1,4 @@
+import { BtnIcon } from '../core/BtnIcon.js';
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
 import { GameInputs, GameInputTestRender } from '../core/GameInputs.js';
@@ -15,61 +16,27 @@ const SkillCyberia = {
   renderMainKeysSlots: async function () {
     // GameInputTestRender(s(`.main-skill-container`));
 
-    if (getProxyPath().match('test')) {
-      append(
-        'body',
-        html` <div class="abs main-skill-container" style="background: red">
-          <canvas class="abs main-skill-slot main-skill-slot-0"> </canvas>
-          <div class="abs center main-skill-slot-log-0"></div>
-        </div>`,
-      );
-      s(`.main-skill-slot-0`).addEventListener('touchstart', () => {
-        //  handleStart
-        htmls(`.main-skill-slot-log-0`, 'Start');
-      });
-      s(`.main-skill-slot-0`).addEventListener('touchmove', () => {
-        //  handleMove
-        htmls(`.main-skill-slot-log-0`, 'Move');
-      });
-      s(`.main-skill-slot-0`).addEventListener('touchend', () => {
-        //  handleEnd
-        htmls(`.main-skill-slot-log-0`, 'End');
-      });
-      s(`.main-skill-slot-0`).addEventListener('touchcancel', () => {
-        //  handleCancel
-        htmls(`.main-skill-slot-log-0`, 'Cancel');
-      });
-      return;
-    }
-    append(
-      'body',
-      html`
-        <div class="abs main-skill-container">
-          ${range(0, 3)
-            .map(
-              (i) => html`
-                <div class="in fll main-skill-slot main-skill-slot-${i}">
-                  <img
-                    class="abs center main-skill-background-img main-skill-background-img-${i}"
-                    src="${getProxyPath()}assets/joy/btn.png"
-                  />
-                  <div class="main-skill-img-container-${i}"></div>
-                  <div class="abs center main-skill-cooldown main-skill-cooldown-${i}" style="display: none;">
-                    <div
-                      class="abs center main-skill-cooldown-delay-time-text main-skill-cooldown-delay-time-text-${i}"
-                    ></div>
-                  </div>
-                  <div class="abs center main-skill-key-text main-skill-key-text-${i}"></div>
-                </div>
-              `,
-            )
-            .join('')}
+    let mainSkillContainerRender = '';
+    for (const i of range(0, 3)) {
+      mainSkillContainerRender += html`
+        <div class="in fll main-skill-slot main-skill-slot-${i}">
+          <img
+            class="abs center main-skill-background-img main-skill-background-img-${i}"
+            src="${getProxyPath()}assets/joy/btn.png"
+          />
+          <div class="main-skill-img-container-${i}"></div>
+          <div class="abs center main-skill-cooldown main-skill-cooldown-${i}" style="display: none;">
+            <div class="abs center main-skill-cooldown-delay-time-text main-skill-cooldown-delay-time-text-${i}"></div>
+          </div>
+          <div class="abs center main-skill-key-text main-skill-key-text-${i}"></div>
+          ${await BtnIcon.RenderTouch({ id: `main-skill-touch-slot-${i}` })}
         </div>
-      `,
-    );
+      `;
+    }
+
+    append('body', html` <div class="abs main-skill-container">${mainSkillContainerRender}</div> `);
   },
   setMainKeysSkillCyberia: function () {
-    if (getProxyPath().match('test')) return;
     let indexSkillCyberiaIteration = -1;
     Keyboard.Event['main-skill'] = {};
     ElementsCyberia.LocalDataScope['user']['main']['skill'] = {};
@@ -123,17 +90,13 @@ const SkillCyberia = {
         htmls(`.main-skill-img-container-${indexSkillCyberia}`, '');
       }
 
-      s(`.main-skill-slot-${indexSkillCyberia}`).onclick = triggerSkillCyberia;
-      s(`.main-skill-slot-${indexSkillCyberia}`).onmouseover = () => {
-        if (Modal.mobileModal()) triggerSkillCyberia();
-      };
+      BtnIcon.TouchTokens[`main-skill-touch-slot-${indexSkillCyberia}`].Events[`main`] = triggerSkillCyberia;
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toLowerCase()] = triggerSkillCyberia;
       Keyboard.Event['main-skill'][SkillCyberiaType[skillKey].keyboard.toUpperCase()] = triggerSkillCyberia;
       ElementsCyberia.LocalDataScope['user']['main']['skill'][indexSkillCyberia] = triggerSkillCyberia;
     }
   },
   renderDeadCooldown: function ({ type, id }) {
-    if (getProxyPath().match('test')) return;
     if (ElementsCyberia.LocalDataScope[type][id].skill)
       for (const skillKey of Object.keys(ElementsCyberia.LocalDataScope[type][id].skill)) {
         ElementsCyberia.LocalDataScope[type][id].skill[skillKey](
