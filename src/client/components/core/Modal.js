@@ -58,7 +58,9 @@ const Modal = {
     };
     setCenterRestore();
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
-    const slideMenuWidth = 320;
+    const originSlideMenuWidth = 320;
+    const collapseSlideMenuWidth = 50;
+    let slideMenuWidth = originSlideMenuWidth;
     const minWidth = width;
     const heightDefaultTopBar = 0;
     const heightDefaultBottomBar = 0;
@@ -160,7 +162,7 @@ const Modal = {
               }px`;
               if (s(`.main-body-top`)) {
                 if (Modal.mobileModal()) {
-                  if (s(`.btn-menu-${idModal}`).classList.contains('hide'))
+                  if (s(`.btn-menu-${idModal}`).classList.contains('hide') && collapseSlideMenuWidth !== slideMenuWidth)
                     s(`.main-body-top`).classList.remove('hide');
                   if (s(`.btn-close-${idModal}`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
                 } else if (!s(`.main-body-top`).classList.contains('hide')) s(`.main-body-top`).classList.add('hide');
@@ -742,6 +744,26 @@ const Modal = {
           </div>
 
           <div class="in html-${idModal}">
+            ${options.mode && options.mode.match('slide-menu')
+              ? html`<div class="in" style="${renderCssAttr({ style: { height: '50px' } })}">
+                  ${await BtnIcon.Render({
+                    style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
+                    class: `in flr main-btn-menu action-bar-box btn-icon-menu-mode`,
+                    label: html` <div class="abs center">
+                      <i
+                        class="fas fa-caret-right btn-icon-menu-mode-right ${options.mode && options.mode.match('right')
+                          ? ''
+                          : 'hide'}"
+                      ></i
+                      ><i
+                        class="fas fa-caret-left btn-icon-menu-mode-left  ${options.mode && options.mode.match('right')
+                          ? 'hide'
+                          : ''}"
+                      ></i>
+                    </div>`,
+                  })}
+                </div>`
+              : ''}
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
           </div>
         </div>
@@ -784,6 +806,32 @@ const Modal = {
           }
           s(`.btn-close-modal-menu`).click();
         };
+        s(`.btn-icon-menu-mode`).onclick = () => {
+          if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
+            s(`.btn-icon-menu-mode-right`).classList.remove('hide');
+            s(`.btn-icon-menu-mode-left`).classList.add('hide');
+          } else {
+            s(`.btn-icon-menu-mode-left`).classList.remove('hide');
+            s(`.btn-icon-menu-mode-right`).classList.add('hide');
+          }
+          if (slideMenuWidth === originSlideMenuWidth) {
+            slideMenuWidth = collapseSlideMenuWidth;
+            if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
+              sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
+              sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
+              s(`.action-btn-center`).click();
+              s(`.action-btn-center`).click();
+            }
+          } else {
+            slideMenuWidth = originSlideMenuWidth;
+            sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
+            sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
+            s(`.action-btn-center`).click();
+            s(`.action-btn-center`).click();
+          }
+          // btn-bar-center-icon-menu
+        };
+
         break;
 
       default:
