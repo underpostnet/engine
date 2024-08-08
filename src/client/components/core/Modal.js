@@ -42,12 +42,15 @@ const Modal = {
     if (options.heightTopBar === undefined) options.heightTopBar = 50;
     let originHeightBottomBar = options.heightBottomBar ? newInstance(options.heightBottomBar) : 0;
     let originHeightTopBar = options.heightTopBar ? newInstance(options.heightTopBar) : 0;
-    options.heightTopBar = options.heightTopBar + options.heightBottomBar;
-    options.heightBottomBar = 0;
     let width = 300;
     let height = 400;
     let top = 0;
     let left = 0;
+    const topBottomBarEnable = options && options.barMode && options.barMode === 'top-bottom-bar';
+    if (!topBottomBarEnable) {
+      options.heightTopBar = options.heightTopBar + options.heightBottomBar;
+      options.heightBottomBar = 0;
+    }
     const setCenterRestore = () => {
       const ResponsiveData = Responsive.getResponsiveData();
       top = `${ResponsiveData.height / 2 - height / 2}px`;
@@ -126,6 +129,7 @@ const Modal = {
                 (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
               }px`,
               width: `${slideMenuWidth}px`,
+              'overflow-x': 'hidden',
               'z-index': 6,
               resize: 'none',
               top: `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`,
@@ -437,7 +441,7 @@ const Modal = {
                   >
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: `in fll main-btn-menu action-bar-box action-btn-center ${
+                      class: `in fl${topBottomBarEnable ? 'r' : 'l'} main-btn-menu action-bar-box action-btn-center ${
                         options?.disableTools?.includes('center') ? 'hide' : ''
                       }`,
                       label: html`
