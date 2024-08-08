@@ -30,6 +30,7 @@ const Docs = {
       mode: 'view',
       slideMenu: 'modal-menu',
       observer: true,
+      barMode: 'top-bottom-bar',
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`)) s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - 110}px`;

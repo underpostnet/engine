@@ -1,6 +1,15 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance, objectEquals, range, timer } from '../core/CommonJs.js';
-import { Css, Themes, borderChar, dashRange, getTranslate3d, renderBubbleDialog, typeWriter } from '../core/Css.js';
+import {
+  Css,
+  Themes,
+  borderChar,
+  dashRange,
+  getTranslate3d,
+  renderBubbleDialog,
+  renderCssAttr,
+  typeWriter,
+} from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Modal, renderViewTitle } from '../core/Modal.js';
 import { Responsive } from '../core/Responsive.js';
@@ -431,6 +440,7 @@ const InteractionPanelCyberia = {
                   label: html`<img
                       class="abs center img-btn-square-menu img-btn-square-menu-open"
                       src="${getProxyPath()}assets/ui-icons/points.png"
+                      style="${renderCssAttr({ style: { transform: 'translate(-50%, -50%) rotate(90deg)' } })}"
                     /><img
                       class="abs center img-btn-square-menu img-btn-square-menu-close hide"
                       src="${getProxyPath()}assets/ui-icons/close-yellow.png"
