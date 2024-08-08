@@ -16,6 +16,7 @@ import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
+import { Keyboard } from './components/core/Keyboard.js';
 
 window.onload = () =>
   Worker.instance({
@@ -32,5 +33,6 @@ window.onload = () =>
       await LogOutNexodev();
       await SignUpNexodev();
       await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
+      await Keyboard.Init({ callBackTime: 50 });
     },
   });
