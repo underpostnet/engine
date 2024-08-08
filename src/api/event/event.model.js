@@ -24,7 +24,8 @@ const EventSchema = new Schema(
       },
     ],
     description: { type: String, required: true },
-    tags: [{ type: String }],
+    tags: [{ type: String }], // severity: error | warn | info | <instance>
+    code: { type: String }, // internal event id identifier
     sender: {
       userId: {
         type: Schema.Types.ObjectId,
