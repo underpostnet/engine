@@ -31,6 +31,30 @@ const MenuCyberia = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const onCollapseMenu = async () => {
+      s(`.menu-btn-container`).style.width = null;
+      htmls(
+        `.btn-square-style-render`,
+        html` <style>
+          .main-btn-square-menu {
+            width: 40px;
+            height: 40px;
+          }
+        </style>`,
+      );
+    };
+    const onExtendMenu = async () => {
+      s(`.menu-btn-container`).style.width = '310px';
+      htmls(
+        `.btn-square-style-render`,
+        html` <style>
+          .main-btn-square-menu {
+            width: 93px;
+            height: 93px;
+          }
+        </style>`,
+      );
+    };
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -42,7 +66,11 @@ const MenuCyberia = {
             top: -2px;
             right: -2px;
           }
+          .menu-btn-container {
+            margin: auto;
+          }
         </style>
+        <div class="btn-square-style-render"></div>
         <div class="fl menu-btn-container">
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-home main-btn-menu-active',
@@ -164,7 +192,10 @@ const MenuCyberia = {
         'menu-interaction-panel',
         'quest-interaction-panel',
       ],
+      onCollapseMenu,
+      onExtendMenu,
     });
+    onExtendMenu();
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
       animation: 150,

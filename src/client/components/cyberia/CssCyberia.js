@@ -501,8 +501,6 @@ const CssCyberiaDark = {
             top: 37%;
           }
           .main-btn-square-menu {
-            width: 93px;
-            height: 93px;
             transition: none;
           }
           .main-btn-square-menu:hover .img-btn-square-menu {
@@ -520,10 +518,6 @@ const CssCyberiaDark = {
             font-size: 14px;
             color: #ffcc00;
             top: 90%;
-          }
-          .menu-btn-container {
-            width: 310px;
-            margin: auto;
           }
           .character-slot-skill {
             width: 50px;

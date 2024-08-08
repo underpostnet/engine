@@ -822,12 +822,14 @@ const Modal = {
               s(`.action-btn-center`).click();
               s(`.action-btn-center`).click();
             }
+            if (options.onCollapseMenu) options.onCollapseMenu();
           } else {
             slideMenuWidth = originSlideMenuWidth;
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
             sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
             s(`.action-btn-center`).click();
             s(`.action-btn-center`).click();
+            if (options.onExtendMenu) options.onExtendMenu();
           }
           // btn-bar-center-icon-menu
         };
