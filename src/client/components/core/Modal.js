@@ -441,7 +441,9 @@ const Modal = {
                   >
                     ${await BtnIcon.Render({
                       style: `height: 100%`,
-                      class: `in fl${topBottomBarEnable ? 'r' : 'l'} main-btn-menu action-bar-box action-btn-center ${
+                      class: `in fl${
+                        options.mode === 'slide-menu-right' ? 'r' : 'l'
+                      } main-btn-menu action-bar-box action-btn-center ${
                         options?.disableTools?.includes('center') ? 'hide' : ''
                       }`,
                       label: html`
