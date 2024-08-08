@@ -213,41 +213,6 @@ const Css = {
           .gray {
             filter: grayscale(1);
           }
-
-          /*
-
-          scrollbar
-
-          Hide scrollbar for Chrome, Safari and Opera
-          [TAG]::-webkit-scrollbar {
-          display: none;
-          }
-          Hide scrollbar for IE, Edge and Firefox
-          [TAG] {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
-          }
-
-          */
-
-          ::-webkit-scrollbar {
-            width: 10px;
-          }
-
-          /* Track */
-          ::-webkit-scrollbar-track {
-            background: #f1f1f1;
-          }
-
-          /* Handle */
-          ::-webkit-scrollbar-thumb {
-            background: #888;
-          }
-
-          /* Handle on hover */
-          ::-webkit-scrollbar-thumb:hover {
-            background: #555;
-          }
         </style>
         <div class="session">
           <style>
@@ -827,6 +792,82 @@ const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionInde
     }
   });
 
+const cssBrowserCodes = ['webkit', 'moz', 'ms', 'o'];
+
+const scrollBarLightRender = () => {
+  return cssBrowserCodes
+    .map(
+      (b) =>
+        html`<style>
+        ::-` +
+        b +
+        `-scrollbar {
+          width: 5px;
+        }
+
+        /* Track */
+        ::-` +
+        b +
+        `-scrollbar-track {
+          background: none !important;
+        }
+
+        /* Handle */
+        ::-` +
+        b +
+        `-scrollbar-thumb {
+          background: #15151557;
+          border-radius: 3px;
+        }
+
+        /* Handle on hover */
+        ::-` +
+        b +
+        `-scrollbar-thumb:hover {
+          background: #4d4d4dbb;
+        }
+      </style>`,
+    )
+    .join('');
+};
+
+const scrollBarDarkRender = () => {
+  return cssBrowserCodes
+    .map(
+      (b) =>
+        html`<style>
+    ::-` +
+        b +
+        `-scrollbar {
+      width: 5px;
+    }
+
+    /* Track */
+    ::-` +
+        b +
+        `-scrollbar-track {
+      background: none !important;
+    }
+
+    /* Handle */
+    ::-` +
+        b +
+        `-scrollbar-thumb {
+      background: #74747457;
+      border-radius: 3px;
+    }
+
+    /* Handle on hover */
+    ::-` +
+        b +
+        `-scrollbar-thumb:hover {
+      background: #98989857;
+    }
+  </style>`,
+    )
+    .join('');
+};
+
 export {
   Css,
   Themes,
@@ -853,4 +894,7 @@ export {
   triangle,
   getSectionsStringData,
   typeWriteSectionsString,
+  cssBrowserCodes,
+  scrollBarDarkRender,
+  scrollBarLightRender,
 };

@@ -1,4 +1,5 @@
 import { AgGrid } from './AgGrid.js';
+import { scrollBarDarkRender, scrollBarLightRender } from './Css.js';
 import { append, getProxyPath } from './VanillaJs.js';
 
 const CssCommonCore = async () => {
@@ -370,6 +371,7 @@ const CssCoreDark = {
         .btn-input-extension:hover {
         }
       </style>
+      ${scrollBarDarkRender()}
     `,
 };
 
@@ -686,6 +688,7 @@ const CssCoreLight = {
         .btn-input-extension:hover {
         }
       </style>
+      ${scrollBarLightRender()}
     `,
 };
 
