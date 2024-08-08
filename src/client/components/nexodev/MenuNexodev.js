@@ -36,6 +36,7 @@ const MenuNexodev = {
     const heightTopBar = 50;
     const heightBottomBar = 50;
     const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
+    const barMode = 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -44,7 +45,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-blog',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-              text: html`${Translate.Render('blog')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
             }),
             attrs: `data-id="blog"`,
             tabHref: `${getProxyPath()}blog`,
@@ -54,7 +55,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-calendar',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
-              text: html`${Translate.Render('calendar')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
             }),
             attrs: `data-id="calendar"`,
             tabHref: `${getProxyPath()}calendar`,
@@ -64,7 +65,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-dashboard',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-chart-line"></i>`,
-              text: html`${Translate.Render('dashboard')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
             }),
             attrs: `data-id="dashboard"`,
             tabHref: `${getProxyPath()}dashboard`,
@@ -74,7 +75,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-stream',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-video"></i>`,
-              text: html`${Translate.Render('stream')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
             }),
             attrs: `data-id="stream"`,
             tabHref: `${getProxyPath()}stream`,
@@ -84,7 +85,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-docs',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
-              text: html`${Translate.Render('docs')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
             }),
             attrs: `data-id="docs"`,
             tabHref: `${getProxyPath()}docs`,
@@ -94,7 +95,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-content',
             label: renderMenuLabel({
               icon: html`<i class="far fa-file"></i>`,
-              text: html`${Translate.Render('content')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
             }),
             attrs: `data-id="content"`,
             tabHref: `${getProxyPath()}content`,
@@ -104,7 +105,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-cloud',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-cloud"></i>`,
-              text: html`${Translate.Render('cloud')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
             }),
             attrs: `data-id="cloud"`,
             tabHref: `${getProxyPath()}cloud`,
@@ -114,7 +115,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-chat',
             label: html`${renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
-              text: html`${Translate.Render('chat')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
             })}
             ${await Badge.Render({
               id: 'main-btn-chat',
@@ -130,7 +131,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-settings',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
-              text: html`${Translate.Render('settings')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
@@ -140,7 +141,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
-              text: html`${Translate.Render('home')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="home"`,
@@ -151,7 +152,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-log-in',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
-              text: html`${Translate.Render('log-in')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
@@ -161,7 +162,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-sign-up',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
-              text: html`${Translate.Render('sign-up')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
@@ -171,7 +172,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
-              text: html`${Translate.Render('log-out')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
             tabHref: `${getProxyPath()}log-out`,
@@ -182,7 +183,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-account',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
-              text: html`${Translate.Render('account')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="account"`,
@@ -193,7 +194,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
             label: renderMenuLabel({
               icon: html` <i class="fas fa-medkit"></i>`,
-              text: html`${Translate.Render('healthcare-appointment')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
             }),
             attrs: `data-id="healthcare-appointment"`,
             tabHref: `${getProxyPath()}healthcare-appointment`,
@@ -203,7 +204,7 @@ const MenuNexodev = {
             class: 'in wfa main-btn-menu main-btn-wallet',
             label: renderMenuLabel({
               icon: html` <i class="fas fa-wallet"></i>`,
-              text: html`${Translate.Render('wallet')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('wallet')}</span>`,
             }),
             attrs: `data-id="wallet"`,
             tabHref: `${getProxyPath()}wallet`,
@@ -215,7 +216,8 @@ const MenuNexodev = {
       title: NameApp,
       // titleClass: 'hide',
       // titleRender: () => '',
-      mode: 'slide-menu',
+      mode: 'slide-menu-right',
+      barMode,
       heightTopBar,
       heightBottomBar,
       titleRender: () => {
@@ -297,6 +299,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -318,6 +321,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -339,6 +343,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -360,6 +365,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -381,6 +387,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -407,6 +414,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -431,6 +439,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -455,6 +464,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -479,6 +489,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -512,6 +523,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -533,6 +545,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -555,6 +568,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -576,6 +590,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -597,6 +612,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
 
@@ -622,6 +638,7 @@ const MenuNexodev = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        barMode,
       });
     });
   },
