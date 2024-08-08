@@ -5,7 +5,7 @@ import { append, prepend, s } from './VanillaJs.js';
 
 const Badge = {
   Tokens: {},
-  Render: async function (options = { id: '', type: 'circle-red', classList: '' }) {
+  Render: async function (options = { id: '', type: 'circle-red', classList: '', text: '' }) {
     if (!options.id) options.id = getId(this.Tokens, 'badge-');
     else options.id = 'badge-' + options.id;
     if (!options.classList) options.classList = '';
@@ -23,7 +23,7 @@ const Badge = {
     }
 
     return html`<div class="badge wft ${options.classList} ${id}" style="${renderCssAttr(options)}">
-      <div class="badge-text">B</div>
+      <div class="badge-text">${options?.text ? options.text : 'B'}</div>
     </div>`;
   },
 };
