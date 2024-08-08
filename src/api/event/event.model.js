@@ -9,6 +9,7 @@ const EventSchema = new Schema(
       {
         notification: NotificationSchema,
         type: { type: String, enum: ['email', 'sms', 'push'] },
+        message: { type: String }, // Message | Title | Subject
         recipient: {
           userId: {
             type: Schema.Types.ObjectId,
@@ -22,8 +23,8 @@ const EventSchema = new Schema(
         readAt: { type: Date },
       },
     ],
-    message: { type: String, required: true }, // Title
-    type: { type: String, enum: ['error', 'warn', 'info', 'debug' /*test*/] },
+    description: { type: String, required: true },
+    tags: [{ type: String }],
     sender: {
       userId: {
         type: Schema.Types.ObjectId,
