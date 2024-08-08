@@ -21,6 +21,7 @@ import { Translate } from './Translate.js';
 import { Input } from './Input.js';
 import { Validator } from './Validator.js';
 import { DropDown } from './DropDown.js';
+import { Keyboard } from './Keyboard.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -411,6 +412,14 @@ const Modal = {
                     }px`;
                 };
                 Responsive.Event[`view-${id}`]();
+                Keyboard.instanceMultiPressKey({
+                  id: 'input-search-' + id,
+                  keys: [
+                    ['Shift', 'k'],
+                    ['Alt', 'k'],
+                  ],
+                  eventCallBack: () => (s(`.top-bar-search-box`) ? s(`.top-bar-search-box`).focus() : null),
+                });
               }
 
               {
