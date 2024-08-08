@@ -34,7 +34,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-home"></i>`,
-              text: html`${Translate.Render('home')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
             }),
             // style: 'display: none',
             attrs: `data-id="0"`,
@@ -45,7 +45,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-log-in',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
-              text: html`${Translate.Render('log-in')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
             }),
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
@@ -55,7 +55,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-sign-up',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
-              text: html`${Translate.Render('sign-up')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
             }),
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
@@ -65,7 +65,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-log-out',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-out-alt"></i>`,
-              text: html`${Translate.Render('log-out')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
             }),
             attrs: `data-id="log-out"`,
             style: 'display: none',
@@ -76,7 +76,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-account',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-circle"></i>`,
-              text: html`${Translate.Render('account')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
             }),
             style: 'display: none',
             attrs: `data-id="account"`,
@@ -87,7 +87,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-settings',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
-              text: html`${Translate.Render('settings')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
             }),
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
@@ -97,7 +97,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-server',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-server"></i>`,
-              text: html`${Translate.Render('server')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('server')}</span>`,
             }),
             attrs: `data-id="server"`,
             tabHref: `${getProxyPath()}server`,
@@ -107,7 +107,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-chat',
             label: renderMenuLabel({
               icon: html`<i class="far fa-comments"></i>`,
-              text: html`${Translate.Render('chat')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
             }),
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
@@ -117,7 +117,7 @@ const MenuCyberiaPortal = {
             class: 'in wfa main-btn-menu main-btn-admin hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-user-tie"></i>`,
-              text: html`${Translate.Render('admin')}`,
+              text: html`<span class="menu-label-text">${Translate.Render('admin')}</span>`,
             }),
             attrs: `data-id="admin"`,
             tabHref: `/admin`,
