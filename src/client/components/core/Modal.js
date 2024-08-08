@@ -290,6 +290,7 @@ const Modal = {
                     maximize: true,
                     heightBottomBar: 0,
                     heightTopBar: originHeightTopBar,
+                    barMode: options.barMode,
                   });
 
                   const titleNode = s(`.title-modal-${id}`).cloneNode(true);
@@ -382,6 +383,7 @@ const Modal = {
                   slideMenu: 'modal-menu',
                   heightTopBar: originHeightTopBar,
                   heightBottomBar: originHeightBottomBar,
+                  barMode: options.barMode,
                 });
                 const maxWidthInputSearchBox = 450;
                 const paddingInputSearchBox = 5;
@@ -507,6 +509,7 @@ const Modal = {
                     },
                     dragDisabled: true,
                     maximize: true,
+                    barMode: options.barMode,
                   });
                   Responsive.Event[`view-${id}`] = () => {
                     if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
@@ -595,6 +598,7 @@ const Modal = {
                   maximize: true,
                   heightTopBar: originHeightTopBar,
                   heightBottomBar: originHeightBottomBar,
+                  barMode: options.barMode,
                 });
 
                 Responsive.Event[`view-${id}`] = () => {
