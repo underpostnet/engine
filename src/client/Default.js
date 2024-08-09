@@ -12,6 +12,8 @@ import { TranslateDefault } from './components/default/TranslateDefault.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
+import { Keyboard } from './components/core/Keyboard.js';
+import { DefaultParams } from './components/default/CommonDefault.js';
 
 window.onload = () =>
   Worker.instance({
@@ -26,5 +28,6 @@ window.onload = () =>
       await LogOutDefault();
       await SignUpDefault();
       await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+      await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
     },
   });

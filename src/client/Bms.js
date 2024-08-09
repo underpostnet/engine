@@ -14,6 +14,8 @@ import { SocketIoBms } from './components/bms/SocketIoBms.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
+import { Keyboard } from './components/core/Keyboard.js';
+import { BmsParams } from './components/bms/CommonBms.js';
 
 window.onload = () =>
   Worker.instance({
@@ -29,5 +31,6 @@ window.onload = () =>
       await LogOutBms();
       await SignUpBms();
       await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+      await Keyboard.Init({ callBackTime: BmsParams.EVENT_CALLBACK_TIME });
     },
   });

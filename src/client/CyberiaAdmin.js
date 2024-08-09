@@ -12,6 +12,7 @@ import { RouterCyberiaAdmin } from './components/cyberia-admin/RoutesCyberiaAdmi
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCyberiaAdmin } from './components/cyberia-admin/SocketIoCyberiaAdmin.js';
 import { ElementsCyberiaAdmin } from './components/cyberia-admin/ElementsCyberiaAdmin.js';
+import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 
 window.onload = () =>
   Worker.instance({
@@ -27,5 +28,6 @@ window.onload = () =>
       await LogInCyberiaAdmin();
       await SignUpCyberiaAdmin();
       await LogOutCyberiaAdmin();
+      await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
     },
   });

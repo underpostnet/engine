@@ -10,6 +10,8 @@ import { MenuUnderpost } from './components/underpost/MenuUnderpost.js';
 import { RouterUnderpost } from './components/underpost/RoutesUnderpost.js';
 import { TranslateUnderpost } from './components/underpost/TranslateUnderpost.js';
 import { Worker } from './components/core/Worker.js';
+import { UnderpostParams } from './components/underpost/CommonUnderpost.js';
+import { Keyboard } from './components/core/Keyboard.js';
 
 window.onload = () =>
   Worker.instance({
@@ -23,5 +25,6 @@ window.onload = () =>
       await LogInUnderpost();
       await LogOutUnderpost();
       await SignUpUnderpost();
+      await Keyboard.Init({ callBackTime: UnderpostParams.EVENT_CALLBACK_TIME });
     },
   });

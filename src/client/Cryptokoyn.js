@@ -9,6 +9,8 @@ import { SignUpCryptokoyn } from './components/cryptokoyn/SignUpCryptokoyn.js';
 import { MenuCryptokoyn } from './components/cryptokoyn/MenuCryptokoyn.js';
 import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
 import { Worker } from './components/core/Worker.js';
+import { Keyboard } from './components/core/Keyboard.js';
+import { CryptokoynParams } from './components/cryptokoyn/CommonCryptokoyn.js';
 
 window.onload = () =>
   Worker.instance({
@@ -21,5 +23,6 @@ window.onload = () =>
       await LogInCryptokoyn();
       await LogOutCryptokoyn();
       await SignUpCryptokoyn();
+      await Keyboard.Init({ callBackTime: CryptokoynParams.EVENT_CALLBACK_TIME });
     },
   });

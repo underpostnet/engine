@@ -10,6 +10,8 @@ import { MenuDogmadual } from './components/dogmadual/MenuDogmadual.js';
 import { RouterDogmadual } from './components/dogmadual/RoutesDogmadual.js';
 import { CssDogmadualDark, CssDogmadualLight } from './components/dogmadual/CssDogmadual.js';
 import { Worker } from './components/core/Worker.js';
+import { Keyboard } from './components/core/Keyboard.js';
+import { DogmadualParams } from './components/dogmadual/CommonDogmadual.js';
 
 window.onload = () =>
   Worker.instance({
@@ -22,5 +24,6 @@ window.onload = () =>
       await LogInDogmadual();
       await LogOutDogmadual();
       await SignUpDogmadual();
+      await Keyboard.Init({ callBackTime: DogmadualParams.EVENT_CALLBACK_TIME });
     },
   });

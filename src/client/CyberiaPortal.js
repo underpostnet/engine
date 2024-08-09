@@ -14,6 +14,8 @@ import { CssCyberiaPortalDark, CssCyberiaPortalLight } from './components/cyberi
 import { SocketIoCyberiaPortal } from './components/cyberia-portal/SocketIoCyberiaPortal.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsCyberiaPortal } from './components/cyberia-portal/ElementsCyberiaPortal.js';
+import { Keyboard } from './components/core/Keyboard.js';
+import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 
 window.onload = () =>
   Worker.instance({
@@ -30,5 +32,6 @@ window.onload = () =>
       await LogOutCyberiaPortal();
       await SignUpCyberiaPortal();
       // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
+      await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
     },
   });
