@@ -2,7 +2,7 @@ import { append } from './VanillaJs.js';
 
 const ToolTip = {
   Tokens: {},
-  Render: async function (options = { container: '', htmlRender: '', id: '' }) {
+  Render: async function (options = { container: '', htmlRender: '', id: '', classList: '' }) {
     const { container, htmlRender, id } = options;
     const tooltipId = 'tooltip-' + id;
     append(
@@ -16,7 +16,7 @@ const ToolTip = {
             visibility: hidden;
           }
         </style>
-        <div class="${tooltipId}">${htmlRender}</div>
+        <div class="tooltip ${options?.classList ? `${options.classList} ` : ' '}${tooltipId}">${htmlRender}</div>
       `,
     );
     return '';

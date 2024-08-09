@@ -1,5 +1,6 @@
 import { getId, s4 } from './CommonJs.js';
 import { renderCssAttr } from './Css.js';
+import { ToolTip } from './ToolTip.js';
 import { s } from './VanillaJs.js';
 
 const BtnIcon = {
@@ -12,6 +13,7 @@ const BtnIcon = {
       attrs: '',
       label: '',
       tabHref: '',
+      tooltipHtml: '',
     },
   ) {
     const tokenId = getId(this.Tokens, 'btn-token-');
@@ -28,7 +30,7 @@ const BtnIcon = {
         </div>`
       : ''}`;
     let render = html`<button
-      ${options?.class ? `class="${options.class}"` : ''}
+      ${options?.class ? `class="${options.class} ${tokenId}"` : ''}
       ${options?.type ? `type="${options.type}"` : ''}
       ${options?.style ? `style="${options.style}"` : ''}
       ${options?.attrs ? `${options.attrs}` : ''}
@@ -43,6 +45,10 @@ const BtnIcon = {
           >`
         : label}
     </button>`;
+    if (options.tooltipHtml)
+      setTimeout(() => {
+        ToolTip.Render({ container: `.${tokenId}`, id: tokenId, htmlRender: options.tooltipHtml });
+      });
     return render;
   },
   // https://developer.mozilla.org/en-US/docs/Games/Techniques/Control_mechanisms/Mobile_touch

@@ -107,6 +107,14 @@ const Css = {
             width: -o-fit-content;
           }
 
+          .wfm {
+            width: max-content;
+            width: -webkit-max-content;
+            width: -moz-max-content;
+            width: -ms-max-content;
+            width: -o-max-content;
+          }
+
           .negative-color {
             filter: invert(1);
             -webkit-filter: invert(1);

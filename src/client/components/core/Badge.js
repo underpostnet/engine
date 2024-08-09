@@ -22,7 +22,7 @@ const Badge = {
         break;
     }
 
-    return html`<div class="badge wft ${options.classList} ${id}" style="${renderCssAttr(options)}">
+    return html`<div class="badge wfm ${options.classList} ${id}" style="${renderCssAttr(options)}">
       <div class="badge-text">${options?.text ? options.text : 'B'}</div>
     </div>`;
   },

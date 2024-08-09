@@ -132,7 +132,8 @@ const Modal = {
                 (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
               }px`,
               width: `${slideMenuWidth}px`,
-              'overflow-x': 'hidden',
+              // 'overflow-x': 'hidden',
+              // overflow: 'visible', // required for tooltip
               'z-index': 6,
               resize: 'none',
               top: `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`,
@@ -828,6 +829,9 @@ const Modal = {
             if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
               sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
               sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
+              sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
+              s(`.${idModal}`).style.overflow = 'visible';
+
               s(`.action-btn-center`).click();
               s(`.action-btn-center`).click();
             }
@@ -836,6 +840,9 @@ const Modal = {
             slideMenuWidth = originSlideMenuWidth;
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
             sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
+            sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
+            s(`.${idModal}`).style.overflow = null;
+
             s(`.action-btn-center`).click();
             s(`.action-btn-center`).click();
             if (options.onExtendMenu) options.onExtendMenu();
