@@ -13,6 +13,7 @@ import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoCyberiaAdmin } from './components/cyberia-admin/SocketIoCyberiaAdmin.js';
 import { ElementsCyberiaAdmin } from './components/cyberia-admin/ElementsCyberiaAdmin.js';
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
+import { Keyboard } from './components/core/Keyboard.js';
 
 window.onload = () =>
   Worker.instance({
