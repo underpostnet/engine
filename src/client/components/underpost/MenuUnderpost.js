@@ -5,7 +5,7 @@ import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
+import { Badge } from '../core/Badge.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -39,6 +40,7 @@ const MenuUnderpost = {
             attrs: `data-id="contracultura-cyberpunk"`,
             tabHref: `${getProxyPath()}contracultura-cyberpunk`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-lab-gallery',
@@ -50,6 +52,7 @@ const MenuUnderpost = {
             attrs: `data-id="lab-gallery"`,
             tabHref: `${getProxyPath()}lab-gallery`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
@@ -61,6 +64,7 @@ const MenuUnderpost = {
             attrs: `data-id="home"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -71,6 +75,7 @@ const MenuUnderpost = {
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -81,6 +86,7 @@ const MenuUnderpost = {
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
@@ -92,6 +98,7 @@ const MenuUnderpost = {
             style: 'display: none',
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
@@ -103,6 +110,7 @@ const MenuUnderpost = {
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
         </div>
       `,

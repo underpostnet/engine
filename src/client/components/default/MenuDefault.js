@@ -5,7 +5,7 @@ import { Css, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
@@ -13,6 +13,7 @@ import { ElementsDefault } from './ElementsDefault.js';
 import Sortable from 'sortablejs';
 import { RouterDefault } from './RoutesDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
+import { Badge } from '../core/Badge.js';
 
 const MenuDefault = {
   Data: {},
@@ -38,6 +39,7 @@ const MenuDefault = {
             attrs: `data-id="home"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -48,6 +50,7 @@ const MenuDefault = {
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -58,6 +61,7 @@ const MenuDefault = {
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
@@ -69,6 +73,7 @@ const MenuDefault = {
             style: 'display: none',
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
@@ -80,6 +85,7 @@ const MenuDefault = {
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -90,6 +96,7 @@ const MenuDefault = {
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
         </div>
       `,

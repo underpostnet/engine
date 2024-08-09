@@ -5,7 +5,7 @@ import { Css, Themes, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
@@ -24,6 +24,7 @@ import { SettingsBms } from './SettingsBms.js';
 import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Panel } from '../core/Panel.js';
+import { Badge } from '../core/Badge.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -50,6 +51,7 @@ const MenuBms = {
             attrs: `data-id="blog"`,
             tabHref: `${getProxyPath()}blog`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-calendar hide',
@@ -60,6 +62,7 @@ const MenuBms = {
             attrs: `data-id="calendar"`,
             tabHref: `${getProxyPath()}calendar`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-dashboard hide',
@@ -70,6 +73,7 @@ const MenuBms = {
             attrs: `data-id="dashboard"`,
             tabHref: `${getProxyPath()}dashboard`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-stream hide',
@@ -80,6 +84,7 @@ const MenuBms = {
             attrs: `data-id="stream"`,
             tabHref: `${getProxyPath()}stream`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-docs hide',
@@ -90,6 +95,7 @@ const MenuBms = {
             attrs: `data-id="docs"`,
             tabHref: `${getProxyPath()}docs`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-content hide',
@@ -100,6 +106,7 @@ const MenuBms = {
             attrs: `data-id="content"`,
             tabHref: `${getProxyPath()}content`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-cloud hide',
@@ -110,6 +117,7 @@ const MenuBms = {
             attrs: `data-id="cloud"`,
             tabHref: `${getProxyPath()}cloud`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-chat hide',
@@ -120,6 +128,7 @@ const MenuBms = {
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -130,6 +139,7 @@ const MenuBms = {
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
@@ -141,6 +151,7 @@ const MenuBms = {
             attrs: `data-id="home"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -151,6 +162,7 @@ const MenuBms = {
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -161,6 +173,7 @@ const MenuBms = {
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
@@ -171,6 +184,7 @@ const MenuBms = {
             attrs: `data-id="log-out"`,
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
@@ -183,6 +197,7 @@ const MenuBms = {
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
         </div>
       `,

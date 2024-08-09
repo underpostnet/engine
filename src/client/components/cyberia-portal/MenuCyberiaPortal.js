@@ -5,7 +5,7 @@ import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
@@ -15,6 +15,7 @@ import { RouterCyberiaPortal } from './RoutesCyberiaPortal.js';
 import { SettingsCyberiaPortal } from './SettingsCyberiaPortal.js';
 import { ServerCyberiaPortal } from './ServerCyberiaPortal.js';
 import { Chat } from '../core/Chat.js';
+import { Badge } from '../core/Badge.js';
 
 const MenuCyberiaPortal = {
   Data: {},
@@ -40,6 +41,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="0"`,
             tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -50,6 +52,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -60,6 +63,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
@@ -71,6 +75,7 @@ const MenuCyberiaPortal = {
             style: 'display: none',
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-account',
@@ -82,6 +87,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -92,6 +98,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-server',
@@ -102,6 +109,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="server"`,
             tabHref: `${getProxyPath()}server`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('server')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-chat',
@@ -112,6 +120,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-admin hide',
@@ -122,6 +131,7 @@ const MenuCyberiaPortal = {
             attrs: `data-id="admin"`,
             tabHref: `/admin`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('admin')),
           })}
         </div>
       `,

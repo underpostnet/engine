@@ -5,7 +5,7 @@ import { Css, ThemeEvents, Themes, darkTheme, renderCssAttr } from '../core/Css.
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
-import { Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
@@ -50,6 +50,7 @@ const MenuNexodev = {
             attrs: `data-id="blog"`,
             tabHref: `${getProxyPath()}blog`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-calendar',
@@ -60,6 +61,7 @@ const MenuNexodev = {
             attrs: `data-id="calendar"`,
             tabHref: `${getProxyPath()}calendar`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-dashboard',
@@ -70,6 +72,7 @@ const MenuNexodev = {
             attrs: `data-id="dashboard"`,
             tabHref: `${getProxyPath()}dashboard`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-stream',
@@ -80,6 +83,7 @@ const MenuNexodev = {
             attrs: `data-id="stream"`,
             tabHref: `${getProxyPath()}stream`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-docs',
@@ -90,6 +94,7 @@ const MenuNexodev = {
             attrs: `data-id="docs"`,
             tabHref: `${getProxyPath()}docs`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-content',
@@ -100,6 +105,7 @@ const MenuNexodev = {
             attrs: `data-id="content"`,
             tabHref: `${getProxyPath()}content`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-cloud',
@@ -110,6 +116,7 @@ const MenuNexodev = {
             attrs: `data-id="cloud"`,
             tabHref: `${getProxyPath()}cloud`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-chat',
@@ -126,6 +133,7 @@ const MenuNexodev = {
             attrs: `data-id="chat"`,
             tabHref: `${getProxyPath()}chat`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
@@ -136,6 +144,7 @@ const MenuNexodev = {
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
@@ -145,8 +154,9 @@ const MenuNexodev = {
             }),
             // style: 'display: none',
             attrs: `data-id="home"`,
-            tabHref: `${getProxyPath()}home`,
+            tabHref: `${getProxyPath()}`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-in',
@@ -157,6 +167,7 @@ const MenuNexodev = {
             attrs: `data-id="log-in"`,
             tabHref: `${getProxyPath()}log-in`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-sign-up',
@@ -167,6 +178,7 @@ const MenuNexodev = {
             attrs: `data-id="sign-up"`,
             tabHref: `${getProxyPath()}sign-up`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-log-out',
@@ -177,6 +189,7 @@ const MenuNexodev = {
             attrs: `data-id="log-out"`,
             tabHref: `${getProxyPath()}log-out`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out', 'right')),
             style: 'display: none',
           })}
           ${await BtnIcon.Render({
@@ -189,6 +202,7 @@ const MenuNexodev = {
             attrs: `data-id="account"`,
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
@@ -199,6 +213,7 @@ const MenuNexodev = {
             attrs: `data-id="healthcare-appointment"`,
             tabHref: `${getProxyPath()}healthcare-appointment`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-wallet',
@@ -209,6 +224,7 @@ const MenuNexodev = {
             attrs: `data-id="wallet"`,
             tabHref: `${getProxyPath()}wallet`,
             handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('wallet', 'right')),
           })}
         </div>
       `,

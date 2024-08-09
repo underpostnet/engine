@@ -829,8 +829,10 @@ const Modal = {
             if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
               sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
               sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
-              sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
-              s(`.${idModal}`).style.overflow = 'visible';
+              if (!Modal.mobileModal()) {
+                sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
+                s(`.${idModal}`).style.overflow = 'visible';
+              }
 
               s(`.action-btn-center`).click();
               s(`.action-btn-center`).click();
@@ -840,8 +842,10 @@ const Modal = {
             slideMenuWidth = originSlideMenuWidth;
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
             sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
-            sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
-            s(`.${idModal}`).style.overflow = null;
+            if (!Modal.mobileModal()) {
+              sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
+              s(`.${idModal}`).style.overflow = null;
+            }
 
             s(`.action-btn-center`).click();
             s(`.action-btn-center`).click();
@@ -1099,4 +1103,27 @@ const renderViewTitle = (options = { icon: '', img: '', text: '', assetFolder: '
     </div>`;
 };
 
-export { Modal, renderMenuLabel, renderViewTitle };
+const buildBadgeToolTipMenuOption = (id, sideKey = 'left') => {
+  const option = {
+    id: `tooltip-content-main-btn-${id}`,
+    text: `${Translate.Render(`${id}`)}`,
+    classList: 'tooltip-menu hide',
+    style: { top: `0px` },
+  };
+  switch (sideKey) {
+    case 'left':
+      option.style.left = '40px';
+
+      break;
+
+    case 'right':
+      option.style.right = '80px';
+      break;
+
+    default:
+      break;
+  }
+  return option;
+};
+
+export { Modal, renderMenuLabel, renderViewTitle, buildBadgeToolTipMenuOption };
