@@ -8,6 +8,7 @@ const Badge = {
   Render: async function (options = { id: '', type: 'circle-red', classList: '', text: '' }) {
     if (!options.id) options.id = getId(this.Tokens, 'badge-');
     else options.id = 'badge-' + options.id;
+    if (options && options.style && !options.style.color) options.style.color = 'white';
     if (!options.classList) options.classList = '';
 
     const { id, type } = options;

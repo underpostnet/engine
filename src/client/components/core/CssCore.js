@@ -57,7 +57,7 @@ const CssCommonCore = async () => {
         font-family: arial;
       }
       .badge-text {
-        color: white;
+        /* color: white; */
         padding: 3px 6px 0px 6px;
       }
       .badge-notification-circle-red {

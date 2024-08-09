@@ -22,6 +22,7 @@ import { Input } from './Input.js';
 import { Validator } from './Validator.js';
 import { DropDown } from './DropDown.js';
 import { Keyboard } from './Keyboard.js';
+import { Badge } from './Badge.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -228,12 +229,37 @@ const Modal = {
                   >
                     ${await Input.Render({
                       id: inputSearchBoxId,
-                      placeholder: Translate.Render('search', '.top-bar-search-box'), // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
+                      placeholder: Modal.mobileModal() ? Translate.Render('search', '.top-bar-search-box') : undefined, // html`<i class="fa-solid fa-magnifying-glass"></i> ${Translate.Render('search')}`,
                       placeholderIcon: html`<div
                         class="in fll"
                         style="width: ${originHeightTopBar}px; height: ${originHeightTopBar}px;"
                       >
                         <div class="abs center"><i class="fa-solid fa-magnifying-glass"></i></div>
+                        ${!Modal.mobileModal()
+                          ? html` <div
+                              class="inl wfm key-shortcut-container-info"
+                              style="${renderCssAttr({ style: { top: '10px', left: '60px' } })}"
+                            >
+                              ${await Badge.Render({
+                                id: 'shortcut-key-info-search',
+                                text: 'Shift',
+                                classList: 'inl',
+                                style: { 'z-index': 1 },
+                              })}
+                              ${await Badge.Render({
+                                id: 'shortcut-key-info-search',
+                                text: '+',
+                                classList: 'inl',
+                                style: { 'z-index': 1, background: 'none', color: '#5f5f5f' },
+                              })}
+                              ${await Badge.Render({
+                                id: 'shortcut-key-info-search',
+                                text: 'k',
+                                classList: 'inl',
+                                style: { 'z-index': 1 },
+                              })}
+                            </div>`
+                          : ''}
                       </div>`,
                       inputClass: 'in fll',
                       // containerClass: '',
@@ -255,6 +281,9 @@ const Modal = {
               const id = 'search-box-history';
               const searchBoxHistoryClose = () =>
                 setTimeout(() => {
+                  if (!Modal.mobileModal() && s(`.key-shortcut-container-info`) && !s(`.${inputSearchBoxId}`).value) {
+                    s(`.key-shortcut-container-info`).classList.remove('hide');
+                  }
                   if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) {
                     s(`.btn-close-${id}`).click();
                     s(`.action-btn-app-icon`).classList.remove('hide');
@@ -263,6 +292,9 @@ const Modal = {
                 });
 
               const searchBoxHistoryOpen = async () => {
+                if (!Modal.mobileModal() && s(`.key-shortcut-container-info`)) {
+                  s(`.key-shortcut-container-info`).classList.add('hide');
+                }
                 // in focus
 
                 if (!s(`.${id}`)) {
