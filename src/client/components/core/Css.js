@@ -810,7 +810,8 @@ const scrollBarLightRender = () => {
         ::-` +
         b +
         `-scrollbar {
-          width: 5px;
+          width: 5px;      
+          height: 5px; 
         }
 
         /* Track */
@@ -848,7 +849,8 @@ const scrollBarDarkRender = () => {
         b +
         `-scrollbar {
       width: 5px;
-      height: 5px;
+      height: 5px; 
+      /* line-height: 1em; */
     }
 
     /* Track */
