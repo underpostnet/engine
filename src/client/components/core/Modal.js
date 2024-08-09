@@ -271,7 +271,7 @@ const Modal = {
                   barConfig.buttons.minimize.disabled = true;
                   barConfig.buttons.restore.disabled = true;
                   barConfig.buttons.menu.disabled = true;
-                  barConfig.buttons.close.disabled = true;
+                  barConfig.buttons.close.disabled = false;
                   await Modal.Render({
                     id,
                     barConfig,
@@ -302,13 +302,6 @@ const Modal = {
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('in');
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('fll');
                   s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
-
-                  s(`.action-btn-app-icon`).classList.add('hide');
-                  s(`.action-btn-close`).classList.remove('hide');
-                  this.Data[id].onCloseListener[id] = () => {
-                    s(`.action-btn-app-icon`).classList.remove('hide');
-                    s(`.action-btn-close`).classList.add('hide');
-                  };
 
                   prepend(`.btn-bar-modal-container-${id}`, inputInfoNode.outerHTML);
                   const searchBoxValidator = await Validator.instance(formDataInfoNode);
