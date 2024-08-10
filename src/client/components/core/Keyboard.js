@@ -1,3 +1,5 @@
+import { cap, getId } from './CommonJs.js';
+
 const Keyboard = {
   ActiveKey: {},
   Event: {},
@@ -17,9 +19,13 @@ const Keyboard = {
       });
     }, callBackTime);
   },
+  instanceMultiPressKeyTokens: {},
   instanceMultiPressKey: (options = { keys: [], id, timePressDelay, eventCallBack: () => {} }) => {
+    if (typeof options.keys[0] === 'string') options.keys[0] = [options.keys[0]];
+    if (!options.id) options.id = getId(Keyboard.instanceMultiPressKeyTokens, 'key-press-');
     if (!options.timePressDelay) options.timePressDelay = 500;
     const { id, timePressDelay, keys, eventCallBack } = options;
+    Keyboard.instanceMultiPressKeyTokens[id] = { ...options };
 
     let indexCombined = -1;
     for (const combinedKeys of keys) {
@@ -52,6 +58,7 @@ const Keyboard = {
           multiPressKey[key].trigger;
         Keyboard.Event[`instanceMultiPressKey-${id}-${privateIndexCombined}`][key.toUpperCase()] =
           multiPressKey[key].trigger;
+        Keyboard.Event[`instanceMultiPressKey-${id}-${privateIndexCombined}`][cap(key)] = multiPressKey[key].trigger;
       }
     }
   },

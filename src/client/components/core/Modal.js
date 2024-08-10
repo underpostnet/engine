@@ -363,6 +363,7 @@ const Modal = {
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
 
+                  let currentKeyBoardSearchBoxIndex = 0;
                   const formDataInfoNode = [
                     {
                       model: 'search-box',
@@ -371,11 +372,13 @@ const Modal = {
                     },
                   ];
                   const searchBoxValidator = await Validator.instance(formDataInfoNode, async (validatorData) => {
+                    if (!s(`.html-${searchBoxHistoryId}`)) return;
                     const { model, id } = validatorData;
                     switch (model) {
                       case 'search-box':
                         {
                           htmls(`.html-${searchBoxHistoryId}`, '');
+                          currentKeyBoardSearchBoxIndex = 0;
                           const results = [];
                           const routerInstance = Worker.RouterInstance.Routes();
                           for (const _routerId of Object.keys(routerInstance)) {
@@ -425,14 +428,19 @@ const Modal = {
                                 }),
                               }),
                             );
-                          } else
+                          } else {
+                            let indexResult = -1;
                             for (const result of results) {
+                              indexResult++;
+
                               append(
                                 `.html-${searchBoxHistoryId}`,
                                 await BtnIcon.Render({
                                   label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
                                     ${Translate.Render(result.routerId)}`,
-                                  class: `wfa search-result-btn-${result.routerId}`,
+                                  class: `wfa search-result-btn-${result.routerId} ${
+                                    indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
+                                  } search-result-btn-${indexResult}`,
                                   style: renderCssAttr({
                                     style: { padding: '3px', margin: '2px', 'text-align': 'left' },
                                   }),
@@ -443,6 +451,65 @@ const Modal = {
                                 Modal.removeModal(searchBoxHistoryId);
                               };
                             }
+                            const timePressDelay = 100;
+
+                            Keyboard.instanceMultiPressKey({
+                              keys: ['ArrowDown'],
+                              eventCallBack: () => {
+                                console.error(1);
+                                if (s(`.${id}`)) {
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.remove(
+                                    'main-btn-menu-active',
+                                  );
+                                  if (currentKeyBoardSearchBoxIndex === results.length - 1)
+                                    currentKeyBoardSearchBoxIndex = -1;
+                                  currentKeyBoardSearchBoxIndex++;
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.add(
+                                    'main-btn-menu-active',
+                                  );
+                                }
+                              },
+                              timePressDelay,
+                            });
+
+                            Keyboard.instanceMultiPressKey({
+                              keys: ['ArrowUp'],
+                              eventCallBack: () => {
+                                console.error(2);
+                                if (s(`.${id}`)) {
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.remove(
+                                    'main-btn-menu-active',
+                                  );
+                                  if (currentKeyBoardSearchBoxIndex === 0)
+                                    currentKeyBoardSearchBoxIndex = results.length;
+                                  currentKeyBoardSearchBoxIndex--;
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.add(
+                                    'main-btn-menu-active',
+                                  );
+                                }
+                              },
+                              timePressDelay,
+                            });
+
+                            Keyboard.instanceMultiPressKey({
+                              keys: ['Enter'],
+                              eventCallBack: () => {
+                                if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
+                                }
+                              },
+                              timePressDelay,
+                            });
+                            Keyboard.instanceMultiPressKey({
+                              keys: ['Tab'],
+                              eventCallBack: () => {
+                                if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
+                                }
+                              },
+                              timePressDelay,
+                            });
+                          }
                         }
                         break;
 
@@ -687,6 +754,12 @@ const Modal = {
                 };
                 s(`.action-btn-home`).onclick = () => s(`.main-btn-home`).click();
                 s(`.action-btn-app-icon`).onclick = () => s(`.action-btn-home`).click();
+                Keyboard.instanceMultiPressKey({
+                  keys: ['Escape'],
+                  eventCallBack: () => {
+                    if (s(`.main-btn-home`)) s(`.main-btn-home`).click();
+                  },
+                });
               }
 
               {
