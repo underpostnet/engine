@@ -277,7 +277,25 @@ const Modal = {
               let hoverHistBox = false;
               let hoverInputBox = false;
               const id = 'search-box-history';
-              const searchBoxHistoryClose = () =>
+              const searchBoxHistoryId = id;
+              const renderRecentContent = () => {
+                htmls(`.html-${searchBoxHistoryId}`, '&nbsp &nbsp. . .');
+              };
+              const checkHistoryBoxTitleStatus = () => {
+                setTimeout(() => {
+                  if (!s(`.${inputSearchBoxId}`).value) {
+                    s(`.search-box-result-title`).classList.add('hide');
+                    s(`.search-box-recent-title`).classList.remove('hide');
+                    renderRecentContent();
+                  } else {
+                    s(`.search-box-recent-title`).classList.add('hide');
+                    s(`.search-box-result-title`).classList.remove('hide');
+                  }
+                });
+              };
+
+              const searchBoxHistoryClose = () => {
+                checkHistoryBoxTitleStatus();
                 setTimeout(() => {
                   if (!Modal.mobileModal() && s(`.key-shortcut-container-info`) && !s(`.${inputSearchBoxId}`).value) {
                     s(`.key-shortcut-container-info`).classList.remove('hide');
@@ -288,8 +306,10 @@ const Modal = {
                     s(`.action-btn-close`).classList.add('hide');
                   }
                 });
+              };
 
               const searchBoxHistoryOpen = async () => {
+                checkHistoryBoxTitleStatus();
                 if (!Modal.mobileModal() && s(`.key-shortcut-container-info`)) {
                   s(`.key-shortcut-container-info`).classList.add('hide');
                 }
@@ -305,10 +325,18 @@ const Modal = {
                   await Modal.Render({
                     id,
                     barConfig,
-                    title: renderViewTitle({
-                      icon: html`<i class="fas fa-history mini-title"></i>`,
-                      text: Translate.Render('Recent'),
-                    }),
+                    title: html`<div class="search-box-recent-title">
+                        ${renderViewTitle({
+                          icon: html`<i class="fas fa-history mini-title"></i>`,
+                          text: Translate.Render('recent'),
+                        })}
+                      </div>
+                      <div class="search-box-result-title hide">
+                        ${renderViewTitle({
+                          icon: html`<i class="far fa-list-alt mini-title"></i>`,
+                          text: Translate.Render('results'),
+                        })}
+                      </div>`,
                     html: () => html``,
                     titleClass: 'mini-title',
                     style: {
@@ -342,7 +370,6 @@ const Modal = {
                       rules: [{ type: 'onchange' }] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                     },
                   ];
-                  const searchBoxHistoryId = id;
                   const searchBoxValidator = await Validator.instance(formDataInfoNode, async (validatorData) => {
                     const { model, id } = validatorData;
                     switch (model) {
@@ -377,24 +404,38 @@ const Modal = {
                               }
                             }
                           }
-
-                          for (const result of results) {
+                          checkHistoryBoxTitleStatus();
+                          if (results.length === 0) {
                             append(
                               `.html-${searchBoxHistoryId}`,
                               await BtnIcon.Render({
-                                label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
-                                  ${Translate.Render(result.routerId)}`,
-                                class: `wfa search-result-btn-${result.routerId}`,
+                                label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(
+                                    'no-result-found',
+                                  )}`,
+                                class: `wfa`,
                                 style: renderCssAttr({
-                                  style: { padding: '3px', margin: '2px', 'text-align': 'left' },
+                                  style: { padding: '3px', margin: '2px', 'text-align': 'center', border: 'none' },
                                 }),
                               }),
                             );
-                            s(`.search-result-btn-${result.routerId}`).onclick = () => {
-                              s(`.main-btn-${result.routerId}`).click();
-                              Modal.removeModal(searchBoxHistoryId);
-                            };
-                          }
+                          } else
+                            for (const result of results) {
+                              append(
+                                `.html-${searchBoxHistoryId}`,
+                                await BtnIcon.Render({
+                                  label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
+                                    ${Translate.Render(result.routerId)}`,
+                                  class: `wfa search-result-btn-${result.routerId}`,
+                                  style: renderCssAttr({
+                                    style: { padding: '3px', margin: '2px', 'text-align': 'left' },
+                                  }),
+                                }),
+                              );
+                              s(`.search-result-btn-${result.routerId}`).onclick = () => {
+                                s(`.main-btn-${result.routerId}`).click();
+                                Modal.removeModal(searchBoxHistoryId);
+                              };
+                            }
                         }
                         break;
 

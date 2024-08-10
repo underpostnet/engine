@@ -190,6 +190,12 @@ const TranslateCore = {
 
     Translate.Data['add'] = { es: 'Agregar', en: 'Add' };
     Translate.Data['mode'] = { es: 'Modo', en: 'Mode' };
+    Translate.Data['result'] = { es: 'Resultado', en: 'Result' };
+    Translate.Data['results'] = { es: 'Resultados', en: 'Results' };
+    Translate.Data['no-result-found'] = {
+      es: 'No se encontraron resultados',
+      en: 'No results found',
+    };
 
     Translate.Data = {
       ...Translate.Data,
