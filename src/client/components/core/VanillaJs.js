@@ -337,6 +337,33 @@ const isNavigator = (name) => navigator.userAgent.toLowerCase().match(name.toLow
  */
 const getTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
+/**
+ * The function `getAllChildNodes` recursively retrieves all child nodes of a given parent node in a
+ * tree-like structure.
+ * @param node - The `node` parameter in the `getAllChildNodes` function is the starting node from
+ * which you want to retrieve all child nodes recursively.
+ * @returns The `getAllChildNodes` function returns an array containing all the child nodes of the
+ * input `node`, including nested child nodes.
+ */
+function getAllChildNodes(node) {
+  const allNodes = [];
+
+  function traverse(node) {
+    if (node.childNodes.length === 0) {
+      return;
+    }
+
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i];
+      allNodes.push(child);
+      traverse(child);
+    }
+  }
+
+  traverse(node);
+  return allNodes;
+}
+
 export {
   s,
   htmls,
@@ -360,4 +387,5 @@ export {
   getBlobFromUint8ArrayFile,
   isNavigator,
   getTimeZone,
+  getAllChildNodes,
 };
