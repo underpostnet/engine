@@ -199,6 +199,7 @@ const TranslateCore = {
       es: 'No se encontraron resultados',
       en: 'No results found',
     };
+    Translate.Data['recent'] = { es: 'Reciente', en: 'recent' };
 
     Translate.Data = {
       ...Translate.Data,
