@@ -12,7 +12,7 @@ const Validator = {
       <span style="color: red">${Translate.Render(rule.type)}</span>
     </div>`;
   },
-  instance: function (validators) {
+  instance: function (validators, callBack = (value) => {}) {
     const validatorFunction = {};
     for (const validatorData of validators) {
       validatorFunction[validatorData.id] = async () => {
@@ -46,6 +46,7 @@ const Validator = {
                 break;
             }
           }
+        if (callBack && typeof callBack === 'function') callBack(validatorData);
         if (s(`.input-info-${validatorData.id}`)) {
           if (!errorMessage) {
             if (s(`.${validatorData.id}`).value)

@@ -268,9 +268,6 @@ const Modal = {
                 </div>
               </div>`,
             );
-            const formDataInfoNode = [
-              { model: 'search-box', id: inputSearchBoxId, rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/ },
-            ];
             s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
             htmls(`.input-info-${inputSearchBoxId}`, '');
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
@@ -336,7 +333,27 @@ const Modal = {
                   s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
 
                   prepend(`.btn-bar-modal-container-${id}`, inputInfoNode.outerHTML);
-                  const searchBoxValidator = await Validator.instance(formDataInfoNode);
+
+                  const formDataInfoNode = [
+                    {
+                      model: 'search-box',
+                      id: inputSearchBoxId,
+                      rules: [{ type: 'onchange' }] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
+                    },
+                  ];
+
+                  const searchBoxValidator = await Validator.instance(formDataInfoNode, (validatorData) => {
+                    const { model, id } = validatorData;
+                    switch (model) {
+                      case 'search-box':
+                        console.warn(s(`.${id}`).value);
+
+                        break;
+
+                      default:
+                        break;
+                    }
+                  });
 
                   s('.top-bar-search-box').onblur = searchBoxHistoryClose;
                   s(`.top-bar-search-box-container`).onmouseover = () => {
