@@ -1,6 +1,6 @@
 import { getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
-import { append, s, prepend, setPath, getProxyPath, htmls, sa } from './VanillaJs.js';
+import { append, s, prepend, setPath, getProxyPath, htmls, sa, getAllChildNodes } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Responsive } from './Responsive.js';
 import { loggerFactory } from './Logger.js';
@@ -23,6 +23,7 @@ import { Validator } from './Validator.js';
 import { DropDown } from './DropDown.js';
 import { Keyboard } from './Keyboard.js';
 import { Badge } from './Badge.js';
+import { Worker } from './Worker.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -341,13 +342,54 @@ const Modal = {
                       rules: [{ type: 'onchange' }] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                     },
                   ];
-
-                  const searchBoxValidator = await Validator.instance(formDataInfoNode, (validatorData) => {
+                  const searchBoxHistoryId = id;
+                  const searchBoxValidator = await Validator.instance(formDataInfoNode, async (validatorData) => {
                     const { model, id } = validatorData;
                     switch (model) {
                       case 'search-box':
-                        console.warn(s(`.${id}`).value);
+                        {
+                          htmls(`.html-${searchBoxHistoryId}`, '');
+                          const results = [];
+                          const routerInstance = Worker.RouterInstance.Routes();
+                          for (const _routerId of Object.keys(routerInstance)) {
+                            const routerId = _routerId.slice(1);
+                            if (routerId) {
+                              if (
+                                s(`.main-btn-${routerId}`) &&
+                                routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase())
+                              ) {
+                                const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
+                                  return (
+                                    e.classList &&
+                                    Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'))
+                                  );
+                                });
+                                results.push({
+                                  routerId,
+                                  fontAwesomeIcon: fontAwesomeIcon,
+                                });
+                              }
+                            }
+                          }
 
+                          for (const result of results) {
+                            append(
+                              `.html-${searchBoxHistoryId}`,
+                              await BtnIcon.Render({
+                                label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
+                                  ${result.routerId}`,
+                                class: `wfa search-result-btn-${result.routerId}`,
+                                style: renderCssAttr({
+                                  style: { padding: '3px', margin: '2px', 'text-align': 'left' },
+                                }),
+                              }),
+                            );
+                            s(`.search-result-btn-${result.routerId}`).onclick = () => {
+                              s(`.main-btn-${result.routerId}`).click();
+                              Modal.removeModal(searchBoxHistoryId);
+                            };
+                          }
+                        }
                         break;
 
                       default:
