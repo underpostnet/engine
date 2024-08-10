@@ -361,13 +361,13 @@ const Modal = {
                   s(`.btn-bar-modal-container-render-${id}`).classList.add('fll');
                   s(`.btn-bar-modal-container-render-${id}`).appendChild(titleNode);
 
-                  prepend(`.btn-bar-modal-container-${id}`, inputInfoNode.outerHTML);
+                  prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
 
                   const formDataInfoNode = [
                     {
                       model: 'search-box',
                       id: inputSearchBoxId,
-                      rules: [{ type: 'onchange' }] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
+                      rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                     },
                   ];
                   const searchBoxValidator = await Validator.instance(formDataInfoNode, async (validatorData) => {
@@ -414,7 +414,14 @@ const Modal = {
                                   )}`,
                                 class: `wfa`,
                                 style: renderCssAttr({
-                                  style: { padding: '3px', margin: '2px', 'text-align': 'center', border: 'none' },
+                                  style: {
+                                    padding: '3px',
+                                    margin: '2px',
+                                    'text-align': 'center',
+                                    border: 'none',
+                                    cursor: 'default',
+                                    background: 'none !important',
+                                  },
                                 }),
                               }),
                             );
