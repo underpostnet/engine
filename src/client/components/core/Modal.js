@@ -356,7 +356,13 @@ const Modal = {
                             if (routerId) {
                               if (
                                 s(`.main-btn-${routerId}`) &&
-                                routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase())
+                                (routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase()) ||
+                                  (Translate.Data[routerId] &&
+                                    Object.keys(Translate.Data[routerId]).filter((keyLang) =>
+                                      Translate.Data[routerId][keyLang]
+                                        .toLocaleLowerCase()
+                                        .match(s(`.${id}`).value.toLocaleLowerCase()),
+                                    ).length > 0))
                               ) {
                                 const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
                                   return (
@@ -377,7 +383,7 @@ const Modal = {
                               `.html-${searchBoxHistoryId}`,
                               await BtnIcon.Render({
                                 label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
-                                  ${result.routerId}`,
+                                  ${Translate.Render(result.routerId)}`,
                                 class: `wfa search-result-btn-${result.routerId}`,
                                 style: renderCssAttr({
                                   style: { padding: '3px', margin: '2px', 'text-align': 'left' },
