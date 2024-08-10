@@ -1,9 +1,11 @@
-import { newInstance, getId } from './CommonJs.js';
+import { newInstance, getId, cap } from './CommonJs.js';
 import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
 import { s, htmls } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
+
+const textFormatted = (str = '&nbsp &nbsp . . .') => cap(str);
 
 const Translate = {
   Data: {},
@@ -13,9 +15,9 @@ const Translate = {
     Object.keys(this.Token).map((translateHash) => {
       if (translateHash in this.Token && lang in this.Token[translateHash]) {
         if (!('placeholder' in this.Token[translateHash]) && s(`.${translateHash}`))
-          htmls(`.${translateHash}`, this.Token[translateHash][lang]);
+          htmls(`.${translateHash}`, textFormatted(this.Token[translateHash][lang]));
         else if ('placeholder' in this.Token[translateHash] && s(this.Token[translateHash].placeholder))
-          s(this.Token[translateHash].placeholder).placeholder = this.Token[translateHash][lang];
+          s(this.Token[translateHash].placeholder).placeholder = textFormatted(this.Token[translateHash][lang]);
       }
     });
   },
@@ -23,18 +25,19 @@ const Translate = {
     if (!(keyLang in this.Data)) {
       // TODO: add translate package or library for this case
       logger.warn('translate key lang does not exist: ', keyLang);
-      return keyLang;
+      return textFormatted(keyLang);
     }
     if (placeholder) this.Data[keyLang].placeholder = placeholder;
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
     this.Token[translateHash] = newInstance(keyLang);
     if ('placeholder' in keyLang) {
-      if (s('html').lang in keyLang) return keyLang[s('html').lang];
-      return keyLang['en'];
+      if (s('html').lang in keyLang) return textFormatted(keyLang[s('html').lang]);
+      return textFormatted(keyLang['en']);
     }
-    if (s('html').lang in keyLang) return html`<span class="${translateHash}">${keyLang[s('html').lang]}</span>`;
-    return html`<span class="${translateHash}">${keyLang['en']}</span>`;
+    if (s('html').lang in keyLang)
+      return html`<span class="${translateHash}">${textFormatted(keyLang[s('html').lang])}</span>`;
+    return html`<span class="${translateHash}">${textFormatted(keyLang['en'])}</span>`;
   },
   renderLang: function (language) {
     localStorage.setItem('lang', language);
