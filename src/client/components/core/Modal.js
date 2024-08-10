@@ -372,6 +372,31 @@ const Modal = {
                       rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                     },
                   ];
+                  const setSearchValue = (selector) => {
+                    if (!selector) selector = `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
+
+                    if (s(selector).childNodes) {
+                      if (
+                        s(selector).childNodes[s(selector).childNodes.length - 1] &&
+                        s(selector).childNodes[s(selector).childNodes.length - 1].data &&
+                        s(selector).childNodes[s(selector).childNodes.length - 1].data.trim()
+                      ) {
+                        s(`.${inputSearchBoxId}`).value =
+                          s(selector).childNodes[s(selector).childNodes.length - 1].data.trim();
+                        return;
+                      }
+
+                      if (
+                        s(selector).childNodes[s(selector).childNodes.length - 2] &&
+                        s(selector).childNodes[s(selector).childNodes.length - 2].outerText &&
+                        s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim()
+                      ) {
+                        s(`.${inputSearchBoxId}`).value =
+                          s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim();
+                        return;
+                      }
+                    }
+                  };
                   const searchBoxCallBack = async (validatorData) => {
                     if (!s(`.html-${searchBoxHistoryId}`)) return;
                     const { model, id } = validatorData;
@@ -456,6 +481,7 @@ const Modal = {
                                 }),
                               );
                               s(`.search-result-btn-${result.routerId}`).onclick = () => {
+                                setSearchValue(`.search-result-btn-${result.routerId}`);
                                 s(`.main-btn-${result.routerId}`).click();
                                 Modal.removeModal(searchBoxHistoryId);
                               };
@@ -540,6 +566,7 @@ const Modal = {
                     keys: ['Enter'],
                     eventCallBack: () => {
                       if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                        setSearchValue();
                         s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
                         s(`.${inputSearchBoxId}`).blur();
                       }
@@ -551,6 +578,7 @@ const Modal = {
                     keys: ['Tab'],
                     eventCallBack: () => {
                       if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                        setSearchValue();
                         s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
                         s(`.${inputSearchBoxId}`).blur();
                       }
