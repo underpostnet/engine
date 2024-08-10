@@ -1,4 +1,4 @@
-import { getId, newInstance } from './CommonJs.js';
+import { cap, getId, newInstance } from './CommonJs.js';
 import { Draggable } from '@neodrag/vanilla';
 import { append, s, prepend, setPath, getProxyPath, htmls, sa, getAllChildNodes } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
@@ -283,6 +283,7 @@ const Modal = {
               };
               const checkHistoryBoxTitleStatus = () => {
                 setTimeout(() => {
+                  if (!s(`.search-box-result-title`) || !s(`.search-box-result-title`)) return;
                   if (!s(`.${inputSearchBoxId}`).value) {
                     s(`.search-box-result-title`).classList.add('hide');
                     s(`.search-box-recent-title`).classList.remove('hide');
@@ -371,14 +372,22 @@ const Modal = {
                       rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
                     },
                   ];
-                  const searchBoxValidator = await Validator.instance(formDataInfoNode, async (validatorData) => {
+                  const searchBoxCallBack = async (validatorData) => {
                     if (!s(`.html-${searchBoxHistoryId}`)) return;
                     const { model, id } = validatorData;
                     switch (model) {
                       case 'search-box':
                         {
                           htmls(`.html-${searchBoxHistoryId}`, '');
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                              `main-btn-menu-active`,
+                            );
                           currentKeyBoardSearchBoxIndex = 0;
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                              `main-btn-menu-active`,
+                            );
                           const results = [];
                           const routerInstance = Worker.RouterInstance.Routes();
                           for (const _routerId of Object.keys(routerInstance)) {
@@ -451,64 +460,6 @@ const Modal = {
                                 Modal.removeModal(searchBoxHistoryId);
                               };
                             }
-                            const timePressDelay = 100;
-
-                            Keyboard.instanceMultiPressKey({
-                              keys: ['ArrowDown'],
-                              eventCallBack: () => {
-                                console.error(1);
-                                if (s(`.${id}`)) {
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.remove(
-                                    'main-btn-menu-active',
-                                  );
-                                  if (currentKeyBoardSearchBoxIndex === results.length - 1)
-                                    currentKeyBoardSearchBoxIndex = -1;
-                                  currentKeyBoardSearchBoxIndex++;
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.add(
-                                    'main-btn-menu-active',
-                                  );
-                                }
-                              },
-                              timePressDelay,
-                            });
-
-                            Keyboard.instanceMultiPressKey({
-                              keys: ['ArrowUp'],
-                              eventCallBack: () => {
-                                console.error(2);
-                                if (s(`.${id}`)) {
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.remove(
-                                    'main-btn-menu-active',
-                                  );
-                                  if (currentKeyBoardSearchBoxIndex === 0)
-                                    currentKeyBoardSearchBoxIndex = results.length;
-                                  currentKeyBoardSearchBoxIndex--;
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).classList.add(
-                                    'main-btn-menu-active',
-                                  );
-                                }
-                              },
-                              timePressDelay,
-                            });
-
-                            Keyboard.instanceMultiPressKey({
-                              keys: ['Enter'],
-                              eventCallBack: () => {
-                                if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
-                                }
-                              },
-                              timePressDelay,
-                            });
-                            Keyboard.instanceMultiPressKey({
-                              keys: ['Tab'],
-                              eventCallBack: () => {
-                                if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
-                                  s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
-                                }
-                              },
-                              timePressDelay,
-                            });
                           }
                         }
                         break;
@@ -516,6 +467,95 @@ const Modal = {
                       default:
                         break;
                     }
+                  };
+                  if (!s(`.search-box-recent-title`).classList.contains('hide')) searchBoxCallBack(formDataInfoNode[0]);
+                  const searchBoxValidator = await Validator.instance(formDataInfoNode, searchBoxCallBack);
+
+                  const timePressDelay = 100;
+
+                  Keyboard.instanceMultiPressKey({
+                    id: 'input-search-shortcut-ArrowUp',
+                    keys: ['ArrowUp'],
+                    eventCallBack: () => {
+                      if (
+                        s(`.${id}`) &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex - 1]
+                      ) {
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                          `main-btn-menu-active`,
+                        );
+                        currentKeyBoardSearchBoxIndex--;
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                          `main-btn-menu-active`,
+                        );
+                      } else {
+                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                            `main-btn-menu-active`,
+                          );
+                        currentKeyBoardSearchBoxIndex = s(`.html-${searchBoxHistoryId}`).childNodes.length - 1;
+                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                            `main-btn-menu-active`,
+                          );
+                      }
+                    },
+                    timePressDelay,
+                  });
+
+                  Keyboard.instanceMultiPressKey({
+                    id: 'input-search-shortcut-ArrowDown',
+                    keys: ['ArrowDown'],
+                    eventCallBack: () => {
+                      if (
+                        s(`.${id}`) &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex + 1]
+                      ) {
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                          `main-btn-menu-active`,
+                        );
+                        currentKeyBoardSearchBoxIndex++;
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                          `main-btn-menu-active`,
+                        );
+                      } else {
+                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                            `main-btn-menu-active`,
+                          );
+                        currentKeyBoardSearchBoxIndex = 0;
+                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                            `main-btn-menu-active`,
+                          );
+                      }
+                    },
+                    timePressDelay,
+                  });
+
+                  Keyboard.instanceMultiPressKey({
+                    id: 'input-search-shortcut-Enter',
+                    keys: ['Enter'],
+                    eventCallBack: () => {
+                      if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                        s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
+                        s(`.${inputSearchBoxId}`).blur();
+                      }
+                    },
+                    timePressDelay,
+                  });
+                  Keyboard.instanceMultiPressKey({
+                    id: 'input-search-shortcut-Tab',
+                    keys: ['Tab'],
+                    eventCallBack: () => {
+                      if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
+                        s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
+                        s(`.${inputSearchBoxId}`).blur();
+                      }
+                    },
+                    timePressDelay,
                   });
 
                   s('.top-bar-search-box').onblur = searchBoxHistoryClose;
@@ -619,12 +659,17 @@ const Modal = {
                 };
                 Responsive.Event[`view-${id}`]();
                 Keyboard.instanceMultiPressKey({
-                  id: 'input-search-' + id,
+                  id: 'input-search-shortcut-k',
                   keys: [
                     ['Shift', 'k'],
                     ['Alt', 'k'],
                   ],
-                  eventCallBack: () => (s(`.top-bar-search-box`) ? s(`.top-bar-search-box`).focus() : null),
+                  eventCallBack: () => {
+                    if (s(`.top-bar-search-box`)) {
+                      s(`.top-bar-search-box`).focus();
+                      s(`.top-bar-search-box`).select();
+                    }
+                  },
                 });
               }
 
@@ -755,9 +800,12 @@ const Modal = {
                 s(`.action-btn-home`).onclick = () => s(`.main-btn-home`).click();
                 s(`.action-btn-app-icon`).onclick = () => s(`.action-btn-home`).click();
                 Keyboard.instanceMultiPressKey({
+                  id: 'input-shortcut-global-escape',
                   keys: ['Escape'],
                   eventCallBack: () => {
-                    if (s(`.main-btn-home`)) s(`.main-btn-home`).click();
+                    // if (s(`.main-btn-home`)) s(`.main-btn-home`).click();
+
+                    if (s(`.btn-close-${this.currentTopModalId}`)) s(`.btn-close-${this.currentTopModalId}`).click();
                   },
                 });
               }
@@ -1133,7 +1181,7 @@ const Modal = {
                   newPath = `${newPath}${this.Data[subIdModal].options.route}`;
                   // console.warn('SET MODAL URI', newPath);
                   setPath(newPath);
-                  s(`.${subIdModal}`).style.zIndex = '4';
+                  this.setTopModalCallback(subIdModal);
                   return setDocTitle({ ...options.RouterInstance, route: this.Data[subIdModal].options.route });
                 }
               }
@@ -1253,6 +1301,7 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
+  currentTopModalId: '',
   zIndexSync: function ({ idModal }) {
     setTimeout(() => {
       const cleanTopModal = () => {
@@ -1261,8 +1310,9 @@ const Modal = {
         });
       };
       const setTopModal = () => {
-        if (s(`.${idModal}`)) s(`.${idModal}`).style.zIndex = '4';
-        else setTimeout(setTopModal, 100);
+        if (s(`.${idModal}`)) {
+          this.setTopModalCallback(idModal);
+        } else setTimeout(setTopModal, 100);
       };
       cleanTopModal();
       setTopModal();
@@ -1274,6 +1324,10 @@ const Modal = {
         }
       };
     });
+  },
+  setTopModalCallback: function (idModal) {
+    s(`.${idModal}`).style.zIndex = '4';
+    this.currentTopModalId = `${idModal}`;
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),
