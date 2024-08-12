@@ -364,6 +364,14 @@ function getAllChildNodes(node) {
   return allNodes;
 }
 
+const getCurrentTrace = () => {
+  try {
+    _stack;
+  } catch (error) {
+    return error.stack.split('is not defined')[1];
+  }
+};
+
 export {
   s,
   htmls,
@@ -388,4 +396,5 @@ export {
   isNavigator,
   getTimeZone,
   getAllChildNodes,
+  getCurrentTrace,
 };
