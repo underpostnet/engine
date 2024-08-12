@@ -274,20 +274,28 @@ const Modal = {
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
             s(`.input-info-${inputSearchBoxId}`).remove();
             {
-              let hoverHistBox = false;
-              let hoverInputBox = false;
               const id = 'search-box-history';
               const searchBoxHistoryId = id;
-              const renderRecentContent = () => {
-                htmls(`.html-${searchBoxHistoryId}`, '&nbsp &nbsp. . .');
-              };
+              let hoverHistBox = false;
+              let hoverInputBox = false;
+              let currentKeyBoardSearchBoxIndex = 0;
+              let results = [];
+              let historySearchBox = [];
+              const formDataInfoNode = [
+                {
+                  model: 'search-box',
+                  id: inputSearchBoxId,
+                  rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
+                },
+              ];
+
               const checkHistoryBoxTitleStatus = () => {
                 setTimeout(() => {
                   if (!s(`.search-box-result-title`) || !s(`.search-box-result-title`)) return;
                   if (!s(`.${inputSearchBoxId}`).value) {
                     s(`.search-box-result-title`).classList.add('hide');
                     s(`.search-box-recent-title`).classList.remove('hide');
-                    renderRecentContent();
+                    renderSearchResult(historySearchBox);
                   } else {
                     s(`.search-box-recent-title`).classList.add('hide');
                     s(`.search-box-result-title`).classList.remove('hide');
@@ -308,7 +316,148 @@ const Modal = {
                   }
                 });
               };
+              const renderSearchResult = async (results) => {
+                htmls(`.html-${searchBoxHistoryId}`, '');
+                let indexResult = -1;
+                for (const result of results) {
+                  indexResult++;
 
+                  append(
+                    `.html-${searchBoxHistoryId}`,
+                    await BtnIcon.Render({
+                      label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i> ${Translate.Render(
+                          result.routerId,
+                        )}`,
+                      class: `wfa search-result-btn-${result.routerId} ${
+                        indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
+                      } search-result-btn-${indexResult}`,
+                      style: renderCssAttr({
+                        style: { padding: '3px', margin: '2px', 'text-align': 'left' },
+                      }),
+                    }),
+                  );
+                  s(`.search-result-btn-${result.routerId}`).onclick = () => {
+                    setSearchValue(`.search-result-btn-${result.routerId}`);
+                    s(`.main-btn-${result.routerId}`).click();
+                    Modal.removeModal(searchBoxHistoryId);
+                  };
+                }
+              };
+              const searchBoxCallBack = async (validatorData) => {
+                if (!s(`.html-${searchBoxHistoryId}`)) return;
+                const { model, id } = validatorData;
+                switch (model) {
+                  case 'search-box':
+                    {
+                      if (
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList
+                      )
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                          `main-btn-menu-active`,
+                        );
+                      currentKeyBoardSearchBoxIndex = 0;
+                      if (
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList
+                      )
+                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                          `main-btn-menu-active`,
+                        );
+                      results = [];
+                      const routerInstance = Worker.RouterInstance.Routes();
+                      for (const _routerId of Object.keys(routerInstance)) {
+                        const routerId = _routerId.slice(1);
+                        if (routerId) {
+                          if (
+                            s(`.main-btn-${routerId}`) &&
+                            (routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase()) ||
+                              (Translate.Data[routerId] &&
+                                Object.keys(Translate.Data[routerId]).filter((keyLang) =>
+                                  Translate.Data[routerId][keyLang]
+                                    .toLocaleLowerCase()
+                                    .match(s(`.${id}`).value.toLocaleLowerCase()),
+                                ).length > 0))
+                          ) {
+                            const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
+                              return (
+                                e.classList &&
+                                Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'))
+                              );
+                            });
+                            results.push({
+                              routerId,
+                              fontAwesomeIcon: fontAwesomeIcon,
+                            });
+                          }
+                        }
+                      }
+                      checkHistoryBoxTitleStatus();
+                      if (results.length === 0) {
+                        append(
+                          `.html-${searchBoxHistoryId}`,
+                          await BtnIcon.Render({
+                            label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(
+                                'no-result-found',
+                              )}`,
+                            class: `wfa`,
+                            style: renderCssAttr({
+                              style: {
+                                padding: '3px',
+                                margin: '2px',
+                                'text-align': 'center',
+                                border: 'none',
+                                cursor: 'default',
+                                background: 'none !important',
+                              },
+                            }),
+                          }),
+                        );
+                      } else {
+                        renderSearchResult(results);
+                      }
+                    }
+                    break;
+
+                  default:
+                    break;
+                }
+              };
+              const setSearchValue = (selector) => {
+                if (!selector) selector = `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
+
+                // console.warn('results', results[currentKeyBoardSearchBoxIndex]);
+
+                if (!results[currentKeyBoardSearchBoxIndex]) return;
+
+                historySearchBox = historySearchBox.filter(
+                  (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
+                );
+
+                historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
+
+                if (s(selector).childNodes) {
+                  if (
+                    s(selector).childNodes[s(selector).childNodes.length - 1] &&
+                    s(selector).childNodes[s(selector).childNodes.length - 1].data &&
+                    s(selector).childNodes[s(selector).childNodes.length - 1].data.trim()
+                  ) {
+                    s(`.${inputSearchBoxId}`).value =
+                      s(selector).childNodes[s(selector).childNodes.length - 1].data.trim();
+                    return;
+                  }
+
+                  if (
+                    s(selector).childNodes[s(selector).childNodes.length - 2] &&
+                    s(selector).childNodes[s(selector).childNodes.length - 2].outerText &&
+                    s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim()
+                  ) {
+                    s(`.${inputSearchBoxId}`).value =
+                      s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim();
+                    return;
+                  }
+                }
+              };
               const searchBoxHistoryOpen = async () => {
                 checkHistoryBoxTitleStatus();
                 if (!Modal.mobileModal() && s(`.key-shortcut-container-info`)) {
@@ -364,136 +513,6 @@ const Modal = {
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
 
-                  let currentKeyBoardSearchBoxIndex = 0;
-                  const formDataInfoNode = [
-                    {
-                      model: 'search-box',
-                      id: inputSearchBoxId,
-                      rules: [] /*{ type: 'isEmpty' }, { type: 'isEmail' }*/,
-                    },
-                  ];
-                  const setSearchValue = (selector) => {
-                    if (!selector) selector = `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
-
-                    if (s(selector).childNodes) {
-                      if (
-                        s(selector).childNodes[s(selector).childNodes.length - 1] &&
-                        s(selector).childNodes[s(selector).childNodes.length - 1].data &&
-                        s(selector).childNodes[s(selector).childNodes.length - 1].data.trim()
-                      ) {
-                        s(`.${inputSearchBoxId}`).value =
-                          s(selector).childNodes[s(selector).childNodes.length - 1].data.trim();
-                        return;
-                      }
-
-                      if (
-                        s(selector).childNodes[s(selector).childNodes.length - 2] &&
-                        s(selector).childNodes[s(selector).childNodes.length - 2].outerText &&
-                        s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim()
-                      ) {
-                        s(`.${inputSearchBoxId}`).value =
-                          s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim();
-                        return;
-                      }
-                    }
-                  };
-                  const searchBoxCallBack = async (validatorData) => {
-                    if (!s(`.html-${searchBoxHistoryId}`)) return;
-                    const { model, id } = validatorData;
-                    switch (model) {
-                      case 'search-box':
-                        {
-                          htmls(`.html-${searchBoxHistoryId}`, '');
-                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                              `main-btn-menu-active`,
-                            );
-                          currentKeyBoardSearchBoxIndex = 0;
-                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
-                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                              `main-btn-menu-active`,
-                            );
-                          const results = [];
-                          const routerInstance = Worker.RouterInstance.Routes();
-                          for (const _routerId of Object.keys(routerInstance)) {
-                            const routerId = _routerId.slice(1);
-                            if (routerId) {
-                              if (
-                                s(`.main-btn-${routerId}`) &&
-                                (routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase()) ||
-                                  (Translate.Data[routerId] &&
-                                    Object.keys(Translate.Data[routerId]).filter((keyLang) =>
-                                      Translate.Data[routerId][keyLang]
-                                        .toLocaleLowerCase()
-                                        .match(s(`.${id}`).value.toLocaleLowerCase()),
-                                    ).length > 0))
-                              ) {
-                                const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
-                                  return (
-                                    e.classList &&
-                                    Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'))
-                                  );
-                                });
-                                results.push({
-                                  routerId,
-                                  fontAwesomeIcon: fontAwesomeIcon,
-                                });
-                              }
-                            }
-                          }
-                          checkHistoryBoxTitleStatus();
-                          if (results.length === 0) {
-                            append(
-                              `.html-${searchBoxHistoryId}`,
-                              await BtnIcon.Render({
-                                label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(
-                                    'no-result-found',
-                                  )}`,
-                                class: `wfa`,
-                                style: renderCssAttr({
-                                  style: {
-                                    padding: '3px',
-                                    margin: '2px',
-                                    'text-align': 'center',
-                                    border: 'none',
-                                    cursor: 'default',
-                                    background: 'none !important',
-                                  },
-                                }),
-                              }),
-                            );
-                          } else {
-                            let indexResult = -1;
-                            for (const result of results) {
-                              indexResult++;
-
-                              append(
-                                `.html-${searchBoxHistoryId}`,
-                                await BtnIcon.Render({
-                                  label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i>
-                                    ${Translate.Render(result.routerId)}`,
-                                  class: `wfa search-result-btn-${result.routerId} ${
-                                    indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
-                                  } search-result-btn-${indexResult}`,
-                                  style: renderCssAttr({
-                                    style: { padding: '3px', margin: '2px', 'text-align': 'left' },
-                                  }),
-                                }),
-                              );
-                              s(`.search-result-btn-${result.routerId}`).onclick = () => {
-                                setSearchValue(`.search-result-btn-${result.routerId}`);
-                                s(`.main-btn-${result.routerId}`).click();
-                                Modal.removeModal(searchBoxHistoryId);
-                              };
-                            }
-                          }
-                        }
-                        break;
-
-                      default:
-                        break;
-                    }
-                  };
                   if (!s(`.search-box-recent-title`).classList.contains('hide')) searchBoxCallBack(formDataInfoNode[0]);
                   const searchBoxValidator = await Validator.instance(formDataInfoNode, searchBoxCallBack);
 
@@ -503,28 +522,29 @@ const Modal = {
                     id: 'input-search-shortcut-ArrowUp',
                     keys: ['ArrowUp'],
                     eventCallBack: () => {
-                      if (
-                        s(`.${id}`) &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex - 1]
-                      ) {
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                          `main-btn-menu-active`,
-                        );
-                        currentKeyBoardSearchBoxIndex--;
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                          `main-btn-menu-active`,
-                        );
-                      } else {
-                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                      if (s(`.${id}`)) {
+                        if (
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex - 1]
+                        ) {
                           s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
                             `main-btn-menu-active`,
                           );
-                        currentKeyBoardSearchBoxIndex = s(`.html-${searchBoxHistoryId}`).childNodes.length - 1;
-                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          currentKeyBoardSearchBoxIndex--;
                           s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
                             `main-btn-menu-active`,
                           );
+                        } else {
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                              `main-btn-menu-active`,
+                            );
+                          currentKeyBoardSearchBoxIndex = s(`.html-${searchBoxHistoryId}`).childNodes.length - 1;
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                              `main-btn-menu-active`,
+                            );
+                        }
                       }
                     },
                     timePressDelay,
@@ -534,28 +554,29 @@ const Modal = {
                     id: 'input-search-shortcut-ArrowDown',
                     keys: ['ArrowDown'],
                     eventCallBack: () => {
-                      if (
-                        s(`.${id}`) &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex + 1]
-                      ) {
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
-                          `main-btn-menu-active`,
-                        );
-                        currentKeyBoardSearchBoxIndex++;
-                        s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
-                          `main-btn-menu-active`,
-                        );
-                      } else {
-                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                      if (s(`.${id}`)) {
+                        if (
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex] &&
+                          s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex + 1]
+                        ) {
                           s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
                             `main-btn-menu-active`,
                           );
-                        currentKeyBoardSearchBoxIndex = 0;
-                        if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                          currentKeyBoardSearchBoxIndex++;
                           s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
                             `main-btn-menu-active`,
                           );
+                        } else {
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.remove(
+                              `main-btn-menu-active`,
+                            );
+                          currentKeyBoardSearchBoxIndex = 0;
+                          if (s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex])
+                            s(`.html-${searchBoxHistoryId}`).childNodes[currentKeyBoardSearchBoxIndex].classList.add(
+                              `main-btn-menu-active`,
+                            );
+                        }
                       }
                     },
                     timePressDelay,

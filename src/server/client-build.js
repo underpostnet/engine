@@ -110,8 +110,18 @@ const buildClient = async () => {
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
-      const { runtime, client, directory, disabledRebuild, minifyBuild, db, redirect, apis, iconsBuild } =
-        confServer[host][path];
+      const {
+        runtime,
+        client,
+        directory,
+        disabledRebuild,
+        minifyBuild,
+        db,
+        redirect,
+        apis,
+        iconsBuild,
+        swaggerApiVersion,
+      } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
       if (metadata) {
@@ -427,7 +437,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (process.argv[4] === 'docs') {
+      if ([process.argv[4], process.argv[6]].includes('docs')) {
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
@@ -435,10 +445,10 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
 
         const doc = {
           info: {
-            swagger: '2.0',
+            swagger: '3.0',
             title: metadata?.title ? `${metadata.title}` : 'Api Docs',
             description: metadata?.description ? metadata.description : undefined,
-            version: '2.0.0',
+            version: swaggerApiVersion ? swaggerApiVersion : '0.0.1',
           },
           schemes: ['https', 'http'], // by default: ['http']
           basePath: path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`,
