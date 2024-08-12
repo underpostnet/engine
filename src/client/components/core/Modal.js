@@ -303,12 +303,16 @@ const Modal = {
                 });
               };
 
+              const checkShortcutContainerInfoEnabled = () => {
+                if (!Modal.mobileModal() && s(`.key-shortcut-container-info`) && !s(`.${inputSearchBoxId}`).value) {
+                  s(`.key-shortcut-container-info`).classList.remove('hide');
+                } else s(`.key-shortcut-container-info`).classList.add('hide');
+              };
+
               const searchBoxHistoryClose = () => {
                 checkHistoryBoxTitleStatus();
                 setTimeout(() => {
-                  if (!Modal.mobileModal() && s(`.key-shortcut-container-info`) && !s(`.${inputSearchBoxId}`).value) {
-                    s(`.key-shortcut-container-info`).classList.remove('hide');
-                  }
+                  checkShortcutContainerInfoEnabled();
                   if (s(`.${id}`) && !hoverHistBox && !hoverInputBox) {
                     s(`.btn-close-${id}`).click();
                     s(`.action-btn-app-icon`).classList.remove('hide');
@@ -454,6 +458,8 @@ const Modal = {
                     return;
                   }
                 }
+
+                checkShortcutContainerInfoEnabled();
               };
               const searchBoxHistoryOpen = async () => {
                 checkHistoryBoxTitleStatus();
