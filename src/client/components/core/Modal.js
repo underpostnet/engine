@@ -318,6 +318,25 @@ const Modal = {
               };
               const renderSearchResult = async (results) => {
                 htmls(`.html-${searchBoxHistoryId}`, '');
+                if (results.length === 0) {
+                  append(
+                    `.html-${searchBoxHistoryId}`,
+                    await BtnIcon.Render({
+                      label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}`,
+                      class: `wfa`,
+                      style: renderCssAttr({
+                        style: {
+                          padding: '3px',
+                          margin: '2px',
+                          'text-align': 'center',
+                          border: 'none',
+                          cursor: 'default',
+                          background: 'none !important',
+                        },
+                      }),
+                    }),
+                  );
+                }
                 let indexResult = -1;
                 for (const result of results) {
                   indexResult++;
@@ -393,29 +412,7 @@ const Modal = {
                         }
                       }
                       checkHistoryBoxTitleStatus();
-                      if (results.length === 0) {
-                        append(
-                          `.html-${searchBoxHistoryId}`,
-                          await BtnIcon.Render({
-                            label: html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(
-                                'no-result-found',
-                              )}`,
-                            class: `wfa`,
-                            style: renderCssAttr({
-                              style: {
-                                padding: '3px',
-                                margin: '2px',
-                                'text-align': 'center',
-                                border: 'none',
-                                cursor: 'default',
-                                background: 'none !important',
-                              },
-                            }),
-                          }),
-                        );
-                      } else {
-                        renderSearchResult(results);
-                      }
+                      renderSearchResult(results);
                     }
                     break;
 
