@@ -87,6 +87,10 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(input).onfocus = inputCheckFunction;
 // s(input).focus();
 
+// s(`form`).onsubmit = (e) => {
+//   e.preventDefault();
+// };
+
 // s(el).onmouseover = () => null;
 // s(el).onmouseout = () => null;
 // `0`.repeat(3) -> 000
