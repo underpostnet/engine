@@ -301,12 +301,14 @@ const Modal = {
               let historySearchBox = [];
 
               const checkHistoryBoxTitleStatus = () => {
-                if (!s(`.${inputSearchBoxId}`).value.trim()) {
-                  s(`.search-box-result-title`).classList.add('hide');
-                  s(`.search-box-recent-title`).classList.remove('hide');
-                } else {
-                  s(`.search-box-recent-title`).classList.add('hide');
-                  s(`.search-box-result-title`).classList.remove('hide');
+                if (s(`.search-box-result-title`) && s(`.search-box-result-title`).classList) {
+                  if (!s(`.${inputSearchBoxId}`).value.trim()) {
+                    s(`.search-box-result-title`).classList.add('hide');
+                    s(`.search-box-recent-title`).classList.remove('hide');
+                  } else {
+                    s(`.search-box-recent-title`).classList.add('hide');
+                    s(`.search-box-result-title`).classList.remove('hide');
+                  }
                 }
               };
 
@@ -366,7 +368,6 @@ const Modal = {
                     setSearchValue(`.search-result-btn-${result.routerId}`);
                     s(`.main-btn-${result.routerId}`).click();
                     Modal.removeModal(searchBoxHistoryId);
-                    hoverInputBox = false;
                   };
                 }
               };
@@ -537,9 +538,6 @@ const Modal = {
 
                   prepend(`.btn-bar-modal-container-${id}`, html`<div class="hide">${inputInfoNode.outerHTML}</div>`);
 
-                  if (!s(`.search-box-recent-title`).classList.contains('hide')) searchBoxCallBack(formDataInfoNode[0]);
-                  const searchBoxValidator = await Validator.instance(formDataInfoNode, searchBoxCallBack);
-
                   s(`.top-bar-search-box-container`).onmouseover = () => {
                     hoverInputBox = true;
                   };
@@ -553,6 +551,8 @@ const Modal = {
                     hoverHistBox = false;
                   };
                 }
+                if (!s(`.search-box-recent-title`).classList.contains('hide')) searchBoxCallBack(formDataInfoNode[0]);
+                const searchBoxValidator = await Validator.instance(formDataInfoNode, searchBoxCallBack);
               };
 
               s('.top-bar-search-box').oninput = () => {
