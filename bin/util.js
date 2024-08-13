@@ -2,12 +2,15 @@ import fs from 'fs-extra';
 import merge from 'deepmerge';
 import si from 'systeminformation';
 import * as dir from 'path';
+import { svg } from 'font-awesome-assets';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { shellCd, shellExec } from '../src/server/process.js';
 import { range } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
+import { FileFactory } from '../src/api/file/file.service.js';
+
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
@@ -142,6 +145,18 @@ try {
         }
       }
       cleanEmptyFoldersRecursively('./');
+    case 'gen-fa-img':
+      const faId = 'user';
+
+      fs.writeFileSync(`./tmp/${faId}.svg`, svg(faId, '#5f5f5f'), 'utf8');
+
+      const data = fs.readFileSync(`./tmp/${faId}.svg`);
+
+      console.log(FileFactory.svg(data, `${faId}.svg`));
+
+      fs.removeSync(`./tmp/${faId}.svg`);
+
+      break;
     default:
       break;
   }
