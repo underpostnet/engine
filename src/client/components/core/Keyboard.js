@@ -8,7 +8,11 @@ const Keyboard = {
     window.onkeydown = (e = new KeyboardEvent()) => {
       this.ActiveKey[e.key] = true;
       // e.composedPath()
-      // if (['Tab'].includes(e.key)) e.preventDefault();
+      // if (['Tab'].includes(e.key)) {
+      //   e.preventDefault();
+      //   e.stopPropagation();
+      //   e.stopImmediatePropagation();
+      // }
     };
     window.onkeyup = (e = new KeyboardEvent()) => {
       delete this.ActiveKey[e.key];
