@@ -318,6 +318,7 @@ const Modal = {
                   s(`.key-shortcut-container-info`).classList.remove('hide');
                 } else s(`.key-shortcut-container-info`).classList.add('hide');
               };
+
               const renderSearchResult = async (results) => {
                 htmls(`.html-${searchBoxHistoryId}`, '');
                 if (results.length === 0) {
@@ -369,15 +370,8 @@ const Modal = {
                   };
                 }
               };
-              const searchBoxCallBack = async (validatorData) => {
-                const isSearchBoxActiveElement = isActiveElement(inputSearchBoxId);
-                checkHistoryBoxTitleStatus();
-                checkShortcutContainerInfoEnabled();
-                if (!isSearchBoxActiveElement) {
-                  if (!hoverHistBox && !hoverHistBox) Modal.removeModal(searchBoxHistoryId);
-                  return;
-                }
 
+              const getResultSearchBox = (validatorData) => {
                 const { model, id } = validatorData;
                 switch (model) {
                   case 'search-box':
@@ -434,6 +428,18 @@ const Modal = {
                 if (s(`.${inputSearchBoxId}`).value.trim()) renderSearchResult(results);
                 else renderSearchResult(historySearchBox);
               };
+
+              const searchBoxCallBack = async (validatorData) => {
+                const isSearchBoxActiveElement = isActiveElement(inputSearchBoxId);
+                checkHistoryBoxTitleStatus();
+                checkShortcutContainerInfoEnabled();
+                if (!isSearchBoxActiveElement && !hoverHistBox && !hoverInputBox) {
+                  Modal.removeModal(searchBoxHistoryId);
+                  return;
+                }
+                setTimeout(() => getResultSearchBox(validatorData));
+              };
+
               const getDefaultSearchBoxSelector = () => `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
 
               const updateSearchBoxValue = (selector) => {
@@ -530,20 +536,27 @@ const Modal = {
                   };
                   s(`.${id}`).onmouseout = () => {
                     hoverHistBox = false;
+                    s(`.${inputSearchBoxId}`).focus();
                   };
                 }
-                if (!s(`.search-box-recent-title`).classList.contains('hide')) searchBoxCallBack(formDataInfoNode[0]);
-                const searchBoxValidator = await Validator.instance(formDataInfoNode, searchBoxCallBack);
               };
 
               s('.top-bar-search-box').oninput = () => {
                 searchBoxHistoryOpen();
+                searchBoxCallBack(formDataInfoNode[0]);
               };
               s('.top-bar-search-box').onfocus = () => {
                 searchBoxHistoryOpen();
+                searchBoxCallBack(formDataInfoNode[0]);
+              };
+              s('.top-bar-search-box').onblur = () => {
+                if (!hoverHistBox && !hoverInputBox && !isActiveElement(inputSearchBoxId)) {
+                  Modal.removeModal(searchBoxHistoryId);
+                }
               };
               s(`.top-bar-search-box-container`).onclick = () => {
                 searchBoxHistoryOpen();
+                searchBoxCallBack(formDataInfoNode[0]);
               };
 
               const timePressDelay = 100;
@@ -704,6 +717,7 @@ const Modal = {
                   ],
                   eventCallBack: () => {
                     if (s(`.top-bar-search-box`)) {
+                      s(`.top-bar-search-box`).blur();
                       s(`.top-bar-search-box`).focus();
                       s(`.top-bar-search-box`).select();
                     }
