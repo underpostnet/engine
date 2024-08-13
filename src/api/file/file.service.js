@@ -1,6 +1,24 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import crypto from 'crypto';
+
 const logger = loggerFactory(import.meta);
+
+const FileFactory = {
+  svg: (data = new Buffer(), name = '') => {
+    return {
+      name: name,
+      data: data,
+      size: data.length,
+      encoding: '7bit',
+      tempFilePath: '',
+      truncated: false,
+      mimetype: 'image/svg+xml',
+      md5: crypto.createHash('md5').update(data).digest('hex'),
+      cid: undefined,
+    };
+  },
+};
 
 const FileService = {
   post: async (req, res, options) => {
@@ -57,4 +75,4 @@ const FileService = {
   },
 };
 
-export { FileService };
+export { FileService, FileFactory };
