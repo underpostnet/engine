@@ -234,7 +234,7 @@ const Modal = {
                     }`,
                     label: html` <div class="${contentIconClass} action-btn-app-icon-render"></div>`,
                   })}
-                  <div
+                  <form
                     class="in fll top-bar-search-box-container hover ${options?.disableTools?.includes('text-box')
                       ? 'hide'
                       : ''}"
@@ -276,7 +276,7 @@ const Modal = {
                       inputClass: 'in fll',
                       // containerClass: '',
                     })}
-                  </div>
+                  </form>
                 </div>
               </div>`,
             );
@@ -366,26 +366,15 @@ const Modal = {
                       `main-btn-menu-active`,
                     );
                     setSearchValue(`.search-result-btn-${result.routerId}`);
-                    s(`.main-btn-${result.routerId}`).click();
-                    Modal.removeModal(searchBoxHistoryId);
                   };
                 }
               };
               const searchBoxCallBack = async (validatorData) => {
                 const isSearchBoxActiveElement = isActiveElement(inputSearchBoxId);
-                // logger.log(
-                //   'searchBoxCallBack',
-                //   {
-                //     hoverHistBox,
-                //     hoverInputBox,
-                //     isSearchBoxActiveElement,
-                //   },
-                //   getCurrentTrace(),
-                // );
                 checkHistoryBoxTitleStatus();
                 checkShortcutContainerInfoEnabled();
                 if (!isSearchBoxActiveElement) {
-                  searchBoxHistoryClose();
+                  if (!hoverHistBox && !hoverHistBox) Modal.removeModal(searchBoxHistoryId);
                   return;
                 }
 
@@ -472,23 +461,13 @@ const Modal = {
 
               const setSearchValue = (selector) => {
                 if (!selector) selector = getDefaultSearchBoxSelector();
-                // logger.log('setSearchValue', results[currentKeyBoardSearchBoxIndex]);
                 historySearchBox = historySearchBox.filter(
                   (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
                 );
                 historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
                 updateSearchBoxValue(selector);
-              };
-
-              const checkBoxHistoryClose = () =>
-                s(`.${id}`) && !hoverHistBox && !hoverInputBox && !isActiveElement(inputSearchBoxId);
-
-              const searchBoxHistoryClose = () => {
-                if (checkBoxHistoryClose()) {
-                  s(`.btn-close-${id}`).click();
-                  s(`.action-btn-app-icon`).classList.remove('hide');
-                  s(`.action-btn-close`).classList.add('hide');
-                }
+                s(`.main-btn-${results[currentKeyBoardSearchBoxIndex].routerId}`).click();
+                Modal.removeModal(searchBoxHistoryId);
               };
 
               const searchBoxHistoryOpen = async () => {
@@ -567,10 +546,6 @@ const Modal = {
                 searchBoxHistoryOpen();
               };
 
-              s('.top-bar-search-box').onblur = () => {
-                searchBoxHistoryClose();
-              };
-
               const timePressDelay = 100;
               Keyboard.instanceMultiPressKey({
                 id: 'input-search-shortcut-ArrowUp',
@@ -638,30 +613,10 @@ const Modal = {
                 timePressDelay,
               });
 
-              Keyboard.instanceMultiPressKey({
-                id: 'input-search-shortcut-Enter',
-                keys: ['Enter'],
-                eventCallBack: () => {
-                  if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
-                    setSearchValue();
-                    s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
-                    s(`.${inputSearchBoxId}`).blur();
-                  }
-                },
-                timePressDelay,
-              });
-              // Keyboard.instanceMultiPressKey({
-              //   id: 'input-search-shortcut-Tab',
-              //   keys: ['Tab'],
-              //   eventCallBack: () => {
-              //     if (s(`.${id}`) && s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`)) {
-              //       setSearchValue();
-              //       s(`.search-result-btn-${currentKeyBoardSearchBoxIndex}`).click();
-              //       s(`.${inputSearchBoxId}`).blur();
-              //     }
-              //   },
-              //   timePressDelay,
-              // });
+              s(`.top-bar-search-box-container`).onsubmit = (e) => {
+                e.preventDefault();
+                setSearchValue();
+              };
             }
             setTimeout(async () => {
               // clone and change position
