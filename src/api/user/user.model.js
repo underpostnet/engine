@@ -20,6 +20,7 @@ const UserSchema = new Schema(
     password: { type: String, trim: true, required: 'Password is required' },
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
+    profileImageId: { type: Schema.Types.ObjectId, ref: 'File' },
     publicKey: [
       {
         type: Schema.Types.ObjectId,

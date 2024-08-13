@@ -6,18 +6,24 @@ import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { s4 } from '../../client/components/core/CommonJs.js';
+import { FileFactory } from '../file/file.service.js';
+import fs from 'fs-extra';
+import { svg } from 'font-awesome-assets';
 
 const logger = loggerFactory(import.meta);
 
 const select = {
   'all-name': { _id: 1, name: 1 },
-  auth: { _id: 1, username: 1, email: 1, role: 1, emailConfirmed: 1 },
+  auth: { _id: 1, username: 1, email: 1, role: 1, emailConfirmed: 1, profileImageId: 1 },
 };
 
 const UserService = {
   post: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
     let result, user, _id, save, find, login;
     if (options.uri) {
@@ -94,6 +100,14 @@ const UserService = {
       default:
         req.body.password = await hashPassword(req.body.password);
         req.body.role = 'user';
+        {
+          const faId = 'user';
+          const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
+          fs.writeFileSync(tmpFilePath, svg(faId, '#5f5f5f'), 'utf8');
+          const file = await new File(FileFactory.svg(fs.readFileSync(tmpFilePath), `${faId}.svg`)).save();
+          fs.removeSync(tmpFilePath);
+          req.body.profileImageId = file._id;
+        }
         save = await new User(req.body).save();
         _id = save._id;
         find = await User.find({ _id }).select(select['auth']);

@@ -64,6 +64,10 @@ const CssCommonCore = async () => {
         background: #bd0c0c;
         border-radius: 50%;
       }
+      .account-profile-image {
+        max-width: 100px;
+        padding: 0.5em;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };

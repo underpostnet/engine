@@ -1,3 +1,4 @@
+import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance } from './CommonJs.js';
@@ -14,6 +15,19 @@ const Account = {
   Render: async function (options = { user: {}, bottomRender: async () => '' }) {
     let { user } = options;
     setTimeout(async () => {
+      if (user.profileImageId) {
+        const resultFile = await FileService.get({ id: user.profileImageId });
+
+        const imageData = resultFile.data[0];
+
+        const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+        const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+        const imageSrc = URL.createObjectURL(imageFile);
+        s(`.account-profile-image`).src = imageSrc;
+      }
+
       const formData = [
         {
           model: 'username',
@@ -82,6 +96,7 @@ const Account = {
     });
     return html`
       <form class="in">
+        <img class="account-profile-image" />
         <div class="in">
           ${await Input.Render({
             id: `account-username`,
