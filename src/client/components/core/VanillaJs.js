@@ -364,6 +364,20 @@ function getAllChildNodes(node) {
   return allNodes;
 }
 
+/**
+ * The function `isActiveTab` checks if the document has focus.
+ */
+const isActiveTab = () => document.hasFocus();
+
+/**
+ * The function `isActiveElement` checks if the active element in the document matches a specified
+ * class search.
+ * @param [classSearch] - The `classSearch` parameter is a string that is used to search for a specific
+ * class name within the `classList` of the active element in the document.
+ */
+const isActiveElement = (classSearch = '') =>
+  document.activeElement?.classList?.value?.match(classSearch) ? true : false;
+
 const getCurrentTrace = () => {
   try {
     _stack;
@@ -397,4 +411,6 @@ export {
   getTimeZone,
   getAllChildNodes,
   getCurrentTrace,
+  isActiveTab,
+  isActiveElement,
 };

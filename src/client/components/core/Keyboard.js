@@ -5,10 +5,12 @@ const Keyboard = {
   Event: {},
   Init: async function (options = { callBackTime: 50 }) {
     const { callBackTime } = options;
-    window.onkeydown = (e) => {
+    window.onkeydown = (e = new KeyboardEvent()) => {
       this.ActiveKey[e.key] = true;
+      // e.composedPath()
+      // if (['Tab'].includes(e.key)) e.preventDefault();
     };
-    window.onkeyup = (e) => {
+    window.onkeyup = (e = new KeyboardEvent()) => {
       delete this.ActiveKey[e.key];
     };
     setInterval(() => {
