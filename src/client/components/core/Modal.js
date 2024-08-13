@@ -445,17 +445,10 @@ const Modal = {
                 if (s(`.${inputSearchBoxId}`).value.trim()) renderSearchResult(results);
                 else renderSearchResult(historySearchBox);
               };
-              const setSearchValue = (selector) => {
-                if (!selector) selector = `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
+              const getDefaultSearchBoxSelector = () => `.search-result-btn-${currentKeyBoardSearchBoxIndex}`;
 
-                // logger.log('setSearchValue', results[currentKeyBoardSearchBoxIndex]);
-
-                historySearchBox = historySearchBox.filter(
-                  (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
-                );
-
-                historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
-
+              const updateSearchBoxValue = (selector) => {
+                if (!selector) selector = getDefaultSearchBoxSelector();
                 if (s(selector).childNodes) {
                   if (
                     s(selector).childNodes[s(selector).childNodes.length - 1] &&
@@ -464,20 +457,29 @@ const Modal = {
                   ) {
                     s(`.${inputSearchBoxId}`).value =
                       s(selector).childNodes[s(selector).childNodes.length - 1].data.trim();
-                    return;
-                  }
-
-                  if (
+                  } else if (
                     s(selector).childNodes[s(selector).childNodes.length - 2] &&
                     s(selector).childNodes[s(selector).childNodes.length - 2].outerText &&
                     s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim()
                   ) {
                     s(`.${inputSearchBoxId}`).value =
                       s(selector).childNodes[s(selector).childNodes.length - 2].outerText.trim();
-                    return;
                   }
                 }
+                checkHistoryBoxTitleStatus();
+                checkShortcutContainerInfoEnabled();
               };
+
+              const setSearchValue = (selector) => {
+                if (!selector) selector = getDefaultSearchBoxSelector();
+                // logger.log('setSearchValue', results[currentKeyBoardSearchBoxIndex]);
+                historySearchBox = historySearchBox.filter(
+                  (h) => h.routerId !== results[currentKeyBoardSearchBoxIndex].routerId,
+                );
+                historySearchBox.unshift(results[currentKeyBoardSearchBoxIndex]);
+                updateSearchBoxValue(selector);
+              };
+
               const checkBoxHistoryClose = () =>
                 s(`.${id}`) && !hoverHistBox && !hoverInputBox && !isActiveElement(inputSearchBoxId);
 
@@ -597,6 +599,7 @@ const Modal = {
                           `main-btn-menu-active`,
                         );
                     }
+                    updateSearchBoxValue();
                   }
                 },
                 timePressDelay,
@@ -629,6 +632,7 @@ const Modal = {
                           `main-btn-menu-active`,
                         );
                     }
+                    updateSearchBoxValue();
                   }
                 },
                 timePressDelay,
