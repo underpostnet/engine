@@ -1,5 +1,7 @@
 import { Auth } from '../../components/core/Auth.js';
+import { newInstance } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
+import { ElementsCyberia } from '../../components/cyberia/ElementsCyberia.js';
 import { ApiBase } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
@@ -98,4 +100,10 @@ const CyberiaUserService = {
     ),
 };
 
-export { CyberiaUserService };
+const createCyberiaUser = async (user) => {
+  const body = newInstance(ElementsCyberia.Data.user.main);
+  body.model.user._id = user._id;
+  await CyberiaUserService.post({ body });
+};
+
+export { CyberiaUserService, createCyberiaUser };
