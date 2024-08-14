@@ -23,4 +23,21 @@ const CyberiaBiomeModel = model('CyberiaBiome', CyberiaBiomeSchema);
 
 const ProviderSchema = CyberiaBiomeSchema;
 
-export { CyberiaBiomeSchema, CyberiaBiomeModel, ProviderSchema };
+const CyberiaBiomeDto = {
+  select: {
+    get: () => {
+      return {
+        _id: 1,
+        name: 1,
+        biome: 1,
+        fileId: 1,
+        topLevelColorFileId: 1,
+        dim: 1,
+        dimAmplitude: 1,
+        dimPaintByCell: 1,
+      };
+    },
+  },
+};
+
+export { CyberiaBiomeSchema, CyberiaBiomeModel, ProviderSchema, CyberiaBiomeDto };

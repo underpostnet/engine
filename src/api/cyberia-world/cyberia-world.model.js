@@ -216,4 +216,76 @@ const CyberiaWorldModel = model('CyberiaWorld', CyberiaWorldSchema);
 
 const ProviderSchema = CyberiaWorldSchema;
 
-export { CyberiaWorldSchema, CyberiaWorldModel, ProviderSchema };
+const CyberiaWorldAggregateDto = {
+  get: () => {
+    return [
+      {
+        $lookup: {
+          from: 'cyberiabiomes', // collection name
+          localField: 'face',
+          foreignField: '_id',
+          as: 'face',
+        },
+      },
+      {
+        $project: {
+          _id: 1,
+          name: 1,
+          face: {
+            $map: {
+              input: '$face',
+              as: 'faceItem',
+              in: {
+                $cond: {
+                  if: { $eq: ['$$faceItem', null] },
+                  then: '$$faceItem',
+                  else: {
+                    _id: '$$faceItem._id',
+                    fileId: '$$faceItem.fileId',
+                    biome: '$$faceItem.biome',
+                  },
+                },
+              },
+            },
+          },
+          // 'face._id': 1,
+          // 'face.fileId': 1,
+          // 'face.biome': 1,
+        },
+      },
+    ];
+  },
+};
+
+const CyberiaWorldPopulateDto = {
+  get: () => {
+    return {
+      path: 'face',
+      select: 'fileId biome name type',
+      // select: '-fileId -biome -name', // exclude
+      options: { retainNullValues: true },
+    };
+  },
+};
+
+const CyberiaWorldSelectDto = {
+  get: () => {
+    return { _id: 1, name: 1, face: 1, type: 1 };
+  },
+};
+
+const CyberiaWorldDto = {
+  select: CyberiaWorldSelectDto,
+  populate: CyberiaWorldPopulateDto,
+  aggregate: CyberiaWorldAggregateDto,
+};
+
+export {
+  CyberiaWorldSchema,
+  CyberiaWorldModel,
+  ProviderSchema,
+  CyberiaWorldDto,
+  CyberiaWorldAggregateDto,
+  CyberiaWorldPopulateDto,
+  CyberiaWorldSelectDto,
+};

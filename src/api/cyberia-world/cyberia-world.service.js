@@ -2,6 +2,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import dotenv from 'dotenv';
 import { networkRouter } from '../../server/network.js';
+import { CyberiaWorldDto } from './cyberia-world.model.js';
 
 dotenv.config();
 
@@ -15,17 +16,6 @@ const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
     ? `:${networkRouter[options.host][pathWorld].port}`
     : ``;
 
-const select = {
-  'all-name': { _id: 1, name: 1, face: 1, type: 1 },
-};
-
-const populateOptions = {
-  path: 'face',
-  select: 'fileId biome name type',
-  // select: '-fileId -biome -name', // exclude
-  options: { retainNullValues: true },
-};
-
 const CyberiaWorldService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
@@ -36,8 +26,8 @@ const CyberiaWorldService = {
         return await CyberiaWorld.findOne({
           _id,
         })
-          .select(select['all-name'])
-          .populate(populateOptions);
+          .select(CyberiaWorldDto.select.get())
+          .populate(CyberiaWorldDto.populate.get());
       }
     }
   },
@@ -47,56 +37,13 @@ const CyberiaWorldService = {
 
     switch (req.params.id) {
       case 'all':
-        return await CyberiaWorld.find().populate(
-          populateOptions,
-          // 'face',
-          // {
-          //   fileId: 1,
-          //   biome: 1,
-          //   name: 1,
-          // },
-        );
+        return await CyberiaWorld.find().populate(CyberiaWorldDto.populate.get());
 
       case 'all-test':
-        return await CyberiaWorld.aggregate([
-          {
-            $lookup: {
-              from: 'cyberiabiomes', // collection name
-              localField: 'face',
-              foreignField: '_id',
-              as: 'face',
-            },
-          },
-          {
-            $project: {
-              _id: 1,
-              name: 1,
-              face: {
-                $map: {
-                  input: '$face',
-                  as: 'faceItem',
-                  in: {
-                    $cond: {
-                      if: { $eq: ['$$faceItem', null] },
-                      then: '$$faceItem',
-                      else: {
-                        _id: '$$faceItem._id',
-                        fileId: '$$faceItem.fileId',
-                        biome: '$$faceItem.biome',
-                      },
-                    },
-                  },
-                },
-              },
-              // 'face._id': 1,
-              // 'face.fileId': 1,
-              // 'face.biome': 1,
-            },
-          },
-        ]);
+        return await CyberiaWorld.aggregate(CyberiaWorldDto.aggregate.get());
 
       case 'all-name':
-        return await CyberiaWorld.find().select(select['all-name']);
+        return await CyberiaWorld.find().select(CyberiaWorldDto.select.get());
 
       default:
         if (options.cyberia.world.instance)

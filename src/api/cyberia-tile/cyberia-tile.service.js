@@ -5,16 +5,12 @@ import fs from 'fs-extra';
 import Jimp from 'jimp';
 import Color from 'color';
 import dotenv from 'dotenv';
+import { ceil10, range } from '../../client/components/core/CommonJs.js';
+import { CyberiaTileDto } from './cyberia-tile.model.js';
 
 dotenv.config();
 
-import { ceil10, range } from '../../client/components/core/CommonJs.js';
-
 const logger = loggerFactory(import.meta);
-
-const select = {
-  'all-name': { _id: 1, name: 1, fileId: 1 },
-};
 
 const rgba2Hexa = (rgba) => {
   const a = rgba.a;
@@ -117,7 +113,7 @@ const CyberiaTileService = {
         const { _id } = await new CyberiaTile(req.body).save();
         return await CyberiaTile.findOne({
           _id,
-        }).select(select['all-name']);
+        }).select(CyberiaTileDto.select.get());
       }
     }
   },
@@ -130,7 +126,7 @@ const CyberiaTileService = {
         return await CyberiaTile.find();
 
       case 'all-name':
-        return await CyberiaTile.find().select(select['all-name']);
+        return await CyberiaTile.find().select(CyberiaTileDto.select.get());
 
       default:
         return await CyberiaTile.find({

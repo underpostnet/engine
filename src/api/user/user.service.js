@@ -10,13 +10,9 @@ import { s4 } from '../../client/components/core/CommonJs.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import { svg } from 'font-awesome-assets';
+import { UserDto } from './user.model.js';
 
 const logger = loggerFactory(import.meta);
-
-const select = {
-  'all-name': { _id: 1, name: 1 },
-  auth: { _id: 1, username: 1, email: 1, role: 1, emailConfirmed: 1, profileImageId: 1 },
-};
 
 const getDefaultProfileImageId = async (File) => {
   const faId = 'user';
@@ -102,7 +98,7 @@ const UserService = {
             {
               const user = await User.findOne({
                 _id,
-              }).select(select['auth']);
+              }).select(UserDto.select.get());
               return {
                 token: hashJWT({ user }),
                 user,
@@ -117,7 +113,7 @@ const UserService = {
         req.body.profileImageId = await getDefaultProfileImageId(File);
         const { _id } = await new User(req.body).save();
         if (_id) {
-          const user = await User.find({ _id }).select(select['auth']);
+          const user = await User.find({ _id }).select(UserDto.select.get());
           return {
             token: hashJWT({ user }),
             user,
@@ -162,12 +158,12 @@ const UserService = {
     }
     switch (req.params.id) {
       case 'all':
-        return await User.find().select(select['all-name']);
+        return await User.find().select(UserDto.select.getAll());
 
       case 'auth':
         return await User.find({
           _id: req.auth.user._id,
-        }).select(select['auth']);
+        }).select(UserDto.select.get());
 
       default:
         return await User.find({
@@ -195,7 +191,7 @@ const UserService = {
         const { _id } = await User.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
         return await User.findOne({
           _id,
-        }).select(select['auth']);
+        }).select(UserDto.select.get());
       }
     }
   },

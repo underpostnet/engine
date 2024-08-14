@@ -18,4 +18,12 @@ const CyberiaTileModel = model('CyberiaTile', CyberiaTileSchema);
 
 const ProviderSchema = CyberiaTileSchema;
 
-export { CyberiaTileSchema, CyberiaTileModel, ProviderSchema };
+const CyberiaTileDto = {
+  select: {
+    get: () => {
+      return { _id: 1, name: 1, fileId: 1 };
+    },
+  },
+};
+
+export { CyberiaTileSchema, CyberiaTileModel, ProviderSchema, CyberiaTileDto };

@@ -1,19 +1,8 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-const logger = loggerFactory(import.meta);
+import { CyberiaBiomeDto } from './cyberia-biome.model.js';
 
-const select = {
-  'all-name': {
-    _id: 1,
-    name: 1,
-    biome: 1,
-    fileId: 1,
-    topLevelColorFileId: 1,
-    dim: 1,
-    dimAmplitude: 1,
-    dimPaintByCell: 1,
-  },
-};
+const logger = loggerFactory(import.meta);
 
 const CyberiaBiomeService = {
   post: async (req, res, options) => {
@@ -25,7 +14,7 @@ const CyberiaBiomeService = {
         const { _id } = await new CyberiaBiome(req.body).save();
         return await CyberiaBiome.findOne({
           _id,
-        }).select(select['all-name']);
+        }).select(CyberiaBiomeDto.select.get());
       }
     }
   },
@@ -38,7 +27,7 @@ const CyberiaBiomeService = {
         return await CyberiaBiome.find();
 
       case 'all-name':
-        return await CyberiaBiome.find().select(select['all-name']);
+        return await CyberiaBiome.find().select(CyberiaBiomeDto.select.get());
 
       default:
         return await CyberiaBiome.find({

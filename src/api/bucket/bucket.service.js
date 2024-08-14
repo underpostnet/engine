@@ -1,14 +1,8 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-const logger = loggerFactory(import.meta);
+import { BucketDto } from './bucket.model.js';
 
-const select = {
-  get: {
-    path: 'fileId',
-    model: 'File',
-    select: '_id name mimetype',
-  },
-};
+const logger = loggerFactory(import.meta);
 
 const BucketService = {
   post: async (req, res, options) => {
@@ -29,7 +23,7 @@ const BucketService = {
       default:
         return await Bucket.find({
           userId: req.auth.user._id,
-        }).populate(select.get);
+        }).populate(BucketDto.populate.get());
     }
   },
   delete: async (req, res, options) => {

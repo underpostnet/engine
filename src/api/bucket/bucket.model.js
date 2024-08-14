@@ -18,4 +18,16 @@ const BucketModel = model('Bucket', BucketSchema);
 
 const ProviderSchema = BucketSchema;
 
-export { BucketSchema, BucketModel, ProviderSchema };
+const BucketDto = {
+  populate: {
+    get: () => {
+      return {
+        path: 'fileId',
+        model: 'File',
+        select: '_id name mimetype',
+      };
+    },
+  },
+};
+
+export { BucketSchema, BucketModel, ProviderSchema, BucketDto };
