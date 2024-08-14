@@ -5,9 +5,12 @@ const logger = loggerFactory(import.meta);
 
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 
-const basePath = 'api/';
+const BASE_API = 'api/';
+
+const origin = () => (true ? location.origin : 'https://www.nexodev.org');
+
 const ApiBase = (options = { id: '', endpoint: '' }) =>
-  `${location.origin}${getProxyPath()}${basePath}${options?.endpoint ? options.endpoint : ''}${
+  `${origin()}${getProxyPath()}${BASE_API}${options?.endpoint ? options.endpoint : ''}${
     options?.id ? `/${options.id}` : ''
   }`;
 
