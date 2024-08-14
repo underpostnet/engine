@@ -144,9 +144,9 @@ const UserService = {
                   email: payload.email,
                 });
                 if (user) {
-                  user.emailConfirmed = true;
+                  const { _id } = user;
                   {
-                    const user = await User.findByIdAndUpdate(user._id.toString(), user, { runValidators: true });
+                    const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
                   }
                   const userWsId = CoreWsMailerManagement.getUserWsId(
                     `${options.host}${options.path}`,
