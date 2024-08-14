@@ -347,9 +347,17 @@ const Modal = {
                   append(
                     `.html-${searchBoxHistoryId}`,
                     await BtnIcon.Render({
-                      label: html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i> ${Translate.Render(
-                          result.routerId,
-                        )}`,
+                      label: `${
+                        result.fontAwesomeIcon
+                          ? html`<i class="${result.fontAwesomeIcon.classList.toString()}"></i> `
+                          : result.imgElement
+                          ? html`<img
+                              class="inl"
+                              src="${result.imgElement.src}"
+                              style="${renderCssAttr({ style: { width: '25px', height: '25px' } })}"
+                            />`
+                          : ''
+                      } ${Translate.Render(result.routerId)}`,
                       class: `wfa search-result-btn-${result.routerId} ${
                         indexResult === currentKeyBoardSearchBoxIndex ? 'main-btn-menu-active' : ''
                       } search-result-btn-${indexResult}`,
@@ -412,10 +420,21 @@ const Modal = {
                                 Array.from(e.classList).find((e) => e.match('fa-') && !e.match('fa-grip-vertical'))
                               );
                             });
-                            results.push({
-                              routerId,
-                              fontAwesomeIcon: fontAwesomeIcon,
+                            const imgElement = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
+                              return (
+                                typeof e.src === 'string' &&
+                                e.src.match(routerId) &&
+                                e.classList &&
+                                Array.from(e.classList).find((e) => e.match('img-btn-square-menu'))
+                              );
                             });
+                            if (imgElement || fontAwesomeIcon) {
+                              results.push({
+                                routerId,
+                                fontAwesomeIcon: fontAwesomeIcon,
+                                imgElement,
+                              });
+                            }
                           }
                         }
                       }
