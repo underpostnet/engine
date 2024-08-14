@@ -36,6 +36,8 @@ const CyberiaUserService = {
           'model.user._id': req.auth.user._id,
         });
 
+        if (!userCyberia) throw new Error('cyberia User not found');
+
         const userCyberiaWorld = await CyberiaWorld.findOne({ _id: userCyberia.model.world._id.toString() });
 
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {

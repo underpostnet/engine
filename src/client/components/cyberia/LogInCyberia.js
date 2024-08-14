@@ -13,6 +13,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 
 const initAnonSession = async () => {
   LoadingAnimation.barLevel.append();
@@ -42,6 +43,13 @@ const LogInCyberia = async function () {
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     Webhook.register({ user });
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
+    if (resultUserCyberia.status !== 'success') {
+      NotificationManager.Push({
+        html: resultUserCyberia.message,
+        status: resultUserCyberia.status,
+      });
+      return;
+    }
     if (resultUserCyberia.data.redirect) {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
       // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
