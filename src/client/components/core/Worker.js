@@ -206,7 +206,7 @@ const Worker = {
         navigator.serviceWorker.ready.then((registration) => {
           registration.showNotification('Vibration Sample', {
             body: 'Buzz! Buzz!',
-            icon: '../images/touch/chrome-touch-icon-192x192.png',
+            icon: '../images/touch/chrome-touch-icon.png',
             vibrate: [200, 100, 200, 100, 200, 100, 200],
             tag: 'vibration-sample',
             requireInteraction: true, //  boolean to manually close the notification
