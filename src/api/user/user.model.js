@@ -21,12 +21,15 @@ const UserSchema = new Schema(
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
     profileImageId: { type: Schema.Types.ObjectId, ref: 'File' },
-    publicKey: [
-      {
-        type: Schema.Types.ObjectId,
-        ref: 'Crypto',
-      },
-    ],
+    publicKey: {
+      type: [
+        {
+          type: Schema.Types.ObjectId,
+          ref: 'Crypto',
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,

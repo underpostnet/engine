@@ -113,11 +113,12 @@ const CyberiaTileService = {
         return { imageFilePath, hexMatrix };
       }
 
-      default:
-        const { _id } = CyberiaTile(req.body).save();
+      default: {
+        const { _id } = await new CyberiaTile(req.body).save();
         return await CyberiaTile.findOne({
           _id,
         }).select(select['all-name']);
+      }
     }
   },
   get: async (req, res, options) => {
