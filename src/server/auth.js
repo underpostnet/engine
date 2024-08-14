@@ -64,11 +64,20 @@ const hashJWT = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: 
 /**
  * The function `verifyJWT` is used to verify a JSON Web Token (JWT) using a secret key stored in the
  * environment variables.
- * @param token - The `token` parameter is a JSON Web Token (JWT) that is passed to the `verifyJWT`
+ * @param [token] - The `token` parameter is a JSON Web Token (JWT) that is passed to the `verifyJWT`
  * function for verification.
- *  @returns {Boolean} true if token correspond to the secret hash. False otherwise
  */
 const verifyJWT = (token = '') => jwt.verify(token, process.env.SECRET);
+
+/**
+ * The function `verifyPayloadJWT` checks if a given payload object is valid for a JSON Web Token (JWT)
+ * based on the expiration time.
+ * @param [payload] - The `verifyPayloadJWT` function takes a `payload` object as a parameter. The
+ * function checks if the `payload` is an object, if it has an `exp` property that is a number, and if
+ * the `exp` value represents a future timestamp (expiration time).
+ */
+const verifyPayloadJWT = (payload = {}) =>
+  typeof payload === 'object' && typeof payload.exp === 'number' && payload.exp * 1000 > +new Date();
 
 /**
  * The authMiddleware function checks and verifies the authorization token in the request headers
@@ -91,13 +100,14 @@ const authMiddleware = (req, res, next) => {
     const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7, authHeader.length);
-      const response = verifyJWT(token);
-      if (!('exp' in response) || response.exp * 1000 <= +new Date())
+      const payload = verifyJWT(token);
+      const validJWT = verifyPayloadJWT(payload);
+      if (validJWT !== true)
         return res.status(401).json({
           status: 'error',
           message: 'unauthorized: expire token',
         });
-      req.auth = response;
+      req.auth = payload;
       return next();
     }
     return res.status(401).json({
@@ -176,4 +186,13 @@ const moderatorGuard = (req, res, next) => {
   }
 };
 
-export { authMiddleware, hashPassword, verifyPassword, hashJWT, verifyJWT, adminGuard, moderatorGuard };
+export {
+  authMiddleware,
+  hashPassword,
+  verifyPassword,
+  hashJWT,
+  adminGuard,
+  moderatorGuard,
+  verifyPayloadJWT,
+  verifyJWT,
+};
