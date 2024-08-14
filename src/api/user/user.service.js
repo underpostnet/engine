@@ -76,12 +76,9 @@ const UserService = {
             }
 
             default:
-              break;
           }
-          break;
 
         default:
-          break;
       }
     }
     switch (req.params.id) {
@@ -137,40 +134,35 @@ const UserService = {
       switch (options.uri) {
         case '/mailer':
           switch (req.params.id) {
-            default:
-              {
-                const payload = verifyJWT(req.params.id);
-                const user = await User.findOne({
-                  email: payload.email,
+            default: {
+              const payload = verifyJWT(req.params.id);
+              const user = await User.findOne({
+                email: payload.email,
+              });
+              if (user) {
+                const { _id } = user;
+                {
+                  const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
+                }
+                const userWsId = CoreWsMailerManagement.getUserWsId(
+                  `${options.host}${options.path}`,
+                  user._id.toString(),
+                );
+                CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
+                  status: 'email-confirmed',
+                  id: userWsId,
                 });
-                if (user) {
-                  const { _id } = user;
-                  {
-                    const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
-                  }
-                  const userWsId = CoreWsMailerManagement.getUserWsId(
-                    `${options.host}${options.path}`,
-                    user._id.toString(),
-                  );
-                  CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
-                    status: 'email-confirmed',
-                    id: userWsId,
-                  });
-                  return { message: 'email confirmed' };
-                } else new Error('invalid token');
-              }
-              break;
+                return { message: 'email confirmed' };
+              } else new Error('invalid token');
+            }
           }
-          break;
 
         default:
-          break;
       }
     }
     switch (req.params.id) {
       case 'all':
         return await User.find().select(select['all-name']);
-      // User.findById(id).select("_id, isActive").then(...)
 
       case 'auth':
         return await User.find({
@@ -188,9 +180,6 @@ const UserService = {
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
 
     switch (req.params.id) {
-      case 'all':
-        break;
-
       default:
         return await User.findByIdAndDelete(req.params.id);
     }
