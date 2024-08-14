@@ -64,7 +64,13 @@ const LogIn = {
         rawSvg,
       };
     }
-    htmls(`.action-btn-profile-log-in-render`, html`OK`);
+    htmls(
+      `.action-btn-profile-log-in-render`,
+      html`<img
+        class="abs center top-box-profile-img negative-color"
+        src="${this.Scope.user.main.model.user.profileImage.imageSrc}"
+      />`,
+    );
   },
   Render: async function () {
     setTimeout(async () => {

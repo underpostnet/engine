@@ -70,6 +70,10 @@ const CssCommonCore = async () => {
         box-sizing: border-box;
         /* border: 2px solid red; */
       }
+      .top-box-profile-img {
+        width: 40px;
+        height: 40px;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };
