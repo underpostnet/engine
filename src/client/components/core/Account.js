@@ -15,6 +15,7 @@ const Account = {
   UpdateEvent: {},
   Render: async function (options = { user: {}, bottomRender: async () => '', idModal: '' }) {
     // app profile page design example
+    // CSS animated backgrounds
     let { user, idModal } = options;
     setTimeout(async () => {
       if (user.profileImageId) {

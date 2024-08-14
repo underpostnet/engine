@@ -113,7 +113,7 @@ const UserService = {
         req.body.profileImageId = await getDefaultProfileImageId(File);
         const { _id } = await new User(req.body).save();
         if (_id) {
-          const user = await User.find({ _id }).select(UserDto.select.get());
+          const user = await User.findOne({ _id }).select(UserDto.select.get());
           return {
             token: hashJWT({ user }),
             user,
