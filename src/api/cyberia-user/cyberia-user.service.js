@@ -14,6 +14,14 @@ const CyberiaUserService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
+
+    /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+
+    if (!req.body.model.user._id) throw new Error('User id is required');
+
+    if (!req.body.model.world._id) req.body.model.world._id = options.cyberia.world.default._id;
+
     return await new CyberiaUser(req.body).save();
   },
   get: async (req, res, options) => {
