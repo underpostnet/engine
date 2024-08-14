@@ -135,7 +135,7 @@ const Config = {
             public_styles_folder: '/styles/ag-grid-community',
           },
         ],
-        services: ['core', 'user', 'test'],
+        services: ['core', 'user', 'test', 'file'],
       },
     },
     ssr: {
@@ -149,7 +149,7 @@ const Config = {
         '/': {
           client: 'default',
           runtime: 'nodejs',
-          apis: ['user', 'test'],
+          apis: ['user', 'test', 'file'],
           origins: [],
           minifyBuild: false,
           iconsBuild: true,
