@@ -7,35 +7,26 @@ const logger = loggerFactory(import.meta);
 
 const TestService = {
   post: async (req, res, options) => {
-    let result = {};
     switch (req.params.id) {
       default:
         break;
     }
-    return result;
   },
   get: async (req, res, options) => {
-    let result = {};
     switch (req.params.id) {
       case 'verify-email':
-        result = validator.isEmail(req.query.email);
-        break;
+        return validator.isEmail(req.query.email);
       case 'youtube-id':
-        result = getYouTubeID(req.query.url);
-        break;
+        return getYouTubeID(req.query.url);
+
       default:
-        result = false;
-        break;
     }
-    return result;
   },
   delete: async (req, res, options) => {
-    let result = {};
     switch (req.params.id) {
       default:
         break;
     }
-    return result;
   },
 };
 

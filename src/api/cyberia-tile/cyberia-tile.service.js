@@ -97,68 +97,54 @@ const CyberiaTileService = {
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
 
     switch (req.params.id) {
-      case 'hex-matrix-from-png':
-        {
-          logger.info('download', req.body.src);
-          const imageFilePath = await Downloader(
-            process.env.NODE_ENV === 'production' ? `https://www.cyberiaonline.com${req.body.src}` : req.body.src,
-            `./tmp/${req.body.src.split(`/`).pop()}`,
-          );
+      case 'hex-matrix-from-png': {
+        logger.info('download', req.body.src);
+        const imageFilePath = await Downloader(
+          process.env.NODE_ENV === 'production' ? `https://www.cyberiaonline.com${req.body.src}` : req.body.src,
+          `./tmp/${req.body.src.split(`/`).pop()}`,
+        );
 
-          // logger.info('imageFilePath', { imageFilePath });
+        // logger.info('imageFilePath', { imageFilePath });
 
-          const hexMatrix = await getHexMatrix({ imageFilePath });
+        const hexMatrix = await getHexMatrix({ imageFilePath });
 
-          fs.remove(imageFilePath);
+        fs.remove(imageFilePath);
 
-          return { imageFilePath, hexMatrix };
-        }
-        break;
+        return { imageFilePath, hexMatrix };
+      }
 
       default:
-        break;
+        const { _id } = CyberiaTile(req.body).save();
+        return await CyberiaTile.findOne({
+          _id,
+        }).select(select['all-name']);
     }
-
-    const { _id } = CyberiaTile(req.body).save();
-    const [result] = await CyberiaTile.find({
-      _id,
-    }).select(select['all-name']);
-    return result;
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
-    let result = {};
+
     switch (req.params.id) {
       case 'all':
-        result = await CyberiaTile.find();
-        break;
+        return await CyberiaTile.find();
+
       case 'all-name':
-        result = await CyberiaTile.find().select(select['all-name']);
-        // User.findById(id).select("_id, isActive").then(...)
-        break;
+        return await CyberiaTile.find().select(select['all-name']);
 
       default:
-        result = await CyberiaTile.find({
+        return await CyberiaTile.find({
           _id: req.params.id,
         });
-        break;
     }
-    return result;
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
-    let result = {};
-    switch (req.params.id) {
-      case 'all':
-        break;
 
+    switch (req.params.id) {
       default:
-        result = await CyberiaTile.findByIdAndDelete(req.params.id);
-        break;
+        return await CyberiaTile.findByIdAndDelete(req.params.id);
     }
-    return result;
   },
 };
 

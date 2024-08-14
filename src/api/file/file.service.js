@@ -44,34 +44,24 @@ const FileService = {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
-    let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await File.find();
-        break;
+        return await File.find();
 
       default:
-        result = await File.find({
+        return await File.find({
           _id: req.params.id,
         });
-        break;
     }
-    return result;
   },
   delete: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
-    let result = {};
     switch (req.params.id) {
-      case 'all':
-        break;
-
       default:
-        result = await File.findByIdAndDelete(req.params.id);
-        break;
+        return await File.findByIdAndDelete(req.params.id);
     }
-    return result;
   },
 };
 

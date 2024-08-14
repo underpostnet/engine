@@ -20,48 +20,40 @@ const CyberiaBiomeService = {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
     const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
 
-    const { _id } = await new CyberiaBiome(req.body).save();
-    const [result] = await CyberiaBiome.find({
-      _id,
-    }).select(select['all-name']);
-    return result;
+    switch (req.params.id) {
+      default: {
+        const { _id } = await new CyberiaBiome(req.body).save();
+        return await CyberiaBiome.findOne({
+          _id,
+        }).select(select['all-name']);
+      }
+    }
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
     const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
 
-    let result = {};
     switch (req.params.id) {
       case 'all':
-        result = await CyberiaBiome.find();
-        break;
+        return await CyberiaBiome.find();
+
       case 'all-name':
-        result = await CyberiaBiome.find().select(select['all-name']);
-        // User.findById(id).select("_id, isActive").then(...)
-        break;
+        return await CyberiaBiome.find().select(select['all-name']);
 
       default:
-        result = await CyberiaBiome.find({
+        return await CyberiaBiome.find({
           _id: req.params.id,
         });
-        break;
     }
-    return result;
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
     const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
 
-    let result = {};
     switch (req.params.id) {
-      case 'all':
-        break;
-
       default:
-        result = await CyberiaBiome.findByIdAndDelete(req.params.id);
-        break;
+        return await CyberiaBiome.findByIdAndDelete(req.params.id);
     }
-    return result;
   },
 };
 

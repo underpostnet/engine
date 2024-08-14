@@ -14,16 +14,14 @@ const CyberiaUserService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
-    let result = {};
-    result = await new CyberiaUser(req.body).save();
-    return result;
+    return await new CyberiaUser(req.body).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
     /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
-    let result = {};
+
     switch (req.params.id) {
       case 'auth': {
         const userCyberia = await CyberiaUser.findOne({
@@ -62,18 +60,10 @@ const CyberiaUserService = {
       }
 
       default:
-        break;
     }
-    return result;
   },
-  delete: async (req, res, options) => {
-    let result = {};
-    return result;
-  },
-  put: async (req, res, options) => {
-    let result = {};
-    return result;
-  },
+  delete: async (req, res, options) => {},
+  put: async (req, res, options) => {},
 };
 
 export { CyberiaUserService };

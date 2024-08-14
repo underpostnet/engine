@@ -2,7 +2,7 @@ import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance } from './CommonJs.js';
-import { renderStatus } from './Css.js';
+import { dynamicCol, renderStatus } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -12,8 +12,9 @@ import { htmls, s } from './VanillaJs.js';
 
 const Account = {
   UpdateEvent: {},
-  Render: async function (options = { user: {}, bottomRender: async () => '' }) {
-    let { user } = options;
+  Render: async function (options = { user: {}, bottomRender: async () => '', idModal: '' }) {
+    // app profile page design example
+    let { user, idModal } = options;
     setTimeout(async () => {
       if (user.profileImageId) {
         const resultFile = await FileService.get({ id: user.profileImageId });
@@ -95,62 +96,66 @@ const Account = {
       this.renderVerifyEmailStatus(user);
     });
     return html`
-      <form class="in">
-        <img class="account-profile-image" />
-        <div class="in">
-          ${await Input.Render({
-            id: `account-username`,
-            type: 'text',
-            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
-            containerClass: 'inl section-mp width-mini-box input-container',
-            placeholder: true,
-            disabled: false,
-          })}
-        </div>
-        <div class="in">
-          ${await Input.Render({
-            id: `account-email`,
-            type: 'email',
-            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-            containerClass: 'inl section-mp width-mini-box input-container',
-            placeholder: true,
-            autocomplete: 'email',
-            disabled: false,
-            extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
-              ? async () => html`<div class="in verify-email-status"></div>
-                  ${await BtnIcon.Render({
-                    class: `wfa btn-input-extension btn-confirm-email`,
-                    type: 'button',
-                    style: 'text-align: left',
-                    label: html`<div class="in">
-                      <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                      ${Translate.Render('verify-email')}
-                    </div> `,
-                  })}`
-              : undefined,
-          })}
-        </div>
-        <div class="in">
-          ${await Input.Render({
-            id: `account-password`,
-            type: 'password',
-            autocomplete: 'new-password',
-            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-            containerClass: 'inl section-mp width-mini-box input-container',
-            placeholder: true,
-            disabled: true,
-            disabledEye: true,
-          })}
-        </div>
-        ${options?.bottomRender ? await options.bottomRender() : ``}
-        <div class="in">
-          ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-account',
-            label: Translate.Render('update'),
-            type: 'submit',
-          })}
-        </div>
-      </form>
+      ${dynamicCol({ containerSelector: idModal, id: 'account-dynamicCol' })}
+      <div class="fl">
+        <div class="in fll account-dynamicCol-col-a"><img class="account-profile-image" /></div>
+
+        <form class="in fll account-dynamicCol-col-b">
+          <div class="in">
+            ${await Input.Render({
+              id: `account-username`,
+              type: 'text',
+              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
+              containerClass: 'inl section-mp width-mini-box input-container',
+              placeholder: true,
+              disabled: false,
+            })}
+          </div>
+          <div class="in">
+            ${await Input.Render({
+              id: `account-email`,
+              type: 'email',
+              label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
+              containerClass: 'inl section-mp width-mini-box input-container',
+              placeholder: true,
+              autocomplete: 'email',
+              disabled: false,
+              extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
+                ? async () => html`<div class="in verify-email-status"></div>
+                    ${await BtnIcon.Render({
+                      class: `wfa btn-input-extension btn-confirm-email`,
+                      type: 'button',
+                      style: 'text-align: left',
+                      label: html`<div class="in">
+                        <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                        ${Translate.Render('verify-email')}
+                      </div> `,
+                    })}`
+                : undefined,
+            })}
+          </div>
+          <div class="in">
+            ${await Input.Render({
+              id: `account-password`,
+              type: 'password',
+              autocomplete: 'new-password',
+              label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
+              containerClass: 'inl section-mp width-mini-box input-container',
+              placeholder: true,
+              disabled: true,
+              disabledEye: true,
+            })}
+          </div>
+          ${options?.bottomRender ? await options.bottomRender() : ``}
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: 'section-mp form-button btn-account',
+              label: Translate.Render('update'),
+              type: 'submit',
+            })}
+          </div>
+        </form>
+      </div>
     `;
   },
   triggerUpdateEvent: async function (options = { user: {} }) {

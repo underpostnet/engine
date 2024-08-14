@@ -93,9 +93,8 @@ const CyberiaQuestService = {
       }
 
       default:
-        break;
+        return await new CyberiaQuest(req.body).save();
     }
-    return await new CyberiaQuest(req.body).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */

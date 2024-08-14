@@ -10,67 +10,54 @@ const CryptoService = {
     /** @type {import('../user/user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
 
-    let result = {};
     switch (req.params.id) {
-      case 'verify':
-        {
-          const signature = Buffer.from(req.body.signature, 'base64');
+      case 'verify': {
+        const signature = Buffer.from(req.body.signature, 'base64');
 
-          const publicKey = await crypto.subtle.importKey(
-            'jwk',
-            req.body.publicKey,
-            {
-              name: 'ECDSA',
-              namedCurve: 'P-384',
-              hash: 'SHA-256',
-            },
-            true,
-            ['verify'],
-          );
+        const publicKey = await crypto.subtle.importKey(
+          'jwk',
+          req.body.publicKey,
+          {
+            name: 'ECDSA',
+            namedCurve: 'P-384',
+            hash: 'SHA-256',
+          },
+          true,
+          ['verify'],
+        );
 
-          const isValid = await crypto.subtle.verify(
-            {
-              name: 'ECDSA',
-              hash: 'SHA-256',
-            },
-            publicKey,
-            signature,
-            new TextEncoder().encode(JSON.stringify(req.body.payload)),
-          );
+        const isValid = await crypto.subtle.verify(
+          {
+            name: 'ECDSA',
+            hash: 'SHA-256',
+          },
+          publicKey,
+          signature,
+          new TextEncoder().encode(JSON.stringify(req.body.payload)),
+        );
 
-          result = { isValid };
-
-          logger.info('Crypto sign verify', result);
-        }
-        break;
-      default:
-        result = await new Crypto(req.body).save();
+        return { isValid };
+      }
+      default: {
+        const publicKey = await new Crypto(req.body).save();
         const user = await User.findById(req.auth.user._id);
-        user.publicKey.push(result._id);
-        {
-          const result = await User.findByIdAndUpdate(req.auth.user._id, user, {
-            runValidators: true,
-          });
-        }
-        break;
+        user.publicKey.push(publicKey._id);
+        await User.findByIdAndUpdate(req.auth.user._id, user, {
+          runValidators: true,
+        });
+        return publicKey;
+      }
     }
-    return result;
   },
   get: async (req, res, options) => {
-    let result = {};
     switch (req.params.id) {
       default:
-        break;
     }
-    return result;
   },
   delete: async (req, res, options) => {
-    let result = {};
     switch (req.params.id) {
       default:
-        break;
     }
-    return result;
   },
 };
 
