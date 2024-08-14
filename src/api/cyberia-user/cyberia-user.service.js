@@ -33,10 +33,9 @@ const CyberiaUserService = {
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {
           // const redirectPort = getCyberiaPortByWorldPath(options, `/${userCyberiaWorld._doc.name}`);
           if (req.auth.user.role !== 'admin' && req.auth.user.role !== 'moderator') {
-            result = {
+            return {
               redirect: `/${userCyberiaWorld._doc.name}`,
             };
-            return result;
           }
 
           userCyberia.model.world._id = options.cyberia.world.instance._id.toString();
