@@ -86,9 +86,9 @@ const UserService = {
         const user = await User.findOne({
           email: req.body.email,
         });
-        const { _id } = user;
 
         if (user) {
+          const { _id } = user;
           const validPassword = await verifyPassword(req.body.password, user.password);
           if (validPassword === true) {
             if (!user.profileImageId)
