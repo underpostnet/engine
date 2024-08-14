@@ -1,3 +1,5 @@
+import { CoreService } from '../../services/core/core.service.js';
+import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
@@ -8,8 +10,18 @@ import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
 
 const LogIn = {
+  Scope: {
+    user: {
+      main: {
+        model: {
+          user: {},
+        },
+      },
+    },
+  },
   Event: {},
   Trigger: async function (options) {
+    const { user } = options;
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (s(`.session`))
       htmls(
@@ -29,6 +41,30 @@ const LogIn = {
           }
         </style>`,
       );
+    if (!this.Scope.user.main.model.user.profileImage) {
+      const resultFile = await FileService.get({ id: user.profileImageId });
+
+      const imageData = resultFile.data[0];
+
+      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+
+      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+
+      const imageSrc = URL.createObjectURL(imageFile);
+
+      let rawSvg = await CoreService.getRaw({ url: imageSrc });
+      rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
+
+      this.Scope.user.main.model.user.profileImage = {
+        resultFile,
+        imageData,
+        imageBlob,
+        imageFile,
+        imageSrc,
+        rawSvg,
+      };
+    }
+    htmls(`.action-btn-profile-log-in-render`, html`OK`);
   },
   Render: async function () {
     setTimeout(async () => {

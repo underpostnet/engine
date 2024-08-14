@@ -879,6 +879,91 @@ const scrollBarDarkRender = () => {
     .join('');
 };
 
+const renderWave = ({ id }) => {
+  return html`
+    <style>
+      .wave-animation-container-${id} {
+        height: 200px;
+      }
+      .wave-animation-container-${id} {
+        background: linear-gradient(
+          315deg,
+          rgba(101, 0, 94, 1) 3%,
+          rgba(60, 132, 206, 1) 38%,
+          rgba(48, 238, 226, 1) 68%,
+          rgba(255, 25, 25, 1) 98%
+        );
+        animation: gradient-${id} 15s ease infinite;
+        background-size: 400% 400%;
+        overflow: hidden;
+      }
+
+      @keyframes gradient-${id} {
+        0% {
+          background-position: 0% 0%;
+        }
+        50% {
+          background-position: 100% 100%;
+        }
+        100% {
+          background-position: 0% 0%;
+        }
+      }
+
+      .wave-${id} {
+        background: rgb(255 255 255 / 25%);
+        border-radius: 1000% 1000% 0 0;
+        width: 200%;
+        height: 12em;
+        animation: wave-${id} 10s -3s linear infinite;
+        opacity: 0.8;
+        bottom: 0;
+        left: 0;
+        top: 30%;
+      }
+
+      .wave-${id}:nth-of-type(2) {
+        animation: wave-${id} 18s linear reverse infinite;
+        opacity: 0.8;
+        top: 50%;
+      }
+
+      .wave-${id}:nth-of-type(3) {
+        animation: wave-${id} 20s -1s reverse infinite;
+        opacity: 0.9;
+        top: 70%;
+      }
+
+      @keyframes wave-${id} {
+        2% {
+          transform: translateX(1);
+        }
+
+        25% {
+          transform: translateX(-25%);
+        }
+
+        50% {
+          transform: translateX(-50%);
+        }
+
+        75% {
+          transform: translateX(-25%);
+        }
+
+        100% {
+          transform: translateX(1);
+        }
+      }
+    </style>
+    <div class="in wave-animation-container-${id}">
+      <div class="in wave-${id}"></div>
+      <div class="abs wave-${id}"></div>
+      <div class="abs wave-${id}"></div>
+    </div>
+  `;
+};
+
 export {
   Css,
   Themes,
@@ -908,4 +993,5 @@ export {
   cssBrowserCodes,
   scrollBarDarkRender,
   scrollBarLightRender,
+  renderWave,
 };

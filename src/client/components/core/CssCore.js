@@ -64,6 +64,12 @@ const CssCommonCore = async () => {
         background: #bd0c0c;
         border-radius: 50%;
       }
+      .top-box-profile-container {
+        top: 0px;
+        right: 0px;
+        box-sizing: border-box;
+        /* border: 2px solid red; */
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };

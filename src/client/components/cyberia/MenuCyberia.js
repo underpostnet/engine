@@ -179,7 +179,7 @@ const MenuCyberia = {
         return '';
       },
       // barClass: 'hide',
-      disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center'],
+      disableTools: ['navigator', 'text-box', 'lang', 'theme', 'app-icon', 'center', 'profile'],
       heightTopBar,
       heightBottomBar,
       barConfig: newInstance(barConfig),

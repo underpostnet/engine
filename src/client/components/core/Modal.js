@@ -277,9 +277,31 @@ const Modal = {
                       // containerClass: '',
                     })}
                   </form>
+                  <div
+                    class="abs top-box-profile-container ${options?.disableTools?.includes('profile') ? 'hide' : ''}"
+                  >
+                    ${await BtnIcon.Render({
+                      style: `height: 100%`,
+                      class: 'in fll session-in-log-in main-btn-menu action-bar-box action-btn-profile-log-in',
+                      label: html` <div class="${contentIconClass} action-btn-profile-log-in-render"></div>`,
+                    })}
+                    ${await BtnIcon.Render({
+                      style: `height: 100%`,
+                      class: 'in fll session-in-log-out main-btn-menu action-bar-box action-btn-profile-log-out',
+                      label: html` <div class="${contentIconClass} action-btn-profile-log-out-render">
+                        <i class="fas fa-user-plus"></i>
+                      </div>`,
+                    })}
+                  </div>
                 </div>
               </div>`,
             );
+            s(`.action-btn-profile-log-in`).onclick = () => {
+              s(`.main-btn-account`).click();
+            };
+            s(`.action-btn-profile-log-out`).onclick = () => {
+              s(`.main-btn-sign-up`).click();
+            };
             s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
             htmls(`.input-info-${inputSearchBoxId}`, '');
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
@@ -706,14 +728,18 @@ const Modal = {
                 });
                 const maxWidthInputSearchBox = 450;
                 const paddingInputSearchBox = 5;
+                const paddingRightSearchBox = 50;
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
                   const widthInputSearchBox =
                     window.innerWidth > maxWidthInputSearchBox ? maxWidthInputSearchBox : window.innerWidth;
-                  s(`.top-bar-search-box-container`).style.width = `${widthInputSearchBox - originHeightTopBar - 1}px`;
+                  s(`.top-bar-search-box-container`).style.width = `${
+                    widthInputSearchBox - originHeightTopBar - paddingRightSearchBox - 1
+                  }px`;
                   s(`.top-bar-search-box`).style.width = `${
                     widthInputSearchBox -
                     originHeightTopBar * 2 -
+                    paddingRightSearchBox -
                     paddingInputSearchBox * 2 /*padding input*/ -
                     10 /* right-margin */
                   }px`;
