@@ -100,7 +100,7 @@ const CyberiaUserService = {
     ),
 };
 
-const createCyberiaUser = async (user) => {
+const createCyberiaUser = async ({ user }) => {
   const body = newInstance(ElementsCyberia.Data.user.main);
   body.model.user._id = user._id;
   await CyberiaUserService.post({ body });
