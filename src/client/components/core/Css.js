@@ -956,7 +956,7 @@ const renderWave = ({ id }) => {
         }
       }
     </style>
-    <div class="in wave-animation-container-${id}">
+    <div class="in wave-animation-container-${id} ${id}">
       <div class="in wave-${id}"></div>
       <div class="abs wave-${id}"></div>
       <div class="abs wave-${id}"></div>

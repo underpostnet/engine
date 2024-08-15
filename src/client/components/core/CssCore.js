@@ -1,5 +1,5 @@
 import { AgGrid } from './AgGrid.js';
-import { scrollBarDarkRender, scrollBarLightRender } from './Css.js';
+import { boxShadow, scrollBarDarkRender, scrollBarLightRender } from './Css.js';
 import { append, getProxyPath } from './VanillaJs.js';
 
 const CssCommonCore = async () => {
@@ -70,11 +70,29 @@ const CssCommonCore = async () => {
         box-sizing: border-box;
         /* border: 2px solid red; */
       }
-      .top-box-profile-img {
+      .top-box-profile-img-container {
         width: 40px;
         height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      .top-box-profile-img {
+        width: 45px;
+        height: auto;
+      }
+      .account-profile-image-container {
+        width: 140px;
+        height: 140px;
+        border-radius: 50%;
+        overflow: hidden;
+      }
+      .account-profile-image {
+        max-width: 160px;
+        transition: 0.3s;
+        background: #ffffff96;
       }
     </style>
+    ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;
 };
 

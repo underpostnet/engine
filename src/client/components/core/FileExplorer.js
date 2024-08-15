@@ -5,7 +5,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
 import { darkTheme } from './Css.js';
 import { EventsUI } from './EventsUI.js';
-import { Input, InputFile } from './Input.js';
+import { fileFormDataFactory, Input, InputFile } from './Input.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
@@ -577,10 +577,7 @@ const FileExplorer = {
             },
             change: (e) => {
               console.log('file explorer change file', e);
-              formBodyFiles = new FormData();
-              for (const keyFile of Object.keys(e.target.files)) {
-                formBodyFiles.append(e.target.files[keyFile].name, e.target.files[keyFile]);
-              }
+              formBodyFiles = fileFormDataFactory(e);
             },
           },
         )}

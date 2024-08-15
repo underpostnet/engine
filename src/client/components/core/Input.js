@@ -6,6 +6,18 @@ import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
+const fileFormDataFactory = (e, extensions) => {
+  const form = new FormData();
+  for (const keyFile of Object.keys(e.target.files)) {
+    if (extensions && !extensions.includes(e.target.files[keyFile].type)) {
+      logger.error('Invalid file extension', e.target.files[keyFile]);
+      continue;
+    }
+    form.append(e.target.files[keyFile].name, e.target.files[keyFile]);
+  }
+  return form;
+};
+
 const Input = {
   Render: async function (options) {
     const { id } = options;
@@ -44,6 +56,7 @@ const Input = {
         ${options?.pattern !== undefined ? `pattern="${options.pattern}"` : ''}
         ${options?.pattern === undefined && options.type === 'tel' ? `pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"` : ''}
         ${options?.required ? ` required ` : ''}
+        ${options?.accept ? `accept="${options.accept}"` : ''}
       />
       <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
         ${options?.extension ? await options.extension() : ''}
@@ -218,4 +231,4 @@ const InputFile = {
   },
 };
 
-export { Input, InputFile };
+export { Input, InputFile, fileFormDataFactory };

@@ -5,7 +5,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { newInstance } from './CommonJs.js';
 import { dynamicCol, renderStatus, renderWave } from './Css.js';
 import { EventsUI } from './EventsUI.js';
-import { Input } from './Input.js';
+import { fileFormDataFactory, Input } from './Input.js';
 import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
@@ -19,10 +19,18 @@ const Account = {
     // CSS animated backgrounds
     let { user, idModal } = options;
     const waveAnimationId = 'account-wave';
+    const profileFileAccept = ['image/png', 'image/jpeg'];
     setTimeout(async () => {
       append(
         `.wave-animation-container-${waveAnimationId}`,
-        html`<div class="account-profile-image-render">${LogIn.Scope.user.main.model.user.profileImage.rawSvg}</div>`,
+        html` <div class="abs center account-profile-image-container">
+            <img
+              class="abs center account-profile-image"
+              style="opacity: 1"
+              src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"
+            />
+          </div>
+          <div class="abs center account-profile-image-loading" style="color: white"></div>`,
       );
 
       const formData = [
@@ -90,13 +98,42 @@ const Account = {
           });
         });
       this.renderVerifyEmailStatus(user);
+
+      s(`.${waveAnimationId}`).style.cursor = 'pointer';
+      s(`.${waveAnimationId}`).onclick = async (e) => {
+        s(`.account-profile-image-input`).click();
+      };
+      EventsUI.onChange(
+        `.account-profile-image-input`,
+        async (e) => {
+          s(`.account-profile-image`).style.opacity = 0;
+          const formFile = fileFormDataFactory(e, profileFileAccept);
+          let profileImageId;
+          {
+            const { status, data } = await FileService.post({ body: formFile });
+            if (data && data[0]) profileImageId = data[0]._id;
+          }
+          if (profileImageId) {
+            const { status, data } = await UserService.put({ id: user._id, body: { profileImageId } });
+            if (status === 'success') {
+              user.profileImageId = profileImageId;
+              delete LogIn.Scope.user.main.model.user.profileImage;
+              await LogIn.Trigger({ user });
+              s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+            }
+          } else {
+            NotificationManager.Push({
+              html: Translate.Render('file-upload-failed'),
+              status: 'error',
+            });
+          }
+          s(`.account-profile-image`).style.opacity = 1;
+        },
+        `.account-profile-image-loading`,
+      );
     });
     return html`
-      <style>
-        .account-profile-image {
-          top: 0px;
-        }
-      </style>
+      <input type="file" accept="${profileFileAccept.join(', ')}" class="account-profile-image-input hide" />
       ${renderWave({ id: waveAnimationId })}
 
       <div class="fl">

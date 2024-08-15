@@ -52,8 +52,8 @@ const LogIn = {
 
       const imageSrc = URL.createObjectURL(imageFile);
 
-      let rawSvg = await CoreService.getRaw({ url: imageSrc });
-      rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
+      // const  rawSvg = await CoreService.getRaw({ url: imageSrc });
+      // rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
 
       this.Scope.user.main.model.user.profileImage = {
         resultFile,
@@ -61,15 +61,13 @@ const LogIn = {
         imageBlob,
         imageFile,
         imageSrc,
-        rawSvg,
       };
     }
     htmls(
       `.action-btn-profile-log-in-render`,
-      html`<img
-        class="abs center top-box-profile-img negative-color"
-        src="${this.Scope.user.main.model.user.profileImage.imageSrc}"
-      />`,
+      html`<div class="abs center top-box-profile-img-container">
+        <img class="abs center top-box-profile-img" src="${this.Scope.user.main.model.user.profileImage.imageSrc}" />
+      </div>`,
     );
   },
   Render: async function () {

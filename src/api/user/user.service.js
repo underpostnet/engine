@@ -17,7 +17,7 @@ const logger = loggerFactory(import.meta);
 const getDefaultProfileImageId = async (File) => {
   const faId = 'user';
   const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
-  fs.writeFileSync(tmpFilePath, svg(faId, '#5f5f5f'), 'utf8');
+  fs.writeFileSync(tmpFilePath, svg(faId, '#f5f5f5d1'), 'utf8');
   const file = await new File(FileFactory.svg(fs.readFileSync(tmpFilePath), `${faId}.svg`)).save();
   fs.removeSync(tmpFilePath);
   return file._id;

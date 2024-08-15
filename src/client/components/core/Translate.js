@@ -185,6 +185,7 @@ const TranslateCore = {
     Translate.Data['character'] = { es: 'Personaje', en: 'Character' };
     Translate.Data['file-path'] = { en: 'file path', es: 'ruta de archivo' };
     Translate.Data['drop-file'] = { en: 'drop file', es: 'soltar archivo' };
+    Translate.Data['file-upload-failed'] = { en: 'file upload failed', es: 'error al subir el archivo' };
     Translate.Data['current-path'] = { en: 'current path', es: 'ruta actual' };
     Translate.Data['go'] = { en: 'go', es: 'ir' };
     Translate.Data['home-directory'] = { en: 'Home directory', es: 'Directorio de inicio' };
