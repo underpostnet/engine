@@ -128,7 +128,7 @@ const TranslateCore = {
     Translate.Data['view'] = { en: 'view', es: 'ver' };
     Translate.Data['user'] = { en: 'User', es: 'Usuario' };
     Translate.Data['pass'] = { en: 'Password', es: 'Contraseña' };
-    Translate.Data['email'] = { en: 'Email', es: 'Email' };
+    Translate.Data['email'] = { en: 'Email', es: 'Correo Electronico' };
     Translate.Data['clear'] = { en: 'Reset', es: 'Limpiar' };
     Translate.Data['select-role'] = { en: 'Select Role', es: 'Seleccionar Rol' };
     Translate.Data['sign-up'] = { en: 'Sign Up', es: 'Registrarse' };
@@ -139,8 +139,11 @@ const TranslateCore = {
     Translate.Data['password'] = { en: 'Password', es: 'Contraseña' };
     Translate.Data['repeat'] = { en: 'Repeat', es: 'Repetir' };
     Translate.Data['username'] = { en: 'username', es: 'Nombre de usuario' };
-    Translate.Data['success-upload-user'] = { en: 'user uploaded successfully', es: 'usuario subido correctamente' };
-    Translate.Data['error-upload-user'] = { en: 'error uploading user', es: 'error al subir el usuario' };
+    Translate.Data['success-register-user'] = {
+      en: 'user successfully registered',
+      es: 'Usuario registrado con exito',
+    };
+    Translate.Data['no-valid-register'] = { en: 'No valid register', es: 'Registro no válido' };
     Translate.Data['success-user'] = { en: 'user/s successfully obtained', es: 'Usuario/s obtenido correctamente' };
     Translate.Data['width'] = { en: 'width', es: 'ancho' };
     Translate.Data['height'] = { en: 'height', es: 'altura' };

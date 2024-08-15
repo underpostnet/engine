@@ -44,7 +44,12 @@ const SignUp = {
         }
         const result = await UserService.post({ body });
         NotificationManager.Push({
-          html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-user`),
+          html:
+            typeof result.data === 'string'
+              ? result.data
+              : result.status === 'success'
+              ? Translate.Render(`success-register-user`)
+              : Translate.Render(`no-valid-register`),
           status: result.status,
         });
         if (result.status === 'success') {
