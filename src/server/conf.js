@@ -48,6 +48,8 @@ const Config = {
             'HomeBackground',
             'Worker',
             'FullScreen',
+            'Badge',
+            'ToolTip',
           ],
           default: [
             'MenuDefault',
