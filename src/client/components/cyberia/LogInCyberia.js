@@ -30,8 +30,10 @@ const LogInCyberia = async function () {
   LogIn.Event['LogInCyberia'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
 
     s(`.main-btn-log-in`).style.display = 'none';
     s(`.main-btn-sign-up`).style.display = 'none';

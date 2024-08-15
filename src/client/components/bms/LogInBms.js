@@ -8,8 +8,10 @@ const LogInBms = async function () {
   LogIn.Event['LogInBms'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
     ElementsBms.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';

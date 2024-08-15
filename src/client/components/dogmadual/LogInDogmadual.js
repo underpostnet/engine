@@ -8,8 +8,10 @@ const LogInDogmadual = async function () {
   LogIn.Event['LogInDogmadual'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
     ElementsDogmadual.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';

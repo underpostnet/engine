@@ -8,8 +8,10 @@ const LogInDefault = async function () {
   LogIn.Event['LogInDefault'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
     ElementsDefault.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';

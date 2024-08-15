@@ -9,8 +9,10 @@ const LogInCyberiaPortal = async function () {
   LogIn.Event['LogInCyberiaPortal'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
     ElementsCyberiaPortal.Data.user.main.model.user = user;
     await Webhook.register({ user });
 

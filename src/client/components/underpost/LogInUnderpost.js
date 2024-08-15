@@ -8,8 +8,10 @@ const LogInUnderpost = async function () {
   LogIn.Event['LogInUnderpost'] = async (options) => {
     const { token, user } = options;
 
-    localStorage.setItem('jwt', token);
-    Auth.setToken(token);
+    if (token) {
+      localStorage.setItem('jwt', token);
+      Auth.setToken(token);
+    }
     ElementsUnderpost.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';
