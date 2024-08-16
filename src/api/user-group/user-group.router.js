@@ -7,15 +7,14 @@ const logger = loggerFactory(import.meta);
 
 const UserGroupRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'user-group';
-  router.post(`/${endpoint}/:id`, async (req, res) => await UserGroupController.post(req, res, options));
-  router.post(`/${endpoint}`, async (req, res) => await UserGroupController.post(req, res, options));
-  router.get(`/${endpoint}/:id`, async (req, res) => await UserGroupController.get(req, res, options));
-  router.get(`/${endpoint}`, async (req, res) => await UserGroupController.get(req, res, options));
-  router.put(`/${endpoint}/:id`, async (req, res) => await UserGroupController.put(req, res, options));
-  router.put(`/${endpoint}`, async (req, res) => await UserGroupController.put(req, res, options));
-  router.delete(`/${endpoint}/:id`, async (req, res) => await UserGroupController.delete(req, res, options));
-  router.delete(`/${endpoint}`, async (req, res) => await UserGroupController.delete(req, res, options));
+  router.post(`/:id`, async (req, res) => await UserGroupController.post(req, res, options));
+  router.post(`/`, async (req, res) => await UserGroupController.post(req, res, options));
+  router.get(`/:id`, async (req, res) => await UserGroupController.get(req, res, options));
+  router.get(`/`, async (req, res) => await UserGroupController.get(req, res, options));
+  router.put(`/:id`, async (req, res) => await UserGroupController.put(req, res, options));
+  router.put(`/`, async (req, res) => await UserGroupController.put(req, res, options));
+  router.delete(`/:id`, async (req, res) => await UserGroupController.delete(req, res, options));
+  router.delete(`/`, async (req, res) => await UserGroupController.delete(req, res, options));
   return router;
 };
 

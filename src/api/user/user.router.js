@@ -7,28 +7,23 @@ const logger = loggerFactory(import.meta);
 
 const UserRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'user';
-
   router.post(
-    `/${endpoint}/mailer/:id`,
+    `/mailer/:id`,
     authMiddleware,
     async (req, res) => await UserController.post(req, res, { uri: '/mailer', ...options }),
   );
-  router.get(
-    `/${endpoint}/mailer/:id`,
-    async (req, res) => await UserController.get(req, res, { uri: '/mailer', ...options }),
-  );
+  router.get(`/mailer/:id`, async (req, res) => await UserController.get(req, res, { uri: '/mailer', ...options }));
 
-  router.post(`/${endpoint}/:id`, async (req, res) => await UserController.post(req, res, options));
-  router.post(`/${endpoint}`, async (req, res) => await UserController.post(req, res, options));
+  router.post(`/:id`, async (req, res) => await UserController.post(req, res, options));
+  router.post(`/`, async (req, res) => await UserController.post(req, res, options));
 
-  router.get(`/${endpoint}/:id`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
-  router.get(`/${endpoint}`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
+  router.get(`/:id`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
+  router.get(`/`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
 
-  router.put(`/${endpoint}/:id`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
-  router.put(`/${endpoint}`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
+  router.put(`/:id`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
+  router.put(`/`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
 
-  // router.delete(`/${endpoint}/:id`, async (req, res) => await UserController.delete(req, res, options));
+  // router.delete(`/:id`, async (req, res) => await UserController.delete(req, res, options));
 
   return router;
 };

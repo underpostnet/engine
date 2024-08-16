@@ -11,7 +11,6 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaQuestRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'cyberia-quest';
 
   if (!options.cyberia)
     (async () => {
@@ -26,31 +25,31 @@ const CyberiaQuestRouter = (options) => {
       };
     })();
   router.post(
-    `/${endpoint}/take/:questId`,
+    `/take/:questId`,
     authMiddleware,
     async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take', ...options }),
   );
   router.post(
-    `/${endpoint}/abandon/:questId`,
+    `/abandon/:questId`,
     authMiddleware,
     async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon', ...options }),
   );
   router.post(
-    `/${endpoint}/take-anon/:questId`,
+    `/take-anon/:questId`,
     async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take-anon', ...options }),
   );
   router.post(
-    `/${endpoint}/abandon-anon/:questId`,
+    `/abandon-anon/:questId`,
     async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon-anon', ...options }),
   );
-  router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
-  router.post(`/${endpoint}`, async (req, res) => await CyberiaQuestController.post(req, res, options));
-  router.get(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));
-  router.get(`/${endpoint}`, async (req, res) => await CyberiaQuestController.get(req, res, options));
-  router.put(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.put(req, res, options));
-  router.put(`/${endpoint}`, async (req, res) => await CyberiaQuestController.put(req, res, options));
-  router.delete(`/${endpoint}/:id`, async (req, res) => await CyberiaQuestController.delete(req, res, options));
-  router.delete(`/${endpoint}`, async (req, res) => await CyberiaQuestController.delete(req, res, options));
+  router.post(`/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+  router.post(`/`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+  router.get(`/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));
+  router.get(`/`, async (req, res) => await CyberiaQuestController.get(req, res, options));
+  router.put(`/:id`, async (req, res) => await CyberiaQuestController.put(req, res, options));
+  router.put(`/`, async (req, res) => await CyberiaQuestController.put(req, res, options));
+  router.delete(`/:id`, async (req, res) => await CyberiaQuestController.delete(req, res, options));
+  router.delete(`/`, async (req, res) => await CyberiaQuestController.delete(req, res, options));
   return router;
 };
 

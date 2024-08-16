@@ -286,16 +286,17 @@ const buildRuntime = async () => {
               ...mailer,
             });
 
-          if (apis)
+          if (apis) {
+            const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
             for (const api of apis)
               await (async () => {
                 const { ApiRouter } = await import(`../api/${api}/${api}.router.js`);
-                const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
                 const router = ApiRouter({ host, path, apiPath, mailer, db });
                 // router.use(cors({ origin: origins }));
                 // logger.info('Load api router', { host, path: apiPath, api });
-                app.use(apiPath, router);
+                app.use(`${apiPath}/${api}`, router);
               })();
+          }
 
           app.use(function (req, res, next) {
             res.status(404).send('Sorry cant find that!');

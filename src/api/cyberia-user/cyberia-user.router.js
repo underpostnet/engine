@@ -11,7 +11,6 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaUserRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'cyberia-user';
 
   if (!options.cyberia)
     (async () => {
@@ -38,24 +37,16 @@ const CyberiaUserRouter = (options) => {
       }
     })();
 
-  router.post(`/${endpoint}/:id`, async (req, res) => await CyberiaUserController.post(req, res, options));
-  router.post(`/${endpoint}`, async (req, res) => await CyberiaUserController.post(req, res, options));
+  router.post(`/:id`, async (req, res) => await CyberiaUserController.post(req, res, options));
+  router.post(`/`, async (req, res) => await CyberiaUserController.post(req, res, options));
 
-  router.get(
-    `/${endpoint}/:id`,
-    authMiddleware,
-    async (req, res) => await CyberiaUserController.get(req, res, options),
-  );
-  router.get(`/${endpoint}`, authMiddleware, async (req, res) => await CyberiaUserController.get(req, res, options));
+  router.get(`/:id`, authMiddleware, async (req, res) => await CyberiaUserController.get(req, res, options));
+  router.get(`/`, authMiddleware, async (req, res) => await CyberiaUserController.get(req, res, options));
 
-  router.put(
-    `/${endpoint}/:id`,
-    authMiddleware,
-    async (req, res) => await CyberiaUserController.put(req, res, options),
-  );
-  router.put(`/${endpoint}`, authMiddleware, async (req, res) => await CyberiaUserController.put(req, res, options));
+  router.put(`/:id`, authMiddleware, async (req, res) => await CyberiaUserController.put(req, res, options));
+  router.put(`/`, authMiddleware, async (req, res) => await CyberiaUserController.put(req, res, options));
 
-  // router.delete(`/${endpoint}/:id`, async (req, res) => await CyberiaUserController.delete(req, res, options));
+  // router.delete(`/:id`, async (req, res) => await CyberiaUserController.delete(req, res, options));
 
   return router;
 };

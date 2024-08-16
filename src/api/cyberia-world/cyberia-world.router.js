@@ -11,7 +11,6 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaWorldRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'cyberia-world';
 
   if (!options.cyberia)
     (async () => {
@@ -39,27 +38,27 @@ const CyberiaWorldRouter = (options) => {
     })();
 
   router.post(
-    `/${endpoint}/:id`,
+    `/:id`,
     authMiddleware,
     moderatorGuard,
     async (req, res) => await CyberiaWorldController.post(req, res, options),
   );
   router.post(
-    `/${endpoint}`,
+    `/`,
     authMiddleware,
     moderatorGuard,
     async (req, res) => await CyberiaWorldController.post(req, res, options),
   );
-  router.get(`/${endpoint}/:id`, async (req, res) => await CyberiaWorldController.get(req, res, options));
-  router.get(`/${endpoint}`, async (req, res) => await CyberiaWorldController.get(req, res, options));
+  router.get(`/:id`, async (req, res) => await CyberiaWorldController.get(req, res, options));
+  router.get(`/`, async (req, res) => await CyberiaWorldController.get(req, res, options));
   router.delete(
-    `/${endpoint}/:id`,
+    `/:id`,
     authMiddleware,
     adminGuard,
     async (req, res) => await CyberiaWorldController.delete(req, res, options),
   );
   router.delete(
-    `/${endpoint}`,
+    `/`,
     authMiddleware,
     adminGuard,
     async (req, res) => await CyberiaWorldController.delete(req, res, options),

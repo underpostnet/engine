@@ -6,13 +6,12 @@ const logger = loggerFactory(import.meta);
 
 const CryptoRouter = (options) => {
   const router = express.Router();
-  const endpoint = 'crypto';
-  router.post(`/${endpoint}/:id`, async (req, res) => await CryptoController.post(req, res, options));
-  router.post(`/${endpoint}`, authMiddleware, async (req, res) => await CryptoController.post(req, res, options));
-  router.get(`/${endpoint}/:id`, async (req, res) => await CryptoController.get(req, res, options));
-  router.get(`/${endpoint}`, async (req, res) => await CryptoController.get(req, res, options));
-  router.delete(`/${endpoint}/:id`, async (req, res) => await CryptoController.delete(req, res, options));
-  router.delete(`/${endpoint}`, async (req, res) => await CryptoController.delete(req, res, options));
+  router.post(`/:id`, async (req, res) => await CryptoController.post(req, res, options));
+  router.post(`/`, authMiddleware, async (req, res) => await CryptoController.post(req, res, options));
+  router.get(`/:id`, async (req, res) => await CryptoController.get(req, res, options));
+  router.get(`/`, async (req, res) => await CryptoController.get(req, res, options));
+  router.delete(`/:id`, async (req, res) => await CryptoController.delete(req, res, options));
+  router.delete(`/`, async (req, res) => await CryptoController.delete(req, res, options));
   return router;
 };
 
