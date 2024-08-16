@@ -14,7 +14,7 @@ const FileService = {
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'POST',
         headers: headersFactory('file'),
-        body: headersFactory(options.body),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
