@@ -88,13 +88,9 @@ const Worker = {
   update: async function () {
     const isInstall = await this.status();
     if (isInstall) {
-      // const routes = Object.keys(window.Routes ? window.Routes() : { '/': {} }).map(
-      //   (path) => getProxyPath() + path.slice(1),
-      // );
-      const routes = [];
       const cacheNames = await caches.keys();
       for (const cacheName of cacheNames) {
-        if (cacheName.match('components/') || cacheName.match('.index.js') || routes.includes(cacheName)) {
+        if (cacheName.match('components/') || cacheName.match('services/') || cacheName.match('.index.js')) {
           await caches.delete(cacheName);
         }
       }
