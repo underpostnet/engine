@@ -1,3 +1,4 @@
+import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { getProxyPath } from '../../components/core/VanillaJs.js';
 
@@ -14,6 +15,23 @@ const ApiBase = (options = { id: '', endpoint: '' }) =>
     options?.id ? `/${options.id}` : ''
   }`;
 
+const headersFactory = (headerId = '') => {
+  const headers = { Authorization: Auth.getJWT() };
+  switch (headerId) {
+    case 'file':
+      return headers;
+
+    default:
+      headers['Content-Type'] = 'application/json';
+      return headers;
+  }
+};
+
+const payloadFactory = (body) => {
+  if (body instanceof FormData) return body;
+  return JSON.stringify(body);
+};
+
 logger.info('Load service');
 
 const endpoint = 'core';
@@ -23,11 +41,6 @@ const CoreService = {
     new Promise((resolve, reject) =>
       fetch(options.url, {
         method: 'GET',
-        // headers: {
-        //   // 'Content-Type': 'application/json',
-        //   // 'Authorization': ''
-        // },
-        // body,
       })
         .then(async (res) => {
           return await res.text();
@@ -45,11 +58,8 @@ const CoreService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
-        body: JSON.stringify(options.body),
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
@@ -67,10 +77,7 @@ const CoreService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
+        headers: headersFactory(),
       })
         .then(async (res) => {
           return await res.json();
@@ -88,10 +95,7 @@ const CoreService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
+        headers: headersFactory(),
       })
         .then(async (res) => {
           return await res.json();
@@ -109,11 +113,8 @@ const CoreService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
-        body: JSON.stringify(options.body),
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
@@ -129,4 +130,4 @@ const CoreService = {
     ),
 };
 
-export { CoreService, ApiBase };
+export { CoreService, ApiBase, headersFactory, payloadFactory };

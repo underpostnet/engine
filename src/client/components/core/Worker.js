@@ -1,6 +1,7 @@
 import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
 import { EventsUI } from './EventsUI.js';
+import { LoadingAnimation } from './LoadingAnimation.js';
 import { loggerFactory } from './Logger.js';
 import { LoadRouter } from './Router.js';
 import { Translate } from './Translate.js';
@@ -24,25 +25,7 @@ const Worker = {
         switch (status) {
           case 'loader':
             {
-              if (s(`.ssr-loading-info`)) {
-                let nameSrcLoad = event.data.path;
-                if (nameSrcLoad) {
-                  if (nameSrcLoad.match('assets'))
-                    nameSrcLoad =
-                      location.hostname +
-                      location.pathname +
-                      (location.pathname[location.pathname.length - 1] !== '/' ? '/' : '') +
-                      'assets';
-                  else if (!nameSrcLoad.match('api')) nameSrcLoad = undefined;
-                  if (nameSrcLoad)
-                    htmls(
-                      `.ssr-loading-info`,
-                      html`<span style="color: white">Download </span> <br />
-                        <br />
-                        ...${nameSrcLoad.slice(-30)}`,
-                    );
-                }
-              }
+              LoadingAnimation.RenderCurrentSrcLoad(event);
             }
             break;
 
@@ -51,16 +34,17 @@ const Worker = {
         }
       });
 
-      if (navigator.serviceWorker.controller)
-        navigator.serviceWorker.controller.postMessage({
-          title: 'Hello from Client event message',
-        });
+      // if (navigator.serviceWorker.controller)
+      //   navigator.serviceWorker.controller.postMessage({
+      //     title: 'Hello from Client event message',
+      //   });
+
       // broadcast message
-      const channel = new BroadcastChannel('sw-messages');
-      channel.addEventListener('message', (event) => {
-        logger.info('Received broadcast message', event.data);
-      });
-      channel.postMessage({ title: 'Hello from Client broadcast message' });
+      // const channel = new BroadcastChannel('sw-messages');
+      // channel.addEventListener('message', (event) => {
+      //   logger.info('Received broadcast message', event.data);
+      // });
+      // channel.postMessage({ title: 'Hello from Client broadcast message' });
       // channel.close();
     });
     const isInstall = await this.status();

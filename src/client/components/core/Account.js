@@ -21,17 +21,19 @@ const Account = {
     const waveAnimationId = 'account-wave';
     const profileFileAccept = ['image/png', 'image/jpeg'];
     setTimeout(async () => {
-      append(
-        `.wave-animation-container-${waveAnimationId}`,
-        html` <div class="abs center account-profile-image-container">
-            <img
-              class="abs center account-profile-image"
-              style="opacity: 1"
-              src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"
-            />
-          </div>
-          <div class="abs center account-profile-image-loading" style="color: white"></div>`,
-      );
+      if (LogIn.Scope.user.main.model.user.profileImage) {
+        append(
+          `.wave-animation-container-${waveAnimationId}`,
+          html` <div class="abs center account-profile-image-container">
+              <img
+                class="abs center account-profile-image"
+                style="opacity: 1"
+                src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"
+              />
+            </div>
+            <div class="abs center account-profile-image-loading" style="color: white"></div>`,
+        );
+      }
 
       const formData = [
         {
@@ -108,25 +110,25 @@ const Account = {
         async (e) => {
           s(`.account-profile-image`).style.opacity = 0;
           const formFile = fileFormDataFactory(e, profileFileAccept);
-          let profileImageId;
-          {
-            const { status, data } = await FileService.post({ body: formFile });
-            if (data && data[0]) profileImageId = data[0]._id;
-          }
-          if (profileImageId) {
-            const { status, data } = await UserService.put({ id: user._id, body: { profileImageId } });
-            if (status === 'success') {
-              user.profileImageId = profileImageId;
-              delete LogIn.Scope.user.main.model.user.profileImage;
-              await LogIn.Trigger({ user });
-              s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-            }
+
+          const { status, data, message } = await UserService.put({
+            id: `profile-image/${user._id}`,
+            body: formFile,
+            headerId: 'file',
+          });
+
+          if (status === 'success') {
+            user.profileImageId = data.profileImageId;
+            delete LogIn.Scope.user.main.model.user.profileImage;
+            await LogIn.Trigger({ user });
+            s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
           } else {
             NotificationManager.Push({
-              html: Translate.Render('file-upload-failed'),
+              html: Translate.Render('file-upload-failed') + ' ' + message,
               status: 'error',
             });
           }
+
           s(`.account-profile-image`).style.opacity = 1;
         },
         `.account-profile-image-loading`,

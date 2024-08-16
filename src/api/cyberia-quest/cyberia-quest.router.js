@@ -27,21 +27,15 @@ const CyberiaQuestRouter = (options) => {
   router.post(
     `/take/:questId`,
     authMiddleware,
-    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take', ...options }),
+    async (req, res) => await CyberiaQuestController.post(req, res, options),
   );
   router.post(
     `/abandon/:questId`,
     authMiddleware,
-    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon', ...options }),
+    async (req, res) => await CyberiaQuestController.post(req, res, options),
   );
-  router.post(
-    `/take-anon/:questId`,
-    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/take-anon', ...options }),
-  );
-  router.post(
-    `/abandon-anon/:questId`,
-    async (req, res) => await CyberiaQuestController.post(req, res, { uri: '/abandon-anon', ...options }),
-  );
+  router.post(`/take-anon/:questId`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+  router.post(`/abandon-anon/:questId`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.post(`/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.post(`/`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));

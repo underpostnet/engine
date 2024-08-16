@@ -2,7 +2,7 @@ import { Auth } from '../../components/core/Auth.js';
 import { newInstance } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { ElementsCyberia } from '../../components/cyberia/ElementsCyberia.js';
-import { ApiBase } from '../core/core.service.js';
+import { ApiBase, headersFactory, payloadFactory } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -15,11 +15,8 @@ const CyberiaUserService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
-        body: JSON.stringify(options.body),
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
@@ -37,10 +34,7 @@ const CyberiaUserService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'GET',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
+        headers: headersFactory(),
       })
         .then(async (res) => {
           return await res.json();
@@ -58,11 +52,8 @@ const CyberiaUserService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
-        body: JSON.stringify(options.body),
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
@@ -80,11 +71,8 @@ const CyberiaUserService = {
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: Auth.getJWT(),
-        },
-        body: JSON.stringify(options.body),
+        headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();

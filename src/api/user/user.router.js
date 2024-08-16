@@ -7,12 +7,8 @@ const logger = loggerFactory(import.meta);
 
 const UserRouter = (options) => {
   const router = express.Router();
-  router.post(
-    `/mailer/:id`,
-    authMiddleware,
-    async (req, res) => await UserController.post(req, res, { uri: '/mailer', ...options }),
-  );
-  router.get(`/mailer/:id`, async (req, res) => await UserController.get(req, res, { uri: '/mailer', ...options }));
+  router.post(`/mailer/:id`, authMiddleware, async (req, res) => await UserController.post(req, res, options));
+  router.get(`/mailer/:id`, async (req, res) => await UserController.get(req, res, options));
 
   router.post(`/:id`, async (req, res) => await UserController.post(req, res, options));
   router.post(`/`, async (req, res) => await UserController.post(req, res, options));
@@ -20,6 +16,7 @@ const UserRouter = (options) => {
   router.get(`/:id`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
   router.get(`/`, authMiddleware, async (req, res) => await UserController.get(req, res, options));
 
+  router.put(`/profile-image/:id`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
   router.put(`/:id`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
   router.put(`/`, authMiddleware, async (req, res) => await UserController.put(req, res, options));
 

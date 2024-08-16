@@ -14,87 +14,83 @@ const CyberiaQuestService = {
 
     const wsManagementId = `${options.host}${options.path}`;
 
-    switch (options.uri) {
-      case '/take': {
-        const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
-        if (cyberiaUser) {
-          if (!cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
-            if (!QuestComponent.Data[req.params.questId]) throw new Error(`quest ${req.params.questId} not found`);
+    if (req.path.startsWith('/take')) {
+      const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
+      if (cyberiaUser) {
+        if (!cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
+          if (!QuestComponent.Data[req.params.questId]) throw new Error(`quest ${req.params.questId} not found`);
 
-            const wsManagementId = `${options.host}${options.path}`;
+          const wsManagementId = `${options.host}${options.path}`;
 
-            const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
-              wsManagementId,
-              cyberiaUser._id.toString(),
-            );
-
-            const questObj = {
-              displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
-              id: req.params.questId,
-              currentStep: 0,
-            };
-
-            if (!CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests)
-              CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests = [];
-
-            CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.push(questObj);
-
-            return 'success take quest';
-          } else throw new Error('quest has already been taken');
-        } else throw new Error('user not found');
-      }
-      case '/abandon': {
-        const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
-        if (cyberiaUser) {
-          if (cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
-            const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
-              wsManagementId,
-              cyberiaUser._id.toString(),
-            );
-
-            CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests =
-              CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.filter(
-                (q) => q.id !== req.params.questId,
-              );
-
-            return 'success abandon take quest';
-          } else throw new Error('quest has not already been taken');
-        } else throw new Error('user not found');
-        break;
-      }
-      case '/take-anon': {
-        if (
-          CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
-            (q) => q.id === req.params.questId,
-          )
-        )
-          throw new Error('quest has already been taken');
-        const questObj = {
-          displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
-          id: req.params.questId,
-          currentStep: 0,
-        };
-        CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.push(questObj);
-        return 'success take quest';
-      }
-      case '/abandon-anon': {
-        if (
-          !CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
-            (q) => q.id === req.params.questId,
-          )
-        )
-          throw new Error('quest has not already been taken');
-
-        CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests =
-          CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.filter(
-            (q) => q.id !== req.params.questId,
+          const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
+            wsManagementId,
+            cyberiaUser._id.toString(),
           );
-        return 'success abandon take quest';
-      }
 
-      default:
-        return await new CyberiaQuest(req.body).save();
+          const questObj = {
+            displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
+            id: req.params.questId,
+            currentStep: 0,
+          };
+
+          if (!CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests)
+            CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests = [];
+
+          CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.push(questObj);
+
+          return 'success take quest';
+        } else throw new Error('quest has already been taken');
+      } else throw new Error('user not found');
     }
+    if (req.path.startsWith('/abandon')) {
+      const cyberiaUser = await CyberiaUser.findOne({ 'model.user._id': req.auth.user._id });
+      if (cyberiaUser) {
+        if (cyberiaUser.model.quests.find((q) => q.id === req.params.questId)) {
+          const cyberiaUserWsId = CyberiaWsUserManagement.getCyberiaUserWsId(
+            wsManagementId,
+            cyberiaUser._id.toString(),
+          );
+
+          CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests =
+            CyberiaWsUserManagement.element[wsManagementId][cyberiaUserWsId].model.quests.filter(
+              (q) => q.id !== req.params.questId,
+            );
+
+          return 'success abandon take quest';
+        } else throw new Error('quest has not already been taken');
+      } else throw new Error('user not found');
+    }
+    if (req.path.startsWith('/take-anon')) {
+      if (
+        CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
+          (q) => q.id === req.params.questId,
+        )
+      )
+        throw new Error('quest has already been taken');
+      const questObj = {
+        displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
+        id: req.params.questId,
+        currentStep: 0,
+      };
+      CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.push(questObj);
+      return 'success take quest';
+    }
+
+    if (req.path.startsWith('/abandon-anon')) {
+      if (
+        !CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.find(
+          (q) => q.id === req.params.questId,
+        )
+      )
+        throw new Error('quest has not already been taken');
+
+      CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests = CyberiaWsUserManagement.element[
+        wsManagementId
+      ][req.body.socketId].model.quests.filter((q) => q.id !== req.params.questId);
+      return 'success abandon take quest';
+    }
+
+    return await new CyberiaQuest(req.body).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */

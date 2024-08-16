@@ -31,52 +31,42 @@ const UserService = {
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
-    if (options.uri) {
-      switch (options.uri) {
-        case '/mailer':
-          switch (req.params.id) {
-            case 'verify-email': {
-              if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
+    if (req.path.startsWith('/mailer') && req.param.id === 'verify-email') {
+      if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
-              const token = hashJWT({ email: req.body.email });
-              const id = `${options.host}${options.path}`;
-              const user = await User.findById(req.auth.user._id);
+      const token = hashJWT({ email: req.body.email });
+      const id = `${options.host}${options.path}`;
+      const user = await User.findById(req.auth.user._id);
 
-              if (user.email !== req.body.email) {
-                req.body.emailConfirmed = false;
+      if (user.email !== req.body.email) {
+        req.body.emailConfirmed = false;
 
-                const result = await User.findByIdAndUpdate(req.auth.user._id, req.body, {
-                  runValidators: true,
-                });
-              }
-
-              const sendResult = await MailerProvider.send({
-                id,
-                sendOptions: {
-                  to: req.body.email, // req.auth.user.email, // list of receivers
-                  subject: 'Email Confirmed', // Subject line
-                  text: 'Email Confirmed', // plain text body
-                  html: MailerProvider.instance[id].templates.userVerifyEmail.replace('{{TOKEN}}', token), // html body
-                  attachments: [
-                    // {
-                    //   filename: 'logo.png',
-                    //   path: `./logo.png`,
-                    //   cid: 'logo', // <img src='cid:logo'>
-                    // },
-                  ],
-                },
-              });
-
-              if (!sendResult) throw new Error('email send error');
-              return { message: 'email send successfully' };
-            }
-
-            default:
-          }
-
-        default:
+        const result = await User.findByIdAndUpdate(req.auth.user._id, req.body, {
+          runValidators: true,
+        });
       }
+
+      const sendResult = await MailerProvider.send({
+        id,
+        sendOptions: {
+          to: req.body.email, // req.auth.user.email, // list of receivers
+          subject: 'Email Confirmed', // Subject line
+          text: 'Email Confirmed', // plain text body
+          html: MailerProvider.instance[id].templates.userVerifyEmail.replace('{{TOKEN}}', token), // html body
+          attachments: [
+            // {
+            //   filename: 'logo.png',
+            //   path: `./logo.png`,
+            //   cid: 'logo', // <img src='cid:logo'>
+            // },
+          ],
+        },
+      });
+
+      if (!sendResult) throw new Error('email send error');
+      return { message: 'email send successfully' };
     }
+
     switch (req.params.id) {
       case 'auth':
         const user = await User.findOne({
@@ -125,37 +115,25 @@ const UserService = {
   get: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
-
-    if (options.uri) {
-      switch (options.uri) {
-        case '/mailer':
-          switch (req.params.id) {
-            default: {
-              const payload = verifyJWT(req.params.id);
-              const user = await User.findOne({
-                email: payload.email,
-              });
-              if (user) {
-                const { _id } = user;
-                {
-                  const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
-                }
-                const userWsId = CoreWsMailerManagement.getUserWsId(
-                  `${options.host}${options.path}`,
-                  user._id.toString(),
-                );
-                CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
-                  status: 'email-confirmed',
-                  id: userWsId,
-                });
-                return { message: 'email confirmed' };
-              } else new Error('invalid token');
-            }
-          }
-
-        default:
-      }
+    if (req.path.startsWith('/mailer')) {
+      const payload = verifyJWT(req.params.id);
+      const user = await User.findOne({
+        email: payload.email,
+      });
+      if (user) {
+        const { _id } = user;
+        {
+          const user = await User.findByIdAndUpdate(_id, { emailConfirmed: true }, { runValidators: true });
+        }
+        const userWsId = CoreWsMailerManagement.getUserWsId(`${options.host}${options.path}`, user._id.toString());
+        CoreWsEmit(CoreWsMailerChannel.channel, CoreWsMailerChannel.client[userWsId], {
+          status: 'email-confirmed',
+          id: userWsId,
+        });
+        return { message: 'email confirmed' };
+      } else new Error('invalid token');
     }
+
     switch (req.params.id) {
       case 'all':
         return await User.find().select(UserDto.select.getAll());
@@ -183,6 +161,20 @@ const UserService = {
   put: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+
+    // req.path | req.baseUrl
+
+    if (req.path.startsWith('/profile-image')) {
+      const user = await User.findOne({
+        _id: req.auth.user._id,
+      });
+      await File.findByIdAndDelete(user.profileImageId);
+      const [imageFile] = await FileFactory.upload(req, File);
+      req.body.profileImageId = imageFile._id.toString();
+    }
 
     switch (req.params.id) {
       default: {
