@@ -31,7 +31,7 @@ const UserService = {
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
-    if (req.path.startsWith('/mailer') && req.param.id === 'verify-email') {
+    if (req.path.startsWith('/mailer') && req.params.id === 'verify-email') {
       if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
 
       const token = hashJWT({ email: req.body.email });
