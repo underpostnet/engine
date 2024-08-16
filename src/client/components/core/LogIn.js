@@ -43,25 +43,26 @@ const LogIn = {
       );
     if (!this.Scope.user.main.model.user.profileImage) {
       const resultFile = await FileService.get({ id: user.profileImageId });
+      if (resultFile && resultFile.status === 'success' && resultFile.data[0]) {
+        const imageData = resultFile.data[0];
 
-      const imageData = resultFile.data[0];
+        const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
 
-      const imageBlob = new Blob([new Uint8Array(imageData.data.data)], { type: imageData.mimetype });
+        const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
 
-      const imageFile = new File([imageBlob], imageData.name, { type: imageData.mimetype });
+        const imageSrc = URL.createObjectURL(imageFile);
 
-      const imageSrc = URL.createObjectURL(imageFile);
+        // const  rawSvg = await CoreService.getRaw({ url: imageSrc });
+        // rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
 
-      // const  rawSvg = await CoreService.getRaw({ url: imageSrc });
-      // rawSvg = rawSvg.replace(`<svg`, `<svg class="abs account-profile-image" `).replace(`#5f5f5f`, `#ffffffc8`);
-
-      this.Scope.user.main.model.user.profileImage = {
-        resultFile,
-        imageData,
-        imageBlob,
-        imageFile,
-        imageSrc,
-      };
+        this.Scope.user.main.model.user.profileImage = {
+          resultFile,
+          imageData,
+          imageBlob,
+          imageFile,
+          imageSrc,
+        };
+      }
     }
     htmls(
       `.action-btn-profile-log-in-render`,
