@@ -7,11 +7,6 @@ const DefaultController = {
   post: async (req, res, options) => {
     try {
       const result = await DefaultService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const DefaultController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error default' };
       const result = await DefaultService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const DefaultController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error default' };
       const result = await DefaultService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const DefaultController = {
   delete: async (req, res, options) => {
     try {
       const result = await DefaultService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

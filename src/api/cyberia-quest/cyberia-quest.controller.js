@@ -7,11 +7,6 @@ const CyberiaQuestController = {
   post: async (req, res, options) => {
     try {
       const result = await CyberiaQuestService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const CyberiaQuestController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error cyberia-quest' };
       const result = await CyberiaQuestService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const CyberiaQuestController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error cyberia-quest' };
       const result = await CyberiaQuestService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const CyberiaQuestController = {
   delete: async (req, res, options) => {
     try {
       const result = await CyberiaQuestService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

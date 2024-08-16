@@ -7,11 +7,6 @@ const EventController = {
   post: async (req, res, options) => {
     try {
       const result = await EventService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const EventController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error event' };
       const result = await EventService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const EventController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error event' };
       const result = await EventService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const EventController = {
   delete: async (req, res, options) => {
     try {
       const result = await EventService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

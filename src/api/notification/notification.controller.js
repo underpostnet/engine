@@ -7,11 +7,6 @@ const NotificationController = {
   post: async (req, res, options) => {
     try {
       const result = await NotificationService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const NotificationController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error notification' };
       const result = await NotificationService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const NotificationController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error notification' };
       const result = await NotificationService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const NotificationController = {
   delete: async (req, res, options) => {
     try {
       const result = await NotificationService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

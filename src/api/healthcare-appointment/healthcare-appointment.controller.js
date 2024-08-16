@@ -7,11 +7,6 @@ const HealthcareAppointmentController = {
   post: async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const HealthcareAppointmentController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error healthcare-appointment' };
       const result = await HealthcareAppointmentService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const HealthcareAppointmentController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error healthcare-appointment' };
       const result = await HealthcareAppointmentService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const HealthcareAppointmentController = {
   delete: async (req, res, options) => {
     try {
       const result = await HealthcareAppointmentService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

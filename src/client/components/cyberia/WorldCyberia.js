@@ -68,10 +68,7 @@ class LoadWorldCyberiaRenderer {
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
         const worldDeleteResult = await CyberiaWorldService.delete({ id: params.data._id });
         NotificationManager.Push({
-          html:
-            worldDeleteResult.status === 'success'
-              ? Translate.Render(worldDeleteResult.message)
-              : worldDeleteResult.message,
+          html: worldDeleteResult.status,
           status: worldDeleteResult.status,
         });
 

@@ -7,11 +7,6 @@ const CyberiaBotController = {
   post: async (req, res, options) => {
     try {
       const result = await CyberiaBotService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const CyberiaBotController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error cyberia-bot' };
       const result = await CyberiaBotService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const CyberiaBotController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error cyberia-bot' };
       const result = await CyberiaBotService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const CyberiaBotController = {
   delete: async (req, res, options) => {
     try {
       const result = await CyberiaBotService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

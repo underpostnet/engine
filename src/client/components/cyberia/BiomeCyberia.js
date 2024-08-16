@@ -1079,28 +1079,19 @@ class LoadBiomeCyberiaRenderer {
         EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
           const biomeDeleteResult = await CyberiaBiomeService.delete({ id: params.data._id });
           NotificationManager.Push({
-            html:
-              biomeDeleteResult.status === 'success'
-                ? Translate.Render(biomeDeleteResult.message)
-                : biomeDeleteResult.message,
+            html: biomeDeleteResult.status === 'success' ? '33%' : biomeDeleteResult.message,
             status: biomeDeleteResult.status,
           });
 
           const fileDeleteResult = await FileService.delete({ id: params.data.fileId });
           NotificationManager.Push({
-            html:
-              fileDeleteResult.status === 'success'
-                ? Translate.Render(fileDeleteResult.message)
-                : fileDeleteResult.message,
+            html: fileDeleteResult.status === 'success' ? '66%' : fileDeleteResult.message,
             status: fileDeleteResult.status,
           });
 
           const topLevelColorFileDeleteResult = await FileService.delete({ id: params.data.topLevelColorFileId });
           NotificationManager.Push({
-            html:
-              topLevelColorFileDeleteResult.status === 'success'
-                ? Translate.Render(topLevelColorFileDeleteResult.message)
-                : topLevelColorFileDeleteResult.message,
+            html: topLevelColorFileDeleteResult.status === 'success' ? '100%' : topLevelColorFileDeleteResult.message,
             status: topLevelColorFileDeleteResult.status,
           });
 

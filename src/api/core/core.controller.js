@@ -7,11 +7,6 @@ const CoreController = {
   post: async (req, res, options) => {
     try {
       const result = await CoreService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -26,13 +21,7 @@ const CoreController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error core' };
       const result = await CoreService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -47,13 +36,7 @@ const CoreController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error core' };
       const result = await CoreService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -69,11 +52,6 @@ const CoreController = {
   delete: async (req, res, options) => {
     try {
       const result = await CoreService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
         data: result,

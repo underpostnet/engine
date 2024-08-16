@@ -6,15 +6,9 @@ const logger = loggerFactory(import.meta);
 const BotController = {
   post: async (req, res, options) => {
     try {
-      const result = await BotService.post(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
-        data: result,
+        data: await BotService.post(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -26,16 +20,9 @@ const BotController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error bot' };
-      const result = await BotService.get(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
-        data: result,
+        data: await BotService.get(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -47,16 +34,9 @@ const BotController = {
   },
   put: async (req, res, options) => {
     try {
-      // throw { message: 'error bot' };
-      const result = await BotService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
-        data: result,
+        data: await BotService.put(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -68,15 +48,9 @@ const BotController = {
   },
   delete: async (req, res, options) => {
     try {
-      const result = await BotService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
       return res.status(200).json({
         status: 'success',
-        data: result,
+        data: await BotService.delete(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);

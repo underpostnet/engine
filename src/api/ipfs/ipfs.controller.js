@@ -19,10 +19,8 @@ const IPFSController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error test' };
       return res.status(200).json({
         status: 'success',
-        message: 'success',
         data: await IPFSService.get(req, res, options),
       });
     } catch (error) {
@@ -36,16 +34,9 @@ const IPFSController = {
   delete: async (req, res, options) => {
     try {
       const result = await IPFSService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
-
       return res.status(200).json({
         status: 'success',
         data: result,
-        message: 'success-delete',
       });
     } catch (error) {
       logger.error(error, error.stack);

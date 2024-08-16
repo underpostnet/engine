@@ -7,12 +7,6 @@ const UserController = {
   post: async (req, res, options) => {
     try {
       const result = await UserService.post(req, res, options);
-      if (!result) {
-        return res.status(401).json({
-          status: 'error',
-          data: result,
-        });
-      }
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -27,10 +21,8 @@ const UserController = {
   },
   get: async (req, res, options) => {
     try {
-      // throw { message: 'error test' };
       return res.status(200).json({
         status: 'success',
-        message: 'success-user',
         data: await UserService.get(req, res, options),
       });
     } catch (error) {
@@ -44,16 +36,9 @@ const UserController = {
   delete: async (req, res, options) => {
     try {
       const result = await UserService.delete(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
-
       return res.status(200).json({
         status: 'success',
         data: result,
-        message: 'success-delete',
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -66,16 +51,9 @@ const UserController = {
   put: async (req, res, options) => {
     try {
       const result = await UserService.put(req, res, options);
-      if (!result)
-        return res.status(400).json({
-          status: 'error',
-          message: 'item not found',
-        });
-
       return res.status(200).json({
         status: 'success',
         data: result,
-        message: 'success-update',
       });
     } catch (error) {
       logger.error(error, error.stack);
