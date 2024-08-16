@@ -76,8 +76,8 @@ const TranslateCore = {
         en: 'Please enter a valid email address',
       },
       isLength: {
-        es: 'Mínimo 5 caracteres, máximo 20 caracteres',
-        en: 'Minimum 5 characters, maximum 20 characters',
+        es: 'Mínimo 2 caracteres, máximo 20 caracteres',
+        en: 'Minimum 2 characters, maximum 20 characters',
       },
       passwordMismatch: {
         es: 'Las contraseñas no coinciden',

@@ -19,13 +19,13 @@ const SignUp = {
         {
           model: 'username',
           id: `sign-up-username`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
         { model: 'email', id: `sign-up-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
           model: 'password',
           id: `sign-up-password`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
         {
           id: `sign-up-repeat-password`,
