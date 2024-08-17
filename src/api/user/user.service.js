@@ -115,6 +115,10 @@ const UserService = {
   get: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+
     if (req.path.startsWith('/mailer')) {
       const payload = verifyJWT(req.params.id);
       const user = await User.findOne({
@@ -138,10 +142,27 @@ const UserService = {
       case 'all':
         return await User.find().select(UserDto.select.getAll());
 
-      case 'auth':
-        return await User.find({
+      case 'auth': {
+        const user = await User.findOne({
+          _id: req.auth.user._id,
+        });
+
+        const file = await File.findOne({ _id: user.profileImageId });
+
+        if (!file) {
+          await User.findByIdAndUpdate(
+            user._id,
+            { profileImageId: await getDefaultProfileImageId(File) },
+            {
+              runValidators: true,
+            },
+          );
+        }
+
+        return await User.findOne({
           _id: req.auth.user._id,
         }).select(UserDto.select.get());
+      }
 
       default:
         return await User.find({

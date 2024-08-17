@@ -64,13 +64,18 @@ const LogIn = {
         };
       }
     }
-    if (this.Scope.user.main.model.user.profileImage)
-      htmls(
-        `.action-btn-profile-log-in-render`,
-        html`<div class="abs center top-box-profile-img-container">
-          <img class="abs center top-box-profile-img" src="${this.Scope.user.main.model.user.profileImage.imageSrc}" />
-        </div>`,
-      );
+
+    htmls(
+      `.action-btn-profile-log-in-render`,
+      html`<div class="abs center top-box-profile-img-container">
+        <img
+          class="abs center top-box-profile-img"
+          ${this.Scope.user.main.model.user.profileImage
+            ? `src="${this.Scope.user.main.model.user.profileImage.imageSrc}"`
+            : ``}
+        />
+      </div>`,
+    );
   },
   Render: async function () {
     setTimeout(async () => {

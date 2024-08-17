@@ -26,8 +26,8 @@ const LogInDefault = async function () {
   if (token) {
     Auth.setToken(token);
     const result = await UserService.get({ id: 'auth' });
-    if (result.status === 'success' && result.data[0]) {
-      const [user] = result.data;
+    if (result.status === 'success' && result.data) {
+      const user = result.data;
       await LogIn.Trigger({
         token,
         user,
