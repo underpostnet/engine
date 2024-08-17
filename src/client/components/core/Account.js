@@ -111,7 +111,7 @@ const Account = {
           s(`.account-profile-image`).style.opacity = 0;
           const formFile = fileFormDataFactory(e, profileFileAccept);
 
-          const { status, data, message } = await UserService.put({
+          const { status, data } = await UserService.put({
             id: `profile-image/${user._id}`,
             body: formFile,
             headerId: 'file',
@@ -124,7 +124,7 @@ const Account = {
             s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
           } else {
             NotificationManager.Push({
-              html: Translate.Render('file-upload-failed') + ' ' + message,
+              html: Translate.Render('file-upload-failed'),
               status: 'error',
             });
           }

@@ -300,7 +300,7 @@ const FileExplorer = {
                 id: params.data.fileId,
               });
               NotificationManager.Push({
-                html: status === 'success' ? Translate.Render(message) : message,
+                html: status,
                 status,
               });
               if (status === 'error') return;
@@ -309,7 +309,7 @@ const FileExplorer = {
               id: params.data._id,
             });
             NotificationManager.Push({
-              html: status === 'success' ? Translate.Render(message) : message,
+              html: status,
               status,
             });
             if (status === 'error') return;

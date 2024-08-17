@@ -272,20 +272,14 @@ const WorldCyberia = {
   Render: async function (options) {
     const resultWorldCyberias = await CyberiaWorldService.get({ id: 'all' });
     NotificationManager.Push({
-      html:
-        resultWorldCyberias.status === 'success'
-          ? Translate.Render(resultWorldCyberias.message)
-          : resultWorldCyberias.message,
+      html: resultWorldCyberias.status,
       status: resultWorldCyberias.status,
     });
     if (resultWorldCyberias.status === 'success') this.worlds = resultWorldCyberias.data;
 
     const resultBiomeCyberia = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
-      html:
-        resultBiomeCyberia.status === 'success'
-          ? Translate.Render(resultBiomeCyberia.message)
-          : resultBiomeCyberia.message,
+      html: resultBiomeCyberia.status,
       status: resultBiomeCyberia.status,
     });
     let render = '';

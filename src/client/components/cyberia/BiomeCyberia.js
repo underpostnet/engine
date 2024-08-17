@@ -1120,10 +1120,7 @@ const BiomeCyberiaEngine = {
   Render: async function (options) {
     const resultBiomeCyberia = await CyberiaBiomeService.get({ id: 'all-name' });
     NotificationManager.Push({
-      html:
-        resultBiomeCyberia.status === 'success'
-          ? Translate.Render(resultBiomeCyberia.message)
-          : resultBiomeCyberia.message,
+      html: resultBiomeCyberia.status,
       status: resultBiomeCyberia.status,
     });
     if (resultBiomeCyberia.status === 'success') BiomeCyberiaScope.Grid = resultBiomeCyberia.data;
