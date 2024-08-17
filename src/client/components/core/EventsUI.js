@@ -7,6 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const EventsUI = {
   on: (id = '', logic = function (e) {}, type = 'onclick', loadingContainer) => {
+    if (!s(id)) return;
     let complete = true;
     s(id)[type] = async function (e) {
       if (complete) {
