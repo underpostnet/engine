@@ -239,6 +239,16 @@ const buildRuntime = async () => {
           // json formatted response
           app.set('json spaces', 2);
 
+          // lang handling middleware
+          app.use(function (err, req, res, next) {
+            let lang = req.acceptsLanguages('en', 'es');
+            if (!lang) {
+              lang = 'en';
+            }
+            req.lang = lang;
+            return next();
+          });
+
           // cors
           app.use(cors({ origin: origins }));
 

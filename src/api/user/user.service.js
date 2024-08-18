@@ -9,7 +9,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { s4 } from '../../client/components/core/CommonJs.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
-import { svg, png } from 'font-awesome-assets';
+import { svg, png, png3x } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
 import Jimp from 'jimp';
 import { buildTextImg } from '../../server/client-icons.js';
@@ -23,6 +23,11 @@ const getDefaultProfileImageId = async (File) => {
   const file = await new File(FileFactory.svg(fs.readFileSync(tmpFilePath), `${faId}.svg`)).save();
   fs.removeSync(tmpFilePath);
   return file._id;
+};
+
+const faImage = (faId = 'check') => {
+  const b64Src = png3x(faId, '#209e00', 100, 100);
+  return Buffer.from(b64Src.split('src="data:image/png;base64,')[1].split('"')[0], 'base64');
 };
 
 const UserService = {
@@ -47,14 +52,27 @@ const UserService = {
           runValidators: true,
         });
       }
-
+      const translate = {
+        H1: {
+          en: 'Confirm Your Email',
+          zh: '请确认您的电子邮箱',
+          es: 'Confirma tu correo electrónico',
+        },
+        P1: {
+          en: 'Email confirmed! Thanks.',
+          zh: '电子邮箱已确认！感谢。',
+          es: 'Correo electrónico confirmado! Gracias.',
+        },
+      };
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
           to: req.body.email, // req.auth.user.email, // list of receivers
-          subject: 'Email Confirmed', // Subject line
-          text: 'Email Confirmed', // plain text body
+          subject: translate.H1[req.lang], // Subject line
+          text: translate.H1[req.lang], // plain text body
           html: MailerProvider.instance[id].templates.userVerifyEmail
+            .replace('{{H1}}', translate.H1[req.lang])
+            .replace('{{P1}}', translate.P1[req.lang])
             .replace('{{TOKEN}}', token)
             .replace(`{{COMPANY}}`, options.host), // html body
           attachments: [
@@ -148,14 +166,8 @@ const UserService = {
           // const image = fs.readFileSync(debugFilename);
           // fs.removeSync(debugFilename);
 
-          const faId = 'check';
-          const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
-          fs.writeFileSync(tmpFilePath, png(faId, '#4fc135d1'), 'utf8');
-          const image = fs.readFileSync(tmpFilePath);
-          fs.removeSync(tmpFilePath);
-          // res.set('Content-Type', 'image/svg+xml');
           res.set('Content-Type', 'image/png');
-          return image;
+          return faImage('check');
         }
       } else new Error('invalid token');
     }
