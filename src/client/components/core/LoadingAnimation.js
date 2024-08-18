@@ -111,13 +111,13 @@ const LoadingAnimation = {
     },
   },
   removeSplashScreen: function () {
-    setTimeout(() => {
-      s('.ssr-background').style.opacity = 0;
-      setTimeout(async () => {
-        s('.ssr-background').style.display = 'none';
-        s(`.main-user-container`).style.display = 'block';
-      }, 300);
-    });
+    if (s('.ssr-background'))
+      setTimeout(() => {
+        s('.ssr-background').style.opacity = 0;
+        setTimeout(async () => {
+          s('.ssr-background').style.display = 'none';
+        }, 300);
+      });
   },
   lightColor: null,
   setLightColor: function (color) {

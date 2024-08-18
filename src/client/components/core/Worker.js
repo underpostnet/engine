@@ -54,6 +54,7 @@ const Worker = {
     this.RouterInstance = router();
     await render();
     LoadRouter(this.RouterInstance);
+    LoadingAnimation.removeSplashScreen();
     window.serviceWorkerReady = true;
   },
   // Get the current service worker registration.

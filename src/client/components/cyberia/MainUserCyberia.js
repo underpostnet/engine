@@ -279,8 +279,7 @@ const MainUserCyberia = {
         F: this.focusTarget,
       };
     }
-
-    LoadingAnimation.removeSplashScreen();
+    s(`.main-user-container`).style.display = 'block';
   },
   renderCenterRedTriangle: function () {
     // const fontSize = 1;

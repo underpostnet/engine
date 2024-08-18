@@ -143,7 +143,7 @@ const Config = {
     ssr: {
       Default: {
         head: ['PwaDefault', 'DefaultScripts'],
-        body: ['CacheControl'],
+        body: ['CacheControl', 'DefaultSplashScreen'],
       },
     },
     server: {
