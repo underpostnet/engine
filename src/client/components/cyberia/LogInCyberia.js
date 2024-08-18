@@ -43,7 +43,6 @@ const LogInCyberia = async function () {
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
     const oldElement = newInstance(ElementsCyberia.Data[type][id]);
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
-    Webhook.register({ user });
     const resultUserCyberia = await CyberiaUserService.get({ id: 'auth' });
     if (resultUserCyberia.status !== 'success') {
       NotificationManager.Push({

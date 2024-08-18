@@ -14,7 +14,6 @@ const LogInCyberiaPortal = async function () {
       Auth.setToken(token);
     }
     ElementsCyberiaPortal.Data.user.main.model.user = user;
-    await Webhook.register({ user });
 
     s(`.main-btn-log-in`).style.display = 'none';
     s(`.main-btn-sign-up`).style.display = 'none';

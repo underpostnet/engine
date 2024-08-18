@@ -24,7 +24,6 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-cloud`).classList.add('hide');
     s(`.main-btn-server`).classList.add('hide');
     Auth.deleteToken();
-    await Webhook.unregister();
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),

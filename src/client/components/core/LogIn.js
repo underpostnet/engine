@@ -8,6 +8,7 @@ import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { htmls, s } from './VanillaJs.js';
+import { Webhook } from './Webhook.js';
 
 const LogIn = {
   Scope: {
@@ -22,6 +23,7 @@ const LogIn = {
   Event: {},
   Trigger: async function (options) {
     const { user } = options;
+    await Webhook.register({ user });
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (s(`.session`))
       htmls(

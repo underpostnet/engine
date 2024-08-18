@@ -2,11 +2,13 @@ import { BtnIcon } from './BtnIcon.js';
 import { LogIn } from './LogIn.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
+import { Webhook } from './Webhook.js';
 
 const LogOut = {
   Event: {},
   Trigger: async function (options) {
     LogIn.Scope.user.main.model.user = {};
+    await Webhook.unregister();
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
     if (s(`.session`))
       htmls(

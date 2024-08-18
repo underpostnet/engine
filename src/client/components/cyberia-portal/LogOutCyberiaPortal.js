@@ -17,7 +17,6 @@ const LogOutCyberiaPortal = async function () {
     s(`.main-btn-admin`).classList.add('hide');
 
     Auth.deleteToken();
-    Webhook.unregister();
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
