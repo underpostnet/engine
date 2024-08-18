@@ -240,7 +240,7 @@ const buildRuntime = async () => {
           app.set('json spaces', 2);
 
           // lang handling middleware
-          app.use(function (err, req, res, next) {
+          app.use(function (req, res, next) {
             const lang = req.headers['accept-language'] || 'en';
             if (typeof lang === 'string' && lang.toLowerCase().match('es')) {
               req.lang = 'es';
