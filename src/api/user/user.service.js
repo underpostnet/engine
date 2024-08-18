@@ -9,7 +9,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { s4 } from '../../client/components/core/CommonJs.js';
 import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
-import { svg } from 'font-awesome-assets';
+import { svg, png } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
 import Jimp from 'jimp';
 import { buildTextImg } from '../../server/client-icons.js';
@@ -142,10 +142,19 @@ const UserService = {
           // const image = await Jimp.create(100, 50);
           // res.set('Content-Type', 'image/png');
           // return await image.getBufferAsync(Jimp.MIME_PNG);
-          const debugFilename = `./tmp/${s4()}${s4()}${s4()}.png`;
-          await buildTextImg('✓', { debugFilename }, '100x100');
-          const image = fs.readFileSync(debugFilename);
-          fs.removeSync(debugFilename);
+
+          // const debugFilename = `./tmp/${s4()}${s4()}${s4()}.png`;
+          // await buildTextImg('✓', { debugFilename }, '100x100');
+          // const image = fs.readFileSync(debugFilename);
+          // fs.removeSync(debugFilename);
+
+          const faId = 'check';
+          const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
+          fs.writeFileSync(tmpFilePath, png(faId, '#4fc135d1'), 'utf8');
+          const image = fs.readFileSync(tmpFilePath);
+          fs.removeSync(tmpFilePath);
+          // res.set('Content-Type', 'image/svg+xml');
+          res.set('Content-Type', 'image/png');
           return image;
         }
       } else new Error('invalid token');
