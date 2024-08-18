@@ -11,6 +11,8 @@ import { FileFactory } from '../file/file.service.js';
 import fs from 'fs-extra';
 import { svg } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
+import Jimp from 'jimp';
+import { buildTextImg } from '../../server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -52,7 +54,9 @@ const UserService = {
           to: req.body.email, // req.auth.user.email, // list of receivers
           subject: 'Email Confirmed', // Subject line
           text: 'Email Confirmed', // plain text body
-          html: MailerProvider.instance[id].templates.userVerifyEmail.replace('{{TOKEN}}', token), // html body
+          html: MailerProvider.instance[id].templates.userVerifyEmail
+            .replace('{{TOKEN}}', token)
+            .replace(`{{COMPANY}}`, options.host), // html body
           attachments: [
             // {
             //   filename: 'logo.png',
@@ -134,7 +138,16 @@ const UserService = {
           status: 'email-confirmed',
           id: userWsId,
         });
-        return { message: 'email confirmed' };
+        {
+          // const image = await Jimp.create(100, 50);
+          // res.set('Content-Type', 'image/png');
+          // return await image.getBufferAsync(Jimp.MIME_PNG);
+          const debugFilename = `./tmp/${s4()}${s4()}${s4()}.png`;
+          await buildTextImg('✓', { debugFilename }, '100x100');
+          const image = fs.readFileSync(debugFilename);
+          fs.removeSync(debugFilename);
+          return image;
+        }
       } else new Error('invalid token');
     }
 

@@ -1,3 +1,4 @@
+import { Account } from '../core/Account.js';
 import { Chat } from '../core/Chat.js';
 import { s4 } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -20,6 +21,19 @@ const SocketIoNexodev = {
                 if (s(`.${idModal}-chat-box`)) Chat.appendChatBox({ idModal, ...args });
               }
               break;
+
+            default:
+              break;
+          }
+          const { status } = args;
+
+          switch (status) {
+            case 'email-confirmed': {
+              const newUser = { ...ElementsNexodev.Data.user.main.model.user, emailConfirmed: true };
+              Account.renderVerifyEmailStatus(newUser);
+              Account.triggerUpdateEvent({ user: newUser });
+              break;
+            }
 
             default:
               break;

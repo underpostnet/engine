@@ -37,12 +37,14 @@ SrrComponent = () => html` <div class="ssr-background" style="opacity: 1">
       color: #5f5f5f;
       width: 100%;
       height: 100%;
+      top: 0px;
       left: 0px;
       z-index: 10;
       transition: 0.3s;
       font-size: 18px;
       font-weight: bold;
       font-family: monospace;
+      overflow: hidden;
     }
     .ssr-center {
       position: absolute;

@@ -421,7 +421,7 @@ const MenuNexodev = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsNexodev.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,

@@ -24,6 +24,12 @@ const defaultBaseTextImgOptionsSizes = {
     fontSize: 25,
     margin: 10,
   },
+  '100x100': {
+    maxWidth: 100,
+    customHeight: 100,
+    fontSize: 30,
+    margin: 12,
+  },
   '1200x1200': {
     maxWidth: 1200,
     customHeight: 1200,
@@ -32,8 +38,8 @@ const defaultBaseTextImgOptionsSizes = {
   },
 };
 
-const buildTextImg = async (text = 'APP', options) => {
-  options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes['1200x1200'], ...options };
+const buildTextImg = async (text = 'APP', options, size = '1200x1200') => {
+  options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes[size], ...options };
   await textToImage.generate(text, options);
 };
 

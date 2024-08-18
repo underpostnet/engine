@@ -21,9 +21,11 @@ const UserController = {
   },
   get: async (req, res, options) => {
     try {
+      const result = await UserService.get(req, res, options);
+      if (result instanceof Buffer) return res.status(200).end(result);
       return res.status(200).json({
         status: 'success',
-        data: await UserService.get(req, res, options),
+        data: result,
       });
     } catch (error) {
       logger.error(error, error.stack);
