@@ -291,7 +291,7 @@ const MenuCyberiaPortal = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsCyberiaPortal.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,

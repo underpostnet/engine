@@ -516,7 +516,7 @@ const MenuBms = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsBms.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,

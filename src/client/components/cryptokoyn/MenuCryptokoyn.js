@@ -245,7 +245,7 @@ const MenuCryptokoyn = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsCryptokoyn.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,

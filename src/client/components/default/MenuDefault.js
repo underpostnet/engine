@@ -240,7 +240,7 @@ const MenuDefault = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsDefault.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,

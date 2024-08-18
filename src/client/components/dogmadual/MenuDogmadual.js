@@ -232,7 +232,7 @@ const MenuDogmadual = {
           await Account.Render({
             idModal: 'modal-account',
             user: ElementsDogmadual.Data.user.main.model.user,
-            disabled: ['emailConfirm'],
+            disabled: [],
           }),
         handleType: 'bar',
         maximize: true,
