@@ -241,11 +241,10 @@ const buildRuntime = async () => {
 
           // lang handling middleware
           app.use(function (err, req, res, next) {
-            let lang = req.acceptsLanguages('en', 'es');
-            if (!lang) {
-              lang = 'en';
-            }
-            req.lang = lang;
+            const lang = req.headers['accept-language'] || 'en';
+            if (typeof lang === 'string' && lang.toLowerCase().match('es')) {
+              req.lang = 'es';
+            } else req.lang = 'en';
             return next();
           });
 

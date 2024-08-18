@@ -25,8 +25,8 @@ const getDefaultProfileImageId = async (File) => {
   return file._id;
 };
 
-const faImage = (faId = 'check') => {
-  const b64Src = png3x(faId, '#209e00', 100, 100);
+const faImage = (faId = 'check', width = 100, height = 100) => {
+  const b64Src = png3x(faId, '#209e00', width, height);
   return Buffer.from(b64Src.split('src="data:image/png;base64,')[1].split('"')[0], 'base64');
 };
 
@@ -167,7 +167,7 @@ const UserService = {
           // fs.removeSync(debugFilename);
 
           res.set('Content-Type', 'image/png');
-          return faImage('check');
+          return faImage('check', 50, 50);
         }
       } else new Error('invalid token');
     }
