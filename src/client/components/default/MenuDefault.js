@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterDefault } from './RoutesDefault.js';
 import { SettingsDefault } from './SettingsDefault.js';
 import { Badge } from '../core/Badge.js';
+import { Docs } from '../core/Docs.js';
 
 const MenuDefault = {
   Data: {},
@@ -99,6 +100,17 @@ const MenuDefault = {
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-docs',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-book"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
+            }),
+            attrs: `data-id="docs"`,
+            tabHref: `${getProxyPath()}docs`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
           })}
         </div>
       `,
@@ -272,6 +284,35 @@ const MenuDefault = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-docs`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-docs',
+        route: 'docs',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-book"></i>`,
+          text: Translate.Render('docs'),
+        }),
+        html: async () =>
+          await Docs.Init({
+            idModal: 'modal-docs',
+            modalOptions: {
+              barMode: undefined,
+            },
+          }),
+        handleType: 'bar',
+        observer: true,
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
       });
     });
   },

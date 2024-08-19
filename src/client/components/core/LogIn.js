@@ -102,8 +102,16 @@ const LogIn = {
           status: result.status,
         });
       });
+      s(`.btn-log-in-forgot-password`).onclick = () => {
+        // s(`.main-btn-recover-account`).click();
+      };
     });
     return html`
+      ${await BtnIcon.Render({
+        class: 'section-mp form-button btn-log-in-forgot-password hide',
+        label: Translate.Render(`forgot-password`),
+        type: 'button',
+      })}
       <form class="in">
         <div class="in">
           ${await Input.Render({

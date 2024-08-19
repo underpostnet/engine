@@ -57,8 +57,16 @@ const SignUp = {
           await LogIn.Trigger(result.data);
         }
       });
+      s(`.btn-sign-up-i-have-account`).onclick = () => {
+        s(`.main-btn-log-in`).click();
+      };
     });
     return html`
+      ${await BtnIcon.Render({
+        class: 'section-mp form-button btn-sign-up-i-have-account',
+        label: Translate.Render('i-have-account'),
+        type: 'button',
+      })}
       <form class="in">
         <div class="in">
           ${await Input.Render({

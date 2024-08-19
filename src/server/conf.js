@@ -115,6 +115,11 @@ const Config = {
             client: 'Default',
             ssr: 'Default',
           },
+          {
+            path: '/docs',
+            client: 'Default',
+            ssr: 'Default',
+          },
         ],
         dists: [
           {

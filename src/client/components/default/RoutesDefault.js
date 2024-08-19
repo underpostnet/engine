@@ -29,6 +29,7 @@ const RoutesDefault = () => {
       hideDisplay: true,
       translateTitle: true,
     },
+    '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(), translateTitle: true },
   };
 };
 

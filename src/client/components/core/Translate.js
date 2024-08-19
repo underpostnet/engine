@@ -259,6 +259,15 @@ const TranslateCore = {
       es: 'Desequipar',
       en: 'Unequip',
     };
+
+    Translate.Data['i-have-account'] = {
+      en: 'I have an account',
+      es: 'Tengo una cuenta',
+    };
+    Translate.Data['forgot-password'] = {
+      en: 'Forgot Password',
+      es: 'Olvidé mi contraseña',
+    };
   },
 };
 

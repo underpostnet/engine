@@ -130,6 +130,7 @@ const buildClient = async () => {
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
+      const fullBuildEnabled = process.argv[2] !== 'l' && !confServer[host][path].lightBuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
@@ -149,7 +150,7 @@ const buildClient = async () => {
         continue;
       }
 
-      if (process.argv[2] !== 'l' && !confServer[host][path].lightBuild)
+      if (fullBuildEnabled)
         //  !(confServer[host]['/'] && confServer[host]['/'].lightBuild)
         await fullBuild({
           path,
@@ -437,13 +438,14 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if ([process.argv[4], process.argv[6]].includes('docs')) {
+      if (fullBuildEnabled || process.argv.includes('docs')) {
         // https://jsdoc.app/ Block tags
 
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
-        shellExec(`npm run docs`);
+        logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
+        shellExec(`npm run docs`, { silent: true });
 
         // https://swagger-autogen.github.io/docs/
 
@@ -532,7 +534,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
           },
         };
 
-        logger.warn('build swagger api docs', doc);
+        logger.warn('build swagger api docs', doc.info);
 
         const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
         const routes = [];

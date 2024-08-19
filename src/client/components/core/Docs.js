@@ -9,7 +9,7 @@ import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
 // https://mintlify.com/docs/quickstart
 
 const Docs = {
-  RenderModal: async function (type) {
+  RenderModal: async function (type, modalOptions) {
     const docData = this.Data.find((d) => d.type === type);
     const ModalId = `modal-docs-${docData.type}`;
     const { barConfig } = await Themes[Css.currentTheme]();
@@ -31,6 +31,7 @@ const Docs = {
       slideMenu: 'modal-menu',
       observer: true,
       barMode: 'top-bottom-bar',
+      ...modalOptions,
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
       if (s(`.iframe-${ModalId}`)) s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - 110}px`;
@@ -68,11 +69,11 @@ const Docs = {
     setTimeout(() => {
       s(`.btn-docs-src`).onclick = async () => {
         setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'src' }));
-        await this.RenderModal('src', idModal);
+        await this.RenderModal('src', options.modalOptions);
       };
       s(`.btn-docs-api`).onclick = async () => {
         setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'api' }));
-        await this.RenderModal('api', idModal);
+        await this.RenderModal('api', options.modalOptions);
       };
       s(`.btn-docs-repo`).onclick = () => {
         const docData = this.Data.find((d) => d.type === 'repo');
