@@ -234,7 +234,7 @@ const UserService = {
     switch (req.params.id) {
       default: {
         delete req.body.password;
-        if (req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
+        if (req.body.email && req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
         const { _id } = await User.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
         return await User.findOne({
           _id,
