@@ -438,33 +438,112 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
       }
 
       if ([process.argv[4], process.argv[6]].includes('docs')) {
+        // https://jsdoc.app/ Block tags
+
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
         shellExec(`npm run docs`);
 
+        // https://swagger-autogen.github.io/docs/
+
+        const basePath = path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
+
         const doc = {
           info: {
-            swagger: '3.0',
-            title: metadata?.title ? `${metadata.title}` : 'Api Docs',
-            description: metadata?.description ? metadata.description : undefined,
-            version: swaggerApiVersion ? swaggerApiVersion : '0.0.1',
+            version: swaggerApiVersion ? swaggerApiVersion : '0.0.1', // by default: '1.0.0'
+            title: metadata?.title ? `${metadata.title}` : 'REST API', // by default: 'REST API'
+            description: metadata?.description ? metadata.description : '', // by default: ''
           },
-          schemes: ['https', 'http'], // by default: ['http']
-          basePath: path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`,
-          host: process.env.NODE_ENV === 'development' ? `localhost:${port}${path}` : `${host}${path}`,
+          servers: [
+            {
+              url:
+                process.env.NODE_ENV === 'development'
+                  ? `http://localhost:${port}${path}${basePath}`
+                  : `https://${host}${path}${basePath}`, // by default: 'http://localhost:3000'
+              description: `${process.env.NODE_ENV} server`, // by default: ''
+            },
+          ],
+          tags: [
+            // by default: empty Array
+            {
+              name: 'user', // Tag name
+              description: 'User API operations', // Tag description
+            },
+          ],
+          components: {
+            schemas: {
+              userRequest: {
+                username: 'user123',
+                password: 'Password123',
+                email: 'user@example.com',
+              },
+              userResponse: {
+                status: 'success',
+                data: {
+                  token: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7Il9pZCI6IjY2YzM3N2Y1N2Y5OWU1OTY5YjgxZG...',
+                  user: {
+                    _id: '66c377f57f99e5969b81de89',
+                    email: 'user@example.com',
+                    emailConfirmed: false,
+                    username: 'user123',
+                    role: 'user',
+                    profileImageId: '66c377f57f99e5969b81de87',
+                  },
+                },
+              },
+              userUpdateResponse: {
+                status: 'success',
+                data: {
+                  _id: '66c377f57f99e5969b81de89',
+                  email: 'user@example.com',
+                  emailConfirmed: false,
+                  username: 'user123222',
+                  role: 'user',
+                  profileImageId: '66c377f57f99e5969b81de87',
+                },
+              },
+              userGetResponse: {
+                status: 'success',
+                data: {
+                  _id: '66c377f57f99e5969b81de89',
+                  email: 'user@example.com',
+                  emailConfirmed: false,
+                  username: 'user123222',
+                  role: 'user',
+                  profileImageId: '66c377f57f99e5969b81de87',
+                },
+              },
+              userLogInRequest: {
+                email: 'user@example.com',
+                password: 'Password123',
+              },
+              userBadRequestResponse: {
+                status: 'error',
+                message: 'Bad request. Please check your inputs, and try again',
+              },
+            },
+            securitySchemes: {
+              bearerAuth: {
+                type: 'http',
+                scheme: 'bearer',
+              },
+            },
+          },
         };
 
         logger.warn('build swagger api docs', doc);
 
         const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
         const routes = [];
-        for (const api of apis) routes.push(`./src/api/${api}/${api}.router.js`);
+        for (const api of apis) {
+          if (['user'].includes(api)) routes.push(`./src/api/${api}/${api}.router.js`);
+        }
 
         /* NOTE: If you are using the express Router, you must pass in the 'routes' only the 
 root file where the route starts, such as index.js, app.js, routes.js, etc ... */
 
-        await swaggerAutoGen(outputFile, routes, doc);
+        await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
       }
       if (process.argv[2] === 'build-full-client-zip') {
         logger.warn('build zip', rootClientPath);

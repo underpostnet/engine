@@ -199,9 +199,9 @@ const UserService = {
       }
 
       default:
-        return await User.find({
+        return await User.findOne({
           _id: req.params.id,
-        });
+        }).select(UserDto.select.get());
     }
   },
   delete: async (req, res, options) => {

@@ -91,6 +91,9 @@ const CssCommonCore = async () => {
         transition: 0.3s;
         background: #ffffff96;
       }
+      .verify-email-status {
+        color: gray;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;
