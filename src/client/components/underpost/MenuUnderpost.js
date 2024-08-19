@@ -15,6 +15,7 @@ import { RouterUnderpost } from './RoutesUnderpost.js';
 import { LabGalleryUnderpost } from './LabGalleryUnderpost.js';
 import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
+import { SettingsUnderpost } from './SettingsUnderpost.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -26,6 +27,8 @@ const MenuUnderpost = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
+    const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -111,6 +114,17 @@ const MenuUnderpost = {
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-settings',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-sliders-h"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+            }),
+            attrs: `data-id="settings"`,
+            tabHref: `${getProxyPath()}settings`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
           })}
         </div>
       `,
@@ -310,6 +324,28 @@ const MenuUnderpost = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-settings`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-settings',
+        route: 'settings',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-sliders-h"></i>`,
+          text: Translate.Render('settings'),
+        }),
+        html: async () => await SettingsUnderpost.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
       });
     });
   },

@@ -13,6 +13,7 @@ import { ElementsDogmadual } from './ElementsDogmadual.js';
 import Sortable from 'sortablejs';
 import { RouterDogmadual } from './RoutesDogmadual.js';
 import { Badge } from '../core/Badge.js';
+import { SettingsDogmadual } from './SettingsDogmadual.js';
 
 const MenuDogmadual = {
   Data: {},
@@ -24,6 +25,8 @@ const MenuDogmadual = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
+    const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -85,6 +88,17 @@ const MenuDogmadual = {
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-settings',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-sliders-h"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+            }),
+            attrs: `data-id="settings"`,
+            tabHref: `${getProxyPath()}settings`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
           })}
         </div>
       `,
@@ -241,6 +255,28 @@ const MenuDogmadual = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-settings`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-settings',
+        route: 'settings',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-sliders-h"></i>`,
+          text: Translate.Render('settings'),
+        }),
+        html: async () => await SettingsDogmadual.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
       });
     });
   },

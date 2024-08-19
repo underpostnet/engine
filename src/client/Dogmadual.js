@@ -12,6 +12,9 @@ import { CssDogmadualDark, CssDogmadualLight } from './components/dogmadual/CssD
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { DogmadualParams } from './components/dogmadual/CommonDogmadual.js';
+import { SocketIoDogmadual } from './components/dogmadual/SocketIoDogmadual.js';
+import { SocketIo } from './components/core/SocketIo.js';
+import { ElementsDogmadual } from './components/dogmadual/ElementsDogmadual.js';
 
 window.onload = () =>
   Worker.instance({
@@ -21,6 +24,8 @@ window.onload = () =>
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuDogmadual.Render();
+      await SocketIo.Init({ channels: ElementsDogmadual.Data });
+      await SocketIoDogmadual.Init();
       await LogInDogmadual();
       await LogOutDogmadual();
       await SignUpDogmadual();

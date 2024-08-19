@@ -50,6 +50,7 @@ const Config = {
             'FullScreen',
             'Badge',
             'ToolTip',
+            'SocketIo',
           ],
           default: [
             'MenuDefault',
@@ -62,6 +63,7 @@ const Config = {
             'SignUpDefault',
             'TranslateDefault',
             'SettingsDefault',
+            'SocketIoDefault',
           ],
         },
         views: [
@@ -136,6 +138,16 @@ const Config = {
             styles: './node_modules/ag-grid-community/styles',
             public_styles_folder: '/styles/ag-grid-community',
           },
+          {
+            folder: './node_modules/socket.io/client-dist',
+            public_folder: '/dist/socket.io',
+            import_name: 'socket.io/client-dist/socket.io.esm.min.js',
+            import_name_build: '/dist/socket.io/socket.io.esm.min.js',
+          },
+          {
+            folder: './node_modules/peerjs/dist',
+            public_folder: '/dist/peerjs',
+          },
         ],
         services: ['core', 'user', 'test', 'file'],
       },
@@ -161,6 +173,24 @@ const Config = {
             provider: 'mongoose',
             host: 'mongodb://127.0.0.1:27017',
             name: 'default',
+          },
+          mailer: {
+            sender: {
+              email: 'noreply@default.net',
+              name: 'Default',
+            },
+            transport: {
+              host: 'smtp.default.com',
+              port: 465,
+              secure: true,
+              auth: {
+                user: 'noreply@default.net',
+                pass: '',
+              },
+            },
+            templates: {
+              userVerifyEmail: 'DefaultVerifyEmail',
+            },
           },
         },
       },

@@ -25,6 +25,8 @@ const MenuDefault = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
+    const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`

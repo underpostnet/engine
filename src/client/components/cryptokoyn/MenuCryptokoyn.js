@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterCryptokoyn } from './RoutesCryptokoyn.js';
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
+import { SettingsCryptokoyn } from './SettingsCryptokoyn.js';
 
 const MenuCryptokoyn = {
   Data: {},
@@ -25,6 +26,8 @@ const MenuCryptokoyn = {
     const { barConfig } = await Themes[Css.currentTheme]();
     const heightTopBar = 50;
     const heightBottomBar = 50;
+    const badgeNotificationMenuStyle = { top: '-33px', left: '24px' };
+    const barMode = undefined; // 'top-bottom-bar';
     await Modal.Render({
       id: 'modal-menu',
       html: html`
@@ -97,6 +100,17 @@ const MenuCryptokoyn = {
             tabHref: `${getProxyPath()}wallet`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('wallet')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-settings',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-sliders-h"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+            }),
+            attrs: `data-id="settings"`,
+            tabHref: `${getProxyPath()}settings`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
           })}
         </div>
       `,
@@ -275,6 +289,28 @@ const MenuCryptokoyn = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-settings`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-settings',
+        route: 'settings',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-sliders-h"></i>`,
+          text: Translate.Render('settings'),
+        }),
+        html: async () => await SettingsCryptokoyn.Render({ idModal: 'modal-settings' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
       });
     });
   },

@@ -11,6 +11,9 @@ import { RouterCryptokoyn } from './components/cryptokoyn/RoutesCryptokoyn.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { CryptokoynParams } from './components/cryptokoyn/CommonCryptokoyn.js';
+import { SocketIo } from './components/core/SocketIo.js';
+import { SocketIoCryptokoyn } from './components/cryptokoyn/SocketIoCryptokoyn.js';
+import { ElementsCryptokoyn } from './components/cryptokoyn/ElementsCryptokoyn.js';
 
 window.onload = () =>
   Worker.instance({
@@ -20,6 +23,8 @@ window.onload = () =>
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuCryptokoyn.Render();
+      await SocketIo.Init({ channels: ElementsCryptokoyn.Data });
+      await SocketIoCryptokoyn.Init();
       await LogInCryptokoyn();
       await LogOutCryptokoyn();
       await SignUpCryptokoyn();

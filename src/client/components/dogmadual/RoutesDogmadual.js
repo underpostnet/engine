@@ -27,6 +27,7 @@ const RoutesDogmadual = () => {
       hideDisplay: true,
       translateTitle: true,
     },
+    '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
   };
 };
 
