@@ -124,7 +124,7 @@ const MenuUnderpost = {
             attrs: `data-id="settings"`,
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
         </div>
       `,
