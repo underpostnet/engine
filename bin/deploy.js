@@ -422,16 +422,25 @@ try {
 
     case 'build-uml':
       {
-        // const staticHost = 'https://raw.githubusercontent.com/';
-        // const user = 'underpostnet';
-        // const repo = 'engine';
-        const folder = `./src/client/public/default/plantuml`;
-        for (const typeConf of Object.keys(Config.default)) {
-          if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+        const deployId = process.argv[3];
+        const clientId = process.argv[4];
+        const folder = `./src/client/public/${clientId ? clientId : 'default'}/plantuml`;
+        const confData = !deployId
+          ? Config.default
+          : {
+              client: '',
+              ssr: '',
+              server: '',
+              dns: '',
+            };
+
+        if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
+
+        for (const typeConf of Object.keys(confData)) {
           {
             const svg = await plantuml(`
               @startjson
-                ${JSON.stringify(Config.default[typeConf])}
+                ${JSON.stringify(confData[typeConf])}
               @endjson
             `);
             fs.writeFileSync(`${folder}/${typeConf}-conf-default.svg`, svg);
@@ -439,7 +448,7 @@ try {
           {
             const svg = await plantuml(`
             @startjson
-              ${JSON.stringify(toJsonSchema(Config.default[typeConf]))}
+              ${JSON.stringify(toJsonSchema(confData[typeConf]))}
             @endjson
           `);
             fs.writeFileSync(`${folder}/${typeConf}-schema-default.svg`, svg);
