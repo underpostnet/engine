@@ -1,7 +1,6 @@
 import { BtnIcon } from '../core/BtnIcon.js';
 import { floatRound, newInstance, range, setPad, timer } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
-import { GameInputs, GameInputTestRender } from '../core/GameInputs.js';
 import { Keyboard } from '../core/Keyboard.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
