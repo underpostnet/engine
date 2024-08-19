@@ -1,4 +1,8 @@
-// vanilla-js thin layer
+/**
+ * Vanilla JavaScript module for manipulating the DOM.
+ * @module src/client/components/core/VanillaJs.js
+ * @namespace VanillaJS
+ */
 
 import { s4 } from './CommonJs.js';
 
@@ -34,6 +38,7 @@ VS Marketplace Link: https://marketplace.visualstudio.com/items?itemName=bierner
  *
  * @param {string} el The query selector.
  * @returns {Element} Document object element.
+ * @memberof VanillaJS
  */
 const s = (el) => document.querySelector(el);
 
@@ -44,6 +49,7 @@ const s = (el) => document.querySelector(el);
  * that you want to update with the new HTML content.
  * @param html - The `html` parameter in the `htmls` function is the HTML content that you want to set
  * inside the specified element.
+ * @memberof VanillaJS
  */
 const htmls = (el, html) => (s(el).innerHTML = html);
 /**
@@ -53,6 +59,7 @@ const htmls = (el, html) => (s(el).innerHTML = html);
  * @param html - The `html` parameter in the `append` function represents the HTML content that you
  * want to insert into the specified element. This content will be added to the end of the element's
  * existing content.
+ * @memberof VanillaJS
  */
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 /**
@@ -61,6 +68,7 @@ const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
  * will be prepended.
  * @param html - The `html` parameter in the `prepend` function represents the HTML content that you
  * want to insert at the beginning of the specified element.
+ * @memberof VanillaJS
  */
 const prepend = (el, html) => s(el).insertAdjacentHTML('afterbegin', html);
 /**
@@ -68,6 +76,7 @@ const prepend = (el, html) => s(el).insertAdjacentHTML('afterbegin', html);
  * the selector.
  * @param el - The `el` parameter in the `sa` function is a string representing a CSS selector. This
  * selector is used to query the document and select all elements that match the specified selector.
+ * @memberof VanillaJS
  */
 const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, currentIndex, listObj)
 
@@ -103,6 +112,7 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
  * returns a promise that resolves to true if successful or false if unsuccessful.
  * @param data - The `data` parameter in the `copyData` function represents the text data that you want
  * to copy to the clipboard.
+ * @memberof VanillaJS
  */
 const copyData = (data) =>
   new Promise((resolve, reject) =>
@@ -115,6 +125,7 @@ const copyData = (data) =>
 /**
  * The function `pasteData` uses the Clipboard API to read text from the clipboard and returns it as a
  * promise.
+ * @memberof VanillaJS
  */
 const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().then((clipText) => resolve(clipText)));
 
@@ -130,6 +141,7 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
  * @param [title] - The `title` parameter in the `setPath` function is a string that represents the
  * title of the new history entry. It is used as the title of the new history entry in the browser's
  * history.
+ * @memberof VanillaJS
  */
 const setPath = (path = '/', stateStorage = {}, title = '') => history.pushState(stateStorage, title, path);
 
@@ -137,6 +149,7 @@ const setPath = (path = '/', stateStorage = {}, title = '') => history.pushState
  * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
  * object.
  * @returns An object containing the query parameters from the current URL is being returned.
+ * @memberof VanillaJS
  */
 const getQueryParams = () => {
   const params = new URLSearchParams(window.location.search);
@@ -153,6 +166,7 @@ const getQueryParams = () => {
  * @param raw - The `raw` parameter in the `preHTML` function represents the raw HTML content that you
  * want to sanitize by replacing special characters like `&`, `<`, and `>` with their corresponding
  * HTML entities.
+ * @memberof VanillaJS
  */
 const preHTML = (raw) => raw.replaceAll('&', '&amp').replaceAll('<', '&lt').replaceAll('>', '&gt');
 
@@ -168,6 +182,7 @@ const preHTML = (raw) => raw.replaceAll('&', '&amp').replaceAll('<', '&lt').repl
  * @returns In the `disableOptionsClick` function, event handlers are being assigned to the specified
  * `element` based on the `types` array provided. The function is returning `false` for the
  * corresponding events based on the types included in the `types` array.
+ * @memberof VanillaJS
  */
 const disableOptionsClick = (element, types) => {
   if (types.includes('menu'))
@@ -189,6 +204,7 @@ const disableOptionsClick = (element, types) => {
  * value accordingly.
  * @returns The function `checkFullScreen` is returning `true` if `document.fullscreenElement` is
  * truthy, otherwise it returns `false`.
+ * @memberof VanillaJS
  */
 const checkFullScreen = () => {
   // !(!window.screenTop && !window.screenY) ||
@@ -197,6 +213,7 @@ const checkFullScreen = () => {
 
 /**
  * The function `fullScreenOut` is used to exit full screen mode in a web browser.
+ * @memberof VanillaJS
  */
 const fullScreenOut = () => {
   if (document.exitFullscreen) {
@@ -213,6 +230,7 @@ const fullScreenOut = () => {
 /**
  * The `fullScreenIn` function is used to request full screen mode in a web browser using different
  * vendor-specific methods.
+ * @memberof VanillaJS
  */
 const fullScreenIn = () => {
   const elem = document.documentElement;
@@ -239,6 +257,7 @@ const fullScreenIn = () => {
  * or not. If the width is greater than the height, the returned object includes the width, height,
  * minValue (height), maxValue (width), minType ('height'), and maxType ('width'). If the height is
  * greater than
+ * @memberof VanillaJS
  */
 const getResponsiveData = () => {
   const inner = { width: window.innerWidth, height: window.innerHeight };
@@ -252,6 +271,7 @@ const getResponsiveData = () => {
  * @param element - The `element` parameter is a variable that represents an HTML element or an HTML
  * document. The `isElement` function checks if the provided `element` is an instance of the `Element`
  * interface or the `HTMLDocument` interface.
+ * @memberof VanillaJS
  */
 const isElement = (element) => element instanceof Element || element instanceof HTMLDocument;
 
@@ -261,6 +281,7 @@ const isElement = (element) => element instanceof Element || element instanceof 
  * @param {File | Blob} fileInstance The file or blob object.
  * @param {string} fileName The file name with extension.
  * @returns {void} void.
+ * @memberof VanillaJS
  */
 function downloadFile(fileInstance, fileName) {
   // const blob = new Blob([raw], { type: 'image/png' })
@@ -289,6 +310,7 @@ function downloadFile(fileInstance, fileName) {
  * @param [blob] - The `blob` parameter in the `getRawContentFile` function is a Buffer object that
  * represents raw binary data. It is used to read the content of a file as text using a FileReader in
  * the browser environment.
+ * @memberof VanillaJS
  */
 const getRawContentFile = (blob = new Buffer()) =>
   new Promise((resolve) => {
@@ -309,6 +331,7 @@ const getRawContentFile = (blob = new Buffer()) =>
  * created. It indicates the MIME type of the data contained in the Blob. For example, common MIME
  * types include 'image/jpeg' for JPEG images,
  * @returns A Blob object is being returned, created from the provided Uint8Array data and mimetype.
+ * @memberof VanillaJS
  */
 const getBlobFromUint8ArrayFile = (data = [[]], mimetype = 'application/octet-stream') => {
   return new Blob([new Uint8Array(data)], { type: mimetype });
@@ -321,6 +344,7 @@ const getBlobFromUint8ArrayFile = (data = [[]], mimetype = 'application/octet-st
  * segment of the pathname is not empty, it returns `/<first-segment>/`, otherwise it returns `/`. If
  * the `window.Routes` object exists and the path is not `/` and the path without the trailing slash is
  * a key in the `window.Routes` object, it returns `/`.
+ * @memberof VanillaJS
  */
 const getProxyPath = () => {
   // warning: evaluates headers html source
@@ -333,11 +357,13 @@ const getProxyPath = () => {
  * The function `isNavigator` checks if the user agent string contains a specified name.
  * @param name - The `name` parameter is a string that represents the name of a browser or device to
  * check against the user agent string of the browser.
+ * @memberof VanillaJS
  */
 const isNavigator = (name) => navigator.userAgent.toLowerCase().match(name.toLowerCase());
 
 /**
  * The function `getTimeZone` returns the current time zone based on the user's browser settings.
+ * @memberof VanillaJS
  */
 const getTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
 
@@ -348,6 +374,7 @@ const getTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone;
  * which you want to retrieve all child nodes recursively.
  * @returns The `getAllChildNodes` function returns an array containing all the child nodes of the
  * input `node`, including nested child nodes.
+ * @memberof VanillaJS
  */
 function getAllChildNodes(node) {
   const allNodes = [];
@@ -370,6 +397,7 @@ function getAllChildNodes(node) {
 
 /**
  * The function `isActiveTab` checks if the document has focus.
+ * @memberof VanillaJS
  */
 const isActiveTab = () => document.hasFocus();
 
@@ -378,6 +406,7 @@ const isActiveTab = () => document.hasFocus();
  * class search.
  * @param [classSearch] - The `classSearch` parameter is a string that is used to search for a specific
  * class name within the `classList` of the active element in the document.
+ * @memberof VanillaJS
  */
 const isActiveElement = (classSearch = '') =>
   document.activeElement?.classList?.value?.match(classSearch) ? true : false;

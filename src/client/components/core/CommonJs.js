@@ -1,11 +1,48 @@
+/**
+ * Common JavaScript functions
+ * @module src/client/components/core/CommonJs.js
+ * @namespace CommonJs
+ */
+
+/**
+ * The function `s4` generates a random hexadecimal string with a length of 4 characters.
+ * @memberof CommonJs
+ */
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
 
+/**
+ * The `range` function generates an array of numbers within a specified range, handling both ascending
+ * and descending ranges.
+ * @param start - The `start` parameter in the `range` function represents the starting value of the
+ * range you want to generate.
+ * @param end - The `end` parameter in the `range` function represents the ending value of the range
+ * that you want to generate.
+ * @returns The `range` function returns an array containing a range of numbers starting from the
+ * `start` value up to the `end` value (inclusive). If `end` is less than `start`, it will recursively
+ * call the `range` function with the arguments swapped and then reverse the resulting array.
+ * @memberof CommonJs
+ */
 const range = (start, end) => {
   return end < start
     ? range(end, start).reverse()
     : Array.apply(0, Array(end - start + 1)).map((element, index) => index + start);
 };
 
+/**
+ * The `getId` function generates a unique identifier based on an array of objects or keys.
+ * @param arr - The `arr` parameter in the `getId` function is an array of objects or an object. If it
+ * is an object, the function converts it into an array of objects where each object has a key
+ * specified by the `keyId` parameter.
+ * @param [suffix] - The `suffix` parameter in the `getId` function is a string that can be added to
+ * the generated ID. It is optional and by default is an empty string. You can provide a suffix to be
+ * appended to the generated ID if needed.
+ * @param [keyId=id] - The `keyId` parameter in the `getId` function is used to specify the key in the
+ * array elements that contains the unique identifier (ID) for each element. By default, the function
+ * assumes that the ID is stored in a property named `'id'`, but you can customize this by providing
+ * @returns The `getId` function returns a unique identifier `_id` based on the input array `arr`,
+ * optional `suffix`, and `keyId`.
+ * @memberof CommonJs
+ */
 const getId = (arr, suffix = '', keyId = 'id') => {
   if (!Array.isArray(arr) && typeof arr === 'object')
     arr = Object.keys(arr).map((id) => {
@@ -19,6 +56,14 @@ const getId = (arr, suffix = '', keyId = 'id') => {
   return _id;
 };
 
+/**
+ * The function `random` generates a random integer within a specified range.
+ * @param min - The `min` parameter represents the minimum value of the range from which you want to
+ * generate a random number.
+ * @param max - The `max` parameter in the `random` function represents the maximum value that you want
+ * to generate a random number up to.
+ * @memberof CommonJs
+ */
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
 
 const randomHexColor = () => '#' + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
@@ -155,6 +200,7 @@ const setPad = (num, padValue, targetLength, endPad, separator) => {
  * @param {Number} value The number.
  * @param {Integer} exp The exponent (the log 10 of the base fit).
  * @returns {Number} The adjusted value.
+ * @memberof CommonJs
  */
 const decimalAdjust = (type, value, exp) => {
   if (typeof exp === 'undefined' || +exp === 0) {
@@ -529,6 +575,7 @@ const isValidFormat = (value, format) => {
 
 /**
  * Returns the time difference between UTC time and local time, in minutes.
+ * @memberof CommonJs
  */
 const getTimezoneOffset = () => new Date().getTimezoneOffset();
 

@@ -1,3 +1,9 @@
+/**
+ * Authorization module for managing user authentication and authorization.
+ * @module src/server/auth.js
+ * @namespace Auth
+ */
+
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
@@ -28,6 +34,7 @@ const config = {
 /**
  * @param {String} password - given password to hash
  * @returns {String} the hash corresponding to the password
+ * @memberof Auth
  */
 function hashPassword(password) {
   const { iterations, hashBytes, digest, saltBytes } = config;
@@ -40,6 +47,7 @@ function hashPassword(password) {
  * @param {String} password - password to verify
  * @param {String} combined - a combined salt + hash returned by hashPassword function
  * @returns {Boolean} true if password correspond to the hash. False otherwise
+ * @memberof Auth
  */
 function verifyPassword(password, combined) {
   const { iterations, hashBytes, digest } = config;
@@ -58,6 +66,7 @@ function verifyPassword(password, combined) {
  * securely transmit or store. It could include user information, permissions, or any other relevant
  * data that
  * @returns {String} the jwt hash corresponding to the payload
+ * @memberof Auth
  */
 const hashJWT = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: `${process.env.EXPIRE}h` });
 
@@ -66,6 +75,7 @@ const hashJWT = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: 
  * environment variables.
  * @param [token] - The `token` parameter is a JSON Web Token (JWT) that is passed to the `verifyJWT`
  * function for verification.
+ * @memberof Auth
  */
 const verifyJWT = (token = '') => jwt.verify(token, process.env.SECRET);
 
@@ -75,6 +85,7 @@ const verifyJWT = (token = '') => jwt.verify(token, process.env.SECRET);
  * @param [payload] - The `payload` parameter is expected to be an object with a numeric property `exp`
  * representing a timestamp. The function `verifyPayloadExpireJWT` checks if the `exp` property is a
  * number and if it represents a timestamp in the future (after the current time).
+ * @memberof Auth
  */
 const verifyPayloadExpireJWT = (payload = {}) =>
   typeof payload === 'object' && typeof payload.exp === 'number' && payload.exp * 1000 > +new Date();
@@ -94,6 +105,7 @@ const verifyPayloadExpireJWT = (payload = {}) =>
  * middleware function in the chain. This is a common pattern in Express.js middleware functions to
  * move to the next middleware
  * @returns {Object} The `req.auth` included JWT payload in request authorization
+ * @memberof Auth
  */
 const authMiddleware = (req, res, next) => {
   try {
@@ -140,6 +152,7 @@ const authMiddleware = (req, res, next) => {
  * user role is not 'admin', or it is calling the `next()` function to proceed to the next middleware
  * if the user role is 'admin'. If an error occurs during the process, it will log the error and return
  * a 400 status with the error message.
+ * @memberof Auth
  */
 const adminGuard = (req, res, next) => {
   try {
@@ -171,6 +184,7 @@ const adminGuard = (req, res, next) => {
  * status with an error message "Insufficient permission" is returned. If there is an error during the
  * process, a 400 status with the error message is returned. If everything is successful, the `next()`
  * function is called to proceed to the next middleware in the chain.
+ * @memberof Auth
  */
 const moderatorGuard = (req, res, next) => {
   try {
