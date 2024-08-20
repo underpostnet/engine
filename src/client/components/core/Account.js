@@ -133,6 +133,10 @@ const Account = {
         },
         `.account-profile-image-loading`,
       );
+      s(`.btn-account-change-password`).onclick = () => {
+        // s(`.btn-close-modal-account`).click();
+        s(`.main-btn-recover`).click();
+      };
     });
     return html`
       <input type="file" accept="${profileFileAccept.join(', ')}" class="account-profile-image-input hide" />
@@ -183,6 +187,13 @@ const Account = {
               placeholder: true,
               disabled: true,
               disabledEye: true,
+              extension: async () =>
+                html`${await BtnIcon.Render({
+                  class: `wfa btn-input-extension btn-account-change-password`,
+                  type: 'button',
+                  style: 'text-align: left',
+                  label: html`${Translate.Render(`change-password`)}`,
+                })}`,
             })}
           </div>
           ${options?.bottomRender ? await options.bottomRender() : ``}

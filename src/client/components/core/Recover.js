@@ -1,4 +1,5 @@
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
@@ -16,7 +17,7 @@ const Recover = {
   Render: async function (options = { idModal: '', user: {}, bottomRender: async () => '' }) {
     const { idModal, user } = options;
     let mode = 'recover-verify-email';
-    const recoverToken = getQueryParams().recover;
+    const recoverToken = getQueryParams().payload;
     const formData = {
       'recover-username': {
         model: 'username',
@@ -95,10 +96,16 @@ const Recover = {
               status: result.status,
             });
             if (result.status === 'success') {
-              s(`.btn-recover`).classList.add('hide');
-              s(`.input-container-recover-password`).classList.add('hide');
-              s(`.input-container-recover-repeat-password`).classList.add('hide');
-              s(`.btn-recover-log-in`).classList.remove('hide');
+              if (Auth.getToken()) {
+                s(`.btn-close-modal-recover`).click();
+                s(`.main-btn-account`).click();
+              } else {
+                s(`.btn-recover`).classList.add('hide');
+                s(`.input-container-recover-password`).classList.add('hide');
+                s(`.input-container-recover-repeat-password`).classList.add('hide');
+                s(`.btn-recover-log-in`).classList.remove('hide');
+              }
+              this.Trigger({ user: result.data });
             }
             break;
           }

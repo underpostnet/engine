@@ -64,7 +64,7 @@ const UserService = {
             .replace(
               '{{RECOVER_WEB_URL}}',
               `${process.env === 'development' ? 'http://' : 'https://'}${options.host}${options.path}${
-                options.path === '/' ? 'recover' : `/recover?recover=${token}`
+                options.path === '/' ? 'recover' : `/recover?payload=${token}`
               }`,
             )
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
@@ -290,7 +290,7 @@ const UserService = {
     }
 
     if (req.path.startsWith('/recover')) {
-      const payload = verifyJWT(req.params.recoverToken);
+      const payload = verifyJWT(req.params.id);
       const user = await User.findOne({
         email: payload.email,
       });

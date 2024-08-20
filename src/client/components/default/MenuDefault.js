@@ -114,7 +114,7 @@ const MenuDefault = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-recover',
+            class: 'in wfa main-btn-menu main-btn-recover hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,

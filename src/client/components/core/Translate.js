@@ -264,6 +264,10 @@ const TranslateCore = {
       en: 'I have an account',
       es: 'Tengo una cuenta',
     };
+    Translate.Data['i-not-have-account'] = {
+      en: 'I do not have an account',
+      es: 'No tengo una cuenta',
+    };
     Translate.Data['forgot-password'] = {
       en: 'Forgot Password',
       es: 'Olvidé mi contraseña',

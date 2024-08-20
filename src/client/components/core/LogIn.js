@@ -103,15 +103,23 @@ const LogIn = {
         });
       });
       s(`.btn-log-in-forgot-password`).onclick = () => {
-        // s(`.main-btn-recover-account`).click();
+        s(`.main-btn-recover`).click();
+      };
+
+      s(`.btn-log-in-i-not-have-account`).onclick = () => {
+        s(`.main-btn-sign-up`).click();
       };
     });
     return html`
-      ${await BtnIcon.Render({
-        class: 'section-mp form-button btn-log-in-forgot-password hide',
-        label: Translate.Render(`forgot-password`),
-        type: 'button',
-      })}
+      <div class="in">
+        ${await BtnIcon.Render({
+          class: 'section-mp form-button btn-log-in-i-not-have-account',
+          label: html`<i class="fas fa-user-plus"></i> ${Translate.Render(`i-not-have-account`)}
+            <br />
+            ${Translate.Render(`sign-up`)}`,
+          type: 'button',
+        })}
+      </div>
       <form class="in">
         <div class="in">
           ${await Input.Render({
@@ -131,6 +139,13 @@ const LogIn = {
             label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
+          })}
+        </div>
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'section-mp form-button btn-log-in-forgot-password',
+            label: html`<i class="fa-solid fa-arrow-rotate-left"></i>${Translate.Render(`forgot-password`)}`,
+            type: 'button',
           })}
         </div>
         <div class="in">

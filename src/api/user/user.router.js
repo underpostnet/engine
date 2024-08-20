@@ -185,7 +185,7 @@ const UserRouter = (options) => {
     */
     return await UserController.get(req, res, options);
   });
-  router.put(`/recover/:recoverToken`, async (req, res) => {
+  router.put(`/recover/:id`, async (req, res) => {
     /*  
       #swagger.ignore = true
     */

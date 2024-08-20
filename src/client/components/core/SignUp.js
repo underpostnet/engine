@@ -64,7 +64,9 @@ const SignUp = {
     return html`
       ${await BtnIcon.Render({
         class: 'section-mp form-button btn-sign-up-i-have-account',
-        label: Translate.Render('i-have-account'),
+        label: html`<i class="fas fa-sign-in-alt"></i> ${Translate.Render('i-have-account')}<br />${Translate.Render(
+            'log-in',
+          )}`,
         type: 'button',
       })}
       <form class="in">
