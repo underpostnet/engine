@@ -15,7 +15,7 @@ const LogOutNexodev = async function () {
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
-    ElementsNexodev.Data.user.main = {};
+    ElementsNexodev.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
 
     NotificationManager.Push({
