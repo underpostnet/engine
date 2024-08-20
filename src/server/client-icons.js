@@ -3,8 +3,14 @@ import textToImage from 'text-to-image';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
 import { getCapVariableName } from './conf.js';
+import { png3x } from 'font-awesome-assets';
 
 const logger = loggerFactory(import.meta);
+
+const faBase64Image = (faId = 'check', width = 100, height = 100, color = '#209e00') => {
+  const b64Src = png3x(faId, color, width, height);
+  return b64Src.split('src="data:image/png;base64,')[1].split('"')[0];
+};
 
 const defaultBaseTextImgOptions = {
   debug: true,
@@ -122,4 +128,4 @@ const buildIcons = async ({
   }
 };
 
-export { buildIcons, buildTextImg, defaultBaseTextImgOptions };
+export { buildIcons, buildTextImg, defaultBaseTextImgOptions, faBase64Image };

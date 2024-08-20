@@ -10,6 +10,7 @@ import { range } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
+import { faBase64Image } from '../src/server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -145,16 +146,22 @@ try {
         }
       }
       cleanEmptyFoldersRecursively('./');
-    case 'gen-fa-img':
-      const faId = 'user';
+    case 'fa-image':
+      const faId = process.argv[3] ? process.argv[3] : 'user';
+      const color = process.argv[4] ? process.argv[4] : '#5f5f5f';
+      const path = process.argv[5] ? process.argv[5] : './';
 
-      fs.writeFileSync(`./tmp/${faId}.svg`, svg(faId, '#5f5f5f'), 'utf8');
+      {
+        fs.writeFileSync(`./tmp/${faId}.svg`, svg(faId, color), 'utf8');
+        const data = fs.readFileSync(`./tmp/${faId}.svg`);
+        console.log(FileFactory.svg(data, `${faId}.svg`));
+        fs.removeSync(`${path}${faId}.svg`);
+      }
+      {
+        fs.writeFileSync(`${path}${faId}.png`, Buffer.from(faBase64Image(faId, 100, 100, color), 'base64'));
+      }
 
-      const data = fs.readFileSync(`./tmp/${faId}.svg`);
-
-      console.log(FileFactory.svg(data, `${faId}.svg`));
-
-      fs.removeSync(`./tmp/${faId}.svg`);
+      break;
 
       break;
     default:
