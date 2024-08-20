@@ -3,6 +3,7 @@ import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
+import { ElementsUnderpost } from './ElementsUnderpost.js';
 
 const LogOutUnderpost = async function () {
   LogOut.Event['LogOutUnderpost'] = async () => {
@@ -14,6 +15,7 @@ const LogOutUnderpost = async function () {
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
+    ElementsUnderpost.Data.user.main = {};
     Auth.deleteToken();
 
     NotificationManager.Push({

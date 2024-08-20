@@ -4,6 +4,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
+import { ElementsCyberiaPortal } from './ElementsCyberiaPortal.js';
 
 const LogOutCyberiaPortal = async function () {
   LogOut.Event['LogOutCyberiaPortal'] = async () => {
@@ -16,6 +17,7 @@ const LogOutCyberiaPortal = async function () {
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
     s(`.main-btn-admin`).classList.add('hide');
 
+    ElementsCyberiaPortal.Data.user.main = {};
     Auth.deleteToken();
 
     NotificationManager.Push({

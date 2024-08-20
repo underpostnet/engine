@@ -4,6 +4,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
+import { ElementsCyberiaAdmin } from './ElementsCyberiaAdmin.js';
 
 const LogOutCyberiaAdmin = async function () {
   LogOut.Event['LogOutCyberiaAdmin'] = async () => {
@@ -23,6 +24,7 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-blockchain`).classList.add('hide');
     s(`.main-btn-cloud`).classList.add('hide');
     s(`.main-btn-server`).classList.add('hide');
+    ElementsCyberiaAdmin.Data.user.main = {};
     Auth.deleteToken();
 
     NotificationManager.Push({

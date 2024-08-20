@@ -27,6 +27,7 @@ const LogOutCyberia = function () {
     s(`.main-btn-admin`).classList.add('hide');
 
     WebhookCyberia.unregister();
+    ElementsCyberia.Data.user.main = {};
     Auth.deleteToken();
 
     // const oldElement = newInstance(ElementsCyberia.Data[type][id]);
