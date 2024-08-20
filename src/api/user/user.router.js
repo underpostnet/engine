@@ -13,6 +13,7 @@ const UserRouter = (options) => {
     */
     return await UserController.post(req, res, options);
   });
+
   router.get(`/mailer/:id`, async (req, res) => {
     /*  
       #swagger.ignore = true
@@ -126,6 +127,13 @@ const UserRouter = (options) => {
     return await UserController.post(req, res, options);
   });
 
+  router.get(`/recover/:id`, async (req, res) => {
+    /*  
+      #swagger.ignore = true
+    */
+    return await UserController.get(req, res, options);
+  });
+
   router.get(`/:id`, authMiddleware, async (req, res) => {
     /*
       #swagger.auto = false
@@ -177,7 +185,12 @@ const UserRouter = (options) => {
     */
     return await UserController.get(req, res, options);
   });
-
+  router.put(`/recover/:recoverToken`, async (req, res) => {
+    /*  
+      #swagger.ignore = true
+    */
+    return await UserController.put(req, res, options);
+  });
   router.put(`/profile-image/:id`, authMiddleware, async (req, res) => {
     /*  
       #swagger.ignore = true

@@ -39,6 +39,7 @@ const EmailRender = {
       color: '#ffffff',
       'text-decoration': 'none',
       'border-radius': '5px',
+      'font-size': '16px',
     },
     '.footer': {
       'text-align': 'center',

@@ -14,8 +14,10 @@ const Validator = {
   },
   instance: function (validators, callBack = (value) => {}) {
     const validatorFunction = {};
+    if (!Array.isArray(validators)) validators = Object.values(validators);
     for (const validatorData of validators) {
       validatorFunction[validatorData.id] = async () => {
+        if (validatorData.disable && validatorData.disable()) return { errorMessage: '' };
         if (!s(`.${validatorData.id}`)) return;
         // logger.warn(validatorData.id, s(`.${validatorData.id}`).value);
         let errorMessage = '';

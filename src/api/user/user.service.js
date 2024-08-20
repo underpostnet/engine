@@ -12,7 +12,7 @@ import fs from 'fs-extra';
 import { svg, png, png3x } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
 import Jimp from 'jimp';
-import { buildTextImg } from '../../server/client-icons.js';
+import { buildTextImg, faBase64Png } from '../../server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -25,11 +25,6 @@ const getDefaultProfileImageId = async (File) => {
   return file._id;
 };
 
-const faImage = (faId = 'check', width = 100, height = 100) => {
-  const b64Src = png3x(faId, '#209e00', width, height);
-  return Buffer.from(b64Src.split('src="data:image/png;base64,')[1].split('"')[0], 'base64');
-};
-
 const UserService = {
   post: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
@@ -37,6 +32,56 @@ const UserService = {
 
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+
+    if (req.params.id === 'recover-verify-email') {
+      const token = hashJWT({ email: req.body.email });
+      const id = `${options.host}${options.path}`;
+      const translate = {
+        H1: {
+          en: 'Recover your account',
+          es: 'Recupera tu cuenta',
+        },
+        P1: {
+          en: 'To recover your account, please click the button below:',
+          es: 'Para recuperar tu cuenta, haz click en el botón de abajo:',
+        },
+        BTN_LABEL: {
+          en: 'Recover Password',
+          es: 'Recuperar Contraseña',
+        },
+      };
+      const sendResult = await MailerProvider.send({
+        id,
+        sendOptions: {
+          to: req.body.email, // req.auth.user.email, // list of receivers
+          subject: translate.H1[req.lang], // Subject line
+          text: translate.H1[req.lang], // plain text body
+          html: MailerProvider.instance[id].templates.userRecoverEmail
+            .replace('{{H1}}', translate.H1[req.lang])
+            .replace('{{P1}}', translate.P1[req.lang])
+            .replace('{{TOKEN}}', token)
+            .replace(`{{COMPANY}}`, options.host) // html body
+            .replace(
+              '{{RECOVER_WEB_URL}}',
+              `${process.env === 'development' ? 'http://' : 'https://'}${options.host}${options.path}${
+                options.path === '/' ? 'recover' : `/recover?recover=${token}`
+              }`,
+            )
+            .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
+
+          attachments: [
+            // {
+            //   filename: 'logo.png',
+            //   path: `./logo.png`,
+            //   cid: 'logo', // <img src='cid:logo'>
+            // },
+          ],
+        },
+      });
+
+      if (!sendResult) throw new Error('email send error');
+      return { message: 'email send successfully' };
+    }
 
     if (req.path.startsWith('/mailer') && req.params.id === 'verify-email') {
       if (!validator.isEmail(req.body.email)) throw { message: 'invalid email' };
@@ -141,6 +186,19 @@ const UserService = {
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
+    if (req.path.startsWith('/recover')) {
+      const payload = verifyJWT(req.params.id);
+      const user = await User.findOne({
+        email: payload.email,
+      });
+      if (user) {
+        const { _id } = user;
+        await User.findByIdAndUpdate(_id, { recover: true }, { runValidators: true });
+        res.set('Content-Type', 'image/png');
+        return Buffer.from(faBase64Png('rotate-left', 50, 50, '#ffffff'), 'base64');
+      } else new Error('invalid token');
+    }
+
     if (req.path.startsWith('/mailer')) {
       const payload = verifyJWT(req.params.id);
       const user = await User.findOne({
@@ -167,7 +225,7 @@ const UserService = {
           // fs.removeSync(debugFilename);
 
           res.set('Content-Type', 'image/png');
-          return faImage('check', 50, 50);
+          return Buffer.from(faBase64Png('check', 50, 50), 'base64');
         }
       } else new Error('invalid token');
     }
@@ -231,9 +289,27 @@ const UserService = {
       req.body.profileImageId = imageFile._id.toString();
     }
 
+    if (req.path.startsWith('/recover')) {
+      const payload = verifyJWT(req.params.recoverToken);
+      const user = await User.findOne({
+        email: payload.email,
+      });
+      if (user && user.recover) {
+        await User.findByIdAndUpdate(
+          user._id,
+          { password: await hashPassword(req.body.password), recover: false },
+          { runValidators: true },
+        );
+        return await User.findOne({
+          _id: user._id,
+        }).select(UserDto.select.get());
+      } else throw new Error('invalid token');
+    }
+
     switch (req.params.id) {
       default: {
         delete req.body.password;
+        req.body.recover = false;
         if (req.body.email && req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
         const { _id } = await User.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
         return await User.findOne({

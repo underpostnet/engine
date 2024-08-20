@@ -62,7 +62,7 @@ const Input = {
         ${options?.extension ? await options.extension() : ''}
       </div>`;
 
-    return html` <div class="${options?.containerClass ? options.containerClass + ' ' : ''}input-container-${id}">
+    return html` <div class="${options?.containerClass ? options.containerClass + ' ' : ''} input-container-${id}">
       <div class="in">
         ${options?.label ? html`<div class="in input-label input-label-${id}">${options.label}</div>` : ''}
         ${options.type === 'password' && !options.disabledEye
