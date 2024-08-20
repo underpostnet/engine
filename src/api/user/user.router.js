@@ -32,8 +32,8 @@ const UserRouter = (options) => {
   /*
     #swagger.auto = false
     #swagger.tags = ['user']
-    #swagger.summary = 'Log In',
-    #swagger.description = 'This endpoint get a JWT for authenticated user.',
+    #swagger.summary = 'Log in'
+    #swagger.description = 'This endpoint get a JWT for authenticated user'
     #swagger.path = '/user/auth'
     #swagger.method = 'post'
     #swagger.produces = ['application/json']
@@ -41,34 +41,34 @@ const UserRouter = (options) => {
 
     #swagger.requestBody = {
       in: 'body',
-      description: 'User data.',
+      description: 'User data',
       required: true,
       content: {
-          "application/json": {
+          'application/json': {
               schema: {
-                  $ref: "#/components/schemas/userLogInRequest"
+                  $ref: '#/components/schemas/userLogInRequest'
               }  
           }
       }
     }
     
     #swagger.responses[200] = {
-      description: "User created successfully.",
+      description: 'User created successfully',
       content: {
-          "application/json": {
+          'application/json': {
               schema: {
-                $ref: "#/components/schemas/userResponse"
+                $ref: '#/components/schemas/userResponse'
               }
           }           
       }
     }   
 
     #swagger.responses[400] = {
-      description: "Bad request. Please check the input data.",
+      description: 'Bad request. Please check the input data',
       content: {
-          "application/json": {
+          'application/json': {
               schema: {
-                $ref: "#/components/schemas/userBadRequestResponse"
+                $ref: '#/components/schemas/userBadRequestResponse'
               }
           }           
       }
@@ -81,8 +81,8 @@ const UserRouter = (options) => {
     /*
       #swagger.auto = false
       #swagger.tags = ['user']
-      #swagger.summary = 'Create user',
-      #swagger.description = 'This endpoint will create a new user account.',
+      #swagger.summary = 'Create user'
+      #swagger.description = 'This endpoint will create a new user account'
       #swagger.path = '/user'
       #swagger.method = 'post'
       #swagger.produces = ['application/json']
@@ -90,34 +90,34 @@ const UserRouter = (options) => {
 
       #swagger.requestBody = {
         in: 'body',
-        description: 'User data.',
+        description: 'User data',
         required: true,
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                    $ref: "#/components/schemas/userRequest"
+                    $ref: '#/components/schemas/userRequest'
                 }  
             }
         }
       }
       
       #swagger.responses[200] = {
-        description: "User created successfully.",
+        description: 'User created successfully',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userResponse"
+                  $ref: '#/components/schemas/userResponse'
                 }
             }           
         }
       }   
 
       #swagger.responses[400] = {
-        description: "Bad request. Please check the input data.",
+        description: 'Bad request. Please check the input data',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userBadRequestResponse"
+                  $ref: '#/components/schemas/userBadRequestResponse'
                 }
             }           
         }
@@ -130,40 +130,40 @@ const UserRouter = (options) => {
     /*
       #swagger.auto = false
       #swagger.tags = ['user']
-      #swagger.summary = 'Get user data by Id',
-      #swagger.description = 'This endpoint get user data by Id',
+      #swagger.summary = 'Get user data by ID'
+      #swagger.description = 'This endpoint get user data by ID'
       #swagger.path = '/user/{id}'
       #swagger.method = 'get'
       #swagger.produces = ['application/json']
       #swagger.consumes = ['application/json']
       #swagger.security = [{
-        "bearerAuth": []
+        'bearerAuth': []
       }] 
 
       #swagger.parameters['id'] = {
           in: 'path',
-          description: 'User ID.',
+          description: 'User ID',
           required: true,
           type: 'string'
       }
 
       #swagger.responses[200] = {
-        description: "get user successfully.",
+        description: 'get user successfully',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userGetResponse"
+                  $ref: '#/components/schemas/userGetResponse'
                 }
             }           
         }
       }   
 
       #swagger.responses[400] = {
-        description: "Bad request. Please check the input data.",
+        description: 'Bad request. Please check the input data',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userBadRequestResponse"
+                  $ref: '#/components/schemas/userBadRequestResponse'
                 }
             }           
         }
@@ -188,53 +188,53 @@ const UserRouter = (options) => {
     /*
       #swagger.auto = false
       #swagger.tags = ['user']
-      #swagger.summary = 'Update user data by Id',
-      #swagger.description = 'This endpoint will update user data by Id',
+      #swagger.summary = 'Update user data by ID'
+      #swagger.description = 'This endpoint will update user data by ID'
       #swagger.path = '/user/{id}'
       #swagger.method = 'put'
       #swagger.produces = ['application/json']
       #swagger.consumes = ['application/json']
       #swagger.security = [{
-        "bearerAuth": []
+        'bearerAuth': []
       }] 
       
       #swagger.parameters['id'] = {
           in: 'path',
-          description: 'User ID.',
+          description: 'User ID',
           required: true,
           type: 'string'
       }
 
       #swagger.requestBody = {
         in: 'body',
-        description: 'User data.',
+        description: 'User data',
         required: true,
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userRequest"
+                  $ref: '#/components/schemas/userRequest'
                 }  
             }
         }
       }
 
       #swagger.responses[200] = {
-        description: "User updated successfully.",
+        description: 'User updated successfully',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userUpdateResponse"
+                  $ref: '#/components/schemas/userUpdateResponse'
                 }
             }           
         }
       }   
 
       #swagger.responses[400] = {
-        description: "Bad request. Please check the input data.",
+        description: 'Bad request. Please check the input data',
         content: {
-            "application/json": {
+            'application/json': {
                 schema: {
-                  $ref: "#/components/schemas/userBadRequestResponse"
+                  $ref: '#/components/schemas/userBadRequestResponse'
                 }
             }           
         }
