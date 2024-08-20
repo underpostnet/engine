@@ -85,6 +85,8 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(el).classList.value;
 // Array.from(s(el).classList);
 // document.createElement('div');
+// button.setAttribute("disabled", "");
+// button.removeAttribute("disabled")
 
 // &nbsp
 
