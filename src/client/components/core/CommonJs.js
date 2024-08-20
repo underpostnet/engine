@@ -1,12 +1,12 @@
 /**
  * Common JavaScript functions
  * @module src/client/components/core/CommonJs.js
- * @namespace CommonJs
+ * @namespace CommonJS
  */
 
 /**
  * The function `s4` generates a random hexadecimal string with a length of 4 characters.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
 
@@ -20,7 +20,7 @@ const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1)
  * @returns The `range` function returns an array containing a range of numbers starting from the
  * `start` value up to the `end` value (inclusive). If `end` is less than `start`, it will recursively
  * call the `range` function with the arguments swapped and then reverse the resulting array.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const range = (start, end) => {
   return end < start
@@ -41,7 +41,7 @@ const range = (start, end) => {
  * assumes that the ID is stored in a property named `'id'`, but you can customize this by providing
  * @returns The `getId` function returns a unique identifier `_id` based on the input array `arr`,
  * optional `suffix`, and `keyId`.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const getId = (arr, suffix = '', keyId = 'id') => {
   if (!Array.isArray(arr) && typeof arr === 'object')
@@ -62,7 +62,7 @@ const getId = (arr, suffix = '', keyId = 'id') => {
  * generate a random number.
  * @param max - The `max` parameter in the `random` function represents the maximum value that you want
  * to generate a random number up to.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const random = (min, max) => Math.floor(Math.random() * (max - min + 1) + min); // The maximum is inclusive and the minimum is inclusive
 
@@ -200,7 +200,7 @@ const setPad = (num, padValue, targetLength, endPad, separator) => {
  * @param {Number} value The number.
  * @param {Integer} exp The exponent (the log 10 of the base fit).
  * @returns {Number} The adjusted value.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const decimalAdjust = (type, value, exp) => {
   if (typeof exp === 'undefined' || +exp === 0) {
@@ -575,7 +575,7 @@ const isValidFormat = (value, format) => {
 
 /**
  * Returns the time difference between UTC time and local time, in minutes.
- * @memberof CommonJs
+ * @memberof CommonJS
  */
 const getTimezoneOffset = () => new Date().getTimezoneOffset();
 
