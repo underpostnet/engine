@@ -280,6 +280,14 @@ const TranslateCore = {
       en: 'Send recover email',
       es: 'Enviar email de recuperación',
     };
+    Translate.Data['recover-verify-email'] = {
+      en: 'recover email',
+      es: 'email de recuperación',
+    };
+    Translate.Data['15-min-valid-recover-email'] = {
+      en: 'The recovery email link will expire in 15 minutes.',
+      es: 'El enlace de recuperación del email expirará en 15 minutos.',
+    };
     Translate.Data['success-recover-verify-email'] = {
       en: 'Email send with recover password instructions.',
       es: 'Email enviado con instrucciones para recuperar contraseña.',
@@ -300,6 +308,7 @@ const TranslateCore = {
       en: 'Change Password',
       es: 'Cambiar contraseña',
     };
+    Translate.Data['resend'] = { en: 'Resend', es: 'Reenviar' };
   },
 };
 

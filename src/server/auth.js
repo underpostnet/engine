@@ -59,16 +59,17 @@ function verifyPassword(password, combined) {
 // jwt middleware
 
 /**
- * The hashJWT function generates a JSON Web Token (JWT) using the provided payload and environment
- * variables for the secret and expiration time.
- * @param payload - The `payload` parameter in the `hashJWT` function typically refers to the data that
- * you want to encode into the JSON Web Token (JWT). This data can be any JSON object that you want to
- * securely transmit or store. It could include user information, permissions, or any other relevant
- * data that
- * @returns {String} the jwt hash corresponding to the payload
+ * The hashJWT function generates a JSON Web Token (JWT) with a specified payload and expiration time.
+ * @param payload - The `payload` parameter in the `hashJWT` function is the data that you want to
+ * encode into the JSON Web Token (JWT). It typically contains information about the user or any other
+ * relevant data that you want to securely transmit.
+ * @param expire - The `expire` parameter in the `hashJWT` function is used to specify the expiration
+ * time for the JSON Web Token (JWT) being generated. If a value is provided for `expire`, it will be
+ * used as the expiration time. If `expire` is not provided (i.e., it
  * @memberof Auth
  */
-const hashJWT = (payload) => jwt.sign(payload, process.env.SECRET, { expiresIn: `${process.env.EXPIRE}h` });
+const hashJWT = (payload, expire) =>
+  jwt.sign(payload, process.env.SECRET, { expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h` });
 
 /**
  * The function `verifyJWT` is used to verify a JSON Web Token (JWT) using a secret key stored in the

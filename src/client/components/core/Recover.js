@@ -70,6 +70,8 @@ const Recover = {
 
       EventsUI.onClick(`.btn-recover`, async (e) => {
         e.preventDefault();
+        s(`.recover-resend-btn-container`).classList.add('hide');
+        s(`.recover-send-btn-container`).classList.remove('hide');
         const { errorMessage } = await validators();
         if (errorMessage) return;
         const body = {};
@@ -86,6 +88,8 @@ const Recover = {
                   : Translate.Render(`${result.status}-recover-verify-email`),
               status: result.status,
             });
+            s(`.recover-send-btn-container`).classList.add('hide');
+            s(`.recover-resend-btn-container`).classList.remove('hide');
             break;
           }
           case 'change-password': {
@@ -111,6 +115,10 @@ const Recover = {
           }
         }
       });
+      s(`.btn-recover-resend`).onclick = (e) => {
+        e.preventDefault();
+        s(`.btn-recover`).click();
+      };
       s(`.btn-recover-log-in`).onclick = () => {
         s(`.btn-close-modal-recover`).click();
         s(`.main-btn-log-in`).click();
@@ -171,10 +179,20 @@ const Recover = {
           })}
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
-        <div class="in">
+        <div class="in recover-send-btn-container">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-recover',
             label: Translate.Render(mode === 'recover-verify-email' ? 'send-recover-verify-email' : 'change-password'),
+            type: 'button',
+          })}
+        </div>
+        <div class="in recover-resend-btn-container hide">
+          <div class="in section-mp form-button" style="color: #ea5353">
+            <i class="fas fa-exclamation-circle"></i> ${Translate.Render('15-min-valid-recover-email')}
+          </div>
+          ${await BtnIcon.Render({
+            class: 'section-mp form-button btn-recover-resend',
+            label: html`${Translate.Render('resend')} ${Translate.Render('recover-verify-email')}`,
             type: 'submit',
           })}
         </div>

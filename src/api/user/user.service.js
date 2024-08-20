@@ -34,7 +34,7 @@ const UserService = {
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
     if (req.params.id === 'recover-verify-email') {
-      const token = hashJWT({ email: req.body.email });
+      const token = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = {
         H1: {
