@@ -422,6 +422,10 @@ try {
 
     case 'build-uml':
       {
+        // comment:
+        // '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax="ALL-UNNAMED"'
+        // in plantuml.js src
+
         const deployId = process.argv[3];
         const clientId = process.argv[4];
         const folder = `./src/client/public/${clientId ? clientId : 'default'}/plantuml`;
