@@ -10,7 +10,7 @@ import { range } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
-import { faBase64Image } from '../src/server/client-icons.js';
+import { faBase64Png } from '../src/server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -158,7 +158,7 @@ try {
         fs.removeSync(`${path}${faId}.svg`);
       }
       {
-        fs.writeFileSync(`${path}${faId}.png`, Buffer.from(faBase64Image(faId, 100, 100, color), 'base64'));
+        fs.writeFileSync(`${path}${faId}.png`, Buffer.from(faBase64Png(faId, 100, 100, color), 'base64'));
       }
 
       break;
