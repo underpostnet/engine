@@ -62,6 +62,7 @@ const Config = {
             'Badge',
             'ToolTip',
             'Webhook',
+            'Recover',
           ],
           default: [
             'MenuDefault',
@@ -117,6 +118,11 @@ const Config = {
           },
           {
             path: '/docs',
+            client: 'Default',
+            ssr: 'Default',
+          },
+          {
+            path: '/recover',
             client: 'Default',
             ssr: 'Default',
           },
@@ -208,6 +214,7 @@ const Config = {
             },
             templates: {
               userVerifyEmail: 'DefaultVerifyEmail',
+              userRecoverEmail: 'DefaultRecoverEmail',
             },
           },
         },

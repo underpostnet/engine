@@ -30,6 +30,7 @@ const RoutesDefault = () => {
       translateTitle: true,
     },
     '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(), translateTitle: true },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
   };
 };
 

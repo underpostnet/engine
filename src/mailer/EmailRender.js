@@ -32,7 +32,7 @@ const EmailRender = {
       'margin-bottom': '20px',
       color: '#666666',
     },
-    '.button': {
+    button: {
       display: 'inline-block',
       padding: '10px 20px',
       'background-color': '#007bff',

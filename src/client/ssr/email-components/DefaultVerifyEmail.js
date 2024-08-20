@@ -9,8 +9,6 @@ SrrComponent = (render = { style: {}, renderStyle: () => '' }, options) =>
             ? ''
             : options.path}/api/user/mailer/{{TOKEN}}"
         />
-        <!-- <p>Please click the button below to confirm your email address.</p> -->
-        <!-- <a href="#" class="button">Confirm Email</a> -->
       </div>
       <div style="${render.renderStyle('.footer')}">
         <p>{{COMPANY}}</p>

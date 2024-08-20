@@ -268,6 +268,34 @@ const TranslateCore = {
       en: 'Forgot Password',
       es: 'Olvidé mi contraseña',
     };
+    Translate.Data['recover'] = {
+      en: 'Recover',
+      es: 'Recuperar',
+    };
+    Translate.Data['send-recover-verify-email'] = {
+      en: 'Send recover email',
+      es: 'Enviar email de recuperación',
+    };
+    Translate.Data['success-recover-verify-email'] = {
+      en: 'Email send with recover password instructions.',
+      es: 'Email enviado con instrucciones para recuperar contraseña.',
+    };
+    Translate.Data['error-recover-verify-email'] = {
+      en: 'Error sending recover email.',
+      es: 'Error al enviar email de recuperación.',
+    };
+    Translate.Data['success-recover-password'] = {
+      en: 'Password successfully updated.',
+      es: 'Contraseña actualizada con éxito.',
+    };
+    Translate.Data['error-recover-password'] = {
+      en: 'Error updating password.',
+      es: 'Error al actualizar la contraseña.',
+    };
+    Translate.Data['change-password'] = {
+      en: 'Change Password',
+      es: 'Cambiar contraseña',
+    };
   },
 };
 
