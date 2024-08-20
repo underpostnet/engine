@@ -64,8 +64,8 @@ const UserService = {
             .replace(
               '{{RECOVER_WEB_URL}}',
               `${process.env === 'development' ? 'http://' : 'https://'}${options.host}${options.path}${
-                options.path === '/' ? 'recover' : `/recover?payload=${token}`
-              }`,
+                options.path === '/' ? 'recover' : `/recover`
+              }?payload=${token}`,
             )
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
 
