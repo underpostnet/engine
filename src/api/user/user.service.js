@@ -267,6 +267,7 @@ const UserService = {
       }
 
       default:
+        if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
         return await User.findOne({
           _id: req.params.id,
         }).select(UserDto.select.get());
