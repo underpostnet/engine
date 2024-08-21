@@ -12,7 +12,6 @@ import fs from 'fs-extra';
 import { svg, png, png3x } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
 import Jimp from 'jimp';
-import { buildTextImg, faBase64Png } from '../../server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -197,20 +196,34 @@ const UserService = {
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
     if (req.path.startsWith('/recover')) {
-      const payload = verifyJWT(req.params.id);
+      let payload;
+      try {
+        payload = verifyJWT(req.params.id);
+      } catch (error) {
+        logger.error(error, { 'req.params.id': req.params.id });
+        options.png.header(res);
+        return options.png.buffer['invalid-token'];
+      }
       const user = await User.findOne({
         email: payload.email,
       });
       if (user) {
         const { _id } = user;
         await User.findByIdAndUpdate(_id, { recover: true }, { runValidators: true });
-        res.set('Content-Type', 'image/png');
-        return Buffer.from(faBase64Png('rotate-left', 50, 50, '#ffffff'), 'base64');
+        options.png.header(res);
+        return options.png.buffer['rotate-left'];
       } else new Error('invalid token');
     }
 
     if (req.path.startsWith('/mailer')) {
-      const payload = verifyJWT(req.params.id);
+      let payload;
+      try {
+        payload = verifyJWT(req.params.id);
+      } catch (error) {
+        logger.error(error, { 'req.params.id': req.params.id });
+        options.png.header(res);
+        return options.png.buffer['invalid-token'];
+      }
       const user = await User.findOne({
         email: payload.email,
       });
@@ -224,19 +237,8 @@ const UserService = {
           status: 'email-confirmed',
           id: userWsId,
         });
-        {
-          // const image = await Jimp.create(100, 50);
-          // res.set('Content-Type', 'image/png');
-          // return await image.getBufferAsync(Jimp.MIME_PNG);
-
-          // const debugFilename = `./tmp/${s4()}${s4()}${s4()}.png`;
-          // await buildTextImg('✓', { debugFilename }, '100x100');
-          // const image = fs.readFileSync(debugFilename);
-          // fs.removeSync(debugFilename);
-
-          res.set('Content-Type', 'image/png');
-          return Buffer.from(faBase64Png('check', 50, 50), 'base64');
-        }
+        options.png.header(res);
+        return options.png.buffer['check'];
       } else new Error('invalid token');
     }
 

@@ -4,6 +4,7 @@ import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
 import { getCapVariableName } from './conf.js';
 import { png3x } from 'font-awesome-assets';
+import { s4 } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -36,6 +37,12 @@ const defaultBaseTextImgOptionsSizes = {
     fontSize: 30,
     margin: 12,
   },
+  '100x300': {
+    maxWidth: 300,
+    customHeight: 100,
+    fontSize: 30,
+    margin: 12,
+  },
   '1200x1200': {
     maxWidth: 1200,
     customHeight: 1200,
@@ -47,6 +54,18 @@ const defaultBaseTextImgOptionsSizes = {
 const buildTextImg = async (text = 'APP', options, size = '1200x1200') => {
   options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes[size], ...options };
   await textToImage.generate(text, options);
+};
+
+const getBufferPngText = async ({ text, textColor, bgColor, size, debugFilename }) => {
+  if (!text) text = 'Hello World!';
+  if (!textColor) textColor = '#000000';
+  if (!bgColor) bgColor = '#ffffff';
+  if (!size) size = '100x300';
+  if (!debugFilename) debugFilename = `./${s4()}${s4()}${s4()}.png`;
+  await buildTextImg(text, { textColor, bgColor, size, debugFilename }, size);
+  const bufferImage = fs.readFileSync(debugFilename);
+  fs.removeSync(debugFilename);
+  return bufferImage;
 };
 
 const buildIcons = async ({
@@ -128,4 +147,4 @@ const buildIcons = async ({
   }
 };
 
-export { buildIcons, buildTextImg, defaultBaseTextImgOptions, faBase64Png };
+export { buildIcons, buildTextImg, defaultBaseTextImgOptions, faBase64Png, getBufferPngText };
