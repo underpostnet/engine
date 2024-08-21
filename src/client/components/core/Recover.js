@@ -63,7 +63,7 @@ const Recover = {
     setTimeout(async () => {
       if (user && user.email) {
         s(`.recover-email`).value = user.email;
-        s(`.recover-email`).setAttribute('disabled', '');
+        if (user.emailConfirmed) s(`.recover-email`).setAttribute('disabled', '');
       }
 
       const validators = await Validator.instance(formData);

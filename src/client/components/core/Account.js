@@ -38,14 +38,14 @@ const Account = {
         {
           model: 'username',
           id: `account-username`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
         { model: 'email', id: `account-email`, rules: [{ type: 'isEmpty' }, { type: 'isEmail' }] },
         {
           model: 'password',
           defaultValue: '*******',
           id: `account-password`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
       ];
       const validators = await Validator.instance(formData);
@@ -55,8 +55,7 @@ const Account = {
           !user[inputData.model] && inputData.defaultValue ? inputData.defaultValue : user[inputData.model];
       }
       let lastUser;
-      EventsUI.onClick(`.btn-account`, async (e) => {
-        e.preventDefault();
+      const submit = async () => {
         lastUser = newInstance(user);
         const { errorMessage } = await validators();
         if (errorMessage) return;
@@ -84,6 +83,14 @@ const Account = {
           }
           lastUser = newInstance(user);
         }
+      };
+      EventsUI.onClick(`.btn-account`, async (e) => {
+        e.preventDefault();
+        await submit();
+      });
+      EventsUI.onClick(`.btn-account-update-username`, async (e) => {
+        e.preventDefault();
+        await submit();
       });
 
       if (s(`.btn-confirm-email`))
@@ -102,11 +109,13 @@ const Account = {
 
       s(`.${waveAnimationId}`).style.cursor = 'pointer';
       s(`.${waveAnimationId}`).onclick = async (e) => {
+        e.preventDefault();
         s(`.account-profile-image-input`).click();
       };
       EventsUI.onChange(
         `.account-profile-image-input`,
         async (e) => {
+          e.preventDefault();
           s(`.account-profile-image`).style.opacity = 0;
           const formFile = fileFormDataFactory(e, profileFileAccept);
 
@@ -132,7 +141,8 @@ const Account = {
         },
         `.account-profile-image-loading`,
       );
-      s(`.btn-account-change-password`).onclick = () => {
+      s(`.btn-account-change-password`).onclick = (e) => {
+        e.preventDefault();
         // s(`.btn-close-modal-account`).click();
         s(`.main-btn-recover`).click();
       };
@@ -161,6 +171,13 @@ const Account = {
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             disabled: false,
+            extension: async () =>
+              html`${await BtnIcon.Render({
+                class: `wfa btn-input-extension btn-account-update-username`,
+                type: 'button',
+                style: 'text-align: left',
+                label: html`${Translate.Render(`update`)}`,
+              })}`,
           })}
         </div>
         <div class="in">
@@ -206,7 +223,7 @@ const Account = {
           })}
         </div>
         ${options?.bottomRender ? await options.bottomRender() : ``}
-        <div class="in">
+        <div class="in hide">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-account',
             label: Translate.Render('update'),
