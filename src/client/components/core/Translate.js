@@ -170,6 +170,7 @@ const TranslateCore = {
     Translate.Data['unconfirmed'] = { en: 'unconfirmed', es: 'No confirmado' };
     Translate.Data['confirmed'] = { en: 'confirmed', es: 'Confirmado' };
     Translate.Data['confirm'] = { en: 'confirm', es: 'confirmar' };
+    Translate.Data['cancel'] = { en: 'cancel', es: 'cancelar' };
     Translate.Data['verify-email'] = { en: 'Verify email', es: 'email de verificacion' };
 
     Translate.Data[`email send`] = { en: 'email send', es: 'email enviado' };
@@ -317,6 +318,11 @@ const TranslateCore = {
     Translate.Data['error-delete-account'] = {
       en: 'Error deleting account.',
       es: 'Error al borrar la cuenta.',
+    };
+
+    Translate.Data['confirm-delete-account'] = {
+      en: 'Are you sure you want to delete your account?',
+      es: '¿Estás seguro de que deseas borrar tu cuenta?',
     };
   },
 };
