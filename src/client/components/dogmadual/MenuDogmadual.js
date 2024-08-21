@@ -14,6 +14,7 @@ import Sortable from 'sortablejs';
 import { RouterDogmadual } from './RoutesDogmadual.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsDogmadual } from './SettingsDogmadual.js';
+import { Recover } from '../core/Recover.js';
 
 const MenuDogmadual = {
   Data: {},
@@ -99,6 +100,17 @@ const MenuDogmadual = {
             tabHref: `${getProxyPath()}settings`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-recover hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+            }),
+            attrs: `data-id="recover"`,
+            tabHref: `${getProxyPath()}recover`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
         </div>
       `,
@@ -277,6 +289,28 @@ const MenuDogmadual = {
         heightTopBar,
         heightBottomBar,
         barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-recover`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-recover',
+        route: 'recover',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+          text: Translate.Render('recover'),
+        }),
+        html: async () =>
+          await Recover.Render({ idModal: 'modal-recover', user: ElementsDogmadual.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
       });
     });
   },
