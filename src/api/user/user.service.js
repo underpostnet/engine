@@ -302,6 +302,7 @@ const UserService = {
       const user = await User.findOne({
         _id,
       });
+      if (!user) throw new Error(`User not found`);
       if (user.profileImageId) await File.findByIdAndDelete(user.profileImageId);
       const [imageFile] = await FileFactory.upload(req, File);
       if (!imageFile) throw new Error('invalid file');
