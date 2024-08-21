@@ -171,7 +171,7 @@ const Account = {
             containerClass: 'inl section-mp width-mini-box input-container',
             placeholder: true,
             autocomplete: 'email',
-            disabled: false,
+            disabled: user.emailConfirmed,
             extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
               ? async () => html`<div class="in verify-email-status"></div>
                   ${await BtnIcon.Render({
@@ -240,6 +240,7 @@ const Account = {
         html`${renderStatus(user.emailConfirmed ? 'success' : 'error', { class: 'inl' })} ${Translate.Render('email')}
         ${Translate.Render(user.emailConfirmed ? 'confirmed' : 'unconfirmed')}`,
       );
+      if (user.emailConfirmed === true) s(`.account-email`).setAttribute('disabled', '');
     }
   },
 };

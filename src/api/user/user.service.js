@@ -99,9 +99,13 @@ const UserService = {
       if (user.email !== req.body.email) {
         req.body.emailConfirmed = false;
 
-        const result = await User.findByIdAndUpdate(req.auth.user._id, req.body, {
-          runValidators: true,
-        });
+        const result = await User.findByIdAndUpdate(
+          req.auth.user._id,
+          { emailConfirmed: false },
+          {
+            runValidators: true,
+          },
+        );
       }
       const translate = {
         H1: {
@@ -320,10 +324,17 @@ const UserService = {
 
     switch (req.params.id) {
       default: {
-        delete req.body.password;
-        req.body.recover = false;
-        if (req.body.email && req.body.email !== req.auth.user.email) req.body.emailConfirmed = false;
-        const { _id } = await User.findByIdAndUpdate(req.params.id, req.body, { runValidators: true });
+        const _id = req.auth.user._id;
+        if (_id !== req.params.id) throw new Error(`Invalid token user id`);
+        const user = await User.findOne({ _id });
+        await User.findByIdAndUpdate(
+          _id,
+          {
+            email: req.body.email && !user.emailConfirmed ? req.body.email : user.email,
+            username: req.body.username,
+          },
+          { runValidators: true },
+        );
         return await User.findOne({
           _id,
         }).select(UserDto.select.get());
