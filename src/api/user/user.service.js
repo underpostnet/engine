@@ -100,7 +100,7 @@ const UserService = {
 
         const result = await User.findByIdAndUpdate(
           req.auth.user._id,
-          { emailConfirmed: false },
+          { emailConfirmed: false, email: req.body.email },
           {
             runValidators: true,
           },
