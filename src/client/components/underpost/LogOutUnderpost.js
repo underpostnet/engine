@@ -15,7 +15,7 @@ const LogOutUnderpost = async function () {
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
-    ElementsUnderpost.Data.user.main = {};
+    ElementsUnderpost.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
 
     NotificationManager.Push({
