@@ -12,7 +12,7 @@ const UserRouter = (options) => {
   (async () => {
     options.png = {
       buffer: {
-        'invalid-token': await getBufferPngText({ text: 'Invalid token', color: '#ff0000' }),
+        'invalid-token': await getBufferPngText({ text: 'Invalid token', textColor: '#ff0000' }),
         recover: Buffer.from(faBase64Png('rotate-left', 50, 50, '#ffffff'), 'base64'),
         check: Buffer.from(faBase64Png('check', 50, 50), 'base64'),
       },

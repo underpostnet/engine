@@ -50,7 +50,7 @@ const CyberiaWorldService = {
           return await CyberiaWorld.find({
             _id: options.cyberia.world.instance._id.toString(),
           });
-        else new Error('CyberiaWorld instance not found');
+        else throw new Error('CyberiaWorld instance not found');
     }
   },
   delete: async (req, res, options) => {

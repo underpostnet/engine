@@ -212,7 +212,10 @@ const UserService = {
         await User.findByIdAndUpdate(_id, { recover: true }, { runValidators: true });
         options.png.header(res);
         return options.png.buffer['rotate-left'];
-      } else new Error('invalid token');
+      } else {
+        options.png.header(res);
+        return options.png.buffer['invalid-token'];
+      }
     }
 
     if (req.path.startsWith('/mailer')) {
@@ -239,7 +242,10 @@ const UserService = {
         });
         options.png.header(res);
         return options.png.buffer['check'];
-      } else new Error('invalid token');
+      } else {
+        options.png.header(res);
+        return options.png.buffer['invalid-token'];
+      }
     }
 
     switch (req.params.id) {
