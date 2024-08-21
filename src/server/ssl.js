@@ -14,7 +14,7 @@ const buildSSL = async (host) => {
   const files = await fs.readdir(sslPath);
 
   for (const folderHost of files)
-    if (folderHost.match(host)) {
+    if (folderHost.match(host.split('/')[0])) {
       for (const i of [''].concat(range(1, 10))) {
         const privateKeyPath = `${sslPath}/${folderHost}/privkey${i}.pem`;
         const certificatePath = `${sslPath}/${folderHost}/cert${i}.pem`;
