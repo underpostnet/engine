@@ -297,12 +297,24 @@ const UserService = {
     // req.path | req.baseUrl
 
     if (req.path.startsWith('/profile-image')) {
+      const _id = req.auth.user._id;
+      if (_id !== req.params.id) throw new Error(`Invalid token user id`);
       const user = await User.findOne({
-        _id: req.auth.user._id,
+        _id,
       });
-      await File.findByIdAndDelete(user.profileImageId);
+      if (user.profileImageId) await File.findByIdAndDelete(user.profileImageId);
       const [imageFile] = await FileFactory.upload(req, File);
-      req.body.profileImageId = imageFile._id.toString();
+      if (!imageFile) throw new Error('invalid file');
+      await User.findByIdAndUpdate(
+        _id,
+        {
+          profileImageId: imageFile._id.toString(),
+        },
+        { runValidators: true },
+      );
+      return await User.findOne({
+        _id,
+      }).select(UserDto.select.get());
     }
 
     if (req.path.startsWith('/recover')) {
