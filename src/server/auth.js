@@ -184,13 +184,4 @@ const moderatorGuard = (req, res, next) => {
   }
 };
 
-export {
-  authMiddleware,
-  hashPassword,
-  verifyPassword,
-  hashJWT,
-  adminGuard,
-  moderatorGuard,
-  verifyPayloadExpireJWT,
-  verifyJWT,
-};
+export { authMiddleware, hashPassword, verifyPassword, hashJWT, adminGuard, moderatorGuard, verifyJWT };
