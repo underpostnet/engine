@@ -211,7 +211,7 @@ const UserService = {
         const { _id } = user;
         await User.findByIdAndUpdate(_id, { recover: true }, { runValidators: true });
         options.png.header(res);
-        return options.png.buffer['rotate-left'];
+        return options.png.buffer['recover'];
       } else {
         options.png.header(res);
         return options.png.buffer['invalid-token'];
