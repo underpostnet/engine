@@ -37,6 +37,7 @@ const RoutesCyberiaAdmin = () => {
     '/world': { title: 'World Engine', render: () => s(`.main-btn-world`).click() },
     '/blockchain': { title: 'BlockChain Engine', render: () => s(`.main-btn-blockchain`).click() },
     '/cloud': { title: 'Cloud', render: () => s(`.main-btn-cloud`).click() },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
   };
 };
 

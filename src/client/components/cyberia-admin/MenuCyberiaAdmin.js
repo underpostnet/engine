@@ -22,6 +22,7 @@ import { SettingsCyberiaAdmin } from './SettingsCyberiaAdmin.js';
 import { TileCyberia } from '../cyberia/TileCyberia.js';
 import { WorldCyberia } from '../cyberia/WorldCyberia.js';
 import Sortable from 'sortablejs';
+import { Recover } from '../core/Recover.js';
 
 const MenuCyberiaAdmin = {
   Data: {},
@@ -181,6 +182,13 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="server"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `${getProxyPath()}server`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-recover hide',
+            label: renderMenuLabel({ img: 'arrow-left.png', text: Translate.Render('recover') }),
+            attrs: `data-id="recover"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}recover`,
           })}
         </div>
       `,
@@ -521,6 +529,25 @@ const MenuCyberiaAdmin = {
               },
             },
           }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-recover`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-recover',
+        route: 'recover',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'arrow-left.png', text: 'recover' }),
+        html: async () =>
+          await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberiaAdmin.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
