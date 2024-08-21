@@ -1,11 +1,12 @@
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
-import { newInstance } from './CommonJs.js';
+import { newInstance, s4 } from './CommonJs.js';
 import { renderStatus, renderWave } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input } from './Input.js';
 import { LogIn } from './LogIn.js';
 import { LogOut } from './LogOut.js';
+import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
@@ -146,7 +147,44 @@ const Account = {
         // s(`.btn-close-modal-account`).click();
         s(`.main-btn-recover`).click();
       };
-      EventsUI.onClick(`.btn-account-delete`, async () => {
+      s(`.btn-account-delete-confirm`).onclick = async (e) => {
+        e.preventDefault();
+        let verifiedCaptcha = false;
+        const confirmResult = await Modal.RenderConfirm({
+          html: async () => {
+            // TODO: Implement Human reCAPTCHA verification
+            const captchaRender = () => {
+              return html` <div class="in section-mp">
+                <h-captcha
+                  class="signupCaptcha"
+                  site-key="781559eb-513a-4bae-8d29-d4af340e3624"
+                  size="normal"
+                  tabindex="0"
+                ></h-captcha>
+              </div>`;
+            };
+            setTimeout(() => {
+              // const signupCaptcha = s('.signupCaptcha');
+              // signupCaptcha.addEventListener('verified', (e) => {
+              //   console.log('verified event', { token: e.token });
+              //   verifiedCaptcha = true;
+              // });
+              // signupCaptcha.addEventListener('error', (e) => {
+              //   console.log('error event', { error: e.error });
+              // });
+              verifiedCaptcha = true;
+            });
+            return html`
+              <div class="in section-mp" style="text-align: center">${Translate.Render('confirm-delete-account')}</div>
+            `;
+          },
+          id: 'delete-account-modal',
+        });
+        if (!verifiedCaptcha || confirmResult.status === 'cancelled') return;
+        s(`.btn-account-delete`).click();
+      };
+      EventsUI.onClick(`.btn-account-delete`, async (e) => {
+        e.preventDefault();
         const result = await UserService.delete({ id: user._id });
         NotificationManager.Push({
           html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
@@ -233,7 +271,13 @@ const Account = {
       </form>
       <div class="in">
         ${await BtnIcon.Render({
-          class: 'section-mp form-button btn-account-delete',
+          class: 'section-mp form-button btn-account-delete hide',
+          label: html` ${Translate.Render(`delete-account`)}`,
+          type: 'button',
+          style: 'color: #5f5f5f',
+        })}
+        ${await BtnIcon.Render({
+          class: 'section-mp form-button btn-account-delete-confirm',
           label: html` ${Translate.Render(`delete-account`)}`,
           type: 'button',
           style: 'color: #5f5f5f',

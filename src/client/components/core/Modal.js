@@ -1439,6 +1439,103 @@ const Modal = {
     });
     delete this.Data[idModal];
   },
+  RenderConfirm: async function (options) {
+    const { id } = options;
+    append(
+      'body',
+      html`
+        <div
+          class="fix background-confirm-modal-${id}"
+          style="${renderCssAttr({
+            style: {
+              'z-index': '10',
+              background: 'rgba(0,0,0,0.5)',
+              width: '100%',
+              height: '100%',
+              top: '0px',
+              left: '0px',
+              transition: '0.3s',
+              opacity: '1',
+            },
+          })}"
+        ></div>
+      `,
+    );
+    const removeBackgroundConfirmModal = () => {
+      s(`.background-confirm-modal-${id}`).style.opacity = '0';
+      setTimeout(() => {
+        s(`.background-confirm-modal-${id}`).remove();
+      });
+    };
+
+    return new Promise(async (resolve, reject) => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      barConfig.buttons.maximize.disabled = true;
+      barConfig.buttons.minimize.disabled = true;
+      barConfig.buttons.restore.disabled = true;
+      barConfig.buttons.menu.disabled = true;
+      barConfig.buttons.close.disabled = false;
+      const htmlRender = html`
+        <br />
+        <div class="in section-mp" style="font-size: 40px; text-align: center">
+          <i class="fas fa-question-circle"></i>
+        </div>
+        ${await options.html()}
+        <div class="in section-mp">
+          ${await BtnIcon.Render({
+            class: `in section-mp form-button btn-confirm-${id}`,
+            label: Translate.Render('confirm'),
+            type: 'submit',
+            style: `margin: auto`,
+          })}
+        </div>
+        <div class="in section-mp">
+          ${await BtnIcon.Render({
+            class: `in section-mp form-button btn-cancel-${id}`,
+            label: Translate.Render('cancel'),
+            type: 'submit',
+            style: `margin: auto`,
+          })}
+        </div>
+      `;
+      await Modal.Render({
+        id,
+        barConfig,
+        titleClass: 'hide',
+        style: {
+          width: '300px',
+          height: '350px',
+          overflow: 'hidden',
+          'z-index': '11',
+          resize: 'none',
+        },
+        dragDisabled: true,
+        ...options,
+        html: htmlRender,
+      });
+
+      const end = () => {
+        removeBackgroundConfirmModal();
+        Modal.removeModal(id);
+      };
+      barConfig.buttons.close.onClick = () => {
+        end();
+        resolve({ status: 'cancelled' });
+      };
+      s(`.background-confirm-modal-${id}`).onclick = () => {
+        end();
+        resolve({ status: 'cancelled' });
+      };
+      s(`.btn-cancel-${id}`).onclick = () => {
+        end();
+        resolve({ status: 'cancelled' });
+      };
+      s(`.btn-confirm-${id}`).onclick = () => {
+        end();
+        resolve({ status: 'confirm' });
+      };
+    });
+  },
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {

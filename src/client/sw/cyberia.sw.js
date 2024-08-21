@@ -184,7 +184,7 @@ self.addEventListener('fetch', (event) => {
           // const cachedResponse = await cache.match(OFFLINE_URL);
           // return cachedResponse;
 
-          const response = new Response(JSON.stringify({ message: 'offline test response' }));
+          const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
           // response.status = 200;
           response.headers.set('Content-Type', 'application/json');
           return response;
