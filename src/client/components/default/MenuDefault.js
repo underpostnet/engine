@@ -103,7 +103,7 @@ const MenuDefault = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-docs',
+            class: 'in wfa main-btn-menu main-btn-docs hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-book"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,

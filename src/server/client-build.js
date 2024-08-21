@@ -120,6 +120,7 @@ const buildClient = async () => {
         redirect,
         apis,
         iconsBuild,
+        docsBuild,
         swaggerApiVersion,
       } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
@@ -438,7 +439,9 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (fullBuildEnabled || process.argv.includes('docs')) {
+      if (docsBuild) {
+        // fullBuildEnabled || process.argv.includes('docs')
+
         // https://jsdoc.app/ Block tags
 
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));

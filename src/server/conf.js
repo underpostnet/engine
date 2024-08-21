@@ -190,6 +190,7 @@ const Config = {
           minifyBuild: false,
           iconsBuild: true,
           lightBuild: false,
+          docsBuild: false,
           ws: 'core',
           peer: true,
           proxy: [80, 443],
