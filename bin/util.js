@@ -6,11 +6,11 @@ import { svg } from 'font-awesome-assets';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { shellCd, shellExec } from '../src/server/process.js';
-import { range } from '../src/client/components/core/CommonJs.js';
+import { range, s4 } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
-import { faBase64Png } from '../src/server/client-icons.js';
+import { buildTextImg, faBase64Png } from '../src/server/client-icons.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -146,6 +146,25 @@ try {
         }
       }
       cleanEmptyFoldersRecursively('./');
+
+    case 'text-to-image': {
+      const text = process.argv[3] || 'Hello World!';
+      const textColor = process.argv[4] || '#000000';
+      const bgColor = process.argv[5] || '#ffffff';
+      const size = process.argv[6] || '100x300';
+      const debugFilename = process.argv[7] || `./${s4()}${s4()}${s4()}.png`;
+
+      const result = await buildTextImg(text, { textColor, bgColor, size, debugFilename }, size);
+
+      const image = fs.readFileSync(debugFilename);
+
+      const b64 = ' ' || `data:image/png;base64,${image.toString('base64')}`;
+
+      console.log({ result, image, b64 });
+
+      // fs.removeSync(debugFilename);
+      break;
+    }
     case 'fa-image':
       const faId = process.argv[3] ? process.argv[3] : 'user';
       const color = process.argv[4] ? process.argv[4] : '#5f5f5f';
