@@ -22,7 +22,7 @@ const AppointmentFormHealthcare = {
         {
           model: 'patient',
           id: `healthcare-appointment-patient`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 5, max: 20 } }],
+          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
         {
           model: 'whatsappNumber',
