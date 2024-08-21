@@ -1,11 +1,11 @@
-import { newInstance, getId, cap } from './CommonJs.js';
+import { newInstance, getId, cap, capFirst } from './CommonJs.js';
 import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
 import { s, htmls } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-const textFormatted = (str = '&nbsp &nbsp . . .') => cap(str);
+const textFormatted = (str = '&nbsp &nbsp . . .') => capFirst(str.toLowerCase());
 
 const Translate = {
   Data: {},
