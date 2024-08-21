@@ -262,7 +262,51 @@ const UserRouter = (options) => {
     return await UserController.put(req, res, options);
   });
 
-  // router.delete(`/:id`, async (req, res) => await UserController.delete(req, res, options));
+  router.delete(`/:id`, authMiddleware, async (req, res) => {
+    /*
+      #swagger.auto = false
+      #swagger.tags = ['user']
+      #swagger.summary = 'Delete user data by ID'
+      #swagger.description = 'This endpoint deletes user data by ID, the path ID must match with the ID of the authenticated user'
+      #swagger.path = '/user/{id}'
+      #swagger.method = 'delete'
+      #swagger.produces = ['application/json']
+      #swagger.consumes = ['application/json']
+      #swagger.security = [{
+        'bearerAuth': []
+      }] 
+
+      #swagger.parameters['id'] = {
+          in: 'path',
+          description: 'User ID',
+          required: true,
+          type: 'string'
+      }
+
+      #swagger.responses[200] = {
+        description: 'get user successfully',
+        content: {
+            'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/userGetResponse'
+                }
+            }           
+        }
+      }   
+
+      #swagger.responses[400] = {
+        description: 'Bad request. Please check the input data',
+        content: {
+            'application/json': {
+                schema: {
+                  $ref: '#/components/schemas/userBadRequestResponse'
+                }
+            }           
+        }
+      } 
+    */
+    return await UserController.delete(req, res, options);
+  });
 
   return router;
 };

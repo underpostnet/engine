@@ -83,13 +83,13 @@ const Recover = {
             const result = await UserService.post({ id: 'recover-verify-email', body });
             NotificationManager.Push({
               html:
-                typeof result.data === 'string'
-                  ? result.data
-                  : Translate.Render(`${result.status}-recover-verify-email`),
+                result.status === 'error' ? result.message : Translate.Render(`${result.status}-recover-verify-email`),
               status: result.status,
             });
-            s(`.recover-send-btn-container`).classList.add('hide');
-            s(`.recover-resend-btn-container`).classList.remove('hide');
+            if (result.status === 'success') {
+              s(`.recover-send-btn-container`).classList.add('hide');
+              s(`.recover-resend-btn-container`).classList.remove('hide');
+            }
             break;
           }
           case 'change-password': {

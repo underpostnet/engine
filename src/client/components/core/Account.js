@@ -1,12 +1,11 @@
-import { CoreService } from '../../services/core/core.service.js';
-import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance } from './CommonJs.js';
-import { dynamicCol, renderStatus, renderWave } from './Css.js';
+import { renderStatus, renderWave } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input } from './Input.js';
 import { LogIn } from './LogIn.js';
+import { LogOut } from './LogOut.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
@@ -137,74 +136,91 @@ const Account = {
         // s(`.btn-close-modal-account`).click();
         s(`.main-btn-recover`).click();
       };
+      EventsUI.onClick(`.btn-account-delete`, async () => {
+        const result = await UserService.delete({ id: user._id });
+        NotificationManager.Push({
+          html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
+          status: result.status,
+        });
+        if (result.status === 'success') {
+          LogOut.Trigger();
+          s(`.main-btn-home`).click();
+        }
+      });
     });
     return html`
       <input type="file" accept="${profileFileAccept.join(', ')}" class="account-profile-image-input hide" />
       ${renderWave({ id: waveAnimationId })}
 
-      <div class="fl">
-        <form class="in fll account-dynamicCol-col-b">
-          <div class="in">
-            ${await Input.Render({
-              id: `account-username`,
-              type: 'text',
-              label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
-              containerClass: 'inl section-mp width-mini-box input-container',
-              placeholder: true,
-              disabled: false,
-            })}
-          </div>
-          <div class="in">
-            ${await Input.Render({
-              id: `account-email`,
-              type: 'email',
-              label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
-              containerClass: 'inl section-mp width-mini-box input-container',
-              placeholder: true,
-              autocomplete: 'email',
-              disabled: false,
-              extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
-                ? async () => html`<div class="in verify-email-status"></div>
-                    ${await BtnIcon.Render({
-                      class: `wfa btn-input-extension btn-confirm-email`,
-                      type: 'button',
-                      style: 'text-align: left',
-                      label: html`<div class="in">
-                        <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
-                        ${Translate.Render('verify-email')}
-                      </div> `,
-                    })}`
-                : undefined,
-            })}
-          </div>
-          <div class="in">
-            ${await Input.Render({
-              id: `account-password`,
-              type: 'password',
-              autocomplete: 'new-password',
-              label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
-              containerClass: 'inl section-mp width-mini-box input-container',
-              placeholder: true,
-              disabled: true,
-              disabledEye: true,
-              extension: async () =>
-                html`${await BtnIcon.Render({
-                  class: `wfa btn-input-extension btn-account-change-password`,
-                  type: 'button',
-                  style: 'text-align: left',
-                  label: html`${Translate.Render(`change-password`)}`,
-                })}`,
-            })}
-          </div>
-          ${options?.bottomRender ? await options.bottomRender() : ``}
-          <div class="in">
-            ${await BtnIcon.Render({
-              class: 'section-mp form-button btn-account',
-              label: Translate.Render('update'),
-              type: 'submit',
-            })}
-          </div>
-        </form>
+      <form class="in">
+        <div class="in">
+          ${await Input.Render({
+            id: `account-username`,
+            type: 'text',
+            label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('username')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            placeholder: true,
+            disabled: false,
+          })}
+        </div>
+        <div class="in">
+          ${await Input.Render({
+            id: `account-email`,
+            type: 'email',
+            label: html`<i class="fa-solid fa-envelope"></i> ${Translate.Render('email')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            placeholder: true,
+            autocomplete: 'email',
+            disabled: false,
+            extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
+              ? async () => html`<div class="in verify-email-status"></div>
+                  ${await BtnIcon.Render({
+                    class: `wfa btn-input-extension btn-confirm-email`,
+                    type: 'button',
+                    style: 'text-align: left',
+                    label: html`<div class="in">
+                      <i class="fa-solid fa-paper-plane"></i> ${Translate.Render('send')}
+                      ${Translate.Render('verify-email')}
+                    </div> `,
+                  })}`
+              : undefined,
+          })}
+        </div>
+        <div class="in">
+          ${await Input.Render({
+            id: `account-password`,
+            type: 'password',
+            autocomplete: 'new-password',
+            label: html`<i class="fa-solid fa-lock"></i> ${Translate.Render('password')}`,
+            containerClass: 'inl section-mp width-mini-box input-container',
+            placeholder: true,
+            disabled: true,
+            disabledEye: true,
+            extension: async () =>
+              html`${await BtnIcon.Render({
+                class: `wfa btn-input-extension btn-account-change-password`,
+                type: 'button',
+                style: 'text-align: left',
+                label: html`${Translate.Render(`change-password`)}`,
+              })}`,
+          })}
+        </div>
+        ${options?.bottomRender ? await options.bottomRender() : ``}
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'section-mp form-button btn-account',
+            label: Translate.Render('update'),
+            type: 'submit',
+          })}
+        </div>
+      </form>
+      <div class="in">
+        ${await BtnIcon.Render({
+          class: 'section-mp form-button btn-account-delete',
+          label: html` ${Translate.Render(`delete-account`)}`,
+          type: 'button',
+          style: 'color: #5f5f5f',
+        })}
       </div>
     `;
   },

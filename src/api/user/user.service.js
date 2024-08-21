@@ -34,6 +34,12 @@ const UserService = {
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
     if (req.params.id === 'recover-verify-email') {
+      const user = await User.findOne({
+        email: req.body.email,
+      });
+
+      if (!user) throw new Error('Email address does not exist');
+
       const token = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = {
@@ -265,10 +271,16 @@ const UserService = {
   delete: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
-
     switch (req.params.id) {
       default:
-        return await User.findByIdAndDelete(req.params.id);
+        if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
+        const user = await User.findOne({
+          _id: req.params.id,
+        }).select(UserDto.select.get());
+        if (user) {
+          await User.findByIdAndDelete(req.params.id);
+          return user;
+        } else throw new Error('user not found');
     }
   },
   put: async (req, res, options) => {

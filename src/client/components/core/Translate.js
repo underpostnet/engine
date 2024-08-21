@@ -309,6 +309,15 @@ const TranslateCore = {
       es: 'Cambiar contraseña',
     };
     Translate.Data['resend'] = { en: 'Resend', es: 'Reenviar' };
+    Translate.Data['delete-account'] = { en: 'Delete Account', es: 'Borrar cuenta' };
+    Translate.Data['success-delete-account'] = {
+      en: 'Account deleted successfully.',
+      es: 'Cuenta borrada con éxito.',
+    };
+    Translate.Data['error-delete-account'] = {
+      en: 'Error deleting account.',
+      es: 'Error al borrar la cuenta.',
+    };
   },
 };
 
