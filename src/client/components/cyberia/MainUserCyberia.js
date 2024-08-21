@@ -280,6 +280,7 @@ const MainUserCyberia = {
       };
     }
     s(`.main-user-container`).style.display = 'block';
+    LoadingAnimation.removeSplashScreen();
   },
   renderCenterRedTriangle: function () {
     // const fontSize = 1;

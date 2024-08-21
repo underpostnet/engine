@@ -3,7 +3,7 @@ import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
-import { ElementsDefault } from '../default/ElementsDefault.js';
+import { ElementsBms } from './ElementsBms.js';
 
 const LogOutBms = async function () {
   LogOut.Event['LogOutBms'] = async () => {
@@ -16,7 +16,7 @@ const LogOutBms = async function () {
       s(`.btn-real-state-panel-close`).click();
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
-    ElementsDefault.Data.user.main = {};
+    ElementsBms.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
 
     NotificationManager.Push({

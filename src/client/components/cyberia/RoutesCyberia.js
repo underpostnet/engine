@@ -34,6 +34,7 @@ const RoutesCyberia = () => {
     '/chat': { title: 'Chat', render: () => s(`.main-btn-chat`).click() },
     '/server': { title: 'server', render: () => s(`.main-btn-server`).click() },
     '/quest': { title: 'quest', render: () => s(`.main-btn-quest`).click() },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
   };
 };
 

@@ -20,6 +20,7 @@ import { RouterCyberia } from './RoutesCyberia.js';
 import { SettingsCyberia } from './SettingsCyberia.js';
 import Sortable from 'sortablejs';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
+import { Recover } from '../core/Recover.js';
 
 const MenuCyberia = {
   Data: {},
@@ -165,6 +166,13 @@ const MenuCyberia = {
             attrs: `data-id="admin"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `/admin`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-recover hide',
+            label: renderMenuLabel({ img: 'arrow-left.png', text: Translate.Render('recover') }),
+            attrs: `data-id="recover"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}recover`,
           })}
         </div>
       `,
@@ -460,6 +468,25 @@ const MenuCyberia = {
               },
             },
           }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-recover`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-recover',
+        route: 'recover',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'arrow-left.png', text: 'recover' }),
+        html: async () =>
+          await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberia.Data.user.main.model.user }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

@@ -25,6 +25,7 @@ import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
 import { Panel } from '../core/Panel.js';
 import { Badge } from '../core/Badge.js';
+import { Recover } from '../core/Recover.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -198,6 +199,17 @@ const MenuBms = {
             tabHref: `${getProxyPath()}account`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-recover hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+            }),
+            attrs: `data-id="recover"`,
+            tabHref: `${getProxyPath()}recover`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
         </div>
       `,
@@ -713,6 +725,28 @@ const MenuBms = {
           }),
         handleType: 'bar',
         observer: true,
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-recover`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-recover',
+        route: 'recover',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+          text: Translate.Render('recover'),
+        }),
+        html: async () =>
+          await Recover.Render({ idModal: 'modal-recover', user: ElementsBms.Data.user.main.model.user }),
+        handleType: 'bar',
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
