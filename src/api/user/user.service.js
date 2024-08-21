@@ -58,7 +58,7 @@ const UserService = {
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
-          to: req.body.email, // req.auth.user.email, // list of receivers
+          to: req.body.email, // list of receivers
           subject: translate.H1[req.lang], // Subject line
           text: translate.H1[req.lang], // plain text body
           html: MailerProvider.instance[id].templates.userRecoverEmail
@@ -123,7 +123,7 @@ const UserService = {
       const sendResult = await MailerProvider.send({
         id,
         sendOptions: {
-          to: req.body.email, // req.auth.user.email, // list of receivers
+          to: req.body.email, // list of receivers
           subject: translate.H1[req.lang], // Subject line
           text: translate.H1[req.lang], // plain text body
           html: MailerProvider.instance[id].templates.userVerifyEmail
@@ -168,7 +168,7 @@ const UserService = {
                 _id,
               }).select(UserDto.select.get());
               return {
-                token: hashJWT({ user }),
+                token: hashJWT({ user: UserDto.auth.payload(user) }),
                 user,
               };
             }
@@ -183,7 +183,7 @@ const UserService = {
         if (_id) {
           const user = await User.findOne({ _id }).select(UserDto.select.get());
           return {
-            token: hashJWT({ user }),
+            token: hashJWT({ user: UserDto.auth.payload(user) }),
             user,
           };
         } else throw new Error('failed to create user');

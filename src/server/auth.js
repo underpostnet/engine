@@ -81,17 +81,6 @@ const hashJWT = (payload, expire) =>
 const verifyJWT = (token = '') => jwt.verify(token, process.env.SECRET);
 
 /**
- * The function `verifyPayloadExpireJWT` checks if a given payload object has a valid expiration time
- * in milliseconds.
- * @param [payload] - The `payload` parameter is expected to be an object with a numeric property `exp`
- * representing a timestamp. The function `verifyPayloadExpireJWT` checks if the `exp` property is a
- * number and if it represents a timestamp in the future (after the current time).
- * @memberof Auth
- */
-const verifyPayloadExpireJWT = (payload = {}) =>
-  typeof payload === 'object' && typeof payload.exp === 'number' && payload.exp * 1000 > +new Date();
-
-/**
  * The authMiddleware function checks and verifies the authorization token in the request headers
  * before allowing access to protected routes.
  * @param req - The `req` parameter in the `authMiddleware` function stands for the request object. It
@@ -114,12 +103,6 @@ const authMiddleware = (req, res, next) => {
     if (authHeader.startsWith('Bearer ')) {
       const token = authHeader.substring(7, authHeader.length);
       const payload = verifyJWT(token);
-      const validExpireJWT = verifyPayloadExpireJWT(payload);
-      if (validExpireJWT !== true)
-        return res.status(401).json({
-          status: 'error',
-          message: 'unauthorized: expire token',
-        });
       req.auth = payload;
       return next();
     }

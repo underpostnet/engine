@@ -50,6 +50,9 @@ const UserDto = {
       return { _id: 1, name: 1 };
     },
   },
+  auth: {
+    payload: (user) => ({ _id: user._id.toString(), role: user.role }),
+  },
 };
 
 export { UserSchema, UserModel, userRoleEnum, ProviderSchema, UserDto };
