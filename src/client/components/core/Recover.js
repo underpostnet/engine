@@ -187,8 +187,10 @@ const Recover = {
           })}
         </div>
         <div class="in recover-resend-btn-container hide">
-          <div class="in section-mp form-button" style="color: #ea5353">
-            <i class="fas fa-exclamation-circle"></i> ${Translate.Render('15-min-valid-recover-email')}
+          <div class="in section-mp form-button" style="color: #ed9d0f">
+            <i style="color: yellow" class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render(
+              '15-min-valid-recover-email',
+            )}
           </div>
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-recover-resend',

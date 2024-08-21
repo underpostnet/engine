@@ -95,6 +95,8 @@ const UserService = {
       const id = `${options.host}${options.path}`;
       const user = await User.findById(req.auth.user._id);
 
+      if (user.emailConfirmed) throw new Error('email already confirmed');
+
       if (user.email !== req.body.email) {
         req.body.emailConfirmed = false;
 
