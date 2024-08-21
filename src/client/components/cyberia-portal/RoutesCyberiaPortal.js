@@ -30,6 +30,7 @@ const RoutesCyberiaPortal = () => {
       hideDisplay: true,
       translateTitle: true,
     },
+    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
   };
 };
 

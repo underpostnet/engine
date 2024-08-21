@@ -17,7 +17,7 @@ const LogOutCyberiaPortal = async function () {
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
     s(`.main-btn-admin`).classList.add('hide');
 
-    ElementsCyberiaPortal.Data.user.main = {};
+    ElementsCyberiaPortal.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
 
     NotificationManager.Push({
