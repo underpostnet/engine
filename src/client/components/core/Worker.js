@@ -202,6 +202,7 @@ const Worker = {
       EventsUI.onClick(`.btn-clean-cache`, async (e) => {
         e.preventDefault();
         // await this.update();
+        localStorage.clear();
         await this.uninstall();
         await this.reload();
       });
