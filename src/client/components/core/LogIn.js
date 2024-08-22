@@ -144,7 +144,7 @@ const LogIn = {
         <div class="in">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-log-in-forgot-password',
-            label: html`<i class="fa-solid fa-arrow-rotate-left"></i>${Translate.Render(`forgot-password`)}`,
+            label: html`<i class="fas fa-question-circle"></i> ${Translate.Render(`forgot-password`)}`,
             type: 'button',
           })}
         </div>
