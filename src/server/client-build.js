@@ -192,20 +192,36 @@ const buildClient = async () => {
         for (const module of services) {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
-
-          const jsSrc = componentFormatted(
-            await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
-            module,
-            dists,
-            path,
-            'services',
-            baseHost,
-          );
-          fs.writeFileSync(
-            `${rootClientPath}/services/${module}/${module}.service.js`,
-            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-            'utf8',
-          );
+          if (fs.existsSync(`./src/client/services/${module}/${module}.service.js`)) {
+            const jsSrc = componentFormatted(
+              await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
+              module,
+              dists,
+              path,
+              'services',
+              baseHost,
+            );
+            fs.writeFileSync(
+              `${rootClientPath}/services/${module}/${module}.service.js`,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
+          }
+          if (fs.existsSync(`./src/client/services/${module}/${module}.management.js`)) {
+            const jsSrc = componentFormatted(
+              await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.management.js`, 'utf8')),
+              module,
+              dists,
+              path,
+              'services',
+              baseHost,
+            );
+            fs.writeFileSync(
+              `${rootClientPath}/services/${module}/${module}.management.js`,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
+          }
         }
 
       const buildId = `${client}.index`;

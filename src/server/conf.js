@@ -185,7 +185,7 @@ const Config = {
         '/': {
           client: 'default',
           runtime: 'nodejs',
-          apis: ['user', 'test', 'file'],
+          apis: ['core', 'user', 'test', 'file'],
           origins: [],
           minifyBuild: false,
           iconsBuild: true,
@@ -500,11 +500,22 @@ const buildApiSrc = async (
   }
 
   fs.mkdirSync(`./src/client/services/${toOptions.apiId}`, { recursive: true });
-  fs.writeFileSync(
-    `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.service.js`,
-    formattedSrc(fs.readFileSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`, 'utf8')),
-    'utf8',
-  );
+  if (fs.existsSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`))
+    fs.writeFileSync(
+      `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.service.js`,
+      formattedSrc(
+        fs.readFileSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.service.js`, 'utf8'),
+      ),
+      'utf8',
+    );
+  if (fs.existsSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.management.js`))
+    fs.writeFileSync(
+      `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.management.js`,
+      formattedSrc(
+        fs.readFileSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.management.js`, 'utf8'),
+      ),
+      'utf8',
+    );
 };
 
 const addApiConf = async (
