@@ -126,6 +126,11 @@ const Config = {
             client: 'Default',
             ssr: 'Default',
           },
+          {
+            path: 'default-management',
+            client: 'Default',
+            ssr: 'Default',
+          },
         ],
         dists: [
           {
