@@ -1,9 +1,24 @@
 import { AgGrid } from '../../components/core/AgGrid.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
 import { darkTheme } from '../../components/core/Css.js';
+import { EventsUI } from '../../components/core/EventsUI.js';
+import { loggerFactory } from '../../components/core/Logger.js';
+import { NotificationManager } from '../../components/core/NotificationManager.js';
+import { Translate } from '../../components/core/Translate.js';
 import { s } from '../../components/core/VanillaJs.js';
+import { DefaultService } from './default.service.js';
+
+const logger = loggerFactory(import.meta);
 
 const serviceId = 'default-management';
+const entity = 'default';
+const columnDefs = [
+  { field: '0', headerName: '0' },
+  { field: '1', headerName: '1' },
+  { field: '2', headerName: '2' },
+  { field: 'createdAt', headerName: 'createdAt', editable: false },
+  { field: 'updatedAt', headerName: 'updatedAt', editable: false },
+];
 
 const DefaultManagement = {
   Tokens: {},
@@ -12,28 +27,31 @@ const DefaultManagement = {
     const gridId = `${serviceId}-grid-${id}`;
     this.Tokens[id] = { gridId };
 
-    setTimeout(() => {
+    setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
 
       // AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
 
-      const columnDefs = [
-        { field: '0', headerName: '0' },
-        { field: '1', headerName: '1' },
-        { field: '2', headerName: '2' },
-        { field: 'createdAt', headerName: 'createdAt', editable: false },
-        { field: 'updatedAt', headerName: 'updatedAt', editable: false },
-      ];
-
       AgGrid.grids[gridId].setGridOption('columnDefs', columnDefs);
+      {
+        const result = await DefaultService.get();
+        AgGrid.grids[gridId].setGridOption('rowData', result.data);
+      }
 
-      s(`.management-table-btn-add-${id}`).onclick = () => {
+      EventsUI.onClick(`.management-table-btn-add-${id}`, async () => {
         const rowObj = {};
         for (const def of columnDefs) {
           rowObj[def.field] = '';
         }
-        AgGrid.grids[gridId].applyTransaction({ add: [rowObj] });
-      };
+        const result = await DefaultService.post({ body: rowObj });
+        NotificationManager.Push({
+          html: result.status === 'error' ? result.message : result.status,
+          status: result.status,
+        });
+        if (result.status === 'success') {
+          AgGrid.grids[gridId].applyTransaction({ add: [result.data] });
+        }
+      });
     }, 1);
     return html`<div class="fl">
         ${await BtnIcon.Render({
@@ -53,14 +71,21 @@ const DefaultManagement = {
               cellDataType: false,
             },
             editType: 'fullRow',
-            rowData: [],
-            onCellValueChanged: (...args) => {
+            // rowData: [],
+            onCellValueChanged: async (...args) => {
               console.log('onCellValueChanged', args);
               const [event] = args;
-              console.log({
+              logger.info('onCellValueChanged', {
                 field: event.colDef.field,
                 value: event.newValue,
                 data: event.data,
+              });
+              const body = {};
+              body[event.colDef.field] = event.newValue;
+              const result = await DefaultService.put({ id: event.data._id, body });
+              NotificationManager.Push({
+                html: result.status === 'error' ? result.message : result.status,
+                status: result.status,
               });
             },
             // onRowValueChanged: (...args) => {

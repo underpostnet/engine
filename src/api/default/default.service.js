@@ -12,7 +12,8 @@ const DefaultService = {
   get: async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
     const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Default;
-    return await Default.findById(req.params.id);
+    if (req.params.id) return await Default.findById(req.params.id);
+    return await Default.find();
   },
   put: async (req, res, options) => {
     /** @type {import('./default.model.js').DefaultModel} */
