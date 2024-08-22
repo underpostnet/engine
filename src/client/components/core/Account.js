@@ -152,28 +152,6 @@ const Account = {
         let verifiedCaptcha = false;
         const confirmResult = await Modal.RenderConfirm({
           html: async () => {
-            // TODO: Implement Human reCAPTCHA verification
-            const captchaRender = () => {
-              return html` <div class="in section-mp">
-                <h-captcha
-                  class="signupCaptcha"
-                  site-key="781559eb-513a-4bae-8d29-d4af340e3624"
-                  size="normal"
-                  tabindex="0"
-                ></h-captcha>
-              </div>`;
-            };
-            setTimeout(() => {
-              // const signupCaptcha = s('.signupCaptcha');
-              // signupCaptcha.addEventListener('verified', (e) => {
-              //   console.log('verified event', { token: e.token });
-              //   verifiedCaptcha = true;
-              // });
-              // signupCaptcha.addEventListener('error', (e) => {
-              //   console.log('error event', { error: e.error });
-              // });
-              verifiedCaptcha = true;
-            });
             return html`
               <div class="in section-mp" style="text-align: center">${Translate.Render('confirm-delete-account')}</div>
             `;

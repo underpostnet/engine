@@ -170,10 +170,6 @@ const Config = {
             folder: './node_modules/peerjs/dist',
             public_folder: '/dist/peerjs',
           },
-          {
-            folder: './node_modules/@hcaptcha/vanilla-hcaptcha/dist',
-            public_folder: '/dist/@hcaptcha',
-          },
         ],
         services: ['core', 'user', 'test', 'file'],
       },
