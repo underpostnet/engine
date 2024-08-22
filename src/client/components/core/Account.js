@@ -181,6 +181,8 @@ const Account = {
           id: 'delete-account-modal',
         });
         if (!verifiedCaptcha || confirmResult.status === 'cancelled') return;
+        s(`.btn-account-delete-confirm`).classList.add('hide');
+        s(`.btn-account-delete`).classList.remove('hide');
         s(`.btn-account-delete`).click();
       };
       EventsUI.onClick(`.btn-account-delete`, async (e) => {
@@ -190,6 +192,8 @@ const Account = {
           html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
           status: result.status,
         });
+        s(`.btn-account-delete-confirm`).classList.remove('hide');
+        s(`.btn-account-delete`).classList.add('hide');
         if (result.status === 'success') {
           LogOut.Trigger();
           s(`.main-btn-home`).click();
