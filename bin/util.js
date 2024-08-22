@@ -146,6 +146,7 @@ try {
         }
       }
       cleanEmptyFoldersRecursively('./');
+      break;
 
     case 'text-to-image': {
       const buffer = await getBufferPngText({
@@ -175,7 +176,6 @@ try {
 
       break;
 
-      break;
     default:
       break;
   }
