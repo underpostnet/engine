@@ -95,7 +95,9 @@ const CssCommonCore = async () => {
         color: gray;
       }
       .management-table-btn {
-        font-size: 20px;
+        font-size: 30px;
+        width: 96px;
+        height: 93px;
       }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
