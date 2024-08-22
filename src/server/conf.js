@@ -171,7 +171,7 @@ const Config = {
             public_folder: '/dist/peerjs',
           },
         ],
-        services: ['core', 'user', 'test', 'file'],
+        services: ['default', 'core', 'user', 'test', 'file'],
       },
     },
     ssr: {
@@ -185,7 +185,7 @@ const Config = {
         '/': {
           client: 'default',
           runtime: 'nodejs',
-          apis: ['core', 'user', 'test', 'file'],
+          apis: ['default', 'core', 'user', 'test', 'file'],
           origins: [],
           minifyBuild: false,
           iconsBuild: true,

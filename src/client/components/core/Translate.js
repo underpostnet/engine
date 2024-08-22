@@ -324,6 +324,10 @@ const TranslateCore = {
       en: 'Are you sure you want to delete your account?',
       es: '¿Estás seguro de que deseas borrar tu cuenta?',
     };
+    Translate.Data['default-management'] = {
+      en: 'Default Management',
+      es: 'Gestión por defecto',
+    };
   },
 };
 
