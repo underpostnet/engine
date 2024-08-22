@@ -127,7 +127,7 @@ const Config = {
             ssr: 'Default',
           },
           {
-            path: 'default-management',
+            path: '/default-management',
             client: 'Default',
             ssr: 'Default',
           },
