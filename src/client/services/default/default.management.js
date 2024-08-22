@@ -144,6 +144,9 @@ const DefaultManagement = {
               flex: 1,
               editable: true,
               cellDataType: false,
+              minWidth: 100,
+              filter: true,
+              autoHeight: true,
             },
             editType: 'fullRow',
             // rowData: [],
@@ -159,12 +162,22 @@ const DefaultManagement = {
               body[event.colDef.field] = event.newValue;
               const result = await DefaultService.put({ id: event.data._id, body });
               NotificationManager.Push({
-                html: result.status === 'error' ? result.message : result.status,
+                html:
+                  result.status === 'error'
+                    ? result.message
+                    : `${Translate.Render('field')} ${event.colDef.headerName} ${Translate.Render('success-updated')}`,
                 status: result.status,
               });
               if (result.status === 'success') {
                 AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data)] });
               }
+            },
+            rowSelection: 'single',
+            onSelectionChanged: async (...args) => {
+              console.log('onSelectionChanged', args);
+              const [event] = args;
+              const selectedRows = AgGrid.grids[gridId].getSelectedRows();
+              logger.info('selectedRows', selectedRows);
             },
             // onRowValueChanged: (...args) => {
             //   console.log('onRowValueChanged', args);

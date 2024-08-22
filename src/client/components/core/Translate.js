@@ -328,6 +328,14 @@ const TranslateCore = {
       en: 'Default Management',
       es: 'Gestión por defecto',
     };
+    Translate.Data['field'] = {
+      en: 'Field',
+      es: 'Campo',
+    };
+    Translate.Data['success-updated'] = {
+      en: 'Successfully updated.',
+      es: 'Actualizado con éxito.',
+    };
   },
 };
 
