@@ -73,11 +73,12 @@ const CoreService = {
           return reject(error);
         }),
     ),
-  put: (options = { id: '' }) =>
+  put: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(ApiBase({ id: options.id, endpoint }), {
-        method: 'GET',
+        method: 'PUT',
         headers: headersFactory(),
+        body: payloadFactory(options.body),
       })
         .then(async (res) => {
           return await res.json();
