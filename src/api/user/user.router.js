@@ -323,6 +323,13 @@ const UserRouter = (options) => {
     return await UserController.delete(req, res, options);
   });
 
+  router.delete(`/`, authMiddleware, async (req, res) => {
+    /*  
+      #swagger.ignore = true
+    */
+    return await UserController.delete(req, res, options);
+  });
+
   return router;
 };
 
