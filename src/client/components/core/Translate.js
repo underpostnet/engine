@@ -352,6 +352,8 @@ const TranslateCore = {
       en: 'User Management',
       es: 'Gestión de usuarios',
     };
+    Translate.Data['success-update-item'] = { en: 'Item successfully updated.', es: 'Elemento actualizado con éxito.' };
+    Translate.Data['error-update-item'] = { en: 'Error updating item', es: 'Elemento actualizado con éxito.' };
   },
 };
 
