@@ -1,6 +1,6 @@
 import { Auth } from '../../components/core/Auth.js';
 import { loggerFactory } from '../../components/core/Logger.js';
-import { ApiBase, headersFactory, payloadFactory } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -11,7 +11,7 @@ const endpoint = 'test';
 const TestService = {
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -30,7 +30,7 @@ const TestService = {
     ),
   get: (options = { id: '' }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -48,7 +48,7 @@ const TestService = {
     ),
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: headersFactory(),
         body: payloadFactory(options.body),

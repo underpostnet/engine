@@ -2,7 +2,7 @@ import { Auth } from '../../components/core/Auth.js';
 import { newInstance } from '../../components/core/CommonJs.js';
 import { loggerFactory } from '../../components/core/Logger.js';
 import { ElementsCyberia } from '../../components/cyberia/ElementsCyberia.js';
-import { ApiBase, headersFactory, payloadFactory } from '../core/core.service.js';
+import { getApiBaseUrl, headersFactory, payloadFactory } from '../core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,7 +13,7 @@ const endpoint = 'cyberia-user';
 const CyberiaUserService = {
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -32,7 +32,7 @@ const CyberiaUserService = {
     ),
   get: (options = { id: '' }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -50,7 +50,7 @@ const CyberiaUserService = {
     ),
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -69,7 +69,7 @@ const CyberiaUserService = {
     ),
   put: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
         headers: headersFactory(),
         body: payloadFactory(options.body),
