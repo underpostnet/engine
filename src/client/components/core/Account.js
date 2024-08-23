@@ -149,7 +149,6 @@ const Account = {
       };
       s(`.btn-account-delete-confirm`).onclick = async (e) => {
         e.preventDefault();
-        let verifiedCaptcha = false;
         const confirmResult = await Modal.RenderConfirm({
           html: async () => {
             return html`
@@ -158,7 +157,7 @@ const Account = {
           },
           id: 'delete-account-modal',
         });
-        if (!verifiedCaptcha || confirmResult.status === 'cancelled') return;
+        if (confirmResult.status === 'cancelled') return;
         s(`.btn-account-delete-confirm`).classList.add('hide');
         s(`.btn-account-delete`).classList.remove('hide');
         s(`.btn-account-delete`).click();
