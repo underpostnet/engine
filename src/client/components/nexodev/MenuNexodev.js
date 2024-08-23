@@ -759,6 +759,10 @@ const MenuNexodev = {
               { field: 'email', headerName: 'email' },
               { field: 'password', headerName: 'password' },
               {
+                field: 'role',
+                headerName: 'role',
+              },
+              {
                 field: 'emailConfirmed',
                 headerName: 'emailConfirmed',
                 cellDataType: 'boolean',
