@@ -25,6 +25,7 @@ import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthca
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
 
 const MenuNexodev = {
   Data: {},
@@ -237,6 +238,17 @@ const MenuNexodev = {
             tabHref: `${getProxyPath()}recover`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover', 'right')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-default-management',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
+            }),
+            attrs: `data-id="default-management"`,
+            tabHref: `${getProxyPath()}default-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management', 'right')),
           })}
         </div>
       `,
@@ -682,6 +694,28 @@ const MenuNexodev = {
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsNexodev.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-default-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-default-management',
+        route: 'default-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          text: Translate.Render('default-management'),
+        }),
+        html: async () => await DefaultManagement.RenderTable({ idModal: 'modal-default-management' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

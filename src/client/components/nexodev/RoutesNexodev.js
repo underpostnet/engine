@@ -43,6 +43,11 @@ const RoutesNexodev = () => {
       translateTitle: true,
     },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/default-management': {
+      title: 'default-management',
+      render: () => s(`.main-btn-default-management`).click(),
+      translateTitle: true,
+    },
   };
 };
 
