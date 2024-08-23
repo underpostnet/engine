@@ -758,6 +758,12 @@ const MenuNexodev = {
               { field: 'username', headerName: 'username' },
               { field: 'email', headerName: 'email' },
               { field: 'password', headerName: 'password' },
+              {
+                field: 'emailConfirmed',
+                headerName: 'emailConfirmed',
+                cellDataType: 'boolean',
+                cellRendererParams: { disabled: true },
+              },
               { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
               { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
             ],

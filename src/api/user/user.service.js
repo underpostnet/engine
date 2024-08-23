@@ -276,26 +276,48 @@ const UserService = {
         }).select(UserDto.select.get());
       }
 
-      default:
-        if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
-        return await User.findOne({
-          _id: req.params.id,
-        }).select(UserDto.select.get());
+      default: {
+        const user = await User.findOne({
+          _id: req.auth.user._id,
+        });
+        switch (user.role) {
+          case 'admin': {
+            if (req.params.id) return await User.findById(req.params.id);
+            return await User.find();
+          }
+          default:
+            if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
+            return await User.findOne({
+              _id: req.params.id,
+            }).select(UserDto.select.get());
+        }
+      }
     }
   },
   delete: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
     switch (req.params.id) {
-      default:
-        if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
+      default: {
         const user = await User.findOne({
-          _id: req.params.id,
-        }).select(UserDto.select.get());
-        if (user) {
-          await User.findByIdAndDelete(req.params.id);
-          return user;
-        } else throw new Error('user not found');
+          _id: req.auth.user._id,
+        });
+        switch (user.role) {
+          case 'admin': {
+            if (req.params.id) return await User.findByIdAndDelete(req.params.id);
+            else return await await User.deleteMany();
+          }
+          default:
+            if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);
+            const user = await User.findOne({
+              _id: req.params.id,
+            }).select(UserDto.select.get());
+            if (user) {
+              await User.findByIdAndDelete(req.params.id);
+              return user;
+            } else throw new Error('user not found');
+        }
+      }
     }
   },
   put: async (req, res, options) => {
@@ -348,20 +370,33 @@ const UserService = {
 
     switch (req.params.id) {
       default: {
-        const _id = req.auth.user._id;
-        if (_id !== req.params.id) throw new Error(`Invalid token user id`);
-        const user = await User.findOne({ _id });
-        await User.findByIdAndUpdate(
-          _id,
-          {
-            email: req.body.email && !user.emailConfirmed ? req.body.email : user.email,
-            username: req.body.username,
-          },
-          { runValidators: true },
-        );
-        return await User.findOne({
-          _id,
-        }).select(UserDto.select.get());
+        const user = await User.findOne({
+          _id: req.auth.user._id,
+        });
+        switch (user.role) {
+          case 'admin': {
+            if (req.body.password) req.body.password = await hashPassword(req.body.password);
+            return await User.findByIdAndUpdate(req.params.id, req.body, {
+              runValidators: true,
+            });
+          }
+          default: {
+            const _id = req.auth.user._id;
+            if (_id !== req.params.id) throw new Error(`Invalid token user id`);
+            const user = await User.findOne({ _id });
+            await User.findByIdAndUpdate(
+              _id,
+              {
+                email: req.body.email && !user.emailConfirmed ? req.body.email : user.email,
+                username: req.body.username,
+              },
+              { runValidators: true },
+            );
+            return await User.findOne({
+              _id,
+            }).select(UserDto.select.get());
+          }
+        }
       }
     }
   },

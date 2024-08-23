@@ -32,6 +32,8 @@ const columnDefFormatter = (obj, columnDefs) => {
       case 'date':
         obj[colDef.field] = obj[colDef.field] ? new Date(obj[colDef.field]) : new Date();
         break;
+      case 'boolean':
+        if (obj[colDef.field] !== true && obj[colDef.field] !== false) obj[colDef.field] = false;
       default:
         break;
     }
