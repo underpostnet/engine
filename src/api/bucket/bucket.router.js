@@ -7,7 +7,6 @@ const logger = loggerFactory(import.meta);
 
 const BucketRouter = (options) => {
   const router = express.Router();
-  fs.mkdirSync(`./bkt/${options.host}${options.path}/`, { recursive: true });
   router.post(`/:id`, authMiddleware, async (req, res) => await BucketController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await BucketController.post(req, res, options));
   router.get(`/:id`, authMiddleware, async (req, res) => await BucketController.get(req, res, options));
