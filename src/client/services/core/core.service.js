@@ -5,15 +5,21 @@ import { getProxyPath } from '../../components/core/VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+const getBaseHost = () => (true ? location.host : 'www.nexodev.org');
 
-const BASE_API = 'api/';
+const getApiBasePath = () => `${getProxyPath()}api/`;
 
-const origin = () => (true ? location.origin : 'https://www.nexodev.org');
-
-const ApiBase = (options = { id: '', endpoint: '' }) =>
-  `${origin()}${getProxyPath()}${BASE_API}${options?.endpoint ? options.endpoint : ''}${
+const getApiBaseUrl = (options = { id: '', endpoint: '' }) =>
+  `${location.protocol}//${getBaseHost()}${getApiBasePath()}${options?.endpoint ? options.endpoint : ''}${
     options?.id ? `/${options.id}` : ''
   }`;
+
+const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined);
+
+const getWsBaseUrl = (options = { id: '', endpoint: '', wsBasePath: '' }) =>
+  `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${getBaseHost()}${
+    options?.wsBasePath !== undefined ? options.wsBasePath : getWsBasePath()
+  }${options?.endpoint ? options.endpoint : ''}${options?.id ? `/${options.id}` : ''}`;
 
 const headersFactory = (headerId = '') => {
   const headers = { Authorization: Auth.getJWT() };
@@ -56,7 +62,7 @@ const CoreService = {
     ),
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'POST',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -75,7 +81,7 @@ const CoreService = {
     ),
   put: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'PUT',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -94,7 +100,7 @@ const CoreService = {
     ),
   get: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'GET',
         headers: headersFactory(),
       })
@@ -112,7 +118,7 @@ const CoreService = {
     ),
   delete: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
-      fetch(ApiBase({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
         method: 'DELETE',
         headers: headersFactory(),
         body: payloadFactory(options.body),
@@ -131,4 +137,16 @@ const CoreService = {
     ),
 };
 
-export { CoreService, ApiBase, headersFactory, payloadFactory };
+const ApiBase = getApiBaseUrl;
+
+export {
+  CoreService,
+  headersFactory,
+  payloadFactory,
+  getBaseHost,
+  getApiBasePath,
+  getApiBaseUrl,
+  getWsBasePath,
+  getWsBaseUrl,
+  ApiBase,
+};
