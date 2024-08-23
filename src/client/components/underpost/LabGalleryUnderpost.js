@@ -9,7 +9,6 @@ const LabGalleryUnderpost = {
   Tokens: {},
   View: [
     { title: '3D PLOT DEMO', path: '3dplotdemo' },
-    { title: 'UNDERPOST CUBE', path: 'cube.php' },
     { title: 'PATH FINDING', path: 'pathfinding' },
     { title: 'SURVIVAL BALL GAME', path: 'survival' },
     { title: 'INFINITE LEVELS LABYRYNTH', path: 'laberinto' },

@@ -122,6 +122,8 @@ const buildClient = async () => {
         iconsBuild,
         docsBuild,
         swaggerApiVersion,
+        apiBaseProxyPath,
+        apiBaseHost,
       } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
@@ -193,7 +195,7 @@ const buildClient = async () => {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
           if (fs.existsSync(`./src/client/services/${module}/${module}.service.js`)) {
-            const jsSrc = componentFormatted(
+            let jsSrc = componentFormatted(
               await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
               module,
               dists,
@@ -201,6 +203,15 @@ const buildClient = async () => {
               'services',
               baseHost,
             );
+            if (module === 'core') {
+              if (apiBaseHost)
+                jsSrc = jsSrc.replace(
+                  'const getBaseHost = () => location.host;',
+                  `const getBaseHost = () => '${apiBaseHost}';`,
+                );
+              if (apiBaseProxyPath)
+                jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}`);
+            }
             fs.writeFileSync(
               `${rootClientPath}/services/${module}/${module}.service.js`,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,

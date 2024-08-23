@@ -5,7 +5,7 @@ import { getProxyPath } from '../../components/core/VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-const getBaseHost = () => (true ? location.host : 'www.nexodev.org');
+const getBaseHost = () => location.host;
 
 const getApiBasePath = () => `${getProxyPath()}api/`;
 
