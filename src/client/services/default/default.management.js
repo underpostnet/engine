@@ -11,18 +11,22 @@ import { DefaultService } from './default.service.js';
 
 const logger = loggerFactory(import.meta);
 
-const serviceId = 'default-management';
-const entity = 'default';
-const columnDefs = [
-  { field: '0', headerName: '0' },
-  { field: '1', headerName: '1' },
-  { field: '2', headerName: '2' },
-  { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
-  { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
-];
-const defaultColKeyFocus = '0';
+const DefaultOptions = {
+  idModal: 'modal-default-management',
+  serviceId: 'default-management',
+  entity: 'default',
+  columnDefs: [
+    { field: '0', headerName: '0' },
+    { field: '1', headerName: '1' },
+    { field: '2', headerName: '2' },
+    { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
+    { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
+  ],
+  defaultColKeyFocus: '0',
+  ServiceProvider: DefaultService,
+};
 
-const columnDefFormatter = (obj) => {
+const columnDefFormatter = (obj, columnDefs) => {
   for (const colDef of columnDefs)
     switch (colDef.cellDataType) {
       case 'date':
@@ -37,7 +41,10 @@ const columnDefFormatter = (obj) => {
 
 const DefaultManagement = {
   Tokens: {},
-  RenderTable: async function (options = { idModal: '' }) {
+  RenderTable: async function (options = DefaultOptions) {
+    if (!options) options = DefaultOptions;
+    const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider } = options;
+    logger.info('DefaultManagement RenderTable', options);
     const id = options?.idModal ? options.idModal : getId(this.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
     this.Tokens[id] = { gridId };
@@ -67,7 +74,7 @@ const DefaultManagement = {
               s(`.btn-remove-${id}-${params.data._id}-label`).classList.add('hide');
               s(`.btn-remove-${id}-${params.data._id}-loading`).classList.remove('hide');
 
-              const result = await DefaultService.delete({ id: params.data._id });
+              const result = await ServiceProvider.delete({ id: params.data._id });
 
               NotificationManager.Push({
                 html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
@@ -107,10 +114,10 @@ const DefaultManagement = {
         ]),
       );
       {
-        const result = await DefaultService.get();
+        const result = await ServiceProvider.get();
         AgGrid.grids[gridId].setGridOption(
           'rowData',
-          result.data.reverse().map((row) => columnDefFormatter(row)),
+          result.data.reverse().map((row) => columnDefFormatter(row, columnDefs)),
         );
       }
       s(`.management-table-btn-save-${id}`).onclick = () => {
@@ -125,13 +132,13 @@ const DefaultManagement = {
           for (const def of columnDefs) {
             rowObj[def.field] = '';
           }
-          const result = await DefaultService.post({ body: rowObj });
+          const result = await ServiceProvider.post({ body: rowObj });
           NotificationManager.Push({
             html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
             status: result.status,
           });
           if (result.status === 'success') {
-            AgGrid.grids[gridId].applyTransaction({ add: [columnDefFormatter(result.data)], addIndex: 0 });
+            AgGrid.grids[gridId].applyTransaction({ add: [columnDefFormatter(result.data, columnDefs)], addIndex: 0 });
             // AgGrid.grids[gridId].applyColumnState({
             //   state: [
             //     // { colId: 'country', sort: 'asc', sortIndex: 1 },
@@ -193,7 +200,7 @@ const DefaultManagement = {
         async () => {
           s(`.btn-clean-${id}-label`).classList.add('hide');
           s(`.btn-clean-${id}-loading`).classList.remove('hide');
-          const result = await DefaultService.delete();
+          const result = await ServiceProvider.delete();
           NotificationManager.Push({
             html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
             status: result.status,
@@ -252,7 +259,7 @@ const DefaultManagement = {
               });
               const body = {};
               body[event.colDef.field] = event.newValue;
-              const result = await DefaultService.put({ id: event.data._id, body });
+              const result = await ServiceProvider.put({ id: event.data._id, body });
               NotificationManager.Push({
                 html:
                   result.status === 'error'
@@ -261,7 +268,7 @@ const DefaultManagement = {
                 status: result.status,
               });
               if (result.status === 'success') {
-                AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data)] });
+                AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data, columnDefs)] });
               }
             },
             rowSelection: 'single',

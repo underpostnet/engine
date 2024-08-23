@@ -372,7 +372,7 @@ const MenuDefault = {
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
           text: Translate.Render('default-management'),
         }),
-        html: async () => await DefaultManagement.RenderTable({ idModal: 'modal-default-management' }),
+        html: async () => await DefaultManagement.RenderTable(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
