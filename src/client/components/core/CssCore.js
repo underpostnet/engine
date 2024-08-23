@@ -99,6 +99,11 @@ const CssCommonCore = async () => {
         width: 96px;
         height: 93px;
       }
+      .management-table-btn-mini {
+        font-size: 15px;
+        width: 48px;
+        height: 46.5px;
+      }
     </style>
     <style>
       .lds-dual-ring-mini,

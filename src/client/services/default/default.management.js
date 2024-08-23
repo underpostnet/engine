@@ -52,16 +52,20 @@ const DefaultManagement = {
         const { createdAt, updatedAt } = params.data;
 
         this.eGui.innerHTML = html` ${await BtnIcon.Render({
-          label: html`<div class="abs center btn-save-${id}-${params.data._id}-label">
-            <i class="fas fa-times"></i>
-          </div>`,
-          class: `in fll section-mp management-table-btn management-table-btn-remove-${id}-${params.data._id}`,
+          label: html`<div class="abs center btn-remove-${id}-${params.data._id}-label">
+              <i class="fas fa-times"></i>
+            </div>
+            <div class="abs center btn-remove-${id}-${params.data._id}-loading hide">
+              <div class="lds-dual-ring-mini"></div>
+            </div>`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${params.data._id}`,
         })}`;
         setTimeout(() => {
           EventsUI.onClick(
             `.management-table-btn-remove-${id}-${params.data._id}`,
             async () => {
-              s(`.btn-save-${id}-${params.data._id}-label`).classList.add('hide');
+              s(`.btn-remove-${id}-${params.data._id}-label`).classList.add('hide');
+              s(`.btn-remove-${id}-${params.data._id}-loading`).classList.remove('hide');
 
               const result = await DefaultService.delete({ id: params.data._id });
 
@@ -116,6 +120,7 @@ const DefaultManagement = {
         `.management-table-btn-add-${id}`,
         async () => {
           s(`.btn-add-${id}-label`).classList.add('hide');
+          s(`.btn-add-${id}-loading`).classList.remove('hide');
           const rowObj = {};
           for (const def of columnDefs) {
             rowObj[def.field] = '';
@@ -169,7 +174,7 @@ const DefaultManagement = {
           //   // The key to pass to the cell editor
           //   key?: string;
           // }
-
+          s(`.btn-add-${id}-loading`).classList.add('hide');
           s(`.btn-add-${id}-label`).classList.remove('hide');
 
           setTimeout(() => {
@@ -187,6 +192,7 @@ const DefaultManagement = {
         `.management-table-btn-clean-${id}`,
         async () => {
           s(`.btn-clean-${id}-label`).classList.add('hide');
+          s(`.btn-clean-${id}-loading`).classList.remove('hide');
           const result = await DefaultService.delete();
           NotificationManager.Push({
             html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
@@ -195,6 +201,7 @@ const DefaultManagement = {
           if (result.status === 'success') {
             AgGrid.grids[gridId].setGridOption('rowData', []);
           }
+          s(`.btn-clean-${id}-loading`).classList.add('hide');
           s(`.btn-clean-${id}-label`).classList.remove('hide');
         },
         { disableSpinner: true },
@@ -202,18 +209,21 @@ const DefaultManagement = {
     }, 1);
     return html`<div class="fl">
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn management-table-btn-add-${id}`,
-          label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div>`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id}`,
+          label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div>
+            <div class="abs center btn-add-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn management-table-btn-save-${id}`,
-          label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div>`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id}`,
+          label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div>
+            <div class="abs center btn-save-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn management-table-btn-clean-${id}`,
-          label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div>`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-clean-${id}`,
+          label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div>
+            <div class="abs center btn-clean-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
           type: 'button',
         })}
       </div>
