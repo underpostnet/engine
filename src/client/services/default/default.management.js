@@ -166,11 +166,13 @@ const DefaultManagement = {
 
         s(`.btn-add-${id}-label`).classList.remove('hide');
 
-        AgGrid.grids[gridId].startEditingCell({
-          rowIndex: 0,
-          colKey: defaultColKeyFocus,
-          rowPinned: pinned,
-          key: key,
+        setTimeout(() => {
+          AgGrid.grids[gridId].startEditingCell({
+            rowIndex: 0,
+            colKey: defaultColKeyFocus,
+            rowPinned: pinned,
+            key: key,
+          });
         });
       });
       EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
