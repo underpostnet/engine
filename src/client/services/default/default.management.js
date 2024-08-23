@@ -20,6 +20,7 @@ const columnDefs = [
   { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
   { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
 ];
+const defaultColKeyFocus = '0';
 
 const columnDefFormatter = (obj) => {
   for (const colDef of columnDefs)
@@ -41,12 +42,62 @@ const DefaultManagement = {
     const gridId = `${serviceId}-grid-${id}`;
     this.Tokens[id] = { gridId };
 
+    class RemoveActionGridRenderer {
+      eGui;
+
+      async init(params) {
+        this.eGui = document.createElement('div');
+
+        const { rowIndex } = params;
+        const { createdAt, updatedAt } = params.data;
+
+        this.eGui.innerHTML = html` ${await BtnIcon.Render({
+          label: html`<div class="abs center btn-save-${id}-${params.data._id}-label">
+            <i class="fas fa-times"></i>
+          </div>`,
+          class: `in fll section-mp management-table-btn management-table-btn-remove-${id}-${params.data._id}`,
+        })}`;
+        setTimeout(() => {
+          EventsUI.onClick(`.management-table-btn-remove-${id}-${params.data._id}`, async () => {
+            s(`.btn-save-${id}-${params.data._id}-label`).classList.add('hide');
+
+            const result = await DefaultService.delete({ id: params.data._id });
+
+            NotificationManager.Push({
+              html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+              status: result.status,
+            });
+            if (result.status === 'success') {
+              AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+            }
+          });
+        });
+      }
+
+      getGui() {
+        return this.eGui;
+      }
+
+      refresh(params) {
+        return true;
+      }
+    }
+
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
 
-      // AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-
-      AgGrid.grids[gridId].setGridOption('columnDefs', columnDefs);
+      AgGrid.grids[gridId].setGridOption(
+        'columnDefs',
+        columnDefs.concat([
+          {
+            field: 'remove-action',
+            headerName: '',
+            width: 100,
+            cellRenderer: RemoveActionGridRenderer,
+            editable: false,
+          },
+        ]),
+      );
       {
         const result = await DefaultService.get();
         AgGrid.grids[gridId].setGridOption(
@@ -65,7 +116,7 @@ const DefaultManagement = {
         }
         const result = await DefaultService.post({ body: rowObj });
         NotificationManager.Push({
-          html: result.status === 'error' ? result.message : result.status,
+          html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
           status: result.status,
         });
         if (result.status === 'success') {
@@ -117,10 +168,22 @@ const DefaultManagement = {
 
         AgGrid.grids[gridId].startEditingCell({
           rowIndex: 0,
-          colKey: '0',
+          colKey: defaultColKeyFocus,
           rowPinned: pinned,
           key: key,
         });
+      });
+      EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
+        s(`.btn-clean-${id}-label`).classList.add('hide');
+        const result = await DefaultService.delete();
+        NotificationManager.Push({
+          html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
+          status: result.status,
+        });
+        if (result.status === 'success') {
+          AgGrid.grids[gridId].setGridOption('rowData', []);
+        }
+        s(`.btn-clean-${id}-label`).classList.remove('hide');
       });
     }, 1);
     return html`<div class="fl">
@@ -132,6 +195,11 @@ const DefaultManagement = {
         ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn management-table-btn-save-${id}`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div>`,
+          type: 'button',
+        })}
+        ${await BtnIcon.Render({
+          class: `in fll section-mp management-table-btn management-table-btn-clean-${id}`,
+          label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div>`,
           type: 'button',
         })}
       </div>

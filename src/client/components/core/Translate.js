@@ -336,6 +336,18 @@ const TranslateCore = {
       en: 'Successfully updated.',
       es: 'Actualizado con éxito.',
     };
+    Translate.Data['item-success-delete'] = {
+      en: 'Item successfully deleted.',
+      es: 'Elemento eliminado con éxito.',
+    };
+    Translate.Data['success-delete-all-items'] = {
+      en: 'All items successfully deleted.',
+      es: 'Todos los elementos eliminados con éxito.',
+    };
+    Translate.Data['success-create-item'] = {
+      en: 'Item successfully created.',
+      es: 'Elemento creado con éxito.',
+    };
   },
 };
 
