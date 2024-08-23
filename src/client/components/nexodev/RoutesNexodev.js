@@ -48,6 +48,11 @@ const RoutesNexodev = () => {
       render: () => s(`.main-btn-default-management`).click(),
       translateTitle: true,
     },
+    '/user-management': {
+      title: 'user-management',
+      render: () => s(`.main-btn-user-management`).click(),
+      translateTitle: true,
+    },
   };
 };
 

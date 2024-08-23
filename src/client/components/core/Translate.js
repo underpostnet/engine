@@ -348,6 +348,10 @@ const TranslateCore = {
       en: 'Item successfully created.',
       es: 'Elemento creado con éxito.',
     };
+    Translate.Data['user-management'] = {
+      en: 'User Management',
+      es: 'Gestión de usuarios',
+    };
   },
 };
 

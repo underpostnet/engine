@@ -26,6 +26,7 @@ import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
+import { UserService } from '../../services/user/user.service.js';
 
 const MenuNexodev = {
   Data: {},
@@ -249,6 +250,17 @@ const MenuNexodev = {
             tabHref: `${getProxyPath()}default-management`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management', 'right')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-user-management',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-users-cog"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('user-management')}</span>`,
+            }),
+            attrs: `data-id="user-management"`,
+            tabHref: `${getProxyPath()}user-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('user-management', 'right')),
           })}
         </div>
       `,
@@ -715,7 +727,43 @@ const MenuNexodev = {
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
           text: Translate.Render('default-management'),
         }),
-        html: async () => await DefaultManagement.RenderTable({ idModal: 'modal-default-management' }),
+        html: async () => await DefaultManagement.RenderTable(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-user-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-user-management',
+        route: 'user-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-users-cog"></i>`,
+          text: Translate.Render('user-management'),
+        }),
+        html: async () =>
+          await DefaultManagement.RenderTable({
+            idModal: 'modal-user-management',
+            serviceId: 'user-management',
+            entity: 'user',
+            columnDefs: [
+              { field: 'username', headerName: 'username' },
+              { field: 'email', headerName: 'email' },
+              { field: 'password', headerName: 'password' },
+              { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
+              { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
+            ],
+            defaultColKeyFocus: 'username',
+            ServiceProvider: UserService,
+          }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
