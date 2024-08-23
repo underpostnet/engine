@@ -30,7 +30,7 @@ const columnDefFormatter = (obj, columnDefs) => {
   for (const colDef of columnDefs)
     switch (colDef.cellDataType) {
       case 'date':
-        obj[colDef.field] = new Date(obj[colDef.field]);
+        obj[colDef.field] = obj[colDef.field] ? new Date(obj[colDef.field]) : new Date();
         break;
       default:
         break;
@@ -132,11 +132,15 @@ const DefaultManagement = {
           for (const def of columnDefs) {
             rowObj[def.field] = '';
           }
-          const result = await ServiceProvider.post({ body: rowObj });
-          NotificationManager.Push({
-            html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
-            status: result.status,
-          });
+          // const result = await ServiceProvider.post({ body: rowObj });
+          const result = {
+            status: 'success',
+            data: rowObj,
+          };
+          // NotificationManager.Push({
+          //   html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
+          //   status: result.status,
+          // });
           if (result.status === 'success') {
             AgGrid.grids[gridId].applyTransaction({ add: [columnDefFormatter(result.data, columnDefs)], addIndex: 0 });
             // AgGrid.grids[gridId].applyColumnState({
@@ -251,25 +255,15 @@ const DefaultManagement = {
             // rowData: [],
             onCellValueChanged: async (...args) => {
               console.log('onCellValueChanged', args);
-              const [event] = args;
-              logger.info('onCellValueChanged', {
-                field: event.colDef.field,
-                value: event.newValue,
-                data: event.data,
-              });
-              const body = {};
-              body[event.colDef.field] = event.newValue;
-              const result = await ServiceProvider.put({ id: event.data._id, body });
-              NotificationManager.Push({
-                html:
-                  result.status === 'error'
-                    ? result.message
-                    : `${Translate.Render('field')} ${event.colDef.headerName} ${Translate.Render('success-updated')}`,
-                status: result.status,
-              });
-              if (result.status === 'success') {
-                AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data, columnDefs)] });
-              }
+              // field: event.colDef.field,
+              // body[event.colDef.field] = event.newValue;
+              // NotificationManager.Push({
+              //   html:
+              //     result.status === 'error'
+              //       ? result.message
+              //       : `${Translate.Render('field')} ${event.colDef.headerName} ${Translate.Render('success-updated')}`,
+              //   status: result.status,
+              // });
             },
             rowSelection: 'single',
             onSelectionChanged: async (...args) => {
@@ -278,9 +272,34 @@ const DefaultManagement = {
               const selectedRows = AgGrid.grids[gridId].getSelectedRows();
               logger.info('selectedRows', selectedRows);
             },
-            // onRowValueChanged: (...args) => {
-            //   console.log('onRowValueChanged', args);
-            // },
+            onRowValueChanged: async (...args) => {
+              const [event] = args;
+              logger.info('onRowValueChanged', {
+                rowIndex: event.rowIndex,
+                data: event.data,
+              });
+              let result;
+              if (!event.data._id) {
+                result = await ServiceProvider.post({ body: event.data });
+                NotificationManager.Push({
+                  html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
+                  status: result.status,
+                });
+                if (result.status === 'success') {
+                  event.data._id = result.data[entity] ? result.data[entity]._id : result.data._id;
+                }
+              } else {
+                const body = event.data ? event.data : {};
+                result = await ServiceProvider.put({ id: event.data._id, body });
+                NotificationManager.Push({
+                  html: result.status === 'error' ? result.message : `${Translate.Render('success-update-item')}`,
+                  status: result.status,
+                });
+              }
+              if (result.status === 'success') {
+                AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data, columnDefs)] });
+              }
+            },
           },
         })}
       </div>`;
