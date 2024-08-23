@@ -1,6 +1,6 @@
 import { AgGrid } from '../../components/core/AgGrid.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
-import { timer } from '../../components/core/CommonJs.js';
+import { getId, timer } from '../../components/core/CommonJs.js';
 import { darkTheme } from '../../components/core/Css.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { loggerFactory } from '../../components/core/Logger.js';
@@ -51,57 +51,61 @@ const DefaultManagement = {
     const gridId = `${serviceId}-grid-${id}`;
     this.Tokens[id] = { gridId };
 
-    class RemoveActionGridRenderer {
-      eGui;
-
-      async init(params) {
-        this.eGui = document.createElement('div');
-
-        const { rowIndex } = params;
-        const { createdAt, updatedAt } = params.data;
-
-        this.eGui.innerHTML = html` ${await BtnIcon.Render({
-          label: html`<div class="abs center btn-remove-${id}-${params.data._id}-label">
-              <i class="fas fa-times"></i>
-            </div>
-            <div class="abs center btn-remove-${id}-${params.data._id}-loading hide">
-              <div class="lds-dual-ring-mini"></div>
-            </div>`,
-          class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${params.data._id}`,
-        })}`;
-        setTimeout(() => {
-          EventsUI.onClick(
-            `.management-table-btn-remove-${id}-${params.data._id}`,
-            async () => {
-              s(`.btn-remove-${id}-${params.data._id}-label`).classList.add('hide');
-              s(`.btn-remove-${id}-${params.data._id}-loading`).classList.remove('hide');
-
-              const result = await ServiceProvider.delete({ id: params.data._id });
-
-              NotificationManager.Push({
-                html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
-                status: result.status,
-              });
-              if (result.status === 'success') {
-                AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-              }
-            },
-            { disableSpinner: true },
-          );
-        });
-      }
-
-      getGui() {
-        return this.eGui;
-      }
-
-      refresh(params) {
-        return true;
-      }
-    }
-
     setTimeout(async () => {
       // https://www.ag-grid.com/javascript-data-grid/data-update-transactions/
+
+      let rowDataScope = [];
+
+      class RemoveActionGridRenderer {
+        eGui;
+
+        async init(params) {
+          this.eGui = document.createElement('div');
+
+          const { rowIndex } = params;
+          const { createdAt, updatedAt } = params.data;
+
+          const dataId = params.data._id ? params.data._id : getId(rowDataScope, `${serviceId}-`, '_id');
+
+          this.eGui.innerHTML = html` ${await BtnIcon.Render({
+            label: html`<div class="abs center btn-remove-${id}-${dataId}-label">
+                <i class="fas fa-times"></i>
+              </div>
+              <div class="abs center btn-remove-${id}-${dataId}-loading hide">
+                <div class="lds-dual-ring-mini"></div>
+              </div>`,
+            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${dataId}`,
+          })}`;
+          setTimeout(() => {
+            EventsUI.onClick(
+              `.management-table-btn-remove-${id}-${dataId}`,
+              async () => {
+                s(`.btn-remove-${id}-${dataId}-label`).classList.add('hide');
+                s(`.btn-remove-${id}-${dataId}-loading`).classList.remove('hide');
+
+                const result = await ServiceProvider.delete({ id: params.data._id });
+
+                NotificationManager.Push({
+                  html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+                  status: result.status,
+                });
+                if (result.status === 'success') {
+                  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+                }
+              },
+              { disableSpinner: true },
+            );
+          });
+        }
+
+        getGui() {
+          return this.eGui;
+        }
+
+        refresh(params) {
+          return true;
+        }
+      }
 
       AgGrid.grids[gridId].setGridOption(
         'columnDefs',
@@ -117,10 +121,8 @@ const DefaultManagement = {
       );
       {
         const result = await ServiceProvider.get();
-        AgGrid.grids[gridId].setGridOption(
-          'rowData',
-          result.data.reverse().map((row) => columnDefFormatter(row, columnDefs)),
-        );
+        rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs));
+        AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
       }
       s(`.management-table-btn-save-${id}`).onclick = () => {
         AgGrid.grids[gridId].stopEditing();
