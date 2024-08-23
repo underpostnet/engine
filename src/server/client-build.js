@@ -210,7 +210,7 @@ const buildClient = async () => {
                   `const getBaseHost = () => '${apiBaseHost}';`,
                 );
               if (apiBaseProxyPath)
-                jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}`);
+                jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}/`);
             }
             fs.writeFileSync(
               `${rootClientPath}/services/${module}/${module}.service.js`,
