@@ -140,7 +140,7 @@ const Account = {
 
           s(`.account-profile-image`).style.opacity = 1;
         },
-        `.account-profile-image-loading`,
+        { loadingContainer: `.account-profile-image-loading` },
       );
       s(`.btn-account-change-password`).onclick = (e) => {
         e.preventDefault();

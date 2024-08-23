@@ -131,7 +131,7 @@ const buildClient = async () => {
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
-      const fullBuildEnabled = process.argv[2] !== 'l' && !confServer[host][path].lightBuild;
+      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].lightBuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
@@ -455,7 +455,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (docsBuild) {
+      if (!process.argv.includes('l') && docsBuild) {
         // fullBuildEnabled || process.argv.includes('docs')
 
         // https://jsdoc.app/ Block tags

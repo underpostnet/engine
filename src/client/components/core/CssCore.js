@@ -100,6 +100,36 @@ const CssCommonCore = async () => {
         height: 93px;
       }
     </style>
+    <style>
+      .lds-dual-ring-mini,
+      .lds-dual-ring-mini:after {
+        box-sizing: border-box;
+      }
+      .lds-dual-ring-mini {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+      }
+      .lds-dual-ring-mini:after {
+        content: ' ';
+        display: block;
+        width: 32px;
+        height: 32px;
+        margin: 4px;
+        border-radius: 50%;
+        border: 3.2px solid currentColor;
+        border-color: currentColor transparent currentColor transparent;
+        animation: lds-dual-ring-mini 1.2s linear infinite;
+      }
+      @keyframes lds-dual-ring-mini {
+        0% {
+          transform: rotate(0);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+    </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;
 };

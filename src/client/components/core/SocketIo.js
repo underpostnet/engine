@@ -1,6 +1,6 @@
 import { io } from 'socket.io/client-dist/socket.io.esm.min.js';
 import { loggerFactory } from './Logger.js';
-import { getProxyPath } from './VanillaJs.js';
+import { getWsBasePath, getWsBaseUrl } from '../../services/core/core.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -21,10 +21,9 @@ const SocketIo = {
   },
   Init: async function (options) {
     if (this.socket) this.socket.disconnect();
-    const { protocol, host } = window.location;
-    this.host = `${protocol === 'https:' ? 'wss:' : 'ws:'}//${host}`;
+    this.host = getWsBaseUrl({ wsBasePath: '' });
     logger.info(`ws host:`, this.host);
-    const path = getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined;
+    const path = getWsBasePath();
     const connectOptions = {
       path,
       // auth: {

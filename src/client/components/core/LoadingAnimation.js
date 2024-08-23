@@ -111,6 +111,7 @@ const LoadingAnimation = {
     },
   },
   removeSplashScreen: function () {
+    if (s(`.clean-cache-container`)) s(`.clean-cache-container`).style.display = 'none';
     if (s('.ssr-background'))
       setTimeout(() => {
         s('.ssr-background').style.opacity = 0;
