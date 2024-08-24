@@ -1,5 +1,5 @@
 /**
- * Authorization module for managing user authentication and authorization.
+ * Module for managing identity and authorization
  * @module src/server/auth.js
  * @namespace Auth
  */
@@ -69,7 +69,7 @@ function verifyPassword(password, combined) {
  * @memberof Auth
  */
 const hashJWT = (payload, expire) =>
-  jwt.sign(payload, process.env.SECRET, { expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h` });
+  jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: expire !== undefined ? expire : `${process.env.EXPIRE}h` });
 
 /**
  * The function `verifyJWT` is used to verify a JSON Web Token (JWT) using a secret key stored in the
@@ -78,7 +78,7 @@ const hashJWT = (payload, expire) =>
  * function for verification.
  * @memberof Auth
  */
-const verifyJWT = (token = '') => jwt.verify(token, process.env.SECRET);
+const verifyJWT = (token = '') => jwt.verify(token, process.env.JWT_SECRET);
 
 /**
  * The authMiddleware function checks and verifies the authorization token in the request headers
