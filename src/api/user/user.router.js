@@ -36,6 +36,13 @@ const UserRouter = (options) => {
     return await UserController.get(req, res, options);
   });
 
+  router.get(`/email/:email`, authMiddleware, async (req, res) => {
+    /*  
+      #swagger.ignore = true
+    */
+    return await UserController.get(req, res, options);
+  });
+
   router.post(`/:id`, async (req, res) => {
     /*  
       #swagger.ignore = true

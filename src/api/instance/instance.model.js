@@ -17,8 +17,20 @@ const InstanceSchema = new Schema(
   },
 );
 
+const InstanceDto = {
+  populate: {
+    get: () => {
+      return {
+        path: 'userId',
+        model: 'User',
+        select: '_id email',
+      };
+    },
+  },
+};
+
 const InstanceModel = model('Instance', InstanceSchema);
 
 const ProviderSchema = InstanceSchema;
 
-export { InstanceSchema, InstanceModel, ProviderSchema };
+export { InstanceSchema, InstanceModel, ProviderSchema, InstanceDto };

@@ -197,6 +197,12 @@ const UserService = {
     /** @type {import('../file/file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
+    if (req.path.startsWith('/email')) {
+      return await User.findOne({
+        email: req.params.email,
+      }).select(UserDto.select.get());
+    }
+
     if (req.path.startsWith('/recover')) {
       let payload;
       try {

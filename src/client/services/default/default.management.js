@@ -26,7 +26,7 @@ const DefaultOptions = {
   ServiceProvider: DefaultService,
 };
 
-const columnDefFormatter = (obj, columnDefs) => {
+const columnDefFormatter = (obj, columnDefs, customFormat) => {
   for (const colDef of columnDefs)
     switch (colDef.cellDataType) {
       case 'date':
@@ -37,8 +37,7 @@ const columnDefFormatter = (obj, columnDefs) => {
       default:
         break;
     }
-
-  return obj;
+  return customFormat ? customFormat(obj) : obj;
 };
 
 const DefaultManagement = {
@@ -83,7 +82,9 @@ const DefaultManagement = {
                 s(`.btn-remove-${id}-${dataId}-label`).classList.add('hide');
                 s(`.btn-remove-${id}-${dataId}-loading`).classList.remove('hide');
 
-                const result = await ServiceProvider.delete({ id: params.data._id });
+                let result;
+                if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
+                else result = { status: 'success' };
 
                 NotificationManager.Push({
                   html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
@@ -121,7 +122,7 @@ const DefaultManagement = {
       );
       {
         const result = await ServiceProvider.get();
-        rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs));
+        rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
         AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
       }
       s(`.management-table-btn-save-${id}`).onclick = () => {
@@ -146,7 +147,10 @@ const DefaultManagement = {
           //   status: result.status,
           // });
           if (result.status === 'success') {
-            AgGrid.grids[gridId].applyTransaction({ add: [columnDefFormatter(result.data, columnDefs)], addIndex: 0 });
+            AgGrid.grids[gridId].applyTransaction({
+              add: [columnDefFormatter(result.data, columnDefs, options.customFormat)],
+              addIndex: 0,
+            });
             // AgGrid.grids[gridId].applyColumnState({
             //   state: [
             //     // { colId: 'country', sort: 'asc', sortIndex: 1 },
@@ -278,11 +282,12 @@ const DefaultManagement = {
             },
             onRowValueChanged: async (...args) => {
               const [event] = args;
-              logger.info('onRowValueChanged', {
-                rowIndex: event.rowIndex,
-                data: event.data,
-              });
+              logger.info('onRowValueChanged', args);
               let result;
+              if (options.onRowValueChanged) {
+                const { data } = await options.onRowValueChanged(...args);
+                if (data) event.data = data;
+              }
               if (!event.data._id) {
                 result = await ServiceProvider.post({ body: event.data });
                 NotificationManager.Push({
@@ -301,7 +306,9 @@ const DefaultManagement = {
                 });
               }
               if (result.status === 'success') {
-                AgGrid.grids[gridId].applyTransaction({ update: [columnDefFormatter(event.data, columnDefs)] });
+                AgGrid.grids[gridId].applyTransaction({
+                  update: [columnDefFormatter(event.data, columnDefs, options.customFormat)],
+                });
               }
             },
           },
