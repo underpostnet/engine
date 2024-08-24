@@ -12,6 +12,12 @@
 <!-- https://kapasia-dev-ed.my.site.com/Badges4Me/s/ -->
 <!-- https://simpleicons.org/ -->
 
+<!-- ### cli usage -->
+<!-- backup: `node bin/db <host><path> export <deploy-id>` -->
+<!-- restore: `node bin/db <host><path> import <deploy-id>` -->
+<!-- new-api-src: `node bin/deploy build-nodejs-src-api <api-id>` -->
+<!-- text-to-image: `node bin/util text-to-image 's4()' white black 100x100` -->
+
 #### Installation
 
 ```bash
