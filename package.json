@@ -2,7 +2,7 @@
   "type": "module",
   "main": "src/server.js",
   "name": "engine",
-  "version": "2.0.0",
+  "version": "2.5.0",
   "description": "engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
