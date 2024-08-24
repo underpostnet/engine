@@ -15,8 +15,6 @@ import { CharacterCyberia } from './CharacterCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 
-// https://github.com/underpostnet/underpost-engine/blob/2.0.0/src/cyberia/components/bag.js
-
 const logger = loggerFactory(import.meta);
 
 const ItemModal = {
