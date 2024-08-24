@@ -53,6 +53,11 @@ const RoutesNexodev = () => {
       render: () => s(`.main-btn-user-management`).click(),
       translateTitle: true,
     },
+    '/instance-management': {
+      title: 'instance-management',
+      render: () => s(`.main-btn-instance-management`).click(),
+      translateTitle: true,
+    },
   };
 };
 

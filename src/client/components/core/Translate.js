@@ -354,6 +354,10 @@ const TranslateCore = {
     };
     Translate.Data['success-update-item'] = { en: 'Item successfully updated.', es: 'Elemento actualizado con éxito.' };
     Translate.Data['error-update-item'] = { en: 'Error updating item', es: 'Elemento actualizado con éxito.' };
+    Translate.Data['instance-management'] = {
+      en: 'Instance Management',
+      es: 'Gestión de instancias',
+    };
   },
 };
 

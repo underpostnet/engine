@@ -27,6 +27,7 @@ import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { UserService } from '../../services/user/user.service.js';
+import { InstanceService } from '../../services/instance/instance.service.js';
 
 const MenuNexodev = {
   Data: {},
@@ -261,6 +262,17 @@ const MenuNexodev = {
             tabHref: `${getProxyPath()}user-management`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('user-management', 'right')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-instance-management',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-layer-group"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('instance-management')}</span>`,
+            }),
+            attrs: `data-id="instance-management"`,
+            tabHref: `${getProxyPath()}instance-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('instance-management', 'right')),
           })}
         </div>
       `,
@@ -773,6 +785,43 @@ const MenuNexodev = {
             ],
             defaultColKeyFocus: 'username',
             ServiceProvider: UserService,
+          }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-instance-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-instance-management',
+        route: 'instance-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fas fa-layer-group"></i>`,
+          text: Translate.Render('instance-management'),
+        }),
+        html: async () =>
+          await DefaultManagement.RenderTable({
+            idModal: 'modal-instance-management',
+            serviceId: 'instance-management',
+            entity: 'instance',
+            columnDefs: [
+              { field: 'host', headerName: 'host' },
+              { field: 'path', headerName: 'path' },
+              { field: 'deployId', headerName: 'deployId' },
+              { field: 'userId', headerName: 'userId' },
+              { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
+              { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
+            ],
+            defaultColKeyFocus: 'host',
+            ServiceProvider: InstanceService,
           }),
         handleType: 'bar',
         maximize: true,
