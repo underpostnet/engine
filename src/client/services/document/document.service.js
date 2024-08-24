@@ -6,9 +6,9 @@ const logger = loggerFactory(import.meta);
 
 logger.info('Load service');
 
-const endpoint = 'bucket';
+const endpoint = 'document';
 
-const BucketService = {
+const DocumentService = {
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {
@@ -86,4 +86,4 @@ const BucketService = {
     ),
 };
 
-export { BucketService };
+export { DocumentService };

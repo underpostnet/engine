@@ -1,4 +1,4 @@
-import { BucketService } from '../../services/bucket/bucket.service.js';
+import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
@@ -86,8 +86,8 @@ const FileExplorer = {
     let location = query?.location ? this.locationFormat({ f: query }) : '/';
     let files = [];
     let folders = [];
-    let bucketId = '';
-    let bucketInstance = [];
+    let documentId = '';
+    let documentInstance = [];
 
     RouterEvents['file-explorer'] = ({ path, pushPath, route }) => {
       if (route === 'cloud') {
@@ -96,7 +96,7 @@ const FileExplorer = {
           location = query?.location ? this.locationFormat({ f: query }) : '/';
           if (!s(`.file-explorer-query-nav`)) return;
           s(`.file-explorer-query-nav`).value = location;
-          const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+          const format = this.documentDataFormat({ document: documentInstance, location });
           files = format.files;
           folders = format.folders;
           AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -106,17 +106,17 @@ const FileExplorer = {
     };
 
     try {
-      const { status, data: bucket } = await BucketService.get();
-      const format = this.bucketDataFormat({ bucket, location });
+      const { status, data: document } = await DocumentService.get();
+      const format = this.documentDataFormat({ document, location });
       files = format.files;
-      bucketId = format.bucketId;
+      documentId = format.documentId;
       folders = format.folders;
-      bucketInstance = bucket;
+      documentInstance = document;
     } catch (error) {
       console.error(error);
     }
 
-    console.log({ location, bucketId, folders, files });
+    console.log({ location, documentId, folders, files });
 
     setTimeout(async () => {
       const formData = [
@@ -150,16 +150,16 @@ const FileExplorer = {
           location = this.locationFormat({ f: { location: s(`.file-explorer-query-nav`).value } });
           let status = 'success';
           for (const file of fileData) {
-            const result = await BucketService.post({
+            const result = await DocumentService.post({
               body: {
                 fileId: file._id,
                 location,
               },
             });
-            if (result.status === 'success') bucketInstance.push({ ...result.data, fileId: file });
+            if (result.status === 'success') documentInstance.push({ ...result.data, fileId: file });
             else if (status !== 'error') status = 'error';
           }
-          const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+          const format = this.documentDataFormat({ document: documentInstance, location });
           files = format.files;
           folders = format.folders;
           AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -182,7 +182,7 @@ const FileExplorer = {
         location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
-        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+        const format = this.documentDataFormat({ document: documentInstance, location });
         files = format.files;
         folders = format.folders;
         AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -198,7 +198,7 @@ const FileExplorer = {
         else location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
-        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+        const format = this.documentDataFormat({ document: documentInstance, location });
         files = format.files;
         folders = format.folders;
         AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -305,7 +305,7 @@ const FileExplorer = {
               });
               if (status === 'error') return;
             }
-            const { data, status, message } = await BucketService.delete({
+            const { data, status, message } = await DocumentService.delete({
               id: params.data._id,
             });
             NotificationManager.Push({
@@ -314,8 +314,8 @@ const FileExplorer = {
             });
             if (status === 'error') return;
 
-            bucketInstance = bucketInstance.filter((f) => f._id !== params.data._id);
-            const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
+            documentInstance = documentInstance.filter((f) => f._id !== params.data._id);
+            const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
             files = format.files;
             folders = format.folders;
             // AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -357,7 +357,7 @@ const FileExplorer = {
           EventsUI.onClick(`.btn-folder-delete-${id}`, async (e) => {
             e.preventDefault();
             const idFilesDelete = [];
-            for (const file of bucketInstance.filter(
+            for (const file of documentInstance.filter(
               (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
             )) {
               {
@@ -367,7 +367,7 @@ const FileExplorer = {
               }
               {
                 idFilesDelete.push(file._id);
-                const { data, status, message } = await BucketService.delete({
+                const { data, status, message } = await DocumentService.delete({
                   id: file._id,
                 });
               }
@@ -376,8 +376,8 @@ const FileExplorer = {
               html: Translate.Render('success-delete'),
               status: 'success',
             });
-            bucketInstance = bucketInstance.filter((f) => !idFilesDelete.includes(f._id));
-            const format = FileExplorer.bucketDataFormat({ bucket: bucketInstance, location });
+            documentInstance = documentInstance.filter((f) => !idFilesDelete.includes(f._id));
+            const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
             files = format.files;
             folders = format.folders;
             AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -482,7 +482,7 @@ const FileExplorer = {
                         location = newLocation;
                         setPath(`${window.location.pathname}?location=${location}`);
                         s(`.file-explorer-query-nav`).value = location;
-                        const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+                        const format = this.documentDataFormat({ document: documentInstance, location });
                         files = format.files;
                         folders = format.folders;
                         AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -517,7 +517,7 @@ const FileExplorer = {
                       location = newLocation;
                       setPath(`${window.location.pathname}?location=${location}`);
                       s(`.file-explorer-query-nav`).value = location;
-                      const format = this.bucketDataFormat({ bucket: bucketInstance, location });
+                      const format = this.documentDataFormat({ document: documentInstance, location });
                       files = format.files;
                       folders = format.folders;
                       AgGrid.grids[gridFileId].setGridOption('rowData', files);
@@ -589,8 +589,8 @@ const FileExplorer = {
     if (f.location !== '/' && f.location[f.location.length - 1] === '/') f.location = f.location.slice(0, -1);
     return f.location;
   },
-  bucketDataFormat: function ({ bucket, location }) {
-    let files = bucket.map((f) => {
+  documentDataFormat: function ({ document, location }) {
+    let files = document.map((f) => {
       return {
         location: this.locationFormat({ f }),
         name: f.fileId.name,
@@ -599,7 +599,7 @@ const FileExplorer = {
         _id: f._id,
       };
     });
-    let bucketId = bucket._id;
+    let documentId = document._id;
     let folders = [];
     for (const folderPath of uniqueArray(files.map((f) => f.location)))
       folders = ['/'].concat(folders.concat(getSubpaths(folderPath)));
@@ -613,11 +613,11 @@ const FileExplorer = {
     folders = folders
       .filter((f) => f.location.startsWith(location))
       .map((f) => {
-        f.fileCount = bucket.filter((file) => file.location === f.location).length;
+        f.fileCount = document.filter((file) => file.location === f.location).length;
         return f;
       })
       .filter((f) => f.fileCount > 0);
-    return { files, bucketId, folders };
+    return { files, documentId, folders };
   },
 };
 

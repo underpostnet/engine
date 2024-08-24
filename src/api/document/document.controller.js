@@ -1,13 +1,13 @@
 import { loggerFactory } from '../../server/logger.js';
-import { BucketService } from './bucket.service.js';
+import { DocumentService } from './document.service.js';
 const logger = loggerFactory(import.meta);
 
-const BucketController = {
+const DocumentController = {
   post: async (req, res, options) => {
     try {
       return res.status(200).json({
         status: 'success',
-        data: await BucketService.post(req, res, options),
+        data: await DocumentService.post(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -21,7 +21,7 @@ const BucketController = {
     try {
       return res.status(200).json({
         status: 'success',
-        data: await BucketService.get(req, res, options),
+        data: await DocumentService.get(req, res, options),
       });
     } catch (error) {
       logger.error(error, error.stack);
@@ -33,7 +33,7 @@ const BucketController = {
   },
   delete: async (req, res, options) => {
     try {
-      const result = await BucketService.delete(req, res, options);
+      const result = await DocumentService.delete(req, res, options);
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -48,7 +48,7 @@ const BucketController = {
   },
   put: async (req, res, options) => {
     try {
-      const result = await BucketService.put(req, res, options);
+      const result = await DocumentService.put(req, res, options);
       return res.status(200).json({
         status: 'success',
         data: result,
@@ -63,4 +63,4 @@ const BucketController = {
   },
 };
 
-export { BucketController };
+export { DocumentController };

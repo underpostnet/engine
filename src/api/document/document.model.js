@@ -2,7 +2,7 @@ import { Schema, model, Types } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-const BucketSchema = new Schema({
+const DocumentSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
     ref: 'User',
@@ -14,11 +14,11 @@ const BucketSchema = new Schema({
   },
 });
 
-const BucketModel = model('Bucket', BucketSchema);
+const DocumentModel = model('Document', DocumentSchema);
 
-const ProviderSchema = BucketSchema;
+const ProviderSchema = DocumentSchema;
 
-const BucketDto = {
+const DocumentDto = {
   populate: {
     get: () => {
       return {
@@ -30,4 +30,4 @@ const BucketDto = {
   },
 };
 
-export { BucketSchema, BucketModel, ProviderSchema, BucketDto };
+export { DocumentSchema, DocumentModel, ProviderSchema, DocumentDto };
