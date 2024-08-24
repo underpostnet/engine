@@ -57,30 +57,32 @@ const DefaultManagement = {
 
       class RemoveActionGridRenderer {
         eGui;
+        tokens;
 
         async init(params) {
           this.eGui = document.createElement('div');
-
+          this.tokens = {};
           const { rowIndex } = params;
           const { createdAt, updatedAt } = params.data;
 
-          const dataId = params.data._id ? params.data._id : getId(rowDataScope, `${serviceId}-`, '_id');
+          const cellRenderId = getId(this.tokens, `${serviceId}-`);
+          this.tokens[cellRenderId] = {};
 
           this.eGui.innerHTML = html` ${await BtnIcon.Render({
-            label: html`<div class="abs center btn-remove-${id}-${dataId}-label">
+            label: html`<div class="abs center btn-remove-${id}-${cellRenderId}-label">
                 <i class="fas fa-times"></i>
               </div>
-              <div class="abs center btn-remove-${id}-${dataId}-loading hide">
+              <div class="abs center btn-remove-${id}-${cellRenderId}-loading hide">
                 <div class="lds-dual-ring-mini"></div>
               </div>`,
-            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${dataId}`,
+            class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId}`,
           })}`;
           setTimeout(() => {
             EventsUI.onClick(
-              `.management-table-btn-remove-${id}-${dataId}`,
+              `.management-table-btn-remove-${id}-${cellRenderId}`,
               async () => {
-                s(`.btn-remove-${id}-${dataId}-label`).classList.add('hide');
-                s(`.btn-remove-${id}-${dataId}-loading`).classList.remove('hide');
+                s(`.btn-remove-${id}-${cellRenderId}-label`).classList.add('hide');
+                s(`.btn-remove-${id}-${cellRenderId}-loading`).classList.remove('hide');
 
                 let result;
                 if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
@@ -285,8 +287,15 @@ const DefaultManagement = {
               logger.info('onRowValueChanged', args);
               let result;
               if (options.onRowValueChanged) {
-                const { data } = await options.onRowValueChanged(...args);
-                if (data) event.data = data;
+                const { status, data, message } = await options.onRowValueChanged(...args);
+                if (status === 'success' && data) event.data = data;
+                else {
+                  NotificationManager.Push({
+                    html: message,
+                    status,
+                  });
+                  return;
+                }
               }
               if (!event.data._id) {
                 result = await ServiceProvider.post({ body: event.data });
@@ -307,7 +316,7 @@ const DefaultManagement = {
               }
               if (result.status === 'success') {
                 AgGrid.grids[gridId].applyTransaction({
-                  update: [columnDefFormatter(event.data, columnDefs, options.customFormat)],
+                  update: [event.data],
                 });
               }
             },

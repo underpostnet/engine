@@ -27,7 +27,7 @@ import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { UserService } from '../../services/user/user.service.js';
-import { InstanceService } from '../../services/instance/instance.service.js';
+import { InstanceManagement } from '../../services/instance/instance.management.js';
 
 const MenuNexodev = {
   Data: {},
@@ -807,48 +807,7 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-layer-group"></i>`,
           text: Translate.Render('instance-management'),
         }),
-        html: async () =>
-          await DefaultManagement.RenderTable({
-            idModal: 'modal-instance-management',
-            serviceId: 'instance-management',
-            entity: 'instance',
-            columnDefs: [
-              { field: 'host', headerName: 'host' },
-              { field: 'path', headerName: 'path' },
-              { field: 'deployId', headerName: 'deployId' },
-              {
-                field: 'userId',
-                headerName: 'User',
-                children: [
-                  {
-                    headerName: 'id',
-                    field: 'userId',
-                  },
-                  {
-                    headerName: 'Email',
-                    field: 'userEmail',
-                  },
-                ],
-              },
-              { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
-              { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
-            ],
-            customFormat: (obj) => {
-              return {
-                ...obj,
-                userId: obj.userId._id,
-                userEmail: obj.userId.email,
-              };
-            },
-            onRowValueChanged: async (...args) => {
-              const [event] = args;
-              const { data } = await UserService.get({ id: `email/${event.data.userEmail}` });
-              event.data.userId = data._id;
-              return { data: event.data };
-            },
-            defaultColKeyFocus: 'host',
-            ServiceProvider: InstanceService,
-          }),
+          html: async () => InstanceManagement.RenderTable(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
