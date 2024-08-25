@@ -146,6 +146,35 @@ SrrComponent = () => html`
         background-position: 80px 0;
       }
     }
+    .ssr-lds-dual-ring,
+    .ssr-lds-dual-ring:after {
+      box-sizing: border-box;
+    }
+    .ssr-lds-dual-ring {
+      display: inline-block;
+      width: 80px;
+      height: 80px;
+    }
+    .ssr-lds-dual-ring:after {
+      content: ' ';
+      display: block;
+      width: 64px;
+      height: 64px;
+      margin: 8px;
+      border-radius: 50%;
+      border: 6.4px solid currentColor;
+      border-color: currentColor transparent currentColor transparent;
+      animation: ssr-lds-dual-ring 1.2s linear infinite;
+    }
+    @keyframes ssr-lds-dual-ring {
+      0% {
+        transform: rotate(0);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
     .ssr-lds-dual-ring-mini,
     .ssr-lds-dual-ring-mini:after {
       box-sizing: border-box;
