@@ -26,8 +26,8 @@ import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
-import { UserService } from '../../services/user/user.service.js';
 import { InstanceManagement } from '../../services/instance/instance.management.js';
+import { UserManagement } from '../../services/user/user.management.js';
 
 const MenuNexodev = {
   Data: {},
@@ -761,31 +761,7 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-users-cog"></i>`,
           text: Translate.Render('user-management'),
         }),
-        html: async () =>
-          await DefaultManagement.RenderTable({
-            idModal: 'modal-user-management',
-            serviceId: 'user-management',
-            entity: 'user',
-            columnDefs: [
-              { field: 'username', headerName: 'username' },
-              { field: 'email', headerName: 'email' },
-              { field: 'password', headerName: 'password' },
-              {
-                field: 'role',
-                headerName: 'role',
-              },
-              {
-                field: 'emailConfirmed',
-                headerName: 'emailConfirmed',
-                cellDataType: 'boolean',
-                cellRendererParams: { disabled: true },
-              },
-              { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
-              { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
-            ],
-            defaultColKeyFocus: 'username',
-            ServiceProvider: UserService,
-          }),
+        html: async () => await UserManagement.RenderTable({ Elements: ElementsNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
@@ -807,7 +783,7 @@ const MenuNexodev = {
           icon: html`<i class="fas fa-layer-group"></i>`,
           text: Translate.Render('instance-management'),
         }),
-          html: async () => InstanceManagement.RenderTable(),
+        html: async () => InstanceManagement.RenderTable({ Elements: ElementsNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

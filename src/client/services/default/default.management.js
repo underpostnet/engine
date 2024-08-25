@@ -24,6 +24,10 @@ const DefaultOptions = {
   ],
   defaultColKeyFocus: '0',
   ServiceProvider: DefaultService,
+  permissions: {
+    add: true,
+    remove: true,
+  },
 };
 
 const columnDefFormatter = (obj, columnDefs, customFormat) => {
@@ -44,7 +48,7 @@ const DefaultManagement = {
   Tokens: {},
   RenderTable: async function (options = DefaultOptions) {
     if (!options) options = DefaultOptions;
-    const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider } = options;
+    const { serviceId, columnDefs, entity, defaultColKeyFocus, ServiceProvider, permissions } = options;
     logger.info('DefaultManagement RenderTable', options);
     const id = options?.idModal ? options.idModal : getId(this.Tokens, `${serviceId}-`);
     const gridId = `${serviceId}-grid-${id}`;
@@ -112,20 +116,26 @@ const DefaultManagement = {
 
       AgGrid.grids[gridId].setGridOption(
         'columnDefs',
-        columnDefs.concat([
-          {
-            field: 'remove-action',
-            headerName: '',
-            width: 100,
-            cellRenderer: RemoveActionGridRenderer,
-            editable: false,
-          },
-        ]),
+        columnDefs.concat(
+          permissions.remove
+            ? [
+                {
+                  field: 'remove-action',
+                  headerName: '',
+                  width: 100,
+                  cellRenderer: RemoveActionGridRenderer,
+                  editable: false,
+                },
+              ]
+            : [],
+        ),
       );
       {
         const result = await ServiceProvider.get();
-        rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
-        AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
+        if (result.status === 'success') {
+          rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
+          AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
+        }
       }
       s(`.management-table-btn-save-${id}`).onclick = () => {
         AgGrid.grids[gridId].stopEditing();
@@ -230,19 +240,25 @@ const DefaultManagement = {
     }, 1);
     return html`<div class="fl">
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id}`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id} ${
+            permissions.add ? '' : 'hide'
+          }`,
           label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div>
             <div class="abs center btn-add-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id}`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} ${
+            permissions.add ? '' : 'hide'
+          }`,
           label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div>
             <div class="abs center btn-save-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
           type: 'button',
         })}
         ${await BtnIcon.Render({
-          class: `in fll section-mp management-table-btn-mini management-table-btn-clean-${id}`,
+          class: `in fll section-mp management-table-btn-mini management-table-btn-clean-${id} ${
+            permissions.remove ? '' : 'hide'
+          }`,
           label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div>
             <div class="abs center btn-clean-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
           type: 'button',

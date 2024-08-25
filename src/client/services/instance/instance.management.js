@@ -3,32 +3,52 @@ import { UserService } from '../user/user.service.js';
 import { InstanceService } from './instance.service.js';
 
 const InstanceManagement = {
-  RenderTable: async () =>
-    await DefaultManagement.RenderTable({
+  RenderTable: async ({ Elements }) => {
+    const user = Elements.Data.user.main.model.user;
+    const { role } = user;
+    let columnDefs = [
+      { field: 'host', headerName: 'host', editable: role === 'admin' },
+      { field: 'path', headerName: 'path', editable: role === 'admin' },
+      { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
+      { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
+    ];
+    switch (role) {
+      case 'admin':
+        {
+          columnDefs = columnDefs.concat([
+            { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },
+            {
+              field: 'userId',
+              headerName: 'User',
+              children: [
+                {
+                  headerName: 'id',
+                  field: 'userId',
+                  editable: false,
+                },
+                {
+                  headerName: 'Email',
+                  field: 'userEmail',
+                  editable: role === 'admin',
+                },
+              ],
+            },
+          ]);
+        }
+        break;
+
+      default:
+        break;
+    }
+    return await DefaultManagement.RenderTable({
       idModal: 'modal-instance-management',
       serviceId: 'instance-management',
       entity: 'instance',
-      columnDefs: [
-        { field: 'host', headerName: 'host' },
-        { field: 'path', headerName: 'path' },
-        { field: 'deployId', headerName: 'deployId' },
-        {
-          field: 'userId',
-          headerName: 'User',
-          children: [
-            {
-              headerName: 'id',
-              field: 'userId',
-            },
-            {
-              headerName: 'Email',
-              field: 'userEmail',
-            },
-          ],
-        },
-        { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
-        { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
-      ],
+      permissions: {
+        add: role === 'admin',
+        remove: role === 'admin',
+      },
+      columnDefs,
       customFormat: (obj) => {
         return {
           ...obj,
@@ -47,7 +67,8 @@ const InstanceManagement = {
       },
       defaultColKeyFocus: 'host',
       ServiceProvider: InstanceService,
-    }),
+    });
+  },
 };
 
 export { InstanceManagement };
