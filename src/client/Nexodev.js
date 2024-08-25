@@ -12,7 +12,6 @@ import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsNexodev } from './components/nexodev/ElementsNexodev.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
-import { HomeBackground } from './components/core/HomeBackground.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
@@ -33,7 +32,6 @@ window.onload = () =>
       await LogInNexodev();
       await LogOutNexodev();
       await SignUpNexodev();
-      await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/earth.jpg` });
       await Keyboard.Init({ callBackTime: NexodevParams.EVENT_CALLBACK_TIME });
     },
   });

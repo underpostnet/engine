@@ -31,7 +31,6 @@ window.onload = () =>
       await LogInCyberiaPortal();
       await LogOutCyberiaPortal();
       await SignUpCyberiaPortal();
-      // await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
       await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
     },
   });

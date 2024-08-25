@@ -176,6 +176,10 @@ try {
 
       break;
 
+    case 'b64-image':
+      fs.writeFileSync('b64-image', `data:image/jpg;base64,${fs.readFileSync(process.argv[3]).toString('base64')}`);
+      break;
+
     default:
       break;
   }
