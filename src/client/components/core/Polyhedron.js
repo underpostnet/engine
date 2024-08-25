@@ -5,6 +5,8 @@ import { getId, random } from './CommonJs.js';
 import { dynamicCol } from './Css.js';
 import { htmls, s } from './VanillaJs.js';
 
+// https://css-loaders.com/3d/
+
 const Polyhedron = {
   Tokens: {},
   Render: async function (options) {
