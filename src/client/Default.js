@@ -9,7 +9,6 @@ import { SignUpDefault } from './components/default/SignUpDefault.js';
 import { MenuDefault } from './components/default/MenuDefault.js';
 import { RouterDefault } from './components/default/RoutesDefault.js';
 import { TranslateDefault } from './components/default/TranslateDefault.js';
-import { HomeBackground } from './components/core/HomeBackground.js';
 import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
@@ -32,7 +31,6 @@ window.onload = () =>
       await LogInDefault();
       await LogOutDefault();
       await SignUpDefault();
-      await HomeBackground.Render({ imageSrc: `${getProxyPath()}assets/background/white0.jpg` });
       await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
     },
   });

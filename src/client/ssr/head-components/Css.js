@@ -1,3 +1,5 @@
+// https://css-loaders.com/pulsing/
+
 SrrComponent = () => html`
   <style>
     body {
@@ -104,6 +106,97 @@ SrrComponent = () => html`
     }
     .ssr-gray {
       filter: grayscale(1);
+    }
+  </style>
+  <style>
+    .ssr-background-image {
+      background-size: cover;
+      background-position: center;
+      height: 100vh;
+      width: 100vw;
+      object-fit: cover;
+      z-index: -1;
+      top: 0px;
+      left: 0px;
+      pointer-events: none;
+    }
+    .ssr-background {
+      top: 0px;
+      left: 0px;
+      height: 100%;
+      width: 100%;
+      z-index: 11;
+    }
+    .ssr-shimmer {
+      height: 100%;
+      background-image: linear-gradient(
+        to right,
+        rgb(255, 255, 255, 0.5) 0%,
+        rgba(200, 200, 200, 0.5) 30%,
+        rgba(220, 220, 220, 0.5) 50%,
+        rgba(255, 255, 255, 0.5) 100%
+      );
+      animation: ssr-shimmer 3s linear infinite;
+    }
+    @keyframes ssr-shimmer {
+      0% {
+        background-position: -30px 0;
+      }
+      100% {
+        background-position: 80px 0;
+      }
+    }
+    .ssr-lds-dual-ring-mini,
+    .ssr-lds-dual-ring-mini:after {
+      box-sizing: border-box;
+    }
+    .ssr-lds-dual-ring-mini {
+      display: inline-block;
+      width: 40px;
+      height: 40px;
+    }
+    .ssr-lds-dual-ring-mini:after {
+      content: ' ';
+      display: block;
+      width: 32px;
+      height: 32px;
+      margin: 4px;
+      border-radius: 50%;
+      border: 3.2px solid currentColor;
+      border-color: currentColor transparent currentColor transparent;
+      animation: ssr-lds-dual-ring-mini 1.2s linear infinite;
+    }
+    @keyframes ssr-lds-dual-ring-mini {
+      0% {
+        transform: rotate(0);
+      }
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+    .ssr-btn {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+      color: #606060;
+      /* box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3); */
+    }
+    .ssr-sub-shimmer-loader {
+      background: linear-gradient(
+          90deg,
+          rgba(190, 190, 190, 0.5) 33%,
+          rgba(150, 150, 150, 0.5) 50%,
+          rgba(190, 190, 190, 0.5) 66%
+        )
+        rgba(220, 220, 220, 0.5);
+      background-size: 300% 100%;
+      animation: ssr-sub-shimmer-l1 1s infinite linear;
+      border-radius: 5px;
+    }
+    @keyframes ssr-sub-shimmer-l1 {
+      0% {
+        background-position: right;
+      }
     }
   </style>
 `;

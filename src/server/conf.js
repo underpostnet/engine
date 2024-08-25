@@ -54,7 +54,6 @@ const Config = {
             'Docs',
             'Content',
             'FileExplorer',
-            'HomeBackground',
             'Chat',
             'Worker',
             'CssCore',
@@ -181,8 +180,8 @@ const Config = {
     },
     ssr: {
       Default: {
-        head: ['PwaDefault', 'DefaultScripts'],
-        body: ['CacheControl', 'DefaultSplashScreen'],
+        head: ['PwaDefault', 'Css', 'DefaultScripts'],
+        body: ['CacheControl', 'DefaultSplashScreen0'],
       },
     },
     server: {
