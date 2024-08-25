@@ -1,6 +1,6 @@
 [![Node.js CI](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/docker-image.yml) [![Test](https://github.com/underpostnet/engine/actions/workflows/coverall.yml/badge.svg?branch=master)](https://github.com/underpostnet/engine/actions/workflows/coverall.yml) [![Coverage Status](https://coveralls.io/repos/github/underpostnet/engine/badge.svg?branch=master)](https://coveralls.io/github/underpostnet/engine?branch=master)
 
-Dev, build, deploy, monitor, and manage, multiple runtimes applications over a vm or container instance.
+Develop, build, deploy, monitor, and manage multiple runtime applications on virtual machines or container instances.
 
 #### Required version environments
 
