@@ -392,6 +392,7 @@ const buildClient = async () => {
                 await srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')),
               );
               switch (ssrBodyComponent) {
+                case 'UnderpostDefaultSplashScreen':
                 case 'CyberiaDefaultSplashScreen':
                 case 'NexodevSplashScreen':
                 case 'DefaultSplashScreen':
