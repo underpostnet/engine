@@ -108,6 +108,6 @@ SrrComponent = () => {
       const CacheControl = ${CacheControl};
       CacheControl();
     </script>
-    <div class="clean-cache-container">v2.5.0</div>
+    <div class="clean-cache-container">v2.5.1</div>
   `;
 };
