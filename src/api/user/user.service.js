@@ -220,7 +220,7 @@ const UserService = {
         const { _id } = user;
         await User.findByIdAndUpdate(
           _id,
-          { recoverTimeOut: new Date(new Date() + 1000 * 60 * 15) },
+          { recoverTimeOut: new Date(+new Date() + 1000 * 60 * 15) },
           { runValidators: true },
         ); // 15m
         options.png.header(res);
@@ -367,7 +367,7 @@ const UserService = {
       const user = await User.findOne({
         email: payload.email,
       });
-      if (user && new Date().getTime() < user.recoverTimeOut.getTime()) {
+      if (user && new Date().getTime() < new Date(user.recoverTimeOut).getTime()) {
         await User.findByIdAndUpdate(
           user._id,
           { password: await hashPassword(req.body.password) },
