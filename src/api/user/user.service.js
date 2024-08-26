@@ -370,7 +370,7 @@ const UserService = {
       if (user && new Date().getTime() < new Date(user.recoverTimeOut).getTime()) {
         await User.findByIdAndUpdate(
           user._id,
-          { password: await hashPassword(req.body.password) },
+          { password: await hashPassword(req.body.password), recoverTimeOut: new Date() },
           { runValidators: true },
         );
         return await User.findOne({
