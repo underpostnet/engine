@@ -40,6 +40,7 @@ const UserService = {
       if (!user) throw new Error('Email address does not exist');
 
       const token = hashJWT({ email: req.body.email }, '15m');
+      const payloadToken = hashJWT({ email: req.body.email }, '15m');
       const id = `${options.host}${options.path}`;
       const translate = {
         H1: {
@@ -70,7 +71,7 @@ const UserService = {
               '{{RECOVER_WEB_URL}}',
               `${process.env === 'development' ? 'http://' : 'https://'}${options.host}${options.path}${
                 options.path === '/' ? 'recover' : `/recover`
-              }?payload=${token}`,
+              }?payload=${payloadToken}`,
             )
             .replace('{{RECOVER_BTN_LABEL}}', translate.BTN_LABEL[req.lang]),
 
@@ -217,7 +218,11 @@ const UserService = {
       });
       if (user) {
         const { _id } = user;
-        await User.findByIdAndUpdate(_id, { recover: true }, { runValidators: true });
+        await User.findByIdAndUpdate(
+          _id,
+          { recoverTimeOut: new Date(new Date() + 1000 * 60 * 15) },
+          { runValidators: true },
+        ); // 15m
         options.png.header(res);
         return options.png.buffer['recover'];
       } else {
@@ -362,10 +367,10 @@ const UserService = {
       const user = await User.findOne({
         email: payload.email,
       });
-      if (user && user.recover) {
+      if (user && new Date().getTime() < user.recoverTimeOut.getTime()) {
         await User.findByIdAndUpdate(
           user._id,
-          { password: await hashPassword(req.body.password), recover: false },
+          { password: await hashPassword(req.body.password) },
           { runValidators: true },
         );
         return await User.findOne({

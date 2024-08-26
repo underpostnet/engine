@@ -17,7 +17,7 @@ const UserSchema = new Schema(
       // match: [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, 'Please fill a valid email address'],
     },
     emailConfirmed: { type: Boolean, default: false },
-    recover: { type: Boolean, default: false },
+    recoverTimeOut: { type: Date },
     password: { type: String, trim: true, required: 'Password is required' },
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
