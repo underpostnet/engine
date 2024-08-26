@@ -1,4 +1,4 @@
-const CacheControl = function () {
+const CacheControl = function ({ ttiLoadTimeLimit }) {
   window.cleanCache = async () => {
     await new Promise(async (resolve, reject) => {
       navigator.serviceWorker
@@ -66,10 +66,10 @@ const CacheControl = function () {
   setTimeout(() => {
     document.querySelector('.clean-cache-container').onclick = window.cleanCache;
   });
-  setTimeout(window.cacheControlCallBack, 1000 * 70 * 1); // 70s limit
+  setTimeout(window.cacheControlCallBack, ttiLoadTimeLimit); // 70s limit);
 };
 
-SrrComponent = () => {
+SrrComponent = ({ ttiLoadTimeLimit }) => {
   const borderChar = (px, color, selectors) => {
     if (selectors) {
       return selectors
@@ -106,7 +106,7 @@ SrrComponent = () => {
     ${borderChar(1, 'black', ['.clean-cache-container'])}
     <script>
       const CacheControl = ${CacheControl};
-      CacheControl();
+      CacheControl({ ttiLoadTimeLimit: ${ttiLoadTimeLimit ? ttiLoadTimeLimit : 1000 * 70 * 1} });
     </script>
     <div class="clean-cache-container">v2.5.1</div>
   `;

@@ -124,6 +124,7 @@ const buildClient = async () => {
         swaggerApiVersion,
         apiBaseProxyPath,
         apiBaseHost,
+        ttiLoadTimeLimit,
       } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
@@ -416,7 +417,7 @@ const buildClient = async () => {
                   break;
 
                 default:
-                  ssrBodyComponents += SrrComponent({ ssrPath, host, path });
+                  ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });
                   break;
               }
             }
