@@ -13,7 +13,7 @@ import { shellExec } from './process.js';
 import swaggerAutoGen from 'swagger-autogen';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
-import { buildIcons, buildTextImg } from './client-icons.js';
+import { buildIcons, buildTextImg, getBufferPngText } from './client-icons.js';
 
 dotenv.config();
 
@@ -127,7 +127,9 @@ const buildClient = async () => {
       } = confServer[host][path];
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
+      let backgroundImage;
       if (metadata) {
+        backgroundImage = metadata.backgroundImage;
         if (metadata.thumbnail) metadata.thumbnail = `${path === '/' ? path : `${path}/`}${metadata.thumbnail}`;
       }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
@@ -389,7 +391,33 @@ const buildClient = async () => {
               eval(
                 await srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')),
               );
-              ssrBodyComponents += SrrComponent({ ssrPath, host, path });
+              switch (ssrBodyComponent) {
+                case 'CyberiaDefaultSplashScreen':
+                case 'NexodevSplashScreen':
+                case 'DefaultSplashScreen':
+                  if (backgroundImage) {
+                    ssrHeadComponents += SrrComponent({
+                      base64BackgroundImage: `data:image/${backgroundImage.split('.').pop()};base64,${fs
+                        .readFileSync(backgroundImage)
+                        .toString('base64')}`,
+                    });
+                  } else {
+                    const bufferBackgroundImage = await getBufferPngText({
+                      text: ' ',
+                      textColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
+                      size: '100x100',
+                      bgColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
+                    });
+                    ssrHeadComponents += SrrComponent({
+                      base64BackgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
+                    });
+                  }
+                  break;
+
+                default:
+                  ssrBodyComponents += SrrComponent({ ssrPath, host, path });
+                  break;
+              }
             }
           }
 

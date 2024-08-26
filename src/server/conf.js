@@ -18,6 +18,7 @@ const Config = {
       default: {
         metadata: {
           title: 'Default',
+          backgroundImage: './src/client/public/default/assets/background/white0-min.jpg',
         },
         components: {
           core: [
@@ -181,7 +182,7 @@ const Config = {
     ssr: {
       Default: {
         head: ['PwaDefault', 'Css', 'DefaultScripts'],
-        body: ['CacheControl', 'DefaultSplashScreen0'],
+        body: ['CacheControl', 'DefaultSplashScreen'],
       },
     },
     server: {

@@ -146,67 +146,77 @@ SrrComponent = () => html`
         background-position: 80px 0;
       }
     }
-    .ssr-lds-dual-ring,
-    .ssr-lds-dual-ring:after {
-      box-sizing: border-box;
+    .ssr-shimmer-dark {
+      height: 100%;
+      background-image: linear-gradient(
+        to right,
+        rgb(5, 5, 5, 0.5) 0%,
+        rgba(10, 10, 10, 0.5) 30%,
+        rgba(15, 15, 15, 0.5) 40%,
+        rgba(10, 10, 10, 0.5) 70%,
+        rgba(5, 5, 5, 0.5) 100%
+      );
+      animation: ssr-shimmer-dark 3s linear infinite;
     }
-    .ssr-lds-dual-ring {
-      display: inline-block;
-      width: 80px;
-      height: 80px;
-    }
-    .ssr-lds-dual-ring:after {
-      content: ' ';
-      display: block;
-      width: 64px;
-      height: 64px;
-      margin: 8px;
-      border-radius: 50%;
-      border: 6.4px solid currentColor;
-      border-color: currentColor transparent currentColor transparent;
-      animation: ssr-lds-dual-ring 1.2s linear infinite;
-    }
-    @keyframes ssr-lds-dual-ring {
+    @keyframes ssr-shimmer-dark {
       0% {
-        transform: rotate(0);
+        background-position: -30px 0;
       }
       100% {
-        transform: rotate(360deg);
+        background-position: 80px 0;
       }
+    }
+    .ssr-shimmer-dark-search-box {
+      height: 100%;
+      background-image: linear-gradient(
+        to right,
+        rgb(5, 5, 5, 0.5) 0%,
+        rgba(10, 10, 10, 0.5) 30%,
+        rgba(15, 15, 15, 0.5) 40%,
+        rgba(10, 10, 10, 0.5) 70%,
+        rgba(5, 5, 5, 0.5) 100%
+      );
+      animation: ssr-shimmer-dark-search-box 3s linear infinite;
+    }
+    @keyframes ssr-shimmer-dark-search-box {
+      0% {
+        background-position: -290px 0;
+      }
+      100% {
+        background-position: 400px 0;
+      }
+    }
+    .ssr-shimmer-search-box {
+      height: 100%;
+      background-image: linear-gradient(
+        to right,
+        rgb(255, 255, 255, 0.5) 0%,
+        rgba(200, 200, 200, 0.5) 30%,
+        rgba(220, 220, 220, 0.5) 50%,
+        rgba(255, 255, 255, 0.5) 100%
+      );
+      animation: ssr-shimmer-search-box 3s linear infinite;
+    }
+    @keyframes ssr-shimmer-search-box {
+      0% {
+        background-position: -290px 0;
+      }
+      100% {
+        background-position: 400px 0;
+      }
+    }
+    .ssr-search-box {
+      width: 290px;
+      height: 33.3px;
+      top: 8.5px;
+      left: 100px;
+      border-radius: 8px;
     }
 
-    .ssr-lds-dual-ring-mini,
-    .ssr-lds-dual-ring-mini:after {
-      box-sizing: border-box;
-    }
-    .ssr-lds-dual-ring-mini {
-      display: inline-block;
-      width: 40px;
-      height: 40px;
-    }
-    .ssr-lds-dual-ring-mini:after {
-      content: ' ';
-      display: block;
-      width: 32px;
-      height: 32px;
-      margin: 4px;
-      border-radius: 50%;
-      border: 3.2px solid currentColor;
-      border-color: currentColor transparent currentColor transparent;
-      animation: ssr-lds-dual-ring-mini 1.2s linear infinite;
-    }
-    @keyframes ssr-lds-dual-ring-mini {
-      0% {
-        transform: rotate(0);
-      }
-      100% {
-        transform: rotate(360deg);
-      }
-    }
     .ssr-btn {
       border-radius: 8px;
       overflow: hidden;
-      box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+      /* box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19); */
       color: #606060;
       /* box-shadow: 0 8px 16px 0 rgba(0, 0, 0, 0.2), 0 10px 30px 0 rgba(0, 0, 0, 0.3); */
     }

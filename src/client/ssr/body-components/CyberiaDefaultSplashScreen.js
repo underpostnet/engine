@@ -4,7 +4,7 @@ SrrComponent = ({ base64BackgroundImage }) => html`
       background-image: url('${base64BackgroundImage}');
     }
     .ssr-top-bar {
-      background: #ffffff;
+      background: #121212;
       height: 100px;
     }
     .ssr-btn {
@@ -36,14 +36,28 @@ SrrComponent = ({ base64BackgroundImage }) => html`
       right: 5px;
       border-radius: 50%;
     }
-    .ssr-lds-dual-ring {
-      color: #cfcfcf;
+    .ssr-loader {
+      width: auto;
     }
-    .ssr-search-box {
-      width: 290px;
-      height: 33.3px;
-      top: 8.5px;
-      left: 100px;
+
+    .loader {
+      height: 6px;
+      width: 130px;
+      --c: no-repeat linear-gradient(#353535 0 0);
+      background: var(--c), var(--c), #e1e1e1;
+      background-size: 60% 100%;
+      animation: l16 3s infinite;
+    }
+    @keyframes l16 {
+      0% {
+        background-position: -150% 0, -150% 0;
+      }
+      66% {
+        background-position: 250% 0, -150% 0;
+      }
+      100% {
+        background-position: 250% 0, 250% 0;
+      }
     }
   </style>
   <div class="ssr-background-image"></div>
@@ -53,14 +67,13 @@ SrrComponent = ({ base64BackgroundImage }) => html`
         .fill()
         .map(
           (v, i) => html`<div class="ssr-abs ssr-btn ssr-btn-${i}">
-            <div class="ssr-shimmer"></div>
+            <div class="ssr-shimmer-dark"></div>
           </div>`,
         )
         .join('')}
 
-      <div class="ssr-abs ssr-search-box"><div class="ssr-shimmer"></div></div>
+      <div class="ssr-abs ssr-search-box"><div class="ssr-shimmer-dark-search-box"></div></div>
     </div>
-
-    <!-- <div class="ssr-abs ssr-center"><div class="ssr-lds-dual-ring"></div></div> -->
+    <div class="ssr-abs ssr-center ssr-loader"><div class="loader"></div></div>
   </div>
 `;
