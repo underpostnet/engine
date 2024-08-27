@@ -1,2 +1,14 @@
 /node_modules
 /public
+/engine-private
+/conf
+/tmp
+/bkt
+/logs
+/build
+/.env
+/coverage
+/prometheus_data
+/grafana_data
+.nyc_output
+.cache
