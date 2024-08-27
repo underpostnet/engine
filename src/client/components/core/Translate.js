@@ -369,4 +369,4 @@ const TranslateCore = {
   },
 };
 
-export { Translate, TranslateCore };
+export { Translate, TranslateCore, textFormatted };

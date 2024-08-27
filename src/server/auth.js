@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
 import { userRoleEnum } from '../api/user/user.model.js';
+import { validatePassword } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -184,4 +185,28 @@ const moderatorGuard = (req, res, next) => {
   }
 };
 
-export { authMiddleware, hashPassword, verifyPassword, hashJWT, adminGuard, moderatorGuard, verifyJWT };
+const validatePasswordMiddleware = (req, password) => {
+  let errors = [];
+  if (req.body && 'password' in req.body) errors = validatePassword(req.body.password);
+  if (errors.length > 0)
+    return {
+      status: 'error',
+      message:
+        'Password, ' + errors.map((e, i) => (i > 0 ? ', ' : '') + (e[req.lang] ? e[req.lang] : e['en'])).join(''),
+    };
+  else
+    return {
+      status: 'success',
+    };
+};
+
+export {
+  authMiddleware,
+  hashPassword,
+  verifyPassword,
+  hashJWT,
+  adminGuard,
+  moderatorGuard,
+  verifyJWT,
+  validatePasswordMiddleware,
+};

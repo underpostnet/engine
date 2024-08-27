@@ -47,4 +47,14 @@ describe(`GET 'Test' API Request `, async () => {
       return expect(res.data.data).equal(true);
     });
   }
+  {
+    const password = 'Password123!';
+    const url = `${BASE_URL}/test/is-strong-password/?password=${password}`;
+    it(`valid password`, async () => {
+      logger.info('request info', { url });
+      const res = await axios.get(url);
+      logger.info('response', res.data);
+      return expect(res.data.data.length).equal(0);
+    });
+  }
 });

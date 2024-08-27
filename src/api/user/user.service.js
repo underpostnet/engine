@@ -1,5 +1,5 @@
 import { loggerFactory } from '../../server/logger.js';
-import { hashPassword, verifyPassword, hashJWT, verifyJWT } from '../../server/auth.js';
+import { hashPassword, verifyPassword, hashJWT, verifyJWT, validatePasswordMiddleware } from '../../server/auth.js';
 import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { CoreWsMailerManagement } from '../../ws/core/management/core.ws.mailer.js';
 import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
@@ -236,6 +236,8 @@ const UserService = {
         } else throw new Error('invalid email or password');
 
       default: {
+        const validatePassword = validatePasswordMiddleware(req.body.password);
+        if (validatePassword.status === 'error') throw new Error(validatePassword.message);
         req.body.password = await hashPassword(req.body.password);
         req.body.role = 'user';
         req.body.profileImageId = await getDefaultProfileImageId(File);
@@ -427,9 +429,11 @@ const UserService = {
         email: payload.email,
       });
       if (user && new Date().getTime() < new Date(user.recoverTimeOut).getTime()) {
+        const validatePassword = validatePasswordMiddleware(req.body.password);
+        if (validatePassword.status === 'error') throw new Error(validatePassword.message);
         await User.findByIdAndUpdate(
           user._id,
-          { password: await hashPassword(req.body.password), recoverTimeOut: new Date() },
+          { password: await hashPassword(req.body.password), recoverTimeOut: new Date(), failedLoginAttempts: 0 },
           { runValidators: true },
         );
         return await User.findOne({

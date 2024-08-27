@@ -1,15 +1,16 @@
+import { validatePassword } from './CommonJs.js';
 import { renderStatus } from './Css.js';
 import { loggerFactory } from './Logger.js';
-import { Translate } from './Translate.js';
+import { textFormatted, Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
 const Validator = {
-  renderErrorMessage: function (rule) {
+  renderErrorMessage: function (rule, text) {
     return html` <div class="in">
       ${renderStatus('error', { class: 'inl' })} &nbsp
-      <span style="color: red">${Translate.Render(rule.type)}</span>
+      <span style="color: red">${text ? textFormatted(text) : Translate.Render(rule.type)}</span>
     </div>`;
   },
   instance: function (validators, callBack = (value) => {}) {
@@ -24,6 +25,24 @@ const Validator = {
         if (validatorData.rules)
           for (const rule of validatorData.rules) {
             switch (rule.type) {
+              case 'isStrongPassword':
+                {
+                  const errors = validatePassword(s(`.${validatorData.id}`).value);
+                  if (errors.length > 0)
+                    errorMessage += errors
+                      .map((translateMessage) =>
+                        this.renderErrorMessage(
+                          undefined,
+                          html`
+                            ${translateMessage[s('html').lang]
+                              ? translateMessage[s('html').lang]
+                              : translateMessage['en']}
+                          `,
+                        ),
+                      )
+                      .join(`\n`);
+                }
+                break;
               case 'isEmpty':
                 if (validator.isEmpty(s(`.${validatorData.id}`).value, { ignore_whitespace: true }))
                   errorMessage += this.renderErrorMessage(rule);

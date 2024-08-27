@@ -638,6 +638,25 @@ const getMostFrequentValue = (arr) =>
 const getFillMatrix = (maxX, maxY, value = 0) =>
   new Array(maxY).fill().map(() => new Array(maxX).fill().map(() => value));
 
+function validatePassword(password) {
+  let errors = [];
+  if (!/[a-z]/.test(password))
+    errors.push({ en: 'must contain at least one lowercase letter', es: 'debe contener al menos una letra minúscula' });
+  if (!/[A-Z]/.test(password))
+    errors.push({ en: 'must contain at least one uppercase letter', es: 'debe contener al menos una letra mayúscula' });
+  if (!/\d/.test(password))
+    errors.push({ en: 'must contain at least one number', es: 'debe contener al menos un número' });
+  if (!/[@#$-%^&*()_+{}\[\]:;<>,.!?\/\\|`~]/.test(password))
+    errors.push({
+      en: 'must contain at least one special character',
+      es: 'debe contener al menos un carácter especial',
+    });
+  if (password.length < 8)
+    errors.push({ en: 'must be at least 8 characters long', es: 'debe tener al menos 8 caracteres de largo' });
+
+  return errors;
+}
+
 export {
   s4,
   range,
@@ -685,4 +704,5 @@ export {
   splitEveryXChar,
   getMostFrequentValue,
   getFillMatrix,
+  validatePassword,
 };

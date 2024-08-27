@@ -1,7 +1,15 @@
 'use strict';
 
 const srcFormatted = (src) =>
-  src.replaceAll(' html`', '`').replaceAll(' css`', '`').replaceAll('${html`', '${`').replaceAll('${css`', '${`');
+  src
+    .replaceAll(' html`', '`')
+    .replaceAll(' css`', '`')
+    .replaceAll('{html`', '{`')
+    .replaceAll('{css`', '{`')
+    .replaceAll('(html`', '(`')
+    .replaceAll('(css`', '(`')
+    .replaceAll('[html`', '[`')
+    .replaceAll('[css`', '[`');
 
 const JSONweb = (data) => 'JSON.parse(`' + JSON.stringify(data) + '`)';
 

@@ -25,7 +25,7 @@ const SignUp = {
         {
           model: 'password',
           id: `sign-up-password`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
+          rules: [{ type: 'isStrongPassword' }],
         },
         {
           id: `sign-up-repeat-password`,

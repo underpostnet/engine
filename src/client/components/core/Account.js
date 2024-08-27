@@ -46,7 +46,7 @@ const Account = {
           model: 'password',
           defaultValue: '*******',
           id: `account-password`,
-          rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
+          rules: [{ type: 'isStrongPassword' }],
         },
       ];
       const validators = await Validator.instance(formData);
