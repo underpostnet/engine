@@ -18,6 +18,8 @@ const UserSchema = new Schema(
     },
     emailConfirmed: { type: Boolean, default: false },
     recoverTimeOut: { type: Date },
+    lastLoginDate: { type: Date },
+    failedLoginAttempts: { type: Number },
     password: { type: String, trim: true, required: 'Password is required' },
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     role: { type: String, enum: userRoleEnum, default: 'guest' },

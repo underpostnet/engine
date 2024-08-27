@@ -151,6 +151,13 @@ const UserService = {
         const user = await User.findOne({
           email: req.body.email,
         });
+        const getMinutesRemaining = () => (-1 * user.failedLoginAttempts - new Date().getTime()) / (1000 * 60);
+        const accountLocketMessage = () =>
+          `Account locked. Please try again in: ${
+            getMinutesRemaining() < 1
+              ? `${(getMinutesRemaining() * 60).toFixed(0)} s`
+              : `${getMinutesRemaining().toFixed(0)} min`
+          }.`;
 
         if (user) {
           const { _id } = user;
@@ -165,15 +172,67 @@ const UserService = {
                 },
               );
             {
-              const user = await User.findOne({
-                _id,
-              }).select(UserDto.select.get());
-              return {
-                token: hashJWT({ user: UserDto.auth.payload(user) }),
-                user,
-              };
+              if (getMinutesRemaining() <= 0 || user.failedLoginAttempts >= 0) {
+                const user = await User.findOne({
+                  _id,
+                }).select(UserDto.select.get());
+                await User.findByIdAndUpdate(
+                  _id,
+                  { lastLoginDate: new Date(), failedLoginAttempts: 0 },
+                  {
+                    runValidators: true,
+                  },
+                );
+                return {
+                  token: hashJWT({ user: UserDto.auth.payload(user) }),
+                  user,
+                };
+              } else throw new Error(accountLocketMessage());
             }
-          } else throw new Error('invalid email or password');
+          } else {
+            if (user.failedLoginAttempts >= 5) {
+              await User.findByIdAndUpdate(
+                _id,
+                { failedLoginAttempts: -1 * (+new Date() + 60 * 1000 * 15) },
+                {
+                  runValidators: true,
+                },
+              );
+              setTimeout(async () => {
+                await User.findByIdAndUpdate(
+                  _id,
+                  { failedLoginAttempts: 0 },
+                  {
+                    runValidators: true,
+                  },
+                );
+              }, 60 * 1000 * 15);
+              throw new Error(`Account locked. Please try again in: 15 min.`);
+            } else if (user.failedLoginAttempts < 0 && getMinutesRemaining() > 0) {
+              throw new Error(accountLocketMessage());
+            } else if (user.failedLoginAttempts < 0 && getMinutesRemaining() < 0) {
+              await User.findByIdAndUpdate(
+                _id,
+                { failedLoginAttempts: 0 },
+                {
+                  runValidators: true,
+                },
+              );
+              user.failedLoginAttempts = 0;
+            }
+            try {
+              await User.findByIdAndUpdate(
+                _id,
+                { failedLoginAttempts: user.failedLoginAttempts + 1 },
+                {
+                  runValidators: true,
+                },
+              );
+            } catch (error) {
+              logger.error(error, { params: req.params, body: req.body });
+            }
+            throw new Error(`invalid email or password, remaining attempts: ${5 - user.failedLoginAttempts}`);
+          }
         } else throw new Error('invalid email or password');
 
       default: {

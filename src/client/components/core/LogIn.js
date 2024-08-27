@@ -97,8 +97,17 @@ const LogIn = {
         }
         const result = await UserService.post({ id: 'auth', body });
         if (result.status === 'success') this.Trigger(result.data);
+        if (result.status === 'error' && result.message.match('attempts')) {
+          htmls(`.login-attempt-warn-value`, result.message.split(':')[1]);
+          s(`.login-attempt-warn-container`).classList.remove('hide');
+        } else s(`.login-attempt-warn-container`).classList.add('hide');
+
+        if (result.status === 'error' && result.message.match('locked')) {
+          htmls(`.login-attempt-warn-value0`, result.message.split(':')[1]);
+          s(`.login-attempt-warn-container0`).classList.remove('hide');
+        } else s(`.login-attempt-warn-container0`).classList.add('hide');
         NotificationManager.Push({
-          html: Translate.Render(`${result.status}-user-log-in`),
+          html: result.status === 'success' ? Translate.Render(`${result.status}-user-log-in`) : result.message,
           status: result.status,
         });
       });
@@ -148,6 +157,15 @@ const LogIn = {
             type: 'button',
           })}
         </div>
+        <div class="in section-mp form-button login-attempt-warn-container hide">
+          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('login-attempts-remaining')}
+          <span style="color: #ed9d0f" class="login-attempt-warn-value"></span>
+        </div>
+        <div class="in section-mp form-button login-attempt-warn-container0 hide">
+          <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('account-locked-try-again-in')}
+          <span style="color: #ed9d0f" class="login-attempt-warn-value0"></span>
+        </div>
+
         <div class="in">
           ${await BtnIcon.Render({
             class: 'section-mp form-button btn-log-in',

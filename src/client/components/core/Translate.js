@@ -358,6 +358,14 @@ const TranslateCore = {
       en: 'Instance Management',
       es: 'Gestión de instancias',
     };
+    Translate.Data['login-attempts-remaining'] = {
+      en: 'Login attempts remaining:',
+      es: 'Intentos de inicio de sesión restantes:',
+    };
+    Translate.Data['account-locked-try-again-in'] = {
+      en: 'Account locked. Try again in:',
+      es: 'Cuenta bloqueada. Intente nuevamente en:',
+    };
   },
 };
 
