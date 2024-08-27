@@ -8,8 +8,8 @@
   "orientation": "any",
   "scope": "/",
   "start_url": "/?homescreen=1",
-  "background_color": "#000000",
-  "theme_color": "#000000",
+  "background_color": "#ececec",
+  "theme_color": "#ececec",
   "icons": [
     {
       "src": "/android-chrome-36x36.png",
@@ -38,6 +38,12 @@
     {
       "src": "/android-chrome-144x144.png",
       "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
