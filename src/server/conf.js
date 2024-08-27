@@ -274,22 +274,26 @@ const Config = {
           : `./engine-private/conf/${deployId}/conf.server.dev.json`;
 
         if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
-        const serverConf = loadReplicas(JSON.parse(fs.readFileSync(confPath, 'utf8')));
+        let serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+
         // this.default.server = {
         //   ...this.default.server,
         //   ...serverConf,
         // };
-        for (const host of Object.keys(serverConf)) {
-          if (serverConf[host]['/'])
-            this.default.server[host] = {
-              ...this.default.server[host],
-              ...serverConf[host],
-            };
-          else
-            this.default.server[host] = {
-              ...serverConf[host],
-              ...this.default.server[host],
-            };
+        if (!serverConf.singleReplica) {
+          serverConf = loadReplicas(serverConf);
+          for (const host of Object.keys(serverConf)) {
+            if (serverConf[host]['/'])
+              this.default.server[host] = {
+                ...this.default.server[host],
+                ...serverConf[host],
+              };
+            else
+              this.default.server[host] = {
+                ...serverConf[host],
+                ...this.default.server[host],
+              };
+          }
         }
       }
     }

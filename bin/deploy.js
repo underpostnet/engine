@@ -460,6 +460,54 @@ try {
         }
       }
       break;
+
+    case 'build-single-replica': {
+      const deployId = process.argv[3];
+      const host = process.argv[4];
+      const path = process.argv[5];
+      const serverConf = loadReplicas(
+        JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+      );
+
+      if (serverConf[host][path].replicas) {
+        {
+          let replicaIndex = -1;
+          for (const replica of serverConf[host][path].replicas) {
+            replicaIndex++;
+            // fs.mkdirSync(`./engine-private/replica/${deployId}${replicaIndex}`, { recursive: true });
+            await fs.copy(
+              `./engine-private/conf/${deployId}`,
+              `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}`,
+            );
+          }
+        }
+        {
+          let replicaIndex = -1;
+          for (const replica of serverConf[host][path].replicas) {
+            replicaIndex++;
+            let replicaServerConf = JSON.parse(
+              fs.readFileSync(
+                `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}/conf.server.json`,
+                'utf8',
+              ),
+            );
+
+            const singleReplicaConf = replicaServerConf[host][path];
+
+            replicaServerConf = {};
+            replicaServerConf[host] = {};
+            replicaServerConf[host][replica] = singleReplicaConf;
+
+            fs.writeFileSync(
+              `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}/conf.server.json`,
+              JSON.stringify(replicaServerConf, null, 4),
+              'utf8',
+            );
+          }
+        }
+      }
+      break;
+    }
     default:
       break;
   }
