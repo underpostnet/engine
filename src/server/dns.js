@@ -15,10 +15,12 @@ const Dns = {
   ipDaemon: null,
   InitIpDaemon: async function () {
     // WAN | NAT-VPS | LAN
-    // enabled DMZ Host to proxy IP (80 443)
+    // enabled DMZ Host to proxy IP 80-443 (79-444) sometimes router block first port
+    // LAN server or device's local servers port ->  3000-3100 (2999-3101)
     // DNS Records: [ANAME](Address Dynamic) -> [A](ipv4) host | [AAAA](ipv6) host -> [ip]
     // DHCP (Dynamic Host Configuration Protocol) LAN reserver IP -> MAC ID
-    // Forward the router's TCP/UDP ports to the LAN device's IP address.
+    // Forward the router's TCP/UDP ports to the LAN device's IP address
+
     const privateDnsConfPath = `./engine-private/conf/${process.argv[2]}/conf.dns.json`;
 
     const confDnsPath = fs.existsSync(privateDnsConfPath) ? privateDnsConfPath : './conf/conf.dns.json';
