@@ -5,6 +5,14 @@ colors.enable();
 
 const logger = loggerFactory(import.meta);
 
+// backup: `node bin/db <host><path> export <deploy-id>`
+// restore: `node bin/db <host><path> import <deploy-id>`
+// new-api-src: `node bin/deploy build-nodejs-src-api <api-id>`
+// text-to-image: `node bin/util text-to-image 's4()' white black 100x100`
+// sync-packages: `node bin/deploy update-package`
+// ssl: `npm run ssl <os> <deploy-id> <host>`
+// clean empty folder: `node bin/util delete-empty-folder`
+
 const data = {
   help: `
 ---------------------------------------------------------------
