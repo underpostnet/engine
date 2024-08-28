@@ -12,7 +12,7 @@ dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
-logger.info('argv', process.argv);
+await logger.setUpInfo();
 
 // usage
 // node bin/ssl windows <deploy-id> www.example.com
