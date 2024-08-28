@@ -34,9 +34,10 @@ const [exe, dir, operator] = process.argv;
 const deployTest = async (dataDeploy) => {
   const failed = [];
   for (const deploy of dataDeploy) {
-    const serverConf = loadReplicas(
-      JSON.parse(fs.readFileSync(`./engine-private/conf/${deploy.deployId}/conf.server.json`, 'utf8')),
-    );
+    const deployServerConfPath = fs.existsSync(`./engine-private/replica/${deploy.deployId}/conf.server.json`)
+      ? `./engine-private/replica/${deploy.deployId}/conf.server.json`
+      : `./engine-private/conf/${deploy.deployId}/conf.server.json`;
+    const serverConf = loadReplicas(JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8')));
     let fail = false;
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
@@ -162,7 +163,7 @@ const getDataDeploy = (options = { buildSingleReplica: false }) => {
             serverConf[host][path].replicas.map((r) => {
               return {
                 deployId: `${deployObj.deployId}-${r.slice(1)}`,
-                replica: true,
+                fromSingleReplica: true,
               };
             }),
           );
@@ -435,7 +436,7 @@ try {
       ];
       let port = 0;
       for (const deployIdObj of dataDeploy) {
-        const { deployId, replica } = deployIdObj;
+        const { deployId, fromSingleReplica } = deployIdObj;
         const proxyInstance = deployId.match('proxy') || deployId.match('dns');
         const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
           ? `./engine-private/replica`
@@ -443,7 +444,7 @@ try {
         for (const envInstanceObj of dataEnv) {
           const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port - (replica ? 1 : 0);
+          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port - (fromSingleReplica ? 1 : 0);
 
           fs.writeFileSync(
             envPath,
