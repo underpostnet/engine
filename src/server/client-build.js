@@ -125,7 +125,9 @@ const buildClient = async () => {
         apiBaseProxyPath,
         apiBaseHost,
         ttiLoadTimeLimit,
+        singleReplica,
       } = confServer[host][path];
+      if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
       const { components, dists, views, services, metadata, publicRef } = confClient[client];
       let backgroundImage;

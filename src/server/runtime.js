@@ -47,8 +47,10 @@ const buildRuntime = async () => {
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect, peer } =
+      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect, peer, singleReplica } =
         confServer[host][path];
+
+      if (singleReplica) continue;
 
       const runningData = {
         host,

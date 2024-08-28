@@ -74,7 +74,9 @@ const deployTest = async (dataDeploy) => {
 
 const Cmd = {
   clientBuild: (deploy) =>
-    `node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${deploy.deployId} docs`,
+    `node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${deploy.deployId}${
+      process.argv.includes('docs') ? ' docs' : ''
+    }`,
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   exec: async (cmd, deployId) => {
@@ -87,7 +89,7 @@ const Cmd = {
       shellExec(cmd);
       return await new Promise(async (resolve) => {
         const maxTime = 1000 * 60 * 5;
-        const minTime = 10000;
+        const minTime = 10000 * 2;
         const intervalTime = 1000;
         let currentTime = 0;
         const attempt = () => {
@@ -133,12 +135,45 @@ const deployRun = async (dataDeploy, reset) => {
   }
 };
 
-const getDataDeploy = () => {
-  return JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map((deployId) => {
-    return {
-      deployId,
-    };
-  });
+const getDataDeploy = (options = { buildSingleReplica: false }) => {
+  let dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
+    (deployId) => {
+      return {
+        deployId,
+      };
+    },
+  );
+
+  if (options && options.buildSingleReplica && fs.existsSync(`./engine-private/replica`))
+    fs.removeSync(`./engine-private/replica`);
+
+  let buildDataDeploy = [];
+  for (const deployObj of dataDeploy) {
+    const serverConf = loadReplicas(
+      JSON.parse(fs.readFileSync(`./engine-private/conf/${deployObj.deployId}/conf.server.json`, 'utf8')),
+    );
+    let replicaDataDeploy = [];
+    for (const host of Object.keys(serverConf))
+      for (const path of Object.keys(serverConf[host])) {
+        if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
+          if (options && options.buildSingleReplica)
+            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
+          replicaDataDeploy = replicaDataDeploy.concat(
+            serverConf[host][path].replicas.map((r) => {
+              return {
+                deployId: `${deployObj.deployId}-${r.slice(1)}`,
+                replica: true,
+              };
+            }),
+          );
+        }
+      }
+    buildDataDeploy.push(deployObj);
+    if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
+  }
+
+  logger.info('buildDataDeploy', buildDataDeploy);
+  return buildDataDeploy;
 };
 
 const updateSrc = () => {
@@ -353,7 +388,8 @@ try {
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         updateSrc();
-        const dataDeploy = getDataDeploy();
+        const dataDeploy = getDataDeploy({ buildSingleReplica: true });
+        shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
         await deployRun(dataDeploy, true);
       }
       break;
@@ -362,7 +398,8 @@ try {
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         updateSrc();
-        const dataDeploy = getDataDeploy();
+        const dataDeploy = getDataDeploy({ buildSingleReplica: true });
+        shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
         for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent: true });
         await deployRun(dataDeploy, true);
       }
@@ -390,20 +427,23 @@ try {
       break;
 
     case 'sync-env-port':
-      const dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8'));
+      const dataDeploy = getDataDeploy();
       const dataEnv = [
         { env: 'production', port: 3000 },
         { env: 'development', port: 4000 },
         { env: 'test', port: 5000 },
       ];
       let port = 0;
-      for (const deployId of dataDeploy) {
+      for (const deployIdObj of dataDeploy) {
+        const { deployId, replica } = deployIdObj;
         const proxyInstance = deployId.match('proxy') || deployId.match('dns');
-
+        const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
+          ? `./engine-private/replica`
+          : `./engine-private/conf`;
         for (const envInstanceObj of dataEnv) {
-          const envPath = `./engine-private/conf/${deployId}/.env.${envInstanceObj.env}`;
+          const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port;
+          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port - (replica ? 1 : 0);
 
           fs.writeFileSync(
             envPath,
@@ -414,7 +454,7 @@ try {
           );
         }
         const serverConf = loadReplicas(
-          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+          JSON.parse(fs.readFileSync(`${baseConfPath}/${deployId}/conf.server.json`, 'utf8')),
         );
         if (!proxyInstance) for (const host of Object.keys(serverConf)) port += Object.keys(serverConf[host]).length;
       }
@@ -474,10 +514,15 @@ try {
           let replicaIndex = -1;
           for (const replica of serverConf[host][path].replicas) {
             replicaIndex++;
+            const replicaDeployId = `${deployId}-${serverConf[host][path].replicas[replicaIndex].slice(1)}`;
             // fs.mkdirSync(`./engine-private/replica/${deployId}${replicaIndex}`, { recursive: true });
-            await fs.copy(
-              `./engine-private/conf/${deployId}`,
-              `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}`,
+            await fs.copy(`./engine-private/conf/${deployId}`, `./engine-private/replica/${replicaDeployId}`);
+            fs.writeFileSync(
+              `./engine-private/replica/${replicaDeployId}/package.json`,
+              fs
+                .readFileSync(`./engine-private/replica/${replicaDeployId}/package.json`, 'utf8')
+                .replaceAll(`--name ${deployId}`, `--name ${replicaDeployId}`),
+              'utf8',
             );
           }
         }
@@ -485,21 +530,21 @@ try {
           let replicaIndex = -1;
           for (const replica of serverConf[host][path].replicas) {
             replicaIndex++;
+            const replicaDeployId = `${deployId}-${serverConf[host][path].replicas[replicaIndex].slice(1)}`;
             let replicaServerConf = JSON.parse(
-              fs.readFileSync(
-                `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}/conf.server.json`,
-                'utf8',
-              ),
+              fs.readFileSync(`./engine-private/replica/${replicaDeployId}/conf.server.json`, 'utf8'),
             );
 
             const singleReplicaConf = replicaServerConf[host][path];
+            singleReplicaConf.replicas = undefined;
+            singleReplicaConf.singleReplica = undefined;
 
             replicaServerConf = {};
             replicaServerConf[host] = {};
             replicaServerConf[host][replica] = singleReplicaConf;
 
             fs.writeFileSync(
-              `./engine-private/replica/${serverConf[host][path].replicas[replicaIndex]}/conf.server.json`,
+              `./engine-private/replica/${replicaDeployId}/conf.server.json`,
               JSON.stringify(replicaServerConf, null, 4),
               'utf8',
             );
@@ -508,6 +553,10 @@ try {
       }
       break;
     }
+    case 'build-macro-replica':
+      getDataDeploy({ buildSingleReplica: true });
+      shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
+      break;
     default:
       break;
   }

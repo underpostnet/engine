@@ -6,9 +6,12 @@ import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import colors from 'colors';
+import { loggerFactory } from './logger.js';
 
 colors.enable();
 dotenv.config();
+
+const logger = loggerFactory(import.meta);
 
 // monitoring: https://app.pm2.io/
 
@@ -258,10 +261,9 @@ const Config = {
   build: async function (options = { folder: '' }) {
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
-    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) {
-      fs.writeFileSync(`./tmp/${process.argv[2]}`, '', 'utf8');
-      return loadConf(process.argv[2]);
-    }
+    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) return loadConf(process.argv[2]);
+    if (fs.existsSync(`./engine-private/replica/${process.argv[2]}`)) return loadConf(process.argv[2]);
+
     if (process.argv[2] === 'deploy') return;
 
     if (process.argv[2] === 'proxy') {
@@ -274,26 +276,19 @@ const Config = {
           : `./engine-private/conf/${deployId}/conf.server.dev.json`;
 
         if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
-        let serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
+        const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 
-        // this.default.server = {
-        //   ...this.default.server,
-        //   ...serverConf,
-        // };
-        if (!serverConf.singleReplica) {
-          serverConf = loadReplicas(serverConf);
-          for (const host of Object.keys(serverConf)) {
-            if (serverConf[host]['/'])
-              this.default.server[host] = {
-                ...this.default.server[host],
-                ...serverConf[host],
-              };
-            else
-              this.default.server[host] = {
-                ...serverConf[host],
-                ...this.default.server[host],
-              };
-          }
+        for (const host of Object.keys(loadReplicas(serverConf))) {
+          if (serverConf[host]['/'])
+            this.default.server[host] = {
+              ...this.default.server[host],
+              ...serverConf[host],
+            };
+          else
+            this.default.server[host] = {
+              ...serverConf[host],
+              ...this.default.server[host],
+            };
         }
       }
     }
@@ -314,7 +309,9 @@ const Config = {
 };
 
 const loadConf = (deployId) => {
-  const folder = `./engine-private/conf/${deployId}`;
+  const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
+    ? `./engine-private/replica/${deployId}`
+    : `./engine-private/conf/${deployId}`;
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8');
@@ -343,8 +340,8 @@ const loadConf = (deployId) => {
 const loadReplicas = (confServer) => {
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      const { replicas } = confServer[host][path];
-      if (replicas)
+      const { replicas, singleReplica } = confServer[host][path];
+      if (replicas && (process.argv[2] === 'proxy' || !singleReplica))
         for (const replicaPath of replicas) {
           confServer[host][replicaPath] = newInstance(confServer[host][path]);
           delete confServer[host][replicaPath].replicas;
