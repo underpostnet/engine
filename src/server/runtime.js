@@ -189,26 +189,13 @@ const buildRuntime = async () => {
               method: req.method,
               status_code: res.statusCode,
             });
+            // decodeURIComponent(req.url)
             return next();
           });
 
           app.get(`${path === '/' ? '' : path}/metrics`, async (req, res) => {
             res.set('Content-Type', promClient.register.contentType);
             return res.end(await promClient.register.metrics());
-          });
-
-          app.use((req, res, next) => {
-            // internal redirect
-            if (req.url.startsWith(`${path === '/' ? '' : path}/${process.env.BASE_API}/$`))
-              return res.redirect(
-                decodeURIComponent(
-                  `${req.url.replaceAll(
-                    `${path === '/' ? '' : path}/${process.env.BASE_API}/$`,
-                    `/${process.env.BASE_API}/`,
-                  )}`,
-                ),
-              );
-            return next();
           });
 
           // set logger
