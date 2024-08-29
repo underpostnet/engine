@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import nodemon from 'nodemon';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
+import { srcFormatted } from './client-formatted.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -32,7 +33,7 @@ const createClientDevServer = () => {
     });
 };
 
-const clientLiveBuild = () => {
+const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
     const updates = JSON.parse(fs.readFileSync(`./tmp/client.build.json`, 'utf8'));
     logger.info('updates', updates);
@@ -50,7 +51,7 @@ const clientLiveBuild = () => {
           srcPath,
           buildPath,
         });
-        fs.writeFileSync(buildPath, fs.readFileSync(srcPath, 'utf8'), 'utf8');
+        fs.writeFileSync(buildPath, await srcFormatted(fs.readFileSync(srcPath, 'utf8')), 'utf8');
       }
     }
     fs.removeSync(`./tmp/client.build.json`);
