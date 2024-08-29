@@ -88,6 +88,7 @@ const loggerFactory = (meta) => {
   // Create the logger instance that has to be exported
   // and used to log messages.
   const logger = winston.createLogger({
+    defaultMeta: meta,
     level: level(),
     levels,
     format: format(meta),

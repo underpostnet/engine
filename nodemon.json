@@ -1,6 +1,6 @@
 {
   "watch": ["./src"],
   "ext": "js",
-  "delay": "0",
+  "delay": 2500,
   "ignore": []
 }
