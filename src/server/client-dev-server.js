@@ -39,9 +39,10 @@ const clientLiveBuild = () => {
     for (let srcPath of updates) {
       if (
         srcPath.split('src')[1].startsWith(`\\client\\components`) ||
-        srcPath.split('src')[1].startsWith(`\\client\\services`) ||
-        srcPath.split('src')[1].startsWith(`\\client\\styles`) ||
-        srcPath.split('src')[1].startsWith(`\\client\\assets`)
+        srcPath.split('src')[1].startsWith(`\\client\\services`)
+        // TODO:
+        // srcPath.split('src')[1].startsWith(`\\client\\styles`)
+        // srcPath.split('src')[1].startsWith(`\\client\\assets`)
       ) {
         const buildPath = `./public/default.net/${srcPath.split('src')[1].slice(8)}`.replace(/\\/g, '/');
         srcPath = srcPath.replace(/\\/g, '/');
