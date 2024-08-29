@@ -5,9 +5,9 @@
 
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/logger.js';
+import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
-import { clientLiveBuild } from './server/client-dev-server.js';
-
+import { createClientDevServer } from './server/client-dev-server.js';
 dotenv.config();
 
 await Config.build();
@@ -16,4 +16,6 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-await clientLiveBuild();
+await createClientDevServer();
+
+ProcessController.init(logger);
