@@ -421,6 +421,8 @@ const getCurrentTrace = () => {
   }
 };
 
+const isDevInstance = () => location.origin.match('localhost') && location.port;
+
 export {
   s,
   htmls,
@@ -448,4 +450,5 @@ export {
   getCurrentTrace,
   isActiveTab,
   isActiveElement,
+  isDevInstance,
 };

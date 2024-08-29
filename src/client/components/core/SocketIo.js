@@ -53,11 +53,6 @@ const SocketIo = {
     this.socket.on('disconnect', (reason) => {
       logger.info(`event: disconnect | reason: ${reason}`);
       Object.keys(this.Event.disconnect).map((keyEvent) => this.Event.disconnect[keyEvent](reason));
-      if (location.origin.match('localhost') && location.port) {
-        setTimeout(() => {
-          location.reload();
-        }, 3000);
-      }
     });
 
     if (options && 'channels' in options) this.setChannels(options.channels);
