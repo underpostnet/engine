@@ -202,13 +202,18 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
           }
         }
 
-      if (services)
+      if (services) {
         for (const module of services) {
           if (!fs.existsSync(`${rootClientPath}/services/${module}`))
             fs.mkdirSync(`${rootClientPath}/services/${module}`, { recursive: true });
+
           if (fs.existsSync(`./src/client/services/${module}/${module}.service.js`)) {
+            const jsSrcPath = `./src/client/services/${module}/${module}.service.js`;
+            const jsPublicPath = `${rootClientPath}/services/${module}/${module}.service.js`;
+            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+
             let jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.service.js`, 'utf8')),
+              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
               module,
               dists,
               path,
@@ -225,14 +230,21 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
                 jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}/`);
             }
             fs.writeFileSync(
-              `${rootClientPath}/services/${module}/${module}.service.js`,
+              jsPublicPath,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
           }
+        }
+
+        for (const module of services) {
           if (fs.existsSync(`./src/client/services/${module}/${module}.management.js`)) {
+            const jsSrcPath = `./src/client/services/${module}/${module}.management.js`;
+            const jsPublicPath = `${rootClientPath}/services/${module}/${module}.management.js`;
+            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+
             const jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(`./src/client/services/${module}/${module}.management.js`, 'utf8')),
+              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
               module,
               dists,
               path,
@@ -240,12 +252,13 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
               baseHost,
             );
             fs.writeFileSync(
-              `${rootClientPath}/services/${module}/${module}.management.js`,
+              jsPublicPath,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
           }
         }
+      }
 
       const buildId = `${client}.index`;
       const siteMapLinks = [];
