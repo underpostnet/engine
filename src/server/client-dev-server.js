@@ -21,13 +21,25 @@ const createClientDevServer = () => {
 
   if (fs.existsSync(`./tmp/client.build.json`)) fs.removeSync(`./tmp/client.build.json`);
 
+  let buildPathScope = [];
+
   nodemon({ script: './src/client.build' /* args: ['l'] */, watch: 'src/client' })
     .on('start', function (...args) {
       logger.info(args, 'nodemon started');
     })
     .on('restart', function (...args) {
-      fs.writeFileSync(`./tmp/client.build.json`, JSON.stringify(args[0], null, 4));
       logger.info(args, 'nodemon restart');
+      const buildObj = {
+        timestamp: new Date().getTime(),
+        path: args[0][0],
+      };
+      buildPathScope.push(buildObj);
+      setTimeout(() => {
+        buildPathScope = buildPathScope.filter((buildObjScope) => buildObjScope.timestamp !== buildObj.timestamp);
+      }, 2500);
+      const buildPathScopeBuild = buildPathScope.map((o) => o.path);
+      logger.info('buildPathScopeBuild', buildPathScopeBuild);
+      fs.writeFileSync(`./tmp/client.build.json`, JSON.stringify(buildPathScopeBuild, null, 4));
     })
     .on('crash', function (error) {
       logger.error(error, 'script crashed for some reason');
@@ -61,7 +73,7 @@ const clientLiveBuild = async () => {
       } else if (srcPath.split('src')[1].startsWith(`\\client`) && srcPath.slice(-9) === '.index.js') {
         const clientId = 'default';
         for (const view of Config.default.client[clientId].views) {
-          const buildPath = `./public/default.net${view.path}/${clientId}.index.js`;
+          const buildPath = `./public/default.net${view.path === '/' ? '' : view.path}/${clientId}.index.js`;
           const srcViewPath = srcPath.replace(/\\/g, '/');
           logger.info('update view component', {
             srcViewPath,
