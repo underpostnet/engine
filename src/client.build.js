@@ -6,8 +6,8 @@
 import dotenv from 'dotenv';
 import { loggerFactory } from './server/logger.js';
 import { Config } from './server/conf.js';
-import { clientLiveBuild } from './server/client-dev-server.js';
 import { ProcessController } from './server/process.js';
+import { clientLiveBuild } from './server/client-build-live.js';
 
 dotenv.config();
 
