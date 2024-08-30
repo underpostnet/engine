@@ -3,6 +3,7 @@ import nodemon from 'nodemon';
 import { shellExec } from './process.js';
 import { loggerFactory } from './logger.js';
 import { srcFormatted } from './client-formatted.js';
+import { Config } from './conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -20,7 +21,7 @@ const createClientDevServer = () => {
 
   if (fs.existsSync(`./tmp/client.build.json`)) fs.removeSync(`./tmp/client.build.json`);
 
-  nodemon({ script: './src/client.build', args: ['l'] })
+  nodemon({ script: './src/client.build' /* args: ['l'] */, watch: 'src/client' })
     .on('start', function (...args) {
       logger.info(args, 'nodemon started');
     })
@@ -36,22 +37,38 @@ const createClientDevServer = () => {
 const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
     const updates = JSON.parse(fs.readFileSync(`./tmp/client.build.json`, 'utf8'));
-    logger.info('updates', updates);
+    // logger.info('updates', updates);
     for (let srcPath of updates) {
       if (
         srcPath.split('src')[1].startsWith(`\\client\\components`) ||
         srcPath.split('src')[1].startsWith(`\\client\\services`)
-        // TODO:
-        // srcPath.split('src')[1].startsWith(`\\client\\styles`)
-        // srcPath.split('src')[1].startsWith(`\\client\\assets`)
       ) {
         const buildPath = `./public/default.net/${srcPath.split('src')[1].slice(8)}`.replace(/\\/g, '/');
         srcPath = srcPath.replace(/\\/g, '/');
-        logger.info('update', {
+        logger.info('update component', {
           srcPath,
           buildPath,
         });
         fs.writeFileSync(buildPath, await srcFormatted(fs.readFileSync(srcPath, 'utf8')), 'utf8');
+      } else if (srcPath.split('src')[1].startsWith(`\\client\\sw`)) {
+        const buildPath = `./public/default.net/sw.js`;
+        srcPath = srcPath.replace(/\\/g, '/');
+        logger.info('update service worker', {
+          srcPath,
+          buildPath,
+        });
+        fs.writeFileSync(buildPath, await srcFormatted(fs.readFileSync(srcPath, 'utf8')), 'utf8');
+      } else if (srcPath.split('src')[1].startsWith(`\\client`) && srcPath.slice(-9) === '.index.js') {
+        const clientId = 'default';
+        for (const view of Config.default.client[clientId].views) {
+          const buildPath = `./public/default.net${view.path}/${clientId}.index.js`;
+          const srcViewPath = srcPath.replace(/\\/g, '/');
+          logger.info('update view component', {
+            srcViewPath,
+            buildPath,
+          });
+          fs.writeFileSync(buildPath, await srcFormatted(fs.readFileSync(srcPath, 'utf8')), 'utf8');
+        }
       }
     }
     fs.removeSync(`./tmp/client.build.json`);
