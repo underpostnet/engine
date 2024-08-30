@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import { srcFormatted } from './client-formatted.js';
 import { Config } from './conf.js';
 import { loggerFactory } from './logger.js';
 import { buildClient } from './client-build.js';
