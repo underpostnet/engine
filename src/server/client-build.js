@@ -106,8 +106,11 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
+
   // { srcBuildPath, publicBuildPath }
-  const enableLiveRebuild = options && options.liveClientBuildPaths ? true : false;
+  const enableLiveRebuild =
+    options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
+
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
