@@ -99,13 +99,15 @@ const fullBuild = async ({
     }
 };
 
-const buildClient = async () => {
+const buildClient = async (options = { liveClientBuildPaths: [] }) => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
+  // { srcBuildPath, publicBuildPath }
+  const enableLiveRebuild = options && options.liveClientBuildPaths ? true : false;
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
@@ -138,7 +140,7 @@ const buildClient = async () => {
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
-      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].lightBuild;
+      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].lightBuild && !enableLiveRebuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
@@ -148,11 +150,11 @@ const buildClient = async () => {
         ? `${directory}${acmeChallengePath}`
         : `${publicPath}/${host}${acmeChallengePath}`;
 
-      buildAcmeChallengePath(acmeChallengeFullPath);
+      if (!enableLiveRebuild) buildAcmeChallengePath(acmeChallengeFullPath);
 
       if (redirect || disabledRebuild) continue;
 
-      if (runtime === 'lampp' && client === 'wordpress') {
+      if (!enableLiveRebuild && runtime === 'lampp' && client === 'wordpress') {
         shellExec(`node bin/install linux wordpress ${host}${path}`);
         shellExec(`node bin/db ${host}${path} create`);
         continue;
@@ -179,8 +181,13 @@ const buildClient = async () => {
             fs.mkdirSync(`${rootClientPath}/components/${module}`, { recursive: true });
 
           for (const component of components[module]) {
+            const jsSrcPath = `./src/client/components/${module}/${component}.js`;
+            const jsPublicPath = `${rootClientPath}/components/${module}/${component}.js`;
+
+            if (enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath)) continue;
+
             const jsSrc = componentFormatted(
-              await srcFormatted(fs.readFileSync(`./src/client/components/${module}/${component}.js`, 'utf8')),
+              await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')),
               module,
               dists,
               path,
@@ -188,7 +195,7 @@ const buildClient = async () => {
               baseHost,
             );
             fs.writeFileSync(
-              `${rootClientPath}/components/${module}/${component}.js`,
+              jsPublicPath,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
               'utf8',
             );
