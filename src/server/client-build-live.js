@@ -38,8 +38,7 @@ const clientLiveBuild = async () => {
       }
     }
     logger.info('liveClientBuildPaths', liveClientBuildPaths);
-    //  ->
-    // await buildClient({ liveClientBuildPaths });
+    await buildClient({ liveClientBuildPaths });
     fs.removeSync(`./tmp/client.build.json`);
   }
 };
