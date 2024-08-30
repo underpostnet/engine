@@ -254,7 +254,7 @@ const buildClient = async () => {
           logger.info('View build', buildPath);
 
           const jsSrc = viewFormatted(
-            await srcFormatted(fs.readFileSync(`./src/client/${view.client}.js`, 'utf8')),
+            await srcFormatted(fs.readFileSync(`./src/client/${view.client}.index.js`, 'utf8')),
             dists,
             path,
             baseHost,
