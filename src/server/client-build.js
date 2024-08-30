@@ -285,202 +285,213 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
             );
           }
         }
+        if (
+          !(
+            enableLiveRebuild &&
+            !options.liveClientBuildPaths.find(
+              (p) => p.srcBuildPath.startsWith(`./src/client/ssr`) || p.srcBuildPath.slice(-9) === '.index.js',
+            )
+          )
+        )
+          for (const view of views) {
+            const buildPath = `${
+              rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+            }${view.path === '/' ? view.path : `${view.path}/`}`;
 
-        for (const view of views) {
-          const buildPath = `${
-            rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
-          }${view.path === '/' ? view.path : `${view.path}/`}`;
+            if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
-          if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+            logger.info('View build', buildPath);
 
-          logger.info('View build', buildPath);
+            const jsSrc = viewFormatted(
+              await srcFormatted(fs.readFileSync(`./src/client/${view.client}.index.js`, 'utf8')),
+              dists,
+              path,
+              baseHost,
+            );
 
-          const jsSrc = viewFormatted(
-            await srcFormatted(fs.readFileSync(`./src/client/${view.client}.index.js`, 'utf8')),
-            dists,
-            path,
-            baseHost,
-          );
+            fs.writeFileSync(
+              `${buildPath}${buildId}.js`,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
 
-          fs.writeFileSync(
-            `${buildPath}${buildId}.js`,
-            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-            'utf8',
-          );
+            // const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
+            //   view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
+            // }`;
 
-          // const title = `${metadata && metadata.title ? metadata.title : cap(client)}${
-          //   view.title ? ` | ${view.title}` : view.path !== '/' ? ` | ${titleFormatted(view.path)}` : ''
-          // }`;
+            const title = `${
+              view.title ? `${view.title} | ` : view.path !== '/' ? `${titleFormatted(view.path)} | ` : ''
+            }${metadata && metadata.title ? metadata.title : cap(client)}`;
 
-          const title = `${
-            view.title ? `${view.title} | ` : view.path !== '/' ? `${titleFormatted(view.path)} | ` : ''
-          }${metadata && metadata.title ? metadata.title : cap(client)}`;
+            const canonicalURL = `https://${host}${path}${
+              view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
+            }`;
+            const ssrPath = path === '/' ? path : `${path}/`;
 
-          const canonicalURL = `https://${host}${path}${
-            view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
-          }`;
-          const ssrPath = path === '/' ? path : `${path}/`;
+            let ssrHeadComponents = ``;
+            let ssrBodyComponents = ``;
+            if ('ssr' in view) {
+              // https://metatags.io/
+              if (process.env.NODE_ENV === 'production' && !confSSR[view.ssr].head.includes('Production'))
+                confSSR[view.ssr].head.unshift('Production');
 
-          let ssrHeadComponents = ``;
-          let ssrBodyComponents = ``;
-          if ('ssr' in view) {
-            // https://metatags.io/
-            if (process.env.NODE_ENV === 'production' && !confSSR[view.ssr].head.includes('Production'))
-              confSSR[view.ssr].head.unshift('Production');
+              for (const ssrHeadComponent of confSSR[view.ssr].head) {
+                let SrrComponent;
+                eval(
+                  await srcFormatted(
+                    fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8'),
+                  ),
+                );
 
-            for (const ssrHeadComponent of confSSR[view.ssr].head) {
-              let SrrComponent;
-              eval(
-                await srcFormatted(fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8')),
-              );
+                switch (ssrHeadComponent) {
+                  case 'Pwa':
+                    const validPwaBuild =
+                      metadata &&
+                      fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
+                      fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
 
-              switch (ssrHeadComponent) {
-                case 'Pwa':
-                  const validPwaBuild =
-                    metadata &&
-                    fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
-                    fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
+                    if (view.path === '/' && validPwaBuild) {
+                      // build webmanifest
+                      const webmanifestJson = JSON.parse(
+                        fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),
+                      );
+                      if (metadata.title) {
+                        webmanifestJson.name = metadata.title;
+                        webmanifestJson.short_name = metadata.title;
+                      }
+                      if (metadata.description) {
+                        webmanifestJson.description = metadata.description;
+                      }
+                      if (metadata.themeColor) {
+                        webmanifestJson.theme_color = metadata.themeColor;
+                        webmanifestJson.background_color = metadata.themeColor;
+                      }
+                      fs.writeFileSync(
+                        `${buildPath}site.webmanifest`,
+                        JSON.stringify(webmanifestJson, null, 4).replaceAll(`: "/`, `: "${ssrPath}`),
+                        'utf8',
+                      );
+                      // build browserconfig
+                      fs.writeFileSync(
+                        `${buildPath}browserconfig.xml`,
+                        fs
+                          .readFileSync(`./src/client/public/${publicClientId}/browserconfig.xml`, 'utf8')
+                          .replaceAll(
+                            `<TileColor></TileColor>`,
+                            metadata.themeColor
+                              ? `<TileColor>${metadata.themeColor}</TileColor>`
+                              : `<TileColor>#e0e0e0</TileColor>`,
+                          )
+                          .replaceAll(`src="/`, `src="${ssrPath}`),
+                        'utf8',
+                      );
 
-                  if (view.path === '/' && validPwaBuild) {
-                    // build webmanifest
-                    const webmanifestJson = JSON.parse(
-                      fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),
-                    );
-                    if (metadata.title) {
-                      webmanifestJson.name = metadata.title;
-                      webmanifestJson.short_name = metadata.title;
+                      // Android play store example:
+                      //
+                      // "related_applications": [
+                      //   {
+                      //     "platform": "play",
+                      //     "url": "https://play.google.com/store/apps/details?id=cheeaun.hackerweb"
+                      //   }
+                      // ],
+                      // "prefer_related_applications": true
                     }
-                    if (metadata.description) {
-                      webmanifestJson.description = metadata.description;
+                    if (validPwaBuild) ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
+                    break;
+                  case 'Seo':
+                    if (metadata) {
+                      ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
                     }
-                    if (metadata.themeColor) {
-                      webmanifestJson.theme_color = metadata.themeColor;
-                      webmanifestJson.background_color = metadata.themeColor;
+                    break;
+                  case 'Microdata':
+                    if (
+                      fs.existsSync(`./src/client/public/${publicClientId}/microdata.json`) // &&
+                      // path === '/' &&
+                      // view.path === '/'
+                    ) {
+                      const microdata = JSON.parse(
+                        fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
+                      );
+                      ssrHeadComponents += SrrComponent({ microdata });
                     }
-                    fs.writeFileSync(
-                      `${buildPath}site.webmanifest`,
-                      JSON.stringify(webmanifestJson, null, 4).replaceAll(`: "/`, `: "${ssrPath}`),
-                      'utf8',
-                    );
-                    // build browserconfig
-                    fs.writeFileSync(
-                      `${buildPath}browserconfig.xml`,
-                      fs
-                        .readFileSync(`./src/client/public/${publicClientId}/browserconfig.xml`, 'utf8')
-                        .replaceAll(
-                          `<TileColor></TileColor>`,
-                          metadata.themeColor
-                            ? `<TileColor>${metadata.themeColor}</TileColor>`
-                            : `<TileColor>#e0e0e0</TileColor>`,
-                        )
-                        .replaceAll(`src="/`, `src="${ssrPath}`),
-                      'utf8',
-                    );
+                    break;
+                  default:
+                    ssrHeadComponents += SrrComponent({ ssrPath, host, path });
+                    break;
+                }
+              }
 
-                    // Android play store example:
-                    //
-                    // "related_applications": [
-                    //   {
-                    //     "platform": "play",
-                    //     "url": "https://play.google.com/store/apps/details?id=cheeaun.hackerweb"
-                    //   }
-                    // ],
-                    // "prefer_related_applications": true
-                  }
-                  if (validPwaBuild) ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
-                  break;
-                case 'Seo':
-                  if (metadata) {
-                    ssrHeadComponents += SrrComponent({ title, ssrPath, canonicalURL, ...metadata });
-                  }
-                  break;
-                case 'Microdata':
-                  if (
-                    fs.existsSync(`./src/client/public/${publicClientId}/microdata.json`) // &&
-                    // path === '/' &&
-                    // view.path === '/'
-                  ) {
-                    const microdata = JSON.parse(
-                      fs.readFileSync(`./src/client/public/${publicClientId}/microdata.json`, 'utf8'),
-                    );
-                    ssrHeadComponents += SrrComponent({ microdata });
-                  }
-                  break;
-                default:
-                  ssrHeadComponents += SrrComponent({ ssrPath, host, path });
-                  break;
+              for (const ssrBodyComponent of confSSR[view.ssr].body) {
+                let SrrComponent;
+                eval(
+                  await srcFormatted(
+                    fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8'),
+                  ),
+                );
+                switch (ssrBodyComponent) {
+                  case 'UnderpostDefaultSplashScreen':
+                  case 'CyberiaDefaultSplashScreen':
+                  case 'NexodevSplashScreen':
+                  case 'DefaultSplashScreen':
+                    if (backgroundImage) {
+                      ssrHeadComponents += SrrComponent({
+                        base64BackgroundImage: `data:image/${backgroundImage.split('.').pop()};base64,${fs
+                          .readFileSync(backgroundImage)
+                          .toString('base64')}`,
+                      });
+                    } else {
+                      const bufferBackgroundImage = await getBufferPngText({
+                        text: ' ',
+                        textColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
+                        size: '100x100',
+                        bgColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
+                      });
+                      ssrHeadComponents += SrrComponent({
+                        base64BackgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
+                      });
+                    }
+                    break;
+
+                  default:
+                    ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });
+                    break;
+                }
               }
             }
 
-            for (const ssrBodyComponent of confSSR[view.ssr].body) {
-              let SrrComponent;
-              eval(
-                await srcFormatted(fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8')),
-              );
-              switch (ssrBodyComponent) {
-                case 'UnderpostDefaultSplashScreen':
-                case 'CyberiaDefaultSplashScreen':
-                case 'NexodevSplashScreen':
-                case 'DefaultSplashScreen':
-                  if (backgroundImage) {
-                    ssrHeadComponents += SrrComponent({
-                      base64BackgroundImage: `data:image/${backgroundImage.split('.').pop()};base64,${fs
-                        .readFileSync(backgroundImage)
-                        .toString('base64')}`,
-                    });
-                  } else {
-                    const bufferBackgroundImage = await getBufferPngText({
-                      text: ' ',
-                      textColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
-                      size: '100x100',
-                      bgColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
-                    });
-                    ssrHeadComponents += SrrComponent({
-                      base64BackgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
-                    });
-                  }
-                  break;
+            let Render = () => '';
+            eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
-                default:
-                  ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });
-                  break;
-              }
-            }
+            const htmlSrc = Render({
+              title,
+              buildId,
+              ssrPath,
+              ssrHeadComponents,
+              ssrBodyComponents,
+            });
+
+            /** @type {import('sitemap').SitemapItem} */
+            const siteMapLink = {
+              url: `${path === '/' ? '' : path}${view.path}`,
+              changefreq: 'daily',
+              priority: 0.8,
+            };
+            siteMapLinks.push(siteMapLink);
+
+            fs.writeFileSync(
+              `${buildPath}index.html`,
+              minifyBuild || process.env.NODE_ENV === 'production'
+                ? await minify(htmlSrc, {
+                    minifyCSS: true,
+                    minifyJS: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
+                  })
+                : htmlSrc,
+              'utf8',
+            );
           }
-
-          let Render = () => '';
-          eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
-
-          const htmlSrc = Render({
-            title,
-            buildId,
-            ssrPath,
-            ssrHeadComponents,
-            ssrBodyComponents,
-          });
-
-          /** @type {import('sitemap').SitemapItem} */
-          const siteMapLink = {
-            url: `${path === '/' ? '' : path}${view.path}`,
-            changefreq: 'daily',
-            priority: 0.8,
-          };
-          siteMapLinks.push(siteMapLink);
-
-          fs.writeFileSync(
-            `${buildPath}index.html`,
-            minifyBuild || process.env.NODE_ENV === 'production'
-              ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
-              : htmlSrc,
-            'utf8',
-          );
-        }
       }
       if (!enableLiveRebuild && siteMapLinks.length > 0) {
         const xslUrl = fs.existsSync(`${rootClientPath}/sitemap`)
