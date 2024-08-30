@@ -19,4 +19,4 @@ await logger.setUpInfo();
 
 await clientLiveBuild();
 
-ProcessController.init(logger);
+// ProcessController.init(logger);
