@@ -266,7 +266,26 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
       const buildId = `${client}.index`;
       const siteMapLinks = [];
 
-      if (views)
+      if (views) {
+        // build service worker
+        if (path === '/') {
+          const jsSrcPath = fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+            ? `./src/client/sw/${publicClientId}.sw.js`
+            : `./src/client/sw/default.sw.js`;
+
+          const jsPublicPath = `${rootClientPath}/sw.js`;
+
+          if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
+            const jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+
+            fs.writeFileSync(
+              jsPublicPath,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
+          }
+        }
+
         for (const view of views) {
           const buildPath = `${
             rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
@@ -301,25 +320,6 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
             view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
           }`;
           const ssrPath = path === '/' ? path : `${path}/`;
-
-          // build service worker
-          if (view.path === '/' && path === '/') {
-            const jsSrc = viewFormatted(
-              await srcFormatted(
-                fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-                  ? fs.readFileSync(`./src/client/sw/${publicClientId}.sw.js`, 'utf8')
-                  : fs.readFileSync(`./src/client/sw/default.sw.js`, 'utf8'),
-              ),
-              dists,
-              path,
-              baseHost,
-            );
-            fs.writeFileSync(
-              `${buildPath}sw.js`,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
-          }
 
           let ssrHeadComponents = ``;
           let ssrBodyComponents = ``;
@@ -481,7 +481,8 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
             'utf8',
           );
         }
-      if (siteMapLinks.length > 0) {
+      }
+      if (!enableLiveRebuild && siteMapLinks.length > 0) {
         const xslUrl = fs.existsSync(`${rootClientPath}/sitemap`)
           ? `${path === '/' ? '' : path}/sitemap.xsl`
           : undefined;
@@ -521,7 +522,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (!process.argv.includes('l') && docsBuild) {
+      if (!enableLiveRebuild && !process.argv.includes('l') && docsBuild) {
         // fullBuildEnabled || process.argv.includes('docs')
 
         // https://jsdoc.app/ Block tags
@@ -632,7 +633,7 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
 
         await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
       }
-      if (process.argv[2] === 'build-full-client-zip') {
+      if (!enableLiveRebuild && process.argv[2] === 'build-full-client-zip') {
         logger.warn('build zip', rootClientPath);
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');
