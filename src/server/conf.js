@@ -635,17 +635,8 @@ const buildProxyRouter = () => {
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   let currentPort = parseInt(process.env.PORT) + 1;
   const proxyRouter = {};
-  let singleReplicas = {};
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      if (confServer[host][path].singleReplica && confServer[host][path].replicas) {
-        if (!singleReplicas[host]) singleReplicas[host] = [];
-        // singleReplicas[host] = singleReplicas[host].concat(confServer[host][path].replicas);
-        currentPort++;
-        continue;
-      } else if (singleReplicas[host] && singleReplicas[host].includes(path)) {
-        // currentPort--;
-      }
       confServer[host][path].port = newInstance(currentPort);
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
