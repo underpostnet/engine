@@ -12,6 +12,7 @@ const logger = loggerFactory(import.meta);
 // sync-packages: `node bin/deploy update-package`
 // ssl: `npm run ssl <os> <deploy-id> <host>`
 // clean empty folder: `node bin/util delete-empty-folder`
+// sync env port: `node bin/deploy sync-env-port <deployId>`
 
 const data = {
   help: `
