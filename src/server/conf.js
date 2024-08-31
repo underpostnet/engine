@@ -637,7 +637,10 @@ const buildProxyRouter = () => {
   const proxyRouter = {};
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
-      if (confServer[host][path].singleReplica) continue;
+      if (confServer[host][path].singleReplica && confServer[host][path].replicas) {
+        currentPort = currentPort + 1 + confServer[host][path].replicas.length;
+        continue;
+      }
       confServer[host][path].port = newInstance(currentPort);
       for (const port of confServer[host][path].proxy) {
         if (!(port in proxyRouter)) proxyRouter[port] = {};
