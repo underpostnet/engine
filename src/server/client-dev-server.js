@@ -6,7 +6,11 @@ import { loggerFactory } from './logger.js';
 const logger = loggerFactory(import.meta);
 
 const createClientDevServer = () => {
-  shellExec(`env-cmd -f .env.development node src/api`, { async: true });
+  // process.argv.slice(2).join(' ')
+  shellExec(
+    `env-cmd -f .env.development node src/api ${process.argv[2]}${process.argv[5] ? ` ${process.argv[5]}` : ''}`,
+    { async: true },
+  );
 
   // https://github.com/remy/nodemon/blob/main/doc/events.md
 
@@ -21,7 +25,7 @@ const createClientDevServer = () => {
 
   let buildPathScope = [];
 
-  nodemon({ script: './src/client.build' /* args: ['l'] */, watch: 'src/client' })
+  nodemon({ script: './src/client.build', args: process.argv.slice(2), watch: 'src/client' })
     .on('start', function (...args) {
       logger.info(args, 'nodemon started');
     })

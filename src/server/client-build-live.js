@@ -1,5 +1,5 @@
 import fs from 'fs-extra';
-import { Config } from './conf.js';
+import { Config, loadConf } from './conf.js';
 import { loggerFactory } from './logger.js';
 import { buildClient } from './client-build.js';
 
@@ -7,10 +7,33 @@ const logger = loggerFactory(import.meta);
 
 const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
-    const clientId = 'default';
-    const host = 'default.net';
-    const path = '/';
-    const baseHost = `${host}${path === '/' ? '' : path}`;
+    const deployId = process.argv[3];
+
+    let clientId = 'default';
+    let host = 'default.net';
+    let path = '/';
+    let baseHost = `${host}${path === '/' ? '' : path}`;
+    let views = Config.default.client[clientId].views;
+
+    if (deployId && fs.existsSync(`./engine-private/conf/${deployId}`)) {
+      loadConf(deployId);
+      const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
+      const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+      host = process.argv[4];
+      path = process.argv[5];
+      clientId = confServer[host][path].client;
+      views = confClient[clientId].views;
+    }
+
+    logger.info('Live build config', {
+      deployId,
+      host,
+      path,
+      clientId,
+      baseHost,
+      views: views.length,
+    });
+
     const updates = JSON.parse(fs.readFileSync(`./tmp/client.build.json`, 'utf8'));
     const liveClientBuildPaths = [];
     for (let srcPath of updates) {
@@ -25,12 +48,12 @@ const clientLiveBuild = async () => {
         const publicBuildPath = `./public/${baseHost}/sw.js`;
         liveClientBuildPaths.push({ srcBuildPath, publicBuildPath });
       } else if (srcPath.split('src')[1].startsWith(`\\client`) && srcPath.slice(-9) === '.index.js') {
-        for (const view of Config.default.client[clientId].views) {
+        for (const view of views) {
           const publicBuildPath = `./public/${baseHost}${view.path === '/' ? '' : view.path}/${clientId}.index.js`;
           liveClientBuildPaths.push({ srcBuildPath, publicBuildPath });
         }
       } else if (srcPath.split('src')[1].startsWith(`\\client\\ssr`)) {
-        for (const view of Config.default.client[clientId].views) {
+        for (const view of views) {
           const publicBuildPath = `./public/${baseHost}${view.path === '/' ? '' : view.path}/index.html`;
           liveClientBuildPaths.push({ srcBuildPath, publicBuildPath });
         }
