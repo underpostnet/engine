@@ -366,6 +366,10 @@ const TranslateCore = {
       en: 'Account locked. Try again in:',
       es: 'Cuenta bloqueada. Intente nuevamente en:',
     };
+    Translate.Data['pre-release'] = {
+      en: 'Pre release',
+      es: 'Pre lanzamiento',
+    };
   },
 };
 
