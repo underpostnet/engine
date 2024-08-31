@@ -446,7 +446,9 @@ try {
         for (const envInstanceObj of dataEnv) {
           const envPath = `${baseConfPath}/${deployId}/.env.${envInstanceObj.env}`;
           const envObj = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-          envObj.PORT = proxyInstance ? envInstanceObj.port : envInstanceObj.port + port - singleReplicaHosts.length;
+          envObj.PORT = proxyInstance
+            ? envInstanceObj.port
+            : envInstanceObj.port + port - singleReplicaHosts.length - (replicaHost ? 1 : 0);
 
           fs.writeFileSync(
             envPath,

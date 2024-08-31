@@ -43,14 +43,37 @@ const buildRuntime = async () => {
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const singleReplicaHosts = [];
   for (const host of Object.keys(confServer)) {
+    if (singleReplicaHosts.length > 0 && !singleReplicaHosts.includes(host)) {
+      currentPort += singleReplicaHosts.reduce((accumulator, currentValue) => accumulator + currentValue.replicas, 0);
+    }
     const rootHostPath = `/public/${host}`;
     for (const path of Object.keys(confServer[host])) {
       confServer[host][path].port = newInstance(currentPort);
-      const { runtime, port, client, apis, origins, directory, ws, mailer, db, redirect, peer, singleReplica } =
-        confServer[host][path];
+      const {
+        runtime,
+        port,
+        client,
+        apis,
+        origins,
+        directory,
+        ws,
+        mailer,
+        db,
+        redirect,
+        peer,
+        singleReplica,
+        replicas,
+      } = confServer[host][path];
 
-      if (singleReplica) continue;
+      if (singleReplica && replicas && replicas.length > 0 && !singleReplicaHosts.includes(host)) {
+        singleReplicaHosts.push({
+          host,
+          replicas: replicas.length,
+        });
+        continue;
+      }
 
       const runningData = {
         host,
