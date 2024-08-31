@@ -1269,12 +1269,12 @@ const CyberiaParams = {
 
 const CyberiaServer = {
   instances: [
-    { server: 'dim32' },
-    { server: 'hhworld' },
     { server: 'interior32' },
-    { server: 'lol' },
     { server: 'seed-city' },
-    { server: 'test' },
+    // { server: 'lol' },
+    // { server: 'dim32' },
+    // { server: 'hhworld' },
+    // { server: 'test' },
   ],
 };
 
