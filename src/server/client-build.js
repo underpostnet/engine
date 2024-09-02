@@ -99,7 +99,7 @@ const fullBuild = async ({
     }
 };
 
-const buildClient = async (options = { liveClientBuildPaths: [] }) => {
+const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }) => {
   const logger = loggerFactory(import.meta);
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
@@ -115,6 +115,7 @@ const buildClient = async (options = { liveClientBuildPaths: [] }) => {
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
+      if (options && options.instances && !options.instances.find((i) => i.path === path && i.host === host)) continue;
       const {
         runtime,
         client,

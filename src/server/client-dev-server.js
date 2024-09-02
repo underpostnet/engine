@@ -25,7 +25,9 @@ const createClientDevServer = () => {
 
   let buildPathScope = [];
 
-  nodemon({ script: './src/client.build', args: process.argv.slice(2), watch: 'src/client' })
+  const nodemonOptions = { script: './src/client.build', args: process.argv.slice(2), watch: 'src/client' };
+  logger.info('nodemon option', { nodemonOptions });
+  nodemon(nodemonOptions)
     .on('start', function (...args) {
       logger.info(args, 'nodemon started');
     })

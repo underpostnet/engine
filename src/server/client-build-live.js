@@ -7,7 +7,7 @@ const logger = loggerFactory(import.meta);
 
 const clientLiveBuild = async () => {
   if (fs.existsSync(`./tmp/client.build.json`)) {
-    const deployId = process.argv[3];
+    const deployId = process.argv[2];
 
     let clientId = 'default';
     let host = 'default.net';
@@ -19,8 +19,8 @@ const clientLiveBuild = async () => {
       loadConf(deployId);
       const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
       const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-      host = process.argv[4];
-      path = process.argv[5];
+      host = process.argv[3];
+      path = process.argv[4];
       clientId = confServer[host][path].client;
       views = confClient[clientId].views;
     }
@@ -60,7 +60,7 @@ const clientLiveBuild = async () => {
       }
     }
     logger.info('liveClientBuildPaths', liveClientBuildPaths);
-    await buildClient({ liveClientBuildPaths });
+    await buildClient({ liveClientBuildPaths, instances: [{ host, path }] });
     fs.removeSync(`./tmp/client.build.json`);
   }
 };
