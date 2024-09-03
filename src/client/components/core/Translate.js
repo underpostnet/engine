@@ -376,6 +376,22 @@ const TranslateCore = {
       en: 'All day',
       es: 'Todo el día',
     };
+    Translate.Data['month'] = {
+      en: 'Month',
+      es: 'Mes',
+    };
+    Translate.Data['week'] = {
+      en: 'Week',
+      es: 'Semana',
+    };
+    Translate.Data['summary'] = {
+      en: 'Summary',
+      es: 'Resumen',
+    };
+    Translate.Data['today'] = {
+      en: 'Today',
+      es: 'Hoy',
+    };
   },
 };
 
