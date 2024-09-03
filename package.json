@@ -42,7 +42,6 @@
     "@loadingio/css-spinner": "^2.0.2",
     "@neodrag/vanilla": "^2.0.3",
     "@pinata/sdk": "^2.1.0",
-    "@toast-ui/calendar": "^2.1.3",
     "adm-zip": "^0.5.10",
     "ag-grid-community": "^31.0.0",
     "axios": "^1.5.1",
