@@ -1,5 +1,5 @@
 import { Translate } from './Translate.js';
-import { append, getTimeZone, s, sa } from './VanillaJs.js';
+import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
 const CalendarCore = {
   RenderStyle: async function () {},
@@ -26,9 +26,14 @@ const CalendarCore = {
 
       Translate.Event['fullcalendar-lang'] = () => {
         calendar.setOption('locale', s(`html`).lang);
+        if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
       };
       setTimeout(() => {
         Translate.Event['fullcalendar-lang']();
+
+        s(`.fc-timeGridWeek-button`).onclick = () => {
+          Translate.Event['fullcalendar-lang']();
+        };
       });
 
       sa(`.fc-button-group`)[1].style.float = 'right';

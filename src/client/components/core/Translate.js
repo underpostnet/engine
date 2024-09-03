@@ -372,6 +372,10 @@ const TranslateCore = {
       en: 'Pre release',
       es: 'Pre lanzamiento',
     };
+    Translate.Data['all-day'] = {
+      en: 'All day',
+      es: 'Todo el día',
+    };
   },
 };
 
