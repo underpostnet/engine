@@ -26,13 +26,11 @@ const CalendarCore = {
 
       Translate.Event['fullcalendar-lang'] = () => {
         calendar.setOption('locale', s(`html`).lang);
-        setTimeout(() => {
-          if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
-          if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.Render('month'));
-          if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.Render('week'));
-          if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.Render('summary'));
-          if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.Render('today'));
-        });
+        if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
+        if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.Render('month'));
+        if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.Render('week'));
+        if (s(`.fc-listWeek-button`)) htmls(`.fc-listWeek-button`, Translate.Render('summary'));
+        if (s(`.fc-today-button`)) htmls(`.fc-today-button`, Translate.Render('today'));
       };
       setTimeout(() => {
         Translate.Event['fullcalendar-lang']();
