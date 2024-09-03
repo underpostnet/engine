@@ -10,6 +10,7 @@ const textFormatted = (str = '&nbsp &nbsp . . .') => capFirst(str.toLowerCase())
 const Translate = {
   Data: {},
   Token: {},
+  Event: {},
   Parse: function (lang) {
     s('html').lang = lang;
     Object.keys(this.Token).map((translateHash) => {
@@ -20,6 +21,7 @@ const Translate = {
           s(this.Token[translateHash].placeholder).placeholder = textFormatted(this.Token[translateHash][lang]);
       }
     });
+    for (const keyEvent of Object.keys(this.Event)) this.Event[keyEvent]();
   },
   Render: function (keyLang, placeholder) {
     if (!(keyLang in this.Data)) {

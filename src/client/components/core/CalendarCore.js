@@ -1,3 +1,4 @@
+import { Translate } from './Translate.js';
 import { append, getTimeZone, s } from './VanillaJs.js';
 
 const CalendarCore = {
@@ -22,8 +23,36 @@ const CalendarCore = {
       });
 
       calendar.render();
+
+      Translate.Event['fullcalendar-lang'] = () => {
+        calendar.setOption('locale', s(`html`).lang);
+      };
+      setTimeout(() => {
+        Translate.Event['fullcalendar-lang']();
+      });
     });
-    return html` <div id="calendar"></div>`;
+    return html` <style>
+        .calendar-container {
+          color: black;
+          background: #fcfcfc;
+        }
+
+        .calendar-container a {
+          color: #6d68ff;
+          cursor: pointer;
+        }
+        .calendar-container a:hover {
+          color: #8682ee;
+        }
+
+        .fc-toolbar-title {
+          font-size: 20px !important;
+          margin: 0px !important;
+          text-transform: uppercase;
+          color: #6d68ff;
+        }
+      </style>
+      <div class="in section-mp calendar-container"><div id="calendar"></div></div>`;
   },
 };
 
