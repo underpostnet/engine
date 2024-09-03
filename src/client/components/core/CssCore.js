@@ -1,12 +1,18 @@
 import { AgGrid } from './AgGrid.js';
 import { boxShadow, scrollBarDarkRender, scrollBarLightRender } from './Css.js';
-import { append, getProxyPath } from './VanillaJs.js';
+import { append, getProxyPath, s } from './VanillaJs.js';
 
 const CssCommonCore = async () => {
-  append(
-    'head',
-    html`<link rel="stylesheet" type="text/css" href="${getProxyPath()}dist/fontawesome/css/all.min.css" />`,
-  );
+  if (!s(`.fa-link`))
+    append(
+      'head',
+      html`<link
+        class="fa-link"
+        rel="stylesheet"
+        type="text/css"
+        href="${getProxyPath()}dist/fontawesome/css/all.min.css"
+      />`,
+    );
   await AgGrid.RenderStyle();
   return html`<style>
       .top-bar-app-icon {
