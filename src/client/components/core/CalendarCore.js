@@ -1,11 +1,14 @@
-import { s } from './VanillaJs.js';
+import { append, s } from './VanillaJs.js';
 
 const CalendarCore = {
+  RenderStyle: async function () {
+    append(`head`, html`<style></style>`);
+  },
   Render: async function () {
     setTimeout(() => {
       const calendarEl = s('#calendar');
       const calendar = new FullCalendar.Calendar(calendarEl, {
-        // plugins: [dayGridPlugin],
+        plugins: [FullCalendar.DayGrid.default],
         initialView: 'dayGridMonth',
         events: [{ title: 'Meeting', start: new Date() }],
       });

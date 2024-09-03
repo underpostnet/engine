@@ -23,6 +23,7 @@ const clientLiveBuild = async () => {
       path = process.argv[4];
       clientId = confServer[host][path].client;
       views = confClient[clientId].views;
+      baseHost = `${host}${path === '/' ? '' : path}`;
     }
 
     logger.info('Live build config', {
