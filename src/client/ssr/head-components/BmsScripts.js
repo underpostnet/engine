@@ -5,4 +5,8 @@ SrrComponent = ({ ssrPath }) => html`
   <script type="text/javascript" src="${ssrPath}dist/peerjs/peerjs.min.js"></script>
   <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/core/index.global.min.js"></script>
   <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/daygrid/index.global.min.js"></script>
+  <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/interaction/index.global.min.js"></script>
+  <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/list/index.global.min.js"></script>
+  <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/multimonth/index.global.min.js"></script>
+  <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/timegrid/index.global.min.js"></script>
 `;
