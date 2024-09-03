@@ -1,5 +1,5 @@
 import { Translate } from './Translate.js';
-import { append, getTimeZone, s } from './VanillaJs.js';
+import { append, getTimeZone, s, sa } from './VanillaJs.js';
 
 const CalendarCore = {
   RenderStyle: async function () {},
@@ -30,6 +30,8 @@ const CalendarCore = {
       setTimeout(() => {
         Translate.Event['fullcalendar-lang']();
       });
+
+      sa(`.fc-button-group`)[1].style.float = 'right';
     });
     return html` <style>
         .calendar-container {
@@ -50,6 +52,25 @@ const CalendarCore = {
           margin: 0px !important;
           text-transform: uppercase;
           color: #6d68ff;
+          padding: 10px 5px 5px 5px;
+        }
+
+        .fc-button-primary {
+          background: #6d68ff !important;
+          color: white;
+        }
+
+        .fc-button-primary:active {
+          background: #5d039d !important;
+          color: white;
+        }
+
+        .fc-toolbar {
+          display: block !important;
+        }
+
+        .fc-toolbar-chunk {
+          padding: 5px;
         }
       </style>
       <div class="in section-mp calendar-container"><div id="calendar"></div></div>`;
