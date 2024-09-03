@@ -115,7 +115,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
     for (const path of paths) {
-      if (options && options.instances && !options.instances.find((i) => i.path === path && i.host === host)) continue;
+      if (
+        options &&
+        options.instances &&
+        options.instances.length > 0 &&
+        !options.instances.find((i) => i.path === path && i.host === host)
+      )
+        continue;
       const {
         runtime,
         client,
