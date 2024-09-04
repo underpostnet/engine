@@ -63,29 +63,43 @@ const CalendarCore = {
         }
 
         .calendar-container a {
-          color: #6d68ff;
+          color: #4a4a4a;
           cursor: pointer;
         }
         .calendar-container a:hover {
-          color: #8682ee;
+          color: #8a8a8a;
         }
 
         .fc-toolbar-title {
           font-size: 20px !important;
           margin: 0px !important;
           text-transform: uppercase;
-          color: #6d68ff;
+          color: #8a8a8a;
           padding: 10px 5px 5px 5px;
         }
 
+        .fc-button,
         .fc-button-primary {
-          background: #6d68ff !important;
-          color: white;
+          border: none !important;
+          border-radius: 0px !important;
+          background: #b1b1b1 !important;
+          margin: 3px !important;
+          /* color: #4a4a4a; */
         }
 
-        .fc-button-primary:active {
-          background: #5d039d !important;
-          color: white;
+        .fc-button-primary:hover,
+        .fc-button:hover {
+          background: #4a4a4a !important;
+          /* background: #b1b1b1 !important; */
+          /* box-shadow: none !important;
+          border-radius: 0px !important;
+          border: none !important; */
+        }
+
+        .fc-button-primary:active .fc-button:active {
+          /* box-shadow: none !important;
+          border-radius: 0px !important;
+          border: none !important; */
         }
 
         .fc-toolbar {
