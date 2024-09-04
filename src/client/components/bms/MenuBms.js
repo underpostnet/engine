@@ -296,10 +296,7 @@ const MenuBms = {
             panel: {},
             rules: [{ type: 'isEmpty' }],
           },
-        ].map((formObj) => {
-          formObj.id = `${idPanel}-${formObj.id}`;
-          return formObj;
-        });
+        ];
 
         const data = [
           {

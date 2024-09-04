@@ -14,6 +14,11 @@ const Panel = {
   Tokens: {},
   Render: async function (options = { idPanel: '', scrollClassContainer: '', formData: [], data: [] }) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
+    if (options.formData)
+      options.formData = options.formData.map((formObj) => {
+        formObj.id = `${idPanel}-${formObj.id}`;
+        return formObj;
+      });
     const { scrollClassContainer, formData, data, heightTopBar, heightBottomBar } = options;
 
     const titleKey = formData.find((f) => f.panel.type === 'title').model;
