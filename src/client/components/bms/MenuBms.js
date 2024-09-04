@@ -357,6 +357,18 @@ const MenuBms = {
           heightBottomBar,
           data,
           scrollClassContainer: 'main-body',
+          callBackPanelRender: function ({ data, imgRender }) {
+            const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
+            const options = {
+              headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
+            };
+            fetch(src, options)
+              .then((res) => res.blob())
+              .then(async (blob) => {
+                data.imageUrl = URL.createObjectURL(blob);
+                await imgRender(data);
+              });
+          },
         });
       },
     });

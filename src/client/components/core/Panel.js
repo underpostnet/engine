@@ -18,19 +18,15 @@ const Panel = {
 
     const titleKey = formData.find((f) => f.panel.type === 'title').model;
     const subTitleKey = formData.find((f) => f.panel.type === 'subtitle').model;
-    const renderPanel = (obj) => {
+    const renderPanel = async (obj) => {
       const { id } = obj;
 
-      const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
-      const options = {
-        headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
-      };
-
-      fetch(src, options)
-        .then((res) => res.blob())
-        .then((blob) => {
-          obj.imageUrl = URL.createObjectURL(blob);
-          htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${obj.imageUrl}" />`);
+      if (options && options.callBackPanelRender)
+        await options.callBackPanelRender({
+          data: obj,
+          imgRender: ({ imageUrl }) => {
+            htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${imageUrl}" />`);
+          },
         });
       setTimeout(async () => {
         LoadingAnimation.spinner.play(`.${idPanel}-img-spinner-${id}`, 'dual-ring');
