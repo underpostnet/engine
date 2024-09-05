@@ -26,15 +26,15 @@ const Panel = {
     const renderPanel = async (obj) => {
       const { id } = obj;
 
-      if (options && options.callBackPanelRender)
-        await options.callBackPanelRender({
-          data: obj,
-          imgRender: ({ imageUrl }) => {
-            htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${imageUrl}" />`);
-          },
-        });
       setTimeout(async () => {
         LoadingAnimation.spinner.play(`.${idPanel}-img-spinner-${id}`, 'dual-ring');
+        if (options && options.callBackPanelRender)
+          await options.callBackPanelRender({
+            data: obj,
+            imgRender: async ({ imageUrl }) => {
+              htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${imageUrl}" />`);
+            },
+          });
       });
       return html` <div class="in box-shadow ${idPanel}">
         <div class="in ${idPanel}-head">
@@ -154,7 +154,7 @@ const Panel = {
         obj.id = `${data.length}`;
         obj.new = html`<span class="bold" style="color: #ff533ecf;"> <i class="fa-solid fa-tag"></i> NEW ! </span>`;
         data.push(obj);
-        prepend(`.${idPanel}-render`, renderPanel(obj));
+        prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;
@@ -180,7 +180,7 @@ const Panel = {
       };
     });
 
-    for (const obj of data) render += renderPanel(obj);
+    for (const obj of data) render += await renderPanel(obj);
 
     this.Tokens[idPanel] = { idPanel, scrollClassContainer, formData, data, titleKey, subTitleKey, renderPanel };
 
