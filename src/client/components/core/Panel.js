@@ -21,8 +21,12 @@ const Panel = {
       });
     const { scrollClassContainer, formData, data, heightTopBar, heightBottomBar } = options;
 
-    const titleKey = formData.find((f) => f.panel.type === 'title').model;
-    const subTitleKey = formData.find((f) => f.panel.type === 'subtitle').model;
+    const titleObj = formData.find((f) => f.panel && f.panel.type === 'title');
+    const titleKey = titleObj ? titleObj.model : '';
+
+    const subTitleObj = formData.find((f) => f.panel && f.panel.type === 'subtitle');
+    const subTitleKey = subTitleObj ? subTitleObj.model : '';
+
     const renderPanel = async (obj) => {
       const { id } = obj;
 
@@ -34,14 +38,17 @@ const Panel = {
             imgRender: async ({ imageUrl }) => {
               htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${imageUrl}" />`);
             },
+            htmlRender: async ({ render }) => {
+              htmls(`.${idPanel}-cell-col-a-${id}`, render);
+            },
           });
       });
       return html` <div class="in box-shadow ${idPanel}">
         <div class="in ${idPanel}-head">
           <div class="in ${idPanel}-title">
-            ${obj.new ? obj.new : html`<i class="fas fa-tag"></i>`} &nbsp ${obj[titleKey]}
+            ${obj.new ? obj.new : html`<i class="fas fa-tag"></i>`} &nbsp ${titleKey ? obj[titleKey] : ''}
           </div>
-          <div class="in ${idPanel}-subtitle">${obj[subTitleKey]}</div>
+          <div class="in ${idPanel}-subtitle">${subTitleKey ? obj[subTitleKey] : ''}</div>
         </div>
         <div class="fl">
           <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
@@ -58,13 +65,13 @@ const Panel = {
                   obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
                 const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
-                if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row-pin'))
+                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                   return html`<div class="in ${idPanel}-row">
                     <span class="${idPanel}-row-pin-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
                     <span class="${idPanel}-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
                   </div> `;
 
-                if (formData.find((f) => f.model === infoKey && f.panel.type === 'info-row'))
+                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
                   return html`<div class="in ${idPanel}-row">
                     <span class="${idPanel}-row-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
                     <span class="${idPanel}-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
@@ -261,7 +268,7 @@ const Panel = {
         <div class="stq modal ${idPanel}-form-container session-in-log-in">
           <div class="in ${idPanel}-form-header">
             ${await BtnIcon.Render({
-              class: `section-mp wfa btn-${idPanel}-add`,
+              class: `section-mp btn-custom btn-${idPanel}-add`,
               label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
               type: 'button',
             })}

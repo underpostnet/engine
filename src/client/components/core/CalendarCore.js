@@ -1,9 +1,14 @@
+import { Modal } from './Modal.js';
+import { Panel } from './Panel.js';
+import { Responsive } from './Responsive.js';
 import { Translate } from './Translate.js';
 import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
+// https://fullcalendar.io/docs/event-object
+
 const CalendarCore = {
   RenderStyle: async function () {},
-  Render: async function () {
+  Render: async function (options = { idModal: '' }) {
     setTimeout(() => {
       const calendarEl = s('#calendar');
       const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -56,7 +61,56 @@ const CalendarCore = {
 
       sa(`.fc-button-group`)[1].style.float = 'right';
     });
-    return html` <style>
+
+    const idPanel = 'calendar-panel';
+    const formData = [
+      {
+        model: 'id',
+        id: 'id',
+        inputType: 'text',
+        disableRender: true,
+        rules: [{ type: 'isEmpty' }],
+      },
+      {
+        id: 'description',
+        model: 'description',
+        inputType: 'text',
+        rules: [{ type: 'isEmpty' }],
+        panel: { type: 'title' },
+      },
+      {
+        id: 'start',
+        model: 'start',
+        inputType: 'datetime-local',
+        panel: { type: 'subtitle' },
+      },
+      {
+        id: 'end',
+        model: 'end',
+        inputType: 'datetime-local',
+        panel: { type: 'info-row' },
+      },
+    ];
+
+    const data = [];
+    const heightTopBar = 100;
+    const heightBottomBar = 0;
+
+    return html`
+      ${await Panel.Render({
+        idPanel,
+        formData,
+        heightTopBar,
+        heightBottomBar,
+        data,
+        scrollClassContainer: options.idModal,
+        callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
+          return await htmlRender({
+            render: html`<div class="abs center"><i class="fas fa-calendar-alt"></i></div>`,
+          });
+        },
+      })}
+      <style>
         .calendar-container {
           color: black;
           background: #fcfcfc;
@@ -92,14 +146,14 @@ const CalendarCore = {
           background: #4a4a4a !important;
           /* background: #b1b1b1 !important; */
           /* box-shadow: none !important;
-          border-radius: 0px !important;
-          border: none !important; */
+  border-radius: 0px !important;
+  border: none !important; */
         }
 
         .fc-button-primary:active .fc-button:active {
           /* box-shadow: none !important;
-          border-radius: 0px !important;
-          border: none !important; */
+  border-radius: 0px !important;
+  border: none !important; */
         }
 
         .fc-toolbar {
@@ -110,7 +164,8 @@ const CalendarCore = {
           padding: 5px;
         }
       </style>
-      <div class="in section-mp calendar-container"><div id="calendar"></div></div>`;
+      <div class="in section-mp calendar-container"><div id="calendar"></div></div>
+    `;
   },
 };
 
