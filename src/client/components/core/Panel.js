@@ -173,6 +173,15 @@ const Panel = {
         s(`.${idPanel}-form-body`).style.opacity = 0;
         s(`.btn-${idPanel}-add`).classList.remove('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'auto';
+        if (options.customButtons) {
+          let customBtnIndex = -1;
+          for (const dataBtn of options.customButtons) {
+            customBtnIndex++;
+            const customBtnIndexFn = customBtnIndex;
+            const btnSelector = `btn-${idPanel}-custom${customBtnIndexFn}`;
+            s(`.${btnSelector}`).classList.remove('hide');
+          }
+        }
         setTimeout(() => {
           s(`.${idPanel}-form-body`).classList.add('hide');
         });
@@ -181,6 +190,15 @@ const Panel = {
         s(`.${idPanel}-form-body`).classList.remove('hide');
         s(`.btn-${idPanel}-add`).classList.add('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'hidden';
+        if (options.customButtons) {
+          let customBtnIndex = -1;
+          for (const dataBtn of options.customButtons) {
+            customBtnIndex++;
+            const customBtnIndexFn = customBtnIndex;
+            const btnSelector = `btn-${idPanel}-custom${customBtnIndexFn}`;
+            s(`.${btnSelector}`).classList.add('hide');
+          }
+        }
         setTimeout(() => {
           s(`.${idPanel}-form-body`).style.opacity = 1;
         });
@@ -190,6 +208,25 @@ const Panel = {
     for (const obj of data) render += await renderPanel(obj);
 
     this.Tokens[idPanel] = { idPanel, scrollClassContainer, formData, data, titleKey, subTitleKey, renderPanel };
+
+    let customButtonsRender = '';
+    if (options && options.customButtons) {
+      let customBtnIndex = -1;
+      for (const dataBtn of options.customButtons) {
+        customBtnIndex++;
+        const customBtnIndexFn = customBtnIndex;
+        const btnSelector = `btn-${idPanel}-custom${customBtnIndexFn}`;
+        if (dataBtn.onClick)
+          setTimeout(() => {
+            s(`.${btnSelector}`).onclick = () => dataBtn.onClick();
+          });
+        customButtonsRender += ` ${await BtnIcon.Render({
+          class: `section-mp btn-custom ${btnSelector}`,
+          label: dataBtn.label,
+          type: 'button',
+        })}`;
+      }
+    }
 
     return html`
       <style>
@@ -272,6 +309,7 @@ const Panel = {
               label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
               type: 'button',
             })}
+            ${customButtonsRender}
           </div>
           <div class="in ${idPanel}-form-body hide" style="opacity: 0">
             <form class="in ${idPanel}-form">${renderForm}</form>

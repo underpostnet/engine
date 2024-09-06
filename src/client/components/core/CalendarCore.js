@@ -1,3 +1,4 @@
+import { BtnIcon } from './BtnIcon.js';
 import { range, s4 } from './CommonJs.js';
 import { Modal } from './Modal.js';
 import { Panel } from './Panel.js';
@@ -10,9 +11,10 @@ import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 const CalendarCore = {
   RenderStyle: async function () {},
   Render: async function (options = { idModal: '' }) {
-    setTimeout(() => {
+    let calendar;
+    const renderCalendar = () => {
       const calendarEl = s('#calendar');
-      const calendar = new FullCalendar.Calendar(calendarEl, {
+      calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [FullCalendar.DayGrid.default, FullCalendar.TimeGrid.default, FullCalendar.List.default],
         // initialView: 'dayGridWeek',
         timeZone: getTimeZone(),
@@ -29,7 +31,9 @@ const CalendarCore = {
       });
 
       calendar.render();
-
+    };
+    setTimeout(() => {
+      renderCalendar();
       Translate.Event['fullcalendar-lang'] = () => {
         calendar.setOption('locale', s(`html`).lang);
         if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
@@ -110,6 +114,19 @@ const CalendarCore = {
           s(`.main-body-calendar`).style.height = `${s(`.${options.idModal}`).offsetHeight - 110}px`;
       };
       Modal.Data[options.idModal].onObserverListener[options.idModal]();
+
+      s(`.close-calendar-container`).onclick = () => {
+        s(`.calendar-container`).classList.add('hide');
+        s(`.main-body-calendar`).classList.remove('hide');
+        htmls(
+          `.style-calendar`,
+          html`<style>
+            .modal-calendar {
+              overflow: hidden;
+            }
+          </style>`,
+        );
+      };
     });
 
     return html`
@@ -117,10 +134,15 @@ const CalendarCore = {
         .main-body-calendar {
           overflow: auto;
         }
-        .modal-calendar {
-          overflow: hidden;
-        }
       </style>
+      <div class="style-calendar">
+        <style>
+          .modal-calendar {
+            overflow: hidden;
+          }
+        </style>
+      </div>
+
       <div class="in main-body-calendar">
         ${await Panel.Render({
           idPanel,
@@ -137,6 +159,26 @@ const CalendarCore = {
               </div>`,
             });
           },
+          customButtons: [
+            {
+              label: html`<i class="fa-regular fa-calendar-days"></i> ${Translate.Render('calendar')}`,
+              onClick: function () {
+                s(`.calendar-container`).classList.remove('hide');
+                s(`.main-body-calendar`).classList.add('hide');
+                // renderCalendar();
+                calendar.setOption('height', 700);
+                Translate.Event['fullcalendar-lang']();
+                htmls(
+                  `.style-calendar`,
+                  html`<style>
+                    .modal-calendar {
+                      overflow: auto;
+                    }
+                  </style>`,
+                );
+              },
+            },
+          ],
         })}
         <div class="in" style="margin-bottom: 100px"></div>
       </div>
@@ -194,7 +236,16 @@ const CalendarCore = {
           padding: 5px;
         }
       </style>
-      <div class="in section-mp calendar-container hide"><div id="calendar"></div></div>
+      <div class="in section-mp calendar-container hide">
+        <div class="fl">
+          ${await BtnIcon.Render({
+            class: `section-mp btn-custom close-calendar-container flr`,
+            label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+            type: 'button',
+          })}
+        </div>
+        <div class="in"><div id="calendar"></div></div>
+      </div>
     `;
   },
 };
