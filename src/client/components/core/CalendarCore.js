@@ -1,3 +1,4 @@
+import { range, s4 } from './CommonJs.js';
 import { Modal } from './Modal.js';
 import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
@@ -92,27 +93,53 @@ const CalendarCore = {
       },
     ];
 
-    const data = [];
+    const data = range(0, 5).map((i) => {
+      return {
+        id: `event-${i}`,
+        description: `Event ${s4()}${s4()}${s4()}`,
+        start: new Date().toTimeString(),
+        end: new Date().toTimeString(),
+      };
+    });
     const heightTopBar = 100;
     const heightBottomBar = 0;
 
+    setTimeout(() => {
+      Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
+        if (s(`.main-body-calendar`))
+          s(`.main-body-calendar`).style.height = `${s(`.${options.idModal}`).offsetHeight - 110}px`;
+      };
+      Modal.Data[options.idModal].onObserverListener[options.idModal]();
+    });
+
     return html`
-      ${await Panel.Render({
-        idPanel,
-        formData,
-        heightTopBar,
-        heightBottomBar,
-        data,
-        scrollClassContainer: options.idModal,
-        titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
-        callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
-          return await htmlRender({
-            render: html`<div class="abs center">
-              <i class="far fa-calendar" style="font-size: 130px; color: #d3d3d3cf;"></i>
-            </div>`,
-          });
-        },
-      })}
+      <style>
+        .main-body-calendar {
+          overflow: auto;
+        }
+        .modal-calendar {
+          overflow: hidden;
+        }
+      </style>
+      <div class="in main-body-calendar">
+        ${await Panel.Render({
+          idPanel,
+          formData,
+          heightTopBar,
+          heightBottomBar,
+          data,
+          scrollClassContainer: 'main-body-calendar',
+          titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
+          callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
+            return await htmlRender({
+              render: html`<div class="abs center">
+                <i class="far fa-calendar" style="font-size: 130px; color: #d3d3d3cf;"></i>
+              </div>`,
+            });
+          },
+        })}
+        <div class="in" style="margin-bottom: 100px"></div>
+      </div>
       <style>
         .calendar-container {
           color: black;
@@ -167,7 +194,7 @@ const CalendarCore = {
           padding: 5px;
         }
       </style>
-      <div class="in section-mp calendar-container"><div id="calendar"></div></div>
+      <div class="in section-mp calendar-container hide"><div id="calendar"></div></div>
     `;
   },
 };

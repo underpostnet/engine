@@ -611,6 +611,7 @@ const MenuNexodev = {
         heightTopBar,
         heightBottomBar,
         barMode,
+        observer: true,
       });
     });
 

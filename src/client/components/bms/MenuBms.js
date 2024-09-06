@@ -616,6 +616,7 @@ const MenuBms = {
           }),
         handleType: 'bar',
         maximize: true,
+        observer: true,
         mode: 'view',
         slideMenu: 'modal-menu',
         RouterInstance,
