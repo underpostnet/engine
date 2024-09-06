@@ -92,6 +92,19 @@ const Input = {
   getValues: function (formData) {
     const obj = {};
     for (const inputData of formData) {
+      switch (inputData.inputType) {
+        case 'checkbox':
+        case 'checkbox-on-off':
+          console.error(s(`.${inputData.id}-checkbox`));
+          window._test = s(`.${inputData.id}-checkbox`);
+          obj[inputData.model] = s(`.${inputData.id}-checkbox`).checked;
+          continue;
+          break;
+
+        default:
+          break;
+      }
+
       if (!s(`.${inputData.id}`) || !s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined')
         continue;
       if ('model' in inputData) {

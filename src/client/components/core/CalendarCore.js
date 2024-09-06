@@ -84,6 +84,13 @@ const CalendarCore = {
         panel: { type: 'title' },
       },
       {
+        id: 'allDay',
+        model: 'allDay',
+        inputType: 'checkbox-on-off',
+        rules: [],
+        panel: { type: 'info-row', icon: html`<i class="fa-solid fa-infinity"></i>` },
+      },
+      {
         id: 'start',
         model: 'start',
         inputType: 'datetime-local',
@@ -133,6 +140,9 @@ const CalendarCore = {
       <style>
         .main-body-calendar {
           overflow: auto;
+        }
+        .${idPanel}-form {
+          max-width: 750px !important;
         }
       </style>
       <div class="style-calendar">

@@ -2,11 +2,14 @@ import { Schema, model, Types } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
+// https://fullcalendar.io/docs/event-object
+
 const EventSchedulerSchema = new Schema(
   {
-    0: { type: String },
-    1: { type: String },
-    2: { type: String },
+    start: { type: Date },
+    end: { type: Date },
+    description: { type: String },
+    allDay: { type: Boolean },
   },
   {
     timestamps: true,

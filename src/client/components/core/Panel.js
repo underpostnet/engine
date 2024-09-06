@@ -9,6 +9,7 @@ import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
 import { dynamicCol } from './Css.js';
 import { EventsUI } from './EventsUI.js';
+import { ToggleSwitch } from './ToggleSwitch.js';
 
 const Panel = {
   Tokens: {},
@@ -98,7 +99,7 @@ const Panel = {
       if (modelData.disableRender) continue;
       switch (modelData.inputType) {
         case 'dropdown':
-          renderForm += html` <div class="inl section-mp">
+          renderForm += html` <div class="fll section-mp">
             ${await DropDown.Render({
               id: `${modelData.id}`,
               label: html`${Translate.Render(modelData.model)}`,
@@ -119,13 +120,53 @@ const Panel = {
           </div>`;
           break;
 
+        case 'checkbox-on-off':
+          {
+            let panelCheckboxSwitch = false;
+            setTimeout(() => {
+              s(`.toggle-form-container-${modelData.id}`).onclick = () => {
+                ToggleSwitch.Tokens[`${modelData.id}`].click();
+              };
+            });
+            renderForm += html`<div
+              class="fll section-mp toggle-form-container toggle-form-container-${modelData.id} hover"
+              style="height: 82px;"
+            >
+              <div class="fl">
+                <div class="in fll" style="width: 70%">
+                  <div class="in">
+                    ${modelData.panel && modelData.panel.icon ? modelData.panel.icon : ''}
+                    ${Translate.Render(modelData.model)}
+                  </div>
+                </div>
+                <div class="in fll" style="width: 30%">
+                  ${await ToggleSwitch.Render({
+                    id: `${modelData.id}`,
+                    containerClass: 'inl',
+                    disabledOnClick: true,
+                    checked: panelCheckboxSwitch,
+                    on: {
+                      unchecked: () => {
+                        panelCheckboxSwitch = false;
+                      },
+                      checked: () => {
+                        panelCheckboxSwitch = true;
+                      },
+                    },
+                  })}
+                </div>
+              </div>
+            </div>`;
+          }
+          break;
+
         default:
           renderForm += `${await Input.Render({
             id: `${modelData.id}`,
             type: modelData.inputType,
             // autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render(modelData.model)}`,
-            containerClass: 'inl section-mp width-mini-box input-container',
+            containerClass: 'fll section-mp width-mini-box input-container',
             placeholder: true,
             // disabled: true,
             // disabledEye: true,
@@ -133,7 +174,7 @@ const Panel = {
           break;
       }
     }
-    renderForm += html` <div class="in">
+    let renderFormBtn = html`
       ${await BtnIcon.Render({
         class: `section-mp btn-custom btn-${idPanel}-submit`,
         label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
@@ -144,7 +185,7 @@ const Panel = {
         label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
         type: 'button',
       })}
-    </div>`;
+    `;
 
     setTimeout(async () => {
       Responsive.Event[`${idPanel}-responsive`] = () => {
@@ -319,7 +360,10 @@ const Panel = {
             ${customButtonsRender}
           </div>
           <div class="in ${idPanel}-form-body hide" style="opacity: 0">
-            <form class="in ${idPanel}-form">${renderForm}</form>
+            <form class="in ${idPanel}-form">
+              <div class="fl">${renderForm}</div>
+              <div class="in">${renderFormBtn}</div>
+            </form>
           </div>
         </div>
         ${dynamicCol({

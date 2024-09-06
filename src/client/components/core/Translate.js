@@ -373,9 +373,11 @@ const TranslateCore = {
       es: 'Pre lanzamiento',
     };
     Translate.Data['all-day'] = {
-      en: 'All day',
-      es: 'Todo el día',
+      en: 'Every day',
+      es: 'Todos los días',
     };
+    Translate.Data['allDay'] = Translate.Data['all-day'];
+    Translate.Data['allday'] = Translate.Data['all-day'];
     Translate.Data['month'] = {
       en: 'Month',
       es: 'Mes',
