@@ -46,7 +46,7 @@ const Panel = {
       return html` <div class="in box-shadow ${idPanel}">
         <div class="in ${idPanel}-head">
           <div class="in ${idPanel}-title">
-            ${obj.new ? obj.new : html`<i class="fas fa-tag"></i>`} &nbsp ${titleKey ? obj[titleKey] : ''}
+            ${obj.new ? obj.new : options.titleIcon} &nbsp ${titleKey ? obj[titleKey] : ''}
           </div>
           <div class="in ${idPanel}-subtitle">${subTitleKey ? obj[subTitleKey] : ''}</div>
         </div>
@@ -159,7 +159,7 @@ const Panel = {
         if (errorMessage) return;
         const obj = Input.getValues(formData);
         obj.id = `${data.length}`;
-        obj.new = html`<span class="bold" style="color: #ff533ecf;"> <i class="fa-solid fa-tag"></i> NEW ! </span>`;
+        obj.new = html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
         data.push(obj);
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);

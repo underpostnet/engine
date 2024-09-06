@@ -354,6 +354,7 @@ const MenuBms = {
           heightBottomBar,
           data,
           scrollClassContainer: 'main-body',
+          titleIcon: html`<i class="fas fa-tag"></i>`,
           callBackPanelRender: async function ({ data, imgRender }) {
             const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
             const options = {

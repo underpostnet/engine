@@ -104,9 +104,12 @@ const CalendarCore = {
         heightBottomBar,
         data,
         scrollClassContainer: options.idModal,
+        titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
         callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
           return await htmlRender({
-            render: html`<div class="abs center"><i class="fas fa-calendar-alt"></i></div>`,
+            render: html`<div class="abs center">
+              <i class="far fa-calendar" style="font-size: 130px; color: #d3d3d3cf;"></i>
+            </div>`,
           });
         },
       })}
