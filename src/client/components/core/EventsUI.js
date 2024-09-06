@@ -1,5 +1,6 @@
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { loggerFactory } from '../core/Logger.js';
+import { cssEffect } from './Css.js';
 import { NotificationManager } from './NotificationManager.js';
 import { s } from './VanillaJs.js';
 
@@ -11,6 +12,7 @@ const EventsUI = {
     if (!s(id)) return;
     let complete = true;
     s(id)[type] = async function (e) {
+      cssEffect(id, e);
       if (complete) {
         complete = false;
         if (!disableSpinner) await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);

@@ -964,23 +964,21 @@ const renderWave = ({ id }) => {
   `;
 };
 
-const btnTokensWave = {};
-const btnWaveEffect = async (buttonSelector, event) => {
-  const button = s(buttonSelector);
-  button.style.overflow = 'hidden';
-  const id = getId(btnTokensWave, 'wave-');
-  btnTokensWave[id] = { buttonSelector, event };
-  const diameter = Math.min(button.clientWidth, button.clientHeight);
-  const radius = diameter / 3;
-  append(buttonSelector, html`<span class="abs ${id} ripple" style="display: none"></span>`);
+const cssTokensEffect = {};
+const cssEffect = async (containerSelector, event) => {
+  const element = s(containerSelector);
+  element.style.overflow = 'hidden';
+  const id = getId(cssTokensEffect, 'btn-effect-');
+  cssTokensEffect[id] = { containerSelector, event };
+  append(containerSelector, html`<span class="abs ${id} ripple" style="display: none"></span>`);
   const circle = s(`.${id}`);
-  circle.style.width = circle.style.height = `${diameter}px`;
-  circle.style.left = `${event.clientX - (button.offsetLeft + radius)}px`;
-  circle.style.top = `${event.clientY - (button.offsetTop + radius) - radius * 2}px`;
+  circle.style.width = circle.style.height = `40px`;
+  circle.style.left = `${event.offsetX}px`;
+  circle.style.top = `${event.offsetY}px`;
   circle.style.display = null;
   setTimeout(() => {
     circle.remove();
-    delete btnTokensWave[id];
+    delete cssTokensEffect[id];
   }, 600);
 };
 
@@ -1014,5 +1012,5 @@ export {
   scrollBarDarkRender,
   scrollBarLightRender,
   renderWave,
-  btnWaveEffect,
+  cssEffect,
 };
