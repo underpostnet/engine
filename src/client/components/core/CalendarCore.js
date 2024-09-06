@@ -150,6 +150,8 @@ const CalendarCore = {
           heightTopBar,
           heightBottomBar,
           data,
+          formContainerClass: '',
+          customFormHeightAdjust: 120,
           scrollClassContainer: 'main-body-calendar',
           titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
           callBackPanelRender: async function ({ data, imgRender, htmlRender }) {

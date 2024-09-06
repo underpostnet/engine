@@ -355,6 +355,7 @@ const MenuBms = {
           data,
           scrollClassContainer: 'main-body',
           titleIcon: html`<i class="fas fa-tag"></i>`,
+          formContainerClass: 'session-in-log-in',
           callBackPanelRender: async function ({ data, imgRender }) {
             const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
             const options = {

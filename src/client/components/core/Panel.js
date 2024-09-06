@@ -149,7 +149,12 @@ const Panel = {
     setTimeout(async () => {
       Responsive.Event[`${idPanel}-responsive`] = () => {
         if (s(`.${idPanel}-form-container`))
-          s(`.${idPanel}-form-container`).style.maxHeight = `${window.innerHeight - heightTopBar - heightBottomBar}px`;
+          s(`.${idPanel}-form-container`).style.maxHeight = `${
+            window.innerHeight -
+            heightTopBar -
+            heightBottomBar -
+            (options.customFormHeightAdjust ? options.customFormHeightAdjust : 0)
+          }px`;
       };
       Responsive.Event[`${idPanel}-responsive`]();
       const validators = await Validator.instance(formData);
@@ -302,7 +307,9 @@ const Panel = {
         }
       </style>
       <div class="${idPanel}-container">
-        <div class="stq modal ${idPanel}-form-container session-in-log-in">
+        <div
+          class="stq modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}"
+        >
           <div class="in ${idPanel}-form-header">
             ${await BtnIcon.Render({
               class: `section-mp btn-custom btn-${idPanel}-add`,
