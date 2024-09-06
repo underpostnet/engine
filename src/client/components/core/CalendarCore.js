@@ -235,9 +235,16 @@ const CalendarCore = {
         .fc-toolbar-chunk {
           padding: 5px;
         }
+
+        .calendar-buttons-container {
+          padding-bottom: 15px;
+          top: 100px;
+          height: 60px;
+          z-index: 4;
+        }
       </style>
       <div class="in calendar-container hide">
-        <div class="fl modal" style="padding-bottom: 15px">
+        <div class="stq modal calendar-buttons-container">
           ${await BtnIcon.Render({
             class: `section-mp btn-custom close-calendar-container flr`,
             label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
