@@ -1,7 +1,16 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, ThemeEvents, Themes, borderChar, boxShadow, darkTheme, renderCssAttr } from '../core/Css.js';
+import {
+  Css,
+  ThemeEvents,
+  Themes,
+  borderChar,
+  boxShadow,
+  btnWaveEffect,
+  darkTheme,
+  renderCssAttr,
+} from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -286,7 +295,8 @@ const MenuNexodev = {
       heightBottomBar,
       htmlMainBody: async () => {
         setTimeout(() => {
-          s(`.landing-sig-up-btn`).onclick = () => {
+          s(`.landing-sig-up-btn`).onclick = (e) => {
+            btnWaveEffect(`.landing-sig-up-btn`, e);
             s(`.main-btn-sign-up`).click();
           };
         });
