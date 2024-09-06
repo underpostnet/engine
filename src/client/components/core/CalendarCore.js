@@ -236,8 +236,8 @@ const CalendarCore = {
           padding: 5px;
         }
       </style>
-      <div class="in section-mp calendar-container hide">
-        <div class="fl">
+      <div class="in calendar-container hide">
+        <div class="fl modal" style="padding-bottom: 15px">
           ${await BtnIcon.Render({
             class: `section-mp btn-custom close-calendar-container flr`,
             label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
