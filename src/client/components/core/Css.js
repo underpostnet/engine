@@ -1,4 +1,4 @@
-import { newInstance, range, s4, splitEveryXChar } from './CommonJs.js';
+import { getId, newInstance, range, s4, splitEveryXChar } from './CommonJs.js';
 import { CssCoreDark, CssCoreLight } from './CssCore.js';
 import { DropDown } from './DropDown.js';
 import { Modal } from './Modal.js';
@@ -964,6 +964,26 @@ const renderWave = ({ id }) => {
   `;
 };
 
+const btnTokensWave = {};
+const btnWaveEffect = async (buttonSelector, event) => {
+  const button = s(buttonSelector);
+  button.style.overflow = 'hidden';
+  const id = getId(btnTokensWave, 'wave-');
+  btnTokensWave[id] = { buttonSelector, event };
+  const diameter = Math.min(button.clientWidth, button.clientHeight);
+  const radius = diameter / 3;
+  append(buttonSelector, html`<span class="abs ${id} ripple" style="display: none"></span>`);
+  const circle = s(`.${id}`);
+  circle.style.width = circle.style.height = `${diameter}px`;
+  circle.style.left = `${event.clientX - (button.offsetLeft + radius)}px`;
+  circle.style.top = `${event.clientY - (button.offsetTop + radius) - radius * 2}px`;
+  circle.style.display = null;
+  setTimeout(() => {
+    circle.remove();
+    delete btnTokensWave[id];
+  }, 600);
+};
+
 export {
   Css,
   Themes,
@@ -994,4 +1014,5 @@ export {
   scrollBarDarkRender,
   scrollBarLightRender,
   renderWave,
+  btnWaveEffect,
 };

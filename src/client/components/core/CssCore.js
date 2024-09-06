@@ -110,6 +110,18 @@ const CssCommonCore = async () => {
         width: 48px;
         height: 46.5px;
       }
+      .ripple {
+        border-radius: 50%;
+        transform: scale(0);
+        animation: ripple 600ms linear;
+        background-color: rgba(137, 137, 137, 0.503);
+      }
+      @keyframes ripple {
+        to {
+          transform: scale(4);
+          opacity: 0;
+        }
+      }
     </style>
     <style>
       .lds-dual-ring-mini,
