@@ -156,6 +156,7 @@ const CalendarCore = {
       <div class="in main-body-calendar">
         ${await Panel.Render({
           idPanel,
+          parentIdModal: options.idModal,
           formData,
           heightTopBar,
           heightBottomBar,

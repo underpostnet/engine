@@ -10,6 +10,7 @@ import { DropDown } from './DropDown.js';
 import { dynamicCol } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
+import { Modal } from './Modal.js';
 
 const Panel = {
   Tokens: {},
@@ -188,16 +189,25 @@ const Panel = {
     `;
 
     setTimeout(async () => {
-      Responsive.Event[`${idPanel}-responsive`] = () => {
-        if (s(`.${idPanel}-form-container`))
-          s(`.${idPanel}-form-container`).style.maxHeight = `${
-            window.innerHeight -
-            heightTopBar -
-            heightBottomBar -
-            (options.customFormHeightAdjust ? options.customFormHeightAdjust : 0)
-          }px`;
-      };
-      Responsive.Event[`${idPanel}-responsive`]();
+      if (options.parentIdModal) {
+        Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`] = () => {
+          if (s(`.${idPanel}-form-container`))
+            s(`.${idPanel}-form-container`).style.maxHeight = `${s(`.${options.parentIdModal}`).offsetHeight - 100}px`;
+        };
+        Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`]();
+      } else {
+        Responsive.Event[`${idPanel}-responsive`] = () => {
+          if (s(`.${idPanel}-form-container`))
+            s(`.${idPanel}-form-container`).style.maxHeight = `${
+              window.innerHeight -
+              heightTopBar -
+              heightBottomBar -
+              (options.customFormHeightAdjust ? options.customFormHeightAdjust : 0)
+            }px`;
+        };
+        Responsive.Event[`${idPanel}-responsive`]();
+      }
+
       const validators = await Validator.instance(formData);
       EventsUI.onClick(`.btn-${idPanel}-submit`, async (e) => {
         e.preventDefault();
@@ -363,6 +373,7 @@ const Panel = {
             <form class="in ${idPanel}-form">
               <div class="fl">${renderForm}</div>
               <div class="in">${renderFormBtn}</div>
+              <br /><br />
             </form>
           </div>
         </div>
