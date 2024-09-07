@@ -100,7 +100,7 @@ const Panel = {
       if (modelData.disableRender) continue;
       switch (modelData.inputType) {
         case 'dropdown':
-          renderForm += html` <div class="fll section-mp">
+          renderForm += html` <div class="in section-mp">
             ${await DropDown.Render({
               id: `${modelData.id}`,
               label: html`${Translate.Render(modelData.model)}`,
@@ -123,14 +123,13 @@ const Panel = {
 
         case 'checkbox-on-off':
           {
-            let panelCheckboxSwitch = false;
             setTimeout(() => {
               s(`.toggle-form-container-${modelData.id}`).onclick = () => {
                 ToggleSwitch.Tokens[`${modelData.id}`].click();
               };
             });
             renderForm += html`<div
-              class="fll section-mp toggle-form-container toggle-form-container-${modelData.id} hover"
+              class="in section-mp toggle-form-container toggle-form-container-${modelData.id} hover"
               style="height: 82px;"
             >
               <div class="fl">
@@ -145,14 +144,10 @@ const Panel = {
                     id: `${modelData.id}`,
                     containerClass: 'inl',
                     disabledOnClick: true,
-                    checked: panelCheckboxSwitch,
+                    checked: false,
                     on: {
-                      unchecked: () => {
-                        panelCheckboxSwitch = false;
-                      },
-                      checked: () => {
-                        panelCheckboxSwitch = true;
-                      },
+                      unchecked: () => {},
+                      checked: () => {},
                     },
                   })}
                 </div>
@@ -167,7 +162,7 @@ const Panel = {
             type: modelData.inputType,
             // autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render(modelData.model)}`,
-            containerClass: 'fll section-mp width-mini-box input-container',
+            containerClass: 'in section-mp width-mini-box input-container',
             placeholder: true,
             // disabled: true,
             // disabledEye: true,
