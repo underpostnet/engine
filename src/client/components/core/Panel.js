@@ -174,7 +174,7 @@ const Panel = {
       ${await BtnIcon.Render({
         class: `section-mp btn-custom btn-${idPanel}-submit`,
         label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
-        type: 'button',
+        type: 'submit',
       })}
       ${await BtnIcon.Render({
         class: `section-mp btn-custom btn-${idPanel}-clean`,
