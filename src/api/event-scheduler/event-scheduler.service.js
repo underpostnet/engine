@@ -12,6 +12,9 @@ const EventSchedulerService = {
   get: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
     const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
+    if (req.path.startsWith('/creatorUser')) {
+      return await EventScheduler.find({ creatorUserId: req.params.id ? req.params.id : req.auth.user._id });
+    }
     if (req.params.id) return await EventScheduler.findById(req.params.id);
     return await EventScheduler.find();
   },

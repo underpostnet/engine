@@ -1,4 +1,5 @@
 import { EventSchedulerService } from '../../services/event-scheduler/event-scheduler.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { range, s4 } from './CommonJs.js';
 import { Modal } from './Modal.js';
@@ -14,6 +15,33 @@ const CalendarCore = {
   RenderStyle: async function () {},
   Render: async function (options = { idModal: '' }) {
     let calendar;
+    let data = range(0, 5).map((i) => {
+      return {
+        id: `event-${i}`,
+        description: `Event ${s4()}${s4()}${s4()}`,
+        start: new Date().toTimeString(),
+        end: new Date().toTimeString(),
+      };
+    });
+
+    {
+      if (Auth.getToken()) {
+        const result = await EventSchedulerService.get({
+          id: `creatorUser`,
+        });
+        NotificationManager.Push({
+          html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
+          status: result.status,
+        });
+        if (result.status === 'success')
+          data = result.data
+            .map((o) => {
+              o.id = o._id;
+              return o;
+            })
+            .reverse();
+      }
+    }
     const renderCalendar = () => {
       const calendarEl = s('#calendar');
       calendar = new FullCalendar.Calendar(calendarEl, {
@@ -106,14 +134,6 @@ const CalendarCore = {
       },
     ];
 
-    const data = range(0, 5).map((i) => {
-      return {
-        id: `event-${i}`,
-        description: `Event ${s4()}${s4()}${s4()}`,
-        start: new Date().toTimeString(),
-        end: new Date().toTimeString(),
-      };
-    });
     const heightTopBar = 100;
     const heightBottomBar = 0;
 
