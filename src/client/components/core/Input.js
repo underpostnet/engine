@@ -2,6 +2,7 @@ import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
+import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
@@ -95,8 +96,6 @@ const Input = {
       switch (inputData.inputType) {
         case 'checkbox':
         case 'checkbox-on-off':
-          console.error(s(`.${inputData.id}-checkbox`));
-          window._test = s(`.${inputData.id}-checkbox`);
           obj[inputData.model] = s(`.${inputData.id}-checkbox`).checked;
           continue;
           break;
@@ -117,6 +116,17 @@ const Input = {
     const obj = {};
     for (const inputData of formData) {
       if (!s(`.${inputData.id}`)) continue;
+
+      switch (inputData.inputType) {
+        case 'checkbox':
+        case 'checkbox-on-off':
+          if (s(`.${inputData.id}-checkbox`).checked) ToggleSwitch.Tokens[inputData.id].click();
+          continue;
+          break;
+
+        default:
+          break;
+      }
 
       if ('model' in inputData) {
         if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = '';

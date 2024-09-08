@@ -1,6 +1,8 @@
+import { EventSchedulerService } from '../../services/event-scheduler/event-scheduler.service.js';
 import { BtnIcon } from './BtnIcon.js';
 import { range, s4 } from './CommonJs.js';
 import { Modal } from './Modal.js';
+import { NotificationManager } from './NotificationManager.js';
 import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
 import { Translate } from './Translate.js';
@@ -192,6 +194,16 @@ const CalendarCore = {
               },
             },
           ],
+          on: {
+            add: async function ({ data }) {
+              const { status, message } = await EventSchedulerService.post({ body: data });
+              NotificationManager.Push({
+                html: status === 'success' ? Translate.Render('success-add-event-scheduler') : message,
+                status: status,
+              });
+              return { data, status, message };
+            },
+          },
         })}
         <div class="in" style="margin-bottom: 100px"></div>
       </div>

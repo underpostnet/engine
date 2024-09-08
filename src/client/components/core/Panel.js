@@ -210,6 +210,10 @@ const Panel = {
         if (errorMessage) return;
         const obj = Input.getValues(formData);
         obj.id = `${data.length}`;
+        if (options && options.on && options.on.add) {
+          const { status } = await options.on.add({ data: obj });
+          if (status === 'error') return;
+        }
         obj.new = html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
         data.push(obj);
         prepend(`.${idPanel}-render`, await renderPanel(obj));

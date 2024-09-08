@@ -24,6 +24,11 @@ const UserSchema = new Schema(
     username: { type: String, trim: true, unique: true, required: 'Username is required' },
     role: { type: String, enum: userRoleEnum, default: 'guest' },
     profileImageId: { type: Schema.Types.ObjectId, ref: 'File' },
+    phoneNumbers: [
+      {
+        type: { type: String, enum: ['office', 'home', 'private'], number: { type: String } },
+      },
+    ],
     publicKey: {
       type: [
         {

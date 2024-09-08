@@ -514,6 +514,7 @@ const buildApiSrc = async (
       ),
       'utf8',
     );
+  return;
   if (fs.existsSync(`./src/client/services/${fromOptions.apiId}/${fromOptions.apiId}.management.js`))
     fs.writeFileSync(
       `./src/client/services/${toOptions.apiId}/${toOptions.apiId}.management.js`,

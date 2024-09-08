@@ -394,6 +394,10 @@ const TranslateCore = {
       en: 'Today',
       es: 'Hoy',
     };
+    Translate.Data['success-add-event-scheduler'] = {
+      en: 'Event successfully added to scheduler.',
+      es: 'Evento añadido correctamente al calendario.',
+    };
   },
 };
 

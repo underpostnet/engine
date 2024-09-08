@@ -10,6 +10,7 @@ const EventSchedulerSchema = new Schema(
     end: { type: Date },
     description: { type: String },
     allDay: { type: Boolean },
+    creatorUserId: { type: Schema.Types.ObjectId, ref: 'User' },
   },
   {
     timestamps: true,

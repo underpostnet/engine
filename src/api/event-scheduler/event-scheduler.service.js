@@ -7,7 +7,7 @@ const EventSchedulerService = {
   post: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
     const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
-    return await new EventScheduler(req.body).save();
+    return await new EventScheduler({ ...req.body, creatorUserId: req.auth.user._id }).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
