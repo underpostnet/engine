@@ -10,7 +10,7 @@
     "ssl": "env-cmd -f .env.production node bin/ssl",
     "pm2-delete": "pm2 delete engine",
     "dev": "env-cmd -f .env.development nodemon src/server",
-    "dev-api": "env-cmd -f .env.development nodemon --watch src/api src/api",
+    "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
     "dev-client": "env-cmd -f .env.development node src/client.dev",
     "docs": "jsdoc -c jsdoc.json",
     "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier && npm install -g env-cmd",
