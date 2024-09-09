@@ -1063,47 +1063,49 @@ const Modal = {
                 : ''}"
             >
               <div class="btn-bar-modal-container-render-${idModal}"></div>
-              ${await BtnIcon.Render({
-                class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
-                  options?.btnContainerClass ? options.btnContainerClass : ''
-                } ${options?.barConfig?.buttons?.minimize?.disabled ? 'hide' : ''}`,
-                label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
-                  ${options?.barConfig?.buttons?.minimize?.label ? options.barConfig.buttons.minimize.label : html`_`}
-                </div>`,
-              })}
-              ${await BtnIcon.Render({
-                class: `btn-restore-${idModal} btn-modal-default btn-modal-default-${idModal} ${
-                  options?.btnContainerClass ? options.btnContainerClass : ''
-                } ${options?.barConfig?.buttons?.restore?.disabled ? 'hide' : ''}`,
-                label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
-                  ${options?.barConfig?.buttons?.restore?.label ? options.barConfig.buttons.restore.label : html`□`}
-                </div>`,
-                style: 'display: none',
-              })}
-              ${await BtnIcon.Render({
-                class: `btn-maximize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
-                  options?.btnContainerClass ? options.btnContainerClass : ''
-                } ${options?.barConfig?.buttons?.maximize?.disabled ? 'hide' : ''}`,
-                label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
-                  ${options?.barConfig?.buttons?.maximize?.label ? options.barConfig.buttons.maximize.label : html`▢`}
-                </div>`,
-              })}
-              ${await BtnIcon.Render({
-                class: `btn-close-${idModal} btn-modal-default btn-modal-default-${idModal} ${
-                  options?.btnContainerClass ? options.btnContainerClass : ''
-                } ${options?.barConfig?.buttons?.close?.disabled ? 'hide' : ''}`,
-                label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
-                  ${options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`}
-                </div>`,
-              })}
-              ${await BtnIcon.Render({
-                class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal} ${
-                  options?.btnContainerClass ? options.btnContainerClass : ''
-                } ${options?.barConfig?.buttons?.menu?.disabled ? 'hide' : ''}`,
-                label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
-                  ${options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`}
-                </div>`,
-              })}
+              <div class="in flr bar-default-modal" style="z-index: 1">
+                ${await BtnIcon.Render({
+                  class: `btn-minimize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
+                    options?.btnContainerClass ? options.btnContainerClass : ''
+                  } ${options?.barConfig?.buttons?.minimize?.disabled ? 'hide' : ''}`,
+                  label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
+                    ${options?.barConfig?.buttons?.minimize?.label ? options.barConfig.buttons.minimize.label : html`_`}
+                  </div>`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `btn-restore-${idModal} btn-modal-default btn-modal-default-${idModal} ${
+                    options?.btnContainerClass ? options.btnContainerClass : ''
+                  } ${options?.barConfig?.buttons?.restore?.disabled ? 'hide' : ''}`,
+                  label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
+                    ${options?.barConfig?.buttons?.restore?.label ? options.barConfig.buttons.restore.label : html`□`}
+                  </div>`,
+                  style: 'display: none',
+                })}
+                ${await BtnIcon.Render({
+                  class: `btn-maximize-${idModal} btn-modal-default btn-modal-default-${idModal} ${
+                    options?.btnContainerClass ? options.btnContainerClass : ''
+                  } ${options?.barConfig?.buttons?.maximize?.disabled ? 'hide' : ''}`,
+                  label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
+                    ${options?.barConfig?.buttons?.maximize?.label ? options.barConfig.buttons.maximize.label : html`▢`}
+                  </div>`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `btn-close-${idModal} btn-modal-default btn-modal-default-${idModal} ${
+                    options?.btnContainerClass ? options.btnContainerClass : ''
+                  } ${options?.barConfig?.buttons?.close?.disabled ? 'hide' : ''}`,
+                  label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
+                    ${options?.barConfig?.buttons?.close?.label ? options.barConfig.buttons.close.label : html`X`}
+                  </div>`,
+                })}
+                ${await BtnIcon.Render({
+                  class: `btn-menu-${idModal} btn-modal-default btn-modal-default-${idModal} ${
+                    options?.btnContainerClass ? options.btnContainerClass : ''
+                  } ${options?.barConfig?.buttons?.menu?.disabled ? 'hide' : ''}`,
+                  label: html`<div class="${options?.btnIconContainerClass ? options.btnIconContainerClass : ''}">
+                    ${options?.barConfig?.buttons?.menu?.label ? options.barConfig.buttons.menu.label : html`≡`}
+                  </div>`,
+                })}
+              </div>
             </div>
             ${options && options.status
               ? html` <div class="abs modal-icon-container">${renderStatus(options.status)}</div> `
