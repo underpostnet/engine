@@ -178,7 +178,7 @@ self.addEventListener('fetch', (event) => {
             if (preloadCache) await caches.delete(path);
           }
 
-          logger.error('Fetch failed; returning offline page instead.', error);
+          logger.error('Fetch failed; returning offline page instead.', { error, path });
 
           // const cache = await caches.open(CACHE_NAME);
           // const cachedResponse = await cache.match(OFFLINE_URL);

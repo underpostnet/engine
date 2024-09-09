@@ -95,14 +95,6 @@ try {
           throw new Error(`Os not found: ${os} for program ${program}`);
       }
       break;
-    case 'vs-extensions':
-      {
-        const extensions = JSON.parse(fs.readFileSync(`./.vscode/extensions.json`, 'utf8'));
-        extensions.recommendations.map((extension) => {
-          if (extension) shellExec(`code --install-extension ${extension}`);
-        });
-      }
-      break;
     case 'wordpress':
       await (async () => {
         const urlDownload = `https://wordpress.org/latest.zip`;

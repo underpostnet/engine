@@ -9,4 +9,6 @@ SrrComponent = ({ ssrPath }) => html`
   <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/list/index.global.min.js"></script>
   <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/multimonth/index.global.min.js"></script>
   <script type="text/javascript" src="${ssrPath}dist/@fullcalendar/timegrid/index.global.min.js"></script>
+  <script type="text/javascript" src="${ssrPath}dist/easymde/easymde.min.js"></script>
+  <link rel="stylesheet" href="${ssrPath}dist/easymde/easymde.min.css" />
 `;
