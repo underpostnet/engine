@@ -46,7 +46,7 @@
     "@neodrag/vanilla": "^2.0.3",
     "@pinata/sdk": "^2.1.0",
     "adm-zip": "^0.5.10",
-    "ag-grid-community": "^31.0.0",
+    "ag-grid-community": "31.0.0",
     "axios": "^1.5.1",
     "cli-progress": "^3.12.0",
     "cli-spinners": "^3.0.0",
