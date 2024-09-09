@@ -187,7 +187,9 @@ const Panel = {
       if (options.parentIdModal) {
         Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`] = () => {
           if (s(`.${idPanel}-form-container`))
-            s(`.${idPanel}-form-container`).style.maxHeight = `${s(`.${options.parentIdModal}`).offsetHeight - 100}px`;
+            s(`.${idPanel}-form-container`).style.maxHeight = `${
+              s(`.${options.parentIdModal}`).offsetHeight - Modal.headerTitleHeight
+            }px`;
         };
         Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`]();
       } else {

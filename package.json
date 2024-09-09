@@ -22,7 +22,8 @@
     "test": "env-cmd -f .env.test c8 mocha",
     "fix": "npm update -g && npm update && npm audit fix --force && npm audit",
     "preinstall": "npm config set audit false && npm config set loglevel silent",
-    "restore-preinstall": "npm config set audit true && npm config set loglevel notice"
+    "restore-preinstall": "npm config set audit true && npm config set loglevel notice",
+    "update-template": "node bin/util export-git-changes ./ ../pwa-microservices-template"
   },
   "repository": {
     "type": "git",

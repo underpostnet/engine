@@ -34,7 +34,8 @@ const Docs = {
       ...modalOptions,
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
-      if (s(`.iframe-${ModalId}`)) s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - 110}px`;
+      if (s(`.iframe-${ModalId}`))
+        s(`.iframe-${ModalId}`).style.height = `${s(`.${ModalId}`).offsetHeight - Modal.headerTitleHeight}px`;
     };
     Modal.Data[ModalId].onObserverListener[ModalId]();
   },

@@ -66,7 +66,7 @@ const Worker = {
         }
       });
       window.addEventListener('focus', function () {
-        Worker.reload(delayLiveReload);
+        // Worker.reload(delayLiveReload);
       });
     }
     window.serviceWorkerReady = true;

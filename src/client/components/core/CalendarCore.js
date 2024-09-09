@@ -140,7 +140,9 @@ const CalendarCore = {
     setTimeout(() => {
       Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
         if (s(`.main-body-calendar`))
-          s(`.main-body-calendar`).style.height = `${s(`.${options.idModal}`).offsetHeight - 110}px`;
+          s(`.main-body-calendar`).style.height = `${
+            s(`.${options.idModal}`).offsetHeight - Modal.headerTitleHeight
+          }px`;
       };
       Modal.Data[options.idModal].onObserverListener[options.idModal]();
 

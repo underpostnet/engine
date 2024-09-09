@@ -122,6 +122,14 @@ const CssCommonCore = async () => {
           opacity: 0;
         }
       }
+      .title-view-modal {
+        top: 8px;
+        font-size: 21px !important;
+        position: absolute !important;
+      }
+      .title-view-modal .view-title-icon {
+        font-size: 21px !important;
+      }
     </style>
     <style>
       .lds-dual-ring-mini,

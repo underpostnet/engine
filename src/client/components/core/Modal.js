@@ -60,6 +60,7 @@ const Modal = {
     let height = 400;
     let top = 0;
     let left = 0;
+    this.headerTitleHeight = 46;
     const topBottomBarEnable = options && options.barMode && options.barMode === 'top-bottom-bar';
     if (!topBottomBarEnable) {
       options.heightTopBar = options.heightTopBar + options.heightBottomBar;
@@ -1016,6 +1017,11 @@ const Modal = {
       s(`.btn-maximize-${idModal}`).click();
       return;
     }
+    if (options.slideMenu) {
+      if (options.titleClass) options.titleClass = ' title-view-modal ' + options.titleClass;
+      options.titleClass = ' title-view-modal ';
+    }
+
     const render = html` <style class="style-${idModal}">
         .${idModal} {
           width: ${width}px;
