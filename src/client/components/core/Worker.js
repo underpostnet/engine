@@ -81,7 +81,8 @@ const Worker = {
         navigator.serviceWorker.controller.postMessage({
           status: 'skipWaiting',
         });
-      setTimeout(() => resolve((location.href = `${location.origin}${location.pathname}?r=${s4()}`)), timeOut);
+      // (location.href = `${location.origin}${location.pathname}${location.search}`)
+      setTimeout(() => resolve(location.reload()), timeOut);
     });
   },
   update: async function () {
