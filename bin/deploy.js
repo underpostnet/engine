@@ -355,16 +355,23 @@ try {
     case 'build-full-client':
       {
         const { deployId, folder } = loadConf(process.argv[3]);
-        const argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
-        const argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
-        const serverConf = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+
+        let argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
+        let argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
+        const serverConf = deployId
+          ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
+          : Config.default.server;
+        if (!deployId) {
+          argHost = 'default.net';
+          argPath = '/';
+        }
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
             if (argHost && argPath && (!argHost.includes(host) || !argPath.includes(path))) {
               delete serverConf[host][path];
             } else {
-              serverConf[host][path].lightBuild = false;
-              serverConf[host][path].minifyBuild = true;
+              serverConf[host][path].lightBuild = process.argv.includes('l') ? true : false;
+              serverConf[host][path].minifyBuild = process.env.NODE_ENV === 'production' ? true : false;
             }
           }
         }
