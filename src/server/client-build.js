@@ -543,10 +543,18 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
       if (!enableLiveRebuild && !process.argv.includes('l') && docsBuild) {
         // fullBuildEnabled || process.argv.includes('docs')
 
+        // https://www.pullrequest.com/blog/leveraging-jsdoc-for-better-code-documentation-in-javascript/
+        // https://jsdoc.app/about-configuring-jsdoc
         // https://jsdoc.app/ Block tags
+
+        // "theme_opts": {
+        //   "default_theme": "dark" // "light", "fallback-dark", "fallback-light"
+        // }
 
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
+        jsDocsConfig.opts.theme_opts.title = metadata && metadata.title ? metadata.title : undefined;
+        jsDocsConfig.opts.theme_opts.favicon = `./public/${host}${path === '/' ? path : `${path}/favicon.ico`}`;
         fs.writeFileSync(`./jsdoc.json`, JSON.stringify(jsDocsConfig, null, 4), 'utf8');
         logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
         shellExec(`npm run docs`, { silent: true });
