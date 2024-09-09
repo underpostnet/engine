@@ -10,6 +10,7 @@ import { getProxyPath, htmls, s } from './VanillaJs.js';
 const logger = loggerFactory(import.meta);
 
 const Worker = {
+  devMode: () => location.origin.match('localhost') || location.origin.match('127.0.0.1'),
   instance: async function ({ router, render }) {
     logger.warn('Init');
     navigator.serviceWorker.addEventListener('controllerchange', () => {
@@ -55,6 +56,19 @@ const Worker = {
     await render();
     LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
+    if (this.devMode()) {
+      const delayLiveReload = 1250;
+      // Dev mode
+
+      window.addEventListener('visibilitychange', (event) => {
+        if (document.visibilityState === 'visible') {
+          Worker.reload(delayLiveReload);
+        }
+      });
+      window.addEventListener('focus', function () {
+        Worker.reload(delayLiveReload);
+      });
+    }
     window.serviceWorkerReady = true;
   },
   // Get the current service worker registration.
