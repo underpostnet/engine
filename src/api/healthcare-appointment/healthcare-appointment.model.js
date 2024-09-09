@@ -1,4 +1,5 @@
 import { Schema, model, Types } from 'mongoose';
+import { medicalSpecialties } from '../../client/components/healthcare/CommonHealthcare.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -9,6 +10,14 @@ const HealthcareAppointmentSchema = new Schema({
   },
   professional: {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
+    specialty: [
+      {
+        type: String,
+        enum: medicalSpecialties.map((o) => {
+          return o.id;
+        }),
+      },
+    ],
   },
 });
 
