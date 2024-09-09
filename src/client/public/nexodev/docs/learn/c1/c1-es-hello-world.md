@@ -16,4 +16,4 @@
 
 `npm run dev` (el server correrá en el localhost:4001)
 
-**1.5** Abrir el vscode en la carpeta raiz del proyecto y editar el `Hello World!!` que esta en `src/client/Default.index.js` por algo random. Sacar una captura que evidencie el cambio en el home de la app.
+**1.5** Abrir el vscode en la carpeta raiz del proyecto y editar el `Hello World!!` que esta en `src/client/Default.index.js` por algo random. El cambio se reflejará en la página de inicio de la aplicación.

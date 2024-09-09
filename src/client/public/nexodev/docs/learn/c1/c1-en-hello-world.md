@@ -16,4 +16,4 @@
 
 `npm run dev` (The server will run on localhost:4001)
 
-**1.5** Open VS Code in the project's root directory and edit the `Hello World!!` string located in `src/client/Default.index.js` to any random text. Take a screenshot to show the change in the app's homepage.
+**1.5** Open VS Code in the project's root directory and edit the `Hello World!!` string located in `src/client/Default.index.js` to any random text. The change will be reflected on the app's homepage.
