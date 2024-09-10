@@ -25,7 +25,7 @@ cd pwa-microservices-template
 ```
 
 ```bash
-npm run install-template`
+npm run install-template
 ```
 
 ```bash
