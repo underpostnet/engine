@@ -32,4 +32,4 @@ npm run install-template
 npm run dev
 ```
 
-The server will run on http://localhost:4001
+The server will run on [http://localhost:4001](http://localhost:4001)
