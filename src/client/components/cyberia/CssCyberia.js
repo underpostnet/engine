@@ -199,11 +199,6 @@ const CssCyberiaDark = {
             /* background: green; */
           }
 
-          .notification-manager-date {
-            font-size: 20px;
-            color: #7a7a7a;
-          }
-
           .section-mp {
             margin: 5px;
             margin-top: 15px;

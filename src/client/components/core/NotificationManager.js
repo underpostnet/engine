@@ -12,13 +12,17 @@ const NotificationManager = {
       html`
         <style>
           .notification-board-container {
-            right: 5px;
-            width: 300px;
-            bottom: ${5 + (options?.heightBottomBar ? options.heightBottomBar : 0)}px;
-            z-index: 5;
+            right: 5px !important;
+            width: 300px !important;
+            bottom: ${5 + (options?.heightBottomBar ? options.heightBottomBar : 0)}px !important;
+            z-index: 5 !important;
           }
           .notification-board-title {
-            padding: 5px;
+            padding: 5px !important;
+          }
+          .notification-manager-date {
+            font-size: 20px !important;
+            color: #7a7a7a !important;
           }
         </style>
         <div class="fix notification-board-container"></div>
