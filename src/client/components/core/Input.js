@@ -28,8 +28,10 @@ const Input = {
         : options.placeholder
       : null;
     setTimeout(() => {
-      s(`.input-container-${id}`).onclick = () =>
+      s(`.input-container-${id}`).onclick = () => {
         ['color'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
+        ['datetime-local'].includes(options.type) ? s(`.${id}`).showPicker() : s(`.${id}`).focus();
+      };
 
       if (s(`.btn-eye-${id}`))
         s(`.btn-eye-${id}`).onclick = () => {
