@@ -14,22 +14,38 @@ Develop, build, deploy, test, monitor, and manage multiple runtime applications 
 <!-- https://kapasia-dev-ed.my.site.com/Badges4Me/s/ -->
 <!-- https://simpleicons.org/ -->
 
-#### Create a New project
+#### Installation
 
 ```bash
-git clone https://github.com/underpostnet/pwa-microservices-template
+npm install
 ```
 
-```bash
-cd pwa-microservices-template
-```
+#### Usage
 
-```bash
-npm run install-template`
-```
+Run dev
 
 ```bash
 npm run dev
 ```
 
-The server will run on http://localhost:4001
+Run on `pm2`
+
+```bash
+npm run pm2
+```
+
+Run on `docker-compose`
+
+```bash
+npm run start:docker
+```
+
+Run on `docker`
+
+```bash
+# build image
+docker build . -t engine
+
+# run image
+docker run --name engine-instance -p 41061:3001 -p 41062:3002 engine
+```
