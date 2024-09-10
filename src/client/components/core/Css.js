@@ -21,7 +21,7 @@ const Css = {
       addTheme(CssCoreDark);
       addTheme(CssCoreLight);
     }
-    const localStorageTheme = localStorage.getItem('theme');
+    const localStorageTheme = localStorage.getItem('_theme');
     if (localStorageTheme && Themes[localStorageTheme]) {
       const themeOption = ThemesScope.find((t) => t.theme === localStorageTheme);
       if (themeOption) return await this.Init(themeOption);
@@ -347,7 +347,7 @@ const renderDefaultWindowsModalButtonContent = (options) => {
 let darkTheme = true;
 const ThemeEvents = {};
 const TriggerThemeEvents = () => {
-  localStorage.setItem('theme', Css.currentTheme);
+  localStorage.setItem('_theme', Css.currentTheme);
   Object.keys(ThemeEvents).map((keyEvent) => ThemeEvents[keyEvent]());
 };
 

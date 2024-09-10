@@ -17,7 +17,7 @@
     "encoding": "utf8",
     "verbose": true,
     "theme_opts": {
-      "default_theme": "fallback-light",
+      "default_theme": "light",
       "search": true,
       "title": "Nexodev - ERP, CRM Development & Cloud DevOps Services",
       "homepageTitle": "Docs",
