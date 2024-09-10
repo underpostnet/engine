@@ -965,7 +965,18 @@ const renderWave = ({ id }) => {
 };
 
 const cssTokensEffect = {};
+const cssTokensContainer = {};
 const cssEffect = async (containerSelector, event) => {
+  // Array.from(event.target.classList)
+  let offsetX, offsetY;
+  if (Array.from(event.srcElement.classList).includes('ripple') && cssTokensContainer[containerSelector]) {
+    offsetX = cssTokensContainer[containerSelector].lastOffsetX;
+    offsetY = cssTokensContainer[containerSelector].lastOffsetY;
+  } else {
+    cssTokensContainer[containerSelector] = { lastOffsetX: event.offsetX, lastOffsetY: event.offsetY };
+    offsetX = event.offsetX;
+    offsetY = event.offsetY;
+  }
   const element = s(containerSelector);
   element.style.overflow = 'hidden';
   const id = getId(cssTokensEffect, 'btn-effect-');
@@ -973,8 +984,8 @@ const cssEffect = async (containerSelector, event) => {
   append(containerSelector, html`<span class="abs ${id} ripple" style="display: none"></span>`);
   const circle = s(`.${id}`);
   circle.style.width = circle.style.height = `40px`;
-  circle.style.left = `${event.offsetX}px`;
-  circle.style.top = `${event.offsetY}px`;
+  circle.style.left = `${offsetX}px`;
+  circle.style.top = `${offsetY}px`;
   circle.style.display = null;
   setTimeout(() => {
     circle.remove();
