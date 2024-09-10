@@ -60,7 +60,7 @@ const Modal = {
     let height = 400;
     let top = 0;
     let left = 0;
-    this.headerTitleHeight = 46;
+    this.headerTitleHeight = 42.5;
     const topBottomBarEnable = options && options.barMode && options.barMode === 'top-bottom-bar';
     if (!topBottomBarEnable) {
       options.heightTopBar = options.heightTopBar + options.heightBottomBar;
@@ -1544,6 +1544,7 @@ const Modal = {
       };
     });
   },
+  headerTitleHeight: 42.5,
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {

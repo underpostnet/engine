@@ -6,6 +6,7 @@ import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
+import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
@@ -138,13 +139,23 @@ const CalendarCore = {
     const heightBottomBar = 0;
 
     setTimeout(() => {
-      Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
-        if (s(`.main-body-calendar`))
-          s(`.main-body-calendar`).style.height = `${
-            s(`.${options.idModal}`).offsetHeight - Modal.headerTitleHeight
-          }px`;
+      const resizeModal = () => {
+        Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
+          if (s(`.main-body-calendar`))
+            s(`.main-body-calendar`).style.height = `${
+              s(`.${options.idModal}`).offsetHeight - Modal.headerTitleHeight
+            }px`;
+        };
+        Modal.Data[options.idModal].onObserverListener[options.idModal]();
       };
-      Modal.Data[options.idModal].onObserverListener[options.idModal]();
+      setTimeout(resizeModal);
+      RouterEvents[`${options.idModal}-main-body`] = ({ route }) => {
+        if (route === 'calendar') {
+          setTimeout(() => {
+            resizeModal();
+          }, 400);
+        }
+      };
 
       s(`.close-calendar-container`).onclick = () => {
         s(`.calendar-container`).classList.add('hide');
@@ -189,6 +200,7 @@ const CalendarCore = {
           customFormHeightAdjust: 120,
           scrollClassContainer: 'main-body-calendar',
           titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
+          route: 'calendar',
           callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
             return await htmlRender({
               render: html`<div class="abs center">
@@ -285,7 +297,7 @@ const CalendarCore = {
 
         .calendar-buttons-container {
           padding-bottom: 15px;
-          top: 100px;
+          top: ${Modal.headerTitleHeight}px;
           height: 60px;
           z-index: 4;
         }
