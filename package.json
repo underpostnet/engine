@@ -1,9 +1,9 @@
 {
   "type": "module",
   "main": "src/server.js",
-  "name": "engine",
+  "name": "underpost-engine-server",
   "version": "2.5.1",
-  "description": "engine server",
+  "description": "underpost engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
     "pm2": "env-cmd -f .env.production pm2 start src/server.js --node-args=\"--max-old-space-size=8192\" --name engine && pm2 logs",
@@ -13,7 +13,7 @@
     "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
     "dev-client": "env-cmd -f .env.development node src/client.dev",
     "docs": "jsdoc -c jsdoc.json",
-    "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier && npm install -g env-cmd",
+    "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier && npm install -g env-cmd && npm install -g yarn",
     "install-test": "npm install -g mocha && npm install -g c8 && npm install -g nyc && npm install -g coveralls",
     "install": "npm run install-global && npm run install-test",
     "docker:start": "docker-compose up",
@@ -21,9 +21,10 @@
     "coveralls": "nyc npm run test --reporter=text-lcov | coveralls -v",
     "test": "env-cmd -f .env.test c8 mocha",
     "fix": "npm update -g && npm update && npm audit fix --force && npm audit",
-    "preinstall": "npm config set audit false && npm config set loglevel silent",
-    "restore-preinstall": "npm config set audit true && npm config set loglevel notice",
-    "update-template": "node bin/util export-git-changes ./ ../pwa-microservices-template"
+    "update-template": "node bin/util export-git-changes ./ ../pwa-microservices-template",
+    "clean-nm-linux": "rm -rf node_modules/",
+    "clean-nm-win": "rd /s /q node_modules",
+    "clean": "npm cache clean --force && npm prune --production && npm update -- --reset-cache"
   },
   "repository": {
     "type": "git",
