@@ -35,24 +35,6 @@ try {
         console.log(fs.readFileSync(logPath, 'utf8'));
       })();
       break;
-    case 'export-vs-extensions':
-      shellExec(`code --list-extensions > vs-extensions.txt`);
-      fs.writeFileSync(
-        `./.vscode/extensions.json`,
-        JSON.stringify(
-          {
-            recommendations: fs
-              .readFileSync(`./vs-extensions.txt`, 'utf8')
-              .split(`\n`)
-              .filter((ext) => ext.trim()),
-          },
-          null,
-          4,
-        ),
-        'utf8',
-      );
-      fs.removeSync(`./vs-extensions.txt`);
-      break;
     case 'kill-ports':
       if (!process.argv[3]) process.argv[3] = '22,80,443,3000-3020';
       for (const port of process.argv[3].split(',')) {
