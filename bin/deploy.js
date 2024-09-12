@@ -539,6 +539,14 @@ try {
       getDataDeploy({ buildSingleReplica: true });
       shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
       break;
+    case 'update-version':
+      {
+        const version = process.argv[3] || '0.0.1';
+        const deployGroupId = process.argv[4] || 'dd';
+
+        shellExec(`node bin/deploy update-package ${deployGroupId}`);
+      }
+      break;
     default:
       break;
   }

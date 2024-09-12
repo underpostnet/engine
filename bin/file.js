@@ -60,7 +60,7 @@ try {
 
       console.log('copy paths', result);
 
-      fs.removeSync(toPath);
+      if (process.argv[5] !== 'no-remove') fs.removeSync(toPath);
 
       for (const copyPath of result) {
         const folder = getDirname(`${toPath}/${copyPath}`);
