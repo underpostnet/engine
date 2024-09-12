@@ -886,9 +886,7 @@ const Modal = {
                 });
                 EventsUI.onClick(`.action-btn-center`, (e) => {
                   e.preventDefault();
-                  // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
-                  if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
-                  if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
+                  this.actionBtnCenter();
                 });
                 EventsUI.onClick(`.action-btn-right`, (e) => {
                   e.preventDefault();
@@ -1179,7 +1177,7 @@ const Modal = {
           }
           s(`.btn-close-modal-menu`).click();
         };
-        s(`.btn-icon-menu-mode`).onclick = () => {
+        EventsUI.onClick(`.btn-icon-menu-mode`, () => {
           if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
             s(`.btn-icon-menu-mode-right`).classList.remove('hide');
             s(`.btn-icon-menu-mode-left`).classList.add('hide');
@@ -1196,9 +1194,6 @@ const Modal = {
                 sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
                 s(`.${idModal}`).style.overflow = 'visible';
               }
-
-              s(`.action-btn-center`).click();
-              s(`.action-btn-center`).click();
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
           } else {
@@ -1210,12 +1205,12 @@ const Modal = {
               s(`.${idModal}`).style.overflow = null;
             }
 
-            s(`.action-btn-center`).click();
-            s(`.action-btn-center`).click();
             if (options.onExtendMenu) options.onExtendMenu();
           }
           // btn-bar-center-icon-menu
-        };
+          this.actionBtnCenter();
+          this.actionBtnCenter();
+        });
 
         break;
 
@@ -1544,6 +1539,11 @@ const Modal = {
     });
   },
   headerTitleHeight: 40,
+  actionBtnCenter: function () {
+    // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
+    if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
+    if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
+  },
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {
