@@ -281,6 +281,10 @@ try {
         buildWsSrc({ toOptions, fromOptions });
       }
       break;
+    case 'conf': {
+      loadConf(process.argv[3]);
+      break;
+    }
     case 'run':
       {
         loadConf(process.argv[3]);
