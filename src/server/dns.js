@@ -21,13 +21,13 @@ const Dns = {
     // DHCP (Dynamic Host Configuration Protocol) LAN reserver IP -> MAC ID
     // Forward the router's TCP/UDP ports to the LAN device's IP address
 
-    const privateDnsConfPath = `./engine-private/conf/${process.argv[2]}/conf.cron.json`;
+    const privateCronConfPath = `./engine-private/conf/${process.argv[2]}/conf.cron.json`;
 
-    const confDnsPath = fs.existsSync(privateDnsConfPath) ? privateDnsConfPath : './conf/conf.cron.json';
+    const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
 
-    let confDnsData = JSON.parse(fs.readFileSync(confDnsPath, 'utf8'));
-    if (confDnsData.ipDaemon.disabled) return;
-    this.ip = confDnsData.ipDaemon.ip;
+    let confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+    if (confCronData.ipDaemon.disabled) return;
+    this.ip = confCronData.ipDaemon.ip;
     logger.info(`Current ip`, this.ip);
     if (this.ipDaemon) clearInterval(this.ipDaemon);
     const callback = async () => {
@@ -40,12 +40,12 @@ const Dns = {
       if (testIp && typeof testIp === 'string' && isIPv4(testIp) && this.ip !== testIp) {
         logger.info(`New ip`, testIp);
         this.ip = testIp;
-        confDnsData.ipDaemon.ip = this.ip;
-        fs.writeFileSync(confDnsPath, JSON.stringify(confDnsData, null, 4), 'utf8');
-        for (const recordType of Object.keys(confDnsData.records)) {
+        confCronData.ipDaemon.ip = this.ip;
+        fs.writeFileSync(confCronPath, JSON.stringify(confCronData, null, 4), 'utf8');
+        for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {
             case 'A':
-              for (const dnsProvider of confDnsData.records[recordType]) {
+              for (const dnsProvider of confCronData.records[recordType]) {
                 if (typeof this.services.updateIp[dnsProvider.dns] === 'function')
                   await this.services.updateIp[dnsProvider.dns](dnsProvider);
               }
@@ -58,7 +58,7 @@ const Dns = {
       }
     };
     await callback();
-    this.ipDaemon = setInterval(async () => await callback(), confDnsData.ipDaemon.minutesTimeInterval * 1000 * 60);
+    this.ipDaemon = setInterval(async () => await callback(), confCronData.ipDaemon.minutesTimeInterval * 1000 * 60);
   },
   services: {
     updateIp: {
