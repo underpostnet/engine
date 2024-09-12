@@ -240,7 +240,7 @@ const Config = {
         },
       },
     },
-    dns: {
+    cron: {
       ipDaemon: {
         ip: null,
         minutesTimeInterval: 3,
@@ -390,7 +390,7 @@ const cloneConf = async (
   );
   fs.writeFileSync(`${confToFolder}/.env.test`, fs.readFileSync(`${confFromFolder}/.env.test`, 'utf8'), 'utf8');
 
-  for (const confTypeId of ['server', 'client', 'dns', 'ssr']) {
+  for (const confTypeId of ['server', 'client', 'cron', 'ssr']) {
     const confFromData = JSON.parse(fs.readFileSync(`${confFromFolder}/conf.${confTypeId}.json`, 'utf8'));
     fs.writeFileSync(`${confToFolder}/conf.${confTypeId}.json`, formattedSrc(confFromData), 'utf8');
   }

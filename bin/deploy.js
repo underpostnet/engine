@@ -446,7 +446,7 @@ try {
       for (const deployIdObj of dataDeploy) {
         const { deployId, replicaHost } = deployIdObj;
         if (replicaHost && !singleReplicaHosts.includes(replicaHost)) singleReplicaHosts.push(replicaHost);
-        const proxyInstance = deployId.match('proxy') || deployId.match('dns');
+        const proxyInstance = deployId.match('proxy') || deployId.match('cron');
         const baseConfPath = fs.existsSync(`./engine-private/replica/${deployId}`)
           ? `./engine-private/replica`
           : `./engine-private/conf`;
@@ -487,7 +487,7 @@ try {
               client: '',
               ssr: '',
               server: '',
-              dns: '',
+              cron: '',
             };
 
         if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
