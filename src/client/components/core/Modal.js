@@ -880,22 +880,22 @@ const Modal = {
                   };
                   Responsive.Event[`view-${id}`]();
                 }
-                s(`.action-btn-left`).onclick = (e) => {
+                EventsUI.onClick(`.action-btn-left`, (e) => {
                   e.preventDefault();
                   window.history.back();
-                };
-                s(`.action-btn-center`).onclick = (e) => {
+                });
+                EventsUI.onClick(`.action-btn-center`, (e) => {
                   e.preventDefault();
                   // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
                   if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
                   if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
-                };
-                s(`.action-btn-right`).onclick = (e) => {
+                });
+                EventsUI.onClick(`.action-btn-right`, (e) => {
                   e.preventDefault();
                   window.history.forward();
-                };
-                s(`.action-btn-home`).onclick = () => s(`.main-btn-home`).click();
-                s(`.action-btn-app-icon`).onclick = () => s(`.action-btn-home`).click();
+                });
+                EventsUI.onClick(`.action-btn-home`, () => s(`.main-btn-home`).click());
+                EventsUI.onClick(`.action-btn-app-icon`, () => s(`.action-btn-home`).click());
                 Keyboard.instanceMultiPressKey({
                   id: 'input-shortcut-global-escape',
                   keys: ['Escape'],
