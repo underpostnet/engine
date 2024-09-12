@@ -375,7 +375,10 @@ try {
         updateSrc();
         const dataDeploy = getDataDeploy({ buildSingleReplica: true });
         shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
-        for (const deploy of dataDeploy) shellExec(Cmd.clientBuild(deploy), { silent: true });
+        for (const deploy of dataDeploy) {
+          shellExec(`node bin/deploy conf ${deploy.deployId} production`);
+          shellExec(Cmd.clientBuild(deploy), { silent: true });
+        }
         await deployRun(dataDeploy, true);
       }
       break;
