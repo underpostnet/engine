@@ -8,9 +8,9 @@ const logger = loggerFactory(import.meta);
 const BackUpManagement = {
   Init: async function () {
     await this.Callback();
-    // setInterval(async () => {
-    //   await this.Callback();
-    // }, 1000 * 60 * 60); // hourly interval
+    setInterval(async () => {
+      await this.Callback();
+    }, 1000 * 60 * 60); // hourly interval
   },
   Callback: async function () {
     const privateCronConfPath = `./engine-private/conf/${process.argv[2]}/conf.cron.json`;

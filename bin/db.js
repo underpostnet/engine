@@ -61,7 +61,7 @@ try {
           await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
           break;
         case 'export':
-          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${arg0 ? arg0 : backupPath}`;
+          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${arg0 ? `${arg0}/${name}.sql` : backupPath}`;
           shellExec(cmd);
           break;
         case 'import':
