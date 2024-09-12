@@ -20,6 +20,7 @@ import {
   buildWsSrc,
   cloneSrcComponents,
   cliSpinner,
+  getDataDeploy,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer } from '../src/client/components/core/CommonJs.js';
@@ -134,47 +135,6 @@ const deployRun = async (dataDeploy, reset) => {
     process.argv[4] = 'copy';
     await deployRun(failed);
   }
-};
-
-const getDataDeploy = (options = { buildSingleReplica: false }) => {
-  let dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${process.argv[3]}.json`, 'utf8')).map(
-    (deployId) => {
-      return {
-        deployId,
-      };
-    },
-  );
-
-  if (options && options.buildSingleReplica && fs.existsSync(`./engine-private/replica`))
-    fs.removeSync(`./engine-private/replica`);
-
-  let buildDataDeploy = [];
-  for (const deployObj of dataDeploy) {
-    const serverConf = loadReplicas(
-      JSON.parse(fs.readFileSync(`./engine-private/conf/${deployObj.deployId}/conf.server.json`, 'utf8')),
-    );
-    let replicaDataDeploy = [];
-    for (const host of Object.keys(serverConf))
-      for (const path of Object.keys(serverConf[host])) {
-        if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
-          if (options && options.buildSingleReplica)
-            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
-          replicaDataDeploy = replicaDataDeploy.concat(
-            serverConf[host][path].replicas.map((r) => {
-              return {
-                deployId: `${deployObj.deployId}-${r.slice(1)}`,
-                replicaHost: host,
-              };
-            }),
-          );
-        }
-      }
-    buildDataDeploy.push(deployObj);
-    if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
-  }
-
-  logger.info('buildDataDeploy', buildDataDeploy);
-  return buildDataDeploy;
 };
 
 const updateSrc = () => {

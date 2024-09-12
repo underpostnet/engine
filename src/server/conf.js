@@ -729,6 +729,50 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
   }
 };
 
+const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '' }) => {
+  let dataDeploy = JSON.parse(
+    fs.readFileSync(
+      `./engine-private/deploy/${options?.deployGroupId ? options.deployGroupId : process.argv[3]}.json`,
+      'utf8',
+    ),
+  ).map((deployId) => {
+    return {
+      deployId,
+    };
+  });
+
+  if (options && options.buildSingleReplica && fs.existsSync(`./engine-private/replica`))
+    fs.removeSync(`./engine-private/replica`);
+
+  let buildDataDeploy = [];
+  for (const deployObj of dataDeploy) {
+    const serverConf = loadReplicas(
+      JSON.parse(fs.readFileSync(`./engine-private/conf/${deployObj.deployId}/conf.server.json`, 'utf8')),
+    );
+    let replicaDataDeploy = [];
+    for (const host of Object.keys(serverConf))
+      for (const path of Object.keys(serverConf[host])) {
+        if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
+          if (options && options.buildSingleReplica)
+            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
+          replicaDataDeploy = replicaDataDeploy.concat(
+            serverConf[host][path].replicas.map((r) => {
+              return {
+                deployId: `${deployObj.deployId}-${r.slice(1)}`,
+                replicaHost: host,
+              };
+            }),
+          );
+        }
+      }
+    buildDataDeploy.push(deployObj);
+    if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
+  }
+
+  logger.info('buildDataDeploy', buildDataDeploy);
+  return buildDataDeploy;
+};
+
 export {
   Config,
   loadConf,
@@ -745,4 +789,5 @@ export {
   buildProxyRouter,
   cliBar,
   cliSpinner,
+  getDataDeploy,
 };
