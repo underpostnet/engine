@@ -4,14 +4,14 @@ import { s4 } from '../core/CommonJs.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { s } from '../core/VanillaJs.js';
-import { ElementsCryptokoyn } from './ElementsCryptokoyn.js';
+import { ElementsUnderpost } from './ElementsUnderpost.js';
 
 const logger = loggerFactory(import.meta);
 
 const SocketIoUnderpost = {
   Init: function () {
     return new Promise((resolve) => {
-      for (const type of Object.keys(ElementsCryptokoyn.Data)) {
+      for (const type of Object.keys(ElementsUnderpost.Data)) {
         SocketIo.Event[type][s4()] = async (args) => {
           args = JSON.parse(args[0]);
           switch (type) {
@@ -29,7 +29,7 @@ const SocketIoUnderpost = {
 
           switch (status) {
             case 'email-confirmed': {
-              const newUser = { ...ElementsCryptokoyn.Data.user.main.model.user, emailConfirmed: true };
+              const newUser = { ...ElementsUnderpost.Data.user.main.model.user, emailConfirmed: true };
               Account.renderVerifyEmailStatus(newUser);
               Account.triggerUpdateEvent({ user: newUser });
               break;
@@ -41,10 +41,10 @@ const SocketIoUnderpost = {
         };
       }
       SocketIo.Event.connect[s4()] = async (reason) => {
-        // ElementsCryptokoyn.Init({ type, id, element });
+        // ElementsUnderpost.Init({ type, id, element });
       };
       SocketIo.Event.disconnect[s4()] = async (reason) => {
-        // ElementsCryptokoyn.removeAll();
+        // ElementsUnderpost.removeAll();
       };
       return resolve();
     });

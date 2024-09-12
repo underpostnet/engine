@@ -230,7 +230,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               'services',
               baseHost,
             );
-            if (module === 'core') {
+            if (module === 'core' && process.env.NODE_ENV === 'production') {
               if (apiBaseHost)
                 jsSrc = jsSrc.replace(
                   'const getBaseHost = () => location.host;',

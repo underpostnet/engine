@@ -296,12 +296,12 @@ const Modal = {
                 </div>
               </div>`,
             );
-            s(`.action-btn-profile-log-in`).onclick = () => {
+            EventsUI.onClick(`.action-btn-profile-log-in`, () => {
               s(`.main-btn-account`).click();
-            };
-            s(`.action-btn-profile-log-out`).onclick = () => {
+            });
+            EventsUI.onClick(`.action-btn-profile-log-out`, () => {
               s(`.main-btn-sign-up`).click();
-            };
+            });
             s(`.input-info-${inputSearchBoxId}`).style.textAlign = 'left';
             htmls(`.input-info-${inputSearchBoxId}`, '');
             const inputInfoNode = s(`.input-info-${inputSearchBoxId}`).cloneNode(true);
@@ -595,10 +595,10 @@ const Modal = {
                   Modal.removeModal(searchBoxHistoryId);
                 }
               };
-              s(`.top-bar-search-box-container`).onclick = () => {
+              EventsUI.onClick(`.top-bar-search-box-container`, () => {
                 searchBoxHistoryOpen();
                 searchBoxCallBack(formDataInfoNode[0]);
-              };
+              });
 
               const timePressDelay = 100;
               Keyboard.instanceMultiPressKey({

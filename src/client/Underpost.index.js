@@ -12,6 +12,9 @@ import { TranslateUnderpost } from './components/underpost/TranslateUnderpost.js
 import { Worker } from './components/core/Worker.js';
 import { UnderpostParams } from './components/underpost/CommonUnderpost.js';
 import { Keyboard } from './components/core/Keyboard.js';
+import { SocketIoUnderpost } from './components/underpost/SocketIoUnderpost.js';
+import { SocketIo } from './components/core/SocketIo.js';
+import { ElementsUnderpost } from './components/underpost/ElementsUnderpost.js';
 
 window.onload = () =>
   Worker.instance({
@@ -22,6 +25,8 @@ window.onload = () =>
       await TranslateUnderpost.Init();
       await Responsive.Init();
       await MenuUnderpost.Render();
+      await SocketIo.Init({ channels: ElementsUnderpost.Data });
+      await SocketIoUnderpost.Init();
       await LogInUnderpost();
       await LogOutUnderpost();
       await SignUpUnderpost();
