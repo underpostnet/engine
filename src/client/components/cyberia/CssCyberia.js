@@ -135,6 +135,15 @@ const CssCommonCyberia = async () => {
         width: 30px;
         height: 30px;
       }
+      .img-btn-square-view-title {
+        width: 30px !important;
+        height: 30px !important;
+        left: 10px !important;
+        top: 0px !important;
+      }
+      .text-btn-square-view-title {
+        top: 6px !important;
+      }
     </style>
     <div class="ag-grid-style"></div>`;
 };

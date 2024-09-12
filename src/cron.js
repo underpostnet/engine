@@ -8,6 +8,7 @@ import { loggerFactory } from './server/logger.js';
 import { Dns } from './server/dns.js';
 import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
+import { BackUpManagement } from './server/backup.js';
 
 dotenv.config();
 
@@ -18,5 +19,7 @@ const logger = loggerFactory(import.meta);
 await logger.setUpInfo();
 
 await Dns.InitIpDaemon();
+
+await BackUpManagement.Init();
 
 ProcessController.init(logger);

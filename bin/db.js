@@ -61,7 +61,7 @@ try {
           await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
           break;
         case 'export':
-          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${backupPath}`;
+          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${arg0 ? arg0 : backupPath}`;
           shellExec(cmd);
           break;
         case 'import':
@@ -93,7 +93,7 @@ try {
           break;
         case 'export':
           // mongodump -d <database_name> -o <directory_backup>
-          shellExec(`mongodump -d ${name} -o ./engine-private/mongodb-backup/`);
+          shellExec(`mongodump -d ${name} -o ${arg0 ? arg0 : `./engine-private/mongodb-backup/`}`);
           break;
         case 'import':
           // mongorestore -d <database_name> <directory_backup>
