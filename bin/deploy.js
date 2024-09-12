@@ -243,6 +243,7 @@ try {
       break;
     case 'conf': {
       loadConf(process.argv[3]);
+      if (process.argv[4]) fs.writeFileSync(`.env`, fs.readFileSync(`.env.${process.argv[4]}`, 'utf8'), 'utf8');
       break;
     }
     case 'run':
@@ -319,6 +320,8 @@ try {
     case 'build-full-client':
       {
         const { deployId, folder } = loadConf(process.argv[3]);
+
+        await logger.setUpInfo();
 
         let argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
         let argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
