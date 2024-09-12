@@ -15,7 +15,10 @@ const clientLiveBuild = async () => {
     let baseHost = `${host}${path === '/' ? '' : path}`;
     let views = Config.default.client[clientId].views;
 
-    if (deployId && fs.existsSync(`./engine-private/conf/${deployId}`)) {
+    if (
+      deployId &&
+      (fs.existsSync(`./engine-private/conf/${deployId}`) || fs.existsSync(`./engine-private/replica/${deployId}`))
+    ) {
       loadConf(deployId);
       const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
       const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
