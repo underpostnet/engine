@@ -143,6 +143,7 @@ const CssCommonCyberia = async () => {
       }
       .text-btn-square-view-title {
         top: 6px !important;
+        color: #ffcc00 !important;
       }
     </style>
     <div class="ag-grid-style"></div>`;
