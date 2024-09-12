@@ -7,6 +7,7 @@ import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
+import { shellExec } from './process.js';
 
 colors.enable();
 dotenv.config();
