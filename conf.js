@@ -241,13 +241,4 @@ const DefaultConf = {
   },
 };
 
-const Template = {
-  client: {
-    paths: {
-      dirs: ['./src/client/components/default', './src/client/components/core'],
-      files: ['./src/client/default/Default.index.js'],
-    },
-  },
-};
-
 export { DefaultConf };
