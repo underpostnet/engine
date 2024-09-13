@@ -2,7 +2,7 @@
   "type": "module",
   "main": "src/server.js",
   "name": "underpost-engine-server",
-  "version": "2.5.2",
+  "version": "2.5.3",
   "description": "underpost engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
@@ -15,7 +15,7 @@
     "docs": "jsdoc -c jsdoc.json",
     "install-global": "npm install -g pm2 && npm install -g jsdoc && npm install -g prettier && npm install -g env-cmd && npm install -g yarn",
     "install-test": "npm install -g mocha && npm install -g c8 && npm install -g nyc && npm install -g coveralls",
-    "install": "npm run install-global && npm run install-test",
+    "install": "npm run install-global && npm run install-test && npm run bin",
     "docker:start": "docker-compose up",
     "prettier": "prettier --write .",
     "coveralls": "nyc npm run test --reporter=text-lcov | coveralls -v",

@@ -14,6 +14,8 @@ await logger.setUpInfo();
 shellCd(`./node_modules/underpost`);
 
 switch (process.argv[3]) {
+  case 'install':
+    shellExec(`npm run install-template`);
   case 'build':
     shellExec(`npm run build`);
     break;
