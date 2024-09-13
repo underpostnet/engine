@@ -72,22 +72,14 @@ docker build . -t engine
 docker run --name engine-instance -p 41061:3001 -p 41062:3002 engine
 ```
 
-#### Create a New project
+#### Create a new project
 
 ```bash
-git clone https://github.com/underpostnet/pwa-microservices-template
+npm install --save underpost
 ```
 
 ```bash
-cd pwa-microservices-template
+underpost new-project
 ```
 
-```bash
-npm run install-template
-```
-
-```bash
-npm run dev
-```
-
-The server will run on [http://localhost:4001](http://localhost:4001)
+After template installation, the server will be running on [http://localhost:4001](http://localhost:4001)
