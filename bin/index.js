@@ -1,6 +1,5 @@
-#!node ./bin
+#!node ./node_modules/underpost/bin
 
-import { spawn } from 'node:child_process';
 import { loggerFactory } from '../src/server/logger.js';
 import dotenv from 'dotenv';
 import { shellCd, shellExec } from '../src/server/process.js';
