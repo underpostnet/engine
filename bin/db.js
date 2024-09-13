@@ -21,7 +21,7 @@ try {
   if (deployId) loadConf(deployId);
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const { provider, name, user, password = '', backupPath = '' } = confServer[host][`/${path}`].db;
-  logger.info('database', confServer[host][`/${path}`].db);
+  // logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
     case 'mariadb':
       // https://www.cyberciti.biz/faq/how-to-show-list-users-in-a-mysql-mariadb-database/
