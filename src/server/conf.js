@@ -578,6 +578,7 @@ const validateTemplatePath = (absolutePath = '') => {
     return false;
   }
   if (
+    absolutePath.match('/client') &&
     absolutePath.match('.index.js') &&
     !clients.find((p) => absolutePath.match(`src/client/${capFirst(p)}.index.js`))
   ) {
