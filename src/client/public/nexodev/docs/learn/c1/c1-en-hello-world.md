@@ -8,12 +8,8 @@
 
 **1.4** In your preferred terminal:
 
-`git clone https://github.com/underpostnet/pwa-microservices-template`
+`npm install --save underpost`
 
-`cd pwa-microservices-template`
-
-`npm run install-template`
-
-`npm run dev` (The server will run on localhost:4001)
+`underpost new-project` (After installation, the server will run on localhost:4001)
 
 **1.5** Open VS Code in the project's root directory and edit the `Hello World!!` string located in `src/client/Default.index.js`. The change will be reflected on the app's homepage.
