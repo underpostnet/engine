@@ -180,7 +180,7 @@ const CyberpunkBloggerUnderpost = {
     <b> > </b><a target='_top'  href=https://contraculturacyberpunk.blogspot.com/2019/08/la-magia-del-caos.html>La Magia del Caos</a><br />
 
     <b> > </b><a target='_top'  href=https://contraculturacyberpunk.blogspot.com/2019/08/paranoid-android.html>Paranoid Android</a><br /><br />
-
+<!--
 
     <b>Blogs de Interes</b><br /><br />
 
@@ -189,7 +189,7 @@ const CyberpunkBloggerUnderpost = {
     <b> > </b><a target='_top'   href=https://cybermedios.org/>cybermedios.org</a><br />
     <b> > </b><a target='_top'   href=https://sayko2k20.wordpress.com/>Sayko2k20</a><br />
     <b> > </b><a target='_top'   href=http://archivocyberpunk.blogspot.com/>Archivo Cyberpunk</a><br />
-    <!--<b> > </b><a target='_top'   href=https://tantractfall.blogspot.com/>tantractfall.blogspot.com</a><br />-->
+    <b> > </b><a target='_top'   href=https://tantractfall.blogspot.com/>tantractfall.blogspot.com</a><br />
     <b> > </b><a target='_top'   href=https://www.despuesdelcyberpunk.com/>despuesDelCyberpunk.com</a><br />
     <b> > </b><a target='_top'   href=http://www.quemandocromo.es/>QuemandoCromo.es</a><br />
     <b> > </b><a target='_top'   href=https://8kun.top/cyber/index.html>8kun.top</a><br />
@@ -875,8 +875,8 @@ const CyberpunkBloggerUnderpost = {
     <b> > Svelte&nbsp;</b><a target='_top'   href='https://svelte.dev/'/>svelte.dev</a><br />
 
     <br /><br /><br /><br /><br />
-</div>
 
+-->
     <br />
     <img class='in' style="width: 280px; height: auto; margin: auto;" src="${getProxyPath()}assets/img/gbe.png" /><br /><br /><br /><br /><br />
     <br />
