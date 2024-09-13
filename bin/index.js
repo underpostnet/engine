@@ -11,10 +11,13 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
+shellCd(`./node_modules/underpost`);
+
 switch (process.argv[3]) {
+  case 'build':
+    shellExec(`npm run build`);
+    break;
   case 'run-dev':
-    // underpost run-dev
-    shellCd(`./node_modules/underpost-pwa-api-rest-template`);
     shellExec(`npm run dev`);
     break;
 
