@@ -17,6 +17,7 @@ import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
+import { Panel } from '../core/Panel.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -157,6 +158,64 @@ const MenuUnderpost = {
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,
+      htmlMainBody: async function () {
+        const idPanel = 'underpost-panel';
+        const formData = [
+          {
+            id: 'panel-title',
+            model: 'title',
+            inputType: 'text',
+            rules: [{ type: 'isEmpty' }],
+            panel: { type: 'title' },
+          },
+          {
+            id: 'panel-description',
+            model: 'description',
+            inputType: 'text',
+            panel: { type: 'subtitle' },
+            rules: [{ type: 'isEmpty' }],
+          },
+          {
+            id: 'panel-body',
+            model: 'body',
+            inputType: 'text',
+            panel: {
+              type: 'info-row-pin',
+              icon: {
+                value: html``,
+              },
+              newIcon: {
+                key: html``,
+              },
+            },
+            rules: [{ type: 'isEmpty' }],
+          },
+          {
+            id: 'panel-footer',
+            model: 'footer',
+            inputType: 'text',
+            panel: { type: 'info-row' },
+            rules: [],
+          },
+        ];
+        const data = [];
+
+        return await Panel.Render({
+          idPanel,
+          formData,
+          heightTopBar,
+          heightBottomBar,
+          data,
+          scrollClassContainer: 'main-body',
+          titleIcon: html`<i class="fa-solid fa-quote-left"></i>`,
+          formContainerClass: 'session-in-log-in',
+          callBackPanelRender: async function (
+            options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
+          ) {
+            return await options.htmlRender({ render: 'test' });
+          },
+        });
+      },
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

@@ -219,6 +219,11 @@ const Panel = {
       }
 
       const validators = await Validator.instance(formData);
+
+      s(`.${idPanel}-form`).onsubmit = (e) => {
+        e.preventDefault();
+        s(`.btn-${idPanel}-submit`).click();
+      };
       EventsUI.onClick(`.btn-${idPanel}-submit`, async (e) => {
         e.preventDefault();
         const { errorMessage } = await validators();
@@ -239,7 +244,8 @@ const Panel = {
       s(`.btn-${idPanel}-clean`).onclick = () => {
         Input.cleanValues(formData);
       };
-      s(`.btn-${idPanel}-close`).onclick = () => {
+      s(`.btn-${idPanel}-close`).onclick = (e) => {
+        e.preventDefault();
         s(`.${idPanel}-form-body`).style.opacity = 0;
         s(`.btn-${idPanel}-add`).classList.remove('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'auto';
@@ -256,7 +262,8 @@ const Panel = {
           s(`.${idPanel}-form-body`).classList.add('hide');
         });
       };
-      s(`.btn-${idPanel}-add`).onclick = () => {
+      s(`.btn-${idPanel}-add`).onclick = (e) => {
+        e.preventDefault();
         s(`.${idPanel}-form-body`).classList.remove('hide');
         s(`.btn-${idPanel}-add`).classList.add('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'hidden';
