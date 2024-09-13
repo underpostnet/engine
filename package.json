@@ -2,7 +2,7 @@
     "type": "module",
     "main": "src/server.js",
     "name": "underpost-engine-server",
-    "version": "2.5.4",
+    "version": "2.5.5",
     "description": "underpost engine server",
     "scripts": {
         "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
