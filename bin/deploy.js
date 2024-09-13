@@ -541,10 +541,55 @@ try {
       break;
     case 'update-version':
       {
-        const version = process.argv[3] || '0.0.1';
-        const deployGroupId = process.argv[4] || 'dd';
+        const newVersion = process.argv[3];
+        const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
+        const { version } = originPackageJson;
+        originPackageJson.version = newVersion;
+        fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
 
-        shellExec(`node bin/deploy update-package ${deployGroupId}`);
+        {
+          const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
+          for (const relativePath of files) {
+            const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
+            if (filePah.split('/').pop() === 'package.json') {
+              const originPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
+              originPackage.version = newVersion;
+              fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
+            }
+          }
+        }
+
+        fs.writeFileSync(
+          `./docker-compose.yml`,
+          fs
+            .readFileSync(`./docker-compose.yml`, 'utf8')
+            .replaceAll(`engine.version: '${version}'`, `engine.version: '${newVersion}'`),
+          'utf8',
+        );
+
+        fs.writeFileSync(
+          `./.github/workflows/docker-image.yml`,
+          fs
+            .readFileSync(`./.github/workflows/docker-image.yml`, 'utf8')
+            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
+          'utf8',
+        );
+
+        fs.writeFileSync(
+          `./src/client/components/core/Docs.js`,
+          fs
+            .readFileSync(`./src/client/components/core/Docs.js`, 'utf8')
+            .replaceAll(`/engine/${version}`, `/engine/${newVersion}`),
+          'utf8',
+        );
+
+        fs.writeFileSync(
+          `./src/client/ssr/body-components/CacheControl.js`,
+          fs
+            .readFileSync(`./src/client/ssr/body-components/CacheControl.js`, 'utf8')
+            .replaceAll(`v${version}`, `v${newVersion}`),
+          'utf8',
+        );
       }
       break;
     default:

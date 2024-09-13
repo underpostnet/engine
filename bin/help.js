@@ -16,6 +16,7 @@ const logger = loggerFactory(import.meta);
 // node bin/vs import
 // node bin/vs export
 // build macro replica: `node bin/deploy build-macro-replica dd`
+// node bin/deploy update-version 2.5.2
 
 const data = {
   help: `
