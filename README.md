@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://underpost.net/assets/splash/android-chrome-256x256.png" alt="underpost engine core server"/>
+  <img src="https://underpost.net/assets/splash/apple-touch-icon-precomposed.png" alt="underpost engine core server"/>
 </p>
 
 <div align="center">
