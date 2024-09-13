@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { cap, newInstance, range, timer } from '../client/components/core/CommonJs.js';
+import { cap, capFirst, newInstance, range, timer } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
@@ -534,6 +534,61 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '' 
   return buildDataDeploy;
 };
 
+const validateTemplatePath = (absolutePath = '') => {
+  const host = 'default.net';
+  const path = '/';
+  const client = 'default';
+  const ssr = 'Default';
+  const confServer = DefaultConf.server[host][path];
+  const confClient = DefaultConf.client[client];
+  const confSsr = DefaultConf.ssr[ssr];
+  const clients = Object.keys(confClient).concat(['core', 'test']);
+
+  if (absolutePath.match('src/api') && !confServer.apis.find((p) => absolutePath.match(`src/api/${p}/`))) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/services/') &&
+    !clients.find((p) => absolutePath.match(`src/client/services/${p}/`))
+  ) {
+    return false;
+  }
+  if (absolutePath.match('src/client/public/') && !clients.find((p) => absolutePath.match(`src/client/public/${p}/`))) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/components/') &&
+    !clients.find((p) => absolutePath.match(`src/client/components/${p}/`))
+  ) {
+    return false;
+  }
+  if (absolutePath.match('src/client/sw/') && !clients.find((p) => absolutePath.match(`src/client/sw/${p}.sw.js`))) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/ssr/body-components') &&
+    !confSsr.body.find((p) => absolutePath.match(`src/client/ssr/body-components/${p}.js`))
+  ) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/ssr/head-components') &&
+    !confSsr.head.find((p) => absolutePath.match(`src/client/ssr/head-components/${p}.js`))
+  ) {
+    return false;
+  }
+  if (
+    absolutePath.match('.index.js') &&
+    !clients.find((p) => absolutePath.match(`src/client/${capFirst(p)}.index.js`))
+  ) {
+    return false;
+  }
+  if (absolutePath.match('src/ws/') && !clients.find((p) => absolutePath.match(`src/ws/${p}/`))) {
+    return false;
+  }
+  return true;
+};
+
 export {
   Config,
   loadConf,
@@ -551,4 +606,5 @@ export {
   cliBar,
   cliSpinner,
   getDataDeploy,
+  validateTemplatePath,
 };

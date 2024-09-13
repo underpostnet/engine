@@ -4,7 +4,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import { cap, getDirname } from '../src/client/components/core/CommonJs.js';
 import { shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
-import { getCapVariableName } from '../src/server/conf.js';
+import { getCapVariableName, validateTemplatePath } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -39,6 +39,8 @@ try {
       content = `const ${name} = {}; export { ${name} }`;
       setTimeout(() => shellExec(`prettier --write ${buildPath}`));
       break;
+
+    case 'update-template':
     case 'copy-src':
       console.log({ rawPath, toPath });
 
@@ -60,12 +62,19 @@ try {
 
       console.log('copy paths', result);
 
-      if (process.argv[5] !== 'no-remove') fs.removeSync(toPath);
+      if (type !== 'update-template') fs.removeSync(toPath);
 
       for (const copyPath of result) {
         const folder = getDirname(`${toPath}/${copyPath}`);
+        const absolutePath = `${rawPath}/${copyPath}`;
+
+        if (type === 'update-template' && !validateTemplatePath(absolutePath)) continue;
+
         if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
-        fs.copyFileSync(`${rawPath}/${copyPath}`, `${toPath}/${copyPath}`);
+
+        logger.info('build', `${toPath}/${copyPath}`);
+
+        fs.copyFileSync(absolutePath, `${toPath}/${copyPath}`);
       }
 
       break;
