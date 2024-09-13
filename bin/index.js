@@ -14,7 +14,7 @@ await logger.setUpInfo();
 switch (process.argv[3]) {
   case 'new-project':
     fs.copySync(`./node_modules/underpost`, `./`);
-    shellExec(`npm run build`);
+    shellExec(`npm run install-template`);
     shellExec(`npm run dev`);
     break;
   default:
