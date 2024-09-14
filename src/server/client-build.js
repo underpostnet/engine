@@ -150,7 +150,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       const rootClientPath = directory ? directory : `${publicPath}/${host}${path}`;
       const port = newInstance(currentPort);
       const publicClientId = publicRef ? publicRef : client;
-      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].lightBuild && !enableLiveRebuild;
+      const fullBuildEnabled = !process.argv.includes('l') && !confServer[host][path].liteBuild && !enableLiveRebuild;
       // const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : `http://localhost:${port}`;
       const baseHost = process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
       // ''; // process.env.NODE_ENV === 'production' ? `https://${host}` : ``;
@@ -171,7 +171,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       }
 
       if (fullBuildEnabled)
-        //  !(confServer[host]['/'] && confServer[host]['/'].lightBuild)
+        //  !(confServer[host]['/'] && confServer[host]['/'].liteBuild)
         await fullBuild({
           path,
           logger,
