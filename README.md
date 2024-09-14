@@ -75,11 +75,11 @@ docker run --name engine-instance -p 41061:3001 -p 41062:3002 engine
 #### Create a new project
 
 ```bash
-npm install --save underpost
+npm install -g underpost
 ```
 
 ```bash
-underpost new-project
+underpost new my-project-name
 ```
 
 After template installation, the server will be running on [http://localhost:4001](http://localhost:4001)
