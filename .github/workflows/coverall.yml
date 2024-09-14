@@ -26,7 +26,7 @@ jobs:
       - name: Get npm root
         run: sudo npm root -g
 
-      - name: install underpost cli
+      - name: Install underpost cli
         run: sudo npm install -g underpost
 
       - name: Run test
