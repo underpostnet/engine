@@ -449,6 +449,8 @@ try {
       break;
 
     case 'fix-uml': {
+      // required: java jdk-11.0.1
+
       // comment:
       // '--add-opens=java.xml/com.sun.org.apache.xalan.internal.xsltc.trax="ALL-UNNAMED"'
       // in plantuml.js src
