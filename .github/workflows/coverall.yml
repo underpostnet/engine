@@ -23,7 +23,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Config npm env install
-        run: npm install -g --unsafe-perm=true --allow-root
+        run: sudo chown -R $USER /usr/local/etc/npmrc
 
       - name: Install underpost cli
         run: npm install -g underpost

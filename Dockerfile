@@ -78,9 +78,6 @@ RUN sed -i "s,\\(^[[:blank:]]*bindIp:\\) .*,\\1 0.0.0.0," /etc/mongod.conf
 # Bundle app source
 # COPY . .
 
-# Config npm env install
-RUN sudo npm install -g --unsafe-perm=true --allow-root
-
 # Install underpost cli
 RUN npm install -g underpost
 
