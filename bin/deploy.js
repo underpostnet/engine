@@ -592,13 +592,14 @@ try {
           'utf8',
         );
 
-        fs.writeFileSync(
-          `./.github/workflows/docker-image.yml`,
-          fs
-            .readFileSync(`./.github/workflows/docker-image.yml`, 'utf8')
-            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
-          'utf8',
-        );
+        if (fs.existsSync(`./.github/workflows/docker-image.yml`))
+          fs.writeFileSync(
+            `./.github/workflows/docker-image.yml`,
+            fs
+              .readFileSync(`./.github/workflows/docker-image.yml`, 'utf8')
+              .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
+            'utf8',
+          );
 
         fs.writeFileSync(
           `./src/client/components/core/Docs.js`,
