@@ -23,11 +23,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: install underpost cli
-        run: sudo npm install -g underpost
-
       - name: Get npm root
         run: sudo npm root -g
+
+      - name: install underpost cli
+        run: sudo npm install -g underpost
 
       - name: Run test
         run: sudo underpost test
@@ -50,7 +50,7 @@ jobs:
         uses: coverallsapp/github-action@master
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          path-to-lcov: './test/lcov.info'
+          path-to-lcov: '/usr/local/lib/node_modules/underpost/coverage/lcov.info'
         env:
           COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
       #     COVERALLS_GIT_BRANCH: "${{ github.ref }}"
