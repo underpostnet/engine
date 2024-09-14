@@ -27,8 +27,10 @@ try {
     if (host in confServer) {
       const directory = confServer[host]['/']?.['directory'] ? confServer[host]['/']['directory'] : undefined;
       cmd = `certbot certonly --webroot --webroot-path ${
-        directory ? directory : `${getRootDirectory()}/public/${host}`
+        directory ? directory : `${getRootDirectory()}/public/www.${host.split('.').slice(-2).join('.')}`
       } -d ${host}`;
+      // directory ? directory : `${getRootDirectory()}/public/${host}`
+
       // You can get multi domain cert by specifying (extra) -d
       // For example
       // certbot -d example.com -d example.net -d www.example.org

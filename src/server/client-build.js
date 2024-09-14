@@ -540,7 +540,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         );
       }
 
-      if (!enableLiveRebuild && !process.argv.includes('l') && docsBuild) {
+      if (!enableLiveRebuild && !process.argv.includes('l') && !process.argv.includes('deploy') && docsBuild) {
         // fullBuildEnabled || process.argv.includes('docs')
 
         // https://www.pullrequest.com/blog/leveraging-jsdoc-for-better-code-documentation-in-javascript/
