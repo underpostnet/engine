@@ -572,7 +572,7 @@ try {
         originPackageLockJson.packages[''].version = newVersion;
         fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
 
-        {
+        if (fs.existsSync(`./engine-private/conf`)) {
           const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
           for (const relativePath of files) {
             const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
