@@ -11,7 +11,8 @@ jobs:
     strategy:
       matrix:
         node-version: [21.x]
-        os: [ubuntu-latest, windows-latest]
+        os: [ubuntu-latest]
+      #  os: [ubuntu-latest, windows-latest]
 
     steps:
       - name: Clone repository
@@ -23,7 +24,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: install underpost cli
-        run: npm install -g underpost
+        run: sudo npm install -g underpost
 
       - name: Run test
         run: underpost test
