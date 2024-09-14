@@ -104,6 +104,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
+  const packageData = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
   const acmeChallengePath = `/.well-known/acme-challenge`;
   const publicPath = `./public`;
 
@@ -133,7 +134,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         apis,
         iconsBuild,
         docsBuild,
-        swaggerApiVersion,
         apiBaseProxyPath,
         apiBaseHost,
         ttiLoadTimeLimit,
@@ -559,13 +559,24 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         logger.warn('build jsdoc view', jsDocsConfig.opts.destination);
         shellExec(`npm run docs`, { silent: true });
 
+        // coverage
+        if (!fs.existsSync(`./coverage`)) {
+          shellExec(`npm test`);
+        }
+        const coverageBuildPath = `${jsDocsConfig.opts.destination}/coverage`;
+        fs.mkdirSync(coverageBuildPath, { recursive: true });
+        fs.copySync(`./coverage`, coverageBuildPath);
+
+        // uml
+        shellExec(`node bin/deploy uml ${host} ${path}`);
+
         // https://swagger-autogen.github.io/docs/
 
         const basePath = path === '/' ? `${process.env.BASE_API}` : `/${process.env.BASE_API}`;
 
         const doc = {
           info: {
-            version: swaggerApiVersion ? swaggerApiVersion : '0.0.1', // by default: '1.0.0'
+            version: packageData.version, // by default: '1.0.0'
             title: metadata?.title ? `${metadata.title}` : 'REST API', // by default: 'REST API'
             description: metadata?.description ? metadata.description : '', // by default: ''
           },

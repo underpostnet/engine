@@ -3,7 +3,7 @@
   "include": ["test"],
   "output": "reports",
   "reporter": ["html", "text", "lcov", "text-lcov", "cobertura"],
-  "sourceMap": false,
-  "instrument": false,
+  "sourceMap": true,
+  "instrument": true,
   "all": true
 }

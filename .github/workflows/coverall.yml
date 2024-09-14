@@ -10,7 +10,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: [18.x]
+        node-version: [21.x]
         os: [ubuntu-latest, windows-latest]
 
     steps:
@@ -22,14 +22,11 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Install npm dependencies
-        run: npm install
-
-      - name: Install global test dependencies
-        run: npm run install-test
+      - name: install underpost cli
+        run: npm install -g underpost
 
       - name: Run test
-        run: npm run test
+        run: underpost test
 
       # for travis
       # - name: Run coveralls

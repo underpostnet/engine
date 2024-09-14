@@ -130,6 +130,10 @@ const CssCommonCore = async () => {
       .title-view-modal .view-title-icon {
         font-size: 21px !important;
       }
+      .plantuml-svg {
+        width: 100%;
+        height: auto;
+      }
     </style>
     <style>
       .lds-dual-ring-mini,

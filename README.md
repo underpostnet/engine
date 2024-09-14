@@ -35,6 +35,7 @@ Develop, build, deploy, test, monitor, and manage multiple runtime applications 
 <!-- #### Optional version environments -->
 <!-- https://kapasia-dev-ed.my.site.com/Badges4Me/s/ -->
 <!-- https://simpleicons.org/ -->
+<!-- <img height="32" width="32" src="https://cdn.simpleicons.org/[ICON SLUG]/[COLOR]/[DARK_MODE_COLOR]" /> -->
 
 #### Create a new project
 

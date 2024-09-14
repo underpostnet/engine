@@ -76,11 +76,13 @@ RUN apt-get install -y mongodb-org
 RUN sed -i "s,\\(^[[:blank:]]*bindIp:\\) .*,\\1 0.0.0.0," /etc/mongod.conf
 
 # Bundle app source
-COPY . .
+# COPY . .
 
-RUN npm install
+# Install underpost cli
+RUN npm install -g underpost
 
-VOLUME [ "/code/logs" ]
+
+VOLUME [ "/code/app/logs" ]
 
 EXPOSE 22 80 443 3306 27017
 EXPOSE 3000-3020

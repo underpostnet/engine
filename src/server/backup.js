@@ -26,7 +26,8 @@ const BackUpManagement = {
     if (!fs.existsSync('./engine-private/cron-backups'))
       fs.mkdirSync('./engine-private/cron-backups', { recursive: true });
 
-    for (const deployGroupId of backups) {
+    for (const deployGroupData of backups) {
+      const { deployGroupId } = deployGroupData;
       const dataDeploy = getDataDeploy({ deployGroupId });
 
       for (const deployObj of dataDeploy) {

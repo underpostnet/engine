@@ -238,6 +238,11 @@ const DefaultConf = {
         },
       ],
     },
+    backups: [
+      {
+        deployGroupId: 'default-group',
+      },
+    ],
   },
 };
 

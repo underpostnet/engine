@@ -12,6 +12,7 @@ const BtnIcon = {
       style: '',
       attrs: '',
       label: '',
+      labelStyle: '',
       tabHref: '',
       tooltipHtml: '',
     },
@@ -41,7 +42,9 @@ const BtnIcon = {
             href="${options.tabHref}"
             style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0%', left: '0%' } })}"
           >
-            <span class="in btn-label-content"> ${label}</span></a
+            <span class="in btn-label-content" ${options?.labelStyle ? `style='${options.labelStyle}'` : ''}>
+              ${label}</span
+            ></a
           >`
         : label}
     </button>`;

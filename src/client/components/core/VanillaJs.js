@@ -109,6 +109,9 @@ const sa = (el) => document.querySelectorAll(el); // .forEach((currentValue, cur
 // s(`.${idModal}`).offsetWidth
 // s(`.${idModal}`).offsetHeight
 
+// get css style tag data definitions
+// window.getComputedStyle(el).color;
+
 /**
  * The `copyData` function uses the Clipboard API to copy the provided data to the clipboard and
  * returns a promise that resolves to true if successful or false if unsuccessful.
