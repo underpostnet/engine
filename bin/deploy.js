@@ -568,8 +568,8 @@ try {
         fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
 
         const originPackageLockJson = JSON.parse(fs.readFileSync(`package-lock.json`, 'utf8'));
-        originPackageLockJson.version = version;
-        if (originPackageLockJson.packages) originPackageLockJson.packages.version = version;
+        originPackageLockJson.version = newVersion;
+        originPackageLockJson.packages[''].version = newVersion;
         fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
 
         {
