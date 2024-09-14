@@ -22,7 +22,10 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: install underpost cli
+      - name: Config npm env install
+        run: npm install -g --unsafe-perm=true --allow-root
+
+      - name: Install underpost cli
         run: npm install -g underpost
 
       - name: Run test
