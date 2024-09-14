@@ -27,7 +27,7 @@ jobs:
         run: sudo npm install -g underpost
 
       - name: Run test
-        run: underpost test
+        run: sudo underpost test
 
       # for travis
       # - name: Run coveralls
