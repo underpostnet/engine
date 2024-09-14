@@ -35,4 +35,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v2.6.2
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v2.6.3
