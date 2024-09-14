@@ -22,7 +22,7 @@
     "test": "env-cmd -f .env.test c8 mocha",
     "fix": "npm update -g && npm update && npm audit fix --force && npm audit",
     "express-info": "npm ls express",
-    "update-template": "node bin/file update-template ./ ../pwa-microservices-template",
+    "update-template": "node bin/file update-template ./ ../underpost",
     "clean-nm-linux": "rm -rf node_modules/",
     "clean-nm-win": "rd /s /q node_modules",
     "clean": "npm cache clean --force && npm prune --production && npm update -- --reset-cache",
