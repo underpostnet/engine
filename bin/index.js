@@ -16,7 +16,7 @@ const globalBinFolder = `${shellExec(`npm root -g`, { stdout: true, silent: true
 switch (process.argv[2]) {
   case 'new':
     {
-      const projectName = process.argv[3] || 'my-project';
+      const projectName = process.argv[3] || 'project-name';
       const destFolder = `${process.cwd()}/${projectName}`;
       fs.mkdirSync(destFolder, { recursive: true });
       fs.copySync(globalBinFolder, destFolder);
