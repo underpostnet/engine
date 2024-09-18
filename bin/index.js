@@ -19,15 +19,21 @@ const globalBinFolder = `${shellExec(`npm root -g`, {
 
 const program = new Command();
 
-program.name('underpost').description('underpost.net ci/cd cli').version('2.6.3');
+const version = '2.6.3';
+
+program.name('underpost').description(`underpost.net ci/cd cli ${version}`).version(version);
 
 program
   .command('new <app-name>')
   .description('Create a new project')
   .action((appName) => {
     const destFolder = `${process.cwd()}/${appName}`;
+    logger.info('build', { destFolder });
     fs.mkdirSync(destFolder, { recursive: true });
     fs.copySync(globalBinFolder, destFolder);
+    shellCd(`${destFolder}`);
+    shellExec(`npm run install-template`);
+    shellExec(`npm run dev`);
   });
 
 program
