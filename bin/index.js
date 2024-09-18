@@ -34,9 +34,8 @@ program
   .command('test')
   .description('Run tests')
   .action(() => {
-    shellCd(`${destFolder}`);
-    shellExec(`npm run install-template`);
-    shellExec(`npm run dev`);
+    shellCd(`${globalBinFolder}`);
+    shellExec(`npm run test`);
   });
 
 program
