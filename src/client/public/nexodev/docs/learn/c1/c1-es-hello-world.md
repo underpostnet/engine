@@ -10,6 +10,6 @@
 
 `npm install -g underpost`
 
-`underpost new project-name` (Luego de la instalación, el server correrá en el localhost:4001)
+`underpost new app-name` (Luego de la instalación, el server correrá en el localhost:4001)
 
 **1.5** Abrir el vscode en la carpeta raiz del proyecto y editar el `Hello World!!` que esta en `src/client/Default.index.js`. El cambio se reflejará en la página de inicio de la aplicación.

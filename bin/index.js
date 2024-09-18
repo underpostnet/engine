@@ -22,10 +22,10 @@ const program = new Command();
 program.name('underpost').description('underpost.net ci/cd cli').version('2.6.3');
 
 program
-  .command('new <project-name>')
+  .command('new <app-name>')
   .description('Create a new project')
-  .action((projectName) => {
-    const destFolder = `${process.cwd()}/${projectName}`;
+  .action((appName) => {
+    const destFolder = `${process.cwd()}/${appName}`;
     fs.mkdirSync(destFolder, { recursive: true });
     fs.copySync(globalBinFolder, destFolder);
   });
