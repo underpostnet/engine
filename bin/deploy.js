@@ -618,6 +618,12 @@ try {
             .replaceAll(`v${version}`, `v${newVersion}`),
           'utf8',
         );
+
+        fs.writeFileSync(
+          `./bin/index.js`,
+          fs.readFileSync(`./bin/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
+          'utf8',
+        );
       }
       break;
     default:
