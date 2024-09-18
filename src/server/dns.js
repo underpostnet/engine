@@ -1,6 +1,7 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import cron from 'node-cron';
 
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
@@ -58,7 +59,17 @@ const Dns = {
       }
     };
     await callback();
-    this.ipDaemon = setInterval(async () => await callback(), confCronData.ipDaemon.minutesTimeInterval * 1000 * 60);
+    // every minute
+    cron.schedule(
+      '* * * * *',
+      async () => {
+        await callback();
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TIME_ZONE || 'America/New_York',
+      },
+    );
   },
   services: {
     updateIp: {

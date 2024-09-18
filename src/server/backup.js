@@ -2,15 +2,25 @@ import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { getDataDeploy } from './conf.js';
+import cron from 'node-cron';
 
 const logger = loggerFactory(import.meta);
 
 const BackUpManagement = {
   Init: async function () {
     await this.Callback();
-    setInterval(async () => {
-      await this.Callback();
-    }, 1000 * 60 * 60); // hourly interval
+
+    // Schedule the sending process to run every day at 1 am
+    cron.schedule(
+      '0 1 * * *',
+      async () => {
+        await this.Callback();
+      },
+      {
+        scheduled: true,
+        timezone: process.env.TIME_ZONE || 'America/New_York',
+      },
+    );
   },
   Callback: async function () {
     const privateCronConfPath = `./engine-private/conf/${process.argv[2]}/conf.cron.json`;
@@ -42,9 +52,9 @@ const BackUpManagement = {
         for (const host of Object.keys(confServer))
           for (const path of Object.keys(confServer[host])) {
             // retention policy
-            let { db, backupFrequency, maxBackupRetention } = confServer[host][path];
+            let { db, backupFrequency, maxBackupRetention, singleReplica } = confServer[host][path];
 
-            if (!db) continue;
+            if (!db || singleReplica) continue;
 
             if (!backupFrequency) backupFrequency = 'daily';
             if (!maxBackupRetention) maxBackupRetention = 5;
