@@ -6,4 +6,8 @@ const underpost = {
   setUpInfo: logger.setUpInfo,
 };
 
+const up = underpost;
+
+export { underpost, up };
+
 export default underpost;
