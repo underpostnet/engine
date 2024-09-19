@@ -1,6 +1,6 @@
 /**
  * Underpost index npm package
- * @module src/client/index.js
+ * @module src/index.js
  * @namespace Underpost
  */
 
