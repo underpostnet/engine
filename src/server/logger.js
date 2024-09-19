@@ -94,7 +94,18 @@ const setUpInfo = async (logger = new winston.Logger()) => {
   });
 };
 
-const loggerFactory = (meta) => {
+/**
+ * The function `loggerFactory` creates a logger instance with specified transports for printing out
+ * messages.
+ * @param meta - The `meta` parameter in the `loggerFactory` function is used to extract the last part
+ * of a URL and use it to create log files in a specific directory.
+ * @returns {winston.Logger} The `loggerFactory` function returns a logger instance created using Winston logger
+ * library. The logger instance is configured with various transports for printing out messages to
+ * different destinations such as the terminal, error.log file, and all.log file. The logger instance
+ * also has a method `setUpInfo` attached to it for setting up additional information.
+ * @memberof Logger
+ */
+const loggerFactory = (meta = { url: '' }) => {
   meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
   // In this example, we are using three different transports
@@ -129,7 +140,20 @@ const loggerFactory = (meta) => {
   return logger;
 };
 
-const loggerMiddleware = (meta) => {
+/**
+ * The `loggerMiddleware` function creates a middleware for logging HTTP requests using Morgan with
+ * custom message format and options.
+ * @param meta - The `meta` parameter in the `loggerMiddleware` function is an object that contains
+ * information about the request URL. It has a default value of an empty object `{ url: '' }`. This
+ * object is used to provide additional metadata for logging purposes.
+ * @returns {Handler<any, any>} The `loggerMiddleware` function returns a middleware function that uses the Morgan library
+ * to log HTTP request information. The middleware function formats the log message using predefined
+ * tokens provided by Morgan and custom tokens like `:host` to include specific request details. The
+ * log message format includes information such as remote address, HTTP method, host, URL, status code,
+ * content length, and response time in milliseconds. The middleware
+ * @memberof Logger
+ */
+const loggerMiddleware = (meta = { url: '' }) => {
   const stream = {
     // Use the http severity
     write: (message) => loggerFactory(meta).http(message),
