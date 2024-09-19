@@ -82,7 +82,7 @@ const format = (meta) =>
  * environment variables, the process's administrative privileges,
  * and the maximum available heap space size.
  *
- * @param {winston.Logger} logger (optional) - A pre-configured Winston logger object.
+ * @param {winston.Logger} logger - A pre-configured Winston logger object.
  * @memberof Logger
  */
 const setUpInfo = async (logger = new winston.Logger()) => {
