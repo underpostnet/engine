@@ -28,8 +28,10 @@ program
     console.log('build app', { destFolder });
     fs.mkdirSync(destFolder, { recursive: true });
     fs.copySync(globalBinFolder, destFolder);
+    fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${globalBinFolder}/.dockerignore`, 'utf8'), 'utf8');
     shellCd(`${destFolder}`);
     shellExec(`npm run install-template`);
+    shellExec(`git init && git add . && git commit -m "Base template implementation"`);
     shellExec(`npm run dev`);
   });
 
