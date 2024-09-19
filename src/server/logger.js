@@ -1,3 +1,9 @@
+/**
+ * Module for managing logger control and configuration
+ * @module src/server/logger.js
+ * @namespace Logger
+ */
+
 'use strict';
 
 import dotenv from 'dotenv';
@@ -68,6 +74,26 @@ const format = (meta) =>
     }),
   );
 
+/**
+ * Logs information about the current process environment to the console.
+ *
+ * This function is used to log details about
+ * the execution context, such as command-line arguments,
+ * environment variables, the process's administrative privileges,
+ * and the maximum available heap space size.
+ *
+ * @param {winston.Logger} logger (optional) - A pre-configured Winston logger object.
+ * @memberof Logger
+ */
+const setUpInfo = async (logger = new winston.Logger()) => {
+  logger.info('argv', process.argv);
+  logger.info('env', process.env.NODE_ENV);
+  logger.info('admin', await isAdmin());
+  logger.info('--max-old-space-size', {
+    total_available_size: formatBytes(v8.getHeapStatistics().total_available_size),
+  });
+};
+
 const loggerFactory = (meta) => {
   meta = meta.url.split('/').pop();
   // Define which transports the logger must use to print out messages.
@@ -97,13 +123,8 @@ const loggerFactory = (meta) => {
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
     // exitOnError: false,
   });
-  logger.setUpInfo = async () => {
-    logger.info('argv', process.argv);
-    logger.info('env', process.env.NODE_ENV);
-    logger.info('admin', await isAdmin());
-    logger.info('--max-old-space-size', {
-      total_available_size: formatBytes(v8.getHeapStatistics().total_available_size),
-    });
+  logger.setUpInfo = () => {
+    setUpInfo(logger);
   };
   return logger;
 };
@@ -132,4 +153,4 @@ const loggerMiddleware = (meta) => {
   );
 };
 
-export { loggerFactory, loggerMiddleware };
+export { loggerFactory, loggerMiddleware, setUpInfo };
