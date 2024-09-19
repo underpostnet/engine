@@ -134,8 +134,8 @@ const loggerFactory = (meta = { url: '' }) => {
     // rejectionHandlers: [new winston.transports.File({ filename: 'rejections.log' })],
     // exitOnError: false,
   });
-  logger.setUpInfo = () => {
-    setUpInfo(logger);
+  logger.setUpInfo = async () => {
+    await setUpInfo(logger);
   };
   return logger;
 };
