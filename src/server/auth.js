@@ -67,7 +67,7 @@ const hashJWT = (payload, expire) =>
 /**
  * The function `verifyJWT` is used to verify a JSON Web Token (JWT) using a secret key stored in the
  * environment variables.
- * @param [token] - The `token` parameter is a JSON Web Token (JWT) that is passed to the `verifyJWT`
+ * @param token - The `token` parameter is a JSON Web Token (JWT) that is passed to the `verifyJWT`
  * function for verification.
  * @memberof Auth
  */

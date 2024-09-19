@@ -33,10 +33,10 @@ const range = (start, end) => {
  * @param arr - The `arr` parameter in the `getId` function is an array of objects or an object. If it
  * is an object, the function converts it into an array of objects where each object has a key
  * specified by the `keyId` parameter.
- * @param [suffix] - The `suffix` parameter in the `getId` function is a string that can be added to
+ * @param suffix - The `suffix` parameter in the `getId` function is a string that can be added to
  * the generated ID. It is optional and by default is an empty string. You can provide a suffix to be
  * appended to the generated ID if needed.
- * @param [keyId=id] - The `keyId` parameter in the `getId` function is used to specify the key in the
+ * @param keyId - The `keyId` parameter in the `getId` function is used to specify the key in the
  * array elements that contains the unique identifier (ID) for each element. By default, the function
  * assumes that the ID is stored in a property named `'id'`, but you can customize this by providing
  * @returns The `getId` function returns a unique identifier `_id` based on the input array `arr`,

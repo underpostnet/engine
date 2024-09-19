@@ -136,14 +136,14 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
 
 /**
  * The setPath function in JavaScript updates the browser's history with a new path, state, and title.
- * @param [path=/] - The `path` parameter is a string that represents the URL path where you want to
+ * @param path - The `path` parameter is a string that represents the URL path where you want to
  * navigate or update in the browser history. It is the first parameter in the `setPath` function and
  * has a default value of `'/'`.
- * @param [stateStorage] - The `stateStorage` parameter in the `setPath` function is an object that
+ * @param stateStorage - The `stateStorage` parameter in the `setPath` function is an object that
  * represents the state object associated with the new history entry. It is used to store data related
  * to the state of the application when navigating to a new path using `history.pushState()`. This data
  * can be accessed later
- * @param [title] - The `title` parameter in the `setPath` function is a string that represents the
+ * @param title - The `title` parameter in the `setPath` function is a string that represents the
  * title of the new history entry. It is used as the title of the new history entry in the browser's
  * history.
  * @memberof VanillaJS
@@ -312,7 +312,7 @@ function downloadFile(fileInstance, fileName) {
 
 /**
  * The function `getRawContentFile` reads the raw content of a file using a FileReader in JavaScript.
- * @param [blob] - The `blob` parameter in the `getRawContentFile` function is a Buffer object that
+ * @param blob - The `blob` parameter in the `getRawContentFile` function is a Buffer object that
  * represents raw binary data. It is used to read the content of a file as text using a FileReader in
  * the browser environment.
  * @memberof VanillaJS
@@ -329,9 +329,9 @@ const getRawContentFile = (blob = new Buffer()) =>
 /**
  * The function `getBlobFromUint8ArrayFile` creates a Blob object from a Uint8Array file data with a
  * specified mimetype.
- * @param [data] - The `data` parameter in the `getBlobFromUint8ArrayFile` function is an array of
+ * @param data - The `data` parameter in the `getBlobFromUint8ArrayFile` function is an array of
  * arrays containing Uint8Array data.
- * @param [mimetype=application/octet-stream] - The `mimetype` parameter in the
+ * @param mimetype - The `mimetype` parameter in the
  * `getBlobFromUint8ArrayFile` function is a string that specifies the type of the Blob object being
  * created. It indicates the MIME type of the data contained in the Blob. For example, common MIME
  * types include 'image/jpeg' for JPEG images,
@@ -409,7 +409,7 @@ const isActiveTab = () => document.hasFocus();
 /**
  * The function `isActiveElement` checks if the active element in the document matches a specified
  * class search.
- * @param [classSearch] - The `classSearch` parameter is a string that is used to search for a specific
+ * @param classSearch - The `classSearch` parameter is a string that is used to search for a specific
  * class name within the `classList` of the active element in the document.
  * @memberof VanillaJS
  */
