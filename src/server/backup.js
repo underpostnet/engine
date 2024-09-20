@@ -88,6 +88,10 @@ const BackUpManagement = {
           }
       }
     }
+    shellCd(`./engine-private`);
+    shellExec(`git add . && git commit -m "backup ${new Date().toLocaleDateString()}"`);
+    shellExec(`git push origin master`);
+    shellCd(`..`);
   },
 };
 
