@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
-import { shellExec } from './process.js';
+import { shellCd, shellExec } from './process.js';
 import { getDataDeploy } from './conf.js';
 import cron from 'node-cron';
 
