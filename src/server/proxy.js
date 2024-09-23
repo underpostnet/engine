@@ -45,6 +45,8 @@ const buildProxy = async () => {
       // preserveHeaderKeyCase: true,
       // secure: true, warn validator
       onProxyReq: (proxyReq, req, res, options) => {
+        // https://wtools.io/check-http-status-code
+        // http://nexodev.org
         sslRedirectMiddleware(req, res, port, proxyRouter);
       },
       pathRewrite: {
