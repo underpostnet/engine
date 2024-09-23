@@ -16,6 +16,47 @@ const [host, path = ''] = hostPath.split('/');
 try {
   let cmd;
   switch (program) {
+    case 'lab':
+      switch (os) {
+        case 'windows':
+          {
+            const urlDownload = 'https://github.com/underpostnet/lab.git';
+            // const folderPath = `./lab`;
+            // if (!fs.existsSync(folderPath)) fs.mkdirSync(folderPath, { recursive: true });
+            shellExec(`git clone ${urlDownload}`);
+            const dependencies = [
+              'transformers',
+              'tensorflow',
+              'torch',
+              'torchaudio',
+              'torchvision',
+              'diffusers',
+              'nvidia-cuda-runtime-cu11',
+              'torchrec-nightly',
+              'matplotlib',
+              'scikit-learn',
+              'numpy',
+              'pandas',
+            ];
+            for (const dependencie of dependencies) {
+              shellExec(`pip install ${dependencie}`);
+              shellExec(`conda install ${dependencie}`);
+            }
+            shellExec(`conda install -c anaconda cudatoolkit`);
+            shellExec(`conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia`);
+
+            shellExec(`conda create --name cuda_env`);
+            shellExec(`conda activate cuda_env`);
+
+            shellExec(`conda config --append channels conda-forge`);
+            shellExec(`conda config --append channels nvidia`);
+          }
+          break;
+
+        default:
+          break;
+      }
+      break;
     case 'certbot':
       switch (os) {
         case 'windows':
