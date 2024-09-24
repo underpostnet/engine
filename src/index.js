@@ -8,7 +8,13 @@ import { loggerFactory, setUpInfo } from './server/logger.js';
 
 const logger = loggerFactory(import.meta);
 
-const underpost = {
+/**
+ * Underpost main module methods
+ * @class
+ */
+class Underpost {
+  constructor() {}
+
   /**
    * Logs information about the current process environment to the console.
    *
@@ -19,11 +25,15 @@ const underpost = {
    *
    * @memberof Underpost
    */
-  setUpInfo: async () => await setUpInfo(logger),
-};
+  static async setUpInfo() {
+    return await setUpInfo(logger);
+  }
+}
 
-const up = underpost;
+const up = Underpost;
 
-export { underpost, up };
+const underpost = Underpost;
+
+export { underpost, up, Underpost };
 
 export default underpost;
