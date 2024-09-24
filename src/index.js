@@ -36,4 +36,4 @@ const underpost = Underpost;
 
 export { underpost, up, Underpost };
 
-export default underpost;
+export default Underpost;
