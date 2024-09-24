@@ -2,9 +2,8 @@ import { favicons } from 'favicons';
 import textToImage from 'text-to-image';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
-import { getCapVariableName } from './conf.js';
 import { png3x } from 'font-awesome-assets';
-import { s4 } from '../client/components/core/CommonJs.js';
+import { getCapVariableName, s4 } from '../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 

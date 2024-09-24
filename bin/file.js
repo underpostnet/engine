@@ -1,10 +1,10 @@
 import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { cap, getDirname } from '../src/client/components/core/CommonJs.js';
+import { cap, getCapVariableName, getDirname } from '../src/client/components/core/CommonJs.js';
 import { shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
-import { getCapVariableName, validateTemplatePath } from '../src/server/conf.js';
+import { validateTemplatePath } from '../src/server/conf.js';
 
 const logger = loggerFactory(import.meta);
 

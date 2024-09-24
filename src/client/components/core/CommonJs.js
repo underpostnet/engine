@@ -679,6 +679,8 @@ function rgbToHex(rgb) {
   return hex;
 }
 
+const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')).replaceAll(' ', '');
+
 export {
   s4,
   range,
@@ -729,4 +731,5 @@ export {
   validatePassword,
   componentFromStr,
   rgbToHex,
+  getCapVariableName,
 };

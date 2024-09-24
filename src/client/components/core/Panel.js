@@ -61,23 +61,27 @@ const Panel = {
           <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-b">
             ${Object.keys(obj)
               .map((infoKey) => {
+                if (infoKey === 'id') return html``;
                 const formObjData = formData.find((f) => f.model === infoKey);
                 const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
                 const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
-
                 const valueNewIcon =
                   obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
                 const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
                 if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                   return html`<div class="in ${idPanel}-row">
-                    <span class="${idPanel}-row-pin-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
+                    <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                    >
                     <span class="${idPanel}-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
                   </div> `;
 
                 if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
                   return html`<div class="in ${idPanel}-row">
-                    <span class="${idPanel}-row-key capitalize">${keyNewIcon} ${keyIcon} ${infoKey}:</span>
+                    <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                    >
                     <span class="${idPanel}-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
                   </div> `;
 

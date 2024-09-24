@@ -1,5 +1,6 @@
 import { AgGrid } from './AgGrid.js';
 import { boxShadow, scrollBarDarkRender, scrollBarLightRender } from './Css.js';
+import { LoadingAnimation } from './LoadingAnimation.js';
 import { append, getProxyPath, s } from './VanillaJs.js';
 
 const CssCommonCore = async () => {
@@ -14,6 +15,7 @@ const CssCommonCore = async () => {
       />`,
     );
   await AgGrid.RenderStyle();
+  await LoadingAnimation.spinner.spinnerSrcValidator('dual-ring');
   return html`<style>
       .top-bar-app-icon {
         width: 35px;

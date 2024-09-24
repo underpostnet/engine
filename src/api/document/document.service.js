@@ -21,12 +21,14 @@ const DocumentService = {
 
     switch (req.params.id) {
       default:
-        return await Document.find({
+        const queryPayload = {
           userId: req.auth.user._id,
-          ...(req.params['uri'] && req.params['extension']
-            ? { location: { $regex: `/^${req.params['uri']}.*${req.params['extension']}$/` } }
-            : undefined),
-        }).populate(DocumentDto.populate.get());
+          // ...(req.query['uri'] && req.query['extension']
+          //   ? { location: `/^${req.query['uri']}.*${req.query['extension']}$/` }
+          //   : undefined),
+        };
+        logger.info('queryPayload', queryPayload);
+        return await Document.find(queryPayload).populate(DocumentDto.populate.get());
     }
   },
   delete: async (req, res, options) => {

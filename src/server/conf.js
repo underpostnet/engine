@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { cap, capFirst, newInstance, range, timer } from '../client/components/core/CommonJs.js';
+import { cap, capFirst, getCapVariableName, newInstance, range, timer } from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
@@ -115,8 +115,6 @@ const loadReplicas = (confServer) => {
   }
   return confServer;
 };
-
-const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')).replaceAll(' ', '');
 
 const cloneConf = async (
   { toOptions, fromOptions },

@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { getCapVariableName, getId, newInstance } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -163,7 +163,7 @@ const MenuUnderpost = {
       heightBottomBar,
       htmlMainBody: async function () {
         const idPanel = 'underpost-panel';
-        const uri = `panel`;
+        const uri = idPanel;
         const extension = `.md`;
         let data = [];
 
@@ -177,7 +177,7 @@ const MenuUnderpost = {
             // });
           });
           if (result.status === 'success') {
-            for (const documentObject of result.data) {
+            for (const documentObject of result.data.reverse()) {
               const {
                 data: [file],
                 status,
@@ -187,7 +187,10 @@ const MenuUnderpost = {
               const content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
 
               data.push({
-                title: documentObject.location.split('/').pop(),
+                id: documentObject._id,
+                title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
+                createdAt: documentObject.createdAt,
+                tags: documentObject.tags,
                 content,
               });
             }
@@ -203,34 +206,41 @@ const MenuUnderpost = {
             panel: { type: 'title' },
           },
           {
+            id: 'panel-createdAt',
+            model: 'createdAt',
+            inputType: 'datetime-local',
+            panel: { type: 'subtitle' },
+            rules: [{ type: 'isEmpty' }],
+            disableRender: true,
+          },
+          {
+            id: 'panel-tags',
+            model: 'tags',
+            label: {
+              disabled: true,
+            },
+            inputType: 'text',
+            panel: {
+              type: 'info-row-pin',
+              icon: {
+                value: html``,
+              },
+              newIcon: {
+                key: html``,
+              },
+            },
+            rules: [{ type: 'isEmpty' }],
+          },
+          {
             id: 'panel-content',
             model: 'content',
             inputType: 'md',
-            panel: { type: 'subtitle' },
-            rules: [{ type: 'isEmpty' }],
+            panel: { type: 'info-row' },
+            rules: [],
+            label: {
+              disabled: true,
+            },
           },
-          // {
-          //   id: 'panel-body',
-          //   model: 'body',
-          //   inputType: 'text',
-          //   panel: {
-          //     type: 'info-row-pin',
-          //     icon: {
-          //       value: html``,
-          //     },
-          //     newIcon: {
-          //       key: html``,
-          //     },
-          //   },
-          //   rules: [{ type: 'isEmpty' }],
-          // },
-          // {
-          //   id: 'panel-footer',
-          //   model: 'footer',
-          //   inputType: 'text',
-          //   panel: { type: 'info-row' },
-          //   rules: [],
-          // },
         ];
 
         return await Panel.Render({
@@ -250,7 +260,7 @@ const MenuUnderpost = {
           on: {
             add: async function ({ data }) {
               let fileId;
-              const location = `${uri}/${data.title}`;
+              const location = `${uri}/${getCapVariableName(data.title)}${extension}`;
               const blob = new Blob([data.content], { type: 'text/markdown' });
               const file = new File([blob], location, { type: 'text/markdown' });
 
@@ -266,12 +276,18 @@ const MenuUnderpost = {
                 if (status === 'success') fileId = data[0]._id;
               })();
 
-              const { status, message } = await DocumentService.post({
+              const {
+                status,
+                message,
+                data: documentData,
+              } = await DocumentService.post({
                 body: {
                   location,
+                  tags: data.tags.split(',').map((t) => t.trim()),
                   fileId,
                 },
               });
+              data.createdAt = documentData.createdAt;
 
               NotificationManager.Push({
                 html: status === 'success' ? Translate.Render('success-add-post') : message,

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 import { loggerFactory } from '../../server/logger.js';
-import { getCapVariableName } from '../../server/conf.js';
+import { getCapVariableName } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
