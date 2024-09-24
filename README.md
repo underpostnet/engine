@@ -49,4 +49,4 @@ underpost new app-name
 
 After template installation, the server will be running on [http://localhost:4001](http://localhost:4001)
 
-Package repo and usage info: [pwa-microservices-template](https://github.com/underpostnet/pwa-microservices-template)
+Package repo and usage info: <a href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md" target="_top">pwa-microservices-template</a>
