@@ -3,11 +3,12 @@ import { s } from './VanillaJs.js';
 
 const RichText = {
   Tokens: {},
-  Render: async function () {
-    const id = getId(this.Tokens, 'rich-text-');
+  Render: async function (options = { id: '' }) {
+    const id = options?.id ? options.id : getId(this.Tokens, 'rich-text-');
     this.Tokens[id] = {};
     setTimeout(() => {
       const easyMDE = new EasyMDE({ element: s(`#${id}`) });
+      this.Tokens[id].easyMDE = easyMDE;
       // easyMDE.value();
       // easyMDE.value(val);
     });

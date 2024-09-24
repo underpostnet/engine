@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { getBlobFromUint8ArrayFile, getProxyPath, getRawContentFile, htmls, s } from '../core/VanillaJs.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
 import Sortable from 'sortablejs';
 import { RouterUnderpost } from './RoutesUnderpost.js';
@@ -18,6 +18,9 @@ import { Badge } from '../core/Badge.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
 import { Panel } from '../core/Panel.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { DocumentService } from '../../services/document/document.service.js';
+import { FileService } from '../../services/file/file.service.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -160,6 +163,37 @@ const MenuUnderpost = {
       heightBottomBar,
       htmlMainBody: async function () {
         const idPanel = 'underpost-panel';
+        const uri = `panel`;
+        const extension = `.md`;
+        let data = [];
+
+        {
+          const result = await DocumentService.get({ id: `?uri=${uri}&&extension=${extension}` });
+
+          setTimeout(() => {
+            // NotificationManager.Push({
+            //   html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
+            //   status: result.status,
+            // });
+          });
+          if (result.status === 'success') {
+            for (const documentObject of result.data) {
+              const {
+                data: [file],
+                status,
+              } = await FileService.get({ id: documentObject.fileId._id });
+
+              // const ext = file.name.split('.')[file.name.split('.').length - 1];
+              const content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+
+              data.push({
+                title: documentObject.location.split('/').pop(),
+                content,
+              });
+            }
+          }
+        }
+
         const formData = [
           {
             id: 'panel-title',
@@ -169,36 +203,35 @@ const MenuUnderpost = {
             panel: { type: 'title' },
           },
           {
-            id: 'panel-description',
-            model: 'description',
-            inputType: 'text',
+            id: 'panel-content',
+            model: 'content',
+            inputType: 'md',
             panel: { type: 'subtitle' },
             rules: [{ type: 'isEmpty' }],
           },
-          {
-            id: 'panel-body',
-            model: 'body',
-            inputType: 'text',
-            panel: {
-              type: 'info-row-pin',
-              icon: {
-                value: html``,
-              },
-              newIcon: {
-                key: html``,
-              },
-            },
-            rules: [{ type: 'isEmpty' }],
-          },
-          {
-            id: 'panel-footer',
-            model: 'footer',
-            inputType: 'text',
-            panel: { type: 'info-row' },
-            rules: [],
-          },
+          // {
+          //   id: 'panel-body',
+          //   model: 'body',
+          //   inputType: 'text',
+          //   panel: {
+          //     type: 'info-row-pin',
+          //     icon: {
+          //       value: html``,
+          //     },
+          //     newIcon: {
+          //       key: html``,
+          //     },
+          //   },
+          //   rules: [{ type: 'isEmpty' }],
+          // },
+          // {
+          //   id: 'panel-footer',
+          //   model: 'footer',
+          //   inputType: 'text',
+          //   panel: { type: 'info-row' },
+          //   rules: [],
+          // },
         ];
-        const data = [];
 
         return await Panel.Render({
           idPanel,
@@ -213,6 +246,39 @@ const MenuUnderpost = {
             options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
           ) {
             return await options.htmlRender({ render: 'test' });
+          },
+          on: {
+            add: async function ({ data }) {
+              let fileId;
+              const location = `${uri}/${data.title}`;
+              const blob = new Blob([data.content], { type: 'text/markdown' });
+              const file = new File([blob], location, { type: 'text/markdown' });
+
+              await (async () => {
+                const body = new FormData();
+                body.append('file', file);
+                const { status, data } = await FileService.post({ body });
+                // await timer(3000);
+                NotificationManager.Push({
+                  html: Translate.Render(`${status}-upload-file`),
+                  status,
+                });
+                if (status === 'success') fileId = data[0]._id;
+              })();
+
+              const { status, message } = await DocumentService.post({
+                body: {
+                  location,
+                  fileId,
+                },
+              });
+
+              NotificationManager.Push({
+                html: status === 'success' ? Translate.Render('success-add-post') : message,
+                status: status,
+              });
+              return { data, status, message };
+            },
           },
         });
       },

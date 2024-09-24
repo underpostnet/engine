@@ -12,6 +12,7 @@ import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Modal } from './Modal.js';
 import { RouterEvents } from './Router.js';
+import { RichText } from './RichText.js';
 
 const Panel = {
   Tokens: {},
@@ -121,6 +122,10 @@ const Panel = {
             })}
           </div>`;
           break;
+        case 'md': {
+          renderForm += html`<div class="in section-mp">${await RichText.Render({ id: modelData.id })}</div>`;
+          break;
+        }
 
         case 'checkbox-on-off':
           {

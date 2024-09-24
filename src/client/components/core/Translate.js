@@ -402,6 +402,14 @@ const TranslateCore = {
       en: 'Events successfully retrieved from scheduler.',
       es: 'Eventos obtenidos correctamente del calendario.',
     };
+    Translate.Data['success-add-post'] = {
+      en: 'Post added successfully',
+      es: 'Post añadido con éxito',
+    };
+    Translate.Data['success-get-posts'] = {
+      en: 'Posts successfully retrieved',
+      es: 'Posts obtenidos con éxito',
+    };
   },
 };
 

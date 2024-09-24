@@ -8,6 +8,7 @@ const DocumentSchema = new Schema({
     ref: 'User',
   },
   location: { type: String },
+  tags: [{ type: String }],
   fileId: {
     type: Schema.Types.ObjectId,
     ref: 'File',

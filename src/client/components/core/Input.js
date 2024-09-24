@@ -2,6 +2,7 @@ import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme } from './Css.js';
 import { loggerFactory } from './Logger.js';
+import { RichText } from './RichText.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Translate } from './Translate.js';
 import { htmls, s } from './VanillaJs.js';
@@ -96,6 +97,9 @@ const Input = {
     const obj = {};
     for (const inputData of formData) {
       switch (inputData.inputType) {
+        case 'md':
+          obj[inputData.model] = RichText.Tokens[inputData.id].easyMDE.value();
+          break;
         case 'checkbox':
         case 'checkbox-on-off':
           obj[inputData.model] = s(`.${inputData.id}-checkbox`).checked;

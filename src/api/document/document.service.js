@@ -23,6 +23,9 @@ const DocumentService = {
       default:
         return await Document.find({
           userId: req.auth.user._id,
+          ...(req.params['uri'] && req.params['extension']
+            ? { location: { $regex: `/^${req.params['uri']}.*${req.params['extension']}$/` } }
+            : undefined),
         }).populate(DocumentDto.populate.get());
     }
   },
