@@ -47,6 +47,6 @@ npm install -g underpost
 underpost new app-name
 ```
 
-After template installation, the server will be running on [http://localhost:4001](http://localhost:4001)
+After template installation, the server will be running on <a href="http://localhost:4001" target="_top">http://localhost:4001</a>
 
 Package repo and usage info: <a href="https://github.com/underpostnet/pwa-microservices-template/blob/master/README.md" target="_top">pwa-microservices-template</a>
