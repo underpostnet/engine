@@ -11,6 +11,7 @@ const logger = loggerFactory(import.meta);
 /**
  * Underpost main module methods
  * @class
+ * @memberof Underpost
  */
 class Underpost {
   constructor() {}
