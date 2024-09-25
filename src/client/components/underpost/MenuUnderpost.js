@@ -1,8 +1,8 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getCapVariableName, getId, newInstance, range, timer, uniqueArray } from '../core/CommonJs.js';
+import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from '../core/CommonJs.js';
 import { marked } from 'marked';
-import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
+import { Css, ThemeEvents, Themes, darkTheme, renderCssAttr } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -235,10 +235,51 @@ const MenuUnderpost = {
             callBackPanelRender: async function (
               options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
             ) {
-              if (options.data.imageFileId) return await options.imgRender({ imageUrl: options.data.imageFileId });
-              return await options.htmlRender({
-                render: html`<div class="abs center" style="font-size: 40px"><i class="fas fa-user"></i></div>`,
-              });
+              if (options.data.ssr) {
+                return await options.htmlRender({
+                  render: html`<div
+                    class="abs center ssr-shimmer-search-box"
+                    style="${renderCssAttr({
+                      style: {
+                        width: '95%',
+                        height: '95%',
+                        'border-radius': '10px',
+                        overflow: 'hidden',
+                      },
+                    })}"
+                  >
+                    <div
+                      class="abs center"
+                      style="${renderCssAttr({
+                        style: {
+                          'font-size': '70px',
+                          color: `#bababa`,
+                        },
+                      })}"
+                    >
+                      <i class="fa-solid fa-photo-film"></i>
+                    </div>
+                  </div>`,
+                });
+              }
+              if (!options.data.imageFileId)
+                return await options.htmlRender({
+                  render: html`
+                    <img
+                      class="abs center"
+                      style="${renderCssAttr({
+                        style: {
+                          width: '100px',
+                          height: '100px',
+                          opacity: 0.2,
+                        },
+                      })}"
+                      src="https://underpost.net/assets/splash/apple-touch-icon-precomposed.png"
+                    />
+                  `,
+                });
+
+              return await options.imgRender({ imageUrl: options.data.imageFileId });
             },
             on: {
               add: async function ({ data }) {
@@ -343,7 +384,44 @@ const MenuUnderpost = {
         });
 
         return await panelRender({
-          data: range(0, 5).map((i) => ({ id: i, title: '...', createdAt: '...' })),
+          data: range(0, 5).map((i) => ({
+            id: i,
+            title: html`<div class="fl">
+              <div
+                class="in fll ssr-shimmer-search-box"
+                style="${renderCssAttr({
+                  style: {
+                    width: '80%',
+                    height: '30px',
+                  },
+                })}"
+              ></div>
+            </div>`,
+            createdAt: html`<div class="fl">
+              <div
+                class="in fll ssr-shimmer-search-box"
+                style="${renderCssAttr({
+                  style: {
+                    width: '50%',
+                    height: '30px',
+                    left: '-5px',
+                  },
+                })}"
+              ></div>
+            </div>`,
+            content: html`<div class="fl section-mp">
+              <div
+                class="in fll ssr-shimmer-search-box"
+                style="${renderCssAttr({
+                  style: {
+                    width: '80%',
+                    height: '30px',
+                  },
+                })}"
+              ></div>
+            </div>`.repeat(random(2, 4)),
+            ssr: true,
+          })),
         });
       },
     });

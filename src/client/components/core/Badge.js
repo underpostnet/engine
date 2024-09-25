@@ -5,7 +5,7 @@ import { append, prepend, s } from './VanillaJs.js';
 
 const Badge = {
   Tokens: {},
-  Render: async function (options = { id: '', type: 'circle-red', classList: '', text: '' }) {
+  Render: async function (options = { id: '', type: 'circle-red', classList: '', text: '', style: '' }) {
     if (!options.id) options.id = getId(this.Tokens, 'badge-');
     else options.id = 'badge-' + options.id;
     if (options && options.style && !options.style.color) options.style.color = 'white';

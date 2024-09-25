@@ -7,13 +7,14 @@ import { append, htmls, prepend, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
-import { dynamicCol } from './Css.js';
+import { dynamicCol, renderCssAttr } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
 import { Modal } from './Modal.js';
 import { RouterEvents } from './Router.js';
 import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
+import { Badge } from './Badge.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -44,8 +45,15 @@ const Panel = {
         if (options && options.callBackPanelRender)
           await options.callBackPanelRender({
             data: obj,
-            imgRender: async ({ imageUrl }) => {
-              htmls(`.${idPanel}-cell-col-a-${id}`, html`<img class="in img-${idPanel}" src="${imageUrl}" />`);
+            imgRender: async (options = { imageUrl: '', style: {}, class: '' }) => {
+              htmls(
+                `.${idPanel}-cell-col-a-${id}`,
+                html`<img
+                  class="in img-${idPanel} ${options.class ? options.class : ''}"
+                  src="${options.imageUrl}"
+                  ${options.style ? `style = "${options.style}"` : ''}
+                />`,
+              );
             },
             htmlRender: async ({ render }) => {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
@@ -74,20 +82,27 @@ const Panel = {
                   obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
                 const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
-                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags'))
+                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
+                  setTimeout(async () => {
+                    let tagRender = '';
+                    for (const tag of obj[infoKey]) {
+                      tagRender += await Badge.Render({
+                        text: tag,
+                        style: { color: 'white' },
+                        classList: 'inl section-mp',
+                      });
+                    }
+                    if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
+                  });
                   return html`<div class="in ${idPanel}-row">
                     <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
                       >${keyNewIcon} ${keyIcon} ${infoKey}:</span
                     >
                     <span class="${idPanel}-row-value"
-                      >${valueNewIcon} ${valueIcon}
-                      ${obj[infoKey]
-                        .map((tag) => {
-                          return tag;
-                        })
-                        .join(' | ')}</span
-                    >
+                      >${valueNewIcon} ${valueIcon} <span class="tag-render-${id}"></span
+                    ></span>
                   </div> `;
+                }
 
                 if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                   return html`<div class="in ${idPanel}-row">
@@ -190,6 +205,7 @@ const Panel = {
             s(`.${modelData.id}`).onchange = (e) => {
               // logger.info('e', e);
               const files = [];
+              let names = [];
               Object.keys(e.target.files).forEach((fileKey, index) => {
                 const file = e.target.files[fileKey];
                 logger.info('Load file', file);
@@ -199,11 +215,46 @@ const Panel = {
                 // read.onloadend = () => {
                 //   console.log('Load File', e.target.files[fileKey], { fileKey, index }, read.result);
                 // };
+                names.push(file.name);
                 files.push(file);
               });
               s(`.${modelData.id}`).inputFiles = files;
+              htmls(
+                `.file-name-render-${modelData.id}`,
+                html`${files[0].name.match('.png') || files[0].name.match('.jpg')
+                    ? html`<div class="in">
+                        <img
+                          style="${renderCssAttr({
+                            style: {
+                              width: '150px',
+                              height: '150px',
+                            },
+                          })}"
+                          src="${URL.createObjectURL(files[0])}"
+                        />
+                      </div>`
+                    : ''}
+                  <div class="in">${names}</div>`,
+              );
             };
           });
+          renderForm += `${await Input.Render({
+            inputClass: 'hide',
+            id: `${modelData.id}`,
+            type: modelData.inputType,
+            // autocomplete: 'new-password',
+            label: html`<i class="fa-solid fa-file-arrow-up"></i> ${Translate.Render('select')}
+              ${Translate.Render('file')}`,
+            containerClass: 'in section-mp width-mini-box input-container',
+            placeholder: true,
+            extension: () =>
+              html`<div class="file-name-render-${modelData.id}" style="min-height: 50px">
+                <div class="abs center"><i style="font-size: 25px" class="fa-solid fa-cloud"></i></div>
+              </div>`,
+            // disabled: true,
+            // disabledEye: true,
+          })}`;
+          break;
         default:
           renderForm += `${await Input.Render({
             id: `${modelData.id}`,

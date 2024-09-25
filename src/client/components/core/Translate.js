@@ -117,6 +117,7 @@ const TranslateCore = {
     Translate.Data['es'] = { en: 'Spanish', es: 'Español' };
     Translate.Data['theme'] = { en: 'Theme', es: 'Tema' };
     Translate.Data['success-upload-file'] = { en: 'file uploaded successfully', es: 'archivo subido correctamente' };
+    Translate.Data['file'] = { en: 'file', es: 'archivo' };
     Translate.Data['error-upload-file'] = { en: 'error uploading file', es: 'error al subir el archivo' };
     Translate.Data['generate'] = { en: 'generate', es: 'Generar' };
     Translate.Data['download'] = { en: 'download', es: 'Descargar' };
