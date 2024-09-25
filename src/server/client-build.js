@@ -186,7 +186,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         });
         if (apis)
           for (const apiBuildScript of apis) {
-            const scriptPath = `src/api/${apiBuildScript}/${apiBuildScript}.assets.build.js`;
+            const scriptPath = `src/api/${apiBuildScript}/${apiBuildScript}.build.js`;
             if (fs.existsSync(`./${scriptPath}`)) {
               shellExec(`node ${scriptPath}`);
             }
