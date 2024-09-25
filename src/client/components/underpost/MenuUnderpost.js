@@ -21,6 +21,7 @@ import { Panel } from '../core/Panel.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
+import { getImageSrcFromFileData } from '../core/Input.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -178,13 +179,26 @@ const MenuUnderpost = {
           });
           if (result.status === 'success') {
             for (const documentObject of result.data.reverse()) {
-              const {
-                data: [file],
-                status,
-              } = await FileService.get({ id: documentObject.fileId._id });
+              let content, imageFileId;
 
-              // const ext = file.name.split('.')[file.name.split('.').length - 1];
-              const content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+              {
+                const {
+                  data: [file],
+                  status,
+                } = await FileService.get({ id: documentObject.fileId._id });
+
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+              }
+              {
+                const {
+                  data: [file],
+                  status,
+                } = await FileService.get({ id: documentObject.imageFileId });
+
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                imageFileId = getImageSrcFromFileData(file);
+              }
 
               data.push({
                 id: documentObject._id,
@@ -192,6 +206,7 @@ const MenuUnderpost = {
                 createdAt: documentObject.createdAt,
                 tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
                 content,
+                imageFileId,
               });
             }
           }
@@ -212,6 +227,13 @@ const MenuUnderpost = {
             panel: { type: 'subtitle' },
             rules: [{ type: 'isEmpty' }],
             disableRender: true,
+          },
+          {
+            id: 'panel-imageFileId',
+            model: 'imageFileId',
+            inputType: 'file',
+            rules: [],
+            panel: {},
           },
           {
             id: 'panel-tags',
@@ -255,25 +277,32 @@ const MenuUnderpost = {
           callBackPanelRender: async function (
             options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
           ) {
+            return await options.imgRender({ imageUrl: options.data.imageFileId });
             return await options.htmlRender({ render: 'test' });
           },
           on: {
             add: async function ({ data }) {
               let fileId;
+              let imageFileId;
               const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
               const blob = new Blob([data.content], { type: 'text/markdown' });
               const file = new File([blob], location, { type: 'text/markdown' });
+              const image = data.imageFileId[0];
 
               await (async () => {
                 const body = new FormData();
                 body.append('file', file);
+                body.append('image', image);
                 const { status, data } = await FileService.post({ body });
                 // await timer(3000);
                 NotificationManager.Push({
                   html: Translate.Render(`${status}-upload-file`),
                   status,
                 });
-                if (status === 'success') fileId = data[0]._id;
+                if (status === 'success') {
+                  fileId = data[0]._id;
+                  imageFileId = data[1]._id;
+                }
               })();
 
               const {
@@ -290,9 +319,11 @@ const MenuUnderpost = {
                       .concat(prefixTags),
                   ),
                   fileId,
+                  imageFileId,
                 },
               });
               data.createdAt = documentData.createdAt;
+              data.imageFileId = URL.createObjectURL(image);
 
               NotificationManager.Push({
                 html: status === 'success' ? Translate.Render('success-add-post') : message,

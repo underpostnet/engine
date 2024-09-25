@@ -20,6 +20,12 @@ const fileFormDataFactory = (e, extensions) => {
   return form;
 };
 
+const getImageSrcFromFileData = (fileData) => {
+  const blob = new Blob([new Uint8Array(fileData.data.data)], { type: fileData.mimetype });
+  const file = new File([blob], fileData.name, { type: fileData.mimetype });
+  return URL.createObjectURL(file);
+};
+
 const Input = {
   Render: async function (options) {
     const { id } = options;
@@ -97,6 +103,9 @@ const Input = {
     const obj = {};
     for (const inputData of formData) {
       switch (inputData.inputType) {
+        case 'file':
+          obj[inputData.model] = s(`.${inputData.id}`).inputFiles;
+          continue;
         case 'md':
           obj[inputData.model] = RichText.Tokens[inputData.id].easyMDE.value();
           break;
@@ -104,7 +113,6 @@ const Input = {
         case 'checkbox-on-off':
           obj[inputData.model] = s(`.${inputData.id}-checkbox`).checked;
           continue;
-          break;
 
         default:
           break;
@@ -260,4 +268,4 @@ const InputFile = {
   },
 };
 
-export { Input, InputFile, fileFormDataFactory };
+export { Input, InputFile, fileFormDataFactory, getImageSrcFromFileData };

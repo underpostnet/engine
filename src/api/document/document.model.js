@@ -14,6 +14,10 @@ const DocumentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'File',
     },
+    imageFileId: {
+      type: Schema.Types.ObjectId,
+      ref: 'File',
+    },
   },
   {
     timestamps: true,

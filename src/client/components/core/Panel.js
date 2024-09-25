@@ -13,6 +13,9 @@ import { ToggleSwitch } from './ToggleSwitch.js';
 import { Modal } from './Modal.js';
 import { RouterEvents } from './Router.js';
 import { RichText } from './RichText.js';
+import { loggerFactory } from './Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Panel = {
   Tokens: {},
@@ -31,7 +34,9 @@ const Panel = {
     const subTitleObj = formData.find((f) => f.panel && f.panel.type === 'subtitle');
     const subTitleKey = subTitleObj ? subTitleObj.model : '';
 
-    const renderPanel = async (obj) => {
+    const renderPanel = async (payload) => {
+      const obj = payload;
+      if ('_id' in obj && !('id' in obj)) obj.id = obj._id;
       const { id } = obj;
 
       setTimeout(async () => {
@@ -165,7 +170,25 @@ const Panel = {
             </div>`;
           }
           break;
-
+        case 'file':
+          setTimeout(() => {
+            s(`.${modelData.id}`).onchange = (e) => {
+              // logger.info('e', e);
+              const files = [];
+              Object.keys(e.target.files).forEach((fileKey, index) => {
+                const file = e.target.files[fileKey];
+                logger.info('Load file', file);
+                // Get raw:
+                // const read = new FileReader();
+                // read.readAsBinaryString(file);
+                // read.onloadend = () => {
+                //   console.log('Load File', e.target.files[fileKey], { fileKey, index }, read.result);
+                // };
+                files.push(file);
+              });
+              s(`.${modelData.id}`).inputFiles = files;
+            };
+          });
         default:
           renderForm += `${await Input.Render({
             id: `${modelData.id}`,
