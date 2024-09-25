@@ -74,6 +74,21 @@ const Panel = {
                   obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
                 const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
+                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags'))
+                  return html`<div class="in ${idPanel}-row">
+                    <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                    >
+                    <span class="${idPanel}-row-value"
+                      >${valueNewIcon} ${valueIcon}
+                      ${obj[infoKey]
+                        .map((tag) => {
+                          return tag;
+                        })
+                        .join(' | ')}</span
+                    >
+                  </div> `;
+
                 if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                   return html`<div class="in ${idPanel}-row">
                     <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"

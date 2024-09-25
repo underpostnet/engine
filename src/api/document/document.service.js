@@ -22,7 +22,10 @@ const DocumentService = {
 
     if (req.path.startsWith('/public') && req.query['tags']) {
       const queryPayload = {
-        tags: { $in: uniqueArray(['public'].concat(req.query['tags'].split(','))) },
+        tags: {
+          // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
+          $all: uniqueArray(['public'].concat(req.query['tags'].split(','))),
+        },
       };
       logger.info('queryPayload', queryPayload);
       return await Document.find(queryPayload).populate(DocumentDto.populate.get());

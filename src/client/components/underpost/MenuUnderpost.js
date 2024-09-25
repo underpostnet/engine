@@ -1,6 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getCapVariableName, getId, newInstance, uniqueArray } from '../core/CommonJs.js';
+import { getCapVariableName, getId, newInstance, range, timer, uniqueArray } from '../core/CommonJs.js';
+import { marked } from 'marked';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -167,51 +168,6 @@ const MenuUnderpost = {
         const prefixTags = [idPanel, 'public'];
         const extension = `.md`;
         let data = [];
-
-        {
-          const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
-
-          setTimeout(() => {
-            // NotificationManager.Push({
-            //   html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
-            //   status: result.status,
-            // });
-          });
-          if (result.status === 'success') {
-            for (const documentObject of result.data.reverse()) {
-              let content, imageFileId;
-
-              {
-                const {
-                  data: [file],
-                  status,
-                } = await FileService.get({ id: documentObject.fileId._id });
-
-                // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-              }
-              {
-                const {
-                  data: [file],
-                  status,
-                } = await FileService.get({ id: documentObject.imageFileId });
-
-                // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                imageFileId = getImageSrcFromFileData(file);
-              }
-
-              data.push({
-                id: documentObject._id,
-                title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
-                createdAt: documentObject.createdAt,
-                tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-                content,
-                imageFileId,
-              });
-            }
-          }
-        }
-
         const formData = [
           {
             id: 'panel-title',
@@ -242,15 +198,16 @@ const MenuUnderpost = {
               disabled: true,
             },
             inputType: 'text',
-            panel: {
-              type: 'info-row-pin',
-              icon: {
-                value: html``,
-              },
-              newIcon: {
-                key: html``,
-              },
-            },
+            panel: { type: 'tags' },
+            // panel: {
+            //   type: 'info-row-pin',
+            //   icon: {
+            //     value: html``,
+            //   },
+            //   newIcon: {
+            //     key: html``,
+            //   },
+            // },
             rules: [{ type: 'isEmpty' }],
           },
           {
@@ -264,74 +221,129 @@ const MenuUnderpost = {
             },
           },
         ];
-
-        return await Panel.Render({
-          idPanel,
-          formData,
-          heightTopBar,
-          heightBottomBar,
-          data,
-          scrollClassContainer: 'main-body',
-          titleIcon: html`<i class="fa-solid fa-quote-left"></i>`,
-          formContainerClass: 'session-in-log-in',
-          callBackPanelRender: async function (
-            options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
-          ) {
-            return await options.imgRender({ imageUrl: options.data.imageFileId });
-            return await options.htmlRender({ render: 'test' });
-          },
-          on: {
-            add: async function ({ data }) {
-              let fileId;
-              let imageFileId;
-              const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
-              const blob = new Blob([data.content], { type: 'text/markdown' });
-              const file = new File([blob], location, { type: 'text/markdown' });
-              const image = data.imageFileId[0];
-
-              await (async () => {
-                const body = new FormData();
-                body.append('file', file);
-                body.append('image', image);
-                const { status, data } = await FileService.post({ body });
-                // await timer(3000);
-                NotificationManager.Push({
-                  html: Translate.Render(`${status}-upload-file`),
-                  status,
-                });
-                if (status === 'success') {
-                  fileId = data[0]._id;
-                  imageFileId = data[1]._id;
-                }
-              })();
-
-              const {
-                status,
-                message,
-                data: documentData,
-              } = await DocumentService.post({
-                body: {
-                  location,
-                  tags: uniqueArray(
-                    data.tags
-                      .split(',')
-                      .map((t) => t.trim())
-                      .concat(prefixTags),
-                  ),
-                  fileId,
-                  imageFileId,
-                },
+        const dateFormat = (date) => new Date(date).toLocaleString();
+        const panelRender = async ({ data }) =>
+          await Panel.Render({
+            idPanel,
+            formData,
+            heightTopBar,
+            heightBottomBar,
+            data,
+            scrollClassContainer: 'main-body',
+            titleIcon: html`<i class="fa-solid fa-quote-left"></i>`,
+            formContainerClass: 'session-in-log-in',
+            callBackPanelRender: async function (
+              options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
+            ) {
+              if (options.data.imageFileId) return await options.imgRender({ imageUrl: options.data.imageFileId });
+              return await options.htmlRender({
+                render: html`<div class="abs center" style="font-size: 40px"><i class="fas fa-user"></i></div>`,
               });
-              data.createdAt = documentData.createdAt;
-              data.imageFileId = URL.createObjectURL(image);
-
-              NotificationManager.Push({
-                html: status === 'success' ? Translate.Render('success-add-post') : message,
-                status: status,
-              });
-              return { data, status, message };
             },
-          },
+            on: {
+              add: async function ({ data }) {
+                let fileId;
+                let imageFileId;
+                const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
+                const blob = new Blob([data.content], { type: 'text/markdown' });
+                const file = new File([blob], location, { type: 'text/markdown' });
+                const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
+                const tags = uniqueArray(
+                  data.tags
+                    .split(',')
+                    .map((t) => t.trim())
+                    .concat(prefixTags),
+                );
+
+                await (async () => {
+                  const body = new FormData();
+                  body.append('file', file);
+                  body.append('image', image);
+                  const { status, data } = await FileService.post({ body });
+                  // await timer(3000);
+                  NotificationManager.Push({
+                    html: Translate.Render(`${status}-upload-file`),
+                    status,
+                  });
+                  if (status === 'success') {
+                    fileId = data[0]._id;
+                    if (data[1]) imageFileId = data[1]._id;
+                  }
+                })();
+
+                const {
+                  status,
+                  message,
+                  data: documentData,
+                } = await DocumentService.post({
+                  body: {
+                    location,
+                    tags,
+                    fileId,
+                    imageFileId,
+                  },
+                });
+                data.createdAt = dateFormat(documentData.createdAt);
+                if (image) data.imageFileId = URL.createObjectURL(image);
+                data.tags = data.tags.split(',');
+                data.content = marked.parse(data.content);
+
+                NotificationManager.Push({
+                  html: status === 'success' ? Translate.Render('success-add-post') : message,
+                  status: status,
+                });
+                return { data, status, message };
+              },
+            },
+          });
+        setTimeout(async () => {
+          {
+            const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
+
+            NotificationManager.Push({
+              html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
+              status: result.status,
+            });
+            if (result.status === 'success') {
+              for (const documentObject of result.data.reverse()) {
+                let content, imageFileId;
+
+                {
+                  const {
+                    data: [file],
+                    status,
+                  } = await FileService.get({ id: documentObject.fileId._id });
+
+                  // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                  content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+                }
+                if (documentObject.imageFileId) {
+                  const {
+                    data: [file],
+                    status,
+                  } = await FileService.get({ id: documentObject.imageFileId });
+
+                  // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                  imageFileId = getImageSrcFromFileData(file);
+                }
+
+                data.push({
+                  id: documentObject._id,
+                  title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
+                  createdAt: dateFormat(documentObject.createdAt),
+                  tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
+                  content: marked.parse(content),
+                  imageFileId,
+                });
+              }
+            }
+          }
+
+          htmls(`.html-main-body`, await panelRender({ data }));
+        });
+
+        return await panelRender({
+          data: range(0, 5).map((i) => ({ id: i, title: '...', createdAt: '...' })),
         });
       },
     });
