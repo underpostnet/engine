@@ -90,8 +90,6 @@ const buildRuntime = async () => {
         redirectTarget = redirect[redirect.length - 1] === '/' ? redirect.slice(0, -1) : redirect;
       }
 
-      logger.info('Build runtime', `${host}${path}`);
-
       switch (runtime) {
         case 'lampp':
           if (!Lampp.enabled()) continue;
@@ -239,6 +237,17 @@ const buildRuntime = async () => {
             return compression.filter(req, res);
           }
 
+          if (process.argv.includes('static')) {
+            logger.info('Build static server runtime', `${host}${path}`);
+            currentPort += 2;
+            const staticPort = newInstance(currentPort);
+            await network.port.portClean(staticPort);
+            await listenPortController(app, staticPort, runningData);
+            currentPort++;
+            continue;
+          }
+          logger.info('Build api server runtime', `${host}${path}`);
+
           // parse requests of content-type - application/json
           app.use(express.json({ limit: '100MB' }));
 
@@ -261,7 +270,13 @@ const buildRuntime = async () => {
           });
 
           // cors
-          app.use(cors({ origin: origins }));
+          const originPayload = {
+            origin: origins.concat(
+              apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
+            ),
+          };
+          logger.info('originPayload', originPayload);
+          app.use(cors(originPayload));
 
           if (redirect) {
             app.use(function (req = express.Request, res = express.Response, next = express.NextFunction) {

@@ -170,7 +170,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         continue;
       }
 
-      if (fullBuildEnabled)
+      if (fullBuildEnabled) {
         //  !(confServer[host]['/'] && confServer[host]['/'].liteBuild)
         await fullBuild({
           path,
@@ -184,6 +184,14 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           iconsBuild,
           metadata,
         });
+        if (apis)
+          for (const apiBuildScript of apis) {
+            const scriptPath = `src/api/${apiBuildScript}/${apiBuildScript}.assets.build.js`;
+            if (fs.existsSync(`./${scriptPath}`)) {
+              shellExec(`node ${scriptPath}`);
+            }
+          }
+      }
 
       if (components)
         for (const module of Object.keys(components)) {
@@ -230,7 +238,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               'services',
               baseHost,
             );
-            if (module === 'core' && process.env.NODE_ENV === 'production') {
+            if (module === 'core' && (process.env.NODE_ENV === 'production' || process.argv.includes('static'))) {
               if (apiBaseHost)
                 jsSrc = jsSrc.replace(
                   'const getBaseHost = () => location.host;',

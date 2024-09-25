@@ -1,6 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
+import { uniqueArray } from '../../client/components/core/CommonJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -19,16 +20,19 @@ const DocumentService = {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
 
+    if (req.path.startsWith('/public') && req.query['tags']) {
+      const queryPayload = {
+        tags: { $in: uniqueArray(['public'].concat(req.query['tags'].split(','))) },
+      };
+      logger.info('queryPayload', queryPayload);
+      return await Document.find(queryPayload).populate(DocumentDto.populate.get());
+    }
+
     switch (req.params.id) {
       default:
-        const queryPayload = {
+        return await Document.find({
           userId: req.auth.user._id,
-          // ...(req.query['uri'] && req.query['extension']
-          //   ? { location: `/^${req.query['uri']}.*${req.query['extension']}$/` }
-          //   : undefined),
-        };
-        logger.info('queryPayload', queryPayload);
-        return await Document.find(queryPayload).populate(DocumentDto.populate.get());
+        }).populate(DocumentDto.populate.get());
     }
   },
   delete: async (req, res, options) => {

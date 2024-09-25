@@ -1,5 +1,5 @@
 import { authMiddleware } from '../../server/auth.js';
-import { faBase64Png, getBufferPngText } from '../../server/client-icons.js';
+import fs from 'fs-extra';
 import { loggerFactory } from '../../server/logger.js';
 import { UserController } from './user.controller.js';
 import express from 'express';
@@ -12,9 +12,9 @@ const UserRouter = (options) => {
   (async () => {
     options.png = {
       buffer: {
-        'invalid-token': await getBufferPngText({ text: 'Invalid token', textColor: '#ff0000' }),
-        recover: Buffer.from(faBase64Png('rotate-left', 50, 50, '#ffffff'), 'base64'),
-        check: Buffer.from(faBase64Png('check', 50, 50), 'base64'),
+        'invalid-token': fs.readFileSync(`./tmp/api-user-invalid-token.png`),
+        recover: fs.readFileSync(`./tmp/api-user-recover.png`),
+        check: fs.readFileSync(`./tmp/api-user-check.png`),
       },
       header: (res) => {
         res.set('Content-Type', 'image/png');

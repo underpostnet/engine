@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getCapVariableName, getId, newInstance } from '../core/CommonJs.js';
+import { getCapVariableName, getId, newInstance, uniqueArray } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -163,12 +163,12 @@ const MenuUnderpost = {
       heightBottomBar,
       htmlMainBody: async function () {
         const idPanel = 'underpost-panel';
-        const uri = idPanel;
+        const prefixTags = [idPanel, 'public'];
         const extension = `.md`;
         let data = [];
 
         {
-          const result = await DocumentService.get({ id: `?uri=${uri}&&extension=${extension}` });
+          const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
 
           setTimeout(() => {
             // NotificationManager.Push({
@@ -190,7 +190,7 @@ const MenuUnderpost = {
                 id: documentObject._id,
                 title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
                 createdAt: documentObject.createdAt,
-                tags: documentObject.tags,
+                tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
                 content,
               });
             }
@@ -260,7 +260,7 @@ const MenuUnderpost = {
           on: {
             add: async function ({ data }) {
               let fileId;
-              const location = `${uri}/${getCapVariableName(data.title)}${extension}`;
+              const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
               const blob = new Blob([data.content], { type: 'text/markdown' });
               const file = new File([blob], location, { type: 'text/markdown' });
 
@@ -283,7 +283,12 @@ const MenuUnderpost = {
               } = await DocumentService.post({
                 body: {
                   location,
-                  tags: data.tags.split(',').map((t) => t.trim()),
+                  tags: uniqueArray(
+                    data.tags
+                      .split(',')
+                      .map((t) => t.trim())
+                      .concat(prefixTags),
+                  ),
                   fileId,
                 },
               });

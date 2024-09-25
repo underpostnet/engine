@@ -22,7 +22,7 @@ const getWsBaseUrl = (options = { id: '', endpoint: '', wsBasePath: '' }) =>
   }${options?.endpoint ? options.endpoint : ''}${options?.id ? `/${options.id}` : ''}`;
 
 const headersFactory = (headerId = '') => {
-  const headers = { Authorization: Auth.getJWT() };
+  const headers = { Authorization: Auth.getJWT() }; // , mode: 'no-cors'
   switch (headerId) {
     case 'file':
       return headers;
