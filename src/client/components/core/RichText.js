@@ -7,7 +7,7 @@ const RichText = {
     const id = options?.id ? options.id : getId(this.Tokens, 'rich-text-');
     this.Tokens[id] = {};
     setTimeout(() => {
-      const easyMDE = new EasyMDE({ element: s(`#${id}`) });
+      const easyMDE = new EasyMDE({ element: s(`.${id}`) });
       this.Tokens[id].easyMDE = easyMDE;
       // easyMDE.value();
       // easyMDE.value(val);
@@ -21,7 +21,7 @@ const RichText = {
           color: black !important;
         }
       </style>
-      <div class="in md-container"><textarea id="${id}"></textarea></div>`;
+      <div class="in md-container"><textarea class="${id}"></textarea></div>`;
   },
 };
 

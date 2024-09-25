@@ -221,7 +221,16 @@ const MenuUnderpost = {
             },
           },
         ];
-        const dateFormat = (date) => new Date(date).toLocaleString();
+        const dateFormat = (date) =>
+          html`<span
+            style="${renderCssAttr({
+              style: {
+                'font-size': '14px',
+                color: '#888',
+              },
+            })}"
+            >${new Date(date).toLocaleString().replaceAll(',', '')}</span
+          >`;
         const panelRender = async ({ data }) =>
           await Panel.Render({
             idPanel,
@@ -291,6 +300,9 @@ const MenuUnderpost = {
                 const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
                 const tags = uniqueArray(
                   data.tags
+                    .replaceAll('/', ',')
+                    .replaceAll('-', ',')
+                    .replaceAll(' ', ',')
                     .split(',')
                     .map((t) => t.trim())
                     .concat(prefixTags),
@@ -326,7 +338,7 @@ const MenuUnderpost = {
                 });
                 data.createdAt = dateFormat(documentData.createdAt);
                 if (image) data.imageFileId = URL.createObjectURL(image);
-                data.tags = data.tags.split(',');
+                data.tags = tags.filter((t) => !prefixTags.includes(t));
                 data.content = marked.parse(data.content);
 
                 NotificationManager.Push({
@@ -393,6 +405,8 @@ const MenuUnderpost = {
                   style: {
                     width: '80%',
                     height: '30px',
+                    top: '-13px',
+                    left: '10px',
                   },
                 })}"
               ></div>

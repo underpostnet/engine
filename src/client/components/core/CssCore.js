@@ -457,7 +457,7 @@ const CssCoreDark = {
           color: #b1a7a7;
         }
         a:hover {
-          color: #ffffff;
+          color: #cdcdcd;
         }
         .content-render {
           font-size: 16px;

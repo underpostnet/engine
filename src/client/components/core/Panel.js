@@ -35,6 +35,10 @@ const Panel = {
     const subTitleObj = formData.find((f) => f.panel && f.panel.type === 'subtitle');
     const subTitleKey = subTitleObj ? subTitleObj.model : '';
 
+    const fileNameInputExtDefaultContent = html` <div class="abs center">
+      <i style="font-size: 25px" class="fa-solid fa-cloud"></i>
+    </div>`;
+
     const renderPanel = async (payload) => {
       const obj = payload;
       if ('_id' in obj && !('id' in obj)) obj.id = obj._id;
@@ -66,6 +70,7 @@ const Panel = {
             ${obj.new ? obj.new : options.titleIcon} &nbsp ${titleKey ? obj[titleKey] : ''}
           </div>
           <div class="in ${idPanel}-subtitle">${subTitleKey ? obj[subTitleKey] : ''}</div>
+          <div class="in ${idPanel}-tags"><span class="tag-render-${id}"></span></div>
         </div>
         <div class="fl">
           <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
@@ -84,16 +89,18 @@ const Panel = {
 
                 if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
                   setTimeout(async () => {
-                    let tagRender = '';
+                    let tagRender = html``;
                     for (const tag of obj[infoKey]) {
                       tagRender += await Badge.Render({
                         text: tag,
                         style: { color: 'white' },
-                        classList: 'inl section-mp',
+                        classList: 'inl',
+                        style: { margin: '3px', background: `#a2a2a2` },
                       });
                     }
                     if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
                   });
+                  return html``;
                   return html`<div class="in ${idPanel}-row">
                     <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
                       >${keyNewIcon} ${keyIcon} ${infoKey}:</span
@@ -202,6 +209,7 @@ const Panel = {
           break;
         case 'file':
           setTimeout(() => {
+            s(`.${modelData.id}`).fileNameInputExtDefaultContent = fileNameInputExtDefaultContent;
             s(`.${modelData.id}`).onchange = (e) => {
               // logger.info('e', e);
               const files = [];
@@ -249,7 +257,7 @@ const Panel = {
             placeholder: true,
             extension: () =>
               html`<div class="file-name-render-${modelData.id}" style="min-height: 50px">
-                <div class="abs center"><i style="font-size: 25px" class="fa-solid fa-cloud"></i></div>
+                ${fileNameInputExtDefaultContent}
               </div>`,
             // disabled: true,
             // disabledEye: true,
@@ -332,6 +340,7 @@ const Panel = {
           const { status } = await options.on.add({ data: obj });
           if (status === 'error') return;
         }
+        s(`.btn-${idPanel}-clean`).click();
         obj.new = html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
         data.push(obj);
         prepend(`.${idPanel}-render`, await renderPanel(obj));
@@ -441,7 +450,7 @@ const Panel = {
         .${idPanel}-title {
           color: rgba(109, 104, 255, 1);
           font-size: 24px;
-          padding: 15px;
+          padding: 5px;
         }
         .${idPanel}-row {
           padding: 5px;
@@ -451,6 +460,11 @@ const Panel = {
         .${idPanel}-subtitle {
           font-size: 17px;
           margin-left: 20px;
+          top: -7px;
+        }
+        .${idPanel}-tags {
+          font-size: 17px;
+          margin-left: 10px;
           top: -7px;
         }
         .${idPanel}-row-key {

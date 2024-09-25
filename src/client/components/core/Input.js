@@ -132,6 +132,18 @@ const Input = {
       if (!s(`.${inputData.id}`)) continue;
 
       switch (inputData.inputType) {
+        case 'file':
+          s(`.${inputData.id}`).inputFiles = undefined;
+          s(`.${inputData.id}`).value = null;
+
+          if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
+            htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
+          continue;
+          break;
+        case 'md':
+          RichText.Tokens[inputData.id].easyMDE.value('');
+          continue;
+          break;
         case 'checkbox':
         case 'checkbox-on-off':
           if (s(`.${inputData.id}-checkbox`).checked) ToggleSwitch.Tokens[inputData.id].click();
