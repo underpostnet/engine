@@ -99,8 +99,10 @@ const Panel = {
           <div class="in ${idPanel}-title">
             ${obj.new ? obj.new : options.titleIcon} &nbsp ${titleKey ? obj[titleKey] : ''}
           </div>
-          <div class="in ${idPanel}-subtitle">${subTitleKey ? obj[subTitleKey] : ''}</div>
-          <div class="in ${idPanel}-tags"><span class="tag-render-${id}"></span></div>
+          <div class="in ${idPanel}-subtitle">
+            ${subTitleKey ? obj[subTitleKey] : ''} <span class="tag-render-${id}"></span>
+          </div>
+          <!--  <div class="in ${idPanel}-tags"></div> -->
         </div>
         <div class="fl">
           <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
@@ -371,7 +373,9 @@ const Panel = {
           if (status === 'error') return;
         }
         s(`.btn-${idPanel}-clean`).click();
-        obj.new = html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
+        obj.new = options.newRender
+          ? options.newRender
+          : html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
         data.push(obj);
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);

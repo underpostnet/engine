@@ -232,6 +232,9 @@ const MenuUnderpost = {
             })}"
             >${new Date(date).toLocaleString().replaceAll(',', '')}</span
           >`;
+        const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
+        const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
+        const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
         const panelRender = async ({ data }) =>
           await Panel.Render({
             idPanel,
@@ -240,7 +243,8 @@ const MenuUnderpost = {
             heightBottomBar,
             data,
             scrollClassContainer: 'main-body',
-            titleIcon: html`<i class="fa-solid fa-quote-left"></i>`,
+            titleIcon,
+            newRender,
             formContainerClass: 'session-in-log-in',
             callBackPanelRender: async function (
               options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
@@ -307,7 +311,6 @@ const MenuUnderpost = {
                   id: `delete-underpost-panel-${id}`,
                 });
                 if (confirmResult.status === 'confirm') {
-                  console.error(data);
                   const { status, message } = await DocumentService.delete({
                     id: data._id,
                   });
@@ -334,6 +337,7 @@ const MenuUnderpost = {
                     .replaceAll(' ', ',')
                     .split(',')
                     .map((t) => t.trim())
+                    .filter((t) => t)
                     .concat(prefixTags),
                 );
 
@@ -423,6 +427,11 @@ const MenuUnderpost = {
                 imageFileId,
                 tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId,
                 _id: documentObject._id,
+                new:
+                  documentObject.createdAt &&
+                  new Date().getTime() - new Date(documentObject.createdAt).getTime() < newRenderMsLimit
+                    ? newRender
+                    : undefined,
               });
             }
           }

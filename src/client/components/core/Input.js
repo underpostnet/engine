@@ -35,6 +35,7 @@ const Input = {
         : options.placeholder
       : null;
     setTimeout(() => {
+      if (!s(`.${id}`)) return;
       s(`.input-container-${id}`).onclick = () => {
         ['color', 'file'].includes(options.type) ? s(`.${id}`).click() : s(`.${id}`).focus();
         ['datetime-local'].includes(options.type) ? s(`.${id}`).showPicker() : s(`.${id}`).focus();
