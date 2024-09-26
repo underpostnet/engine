@@ -48,9 +48,29 @@ const Panel = {
       <i style="font-size: 25px" class="fa-solid fa-cloud"></i>
     </div>`;
 
+    let editId;
+
+    const openPanelForm = () => {
+      s(`.${idPanel}-form-body`).classList.remove('hide');
+      s(`.btn-${idPanel}-add`).classList.add('hide');
+      s(`.${scrollClassContainer}`).style.overflow = 'hidden';
+      if (options.customButtons) {
+        let customBtnIndex = -1;
+        for (const dataBtn of options.customButtons) {
+          customBtnIndex++;
+          const customBtnIndexFn = customBtnIndex;
+          const btnSelector = `btn-${idPanel}-custom${customBtnIndexFn}`;
+          s(`.${btnSelector}`).classList.add('hide');
+        }
+      }
+      setTimeout(() => {
+        s(`.${idPanel}-form-body`).style.opacity = 1;
+      });
+    };
+
     const renderPanel = async (payload) => {
       const obj = payload;
-      if ('_id' in obj && !('id' in obj)) obj.id = obj._id;
+      if ('_id' in obj) obj.id = obj._id;
       const { id } = obj;
 
       setTimeout(async () => {
@@ -86,7 +106,13 @@ const Panel = {
           `.${idPanel}-btn-edit-${id}`,
           async () => {
             logger.warn('edit', obj);
-            s(`.btn-${idPanel}-add`).click();
+            if (obj._id) editId = obj._id;
+            else if (obj.id) editId = obj.id;
+
+            s(`.btn-${idPanel}-label-edit`).classList.remove('hide');
+            s(`.btn-${idPanel}-label-add`).classList.add('hide');
+            openPanelForm();
+            // s(`.btn-${idPanel}-add`).click();
             Input.setValues(
               formData,
               obj,
@@ -338,7 +364,8 @@ const Panel = {
     let renderFormBtn = html`
       ${await BtnIcon.Render({
         class: `section-mp btn-custom btn-${idPanel}-submit`,
-        label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
+        label: html`<span class="btn-${idPanel}-label-add"><i class="fas fa-plus"></i> ${Translate.Render('add')}</span
+          ><span class="btn-${idPanel}-label-edit hide"><i class="fas fa-edit"></i> ${Translate.Render('edit')}</span>`,
         type: 'submit',
       })}
       ${await BtnIcon.Render({
@@ -395,13 +422,14 @@ const Panel = {
         const obj = Input.getValues(formData);
         obj.id = `${data.length}`;
         if (options && options.on && options.on.add) {
-          const { status } = await options.on.add({ data: obj });
+          const { status } = await options.on.add({ data: obj, editId });
           if (status === 'error') return;
         }
         s(`.btn-${idPanel}-clean`).click();
         obj.new = options.newRender
           ? options.newRender
           : html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
+        if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
@@ -431,21 +459,11 @@ const Panel = {
       s(`.btn-${idPanel}-add`).onclick = (e) => {
         e.preventDefault();
         // s(`.btn-${idPanel}-clean`).click();
-        s(`.${idPanel}-form-body`).classList.remove('hide');
-        s(`.btn-${idPanel}-add`).classList.add('hide');
-        s(`.${scrollClassContainer}`).style.overflow = 'hidden';
-        if (options.customButtons) {
-          let customBtnIndex = -1;
-          for (const dataBtn of options.customButtons) {
-            customBtnIndex++;
-            const customBtnIndexFn = customBtnIndex;
-            const btnSelector = `btn-${idPanel}-custom${customBtnIndexFn}`;
-            s(`.${btnSelector}`).classList.add('hide');
-          }
-        }
-        setTimeout(() => {
-          s(`.${idPanel}-form-body`).style.opacity = 1;
-        });
+        editId = undefined;
+        s(`.btn-${idPanel}-label-add`).classList.remove('hide');
+        s(`.btn-${idPanel}-label-edit`).classList.add('hide');
+
+        openPanelForm();
       };
     });
 

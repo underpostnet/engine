@@ -179,7 +179,7 @@ const PanelUnderpost = {
             }
             return { status: 'error' };
           },
-          add: async function ({ data }) {
+          add: async function ({ data, editId }) {
             let fileId;
             let imageFileId;
             const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
@@ -197,6 +197,12 @@ const PanelUnderpost = {
                 .concat(prefixTags),
             );
 
+            let originObj, indexOriginObj;
+            if (editId) {
+              indexOriginObj = PanelUnderpost.Data.originData.findIndex((d) => d._id === editId);
+              if (indexOriginObj > -1) originObj = PanelUnderpost.Data.originData[indexOriginObj];
+            }
+
             await (async () => {
               const body = new FormData();
               body.append('file', file);
@@ -212,20 +218,22 @@ const PanelUnderpost = {
                 if (data[1]) imageFileId = data[1]._id;
               }
             })();
-
+            const body = {
+              location,
+              tags,
+              fileId,
+              imageFileId,
+              title: data.title,
+            };
             const {
               status,
               message,
               data: documentData,
-            } = await DocumentService.post({
-              body: {
-                location,
-                tags,
-                fileId,
-                imageFileId,
-                title: data.title,
-              },
-            });
+            } = originObj
+              ? await DocumentService.put({ id: originObj._id, body })
+              : await DocumentService.post({
+                  body,
+                });
 
             let fileBlob = {
                 data: {
@@ -261,13 +269,23 @@ const PanelUnderpost = {
               fileId: { fileBlob, filePlain },
               imageFileId: { imageBlob, imagePlain },
             };
-
-            PanelUnderpost.Data.originData.push(documentData);
-            PanelUnderpost.Data.data.push(data);
-            PanelUnderpost.Data.filesData.push(filesData);
+            if (originObj) {
+              PanelUnderpost.Data.originData[indexOriginObj] = documentData;
+              PanelUnderpost.Data.data[indexOriginObj] = data;
+              PanelUnderpost.Data.filesData[indexOriginObj] = filesData;
+            } else {
+              PanelUnderpost.Data.originData.push(documentData);
+              PanelUnderpost.Data.data.push(data);
+              PanelUnderpost.Data.filesData.push(filesData);
+            }
 
             NotificationManager.Push({
-              html: status === 'success' ? Translate.Render('success-add-post') : message,
+              html:
+                status === 'success'
+                  ? originObj
+                    ? Translate.Render('success-edit-post')
+                    : Translate.Render('success-add-post')
+                  : message,
               status: status,
             });
             return { data, status, message };

@@ -415,6 +415,10 @@ const TranslateCore = {
       en: 'Are you sure you want to delete this item?',
       es: '¿Estás seguro de que deseas eliminar este elemento?',
     };
+    Translate.Data['success-edit-post'] = {
+      en: 'Post edited successfully',
+      es: 'Post editado con éxito',
+    };
   },
 };
 
