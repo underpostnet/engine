@@ -50,7 +50,8 @@ const BtnIcon = {
     </button>`;
     if (options.tooltipHtml)
       setTimeout(() => {
-        ToolTip.Render({ container: `.${tokenId}`, id: tokenId, htmlRender: options.tooltipHtml });
+        if (s(`.${tokenId}`))
+          ToolTip.Render({ container: `.${tokenId}`, id: tokenId, htmlRender: options.tooltipHtml });
       });
     return render;
   },

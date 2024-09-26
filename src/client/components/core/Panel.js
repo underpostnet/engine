@@ -92,7 +92,7 @@ const Panel = {
                 id: `tooltip-${idPanel}-${id}`,
                 text: `${Translate.Render(`edit`)}`,
                 classList: '',
-                style: { top: `-22px`, left: '-10px' },
+                style: { top: `-22px`, left: '-5px' },
               }),
             })}
             ${await BtnIcon.Render({
@@ -102,7 +102,7 @@ const Panel = {
                 id: `tooltip-${idPanel}-${id}`,
                 text: `${Translate.Render(`delete`)}`,
                 classList: '',
-                style: { top: `-22px`, left: '-18px' },
+                style: { top: `-22px`, left: '-13px' },
               }),
             })}
           </div>
