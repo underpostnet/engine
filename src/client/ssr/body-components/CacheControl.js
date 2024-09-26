@@ -64,7 +64,8 @@ const CacheControl = function ({ ttiLoadTimeLimit }) {
     }
   };
   setTimeout(() => {
-    document.querySelector('.clean-cache-container').onclick = window.cleanCache;
+    if (document.querySelector('.clean-cache-container'))
+      document.querySelector('.clean-cache-container').onclick = window.cleanCache;
   });
   setTimeout(window.cacheControlCallBack, ttiLoadTimeLimit); // 70s limit);
 };
