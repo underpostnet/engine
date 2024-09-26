@@ -35,10 +35,16 @@ const LogIn = {
           .session-inl-log-in {
             display: inline-table;
           }
+          .session-fl-log-in {
+            display: flow-root;
+          }
           .session-in-log-out {
             display: none;
           }
           .session-inl-log-out {
+            display: none;
+          }
+          .session-fl-log-out {
             display: none;
           }
         </style>`,

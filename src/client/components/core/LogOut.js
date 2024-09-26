@@ -20,10 +20,16 @@ const LogOut = {
           .session-inl-log-out {
             display: inline-table;
           }
+          .session-fl-log-out {
+            display: flow-root;
+          }
           .session-in-log-in {
             display: none;
           }
           .session-inl-log-in {
+            display: none;
+          }
+          .session-fl-log-in {
             display: none;
           }
         </style>`,

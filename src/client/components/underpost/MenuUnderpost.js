@@ -23,6 +23,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getImageSrcFromFileData } from '../core/Input.js';
+import { Auth } from '../core/Auth.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -340,6 +341,8 @@ const MenuUnderpost = {
                 if (image) data.imageFileId = URL.createObjectURL(image);
                 data.tags = tags.filter((t) => !prefixTags.includes(t));
                 data.content = marked.parse(data.content);
+                data.userId = ElementsUnderpost.Data.user.main.model.user._id;
+                data.tools = true;
 
                 NotificationManager.Push({
                   html: status === 'success' ? Translate.Render('success-add-post') : message,
@@ -349,94 +352,102 @@ const MenuUnderpost = {
               },
             },
           });
-        setTimeout(async () => {
-          {
-            const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
 
-            NotificationManager.Push({
-              html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
-              status: result.status,
-            });
-            if (result.status === 'success') {
-              for (const documentObject of result.data.reverse()) {
-                let content, imageFileId;
+        const getPanelData = async () => {
+          const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
 
-                {
-                  const {
-                    data: [file],
-                    status,
-                  } = await FileService.get({ id: documentObject.fileId._id });
+          NotificationManager.Push({
+            html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
+            status: result.status,
+          });
+          if (result.status === 'success') {
+            data = [];
+            for (const documentObject of result.data.reverse()) {
+              let content, imageFileId;
 
-                  // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                  content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-                }
-                if (documentObject.imageFileId) {
-                  const {
-                    data: [file],
-                    status,
-                  } = await FileService.get({ id: documentObject.imageFileId });
+              {
+                const {
+                  data: [file],
+                  status,
+                } = await FileService.get({ id: documentObject.fileId._id });
 
-                  // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                  imageFileId = getImageSrcFromFileData(file);
-                }
-
-                data.push({
-                  id: documentObject._id,
-                  title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
-                  createdAt: dateFormat(documentObject.createdAt),
-                  tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-                  content: marked.parse(content),
-                  imageFileId,
-                });
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
               }
+              if (documentObject.imageFileId) {
+                const {
+                  data: [file],
+                  status,
+                } = await FileService.get({ id: documentObject.imageFileId });
+
+                // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                imageFileId = getImageSrcFromFileData(file);
+              }
+
+              data.push({
+                id: documentObject._id,
+                title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
+                createdAt: dateFormat(documentObject.createdAt),
+                tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
+                content: marked.parse(content),
+                userId: documentObject.userId,
+                imageFileId,
+                tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId,
+              });
             }
           }
-
+        };
+        const renderSrrPanelData = async () =>
+          await panelRender({
+            data: range(0, 5).map((i) => ({
+              id: i,
+              title: html`<div class="fl">
+                <div
+                  class="in fll ssr-shimmer-search-box"
+                  style="${renderCssAttr({
+                    style: {
+                      width: '80%',
+                      height: '30px',
+                      top: '-13px',
+                      left: '10px',
+                    },
+                  })}"
+                ></div>
+              </div>`,
+              createdAt: html`<div class="fl">
+                <div
+                  class="in fll ssr-shimmer-search-box"
+                  style="${renderCssAttr({
+                    style: {
+                      width: '50%',
+                      height: '30px',
+                      left: '-5px',
+                    },
+                  })}"
+                ></div>
+              </div>`,
+              content: html`<div class="fl section-mp">
+                <div
+                  class="in fll ssr-shimmer-search-box"
+                  style="${renderCssAttr({
+                    style: {
+                      width: '80%',
+                      height: '30px',
+                    },
+                  })}"
+                ></div>
+              </div>`.repeat(random(2, 4)),
+              ssr: true,
+            })),
+          });
+        MenuUnderpost.updatePanel = async () => {
+          htmls(`.html-main-body`, await renderSrrPanelData());
+          await getPanelData();
           htmls(`.html-main-body`, await panelRender({ data }));
-        });
+        };
+        if (!Auth.getToken()) setTimeout(MenuUnderpost.updatePanel);
 
-        return await panelRender({
-          data: range(0, 5).map((i) => ({
-            id: i,
-            title: html`<div class="fl">
-              <div
-                class="in fll ssr-shimmer-search-box"
-                style="${renderCssAttr({
-                  style: {
-                    width: '80%',
-                    height: '30px',
-                    top: '-13px',
-                    left: '10px',
-                  },
-                })}"
-              ></div>
-            </div>`,
-            createdAt: html`<div class="fl">
-              <div
-                class="in fll ssr-shimmer-search-box"
-                style="${renderCssAttr({
-                  style: {
-                    width: '50%',
-                    height: '30px',
-                    left: '-5px',
-                  },
-                })}"
-              ></div>
-            </div>`,
-            content: html`<div class="fl section-mp">
-              <div
-                class="in fll ssr-shimmer-search-box"
-                style="${renderCssAttr({
-                  style: {
-                    width: '80%',
-                    height: '30px',
-                  },
-                })}"
-              ></div>
-            </div>`.repeat(random(2, 4)),
-            ssr: true,
-          })),
-        });
+        return await renderSrrPanelData();
       },
     });
 

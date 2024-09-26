@@ -63,9 +63,28 @@ const Panel = {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
+        EventsUI.onClick(`.${idPanel}-btn-delete-${id}`, async () => {
+          console.error('delete', obj);
+        });
+        EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
+          console.error('edit', obj);
+        });
       });
+
       return html` <div class="in box-shadow ${idPanel}">
         <div class="in ${idPanel}-head">
+          <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
+            ${await BtnIcon.Render({
+              class: `flr ${idPanel}-btn-edit-${id}`,
+              label: html`<i class="fas fa-edit"></i>`,
+              style: 'color: #898989 !important; border: none !important',
+            })}
+            ${await BtnIcon.Render({
+              class: `flr ${idPanel}-btn-delete-${id}`,
+              label: html`<i class="fas fa-trash"></i>`,
+              style: 'color: #898989 !important; border: none !important',
+            })}
+          </div>
           <div class="in ${idPanel}-title">
             ${obj.new ? obj.new : options.titleIcon} &nbsp ${titleKey ? obj[titleKey] : ''}
           </div>
