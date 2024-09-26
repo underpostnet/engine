@@ -86,14 +86,24 @@ const Panel = {
         <div class="in ${idPanel}-head">
           <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
             ${await BtnIcon.Render({
-              class: `flr ${idPanel}-btn-edit-${id}`,
-              label: html`<i class="fas fa-edit"></i>`,
-              style: 'color: #898989 !important; border: none !important',
+              class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
+              label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
+              tooltipHtml: await Badge.Render({
+                id: `tooltip-${idPanel}-${id}`,
+                text: `${Translate.Render(`edit`)}`,
+                classList: '',
+                style: { top: `-22px`, left: '-10px' },
+              }),
             })}
             ${await BtnIcon.Render({
-              class: `flr ${idPanel}-btn-delete-${id}`,
-              label: html`<i class="fas fa-trash"></i>`,
-              style: 'color: #898989 !important; border: none !important',
+              class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
+              label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
+              tooltipHtml: await Badge.Render({
+                id: `tooltip-${idPanel}-${id}`,
+                text: `${Translate.Render(`delete`)}`,
+                classList: '',
+                style: { top: `-22px`, left: '-18px' },
+              }),
             })}
           </div>
           <div class="in ${idPanel}-title">
@@ -522,6 +532,14 @@ const Panel = {
         }
         .${idPanel}-dropdown {
           min-height: 100px;
+        }
+        .${idPanel}-btn-tool {
+          background: none !important;
+          color: #c4c4c4 !important;
+        }
+        .${idPanel}-btn-tool:hover {
+          color: #000000 !important;
+          font-size: 17px !important;
         }
       </style>
       <div class="${idPanel}-container">

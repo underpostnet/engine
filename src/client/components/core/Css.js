@@ -984,7 +984,7 @@ const cssEffect = async (containerSelector, event) => {
     offsetY = event.offsetY;
   }
   const element = s(containerSelector);
-  element.style.overflow = 'hidden';
+  // element.style.overflow = 'hidden';
   const id = getId(cssTokensEffect, 'btn-effect-');
   cssTokensEffect[id] = { containerSelector, event };
   append(containerSelector, html`<span class="abs ${id} ripple" style="display: none"></span>`);
