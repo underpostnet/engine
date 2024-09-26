@@ -22,7 +22,7 @@ import { Panel } from '../core/Panel.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
-import { getImageSrcFromFileData } from '../core/Input.js';
+import { getSrcFromFileData } from '../core/Input.js';
 import { Auth } from '../core/Auth.js';
 
 const MenuUnderpost = {
@@ -464,7 +464,7 @@ const MenuUnderpost = {
                 // const ext = file.name.split('.')[file.name.split('.').length - 1];
                 imageBlob = file;
                 imagePlain = null;
-                imageFileId = getImageSrcFromFileData(file);
+                imageFileId = getSrcFromFileData(file);
               }
 
               MenuUnderpost.Panel.filesData.push({

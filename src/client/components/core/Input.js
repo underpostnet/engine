@@ -20,9 +20,13 @@ const fileFormDataFactory = (e, extensions) => {
   return form;
 };
 
-const getImageSrcFromFileData = (fileData) => {
+const getFileFromFileData = (fileData) => {
   const blob = new Blob([new Uint8Array(fileData.data.data)], { type: fileData.mimetype });
-  const file = new File([blob], fileData.name, { type: fileData.mimetype });
+  return new File([blob], fileData.name, { type: fileData.mimetype });
+};
+
+const getSrcFromFileData = (fileData) => {
+  const file = getFileFromFileData(fileData);
   return URL.createObjectURL(file);
 };
 
@@ -170,6 +174,21 @@ const Input = {
 
       switch (inputData.inputType) {
         case 'file':
+          if (fileObj[inputData.model] && s(`.${inputData.id}`)) {
+            const dataTransfer = new DataTransfer();
+
+            if (fileObj[inputData.model].fileBlob)
+              dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].fileBlob));
+
+            if (fileObj[inputData.model].imageBlob)
+              dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].imageBlob));
+
+            if (dataTransfer.files.length) {
+              s(`.${inputData.id}`).files = dataTransfer.files;
+              s(`.${inputData.id}`).onchange({ target: s(`.${inputData.id}`) });
+            }
+          }
+
           // s(`.${inputData.id}`).inputFiles = undefined;
           // s(`.${inputData.id}`).value = null;
 
@@ -316,4 +335,4 @@ const InputFile = {
   },
 };
 
-export { Input, InputFile, fileFormDataFactory, getImageSrcFromFileData };
+export { Input, InputFile, fileFormDataFactory, getSrcFromFileData, getFileFromFileData };
