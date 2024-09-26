@@ -292,6 +292,34 @@ const MenuUnderpost = {
               return await options.imgRender({ imageUrl: options.data.imageFileId });
             },
             on: {
+              remove: async function ({ e, data }) {
+                e.preventDefault();
+                const confirmResult = await Modal.RenderConfirm({
+                  html: async () => {
+                    return html`
+                      <div class="in section-mp" style="text-align: center">
+                        ${Translate.Render('confirm-delete-item')}
+                        <br />
+                        "${data.title}"
+                      </div>
+                    `;
+                  },
+                  id: `delete-underpost-panel-${id}`,
+                });
+                if (confirmResult.status === 'confirm') {
+                  console.error(data);
+                  const { status, message } = await DocumentService.delete({
+                    id: data._id,
+                  });
+                  NotificationManager.Push({
+                    html: status,
+                    status,
+                  });
+
+                  return { status };
+                }
+                return { status: 'error' };
+              },
               add: async function ({ data }) {
                 let fileId;
                 let imageFileId;
@@ -343,6 +371,7 @@ const MenuUnderpost = {
                 data.content = marked.parse(data.content);
                 data.userId = ElementsUnderpost.Data.user.main.model.user._id;
                 data.tools = true;
+                data._id = documentData._id;
 
                 NotificationManager.Push({
                   html: status === 'success' ? Translate.Render('success-add-post') : message,
@@ -393,6 +422,7 @@ const MenuUnderpost = {
                 userId: documentObject.userId,
                 imageFileId,
                 tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId,
+                _id: documentObject._id,
               });
             }
           }

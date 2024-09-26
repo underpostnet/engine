@@ -41,10 +41,28 @@ const DocumentService = {
   delete: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
     switch (req.params.id) {
-      default:
+      default: {
+        const document = await Document.findOne({ _id: req.params.id });
+        if (!document) throw new Error('document not found');
+
+        if (document.userId.toString() !== req.auth.user._id) throw new Error('invalid user');
+
+        if (document.imageFileId) {
+          const file = await File.findOne({ _id: document.imageFileId });
+          if (file) await File.findByIdAndDelete(document.imageFileId);
+        }
+
+        if (document.fileId) {
+          const file = await File.findOne({ _id: document.fileId });
+          if (file) await File.findByIdAndDelete(document.fileId);
+        }
+
         return await Document.findByIdAndDelete(req.params.id);
+      }
     }
   },
   put: async (req, res, options) => {

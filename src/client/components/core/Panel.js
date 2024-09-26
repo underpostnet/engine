@@ -63,15 +63,26 @@ const Panel = {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
-        EventsUI.onClick(`.${idPanel}-btn-delete-${id}`, async () => {
-          console.error('delete', obj);
-        });
-        EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
-          console.error('edit', obj);
-        });
+        EventsUI.onClick(
+          `.${idPanel}-btn-delete-${id}`,
+          async (e) => {
+            logger.warn('delete', obj);
+            const { status } = await options.on.remove({ e, data: obj });
+            if (status === 'error') return;
+            s(`.${idPanel}-${id}`).remove();
+          },
+          { disableSpinner: true },
+        );
+        EventsUI.onClick(
+          `.${idPanel}-btn-edit-${id}`,
+          async () => {
+            logger.warn('edit', obj);
+          },
+          { disableSpinner: true },
+        );
       });
 
-      return html` <div class="in box-shadow ${idPanel}">
+      return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">
         <div class="in ${idPanel}-head">
           <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
             ${await BtnIcon.Render({

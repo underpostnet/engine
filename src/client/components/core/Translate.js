@@ -411,6 +411,10 @@ const TranslateCore = {
       en: 'Posts successfully retrieved',
       es: 'Posts obtenidos con éxito',
     };
+    Translate.Data['confirm-delete-item'] = {
+      en: 'Are you sure you want to delete this item?',
+      es: '¿Estás seguro de que deseas eliminar este elemento?',
+    };
   },
 };
 
