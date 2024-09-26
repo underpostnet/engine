@@ -9,6 +9,7 @@ const DocumentSchema = new Schema(
       ref: 'User',
     },
     location: { type: String },
+    title: { type: String },
     tags: [{ type: String }],
     fileId: {
       type: Schema.Types.ObjectId,
@@ -30,11 +31,18 @@ const ProviderSchema = DocumentSchema;
 
 const DocumentDto = {
   populate: {
-    get: () => {
+    file: () => {
       return {
         path: 'fileId',
         model: 'File',
         select: '_id name mimetype',
+      };
+    },
+    user: () => {
+      return {
+        path: 'userId',
+        model: 'User',
+        select: '_id email username',
       };
     },
   },

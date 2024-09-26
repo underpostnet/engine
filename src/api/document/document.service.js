@@ -2,6 +2,7 @@ import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
 import { uniqueArray } from '../../client/components/core/CommonJs.js';
+import { getBearerToken, verifyJWT } from '../../server/auth.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -19,23 +20,36 @@ const DocumentService = {
   get: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
     const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    /** @type {import('../user/user.model.js').UserModel} */
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
 
     if (req.path.startsWith('/public') && req.query['tags']) {
+      const publisherUser = await User.findOne({ email: 'admin@underpost.net' });
+
+      const token = getBearerToken(req);
+      let user;
+      if (token) user = verifyJWT(token).user;
+
       const queryPayload = {
+        userId: {
+          $in: (publisherUser ? [publisherUser._id.toString()] : []).concat(user ? [user._id] : []),
+        },
         tags: {
           // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
           $all: uniqueArray(['public'].concat(req.query['tags'].split(','))),
         },
       };
       logger.info('queryPayload', queryPayload);
-      return await Document.find(queryPayload).populate(DocumentDto.populate.get());
+      return await Document.find(queryPayload)
+        .populate(DocumentDto.populate.file())
+        .populate(DocumentDto.populate.user());
     }
 
     switch (req.params.id) {
       default:
         return await Document.find({
           userId: req.auth.user._id,
-        }).populate(DocumentDto.populate.get());
+        }).populate(DocumentDto.populate.file());
     }
   },
   delete: async (req, res, options) => {

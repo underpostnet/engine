@@ -74,6 +74,32 @@ const hashJWT = (payload, expire) =>
 const verifyJWT = (token = '') => jwt.verify(token, process.env.JWT_SECRET);
 
 /**
+ * The function `getBearerToken` extracts and returns the Bearer token from the Authorization header in
+ * a request object.
+ * @param req - The `req` parameter in the `getBearerToken` function is typically an object
+ * representing the HTTP request. It is commonly used in Node.js applications with frameworks like
+ * Express.js. The `req` object contains information about the incoming HTTP request, including
+ * headers, body, parameters, and more. In
+ * @returns The function `getBearerToken` is returning the Bearer token extracted from the
+ * Authorization header in the request object. If the Authorization header starts with 'Bearer ', it
+ * will return the token portion of the header (excluding 'Bearer ').
+ */
+const getBearerToken = (req) => {
+  const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
+  if (authHeader.startsWith('Bearer ')) return authHeader.substring(7, authHeader.length);
+};
+
+/**
+ * The function `getPayloadJWT` extracts and verifies a JWT payload from a request using a bearer
+ * token.
+ * @param req - The `req` parameter is typically used in web development to represent the HTTP request
+ * object. It contains information about the incoming request, such as headers, parameters, and body
+ * data. In this context, it seems like the `getPayloadJWT` function is designed to extract and verify
+ * a JWT token from
+ */
+const getPayloadJWT = (req) => verifyJWT(getBearerToken(req));
+
+/**
  * The authMiddleware function checks and verifies the authorization token in the request headers
  * before allowing access to protected routes.
  * @param req - The `req` parameter in the `authMiddleware` function stands for the request object. It
@@ -92,17 +118,16 @@ const verifyJWT = (token = '') => jwt.verify(token, process.env.JWT_SECRET);
  */
 const authMiddleware = (req, res, next) => {
   try {
-    const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
-    if (authHeader.startsWith('Bearer ')) {
-      const token = authHeader.substring(7, authHeader.length);
+    const token = getBearerToken(req);
+    if (token) {
       const payload = verifyJWT(token);
       req.auth = payload;
       return next();
-    }
-    return res.status(401).json({
-      status: 'error',
-      message: 'unauthorized: invalid token',
-    });
+    } else
+      return res.status(401).json({
+        status: 'error',
+        message: 'unauthorized: invalid token',
+      });
   } catch (error) {
     logger.error(error, error.stack);
     return res.status(400).json({
@@ -201,4 +226,6 @@ export {
   moderatorGuard,
   verifyJWT,
   validatePasswordMiddleware,
+  getBearerToken,
+  getPayloadJWT,
 };
