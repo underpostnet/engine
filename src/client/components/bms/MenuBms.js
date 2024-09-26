@@ -289,9 +289,8 @@ const MenuBms = {
             rules: [],
           },
           {
-            disableRender: true,
-            id: 'imageUrl',
-            model: 'imageUrl',
+            id: 'imageFileId',
+            model: 'imageFileId',
             inputType: 'file',
             panel: {},
             rules: [{ type: 'isEmpty' }],
