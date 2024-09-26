@@ -107,6 +107,7 @@ const Input = {
   getValues: function (formData) {
     const obj = {};
     for (const inputData of formData) {
+      if (inputData.disableRender) continue;
       switch (inputData.inputType) {
         case 'file':
           obj[inputData.model] = s(`.${inputData.id}`).inputFiles;
