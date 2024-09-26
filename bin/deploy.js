@@ -322,6 +322,8 @@ try {
       {
         const { deployId, folder } = loadConf(process.argv[3]);
 
+        if (deployId && deployId !== 'default') shellExec(`node bin/deploy conf ${deployId} production`);
+
         await logger.setUpInfo();
 
         let argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
