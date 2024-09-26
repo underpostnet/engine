@@ -168,7 +168,12 @@ const MenuUnderpost = {
         const idPanel = 'underpost-panel';
         const prefixTags = [idPanel, 'public'];
         const extension = `.md`;
-        let data = [];
+
+        MenuUnderpost.Panel = {
+          data: [],
+          originData: [],
+          filesData: [],
+        };
         const formData = [
           {
             id: 'panel-title',
@@ -212,8 +217,8 @@ const MenuUnderpost = {
             rules: [{ type: 'isEmpty' }],
           },
           {
-            id: 'panel-content',
-            model: 'content',
+            id: 'panel-fileId',
+            model: 'fileId',
             inputType: 'md',
             panel: { type: 'info-row' },
             rules: [],
@@ -242,6 +247,8 @@ const MenuUnderpost = {
             heightTopBar,
             heightBottomBar,
             data,
+            originData: () => MenuUnderpost.Panel.originData,
+            filesData: () => MenuUnderpost.Panel.filesData,
             scrollClassContainer: 'main-body',
             titleIcon,
             newRender,
@@ -327,7 +334,7 @@ const MenuUnderpost = {
                 let fileId;
                 let imageFileId;
                 const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
-                const blob = new Blob([data.content], { type: 'text/markdown' });
+                const blob = new Blob([data.fileId], { type: 'text/markdown' });
                 const file = new File([blob], location, { type: 'text/markdown' });
                 const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
                 const tags = uniqueArray(
@@ -367,15 +374,50 @@ const MenuUnderpost = {
                     tags,
                     fileId,
                     imageFileId,
+                    title: data.title,
                   },
                 });
+
+                let fileBlob = {
+                    data: {
+                      data: Array.from(new Uint8Array(await file.arrayBuffer())),
+                    },
+                    mimeType: file.type,
+                    name: file.name,
+                  },
+                  imageBlob = image
+                    ? {
+                        data: {
+                          data: Array.from(new Uint8Array(await image.arrayBuffer())),
+                        },
+                        mimeType: image.type,
+                        name: image.name,
+                      }
+                    : undefined;
+
+                let filePlain = await getRawContentFile(
+                    getBlobFromUint8ArrayFile(fileBlob.data.data, fileBlob.mimetype),
+                  ),
+                  imagePlain = null;
+
                 data.createdAt = dateFormat(documentData.createdAt);
                 if (image) data.imageFileId = URL.createObjectURL(image);
                 data.tags = tags.filter((t) => !prefixTags.includes(t));
-                data.content = marked.parse(data.content);
+                data.fileId = marked.parse(data.fileId);
                 data.userId = ElementsUnderpost.Data.user.main.model.user._id;
                 data.tools = true;
                 data._id = documentData._id;
+
+                const filesData = {
+                  id: documentData._id,
+                  _id: documentData._id,
+                  fileId: { fileBlob, filePlain },
+                  imageFileId: { imageBlob, imagePlain },
+                };
+
+                MenuUnderpost.Panel.originData.push(documentData);
+                MenuUnderpost.Panel.data.push(data);
+                MenuUnderpost.Panel.filesData.push(filesData);
 
                 NotificationManager.Push({
                   html: status === 'success' ? Translate.Render('success-add-post') : message,
@@ -394,9 +436,13 @@ const MenuUnderpost = {
             status: result.status,
           });
           if (result.status === 'success') {
-            data = [];
+            MenuUnderpost.Panel.originData = newInstance(result.data);
+            MenuUnderpost.Panel.filesData = [];
+            MenuUnderpost.Panel.data = [];
             for (const documentObject of result.data.reverse()) {
-              let content, imageFileId;
+              let fileId, imageFileId;
+              let fileBlob, imageBlob;
+              let filePlain, imagePlain;
 
               {
                 const {
@@ -405,7 +451,9 @@ const MenuUnderpost = {
                 } = await FileService.get({ id: documentObject.fileId._id });
 
                 // const ext = file.name.split('.')[file.name.split('.').length - 1];
-                content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+                fileBlob = file;
+                filePlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+                fileId = newInstance(filePlain);
               }
               if (documentObject.imageFileId) {
                 const {
@@ -414,18 +462,27 @@ const MenuUnderpost = {
                 } = await FileService.get({ id: documentObject.imageFileId });
 
                 // const ext = file.name.split('.')[file.name.split('.').length - 1];
+                imageBlob = file;
+                imagePlain = null;
                 imageFileId = getImageSrcFromFileData(file);
               }
 
-              data.push({
+              MenuUnderpost.Panel.filesData.push({
                 id: documentObject._id,
-                title: getCapVariableName(documentObject.location.split('/').pop().replaceAll(extension, '')),
+                _id: documentObject._id,
+                fileId: { fileBlob, filePlain },
+                imageFileId: { imageBlob, imagePlain },
+              });
+
+              MenuUnderpost.Panel.data.push({
+                id: documentObject._id,
+                title: documentObject.title,
                 createdAt: dateFormat(documentObject.createdAt),
                 tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-                content: marked.parse(content),
-                userId: documentObject.userId,
+                fileId: marked.parse(fileId),
+                userId: documentObject.userId._id,
                 imageFileId,
-                tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId,
+                tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId._id,
                 _id: documentObject._id,
                 new:
                   documentObject.createdAt &&
@@ -465,7 +522,7 @@ const MenuUnderpost = {
                   })}"
                 ></div>
               </div>`,
-              content: html`<div class="fl section-mp">
+              fileId: html`<div class="fl section-mp">
                 <div
                   class="in fll ssr-shimmer-search-box"
                   style="${renderCssAttr({
@@ -482,7 +539,7 @@ const MenuUnderpost = {
         MenuUnderpost.updatePanel = async () => {
           htmls(`.html-main-body`, await renderSrrPanelData());
           await getPanelData();
-          htmls(`.html-main-body`, await panelRender({ data }));
+          htmls(`.html-main-body`, await panelRender({ data: MenuUnderpost.Panel.data }));
         };
         if (!Auth.getToken()) setTimeout(MenuUnderpost.updatePanel);
 

@@ -142,7 +142,9 @@ const Input = {
           continue;
           break;
         case 'md':
-          RichText.Tokens[inputData.id].easyMDE.value('');
+          setTimeout(() => {
+            RichText.Tokens[inputData.id].easyMDE.value('');
+          });
           continue;
           break;
         case 'checkbox':
@@ -161,6 +163,39 @@ const Input = {
       if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
     }
     return obj;
+  },
+  setValues: function (formData, obj, originObj, fileObj) {
+    for (const inputData of formData) {
+      if (!s(`.${inputData.id}`)) continue;
+
+      switch (inputData.inputType) {
+        case 'file':
+          // s(`.${inputData.id}`).inputFiles = undefined;
+          // s(`.${inputData.id}`).value = null;
+
+          // if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
+          //   htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
+          continue;
+          break;
+        case 'md':
+          RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].filePlain);
+          continue;
+          break;
+        case 'checkbox':
+        case 'checkbox-on-off':
+          // if (s(`.${inputData.id}-checkbox`).checked) ToggleSwitch.Tokens[inputData.id].click();
+          continue;
+          break;
+
+        default:
+          break;
+      }
+
+      if ('model' in inputData) {
+        if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = obj[inputData.model];
+      }
+      if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
+    }
   },
 };
 

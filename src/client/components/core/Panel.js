@@ -20,7 +20,16 @@ const logger = loggerFactory(import.meta);
 
 const Panel = {
   Tokens: {},
-  Render: async function (options = { idPanel: '', scrollClassContainer: '', formData: [], data: [] }) {
+  Render: async function (
+    options = {
+      idPanel: '',
+      scrollClassContainer: '',
+      formData: [],
+      data: [],
+      originData: () => [],
+      filesData: () => [],
+    },
+  ) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
     if (options.formData)
       options.formData = options.formData.map((formObj) => {
@@ -77,6 +86,13 @@ const Panel = {
           `.${idPanel}-btn-edit-${id}`,
           async () => {
             logger.warn('edit', obj);
+            s(`.btn-${idPanel}-add`).click();
+            Input.setValues(
+              formData,
+              obj,
+              options.originData().find((d) => d._id === obj._id || d.id === obj.id),
+              options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
+            );
           },
           { disableSpinner: true },
         );
@@ -386,7 +402,6 @@ const Panel = {
         obj.new = options.newRender
           ? options.newRender
           : html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
-        data.push(obj);
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
@@ -415,6 +430,7 @@ const Panel = {
       };
       s(`.btn-${idPanel}-add`).onclick = (e) => {
         e.preventDefault();
+        // s(`.btn-${idPanel}-clean`).click();
         s(`.${idPanel}-form-body`).classList.remove('hide');
         s(`.btn-${idPanel}-add`).classList.add('hide');
         s(`.${scrollClassContainer}`).style.overflow = 'hidden';

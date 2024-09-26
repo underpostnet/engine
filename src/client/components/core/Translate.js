@@ -213,8 +213,8 @@ const TranslateCore = {
       ...Translate.Data,
       ...{
         title: {
-          en: 'New Content Entry',
-          es: 'Nueva entrada de blog',
+          en: 'Title Content Entry',
+          es: 'Titulo de entrada',
         },
         author: {
           en: 'Author',
