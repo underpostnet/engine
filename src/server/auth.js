@@ -80,13 +80,15 @@ const verifyJWT = (token = '') => jwt.verify(token, process.env.JWT_SECRET);
  * representing the HTTP request. It is commonly used in Node.js applications with frameworks like
  * Express.js. The `req` object contains information about the incoming HTTP request, including
  * headers, body, parameters, and more. In
- * @returns The function `getBearerToken` is returning the Bearer token extracted from the
+ * @returns {String} The function `getBearerToken` is returning the Bearer token extracted from the
  * Authorization header in the request object. If the Authorization header starts with 'Bearer ', it
  * will return the token portion of the header (excluding 'Bearer ').
+ * @memberof Auth
  */
 const getBearerToken = (req) => {
   const authHeader = String(req.headers['authorization'] || req.headers['Authorization'] || '');
   if (authHeader.startsWith('Bearer ')) return authHeader.substring(7, authHeader.length);
+  return '';
 };
 
 /**
@@ -96,6 +98,8 @@ const getBearerToken = (req) => {
  * object. It contains information about the incoming request, such as headers, parameters, and body
  * data. In this context, it seems like the `getPayloadJWT` function is designed to extract and verify
  * a JWT token from
+ * @returns {Object} The JWT payload from a request using a bearer
+ * @memberof Auth
  */
 const getPayloadJWT = (req) => verifyJWT(getBearerToken(req));
 
