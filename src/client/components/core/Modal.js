@@ -1544,6 +1544,16 @@ const Modal = {
     if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
     if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
   },
+  cleanUI: function () {
+    s(`.top-bar`).classList.add('hide');
+    s(`.bottom-bar`).classList.add('hide');
+    s(`.modal-menu`).classList.add('hide');
+  },
+  restoreUI: function () {
+    s(`.top-bar`).classList.remove('hide');
+    s(`.bottom-bar`).classList.remove('hide');
+    s(`.modal-menu`).classList.remove('hide');
+  },
 };
 
 const renderMenuLabel = ({ img, text, icon }) => {

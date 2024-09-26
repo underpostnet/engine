@@ -292,15 +292,15 @@ const Panel = {
                         <img
                           style="${renderCssAttr({
                             style: {
-                              width: '150px',
-                              height: '150px',
+                              width: '100%',
+                              height: 'auto',
                             },
                           })}"
                           src="${URL.createObjectURL(files[0])}"
                         />
                       </div>`
                     : ''}
-                  <div class="in">${names}</div>`,
+                  <div class="in" style="overflow: hidden">${names}</div>`,
               );
             };
           });

@@ -3,7 +3,7 @@ import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
-import { MenuUnderpost } from './MenuUnderpost.js';
+import { PanelUnderpost } from './PanelUnderpost.js';
 
 const LogInUnderpost = async function () {
   LogIn.Event['LogInUnderpost'] = async (options) => {
@@ -22,7 +22,7 @@ const LogInUnderpost = async function () {
 
     if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
-    if (MenuUnderpost.updatePanel) MenuUnderpost.updatePanel();
+    if (PanelUnderpost.updatePanel) PanelUnderpost.updatePanel();
   };
   const token = localStorage.getItem('jwt');
   if (token) {

@@ -1,4 +1,5 @@
 import { getId } from './CommonJs.js';
+import { Modal } from './Modal.js';
 import { s } from './VanillaJs.js';
 
 const RichText = {
@@ -7,7 +8,13 @@ const RichText = {
     const id = options?.id ? options.id : getId(this.Tokens, 'rich-text-');
     this.Tokens[id] = {};
     setTimeout(() => {
-      const easyMDE = new EasyMDE({ element: s(`.${id}`) });
+      const easyMDE = new EasyMDE({
+        element: s(`.${id}`),
+        onToggleFullScreen: (onFs) => {
+          if (onFs) Modal.cleanUI();
+          else Modal.restoreUI();
+        },
+      });
       this.Tokens[id].easyMDE = easyMDE;
       // easyMDE.value();
       // easyMDE.value(val);
