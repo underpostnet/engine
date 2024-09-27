@@ -16,7 +16,7 @@ import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 const CalendarCore = {
   RenderStyle: async function () {},
   Data: {},
-  Render: async function (options = { idModal: '', Elements: {} }) {
+  Render: async function (options = { idModal: '', Elements: {}, heightTopBar: 50, heightBottomBar: 50 }) {
     this.Data[options.idModal] = {
       data: range(0, 5).map((i) => {
         return {
@@ -30,6 +30,9 @@ const CalendarCore = {
       filesData: [],
       calendar: {},
     };
+
+    const { heightTopBar, heightBottomBar } = options;
+
     const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
     const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
     const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
@@ -166,9 +169,6 @@ const CalendarCore = {
         panel: { type: 'info-row' },
       },
     ];
-
-    const heightTopBar = 100;
-    const heightBottomBar = 0;
 
     setTimeout(() => {
       const resizeModal = () => {

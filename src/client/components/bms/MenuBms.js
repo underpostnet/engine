@@ -614,6 +614,8 @@ const MenuBms = {
           await CalendarBms.Render({
             idModal: 'modal-calendar',
             Elements: ElementsBms,
+            heightTopBar,
+            heightBottomBar,
           }),
         handleType: 'bar',
         maximize: true,

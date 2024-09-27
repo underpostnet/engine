@@ -604,6 +604,8 @@ const MenuNexodev = {
           await CalendarNexodev.Render({
             idModal: 'modal-calendar',
             Elements: ElementsNexodev,
+            heightBottomBar,
+            heightTopBar,
           }),
         handleType: 'bar',
         maximize: true,

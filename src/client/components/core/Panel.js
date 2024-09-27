@@ -113,6 +113,7 @@ const Panel = {
             s(`.btn-${idPanel}-label-add`).classList.add('hide');
             openPanelForm();
             // s(`.btn-${idPanel}-add`).click();
+            s(`.${scrollClassContainer}`).scrollTop = 0;
             Input.setValues(
               formData,
               obj,
@@ -462,6 +463,7 @@ const Panel = {
         editId = undefined;
         s(`.btn-${idPanel}-label-add`).classList.remove('hide');
         s(`.btn-${idPanel}-label-edit`).classList.add('hide');
+        s(`.${scrollClassContainer}`).scrollTop = 0;
 
         openPanelForm();
       };
