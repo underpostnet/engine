@@ -348,10 +348,13 @@ try {
                 serverConf[host][path].apiBaseProxyPath = '/';
                 serverConf[host][path].apiBaseHost = `localhost:${parseInt(process.env.PORT) + 1}`;
               }
-              if (serverConf[host][path].singleReplica && serverConf[host][path].replicas)
+              if (serverConf[host][path].singleReplica && serverConf[host][path].replicas) {
                 deployIdSingleReplicas = deployIdSingleReplicas.concat(
                   serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
                 );
+
+                shellExec(`node bin/deploy build-single-replica ${deployId} ${host} ${path}`);
+              }
             }
           }
         }
