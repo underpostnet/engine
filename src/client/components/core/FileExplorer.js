@@ -1,8 +1,10 @@
+import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
+import { Content } from './Content.js';
 import { darkTheme } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
@@ -154,6 +156,7 @@ const FileExplorer = {
               body: {
                 fileId: file._id,
                 location,
+                title: file.name,
               },
             });
             if (result.status === 'success') documentInstance.push({ ...result.data, fileId: file });
@@ -259,12 +262,16 @@ const FileExplorer = {
         `;
 
         setTimeout(() => {
-          const uri = `${getProxyPath()}content/?id=${params.data.fileId}`;
+          const uri = `${getProxyPath()}content/?cid=${params.data._id}`;
           const url = `${window.location.origin}${uri}`;
 
-          // ${window.location.origin[window.location.origin.length - 1] === '/' ? '' : '/'}
+          const originObj = documentInstance.find((d) => d._id === params.data._id);
+          const blobUri = originObj ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' }) : undefined;
 
-          console.log({ url, uri });
+          if (!originObj || !Content.allowedExtensions.find((ext) => originObj.fileId.name.toLowerCase().match(ext))) {
+            s(`.btn-file-view-${params.data._id}`).classList.add('hide');
+            s(`.btn-file-copy-content-link-${params.data._id}`).classList.add('hide');
+          }
 
           EventsUI.onClick(`.btn-file-view-${params.data._id}`, async (e) => {
             e.preventDefault();
@@ -276,7 +283,7 @@ const FileExplorer = {
 
           EventsUI.onClick(`.btn-file-copy-content-link-${params.data._id}`, async (e) => {
             e.preventDefault();
-            await copyData(url);
+            await copyData(blobUri);
             NotificationManager.Push({
               html: Translate.Render('success-copy-data'),
               status: 'success',

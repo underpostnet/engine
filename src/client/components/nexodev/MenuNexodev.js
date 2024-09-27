@@ -680,6 +680,7 @@ const MenuNexodev = {
             idModal: `modal-content${subModalId}`,
             Menu: this,
           }),
+        observer: true,
         handleType: 'bar',
         maximize: true,
         mode: 'view',

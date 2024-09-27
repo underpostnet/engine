@@ -46,6 +46,12 @@ const FileService = {
     /** @type {import('./file.model.js').FileModel} */
     const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
 
+    if (req.path.startsWith('/blob') && req.params.id) {
+      const file = await File.findOne({ _id: req.params.id });
+      res.set('Content-Type', file.mimetype);
+      return Buffer.from(file.data, 'base64');
+    }
+
     switch (req.params.id) {
       case 'all':
         return await File.find();

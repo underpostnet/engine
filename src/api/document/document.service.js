@@ -49,6 +49,7 @@ const DocumentService = {
       default:
         return await Document.find({
           userId: req.auth.user._id,
+          ...(req.params.id ? { _id: req.params.id } : undefined),
         }).populate(DocumentDto.populate.file());
     }
   },

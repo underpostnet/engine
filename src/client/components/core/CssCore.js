@@ -166,6 +166,9 @@ const CssCommonCore = async () => {
           transform: rotate(360deg);
         }
       }
+      .bar-default-modal {
+        overflow: hidden;
+      }
     </style>
     ${boxShadow({ selector: '.account-profile-image' })}
     <div class="ag-grid-style"></div>`;

@@ -8,6 +8,7 @@ const FileRouter = (options) => {
   const router = express.Router();
   router.post(`/:id`, authMiddleware, async (req, res) => await FileController.post(req, res, options));
   router.post(`/`, authMiddleware, async (req, res) => await FileController.post(req, res, options));
+  router.get(`/blob/:id`, async (req, res) => await FileController.get(req, res, options));
   router.get(`/:id`, async (req, res) => await FileController.get(req, res, options));
   router.get(`/`, async (req, res) => await FileController.get(req, res, options));
   router.delete(`/:id`, authMiddleware, adminGuard, async (req, res) => await FileController.delete(req, res, options));
