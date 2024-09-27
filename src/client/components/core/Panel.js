@@ -390,10 +390,7 @@ const Panel = {
           Responsive.Event[`${idPanel}-responsive`] = () => {
             if (s(`.${idPanel}-form-container`))
               s(`.${idPanel}-form-container`).style.maxHeight = `${
-                window.innerHeight -
-                heightTopBar -
-                heightBottomBar -
-                (options.customFormHeightAdjust ? options.customFormHeightAdjust : 0)
+                window.innerHeight - heightTopBar - heightBottomBar
               }px`;
           };
           Responsive.Event[`${idPanel}-responsive`]();

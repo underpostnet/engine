@@ -12,7 +12,6 @@ import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
 import { ElementsBms } from './ElementsBms.js';
 import Sortable from 'sortablejs';
 import { RouterBms } from './RoutesBms.js';
-import { Blog } from '../core/Blog.js';
 import { CalendarBms } from './CalendarBms.js';
 import { DashboardBms } from './DashboardBms.js';
 import { StreamBms } from './StreamBms.js';
@@ -515,7 +514,7 @@ const MenuBms = {
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
           text: Translate.Render('blog'),
         }),
-        html: async () => await Blog.Render(),
+        html: async () => '',
         handleType: 'bar',
         maximize: true,
         mode: 'view',

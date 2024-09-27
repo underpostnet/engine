@@ -12,7 +12,6 @@ import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
 import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
-import { Blog } from '../core/Blog.js';
 import { CalendarNexodev } from './CalendarNexodev.js';
 import { DashboardNexodev } from './DashboardNexodev.js';
 import { StreamNexodev } from './StreamNexodev.js';
@@ -28,6 +27,8 @@ import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
+import { PanelForm } from '../core/PanelForm.js';
+import { RouterEvents } from '../core/Router.js';
 
 const MenuNexodev = {
   Data: {},
@@ -471,15 +472,52 @@ const MenuNexodev = {
 
     EventsUI.onClick(`.main-btn-blog`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
+      const idModal = 'modal-blog';
+      const routeModal = 'blog';
+      const idEvent = `form-panel-${idModal}`;
       await Modal.Render({
-        id: 'modal-blog',
-        route: 'blog',
+        id: idModal,
+        route: routeModal,
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-file-invoice"></i>`,
           text: Translate.Render('blog'),
         }),
-        html: async () => await Blog.Render(),
+        observer: true,
+        html: async () => {
+          setTimeout(async () => {
+            await PanelForm.instance({
+              idPanel: 'nexodev-blog',
+              heightTopBar,
+              heightBottomBar,
+              defaultUrlImage: 'https://www.nexodev.org/assets/splash/android-chrome-96x96.png',
+              Elements: ElementsNexodev,
+              parentIdModal: idModal,
+              scrollClassContainer: `html-${idModal}`,
+            });
+
+            s(`.html-${idModal}`).style.overflow = 'auto';
+            s(`.${idModal}`).style.overflow = 'hidden';
+
+            const resizeModal = () => {
+              Modal.Data[idModal].onObserverListener[idEvent] = () => {
+                if (s(`.html-${idModal}`))
+                  s(`.html-${idModal}`).style.height = `${
+                    s(`.${idModal}`).offsetHeight - Modal.headerTitleHeight - 1
+                  }px`;
+              };
+              Modal.Data[idModal].onObserverListener[idEvent]();
+            };
+            setTimeout(resizeModal);
+            RouterEvents[idEvent] = ({ route }) => {
+              if (route === routeModal) {
+                setTimeout(() => {
+                  resizeModal();
+                }, 400);
+              }
+            };
+          });
+        },
         handleType: 'bar',
         maximize: true,
         mode: 'view',

@@ -14,7 +14,14 @@ import { Modal } from './Modal.js';
 const PanelForm = {
   Data: {},
   instance: async function (
-    options = { idPanel: '', heightTopBar: 50, heightBottomBar: 50, defaultUrlImage: '', Elements: {} },
+    options = {
+      idPanel: '',
+      heightTopBar: 50,
+      heightBottomBar: 50,
+      defaultUrlImage: '',
+      Elements: {},
+      parentIdModal: undefined,
+    },
   ) {
     const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
     let extension = `.md`;
@@ -98,9 +105,10 @@ const PanelForm = {
         heightTopBar,
         heightBottomBar,
         data,
+        parentIdModal: options.parentIdModal,
         originData: () => PanelForm.Data[idPanel].originData,
         filesData: () => PanelForm.Data[idPanel].filesData,
-        scrollClassContainer: 'main-body',
+        scrollClassContainer: options.scrollClassContainer ? options.scrollClassContainer : 'main-body',
         titleIcon,
         newRender,
         formContainerClass: 'session-in-log-in',
@@ -405,11 +413,19 @@ const PanelForm = {
       });
 
     this.Data[idPanel].updatePanel = async () => {
-      htmls(`.html-main-body`, await renderSrrPanelData());
+      htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
-      htmls(`.html-main-body`, await panelRender({ data: this.Data[idPanel].data }));
+      htmls(
+        `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`,
+        await panelRender({ data: this.Data[idPanel].data }),
+      );
     };
-    if (!Auth.getToken()) setTimeout(this.Data[idPanel].updatePanel);
+    if (!Auth.getToken() || options.parentIdModal) setTimeout(this.Data[idPanel].updatePanel);
+
+    if (options.parentIdModal) {
+      htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());
+      return '';
+    }
 
     return await renderSrrPanelData();
   },

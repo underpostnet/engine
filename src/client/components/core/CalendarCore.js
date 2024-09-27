@@ -212,7 +212,6 @@ const CalendarCore = {
           heightBottomBar,
           data: this.Data[options.idModal].data,
           formContainerClass: '',
-          customFormHeightAdjust: 120,
           scrollClassContainer: `main-body-calendar-${options.idModal}`,
           newRender,
           originData: () => this.Data[options.idModal].originData,
