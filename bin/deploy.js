@@ -21,6 +21,7 @@ import {
   cloneSrcComponents,
   cliSpinner,
   getDataDeploy,
+  buildReplicaId,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -328,6 +329,7 @@ try {
 
         let argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
         let argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
+        let deployIdSingleReplicas = [];
         const serverConf = deployId
           ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
           : Config.default.server;
@@ -346,11 +348,18 @@ try {
                 serverConf[host][path].apiBaseProxyPath = '/';
                 serverConf[host][path].apiBaseHost = `localhost:${parseInt(process.env.PORT) + 1}`;
               }
+              if (serverConf[host][path].singleReplica && serverConf[host][path].replicas)
+                deployIdSingleReplicas = deployIdSingleReplicas.concat(
+                  serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
+                );
             }
           }
         }
         fs.writeFileSync(`./conf/conf.server.json`, JSON.stringify(serverConf, null, 4), 'utf-8');
         await buildClient();
+
+        for (const replicaDeployId of deployIdSingleReplicas)
+          shellExec(`node bin/deploy build-full-client ${replicaDeployId}`);
       }
       break;
 

@@ -488,6 +488,8 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
   }
 };
 
+const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
+
 const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '' }) => {
   let dataDeploy = JSON.parse(
     fs.readFileSync(
@@ -517,7 +519,7 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '' 
           replicaDataDeploy = replicaDataDeploy.concat(
             serverConf[host][path].replicas.map((r) => {
               return {
-                deployId: `${deployObj.deployId}-${r.slice(1)}`,
+                deployId: buildReplicaId({ deployId: deployObj.deployId, replica: r }),
                 replicaHost: host,
               };
             }),
@@ -606,4 +608,5 @@ export {
   cliSpinner,
   getDataDeploy,
   validateTemplatePath,
+  buildReplicaId,
 };
