@@ -17,7 +17,7 @@ import { CyberpunkBloggerUnderpost } from './CyberpunkBloggerUnderpost.js';
 import { Badge } from '../core/Badge.js';
 import { SettingsUnderpost } from './SettingsUnderpost.js';
 import { Recover } from '../core/Recover.js';
-import { PanelUnderpost } from './PanelUnderpost.js';
+import { PanelForm } from '../core/PanelForm.js';
 
 const MenuUnderpost = {
   Data: {},
@@ -158,7 +158,14 @@ const MenuUnderpost = {
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,
-      htmlMainBody: async () => await PanelUnderpost.instance({ heightTopBar, heightBottomBar }),
+      htmlMainBody: async () =>
+        await PanelForm.instance({
+          idPanel: 'underpost-panel',
+          heightTopBar,
+          heightBottomBar,
+          defaultUrlImage: 'https://underpost.net/assets/splash/apple-touch-icon-precomposed.png',
+          Elements: ElementsUnderpost,
+        }),
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {

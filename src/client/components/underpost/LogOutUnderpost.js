@@ -4,7 +4,7 @@ import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { ElementsUnderpost } from './ElementsUnderpost.js';
-import { PanelUnderpost } from './PanelUnderpost.js';
+import { PanelForm } from '../core/PanelForm.js';
 
 const LogOutUnderpost = async function () {
   LogOut.Event['LogOutUnderpost'] = async () => {
@@ -18,7 +18,7 @@ const LogOutUnderpost = async function () {
 
     ElementsUnderpost.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
-    if (PanelUnderpost.updatePanel) PanelUnderpost.updatePanel();
+    PanelForm.Data['underpost-panel'].updatePanel();
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),

@@ -1,27 +1,29 @@
-import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from '../core/CommonJs.js';
+import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import { getBlobFromUint8ArrayFile, getProxyPath, getRawContentFile, htmls, s } from '../core/VanillaJs.js';
-import { Panel } from '../core/Panel.js';
-import { NotificationManager } from '../core/NotificationManager.js';
+import { getBlobFromUint8ArrayFile, getProxyPath, getRawContentFile, htmls, s } from './VanillaJs.js';
+import { Panel } from './Panel.js';
+import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
-import { getSrcFromFileData } from '../core/Input.js';
-import { Auth } from '../core/Auth.js';
-import { renderCssAttr } from '../core/Css.js';
-import { Translate } from '../core/Translate.js';
-import { ElementsUnderpost } from './ElementsUnderpost.js';
-import { Modal } from '../core/Modal.js';
+import { getSrcFromFileData } from './Input.js';
+import { Auth } from './Auth.js';
+import { renderCssAttr } from './Css.js';
+import { Translate } from './Translate.js';
+import { Modal } from './Modal.js';
 
-const PanelUnderpost = {
-  Data: {
-    data: [],
-    originData: [],
-    filesData: [],
-  },
-  instance: async function ({ heightTopBar, heightBottomBar }) {
-    const idPanel = 'underpost-panel';
-    const prefixTags = [idPanel, 'public'];
-    const extension = `.md`;
+const PanelForm = {
+  Data: {},
+  instance: async function (
+    options = { idPanel: '', heightTopBar: 50, heightBottomBar: 50, defaultUrlImage: '', Elements: {} },
+  ) {
+    const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
+    let extension = `.md`;
+    let prefixTags = [idPanel, 'public'];
+    this.Data[idPanel] = {
+      originData: [],
+      data: [],
+      filesData: [],
+    };
 
     const formData = [
       {
@@ -96,8 +98,8 @@ const PanelUnderpost = {
         heightTopBar,
         heightBottomBar,
         data,
-        originData: () => PanelUnderpost.Data.originData,
-        filesData: () => PanelUnderpost.Data.filesData,
+        originData: () => PanelForm.Data[idPanel].originData,
+        filesData: () => PanelForm.Data[idPanel].filesData,
         scrollClassContainer: 'main-body',
         titleIcon,
         newRender,
@@ -144,7 +146,7 @@ const PanelUnderpost = {
                       opacity: 0.2,
                     },
                   })}"
-                  src="https://underpost.net/assets/splash/apple-touch-icon-precomposed.png"
+                  src=${defaultUrlImage}
                 />
               `,
             });
@@ -199,8 +201,8 @@ const PanelUnderpost = {
 
             let originObj, indexOriginObj;
             if (editId) {
-              indexOriginObj = PanelUnderpost.Data.originData.findIndex((d) => d._id === editId);
-              if (indexOriginObj > -1) originObj = PanelUnderpost.Data.originData[indexOriginObj];
+              indexOriginObj = PanelForm.Data[idPanel].originData.findIndex((d) => d._id === editId);
+              if (indexOriginObj > -1) originObj = PanelForm.Data[idPanel].originData[indexOriginObj];
             }
 
             await (async () => {
@@ -259,7 +261,7 @@ const PanelUnderpost = {
             if (image) data.imageFileId = URL.createObjectURL(image);
             data.tags = tags.filter((t) => !prefixTags.includes(t));
             data.fileId = marked.parse(data.fileId);
-            data.userId = ElementsUnderpost.Data.user.main.model.user._id;
+            data.userId = Elements.Data.user.main.model.user._id;
             data.tools = true;
             data._id = documentData._id;
 
@@ -270,13 +272,13 @@ const PanelUnderpost = {
               imageFileId: { imageBlob, imagePlain },
             };
             if (originObj) {
-              PanelUnderpost.Data.originData[indexOriginObj] = documentData;
-              PanelUnderpost.Data.data[indexOriginObj] = data;
-              PanelUnderpost.Data.filesData[indexOriginObj] = filesData;
+              PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
+              PanelForm.Data[idPanel].data[indexOriginObj] = data;
+              PanelForm.Data[idPanel].filesData[indexOriginObj] = filesData;
             } else {
-              PanelUnderpost.Data.originData.push(documentData);
-              PanelUnderpost.Data.data.push(data);
-              PanelUnderpost.Data.filesData.push(filesData);
+              PanelForm.Data[idPanel].originData.push(documentData);
+              PanelForm.Data[idPanel].data.push(data);
+              PanelForm.Data[idPanel].filesData.push(filesData);
             }
 
             NotificationManager.Push({
@@ -301,9 +303,9 @@ const PanelUnderpost = {
         status: result.status,
       });
       if (result.status === 'success') {
-        PanelUnderpost.Data.originData = newInstance(result.data);
-        PanelUnderpost.Data.filesData = [];
-        PanelUnderpost.Data.data = [];
+        PanelForm.Data[idPanel].originData = newInstance(result.data);
+        PanelForm.Data[idPanel].filesData = [];
+        PanelForm.Data[idPanel].data = [];
         for (const documentObject of result.data.reverse()) {
           let fileId, imageFileId;
           let fileBlob, imageBlob;
@@ -332,14 +334,14 @@ const PanelUnderpost = {
             imageFileId = getSrcFromFileData(file);
           }
 
-          PanelUnderpost.Data.filesData.push({
+          PanelForm.Data[idPanel].filesData.push({
             id: documentObject._id,
             _id: documentObject._id,
             fileId: { fileBlob, filePlain },
             imageFileId: { imageBlob, imagePlain },
           });
 
-          PanelUnderpost.Data.data.push({
+          PanelForm.Data[idPanel].data.push({
             id: documentObject._id,
             title: documentObject.title,
             createdAt: dateFormat(documentObject.createdAt),
@@ -347,7 +349,7 @@ const PanelUnderpost = {
             fileId: marked.parse(fileId),
             userId: documentObject.userId._id,
             imageFileId,
-            tools: ElementsUnderpost.Data.user.main.model.user._id === documentObject.userId._id,
+            tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
             _id: documentObject._id,
             new:
               documentObject.createdAt &&
@@ -401,16 +403,16 @@ const PanelUnderpost = {
           ssr: true,
         })),
       });
-    this.updatePanel = async () => {
+
+    this.Data[idPanel].updatePanel = async () => {
       htmls(`.html-main-body`, await renderSrrPanelData());
       await getPanelData();
-      htmls(`.html-main-body`, await panelRender({ data: this.Data.data }));
+      htmls(`.html-main-body`, await panelRender({ data: this.Data[idPanel].data }));
     };
-    if (!Auth.getToken()) setTimeout(this.updatePanel);
+    if (!Auth.getToken()) setTimeout(this.Data[idPanel].updatePanel);
 
     return await renderSrrPanelData();
   },
-  updatePanel: () => null,
 };
 
-export { PanelUnderpost };
+export { PanelForm };

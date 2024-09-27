@@ -24,7 +24,7 @@ const DocumentService = {
     const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
 
     if (req.path.startsWith('/public') && req.query['tags']) {
-      const publisherUser = await User.findOne({ email: 'admin@underpost.net' });
+      const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
 
       const token = getBearerToken(req);
       let user;
@@ -32,7 +32,7 @@ const DocumentService = {
 
       const queryPayload = {
         userId: {
-          $in: (publisherUser ? [publisherUser._id.toString()] : []).concat(user ? [user._id] : []),
+          $in: publisherUsers.map((p) => p._id).concat(user ? [user._id] : []),
         },
         tags: {
           // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
