@@ -603,6 +603,7 @@ const MenuNexodev = {
         html: async () =>
           await CalendarNexodev.Render({
             idModal: 'modal-calendar',
+            Elements: ElementsNexodev,
           }),
         handleType: 'bar',
         maximize: true,

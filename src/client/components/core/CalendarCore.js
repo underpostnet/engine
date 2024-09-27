@@ -1,7 +1,8 @@
 import { EventSchedulerService } from '../../services/event-scheduler/event-scheduler.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
-import { range, s4 } from './CommonJs.js';
+import { newInstance, range, s4 } from './CommonJs.js';
+import { renderCssAttr } from './Css.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Panel } from './Panel.js';
@@ -14,38 +15,69 @@ import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
 const CalendarCore = {
   RenderStyle: async function () {},
-  Render: async function (options = { idModal: '' }) {
-    let calendar;
-    let data = range(0, 5).map((i) => {
-      return {
-        id: `event-${i}`,
-        description: `Event ${s4()}${s4()}${s4()}`,
-        start: new Date().toTimeString(),
-        end: new Date().toTimeString(),
-      };
-    });
+  Data: {},
+  Render: async function (options = { idModal: '', Elements: {} }) {
+    this.Data[options.idModal] = {
+      data: range(0, 5).map((i) => {
+        return {
+          id: `event-${i}`,
+          description: `Event ${s4()}${s4()}${s4()}`,
+          start: new Date().toTimeString(),
+          end: new Date().toTimeString(),
+        };
+      }),
+      originData: [],
+      filesData: [],
+      calendar: {},
+    };
+    const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
+    const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
+    const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
 
-    {
-      if (Auth.getToken()) {
-        const result = await EventSchedulerService.get({
-          id: `creatorUser`,
-        });
-        NotificationManager.Push({
-          html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
-          status: result.status,
-        });
-        if (result.status === 'success')
-          data = result.data
-            .map((o) => {
-              o.id = o._id;
-              return o;
-            })
-            .reverse();
+    const dateFormat = (date) =>
+      html`<span
+        style="${renderCssAttr({
+          style: {
+            'font-size': '14px',
+            color: '#888',
+          },
+        })}"
+        >${new Date(date).toLocaleString().replaceAll(',', '')}</span
+      >`;
+
+    const getPanelData = async () => {
+      const result = await EventSchedulerService.get({
+        id: `creatorUser`,
+      });
+      NotificationManager.Push({
+        html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
+        status: result.status,
+      });
+      if (result.status === 'success') {
+        this.Data[options.idModal].filesData = [];
+        this.Data[options.idModal].originData = newInstance(result.data);
+        this.Data[options.idModal].data = result.data
+          .map((o) => {
+            if (o.creatorUserId && options.Elements.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
+            o.id = o._id;
+            o.start = dateFormat(o.start);
+            o.end = dateFormat(o.end);
+            o.new =
+              o.createdAt && new Date().getTime() - new Date(o.createdAt).getTime() < newRenderMsLimit
+                ? newRender
+                : undefined;
+            this.Data[options.idModal].filesData.push({});
+            return o;
+          })
+          .reverse();
       }
-    }
+    };
+
+    if (Auth.getToken()) await getPanelData();
+
     const renderCalendar = () => {
-      const calendarEl = s('#calendar');
-      calendar = new FullCalendar.Calendar(calendarEl, {
+      const calendarEl = s(`.calendar-${idPanel}`);
+      this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [FullCalendar.DayGrid.default, FullCalendar.TimeGrid.default, FullCalendar.List.default],
         // initialView: 'dayGridWeek',
         timeZone: getTimeZone(),
@@ -61,12 +93,12 @@ const CalendarCore = {
         },
       });
 
-      calendar.render();
+      this.Data[options.idModal].calendar.render();
     };
     setTimeout(() => {
       renderCalendar();
       Translate.Event['fullcalendar-lang'] = () => {
-        calendar.setOption('locale', s(`html`).lang);
+        this.Data[options.idModal].calendar.setOption('locale', s(`html`).lang);
         if (s(`.fc-timegrid-axis-cushion`)) htmls(`.fc-timegrid-axis-cushion`, Translate.Render('all-day'));
         if (s(`.fc-dayGridMonth-button`)) htmls(`.fc-dayGridMonth-button`, Translate.Render('month'));
         if (s(`.fc-timeGridWeek-button`)) htmls(`.fc-timeGridWeek-button`, Translate.Render('week'));
@@ -98,7 +130,7 @@ const CalendarCore = {
       sa(`.fc-button-group`)[1].style.float = 'right';
     });
 
-    const idPanel = 'calendar-panel';
+    const idPanel = `calendar-panel-${options.idModal}`;
     const formData = [
       {
         model: 'id',
@@ -141,8 +173,8 @@ const CalendarCore = {
     setTimeout(() => {
       const resizeModal = () => {
         Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
-          if (s(`.main-body-calendar`))
-            s(`.main-body-calendar`).style.height = `${
+          if (s(`.main-body-calendar-${options.idModal}`))
+            s(`.main-body-calendar-${options.idModal}`).style.height = `${
               s(`.${options.idModal}`).offsetHeight - Modal.headerTitleHeight
             }px`;
         };
@@ -159,7 +191,7 @@ const CalendarCore = {
 
       s(`.close-calendar-container`).onclick = () => {
         s(`.calendar-container`).classList.add('hide');
-        s(`.main-body-calendar`).classList.remove('hide');
+        s(`.main-body-calendar-${options.idModal}`).classList.remove('hide');
         htmls(
           `.style-calendar`,
           html`<style>
@@ -171,34 +203,20 @@ const CalendarCore = {
       };
     });
 
-    return html`
-      <style>
-        .main-body-calendar {
-          overflow: auto;
-        }
-        .${idPanel}-form {
-          max-width: 750px !important;
-        }
-      </style>
-      <div class="style-calendar">
-        <style>
-          .modal-calendar {
-            overflow: hidden;
-          }
-        </style>
-      </div>
-
-      <div class="in main-body-calendar">
-        ${await Panel.Render({
+    const panelRender = async () => {
+      return html`${await Panel.Render({
           idPanel,
           parentIdModal: options.idModal,
           formData,
           heightTopBar,
           heightBottomBar,
-          data,
+          data: this.Data[options.idModal].data,
           formContainerClass: '',
           customFormHeightAdjust: 120,
-          scrollClassContainer: 'main-body-calendar',
+          scrollClassContainer: `main-body-calendar-${options.idModal}`,
+          newRender,
+          originData: () => this.Data[options.idModal].originData,
+          filesData: () => this.Data[options.idModal].filesData,
           titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
           route: 'calendar',
           callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
@@ -213,9 +231,9 @@ const CalendarCore = {
               label: html`<i class="fa-regular fa-calendar-days"></i> ${Translate.Render('calendar')}`,
               onClick: function () {
                 s(`.calendar-container`).classList.remove('hide');
-                s(`.main-body-calendar`).classList.add('hide');
+                s(`.main-body-calendar-${options.idModal}`).classList.add('hide');
                 // renderCalendar();
-                calendar.setOption('height', 700);
+                CalendarCore.Data[options.idModal].calendar.setOption('height', 700);
                 Translate.Event['fullcalendar-lang']();
                 htmls(
                   `.style-calendar`,
@@ -229,18 +247,102 @@ const CalendarCore = {
             },
           ],
           on: {
-            add: async function ({ data }) {
-              const { status, message } = await EventSchedulerService.post({ body: data });
+            add: async function ({ data, editId }) {
+              const {
+                status,
+                message,
+                data: documentData,
+              } = editId
+                ? await EventSchedulerService.put({ id: editId, body: { ...data, _id: undefined } })
+                : await EventSchedulerService.post({ body: data });
               NotificationManager.Push({
-                html: status === 'success' ? Translate.Render('success-add-event-scheduler') : message,
+                html:
+                  status === 'success'
+                    ? editId
+                      ? Translate.Render('success-edit-event-scheduler')
+                      : Translate.Render('success-add-event-scheduler')
+                    : message,
                 status: status,
               });
+
+              if (status === 'success') {
+                data.start = dateFormat(data.start);
+                data.end = dateFormat(data.end);
+                data.tools = true;
+                data._id = documentData._id;
+
+                let originObj, indexOriginObj;
+                let filesData = {};
+                if (editId) {
+                  indexOriginObj = CalendarCore.Data[options.idModal].originData.findIndex((d) => d._id === editId);
+                  if (indexOriginObj > -1) originObj = CalendarCore.Data[options.idModal].originData[indexOriginObj];
+                }
+                if (originObj) {
+                  CalendarCore.Data[options.idModal].originData[indexOriginObj] = documentData;
+                  CalendarCore.Data[options.idModal].data[indexOriginObj] = data;
+                  CalendarCore.Data[options.idModal].filesData[indexOriginObj] = filesData;
+                } else {
+                  CalendarCore.Data[options.idModal].originData.push(documentData);
+                  CalendarCore.Data[options.idModal].data.push(data);
+                  CalendarCore.Data[options.idModal].filesData.push(filesData);
+                }
+              }
               return { data, status, message };
+            },
+            remove: async function ({ e, data }) {
+              e.preventDefault();
+              const confirmResult = await Modal.RenderConfirm({
+                html: async () => {
+                  return html`
+                    <div class="in section-mp" style="text-align: center">
+                      ${Translate.Render('confirm-delete-item')}
+                      <br />
+                      "${data.description}"
+                    </div>
+                  `;
+                },
+                id: `delete-${idPanel}`,
+              });
+              if (confirmResult.status === 'confirm') {
+                const { status, message } = await EventSchedulerService.delete({
+                  id: data._id,
+                });
+                NotificationManager.Push({
+                  html: status,
+                  status,
+                });
+
+                return { status };
+              }
+              return { status: 'error' };
             },
           },
         })}
-        <div class="in" style="margin-bottom: 100px"></div>
+        <div class="in" style="margin-bottom: 100px"></div>`;
+    };
+
+    this.Data[options.idModal].updatePanel = async () => {
+      htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
+    };
+
+    return html`
+      <style>
+        .main-body-calendar-${options.idModal} {
+          overflow: auto;
+        }
+        .${idPanel}-form {
+          max-width: 750px !important;
+        }
+      </style>
+      <div class="style-calendar">
+        <style>
+          .modal-calendar {
+            overflow: hidden;
+          }
+        </style>
       </div>
+
+      <div class="in main-body-calendar-${options.idModal}">${await panelRender()}</div>
       <style>
         .calendar-container {
           color: black;
@@ -310,7 +412,7 @@ const CalendarCore = {
             type: 'button',
           })}
         </div>
-        <div class="in"><div id="calendar"></div></div>
+        <div class="in"><div class="calendar-${idPanel}"></div></div>
       </div>
     `;
   },

@@ -170,52 +170,65 @@ const Input = {
     return obj;
   },
   setValues: function (formData, obj, originObj, fileObj) {
-    for (const inputData of formData) {
-      if (!s(`.${inputData.id}`)) continue;
+    setTimeout(() => {
+      for (const inputData of formData) {
+        if (!s(`.${inputData.id}`)) continue;
 
-      switch (inputData.inputType) {
-        case 'file':
-          if (fileObj[inputData.model] && s(`.${inputData.id}`)) {
-            const dataTransfer = new DataTransfer();
+        switch (inputData.inputType) {
+          case 'file':
+            if (fileObj[inputData.model] && s(`.${inputData.id}`)) {
+              const dataTransfer = new DataTransfer();
 
-            if (fileObj[inputData.model].fileBlob)
-              dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].fileBlob));
+              if (fileObj[inputData.model].fileBlob)
+                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].fileBlob));
 
-            if (fileObj[inputData.model].imageBlob)
-              dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].imageBlob));
+              if (fileObj[inputData.model].imageBlob)
+                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].imageBlob));
 
-            if (dataTransfer.files.length) {
-              s(`.${inputData.id}`).files = dataTransfer.files;
-              s(`.${inputData.id}`).onchange({ target: s(`.${inputData.id}`) });
+              if (dataTransfer.files.length) {
+                s(`.${inputData.id}`).files = dataTransfer.files;
+                s(`.${inputData.id}`).onchange({ target: s(`.${inputData.id}`) });
+              }
             }
-          }
 
-          // s(`.${inputData.id}`).inputFiles = undefined;
-          // s(`.${inputData.id}`).value = null;
+            // s(`.${inputData.id}`).inputFiles = undefined;
+            // s(`.${inputData.id}`).value = null;
 
-          // if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
-          //   htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
-          continue;
-          break;
-        case 'md':
-          RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].filePlain);
-          continue;
-          break;
-        case 'checkbox':
-        case 'checkbox-on-off':
-          // if (s(`.${inputData.id}-checkbox`).checked) ToggleSwitch.Tokens[inputData.id].click();
-          continue;
-          break;
+            // if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
+            //   htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
+            continue;
+            break;
+          case 'md':
+            RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].filePlain);
+            continue;
+            break;
+          case 'checkbox':
+          case 'checkbox-on-off':
+            if (
+              (obj[inputData.model] === true && !s(`.${inputData.id}-checkbox`).checked) ||
+              (!obj[inputData.model] && s(`.${inputData.id}-checkbox`).checked === true)
+            )
+              ToggleSwitch.Tokens[inputData.id].click();
+            continue;
+            break;
+          case 'datetime-local':
+            {
+              const date = new Date(originObj[inputData.model]);
+              date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+              s(`.${inputData.id}`).value = date.toISOString().slice(0, 16);
+            }
+            continue;
+            break;
+          default:
+            break;
+        }
 
-        default:
-          break;
+        if ('model' in inputData) {
+          if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = obj[inputData.model];
+        }
+        if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
       }
-
-      if ('model' in inputData) {
-        if (!['dropdown'].includes(inputData.inputType)) s(`.${inputData.id}`).value = obj[inputData.model];
-      }
-      if (s(`.input-info-${inputData.id}`)) htmls(`.input-info-${inputData.id}`, html`&nbsp`);
-    }
+    });
   },
 };
 

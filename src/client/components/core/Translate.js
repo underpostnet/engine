@@ -399,6 +399,10 @@ const TranslateCore = {
       en: 'Event successfully added to scheduler.',
       es: 'Evento añadido correctamente al calendario.',
     };
+    Translate.Data['success-edit-event-scheduler'] = {
+      en: 'Event successfully updated to scheduler.',
+      es: 'Evento actualizado correctamente al calendario.',
+    };
     Translate.Data['success-get-events-scheduler'] = {
       en: 'Events successfully retrieved from scheduler.',
       es: 'Eventos obtenidos correctamente del calendario.',
