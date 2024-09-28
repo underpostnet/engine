@@ -253,15 +253,16 @@ try {
         shellExec(`node bin/deploy conf ${process.argv[3]} production`);
         if (process.argv.includes('replicas')) {
           const deployGroupId = process.argv[5] ? process.argv[5] : 'dd';
+          const dataDeploy = getDataDeploy({
+            deployId: process.argv[3],
+            buildSingleReplica: true,
+            deployGroupId,
+          });
           shellExec(`node bin/deploy sync-env-port ${deployGroupId}`);
           if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
           await Cmd.exec(Cmd.delete({ deployId: process.argv[3] }));
           await Cmd.exec(Cmd.run({ deployId: process.argv[3] }));
-          for (const deployObj of getDataDeploy({
-            deployId: process.argv[3],
-            buildSingleReplica: true,
-            deployGroupId,
-          })) {
+          for (const deployObj of dataDeploy) {
             const { deployId } = deployObj;
             if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
               await Cmd.exec(Cmd.delete({ deployId }));
