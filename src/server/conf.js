@@ -490,13 +490,17 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
 
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
-const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '' }) => {
+const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '', deployId: '' }) => {
   let dataDeploy = JSON.parse(
     fs.readFileSync(
       `./engine-private/deploy/${options?.deployGroupId ? options.deployGroupId : process.argv[3]}.json`,
       'utf8',
     ),
-  ).map((deployId) => {
+  );
+
+  if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
+
+  dataDeploy = dataDeploy.map((deployId) => {
     return {
       deployId,
     };

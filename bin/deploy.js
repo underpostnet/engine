@@ -250,11 +250,17 @@ try {
     }
     case 'run':
       {
-        getDataDeploy({
+        const dataDeploy = getDataDeploy({
+          deployId: process.argv[3],
           buildSingleReplica: true,
           deployGroupId: process.argv[4] ? process.argv[4] : 'dd',
         });
         loadConf(process.argv[3]);
+        setTimeout(() => {
+          for (const deployId of dataDeploy)
+            if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3]))
+              shellExec(`node bin/deploy run ${deployId}`);
+        });
         shellExec(`npm start ${process.argv[3]}`);
       }
       break;
