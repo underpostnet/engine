@@ -678,7 +678,6 @@ const MenuNexodev = {
         html: async () =>
           await Content.Render({
             idModal: `modal-content${subModalId}`,
-            Menu: this,
           }),
         observer: true,
         handleType: 'bar',

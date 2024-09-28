@@ -648,7 +648,6 @@ const MenuBms = {
         html: async () =>
           await Content.Render({
             idModal: `modal-content${subModalId}`,
-            Menu: this,
           }),
         handleType: 'bar',
         maximize: true,

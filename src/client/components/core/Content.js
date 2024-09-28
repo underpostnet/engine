@@ -12,8 +12,8 @@ const logger = loggerFactory(import.meta);
 
 const Content = {
   allowedExtensions: ['.md', '.jpg', '.webp', '.png', '.pdf', '.jpeg', '.svg'],
-  Render: async function (options = { idModal: '', Menu: {} }) {
-    const { Menu, idModal } = options;
+  Render: async function (options = { idModal: '' }) {
+    const { idModal } = options;
     setTimeout(async () => {
       try {
         s(`.error-${idModal}`).classList.add('hide');
