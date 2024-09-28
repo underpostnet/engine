@@ -662,8 +662,8 @@ const MenuNexodev = {
       const path =
         location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
 
-      if (path.split('/').pop() === 'content' && getQueryParams().id) {
-        subModalId = `-${getQueryParams().id}`;
+      if (path.split('/').pop() === 'content' && getQueryParams().cid) {
+        subModalId = `-${getQueryParams().cid}`;
       }
 
       const { barConfig } = await Themes[Css.currentTheme]();
