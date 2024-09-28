@@ -252,20 +252,20 @@ try {
       {
         if (process.env.includes('replicas')) {
           await Cmd.exec(Cmd.delete(process.argv[3]));
-          setTimeout(async () => {
-            for (const deployId of getDataDeploy({
-              deployId: process.argv[3],
-              buildSingleReplica: true,
-              deployGroupId: process.argv[5] ? process.argv[5] : 'dd',
-            }))
-              if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
-                await Cmd.exec(Cmd.delete(deployId));
-                await Cmd.exec(Cmd.run(deployId));
-              }
-          });
+          await Cmd.exec(Cmd.run(process.argv[3]));
+          for (const deployId of getDataDeploy({
+            deployId: process.argv[3],
+            buildSingleReplica: true,
+            deployGroupId: process.argv[5] ? process.argv[5] : 'dd',
+          }))
+            if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
+              await Cmd.exec(Cmd.delete(deployId));
+              await Cmd.exec(Cmd.run(deployId));
+            }
+        } else {
+          loadConf(process.argv[3]);
+          shellExec(`npm start ${process.argv[3]}`);
         }
-        loadConf(process.argv[3]);
-        shellExec(`npm start ${process.argv[3]}`);
       }
       break;
     case 'new-nodejs-app':
