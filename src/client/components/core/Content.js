@@ -25,7 +25,7 @@ const Content = {
 
         {
           const { data, status, message } = await DocumentService.get({ id: queryParams.cid });
-          if (!data[0] || status !== 'success') {
+          if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
             throw new Error(`no-result-found`);
           }
@@ -33,7 +33,7 @@ const Content = {
         }
         {
           const { data, status, message } = await FileService.get({ id: documentObj.fileId._id });
-          if (!data[0] || status !== 'success') {
+          if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
             throw new Error(`no-preview-available`);
           }
