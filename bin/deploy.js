@@ -254,15 +254,17 @@ try {
           if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
           await Cmd.exec(Cmd.delete({ deployId: process.argv[3] }));
           await Cmd.exec(Cmd.run({ deployId: process.argv[3] }));
-          for (const deployId of getDataDeploy({
+          for (const deployObj of getDataDeploy({
             deployId: process.argv[3],
             buildSingleReplica: true,
             deployGroupId: process.argv[5] ? process.argv[5] : 'dd',
-          }))
+          })) {
+            const { deployId } = deployObj;
             if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
-              await Cmd.exec(Cmd.delete({ deployId: deployId }));
-              await Cmd.exec(Cmd.run({ deployId: deployId }));
+              await Cmd.exec(Cmd.delete({ deployId }));
+              await Cmd.exec(Cmd.run({ deployId }));
             }
+          }
         } else {
           loadConf(process.argv[3]);
           shellExec(`npm start ${process.argv[3]}`);
