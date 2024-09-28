@@ -253,6 +253,7 @@ try {
         shellExec(`node bin/deploy conf ${process.argv[3]} production`);
         if (process.argv.includes('replicas')) {
           if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
+          await Cmd.exec(Cmd.delete({ deployId: process.argv[3] }));
           await Cmd.exec(Cmd.run({ deployId: process.argv[3] }));
           for (const deployObj of getDataDeploy({
             deployId: process.argv[3],
