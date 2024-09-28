@@ -6,25 +6,45 @@ import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { loggerFactory } from './Logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Content = {
-  allowedExtensions: ['.md', '.jpg', '.webp', '.png', '.pdf'],
+  allowedExtensions: ['.md', '.jpg', '.webp', '.png', '.pdf', '.jpeg', '.svg'],
   Render: async function (options = { idModal: '', Menu: {} }) {
     const { Menu, idModal } = options;
     setTimeout(async () => {
-      const queryParams = getQueryParams();
-      if (queryParams.cid) {
-        const {
-          data: [documentObj],
-          status: statusDoc,
-        } = await DocumentService.get({ id: queryParams.cid });
+      try {
+        s(`.error-${idModal}`).classList.add('hide');
+        s(`.spinner-${idModal}`).classList.remove('hide');
+        const queryParams = getQueryParams();
+        let documentObj, file;
 
-        const {
-          data: [file],
-          status: statusFile,
-        } = await FileService.get({ id: documentObj.fileId._id });
+        if (!queryParams.cid) throw new Error(`no-result-found`);
+
+        {
+          const { data, status, message } = await DocumentService.get({ id: queryParams.cid });
+          if (!data[0] || status !== 'success') {
+            logger.error(message);
+            throw new Error(`no-result-found`);
+          }
+          documentObj = data[0];
+        }
+        {
+          const { data, status, message } = await FileService.get({ id: documentObj.fileId._id });
+          if (!data[0] || status !== 'success') {
+            logger.error(message);
+            throw new Error(`no-preview-available`);
+          }
+          file = data[0];
+        }
 
         const ext = file.name.split('.')[file.name.split('.').length - 1];
+
+        if (!Content.allowedExtensions.find((extAllowed) => extAllowed.match(ext.toLowerCase())))
+          throw new Error(`no-preview-available`);
+
         htmls(
           `.title-modal-${idModal}`,
           html`${renderViewTitle({
@@ -42,7 +62,9 @@ const Content = {
             break;
 
           case 'jpg':
+          case 'jpeg':
           case 'webp':
+          case 'svg':
           case 'png': {
             const url = getApiBaseUrl({ id: documentObj.fileId._id, endpoint: 'file/blob' });
             htmls(
@@ -72,17 +94,17 @@ const Content = {
           default:
             break;
         }
-        s(`.no-result-${idModal}`).classList.add('hide');
-      } else {
-        s(`.no-result-${idModal}`).classList.remove('hide');
+      } catch (error) {
+        logger.error(error);
+        htmls(`.content-render-${idModal}`, '');
+        htmls(`.error-${idModal}`, html`<i class="fas fa-exclamation-circle"></i> ${Translate.Render(error.message)}`);
+        s(`.error-${idModal}`).classList.remove('hide');
       }
       s(`.spinner-${idModal}`).classList.add('hide');
     });
     return html` <div class="in content-render content-render-${idModal}" style="min-height: 500px"></div>
       <div class="abs center spinner-${idModal}"><div class="lds-dual-ring"></div></div>
-      <div class="abs center no-result-${idModal} hide">
-        <i class="fas fa-exclamation-circle"></i> ${Translate.Render('no-result-found')}
-      </div>`;
+      <div class="abs center error-${idModal} hide"></div>`;
   },
 };
 
