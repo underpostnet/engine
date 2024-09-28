@@ -1,5 +1,5 @@
 import { Account } from '../core/Account.js';
-import { BlockChainManagement } from '../core/BlockChain.js';
+import { BlockChainManagement } from '../core/Blockchain.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { Chat } from '../core/Chat.js';
 import { ColorPalette } from '../core/ColorPalette.js';

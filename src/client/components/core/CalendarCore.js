@@ -18,14 +18,7 @@ const CalendarCore = {
   Data: {},
   Render: async function (options = { idModal: '', Elements: {}, heightTopBar: 50, heightBottomBar: 50 }) {
     this.Data[options.idModal] = {
-      data: range(0, 5).map((i) => {
-        return {
-          id: `event-${i}`,
-          description: `Event ${s4()}${s4()}${s4()}`,
-          start: new Date().toTimeString(),
-          end: new Date().toTimeString(),
-        };
-      }),
+      data: [],
       originData: [],
       filesData: [],
       calendar: {},
@@ -36,6 +29,18 @@ const CalendarCore = {
     const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
     const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
     const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
+
+    const getSrrData = () => {
+      this.Data[options.idModal].data = range(0, 5).map((i) => {
+        return {
+          id: `event-${i}`,
+          description: `Event ${s4()}${s4()}${s4()}`,
+          start: new Date().toTimeString(),
+          end: new Date().toTimeString(),
+        };
+      });
+    };
+    getSrrData();
 
     const dateFormat = (date) =>
       html`<span
@@ -321,7 +326,11 @@ const CalendarCore = {
     };
 
     this.Data[options.idModal].updatePanel = async () => {
-      htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
+      if (s(`.main-body-calendar-${options.idModal}`)) {
+        if (Auth.getToken()) await getPanelData();
+        else getSrrData();
+        htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
+      }
     };
 
     return html`

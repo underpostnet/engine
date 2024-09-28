@@ -2,18 +2,22 @@ import { getApiBaseUrl } from '../../services/core/core.service.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { getSubpaths, uniqueArray } from './CommonJs.js';
 import { Content } from './Content.js';
 import { darkTheme } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
+import { loggerFactory } from './Logger.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { RouterEvents } from './Router.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
 import { copyData, downloadFile, getProxyPath, getQueryParams, s, setPath } from './VanillaJs.js';
+
+const logger = loggerFactory(import.meta);
 
 class LoadFolderRenderer {
   eGui;
@@ -79,48 +83,68 @@ class FolderHeaderComp {
 }
 
 const FileExplorer = {
-  Render: async function () {
+  Api: {},
+  Render: async function (options = { idModal: '' }) {
+    const { idModal } = options;
+    FileExplorer.Api[idModal] = options;
     const gridFolderId = 'folder-explorer-grid';
     const gridFileId = 'file-explorer-grid';
     const idDropFileInput = 'file-explorer';
     let formBodyFiles;
     const query = getQueryParams();
     let location = query?.location ? this.locationFormat({ f: query }) : '/';
-    let files = [];
-    let folders = [];
-    let documentId = '';
-    let documentInstance = [];
-
-    RouterEvents['file-explorer'] = ({ path, pushPath, route }) => {
-      if (route === 'cloud') {
-        setTimeout(() => {
-          const query = getQueryParams();
-          location = query?.location ? this.locationFormat({ f: query }) : '/';
-          if (!s(`.file-explorer-query-nav`)) return;
-          s(`.file-explorer-query-nav`).value = location;
-          const format = this.documentDataFormat({ document: documentInstance, location });
+    let files, folders, documentId, documentInstance;
+    const cleanData = () => {
+      files = [];
+      folders = [];
+      documentId = '';
+      documentInstance = [];
+    };
+    cleanData();
+    FileExplorer.Api[idModal].displayList = async () => {
+      if (!s(`.${idModal}`)) return;
+      const query = getQueryParams();
+      location = query?.location ? this.locationFormat({ f: query }) : '/';
+      s(`.file-explorer-query-nav`).value = location;
+      const format = this.documentDataFormat({ document: documentInstance, location });
+      files = format.files;
+      folders = format.folders;
+      AgGrid.grids[gridFileId].setGridOption('rowData', files);
+      AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+    };
+    FileExplorer.Api[idModal].updateData = async (optionsUpdate = { display: false }) => {
+      if (!s(`.${idModal}`)) return;
+      if (Auth.getToken()) {
+        try {
+          const { status, data: document } = await DocumentService.get();
+          const format = this.documentDataFormat({ document, location });
           files = format.files;
+          documentId = format.documentId;
           folders = format.folders;
-          AgGrid.grids[gridFileId].setGridOption('rowData', files);
-          AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-        });
-      }
+          documentInstance = document;
+        } catch (error) {
+          logger.error(error);
+          NotificationManager.Push({
+            html: error.message,
+            status: 'error',
+          });
+        }
+      } else cleanData();
+      setTimeout(async () => {
+        if (s(`.${idModal}`) && optionsUpdate && optionsUpdate.display) await FileExplorer.Api[idModal].displayList();
+      });
     };
 
-    try {
-      const { status, data: document } = await DocumentService.get();
-      const format = this.documentDataFormat({ document, location });
-      files = format.files;
-      documentId = format.documentId;
-      folders = format.folders;
-      documentInstance = document;
-    } catch (error) {
-      console.error(error);
-    }
-
-    console.log({ location, documentId, folders, files });
+    RouterEvents['file-explorer'] = ({ path, pushPath, route }) => {
+      if (route === 'cloud')
+        setTimeout(async () => {
+          // await this.Api[idModal].updateData();
+          await FileExplorer.Api[idModal].displayList();
+        });
+    };
 
     setTimeout(async () => {
+      FileExplorer.Api[idModal].updateData({ display: true });
       const formData = [
         {
           model: 'location',
@@ -552,7 +576,8 @@ const FileExplorer = {
                     filter: true,
                     autoHeight: true,
                   },
-                  rowData: files,
+                  // rowData: files,
+                  rowData: undefined,
                   columnDefs: [
                     { field: 'name', flex: 2, headerName: 'Name', cellRenderer: LoadFileNameRenderer },
                     { field: 'mimetype', flex: 1, headerName: 'Type' },
@@ -604,6 +629,7 @@ const FileExplorer = {
         mimetype: f.fileId.mimetype,
         fileId: f.fileId._id,
         _id: f._id,
+        title: f.title,
       };
     });
     let documentId = document._id;

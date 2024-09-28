@@ -207,6 +207,10 @@ const TranslateCore = {
       es: 'No se encontraron resultados',
       en: 'No results found',
     };
+    Translate.Data['no-preview-available'] = {
+      en: 'No preview available',
+      es: 'Vista previa no disponible',
+    };
     Translate.Data['recent'] = { es: 'Reciente', en: 'recent' };
 
     Translate.Data = {
