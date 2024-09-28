@@ -250,6 +250,10 @@ try {
     }
     case 'run':
       {
+        getDataDeploy({
+          buildSingleReplica: true,
+          deployGroupId: process.argv[4] ? process.argv[4] : 'dd',
+        });
         loadConf(process.argv[3]);
         shellExec(`npm start ${process.argv[3]}`);
       }
