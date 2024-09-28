@@ -251,16 +251,16 @@ try {
     case 'run':
       {
         if (process.argv.includes('replicas')) {
-          await Cmd.exec(Cmd.delete(process.argv[3]));
-          await Cmd.exec(Cmd.run(process.argv[3]));
+          await Cmd.exec(Cmd.delete({ deployId: process.argv[3] }));
+          await Cmd.exec(Cmd.run({ deployId: process.argv[3] }));
           for (const deployId of getDataDeploy({
             deployId: process.argv[3],
             buildSingleReplica: true,
             deployGroupId: process.argv[5] ? process.argv[5] : 'dd',
           }))
             if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
-              await Cmd.exec(Cmd.delete(deployId));
-              await Cmd.exec(Cmd.run(deployId));
+              await Cmd.exec(Cmd.delete({ deployId: deployId }));
+              await Cmd.exec(Cmd.run({ deployId: deployId }));
             }
         } else {
           loadConf(process.argv[3]);
