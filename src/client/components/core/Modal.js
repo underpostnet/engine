@@ -86,6 +86,7 @@ const Modal = {
       onDragEndListener: {},
       onObserverListener: {},
       onClickListener: {},
+      query: `${window.location.search}`,
     };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
@@ -1427,6 +1428,11 @@ const Modal = {
   setTopModalCallback: function (idModal) {
     s(`.${idModal}`).style.zIndex = '4';
     this.currentTopModalId = `${idModal}`;
+    if (
+      this.Data[idModal].query &&
+      `${location.pathname}${window.location.search}` !== `${location.pathname}${this.Data[idModal].query}`
+    )
+      setPath(`${location.pathname}${this.Data[idModal].query}`);
   },
   mobileModal: () => window.innerWidth < 600 || window.innerHeight < 600,
   writeHTML: ({ idModal, html }) => htmls(`.html-${idModal}`, html),

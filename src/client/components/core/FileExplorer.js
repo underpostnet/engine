@@ -327,6 +327,20 @@ const FileExplorer = {
           EventsUI.onClick(`.btn-file-delete-${params.data._id}`, async (e) => {
             e.preventDefault();
             {
+              const confirmResult = await Modal.RenderConfirm({
+                html: async () => {
+                  return html`
+                    <div class="in section-mp" style="text-align: center">
+                      ${Translate.Render('confirm-delete-item')}
+                      <br />
+                      "${params.data.title}"
+                    </div>
+                  `;
+                },
+                id: `delete-${params.data._id}`,
+              });
+              if (confirmResult.status !== 'confirm') return;
+
               const { data, status, message } = await FileService.delete({
                 id: params.data.fileId,
               });

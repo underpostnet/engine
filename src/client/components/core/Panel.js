@@ -23,6 +23,7 @@ const Panel = {
   Render: async function (
     options = {
       idPanel: '',
+      parentIdModal: '',
       scrollClassContainer: '',
       formData: [],
       data: [],
@@ -254,7 +255,9 @@ const Panel = {
           </div>`;
           break;
         case 'md': {
-          renderForm += html`<div class="in section-mp">${await RichText.Render({ id: modelData.id })}</div>`;
+          renderForm += html`<div class="in section-mp">
+            ${await RichText.Render({ id: modelData.id, parentIdModal: options.parentIdModal })}
+          </div>`;
           break;
         }
 
