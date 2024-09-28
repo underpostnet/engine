@@ -250,7 +250,7 @@ try {
     }
     case 'run':
       {
-        if (process.env.includes('replicas')) {
+        if (process.argv.includes('replicas')) {
           await Cmd.exec(Cmd.delete(process.argv[3]));
           await Cmd.exec(Cmd.run(process.argv[3]));
           for (const deployId of getDataDeploy({
