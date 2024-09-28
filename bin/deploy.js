@@ -337,7 +337,7 @@ try {
             deployGroupId,
           })) {
             const { deployId } = deployObj;
-            shellExec(`node bin/deploy run build-full-client ${deployId}`);
+            shellExec(`node bin/deploy build-full-client ${deployId}`);
           }
           break;
         }
