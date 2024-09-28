@@ -192,7 +192,8 @@ const PanelForm = {
           add: async function ({ data, editId }) {
             let fileId;
             let imageFileId;
-            const location = `${prefixTags.join('/')}/${getCapVariableName(data.title)}${extension}`;
+            // const fileName = `${getCapVariableName(data.title)}${extension}`
+            const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.fileId], { type: 'text/markdown' });
             const file = new File([blob], location, { type: 'text/markdown' });
             const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;

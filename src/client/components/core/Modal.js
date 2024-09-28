@@ -86,7 +86,7 @@ const Modal = {
       onDragEndListener: {},
       onObserverListener: {},
       onClickListener: {},
-      query: `${window.location.search}`,
+      query: options.query ? `${window.location.search}` : undefined,
     };
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};

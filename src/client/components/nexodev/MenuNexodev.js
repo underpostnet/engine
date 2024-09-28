@@ -679,6 +679,7 @@ const MenuNexodev = {
           await Content.Render({
             idModal: `modal-content${subModalId}`,
           }),
+        query: true,
         observer: true,
         handleType: 'bar',
         maximize: true,
