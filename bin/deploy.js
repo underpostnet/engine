@@ -76,44 +76,39 @@ const deployTest = async (dataDeploy) => {
   return { failed };
 };
 
+const getDeployGroupId = () => {
+  const deployGroupIndexArg = process.argv.findIndex((a) => a.match(`deploy-group:`));
+  if (deployGroupIndexArg > -1) return process.argv[deployGroupIndexArg].split(':')[1].trim();
+  return 'dd';
+};
+
 const Cmd = {
-  clientBuild: (deploy) =>
-    `node bin/deploy build-full-client${process.argv[4] === 'zip' ? '-zip' : ''} ${deploy.deployId}${
-      process.argv.includes('docs') ? ' docs' : ''
-    }`,
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
   exec: async (cmd) => {
-    if (process.argv[4] === 'copy') {
-      await ncp.copy(cmd);
-      await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
-      if (!fs.existsSync(`./tmp/await-deploy`)) return true;
-      return false;
-    } else {
-      shellExec(cmd);
-      return await new Promise(async (resolve) => {
-        const maxTime = 1000 * 60 * 5;
-        const minTime = 10000 * 2;
-        const intervalTime = 1000;
-        let currentTime = 0;
-        const attempt = () => {
-          if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
-            clearInterval(processMonitor);
-            return resolve(true);
-          }
-          cliSpinner(
-            intervalTime,
-            `[deploy.js] `,
-            ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
-            'yellow',
-            'material',
-          );
-          currentTime += intervalTime;
-          if (currentTime === maxTime) return resolve(false);
-        };
-        const processMonitor = setInterval(attempt, intervalTime);
-      });
-    }
+    shellExec(cmd);
+    return await new Promise(async (resolve) => {
+      const maxTime = 1000 * 60 * 5;
+      const minTime = 10000 * 2;
+      const intervalTime = 1000;
+      let currentTime = 0;
+      const attempt = () => {
+        if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
+          clearInterval(processMonitor);
+          return resolve(true);
+        }
+        cliSpinner(
+          intervalTime,
+          `[deploy.js] `,
+          ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
+          'yellow',
+          'material',
+        );
+        currentTime += intervalTime;
+        if (currentTime >= maxTime) return resolve(false);
+      };
+      const processMonitor = setInterval(attempt, intervalTime);
+    });
   },
 };
 
@@ -132,11 +127,11 @@ const deployRun = async (dataDeploy, reset) => {
     await deployRunAttempt();
   }
   const { failed } = await deployTest(dataDeploy);
-  for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
   if (failed.length > 0) {
-    process.argv[4] = 'copy';
+    for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy));
+    await read({ prompt: 'Press enter to retry failed processes\n' });
     await deployRun(failed);
-  }
+  } else logger.info(`Deploy process successfully`);
 };
 
 const updateSrc = () => {
@@ -252,24 +247,16 @@ try {
       {
         shellExec(`node bin/deploy conf ${process.argv[3]} production`);
         if (process.argv.includes('replicas')) {
-          const deployGroupId = process.argv[5] ? process.argv[5] : 'dd';
+          const deployGroupId = getDeployGroupId();
           const dataDeploy = getDataDeploy({
             deployId: process.argv[3],
             buildSingleReplica: true,
             deployGroupId,
           });
-          shellExec(`node bin/deploy sync-env-port ${deployGroupId}`);
           if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-          await Cmd.exec(Cmd.delete({ deployId: process.argv[3] }));
-          await Cmd.exec(Cmd.run({ deployId: process.argv[3] }));
-          for (const deployObj of dataDeploy) {
-            const { deployId } = deployObj;
-            if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
-              await Cmd.exec(Cmd.delete({ deployId }));
-              shellExec(`node bin/deploy conf ${deployId} production`);
-              await Cmd.exec(Cmd.run({ deployId }));
-            }
-          }
+          updateSrc();
+          shellExec(`node bin/deploy sync-env-port ${deployGroupId}`);
+          await deployRun(dataDeploy);
         } else {
           loadConf(process.argv[3]);
           shellExec(`npm start ${process.argv[3]}`);
@@ -340,9 +327,20 @@ try {
         shellExec(`npm run dev ${deployId}`);
       }
       break;
-    case 'build-full-client-zip':
     case 'build-full-client':
       {
+        if (process.argv.includes('replicas')) {
+          const deployGroupId = getDeployGroupId();
+          for (const deployObj of getDataDeploy({
+            deployId: process.argv[3],
+            buildSingleReplica: true,
+            deployGroupId,
+          })) {
+            const { deployId } = deployObj;
+            shellExec(`node bin/deploy run build-full-client ${deployId}`);
+          }
+          break;
+        }
         const { deployId, folder } = loadConf(process.argv[3]);
 
         if (deployId && deployId !== 'default') shellExec(`node bin/deploy conf ${deployId} production`);
@@ -418,7 +416,7 @@ try {
         shellExec(`node bin/deploy sync-env-port ${process.argv[3]}`);
         for (const deploy of dataDeploy) {
           shellExec(`node bin/deploy conf ${deploy.deployId} production`);
-          shellExec(Cmd.clientBuild(deploy), { silent: true });
+          shellExec(`node bin/deploy build-full-client ${deploy.deployId}`, { silent: true });
         }
         await deployRun(dataDeploy, true);
       }

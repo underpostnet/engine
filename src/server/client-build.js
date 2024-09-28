@@ -549,15 +549,9 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
       }
 
       if (!enableLiveRebuild && !process.argv.includes('l') && !process.argv.includes('deploy') && docsBuild) {
-        // fullBuildEnabled || process.argv.includes('docs')
-
         // https://www.pullrequest.com/blog/leveraging-jsdoc-for-better-code-documentation-in-javascript/
         // https://jsdoc.app/about-configuring-jsdoc
         // https://jsdoc.app/ Block tags
-
-        // "theme_opts": {
-        //   "default_theme": "dark" // "light", "fallback-dark", "fallback-light"
-        // }
 
         const jsDocsConfig = JSON.parse(fs.readFileSync(`./jsdoc.json`, 'utf8'));
         jsDocsConfig.opts.destination = `./public/${host}${path === '/' ? path : `${path}/`}docs/`;
@@ -678,7 +672,7 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
 
         await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
       }
-      if (!enableLiveRebuild && process.argv[2] === 'build-full-client-zip') {
+      if (!enableLiveRebuild && process.argv.includes('zip')) {
         logger.warn('build zip', rootClientPath);
 
         if (!fs.existsSync('./build')) fs.mkdirSync('./build');
