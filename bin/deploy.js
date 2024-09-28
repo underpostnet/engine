@@ -83,7 +83,7 @@ const Cmd = {
     }`,
   delete: (deploy) => `pm2 delete ${deploy.deployId}`,
   run: (deploy) => `node bin/deploy run ${deploy.deployId}`,
-  exec: async (cmd, deployId) => {
+  exec: async (cmd) => {
     if (process.argv[4] === 'copy') {
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
@@ -250,17 +250,21 @@ try {
     }
     case 'run':
       {
-        const dataDeploy = getDataDeploy({
-          deployId: process.argv[3],
-          buildSingleReplica: true,
-          deployGroupId: process.argv[4] ? process.argv[4] : 'dd',
-        });
+        if (process.env.includes('replicas')) {
+          await Cmd.exec(Cmd.delete(process.argv[3]));
+          setTimeout(async () => {
+            for (const deployId of getDataDeploy({
+              deployId: process.argv[3],
+              buildSingleReplica: true,
+              deployGroupId: process.argv[5] ? process.argv[5] : 'dd',
+            }))
+              if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3])) {
+                await Cmd.exec(Cmd.delete(deployId));
+                await Cmd.exec(Cmd.run(deployId));
+              }
+          });
+        }
         loadConf(process.argv[3]);
-        setTimeout(() => {
-          for (const deployId of dataDeploy)
-            if (process.argv[3] !== deployId && deployId.startsWith(process.argv[3]))
-              shellExec(`node bin/deploy run ${deployId}`);
-        });
         shellExec(`npm start ${process.argv[3]}`);
       }
       break;
