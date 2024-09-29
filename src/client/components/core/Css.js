@@ -92,6 +92,12 @@ const Css = {
           }
 
           .wfa {
+            width: available;
+            width: -webkit-available;
+            width: -moz-available;
+            width: -ms-available;
+            width: -o-available;
+
             width: fill-available;
             width: -webkit-fill-available;
             width: -moz-fill-available;
