@@ -8,14 +8,14 @@ const logger = loggerFactory(import.meta);
 
 const EventsUI = {
   on: (id = '', logic = function (e) {}, type = 'onclick', options = {}) => {
-    const { loadingContainer, disableSpinner } = options;
+    const { loadingContainer } = options;
     if (!s(id)) return;
     let complete = true;
     s(id)[type] = async function (e) {
       cssEffect(id, e);
       if (complete) {
         complete = false;
-        if (!disableSpinner) await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);
+        await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);
         await LoadingAnimation.bar.play(id);
         try {
           await logic(e);
@@ -27,7 +27,7 @@ const EventsUI = {
           });
         }
         LoadingAnimation.bar.stop(id);
-        if (!disableSpinner) await LoadingAnimation.spinner.stop(loadingContainer ? loadingContainer : id);
+        await LoadingAnimation.spinner.stop(loadingContainer ? loadingContainer : id);
         complete = true;
         return;
       }
@@ -35,18 +35,10 @@ const EventsUI = {
       logger.warn('in process', id);
     };
   },
-  onClick: async function (
-    id = '',
-    logic = async function (e) {},
-    options = { disableSpinner: false, loadingContainer: '' },
-  ) {
+  onClick: async function (id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
     return await this.on(id, logic, 'onclick', options);
   },
-  onChange: async function (
-    id = '',
-    logic = async function (e) {},
-    options = { disableSpinner: false, loadingContainer: '' },
-  ) {
+  onChange: async function (id = '', logic = async function (e) {}, options = { loadingContainer: '' }) {
     return await this.on(id, logic, 'onchange', options);
   },
 };

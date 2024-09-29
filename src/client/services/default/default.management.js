@@ -4,6 +4,7 @@ import { getId, timer } from '../../components/core/CommonJs.js';
 import { darkTheme } from '../../components/core/Css.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { loggerFactory } from '../../components/core/Logger.js';
+import { Modal } from '../../components/core/Modal.js';
 import { NotificationManager } from '../../components/core/NotificationManager.js';
 import { Translate } from '../../components/core/Translate.js';
 import { s } from '../../components/core/VanillaJs.js';
@@ -73,35 +74,40 @@ const DefaultManagement = {
           this.tokens[cellRenderId] = {};
 
           this.eGui.innerHTML = html` ${await BtnIcon.Render({
-            label: html`<div class="abs center btn-remove-${id}-${cellRenderId}-label">
-                <i class="fas fa-times"></i>
-              </div>
-              <div class="abs center btn-remove-${id}-${cellRenderId}-loading hide">
-                <div class="lds-dual-ring-mini"></div>
-              </div>`,
+            label: html`<div class="abs center">
+              <i class="fas fa-times"></i>
+            </div> `,
             class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId}`,
           })}`;
           setTimeout(() => {
-            EventsUI.onClick(
-              `.management-table-btn-remove-${id}-${cellRenderId}`,
-              async () => {
-                s(`.btn-remove-${id}-${cellRenderId}-label`).classList.add('hide');
-                s(`.btn-remove-${id}-${cellRenderId}-loading`).classList.remove('hide');
+            EventsUI.onClick(`.management-table-btn-remove-${id}-${cellRenderId}`, async () => {
+              const confirmResult = await Modal.RenderConfirm({
+                html: async () => {
+                  return html`
+                    <div class="in section-mp" style="text-align: center">
+                      ${Translate.Render('confirm-delete-item')}
+                      ${Object.keys(params.data).length > 0
+                        ? html`<br />
+                            "${params.data[Object.keys(params.data)[0]]}"`
+                        : ''}
+                    </div>
+                  `;
+                },
+                id: `delete-${params.data._id}`,
+              });
+              if (confirmResult.status !== 'confirm') return;
+              let result;
+              if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
+              else result = { status: 'success' };
 
-                let result;
-                if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
-                else result = { status: 'success' };
-
-                NotificationManager.Push({
-                  html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
-                  status: result.status,
-                });
-                if (result.status === 'success') {
-                  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-                }
-              },
-              { disableSpinner: true },
-            );
+              NotificationManager.Push({
+                html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+                status: result.status,
+              });
+              if (result.status === 'success') {
+                AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+              }
+            });
           });
         }
 
@@ -140,127 +146,108 @@ const DefaultManagement = {
       s(`.management-table-btn-save-${id}`).onclick = () => {
         AgGrid.grids[gridId].stopEditing();
       };
-      EventsUI.onClick(
-        `.management-table-btn-add-${id}`,
-        async () => {
-          s(`.btn-add-${id}-label`).classList.add('hide');
-          s(`.btn-add-${id}-loading`).classList.remove('hide');
-          const rowObj = {};
-          for (const def of columnDefs) {
-            rowObj[def.field] = '';
-          }
-          // const result = await ServiceProvider.post({ body: rowObj });
-          const result = {
-            status: 'success',
-            data: rowObj,
-          };
-          // NotificationManager.Push({
-          //   html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
-          //   status: result.status,
+      EventsUI.onClick(`.management-table-btn-add-${id}`, async () => {
+        const rowObj = {};
+        for (const def of columnDefs) {
+          rowObj[def.field] = '';
+        }
+        // const result = await ServiceProvider.post({ body: rowObj });
+        const result = {
+          status: 'success',
+          data: rowObj,
+        };
+        // NotificationManager.Push({
+        //   html: result.status === 'error' ? result.message : `${Translate.Render('success-create-item')}`,
+        //   status: result.status,
+        // });
+        if (result.status === 'success') {
+          AgGrid.grids[gridId].applyTransaction({
+            add: [columnDefFormatter(result.data, columnDefs, options.customFormat)],
+            addIndex: 0,
+          });
+          // AgGrid.grids[gridId].applyColumnState({
+          //   state: [
+          //     // { colId: 'country', sort: 'asc', sortIndex: 1 },
+          //     { colId: 'updatedAt', sort: 'desc', sortIndex: 0 },
+          //   ],
+          //   defaultState: { sort: null },
           // });
-          if (result.status === 'success') {
-            AgGrid.grids[gridId].applyTransaction({
-              add: [columnDefFormatter(result.data, columnDefs, options.customFormat)],
-              addIndex: 0,
-            });
-            // AgGrid.grids[gridId].applyColumnState({
-            //   state: [
-            //     // { colId: 'country', sort: 'asc', sortIndex: 1 },
-            //     { colId: 'updatedAt', sort: 'desc', sortIndex: 0 },
-            //   ],
-            //   defaultState: { sort: null },
-            // });
-          } else {
-            // AgGrid.grids[gridId].applyColumnState({
-            //   defaultState: { sort: null },
-            // });
-          }
+        } else {
+          // AgGrid.grids[gridId].applyColumnState({
+          //   defaultState: { sort: null },
+          // });
+        }
 
-          // https://www.ag-grid.com/javascript-data-grid/cell-editing-start-stop/
+        // https://www.ag-grid.com/javascript-data-grid/cell-editing-start-stop/
 
-          const pinned = undefined;
-          const key = undefined;
+        const pinned = undefined;
+        const key = undefined;
 
-          // setFocusedCell = (
-          //   rowIndex: number,
-          //   colKey: string  |  Column,
-          //   rowPinned?: RowPinnedType
-          // ) => void;
+        // setFocusedCell = (
+        //   rowIndex: number,
+        //   colKey: string  |  Column,
+        //   rowPinned?: RowPinnedType
+        // ) => void;
 
-          // type RowPinnedType =
-          //       'top'
-          //     | 'bottom'
-          //     | null
-          //     | undefined
+        // type RowPinnedType =
+        //       'top'
+        //     | 'bottom'
+        //     | null
+        //     | undefined
 
-          AgGrid.grids[gridId].setFocusedCell(0, '0', pinned);
+        AgGrid.grids[gridId].setFocusedCell(0, '0', pinned);
 
-          // interface StartEditingCellParams {
-          //   // The row index of the row to start editing
-          //   rowIndex: number;
-          //   // The column key of the row to start editing
-          //   colKey: string  |  Column;
-          //   // Set to `'top'` or `'bottom'` to start editing a pinned row
-          //   rowPinned?: RowPinnedType;
-          //   // The key to pass to the cell editor
-          //   key?: string;
-          // }
-          s(`.btn-add-${id}-loading`).classList.add('hide');
-          s(`.btn-add-${id}-label`).classList.remove('hide');
+        // interface StartEditingCellParams {
+        //   // The row index of the row to start editing
+        //   rowIndex: number;
+        //   // The column key of the row to start editing
+        //   colKey: string  |  Column;
+        //   // Set to `'top'` or `'bottom'` to start editing a pinned row
+        //   rowPinned?: RowPinnedType;
+        //   // The key to pass to the cell editor
+        //   key?: string;
+        // }
 
-          setTimeout(() => {
-            AgGrid.grids[gridId].startEditingCell({
-              rowIndex: 0,
-              colKey: defaultColKeyFocus,
-              rowPinned: pinned,
-              key: key,
-            });
+        setTimeout(() => {
+          AgGrid.grids[gridId].startEditingCell({
+            rowIndex: 0,
+            colKey: defaultColKeyFocus,
+            rowPinned: pinned,
+            key: key,
           });
-        },
-        { disableSpinner: true },
-      );
-      EventsUI.onClick(
-        `.management-table-btn-clean-${id}`,
-        async () => {
-          s(`.btn-clean-${id}-label`).classList.add('hide');
-          s(`.btn-clean-${id}-loading`).classList.remove('hide');
-          const result = await ServiceProvider.delete();
-          NotificationManager.Push({
-            html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
-            status: result.status,
-          });
-          if (result.status === 'success') {
-            AgGrid.grids[gridId].setGridOption('rowData', []);
-          }
-          s(`.btn-clean-${id}-loading`).classList.add('hide');
-          s(`.btn-clean-${id}-label`).classList.remove('hide');
-        },
-        { disableSpinner: true },
-      );
+        });
+      });
+      EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
+        const result = await ServiceProvider.delete();
+        NotificationManager.Push({
+          html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
+          status: result.status,
+        });
+        if (result.status === 'success') {
+          AgGrid.grids[gridId].setGridOption('rowData', []);
+        }
+      });
     }, 1);
     return html`<div class="fl">
         ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn-mini management-table-btn-add-${id} ${
             permissions.add ? '' : 'hide'
           }`,
-          label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div>
-            <div class="abs center btn-add-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div> `,
+          label: html`<div class="abs center btn-add-${id}-label"><i class="fa-solid fa-circle-plus"></i></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn-mini management-table-btn-save-${id} ${
             permissions.add ? '' : 'hide'
           }`,
-          label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div>
-            <div class="abs center btn-save-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
+          label: html`<div class="abs center btn-save-${id}-label"><i class="fas fa-save"></i></div> `,
           type: 'button',
         })}
         ${await BtnIcon.Render({
           class: `in fll section-mp management-table-btn-mini management-table-btn-clean-${id} ${
             permissions.remove ? '' : 'hide'
           }`,
-          label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div>
-            <div class="abs center btn-clean-${id}-loading hide"><div class="lds-dual-ring-mini"></div></div>`,
+          label: html`<div class="abs center btn-clean-${id}-label"><i class="fas fa-broom"></i></div> `,
           type: 'button',
         })}
       </div>

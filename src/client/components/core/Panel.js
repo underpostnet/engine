@@ -93,37 +93,30 @@ const Panel = {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
-        EventsUI.onClick(
-          `.${idPanel}-btn-delete-${id}`,
-          async (e) => {
-            logger.warn('delete', obj);
-            const { status } = await options.on.remove({ e, data: obj });
-            if (status === 'error') return;
-            s(`.${idPanel}-${id}`).remove();
-          },
-          { disableSpinner: true },
-        );
-        EventsUI.onClick(
-          `.${idPanel}-btn-edit-${id}`,
-          async () => {
-            logger.warn('edit', obj);
-            if (obj._id) editId = obj._id;
-            else if (obj.id) editId = obj.id;
+        EventsUI.onClick(`.${idPanel}-btn-delete-${id}`, async (e) => {
+          logger.warn('delete', obj);
+          const { status } = await options.on.remove({ e, data: obj });
+          if (status === 'error') return;
+          s(`.${idPanel}-${id}`).remove();
+        });
+        EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
+          logger.warn('edit', obj);
+          if (obj._id) editId = obj._id;
+          else if (obj.id) editId = obj.id;
 
-            s(`.btn-${idPanel}-label-edit`).classList.remove('hide');
-            s(`.btn-${idPanel}-label-add`).classList.add('hide');
-            openPanelForm();
-            // s(`.btn-${idPanel}-add`).click();
-            s(`.${scrollClassContainer}`).scrollTop = 0;
-            Input.setValues(
-              formData,
-              obj,
-              options.originData().find((d) => d._id === obj._id || d.id === obj.id),
-              options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
-            );
-          },
-          { disableSpinner: true },
-        );
+          s(`.btn-${idPanel}-label-edit`).classList.remove('hide');
+          s(`.btn-${idPanel}-label-add`).classList.add('hide');
+
+          openPanelForm();
+          // s(`.btn-${idPanel}-add`).click();
+          s(`.${scrollClassContainer}`).scrollTop = 0;
+          Input.setValues(
+            formData,
+            obj,
+            options.originData().find((d) => d._id === obj._id || d.id === obj.id),
+            options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
+          );
+        });
       });
 
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">

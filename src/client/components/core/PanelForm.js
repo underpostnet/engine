@@ -7,7 +7,7 @@ import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getSrcFromFileData } from './Input.js';
 import { Auth } from './Auth.js';
-import { renderCssAttr } from './Css.js';
+import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
 
@@ -117,29 +117,7 @@ const PanelForm = {
         ) {
           if (options.data.ssr) {
             return await options.htmlRender({
-              render: html`<div
-                class="abs center ssr-shimmer-search-box"
-                style="${renderCssAttr({
-                  style: {
-                    width: '95%',
-                    height: '95%',
-                    'border-radius': '10px',
-                    overflow: 'hidden',
-                  },
-                })}"
-              >
-                <div
-                  class="abs center"
-                  style="${renderCssAttr({
-                    style: {
-                      'font-size': '70px',
-                      color: `#bababa`,
-                    },
-                  })}"
-                >
-                  <i class="fa-solid fa-photo-film"></i>
-                </div>
-              </div>`,
+              render: imageShimmer(),
             });
           }
           if (!options.data.imageFileId)
@@ -192,10 +170,10 @@ const PanelForm = {
           add: async function ({ data, editId }) {
             let fileId;
             let imageFileId;
-            // const fileName = `${getCapVariableName(data.title)}${extension}`
+            const fileName = `${getCapVariableName(data.title)}${extension}`;
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.fileId], { type: 'text/markdown' });
-            const file = new File([blob], location, { type: 'text/markdown' });
+            const file = new File([blob], fileName, { type: 'text/markdown' });
             const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
             const tags = uniqueArray(
               data.tags

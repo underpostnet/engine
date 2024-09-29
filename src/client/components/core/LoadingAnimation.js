@@ -1,8 +1,9 @@
 import { CoreService } from '../../services/core/core.service.js';
+import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
-import { darkTheme } from './Css.js';
+import { darkTheme, renderCssAttr } from './Css.js';
 import { loggerFactory } from './Logger.js';
-import { append, getProxyPath, htmls, s } from './VanillaJs.js';
+import { append, getAllChildNodes, getProxyPath, htmls, s } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -55,38 +56,59 @@ const LoadingAnimation = {
     },
   },
   spinner: {
-    spinners: {},
     getId: (id) => `spinner-progress-${id.slice(1)}`,
-    spinnerSrcValidator: async function (spinner) {
-      if (!this.spinners[spinner]) {
-        const url = getProxyPath() + 'dist/loadingio/' + spinner + '/index.html';
-        this.spinners[spinner] = {
-          url,
-          html: await CoreService.getRaw({ url }),
-        };
-        append(
-          'head',
-          html`<link
-            rel="stylesheet"
-            type="text/css"
-            href="${getProxyPath()}dist/loadingio/${spinner}/index.min.css"
-          />`,
-        );
-      }
-    },
-    play: async function (container, spinner = 'dual-ring') {
-      await this.spinnerSrcValidator(spinner);
+    play: async function (container, spinner) {
+      if (!s(container)) return;
       const id = this.getId(container);
-      if (s(container))
-        append(
-          container,
-          html` <div class="in ${id} loading-animation-container">${this.spinners[spinner].html}</div> `,
-        );
+
+      let render;
+      switch (spinner) {
+        case 'dual-ring':
+          render = html`<div class="lds-dual-ring"></div>`;
+          break;
+        case 'dual-ring-mini':
+        default:
+          render = html`<div class="lds-dual-ring-mini"></div>`;
+          break;
+      }
+
+      const style = {
+        'text-align': 'center',
+      };
+
+      if (s(container).classList) {
+        const classes = Array.from(s(container).classList);
+        if (classes.find((e) => e.match('management-table-btn-mini'))) {
+          style.top = '-2px';
+          style.left = '-2px';
+        } else if (classes.find((e) => e.match('action-bar-box'))) {
+          style.top = '-30px';
+          style.left = '-12px';
+        }
+      }
+
+      append(
+        container,
+        html`
+          <div
+            class="in ${id}"
+            style="${renderCssAttr({
+              style,
+            })}"
+          >
+            ${render}
+          </div>
+        `,
+      );
+      const label = BtnIcon.findLabel(s(container));
+      if (label) label.classList.add('hide');
     },
     stop: function (container) {
       const id = this.getId(container);
       if (!s(`.${id}`)) return;
       s(`.${id}`).remove();
+      const label = BtnIcon.findLabel(s(container));
+      if (label) label.classList.remove('hide');
     },
   },
   img: {

@@ -4,9 +4,9 @@ import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from './AgGrid.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
-import { getSubpaths, uniqueArray } from './CommonJs.js';
+import { getSubpaths, timer, uniqueArray } from './CommonJs.js';
 import { Content } from './Content.js';
-import { darkTheme } from './Css.js';
+import { darkTheme, renderCssAttr } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input, InputFile } from './Input.js';
 import { loggerFactory } from './Logger.js';
@@ -209,11 +209,8 @@ const FileExplorer = {
         location = newLocation;
         setPath(`${window.location.pathname}?location=${location}`);
         s(`.file-explorer-query-nav`).value = location;
-        const format = this.documentDataFormat({ document: documentInstance, location });
-        files = format.files;
-        folders = format.folders;
-        AgGrid.grids[gridFileId].setGridOption('rowData', files);
-        AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+        // const format = this.documentDataFormat({ document: documentInstance, location });
+        await FileExplorer.Api[idModal].updateData({ display: true });
       });
       EventsUI.onClick(`.btn-input-home-directory`, async (e) => {
         e.preventDefault();
@@ -263,26 +260,28 @@ const FileExplorer = {
 
         this.eGui = document.createElement('div');
         this.eGui.innerHTML = html`
-          ${await BtnIcon.Render({
-            class: `in btn-file-download-${params.data._id}`,
-            label: html` <i class="fas fa-download"></i>`,
-            type: 'button',
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-file-delete-${params.data._id}`,
-            label: html` <i class="fa-solid fa-circle-xmark"></i>`,
-            type: 'button',
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-file-view-${params.data._id}`,
-            label: html` <i class="fas fa-eye"></i>`,
-            type: 'button',
-          })}
-          ${await BtnIcon.Render({
-            class: `in btn-file-copy-content-link-${params.data._id}`,
-            label: html`<i class="fas fa-copy"></i>`,
-            type: 'button',
-          })}
+          <div class="fl">
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-download-${params.data._id}`,
+              label: html` <i class="fas fa-download"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-delete-${params.data._id}`,
+              label: html` <i class="fa-solid fa-circle-xmark"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-view-${params.data._id}`,
+              label: html` <i class="fas fa-eye"></i>`,
+              type: 'button',
+            })}
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-file-copy-content-link-${params.data._id}`,
+              label: html`<i class="fas fa-copy"></i>`,
+              type: 'button',
+            })}
+          </div>
         `;
 
         setTimeout(() => {
@@ -292,7 +291,7 @@ const FileExplorer = {
           const originObj = documentInstance.find((d) => d._id === params.data._id);
           const blobUri = originObj ? getApiBaseUrl({ id: originObj.fileId._id, endpoint: 'file/blob' }) : undefined;
 
-          if (!originObj || !Content.allowedExtensions.find((ext) => originObj.fileId.name.toLowerCase().match(ext))) {
+          if (!originObj) {
             s(`.btn-file-view-${params.data._id}`).classList.add('hide');
             s(`.btn-file-copy-content-link-${params.data._id}`).classList.add('hide');
           }
@@ -400,6 +399,20 @@ const FileExplorer = {
 
         setTimeout(() => {
           EventsUI.onClick(`.btn-folder-delete-${id}`, async (e) => {
+            const confirmResult = await Modal.RenderConfirm({
+              html: async () => {
+                return html`
+                  <div class="in section-mp" style="text-align: center">
+                    ${Translate.Render('confirm-delete-item')}
+                    <br />
+                    "${params.data.location}"
+                  </div>
+                `;
+              },
+              id: `delete-${id}`,
+            });
+            if (confirmResult.status !== 'confirm') return;
+
             e.preventDefault();
             const idFilesDelete = [];
             for (const file of documentInstance.filter(
@@ -443,39 +456,39 @@ const FileExplorer = {
 
     return html`
       <form>
-        <div class="in">
+        <div class="fl">
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-home-directory',
+            class: 'in fll management-table-btn-mini btn-input-home-directory',
             label: html`<i class="fas fa-home"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-back-explorer',
+            class: 'in fll management-table-btn-mini btn-input-back-explorer',
             label: html` <i class="fa-solid fa-circle-left"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-forward-explorer',
+            class: 'in fll management-table-btn-mini btn-input-forward-explorer',
             label: html` <i class="fa-solid fa-circle-right"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-go-explorer',
+            class: 'in fll management-table-btn-mini btn-input-go-explorer',
             label: html`<i class="fas fa-sync-alt"></i>
               <!-- ${Translate.Render('go')} -->`,
             type: 'submit',
           })}
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-copy-directory',
+            class: 'in fll management-table-btn-mini btn-input-copy-directory',
             label: html`<i class="fas fa-copy"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
           })}
           ${await BtnIcon.Render({
-            class: 'inl tool-btn-file-explorer btn-input-upload-file',
+            class: 'in fll management-table-btn-mini btn-input-upload-file',
             label: html`<i class="fa-solid fa-cloud-arrow-up"></i>
               <!-- ${Translate.Render('home-directory')} -->`,
             type: 'button',
@@ -604,13 +617,6 @@ const FileExplorer = {
         </div>
       </div>
       <form class="file-explorer-uploader" style="display: none">
-        <div class="in">
-          ${await BtnIcon.Render({
-            class: 'wfa section-mp btn-input-file-explorer',
-            label: html`<i class="fas fa-upload"></i> ${Translate.Render('upload')}`,
-            type: 'submit',
-          })}
-        </div>
         ${await InputFile.Render(
           {
             id: idDropFileInput,
@@ -627,6 +633,20 @@ const FileExplorer = {
             },
           },
         )}
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'wfa section-mp btn-input-file-explorer',
+            style: renderCssAttr({
+              style: {
+                'font-size': '30px',
+                'text-align': 'center',
+                padding: '30px',
+              },
+            }),
+            label: html`<i class="fas fa-upload"></i> ${Translate.Render('upload')}`,
+            type: 'submit',
+          })}
+        </div>
       </form>
     `;
   },

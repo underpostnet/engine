@@ -215,9 +215,6 @@ const CssCyberiaDark = {
             text-align: left;
           }
 
-          .loading-animation-container {
-            text-align: center;
-          }
           ::placeholder {
             color: #c6c4c4;
             opacity: 1;

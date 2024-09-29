@@ -1005,6 +1005,30 @@ const cssEffect = async (containerSelector, event) => {
   }, 600);
 };
 
+const imageShimmer = () => html`<div
+  class="abs center ssr-shimmer-search-box"
+  style="${renderCssAttr({
+    style: {
+      width: '95%',
+      height: '95%',
+      'border-radius': '10px',
+      overflow: 'hidden',
+    },
+  })}"
+>
+  <div
+    class="abs center"
+    style="${renderCssAttr({
+      style: {
+        'font-size': '70px',
+        color: `#bababa`,
+      },
+    })}"
+  >
+    <i class="fa-solid fa-photo-film"></i>
+  </div>
+</div>`;
+
 export {
   Css,
   Themes,
@@ -1036,4 +1060,5 @@ export {
   scrollBarLightRender,
   renderWave,
   cssEffect,
+  imageShimmer,
 };

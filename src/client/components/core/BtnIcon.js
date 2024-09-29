@@ -1,7 +1,7 @@
 import { getId, s4 } from './CommonJs.js';
 import { renderCssAttr } from './Css.js';
 import { ToolTip } from './ToolTip.js';
-import { s } from './VanillaJs.js';
+import { getAllChildNodes, s } from './VanillaJs.js';
 
 const BtnIcon = {
   Tokens: {},
@@ -36,17 +36,19 @@ const BtnIcon = {
       ${options?.style ? `style="${options.style}"` : ''}
       ${options?.attrs ? `${options.attrs}` : ''}
     >
-      ${options.tabHref
-        ? html`<a
-            class="abs a-btn a-${tokenId}"
-            href="${options.tabHref}"
-            style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0%', left: '0%' } })}"
-          >
-            <span class="in btn-label-content" ${options?.labelStyle ? `style='${options.labelStyle}'` : ''}>
-              ${label}</span
-            ></a
-          >`
-        : label}
+      <div class="BtnIcon-label">
+        ${options.tabHref
+          ? html`<a
+              class="abs a-btn a-${tokenId}"
+              href="${options.tabHref}"
+              style="${renderCssAttr({ style: { width: '100%', height: '100%', top: '0%', left: '0%' } })}"
+            >
+              <span class="in btn-label-content" ${options?.labelStyle ? `style='${options.labelStyle}'` : ''}>
+                ${label}</span
+              ></a
+            >`
+          : label}
+      </div>
     </button>`;
     if (options.tooltipHtml)
       setTimeout(() => {
@@ -90,6 +92,10 @@ const BtnIcon = {
     >
     </canvas>`;
   },
+  findLabel: (el) =>
+    getAllChildNodes(el).find((e) => {
+      return e.classList && Array.from(e.classList).find((e) => e.match('BtnIcon-label'));
+    }),
 };
 
 export { BtnIcon };
