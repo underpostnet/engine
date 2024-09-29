@@ -490,7 +490,9 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
 
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
-const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '', deployId: '' }) => {
+const getDataDeploy = (
+  options = { buildSingleReplica: false, deployGroupId: '', deployId: '', disableSyncEnvPort: false },
+) => {
   let dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}.json`, 'utf8'));
 
   if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
@@ -529,7 +531,7 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '',
   }
 
   logger.info('buildDataDeploy', buildDataDeploy);
-  shellExec(Cmd.syncPorts(options.deployGroupId));
+  if (!options.disableSyncEnvPort) shellExec(Cmd.syncPorts(options.deployGroupId));
   return buildDataDeploy;
 };
 
