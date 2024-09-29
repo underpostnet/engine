@@ -388,7 +388,7 @@ try {
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
         for (const deploy of dataDeploy) {
           shellExec(Cmd.conf(deploy.deployId));
-          shellExec(Cmd.build(deploy.deployId), { silent: true });
+          shellExec(Cmd.build(deploy.deployId));
         }
         await deployRun(dataDeploy, true);
       }
