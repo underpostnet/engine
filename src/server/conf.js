@@ -529,7 +529,7 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '',
   }
 
   logger.info('buildDataDeploy', buildDataDeploy);
-  shellExec(Cmd.syncPorts);
+  shellExec(Cmd.syncPorts(options.deployGroupId));
   return buildDataDeploy;
 };
 
