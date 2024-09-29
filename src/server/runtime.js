@@ -149,6 +149,28 @@ const buildRuntime = async () => {
           //         RedirectMatch 404 ^/custom_50x.html$
           //     </If>
           // </Files>
+
+          // Add www or https with htaccess rewrite
+
+          // Options +FollowSymLinks
+          // RewriteEngine On
+          // RewriteCond %{HTTP_HOST} ^ejemplo.com [NC]
+          // RewriteRule ^(.*)$ http://ejemplo.com/$1 [R=301,L]
+
+          // Redirect http to https with htaccess rewrite
+
+          // RewriteEngine On
+          // RewriteCond %{SERVER_PORT} 80
+          // RewriteRule ^(.*)$ https://www.ejemplo.com/$1 [R,L]
+
+          // Redirect to HTTPS with www subdomain
+
+          // RewriteEngine On
+          // RewriteCond %{HTTPS} off [OR]
+          // RewriteCond %{HTTP_HOST} ^www\. [NC]
+          // RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
+          // RewriteRule ^ https://%1%{REQUEST_URI} [L,NE,R=301]
+
           await listenPortController(listenServerFactory(), port, runningData);
           break;
         case 'xampp':
