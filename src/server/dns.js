@@ -28,9 +28,9 @@ const Dns = {
 
     let confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
     if (confCronData.ipDaemon.disabled) return;
-    this.ip = confCronData.ipDaemon.ip;
-    logger.info(`Current ip`, this.ip);
-    if (this.ipDaemon) clearInterval(this.ipDaemon);
+    Dns.ip = confCronData.ipDaemon.ip;
+    logger.info(`Current ip`, Dns.ip);
+    if (Dns.ipDaemon) clearInterval(Dns.ipDaemon);
     const callback = async () => {
       let testIp;
       try {
@@ -38,17 +38,17 @@ const Dns = {
       } catch (error) {
         logger.error(error, { testIp, stack: error.stack });
       }
-      if (testIp && typeof testIp === 'string' && isIPv4(testIp) && this.ip !== testIp) {
+      if (testIp && typeof testIp === 'string' && isIPv4(testIp) && Dns.ip !== testIp) {
         logger.info(`New ip`, testIp);
-        this.ip = testIp;
-        confCronData.ipDaemon.ip = this.ip;
+        Dns.ip = testIp;
+        confCronData.ipDaemon.ip = Dns.ip;
         fs.writeFileSync(confCronPath, JSON.stringify(confCronData, null, 4), 'utf8');
         for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {
             case 'A':
               for (const dnsProvider of confCronData.records[recordType]) {
-                if (typeof this.services.updateIp[dnsProvider.dns] === 'function')
-                  await this.services.updateIp[dnsProvider.dns](dnsProvider);
+                if (typeof Dns.services.updateIp[dnsProvider.dns] === 'function')
+                  await Dns.services.updateIp[dnsProvider.dns](dnsProvider);
               }
               break;
 

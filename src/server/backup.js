@@ -8,13 +8,13 @@ const logger = loggerFactory(import.meta);
 
 const BackUpManagement = {
   Init: async function () {
-    await this.Callback();
+    await BackUpManagement.Callback();
 
     // Schedule the sending process to run every day at 1 am
     cron.schedule(
       '0 1 * * *',
       async () => {
-        await this.Callback();
+        await BackUpManagement.Callback();
       },
       {
         scheduled: true,
