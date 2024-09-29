@@ -390,11 +390,13 @@ const FileExplorer = {
 
         this.eGui = document.createElement('div');
         this.eGui.innerHTML = html`
-          ${await BtnIcon.Render({
-            class: `in btn-folder-delete-${id}`,
-            label: html` <i class="fa-solid fa-circle-xmark"></i>`,
-            type: 'button',
-          })}
+          <div class="fl">
+            ${await BtnIcon.Render({
+              class: `in fll management-table-btn-mini btn-folder-delete-${id}`,
+              label: html` <i class="fa-solid fa-circle-xmark"></i>`,
+              type: 'button',
+            })}
+          </div>
         `;
 
         setTimeout(() => {
