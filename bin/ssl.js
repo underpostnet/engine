@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 import { getRootDirectory, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { loadConf } from '../src/server/conf.js';
+import { Cmd, loadConf } from '../src/server/conf.js';
 import { buildSSL } from '../src/server/ssl.js';
 
 dotenv.config();
@@ -22,7 +22,7 @@ const [exe, dir, os, deployId, hosts] = process.argv;
 try {
   let cmd;
   await loadConf(deployId);
-  shellExec(`node bin/deploy conf ${deployId} production`);
+  shellExec(Cmd.conf(deployId));
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
   for (const host of hosts.split(',')) {
     if (host in confServer) {

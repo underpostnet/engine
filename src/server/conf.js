@@ -491,12 +491,7 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
 const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '', deployId: '' }) => {
-  let dataDeploy = JSON.parse(
-    fs.readFileSync(
-      `./engine-private/deploy/${options?.deployGroupId ? options.deployGroupId : process.argv[3]}.json`,
-      'utf8',
-    ),
-  );
+  let dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}.json`, 'utf8'));
 
   if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
 
@@ -518,8 +513,7 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '',
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
         if (serverConf[host][path].replicas && serverConf[host][path].singleReplica) {
-          if (options && options.buildSingleReplica)
-            shellExec(`node bin/deploy build-single-replica ${deployObj.deployId} ${host} ${path}`);
+          if (options && options.buildSingleReplica) shellExec(Cmd.replica(deployObj.deployId, host, path));
           replicaDataDeploy = replicaDataDeploy.concat(
             serverConf[host][path].replicas.map((r) => {
               return {
@@ -535,6 +529,7 @@ const getDataDeploy = (options = { buildSingleReplica: false, deployGroupId: '',
   }
 
   logger.info('buildDataDeploy', buildDataDeploy);
+  shellExec(Cmd.syncPorts);
   return buildDataDeploy;
 };
 
@@ -594,7 +589,17 @@ const validateTemplatePath = (absolutePath = '') => {
   return true;
 };
 
+const Cmd = {
+  delete: (deployId) => `pm2 delete ${deployId}`,
+  run: (deployId) => `node bin/deploy run ${deployId}`,
+  build: (deployId) => `node bin/deploy build-full-client ${deployId}`,
+  conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
+  replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
+  syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
+};
+
 export {
+  Cmd,
   Config,
   loadConf,
   loadReplicas,
