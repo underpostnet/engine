@@ -594,7 +594,7 @@ const validateTemplatePath = (absolutePath = '') => {
 const Cmd = {
   delete: (deployId) => `pm2 delete ${deployId}`,
   run: (deployId) => `node bin/deploy run ${deployId}`,
-  build: (deployId) => `node bin/deploy build-full-client ${deployId}`,
+  build: (deployId) => `node bin/deploy build-full-client ${deployId}${process.argv.includes('l') ? ' l' : ''}`,
   conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
   replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
   syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
