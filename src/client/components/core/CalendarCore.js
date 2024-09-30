@@ -26,9 +26,7 @@ const CalendarCore = {
 
     const { heightTopBar, heightBottomBar } = options;
 
-    const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
-    const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
-    const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
+    const titleIcon = html`<i class="fas fa-calendar-alt"></i>`;
 
     const getSrrData = () => {
       this.Data[options.idModal].data = range(0, 5).map((i) => {
@@ -55,7 +53,7 @@ const CalendarCore = {
 
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
-        id: `creatorUser`,
+        id: `creatorUser${''}`,
       });
       NotificationManager.Push({
         html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
@@ -70,10 +68,6 @@ const CalendarCore = {
             o.id = o._id;
             o.start = dateFormat(o.start);
             o.end = dateFormat(o.end);
-            o.new =
-              o.createdAt && new Date().getTime() - new Date(o.createdAt).getTime() < newRenderMsLimit
-                ? newRender
-                : undefined;
             this.Data[options.idModal].filesData.push({});
             return o;
           })
@@ -218,12 +212,11 @@ const CalendarCore = {
           data: this.Data[options.idModal].data,
           formContainerClass: '',
           scrollClassContainer: `main-body-calendar-${options.idModal}`,
-          newRender,
           originData: () => this.Data[options.idModal].originData,
           filesData: () => this.Data[options.idModal].filesData,
-          titleIcon: html`<i class="fas fa-calendar-alt"></i>`,
+          titleIcon,
           route: 'calendar',
-          callBackPanelRender: async function ({ data, imgRender, htmlRender }) {
+          callBackPanelRender: async function ({ data, fileRender, htmlRender }) {
             return await htmlRender({
               render: html`<div class="abs center">
                 <i class="far fa-calendar" style="font-size: 130px; color: #d3d3d3cf;"></i>

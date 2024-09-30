@@ -76,9 +76,6 @@ const PanelForm = {
         //   icon: {
         //     value: html``,
         //   },
-        //   newIcon: {
-        //     key: html``,
-        //   },
         // },
         rules: [{ type: 'isEmpty' }],
       },
@@ -104,8 +101,6 @@ const PanelForm = {
         >${new Date(date).toLocaleString().replaceAll(',', '')}</span
       >`;
     const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
-    const newRender = html``;
-    const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
     const panelRender = async ({ data }) =>
       await Panel.Render({
         idPanel,
@@ -118,7 +113,6 @@ const PanelForm = {
         filesData: () => PanelForm.Data[idPanel].filesData,
         scrollClassContainer: options.scrollClassContainer ? options.scrollClassContainer : 'main-body',
         titleIcon,
-        newRender,
         formContainerClass: 'session-in-log-in',
         onClick: async function ({ payload }) {
           if (options.route) {
@@ -193,6 +187,7 @@ const PanelForm = {
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.fileId], { type: 'text/markdown' });
             const file = new File([blob], fileName, { type: 'text/markdown' });
+            // -> multiple content render imageFileId: []
             const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
             const tags = uniqueArray(
               data.tags
@@ -359,11 +354,6 @@ const PanelForm = {
             imageFileId,
             tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
             _id: documentObject._id,
-            new:
-              documentObject.createdAt &&
-              new Date().getTime() - new Date(documentObject.createdAt).getTime() < newRenderMsLimit
-                ? newRender
-                : undefined,
           });
         }
       }

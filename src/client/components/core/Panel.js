@@ -148,7 +148,7 @@ const Panel = {
         <div class="in container-${idPanel}-${id}">
           <div class="in ${idPanel}-head">
             <div class="in ${idPanel}-title">
-              ${obj.new ? obj.new : options.titleIcon} &nbsp
+              ${options.titleIcon}
               <a href="?cid=${payload._id}" class="a-title-${idPanel} a-${payload._id}">
                 ${titleKey ? obj[titleKey] : ''}</a
               >
@@ -169,9 +169,6 @@ const Panel = {
                   const formObjData = formData.find((f) => f.model === infoKey);
                   const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
                   const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
-                  const valueNewIcon =
-                    obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
-                  const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
                     setTimeout(async () => {
@@ -187,30 +184,22 @@ const Panel = {
                       if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
                     });
                     return html``;
-                    return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
-                      >
-                      <span class="${idPanel}-row-value"
-                        >${valueNewIcon} ${valueIcon} <span class="tag-render-${id}"></span
-                      ></span>
-                    </div> `;
                   }
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                     return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                      <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                        ${keyIcon} ${infoKey}:</span
                       >
-                      <span class="${idPanel}-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
+                      <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
                     </div> `;
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
                     return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                        ${keyIcon} ${infoKey}:</span
                       >
-                      <span class="${idPanel}-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
+                      <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
                     </div> `;
 
                   return html``;
@@ -418,7 +407,6 @@ const Panel = {
           if (status === 'error') return;
         }
         s(`.btn-${idPanel}-clean`).click();
-        obj.new = options.newRender ? options.newRender : html``;
         if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);

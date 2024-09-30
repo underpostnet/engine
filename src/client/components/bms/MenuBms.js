@@ -165,9 +165,6 @@ const MenuBms = {
               icon: {
                 value: html`<i class="fas fa-dollar-sign"></i>`,
               },
-              newIcon: {
-                key: html``,
-              },
             },
             rules: [{ type: 'isEmpty' }],
           },
@@ -211,7 +208,6 @@ const MenuBms = {
             bathrooms: 2,
             squareFootage: 1500,
             imageUrl: 'https://example.com/property1.jpg',
-            isNew: true,
           },
           {
             id: 2,
