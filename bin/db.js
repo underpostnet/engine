@@ -7,20 +7,24 @@ import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
-import { loadConf } from '../src/server/conf.js';
+import { getCapVariableName, loadConf } from '../src/server/conf.js';
+import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
+import { hashPassword } from '../src/server/auth.js';
 
 const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-const [exe, dir, hostPath = '', operator, deployId, arg0, arg1] = process.argv;
-const [host, path = ''] = hostPath.split('/');
+const [exe, dir, hostPath = '', operator, deployId, arg0, arg1, arg2] = process.argv;
+const [host, _path = ''] = hostPath.split('/');
+const path = `/${_path}`;
 
 try {
   let cmd;
   if (deployId) loadConf(deployId);
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const { provider, name, user, password = '', backupPath = '' } = confServer[host][`/${path}`].db;
+  const db = confServer[host][path].db;
+  const { provider, name, user, password = '', backupPath = '' } = db;
   // logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
     case 'mariadb':
@@ -83,6 +87,32 @@ try {
     case 'mongoose':
       // MongoDB App Services CLI
       switch (operator) {
+        case 'update':
+          {
+            await DataBaseProvider.load({ apis: [arg0], host, path, db });
+            const models = DataBaseProvider.instance[`${host}${path}`].mongoose[getCapVariableName(arg0)];
+
+            const select = JSON.parse(arg1.replaceAll("'", `"`));
+            const update = JSON.parse(arg2.replaceAll("'", `"`));
+
+            console.log({ models, select, update });
+
+            switch (arg0) {
+              case 'user':
+                if (update.password) update.password = hashPassword(update.password);
+
+              default:
+                break;
+            }
+            let doc = await models.findOne(select);
+            if (doc) {
+              doc = await models.findByIdAndUpdate(doc._id, update, {
+                runValidators: true,
+              });
+              logger.info(`successfully updated doc`, doc._doc);
+            } else throw new Error(`no doc found`);
+          }
+          break;
         case 'show-all':
           break;
         case 'show':

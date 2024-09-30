@@ -645,7 +645,7 @@ const FileExplorer = {
                 padding: '30px',
               },
             }),
-            label: html`<i class="fas fa-upload"></i> ${Translate.Render('upload')}`,
+            label: html`<i class="fa-solid fa-cloud-arrow-up"></i> ${Translate.Render('upload')}`,
             type: 'submit',
           })}
         </div>

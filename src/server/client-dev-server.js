@@ -53,7 +53,7 @@ const createClientDevServer = () => {
       fs.writeFileSync(`./tmp/client.build.json`, JSON.stringify(buildPathScopeBuild, null, 4));
     })
     .on('crash', function (error) {
-      logger.error(error, 'script crashed for some reason');
+      logger.error(error, error.message);
     });
 };
 
