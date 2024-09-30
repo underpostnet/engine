@@ -38,6 +38,7 @@ const DocumentService = {
           // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
           $all: uniqueArray(['public'].concat(req.query['tags'].split(','))),
         },
+        ...(req.query.cid ? { _id: req.query.cid } : undefined),
       };
       logger.info('queryPayload', queryPayload);
       return await Document.find(queryPayload)

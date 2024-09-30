@@ -34,6 +34,7 @@ const LabGalleryUnderpost = {
             });
             Modal.removeModal(ModalId);
           };
+          setQueryPath({ path: 'lab-gallery', queryPath: view.path });
           await Modal.Render({
             barConfig,
             title: renderViewTitle({
@@ -48,8 +49,8 @@ const LabGalleryUnderpost = {
             maximize: true,
             mode: 'view',
             slideMenu: 'modal-menu',
+            query: true,
           });
-          setQueryPath({ path: 'lab-gallery', queryPath: view.path });
         };
       });
       render += html`

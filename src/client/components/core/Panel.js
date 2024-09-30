@@ -29,6 +29,7 @@ const Panel = {
       data: [],
       originData: () => [],
       filesData: () => [],
+      onClick: () => {},
     },
   ) {
     const idPanel = options?.idPanel ? options.idPanel : getId(this.Tokens, `${idPanel}-`);
@@ -117,98 +118,110 @@ const Panel = {
             options.filesData().find((d) => d._id === obj._id || d.id === obj.id),
           );
         });
+        s(`.a-${payload._id}`).onclick = async (e) => {
+          e.preventDefault();
+        };
+        s(`.container-${idPanel}-${id}`).onclick = async (e) => {
+          e.preventDefault();
+          if (options.onClick) await options.onClick({ payload });
+        };
       });
 
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">
-        <div class="in ${idPanel}-head">
-          <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
-            ${await BtnIcon.Render({
-              class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
-              label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
-              tooltipHtml: await Badge.Render({
-                id: `tooltip-${idPanel}-${id}`,
-                text: `${Translate.Render(`edit`)}`,
-                classList: '',
-                style: { top: `-22px`, left: '-5px' },
-              }),
-            })}
-            ${await BtnIcon.Render({
-              class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
-              label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
-              tooltipHtml: await Badge.Render({
-                id: `tooltip-${idPanel}-${id}`,
-                text: `${Translate.Render(`delete`)}`,
-                classList: '',
-                style: { top: `-22px`, left: '-13px' },
-              }),
-            })}
-          </div>
-          <div class="in ${idPanel}-title">
-            ${obj.new ? obj.new : options.titleIcon} &nbsp ${titleKey ? obj[titleKey] : ''}
-          </div>
-          <div class="in ${idPanel}-subtitle">
-            ${subTitleKey ? obj[subTitleKey] : ''} <span class="tag-render-${id}"></span>
-          </div>
-          <!--  <div class="in ${idPanel}-tags"></div> -->
+        <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
+          ${await BtnIcon.Render({
+            class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-edit-${id}`,
+            label: html`<div class="abs center"><i class="fas fa-edit"></i></div>`,
+            tooltipHtml: await Badge.Render({
+              id: `tooltip-${idPanel}-${id}`,
+              text: `${Translate.Render(`edit`)}`,
+              classList: '',
+              style: { top: `-22px`, left: '-5px' },
+            }),
+          })}
+          ${await BtnIcon.Render({
+            class: `in flr main-btn-menu action-bar-box ${idPanel}-btn-tool ${idPanel}-btn-delete-${id}`,
+            label: html`<div class="abs center"><i class="fas fa-trash"></i></div>`,
+            tooltipHtml: await Badge.Render({
+              id: `tooltip-${idPanel}-${id}`,
+              text: `${Translate.Render(`delete`)}`,
+              classList: '',
+              style: { top: `-22px`, left: '-13px' },
+            }),
+          })}
         </div>
-        <div class="fl">
-          <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
-            <div class="abs center ${idPanel}-img-spinner-${id}"></div>
+        <div class="in container-${idPanel}-${id}">
+          <div class="in ${idPanel}-head">
+            <div class="in ${idPanel}-title">
+              ${obj.new ? obj.new : options.titleIcon} &nbsp
+              <a href="?cid=${payload._id}" class="a-title-${idPanel} a-${payload._id}">
+                ${titleKey ? obj[titleKey] : ''}</a
+              >
+            </div>
+            <div class="in ${idPanel}-subtitle">
+              ${subTitleKey ? obj[subTitleKey] : ''} <span class="tag-render-${id}"></span>
+            </div>
+            <!--  <div class="in ${idPanel}-tags"></div> -->
           </div>
-          <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-b">
-            ${Object.keys(obj)
-              .map((infoKey) => {
-                if (infoKey === 'id') return html``;
-                const formObjData = formData.find((f) => f.model === infoKey);
-                const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
-                const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
-                const valueNewIcon =
-                  obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
-                const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
+          <div class="fl">
+            <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-a ${idPanel}-cell-col-a-${id}">
+              <div class="abs center ${idPanel}-img-spinner-${id}"></div>
+            </div>
+            <div class="in fll ${idPanel}-cell ${idPanel}-cell-col-b">
+              ${Object.keys(obj)
+                .map((infoKey) => {
+                  if (infoKey === 'id') return html``;
+                  const formObjData = formData.find((f) => f.model === infoKey);
+                  const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
+                  const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
+                  const valueNewIcon =
+                    obj.new && formObjData?.panel?.newIcon?.value ? formObjData.panel.newIcon.value : '';
+                  const keyNewIcon = obj.new && formObjData?.panel?.newIcon?.key ? formObjData.panel.newIcon.key : '';
 
-                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
-                  setTimeout(async () => {
-                    let tagRender = html``;
-                    for (const tag of obj[infoKey]) {
-                      tagRender += await Badge.Render({
-                        text: tag,
-                        style: { color: 'white' },
-                        classList: 'inl',
-                        style: { margin: '3px', background: `#a2a2a2` },
-                      });
-                    }
-                    if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
-                  });
+                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
+                    setTimeout(async () => {
+                      let tagRender = html``;
+                      for (const tag of obj[infoKey]) {
+                        tagRender += await Badge.Render({
+                          text: tag,
+                          style: { color: 'white' },
+                          classList: 'inl',
+                          style: { margin: '3px', background: `#a2a2a2` },
+                        });
+                      }
+                      if (s(`.tag-render-${id}`)) htmls(`.tag-render-${id}`, tagRender);
+                    });
+                    return html``;
+                    return html`<div class="in ${idPanel}-row">
+                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                      >
+                      <span class="${idPanel}-row-value"
+                        >${valueNewIcon} ${valueIcon} <span class="tag-render-${id}"></span
+                      ></span>
+                    </div> `;
+                  }
+
+                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
+                    return html`<div class="in ${idPanel}-row">
+                      <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                      >
+                      <span class="${idPanel}-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
+                    </div> `;
+
+                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
+                    return html`<div class="in ${idPanel}-row">
+                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
+                        >${keyNewIcon} ${keyIcon} ${infoKey}:</span
+                      >
+                      <span class="${idPanel}-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
+                    </div> `;
+
                   return html``;
-                  return html`<div class="in ${idPanel}-row">
-                    <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
-                    >
-                    <span class="${idPanel}-row-value"
-                      >${valueNewIcon} ${valueIcon} <span class="tag-render-${id}"></span
-                    ></span>
-                  </div> `;
-                }
-
-                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
-                  return html`<div class="in ${idPanel}-row">
-                    <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
-                    >
-                    <span class="${idPanel}-row-pin-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
-                  </div> `;
-
-                if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
-                  return html`<div class="in ${idPanel}-row">
-                    <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}"
-                      >${keyNewIcon} ${keyIcon} ${infoKey}:</span
-                    >
-                    <span class="${idPanel}-row-value">${valueNewIcon} ${valueIcon} ${obj[infoKey]}</span>
-                  </div> `;
-
-                return html``;
-              })
-              .join('')}
+                })
+                .join('')}
+            </div>
           </div>
         </div>
       </div>`;
@@ -507,11 +520,16 @@ const Panel = {
         .${idPanel} {
           margin: 10px;
           transition: 0.3s;
-          cursor: default;
           border-radius: 10px;
-          background: white;
+          background: #f6f6f6;
           color: black;
           padding: 10px;
+          cursor: pointer;
+          max-height: 400px;
+          overflow: hidden;
+        }
+        .${idPanel}:hover {
+          background: #ffffff;
         }
         .${idPanel}-head {
           /* background: white; */
@@ -524,6 +542,12 @@ const Panel = {
           color: rgba(109, 104, 255, 1);
           font-size: 24px;
           padding: 5px;
+        }
+        .a-title-${idPanel} {
+          color: rgba(109, 104, 255, 1);
+        }
+        .a-title-${idPanel}:hover {
+          color: #e89f4c;
         }
         .${idPanel}-row {
           padding: 5px;

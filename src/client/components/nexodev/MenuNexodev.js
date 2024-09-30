@@ -494,6 +494,7 @@ const MenuNexodev = {
               Elements: ElementsNexodev,
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
+              route: routeModal,
             });
 
             s(`.html-${idModal}`).style.overflow = 'auto';

@@ -1286,7 +1286,7 @@ const Modal = {
                 }
               }
               // console.warn('SET MODAL URI', newPath);
-              setPath(newPath);
+              setPath(`${newPath}${Modal.homeCid ? `?cid=${Modal.homeCid}` : ''}`);
               return setDocTitle({ ...options.RouterInstance, route: '' });
             }
           })();

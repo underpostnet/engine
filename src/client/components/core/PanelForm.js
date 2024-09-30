@@ -1,6 +1,6 @@
 import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import { getBlobFromUint8ArrayFile, getProxyPath, getRawContentFile, htmls, s } from './VanillaJs.js';
+import { getBlobFromUint8ArrayFile, getProxyPath, getQueryParams, getRawContentFile, htmls, s } from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
@@ -10,6 +10,7 @@ import { Auth } from './Auth.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
+import { listenQueryPathInstance, setQueryPath } from './Router.js';
 
 const PanelForm = {
   Data: {},
@@ -21,6 +22,7 @@ const PanelForm = {
       defaultUrlImage: '',
       Elements: {},
       parentIdModal: undefined,
+      route: 'home',
     },
   ) {
     const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
@@ -112,6 +114,13 @@ const PanelForm = {
         titleIcon,
         newRender,
         formContainerClass: 'session-in-log-in',
+        onClick: async function ({ payload }) {
+          if (options.route) {
+            setQueryPath({ path: options.route, queryPath: payload._id }, 'cid');
+            if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+            if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
+          }
+        },
         callBackPanelRender: async function (
           options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
         ) {
@@ -283,7 +292,9 @@ const PanelForm = {
       });
 
     const getPanelData = async () => {
-      const result = await DocumentService.get({ id: `public/?tags=${prefixTags.join(',')}` });
+      const result = await DocumentService.get({
+        id: `public/?tags=${prefixTags.join(',')}${getQueryParams().cid ? `&cid=${getQueryParams().cid}` : ''}`,
+      });
 
       NotificationManager.Push({
         html: result.status === 'success' ? Translate.Render('success-get-posts') : result.message,
@@ -392,6 +403,9 @@ const PanelForm = {
       });
 
     this.Data[idPanel].updatePanel = async () => {
+      const cid = getQueryParams().cid ? getQueryParams().cid : '';
+      if (Modal.homeCid === cid) return;
+      Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
       htmls(
@@ -399,7 +413,19 @@ const PanelForm = {
         await panelRender({ data: this.Data[idPanel].data }),
       );
     };
-    if (!Auth.getToken() || options.parentIdModal) setTimeout(this.Data[idPanel].updatePanel);
+    if (options.route)
+      listenQueryPathInstance(
+        {
+          id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
+          routeId: options.route,
+          event: async (path) => {
+            await this.Data[idPanel].updatePanel();
+          },
+        },
+        'cid',
+      );
+
+    setTimeout(this.Data[idPanel].updatePanel);
 
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());
