@@ -60,6 +60,26 @@ const CoreService = {
           return reject(error);
         }),
     ),
+  getRandomImage: (options = { category: ['city'], mimetype: 'image/jpg' }) => {
+    const src = `https://api.api-ninjas.com/v1/randomimage?category=${options.category[0]}`;
+    return new Promise((resolve) => {
+      fetch(src, {
+        headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: options.mimetype },
+      })
+        .then((res) => res.blob())
+        .then(async (blob) => {
+          return resolve(
+            await fileRender({
+              file: {
+                mimetype: 'image/jpg',
+                name: 'image.jpg',
+              },
+              url: URL.createObjectURL(blob),
+            }),
+          );
+        });
+    });
+  },
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
       fetch(getApiBaseUrl({ id: options.id, endpoint }), {

@@ -426,6 +426,8 @@ const getCurrentTrace = () => {
 
 const isDevInstance = () => location.origin.match('localhost') && location.port;
 
+const getDataFromInputFile = async (file) => Array.from(new Uint8Array(await file.arrayBuffer()));
+
 export {
   s,
   htmls,
@@ -454,4 +456,5 @@ export {
   isActiveTab,
   isActiveElement,
   isDevInstance,
+  getDataFromInputFile,
 };

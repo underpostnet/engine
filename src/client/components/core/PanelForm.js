@@ -1,6 +1,12 @@
 import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
-import { getBlobFromUint8ArrayFile, getProxyPath, getQueryParams, getRawContentFile, htmls, s } from './VanillaJs.js';
+import {
+  getBlobFromUint8ArrayFile,
+  getDataFromInputFile,
+  getQueryParams,
+  getRawContentFile,
+  htmls,
+} from './VanillaJs.js';
 import { Panel } from './Panel.js';
 import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
@@ -98,7 +104,7 @@ const PanelForm = {
         >${new Date(date).toLocaleString().replaceAll(',', '')}</span
       >`;
     const titleIcon = html`<i class="fa-solid fa-quote-left"></i>`;
-    const newRender = html` <span class="bold" style="color: #ff533ecf;"> ${titleIcon} NEW ! </span>`;
+    const newRender = html``;
     const newRenderMsLimit = 1000 * 60 * 60 * 24 * 2;
     const panelRender = async ({ data }) =>
       await Panel.Render({
@@ -121,9 +127,7 @@ const PanelForm = {
             if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
           }
         },
-        callBackPanelRender: async function (
-          options = { data, imgRender: async ({ imageUrl }) => null, htmlRender: async ({ render }) => null },
-        ) {
+        callBackPanelRender: async function (options) {
           if (options.data.ssr) {
             return await options.htmlRender({
               render: imageShimmer(),
@@ -145,8 +149,14 @@ const PanelForm = {
                 />
               `,
             });
-
-          return await options.imgRender({ imageUrl: options.data.imageFileId });
+          return await options.fileRender({
+            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).imageFileId.imageBlob,
+            style: {
+              overflow: 'auto',
+              width: '100%',
+              height: 'auto',
+            },
+          });
         },
         on: {
           remove: async function ({ e, data }) {
@@ -235,17 +245,17 @@ const PanelForm = {
 
             let fileBlob = {
                 data: {
-                  data: Array.from(new Uint8Array(await file.arrayBuffer())),
+                  data: await getDataFromInputFile(file),
                 },
-                mimeType: file.type,
+                mimetype: file.type,
                 name: file.name,
               },
               imageBlob = image
                 ? {
                     data: {
-                      data: Array.from(new Uint8Array(await image.arrayBuffer())),
+                      data: await getDataFromInputFile(image),
                     },
-                    mimeType: image.type,
+                    mimetype: image.type,
                     name: image.name,
                   }
                 : undefined;

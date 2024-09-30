@@ -3,7 +3,7 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
 import { Responsive } from '../core/Responsive.js';
-import { append, htmls, prepend, s } from './VanillaJs.js';
+import { append, getDataFromInputFile, getQueryParams, htmls, prepend, s } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
 import { Translate } from './Translate.js';
 import { DropDown } from './DropDown.js';
@@ -15,6 +15,7 @@ import { RouterEvents } from './Router.js';
 import { RichText } from './RichText.js';
 import { loggerFactory } from './Logger.js';
 import { Badge } from './Badge.js';
+import { Content } from './Content.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -80,15 +81,9 @@ const Panel = {
         if (options && options.callBackPanelRender)
           await options.callBackPanelRender({
             data: obj,
-            imgRender: async (options = { imageUrl: '', style: {}, class: '' }) => {
-              htmls(
-                `.${idPanel}-cell-col-a-${id}`,
-                html`<img
-                  class="in img-${idPanel} ${options.class ? options.class : ''}"
-                  src="${options.imageUrl}"
-                  ${options.style ? `style = "${options.style}"` : ''}
-                />`,
-              );
+            fileRender: async (options = { file: '', style: {}, class: '' }) => {
+              await Content.RenderFile({ container: `.${idPanel}-cell-col-a-${id}`, ...options });
+              s(`.${idPanel}-img-spinner-${id}`).classList.add('hide');
             },
             htmlRender: async ({ render }) => {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
@@ -304,46 +299,36 @@ const Panel = {
         case 'file':
           setTimeout(() => {
             s(`.${modelData.id}`).fileNameInputExtDefaultContent = fileNameInputExtDefaultContent;
-            s(`.${modelData.id}`).onchange = (e) => {
-              // logger.info('e', e);
-              const files = [];
-              let names = [];
-              Object.keys(e.target.files).forEach((fileKey, index) => {
+            s(`.${modelData.id}`).onchange = async (e) => {
+              if (!Object.keys(e.target.files).length) return;
+              s(`.${modelData.id}`).inputFiles = e.target.files;
+              let htmlFileRender = '';
+              for (const fileKey of Object.keys(e.target.files)) {
                 const file = e.target.files[fileKey];
-                logger.info('Load file', file);
-                // Get raw:
-                // const read = new FileReader();
-                // read.readAsBinaryString(file);
-                // read.onloadend = () => {
-                //   console.log('Load File', e.target.files[fileKey], { fileKey, index }, read.result);
-                // };
-                names.push(file.name);
-                files.push(file);
-              });
-              s(`.${modelData.id}`).inputFiles = files;
-              htmls(
-                `.file-name-render-${modelData.id}`,
-                html`${files[0].name.match('.png') || files[0].name.match('.jpg')
-                    ? html`<div class="in">
-                        <img
-                          style="${renderCssAttr({
-                            style: {
-                              width: '100%',
-                              height: 'auto',
-                            },
-                          })}"
-                          src="${URL.createObjectURL(files[0])}"
-                        />
-                      </div>`
-                    : ''}
-                  <div class="in" style="overflow: hidden">${names}</div>`,
-              );
+                htmlFileRender += html`${await Content.RenderFile({
+                    url: URL.createObjectURL(file),
+                    file: {
+                      mimetype: file.type,
+                      name: file.name,
+                      data: {
+                        data: await getDataFromInputFile(file),
+                      },
+                    },
+                    aHrefOptions: {
+                      disable: true,
+                    },
+                    raw: true,
+                  })}
+                  <div class="in" style="overflow: hidden">${file.name}</div>`;
+              }
+              htmls(`.file-name-render-${modelData.id}`, htmlFileRender);
             };
           });
           renderForm += `${await Input.Render({
             inputClass: 'hide',
             id: `${modelData.id}`,
             type: modelData.inputType,
+            multiple: true,
             // autocomplete: 'new-password',
             label: html`<i class="fa-solid fa-file-arrow-up"></i> ${Translate.Render('select')}
               ${Translate.Render('file')}`,
@@ -433,9 +418,7 @@ const Panel = {
           if (status === 'error') return;
         }
         s(`.btn-${idPanel}-clean`).click();
-        obj.new = options.newRender
-          ? options.newRender
-          : html`<span class="bold" style="color: #ff533ecf;"> ${options.titleIcon} NEW ! </span>`;
+        obj.new = options.newRender ? options.newRender : html``;
         if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
         prepend(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);

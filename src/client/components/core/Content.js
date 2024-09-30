@@ -5,7 +5,7 @@ import { titleFormatted } from './CommonJs.js';
 import { Translate } from './Translate.js';
 import { Modal, renderViewTitle } from './Modal.js';
 import { DocumentService } from '../../services/document/document.service.js';
-import { getApiBaseUrl } from '../../services/core/core.service.js';
+import { CoreService, getApiBaseUrl } from '../../services/core/core.service.js';
 import { loggerFactory } from './Logger.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 
@@ -88,14 +88,37 @@ const Content = {
       </div>
       <div class="abs center error-${idModal} hide"></div>`;
   },
-  RenderFile: async function ({ file, idModal }) {
+  RenderFile: async function (
+    options = {
+      file: {},
+      idModal: '',
+      style: {},
+      class: '',
+      container: '',
+      url: '',
+      aHrefOptions: { disable: false },
+      raw: false,
+    },
+  ) {
+    if (!options.container) options.container = `.content-render-${options.idModal}`;
+    if (!options.style)
+      options.style = {
+        width: '100%',
+        border: 'none',
+      };
+    options.style = `style="${renderCssAttr(options)}"`;
+    if (!options.class) options.class = ``;
+    const { container, file } = options;
     const ext = file.name.split('.')[file.name.split('.').length - 1];
+    let render = '';
 
     switch (ext) {
       case 'md':
         {
-          const content = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-          append(`.content-render-${idModal}`, marked.parse(content));
+          const content = options.url
+            ? await CoreService.getRaw({ url: options.url })
+            : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+          render += html`<div class="${options.class}" ${options.style}>${marked.parse(content)}</div>`;
         }
 
         break;
@@ -105,44 +128,56 @@ const Content = {
       case 'webp':
       case 'svg':
       case 'png': {
-        const url = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-        append(
-          `.content-render-${idModal}`,
-          html`<a href="${url}" target="_top"><img class="in" src="${url}" style="width: 100%; height: auto;" /></a>`,
-        );
+        const url = options.url
+          ? options.url
+          : file._id
+          ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
+          : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+        const imgRender = html`<img class="in ${options.class}" ${options.style} src="${url}" />`;
+        render += html`${options.aHrefOptions?.disable
+          ? imgRender
+          : html`<a href="${url}" target="_top">${imgRender}</a>`}`;
+
         break;
       }
       case 'pdf': {
-        const url = getApiBaseUrl({ id: file._id, endpoint: 'file/blob' });
-        append(
-          `.content-render-${idModal}`,
-          html`<iframe class="in iframe-${idModal}" src="${url}" style="width: 100%; border: none"></iframe>`,
-        );
+        const url = options.url
+          ? options.url
+          : file._id
+          ? getApiBaseUrl({ id: file._id, endpoint: 'file/blob' })
+          : URL.createObjectURL(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+        render += html`<iframe
+          class="in ${options.class} iframe-${options.idModal}"
+          ${options.style}
+          src="${url}"
+        ></iframe>`;
         break;
       }
 
       case 'json':
-        append(
-          `.content-render-${idModal}`,
-          html`<pre class="in section-mp">
-${JSON.stringify(
-              JSON.parse(await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))),
-              null,
-              4,
-            )}</pre
-          >`,
-        );
+        render += html`<pre class="in ${options.class}" ${options.style}>
+        ${JSON.stringify(
+            JSON.parse(
+              options.url
+                ? await CoreService.getRaw({ url: options.url })
+                : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype)),
+            ),
+            null,
+            4,
+          )}</pre
+        >`;
         break;
 
       default:
-        append(
-          `.content-render-${idModal}`,
-          html`<div class="in section-mp">
-            ${await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))}
-          </div>`,
-        );
+        render += html`<div class="in ${options.class}" ${options.style}>
+          ${options.url
+            ? await CoreService.getRaw({ url: options.url })
+            : await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype))}
+        </div>`;
         break;
     }
+    if (options.raw) return render;
+    append(container, render);
   },
 };
 

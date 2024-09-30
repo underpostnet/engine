@@ -72,6 +72,7 @@ const Input = {
         ${options?.pattern === undefined && options.type === 'tel' ? `pattern="[0-9]{3}-[0-9]{3}-[0-9]{4}"` : ''}
         ${options?.required ? ` required ` : ''}
         ${options?.accept ? `accept="${options.accept}"` : ''}
+        ${options?.multiple ? `multiple="multiple"` : ''}
       />
       <div class="${id}-input-extension input-info input-extension ${options?.extension ? '' : 'hide'}">
         ${options?.extension ? await options.extension() : ''}
@@ -191,11 +192,6 @@ const Input = {
               }
             }
 
-            // s(`.${inputData.id}`).inputFiles = undefined;
-            // s(`.${inputData.id}`).value = null;
-
-            // if (s(`.file-name-render-${inputData.id}`) && s(`.${inputData.id}`).fileNameInputExtDefaultContent)
-            //   htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
             continue;
             break;
           case 'md':

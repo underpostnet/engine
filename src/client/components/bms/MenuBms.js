@@ -8,23 +8,16 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { ElementsBms } from './ElementsBms.js';
 import Sortable from 'sortablejs';
 import { RouterBms } from './RoutesBms.js';
-import { CalendarBms } from './CalendarBms.js';
-import { DashboardBms } from './DashboardBms.js';
-import { StreamBms } from './StreamBms.js';
-import { Docs } from '../core/Docs.js';
-import { Content } from '../core/Content.js';
-import { FileExplorer } from '../core/FileExplorer.js';
-import { Chat } from '../core/Chat.js';
 import { SettingsBms } from './SettingsBms.js';
 import { DropDown } from '../core/DropDown.js';
 import { loggerFactory } from '../core/Logger.js';
-import { Panel } from '../core/Panel.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
+import { PanelForm } from '../core/PanelForm.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -42,94 +35,6 @@ const MenuBms = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-blog hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
-            }),
-            attrs: `data-id="blog"`,
-            tabHref: `${getProxyPath()}blog`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-calendar hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-calendar-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
-            }),
-            attrs: `data-id="calendar"`,
-            tabHref: `${getProxyPath()}calendar`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-dashboard hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-chart-line"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
-            }),
-            attrs: `data-id="dashboard"`,
-            tabHref: `${getProxyPath()}dashboard`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-stream hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-video"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
-            }),
-            attrs: `data-id="stream"`,
-            tabHref: `${getProxyPath()}stream`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-docs hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-book"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
-            }),
-            attrs: `data-id="docs"`,
-            tabHref: `${getProxyPath()}docs`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-content hide',
-            label: renderMenuLabel({
-              icon: html`<i class="far fa-file"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
-            }),
-            attrs: `data-id="content"`,
-            tabHref: `${getProxyPath()}content`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-cloud hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-cloud"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
-            }),
-            attrs: `data-id="cloud"`,
-            tabHref: `${getProxyPath()}cloud`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-chat hide',
-            label: renderMenuLabel({
-              icon: html`<i class="far fa-comments"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
-            }),
-            attrs: `data-id="chat"`,
-            tabHref: `${getProxyPath()}chat`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat')),
-          })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-settings',
             label: renderMenuLabel({
@@ -345,29 +250,14 @@ const MenuBms = {
             imageUrl: 'https://example.com/property5.jpg',
           },
         ];
-        return await Panel.Render({
-          idPanel,
-          formData,
+
+        await PanelForm.instance({
+          idPanel: 'bms-panel',
           heightTopBar,
           heightBottomBar,
-          data,
-          scrollClassContainer: 'main-body',
-          titleIcon: html`<i class="fas fa-tag"></i>`,
-          formContainerClass: 'session-in-log-in',
-          callBackPanelRender: async function ({ data, imgRender }) {
-            const src = 'https://api.api-ninjas.com/v1/randomimage?category=city';
-            const options = {
-              headers: { 'X-Api-Key': 'FyITmcxRXkCaUehbX6K0/g==uxZcFKL0dZUUg48G', Accept: 'image/jpg' },
-            };
-            await new Promise((resolve) => {
-              fetch(src, options)
-                .then((res) => res.blob())
-                .then(async (blob) => {
-                  data.imageUrl = URL.createObjectURL(blob);
-                  return resolve(await imgRender(data));
-                });
-            });
-          },
+          defaultUrlImage: `${getProxyPath()}android-chrome-384x384.png`,
+          Elements: ElementsBms,
+          route: 'home',
         });
       },
     });
@@ -504,27 +394,6 @@ const MenuBms = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-blog`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-blog',
-        route: 'blog',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-          text: Translate.Render('blog'),
-        }),
-        html: async () => '',
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
     EventsUI.onClick(`.main-btn-account`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
@@ -551,157 +420,6 @@ const MenuBms = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-dashboard`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-dashboard',
-        route: 'dashboard',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-chart-line"></i>`,
-          text: Translate.Render('dashboard'),
-        }),
-        html: async () =>
-          await DashboardBms.Render({
-            idModal: 'modal-dashboard',
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-stream`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-stream',
-        route: 'stream',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-video"></i>`,
-          text: Translate.Render('stream'),
-        }),
-        html: async () =>
-          await StreamBms.Render({
-            idModal: 'modal-stream',
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-calendar`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-calendar',
-        route: 'calendar',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-calendar-alt"></i>`,
-          text: Translate.Render('calendar'),
-        }),
-        html: async () =>
-          await CalendarBms.Render({
-            idModal: 'modal-calendar',
-            Elements: ElementsBms,
-            heightTopBar,
-            heightBottomBar,
-          }),
-        handleType: 'bar',
-        maximize: true,
-        observer: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-content`, async () => {
-      let subModalId = '';
-      const path =
-        location.pathname[location.pathname.length - 1] === '/' ? location.pathname.slice(0, -1) : location.pathname;
-
-      if (path.replaceAll(`${getProxyPath()}`, '') === 'content' && getQueryParams().id) {
-        subModalId = `-${getQueryParams().id}`;
-      }
-
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: `modal-content${subModalId}`,
-        route: 'content',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="far fa-file"></i>`,
-          text: Translate.Render('content'),
-        }),
-        html: async () =>
-          await Content.Render({
-            idModal: `modal-content${subModalId}`,
-          }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-cloud`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-cloud',
-        route: 'cloud',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-cloud"></i>`,
-          text: Translate.Render('cloud'),
-        }),
-        html: async () => await FileExplorer.Render({ idModal: 'modal-cloud' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-chat`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-chat',
-        route: 'chat',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="far fa-comments"></i>`,
-          text: Translate.Render('chat'),
-        }),
-        html: async () => await Chat.Render({ idModal: 'modal-chat' }),
-        handleType: 'bar',
-        maximize: true,
-        observer: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
     EventsUI.onClick(`.main-btn-settings`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
@@ -714,31 +432,6 @@ const MenuBms = {
         }),
         html: async () => await SettingsBms.Render({ idModal: 'modal-settings' }),
         handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-docs`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-docs',
-        route: 'docs',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fas fa-book"></i>`,
-          text: Translate.Render('docs'),
-        }),
-        html: async () =>
-          await Docs.Render({
-            idModal: 'modal-docs',
-          }),
-        handleType: 'bar',
-        observer: true,
         maximize: true,
         mode: 'view',
         slideMenu: 'modal-menu',
