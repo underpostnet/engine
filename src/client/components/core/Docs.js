@@ -40,6 +40,7 @@ const Docs = {
       slideMenu: 'modal-menu',
       observer: true,
       barMode: 'top-bottom-bar',
+      query: true,
       ...modalOptions,
     });
     Modal.Data[ModalId].onObserverListener[ModalId] = () => {
@@ -131,15 +132,15 @@ const Docs = {
     const { idModal } = options;
     setTimeout(() => {
       s(`.btn-docs-src`).onclick = async () => {
-        setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'src' }));
+        setQueryPath({ path: 'docs', queryPath: 'src' });
         await this.RenderModal('src', options.modalOptions);
       };
       s(`.btn-docs-api`).onclick = async () => {
-        setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'api' }));
+        setQueryPath({ path: 'docs', queryPath: 'api' });
         await this.RenderModal('api', options.modalOptions);
       };
       s(`.btn-docs-coverage`).onclick = async () => {
-        setTimeout(() => setQueryPath({ path: 'docs', queryPath: 'coverage' }));
+        setQueryPath({ path: 'docs', queryPath: 'coverage' });
         await this.RenderModal('coverage', options.modalOptions);
       };
 
@@ -155,7 +156,7 @@ const Docs = {
       for (const umlType of umlTypes) {
         const umlId = `uml-${umlType}`;
         s(`.btn-docs-${umlId}`).onclick = async () => {
-          setTimeout(() => setQueryPath({ path: 'docs', queryPath: umlId }));
+          setQueryPath({ path: 'docs', queryPath: umlId });
           await this.RenderModal(umlId, { ...options.modalOptions, handleType: 'bar' });
         };
       }

@@ -402,10 +402,12 @@ const PanelForm = {
         })),
       });
 
+    let lastCid;
     this.Data[idPanel].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      if (Modal.homeCid === cid) return;
-      Modal.homeCid = newInstance(cid);
+      if (lastCid === cid) return;
+      if (options.route === 'home') Modal.homeCid = newInstance(cid);
+      lastCid = cid;
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
       htmls(
