@@ -60,9 +60,10 @@ const CalendarCore = {
         status: result.status,
       });
       if (result.status === 'success') {
+        const resultData = Array.isArray(result.data) ? result.data : [result.data];
         this.Data[options.idModal].filesData = [];
-        this.Data[options.idModal].originData = newInstance(result.data);
-        this.Data[options.idModal].data = (Array.isArray(result.data) ? result.data : [result.data])
+        this.Data[options.idModal].originData = newInstance(resultData);
+        this.Data[options.idModal].data = resultData
           .map((o) => {
             if (o.creatorUserId && options.Elements.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
             o.id = o._id;
