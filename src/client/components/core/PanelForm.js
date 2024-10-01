@@ -57,8 +57,8 @@ const PanelForm = {
         disableRender: true,
       },
       {
-        id: 'panel-mdFileId',
-        model: 'mdFileId',
+        id: 'panel-fileId',
+        model: 'fileId',
         inputType: 'file',
         rules: [],
         panel: {},
@@ -80,8 +80,8 @@ const PanelForm = {
         rules: [{ type: 'isEmpty' }],
       },
       {
-        id: 'panel-fileId',
-        model: 'fileId',
+        id: 'panel-mdFileId',
+        model: 'mdFileId',
         inputType: 'md',
         panel: { type: 'info-row' },
         rules: [],
@@ -127,7 +127,7 @@ const PanelForm = {
               render: imageShimmer(),
             });
           }
-          if (!options.data.mdFileId)
+          if (!options.data.fileId)
             return await options.htmlRender({
               render: html`
                 <img
@@ -139,12 +139,12 @@ const PanelForm = {
                       opacity: 0.2,
                     },
                   })}"
-                  src=${defaultUrlImage}
+                  src="${defaultUrlImage}"
                 />
               `,
             });
           return await options.fileRender({
-            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).mdFileId.mdBlob,
+            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).fileId.fileBlob,
             style: {
               overflow: 'auto',
               width: '100%',
@@ -181,13 +181,13 @@ const PanelForm = {
             return { status: 'error' };
           },
           add: async function ({ data, editId }) {
-            let fileId;
             let mdFileId;
+            let fileId;
             const fileName = `${getCapVariableName(data.title)}${extension}`;
             const location = `${prefixTags.join('/')}`;
-            const blob = new Blob([data.fileId], { type: 'text/markdown' });
-            const file = new File([blob], fileName, { type: 'text/markdown' });
-            const md = data.mdFileId?.[0] ? data.mdFileId[0] : undefined;
+            const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
+            const md = new File([blob], fileName, { type: 'text/markdown' });
+            const file = data.fileId?.[0] ? data.fileId[0] : undefined;
             const tags = uniqueArray(
               data.tags
                 .replaceAll('/', ',')
@@ -207,8 +207,8 @@ const PanelForm = {
 
             await (async () => {
               const body = new FormData();
-              body.append('file', file);
               body.append('md', md);
+              body.append('file', file);
               const { status, data } = await FileService.post({ body });
               // await timer(3000);
               NotificationManager.Push({
@@ -216,8 +216,8 @@ const PanelForm = {
                 status,
               });
               if (status === 'success') {
-                fileId = data[0]._id;
-                if (data[1]) mdFileId = data[1]._id;
+                mdFileId = data[0]._id;
+                if (data[1]) fileId = data[1]._id;
               }
             })();
             const body = {
@@ -237,13 +237,15 @@ const PanelForm = {
                   body,
                 });
 
-            let fileBlob = {
-                data: {
-                  data: await getDataFromInputFile(file),
-                },
-                mimetype: file.type,
-                name: file.name,
-              },
+            let fileBlob = file
+                ? {
+                    data: {
+                      data: await getDataFromInputFile(file),
+                    },
+                    mimetype: file.type,
+                    name: file.name,
+                  }
+                : undefined,
               mdBlob = md
                 ? {
                     data: {
@@ -254,13 +256,13 @@ const PanelForm = {
                   }
                 : undefined;
 
-            let filePlain = await getRawContentFile(getBlobFromUint8ArrayFile(fileBlob.data.data, fileBlob.mimetype)),
-              mdPlain = null;
+            let mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype)),
+              filePlain = null;
 
             data.createdAt = dateFormat(documentData.createdAt);
-            if (md) data.mdFileId = URL.createObjectURL(md);
+            if (file) data.fileId = URL.createObjectURL(file);
             data.tags = tags.filter((t) => !prefixTags.includes(t));
-            data.fileId = marked.parse(data.fileId);
+            data.mdFileId = marked.parse(data.mdFileId);
             data.userId = Elements.Data.user.main.model.user._id;
             data.tools = true;
             data._id = documentData._id;
@@ -268,8 +270,8 @@ const PanelForm = {
             const filesData = {
               id: documentData._id,
               _id: documentData._id,
-              fileId: { fileBlob, filePlain },
               mdFileId: { mdBlob, mdPlain },
+              fileId: { fileBlob, filePlain },
             };
             if (originObj) {
               PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
@@ -290,6 +292,10 @@ const PanelForm = {
                   : message,
               status: status,
             });
+
+            setQueryPath({ path: options.route, queryPath: documentData._id });
+            if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+
             return { data, status, message };
           },
         },
@@ -309,22 +315,11 @@ const PanelForm = {
         PanelForm.Data[idPanel].filesData = [];
         PanelForm.Data[idPanel].data = [];
         for (const documentObject of result.data.reverse()) {
-          let fileId, mdFileId;
-          let fileBlob, mdBlob;
-          let filePlain, mdPlain;
+          let mdFileId, fileId;
+          let mdBlob, fileBlob;
+          let mdPlain, filePlain;
 
           {
-            const {
-              data: [file],
-              status,
-            } = await FileService.get({ id: documentObject.fileId._id });
-
-            // const ext = file.name.split('.')[file.name.split('.').length - 1];
-            fileBlob = file;
-            filePlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
-            fileId = newInstance(filePlain);
-          }
-          if (documentObject.mdFileId) {
             const {
               data: [file],
               status,
@@ -332,15 +327,26 @@ const PanelForm = {
 
             // const ext = file.name.split('.')[file.name.split('.').length - 1];
             mdBlob = file;
-            mdPlain = null;
-            mdFileId = getSrcFromFileData(file);
+            mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
+            mdFileId = newInstance(mdPlain);
+          }
+          if (documentObject.fileId) {
+            const {
+              data: [file],
+              status,
+            } = await FileService.get({ id: documentObject.fileId._id });
+
+            // const ext = file.name.split('.')[file.name.split('.').length - 1];
+            fileBlob = file;
+            filePlain = null;
+            fileId = getSrcFromFileData(file);
           }
 
           PanelForm.Data[idPanel].filesData.push({
             id: documentObject._id,
             _id: documentObject._id,
-            fileId: { fileBlob, filePlain },
             mdFileId: { mdBlob, mdPlain },
+            fileId: { fileBlob, filePlain },
           });
 
           PanelForm.Data[idPanel].data.push({
@@ -348,9 +354,9 @@ const PanelForm = {
             title: documentObject.title,
             createdAt: dateFormat(documentObject.createdAt),
             tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
-            fileId: marked.parse(fileId),
+            mdFileId: marked.parse(mdFileId),
             userId: documentObject.userId._id,
-            mdFileId,
+            fileId,
             tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
             _id: documentObject._id,
           });
@@ -386,7 +392,7 @@ const PanelForm = {
               })}"
             ></div>
           </div>`,
-          fileId: html`<div class="fl section-mp">
+          mdFileId: html`<div class="fl section-mp">
             <div
               class="in fll ssr-shimmer-search-box"
               style="${renderCssAttr({

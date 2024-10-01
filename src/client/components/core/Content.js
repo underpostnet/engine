@@ -38,11 +38,11 @@ const Content = {
           }
           documentObj = data[0];
         }
-        {
+        if (documentObj.fileId) {
           const { data, status, message } = await FileService.get({ id: documentObj.fileId._id });
           if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
-            throw new Error(`no-preview-available`);
+            // throw new Error(`no-preview-available`);
           }
           file = data[0];
         }
@@ -50,7 +50,7 @@ const Content = {
           const { data, status, message } = await FileService.get({ id: documentObj.mdFileId });
           if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
-            // throw new Error(`no-preview-available`);
+            throw new Error(`no-preview-available`);
           } else md = data[0];
         }
 
@@ -63,7 +63,7 @@ const Content = {
         );
         htmls(`.content-render-${idModal}`, ``);
         if (md) await this.RenderFile({ idModal, file: md, id: md._id });
-        await this.RenderFile({ idModal, file, id: file._id });
+        if (file) await this.RenderFile({ idModal, file, id: file._id });
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
       } catch (error) {
         logger.error(error);

@@ -148,9 +148,7 @@ const Input = {
           continue;
           break;
         case 'md':
-          setTimeout(() => {
-            RichText.Tokens[inputData.id].easyMDE.value('');
-          });
+          RichText.Tokens[inputData.id].easyMDE.value('');
           continue;
           break;
         case 'checkbox':
@@ -195,7 +193,7 @@ const Input = {
             continue;
             break;
           case 'md':
-            RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].filePlain);
+            RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].mdPlain);
             continue;
             break;
           case 'checkbox':

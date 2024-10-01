@@ -659,6 +659,12 @@ const FileExplorer = {
   },
   documentDataFormat: function ({ document, location }) {
     let files = document.map((f) => {
+      if (!f.fileId)
+        f.fileId = {
+          name: f.title + '.md',
+          mimetype: 'text/markdown',
+          _id: f.mdFileId,
+        };
       return {
         location: this.locationFormat({ f }),
         name: f.fileId.name,

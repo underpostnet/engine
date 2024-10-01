@@ -408,7 +408,7 @@ const Panel = {
         }
         s(`.btn-${idPanel}-clean`).click();
         if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
-        prepend(`.${idPanel}-render`, await renderPanel(obj));
+        htmls(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;

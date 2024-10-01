@@ -68,15 +68,13 @@ const CoreService = {
       })
         .then((res) => res.blob())
         .then(async (blob) => {
-          return resolve(
-            await fileRender({
-              file: {
-                mimetype: 'image/jpg',
-                name: 'image.jpg',
-              },
-              url: URL.createObjectURL(blob),
-            }),
-          );
+          return resolve({
+            file: {
+              mimetype: 'image/jpg',
+              name: 'image.jpg',
+            },
+            url: URL.createObjectURL(blob),
+          });
         });
     });
   },
