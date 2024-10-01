@@ -32,7 +32,7 @@ const PanelForm = {
     },
   ) {
     const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
-    let extension = `.md`;
+
     let prefixTags = [idPanel, 'public'];
     this.Data[idPanel] = {
       originData: [],
@@ -175,6 +175,10 @@ const PanelForm = {
                 html: status,
                 status,
               });
+              if (getQueryParams().cid === data.id) {
+                setQueryPath({ path: options.route, queryPath: '' });
+                if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
+              }
 
               return { status };
             }
@@ -182,12 +186,10 @@ const PanelForm = {
           },
           add: async function ({ data, editId }) {
             let mdFileId;
-            let fileId;
-            const fileName = `${getCapVariableName(data.title)}${extension}`;
+            const mdFileName = `${getCapVariableName(data.title)}.md`;
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.mdFileId], { type: 'text/markdown' });
-            const md = new File([blob], fileName, { type: 'text/markdown' });
-            const file = data.fileId?.[0] ? data.fileId[0] : undefined;
+            const md = new File([blob], mdFileName, { type: 'text/markdown' });
             const tags = uniqueArray(
               data.tags
                 .replaceAll('/', ',')
@@ -198,89 +200,110 @@ const PanelForm = {
                 .filter((t) => t)
                 .concat(prefixTags),
             );
-
-            let originObj, indexOriginObj;
+            let originObj, originFileObj, indexOriginObj;
             if (editId) {
               indexOriginObj = PanelForm.Data[idPanel].originData.findIndex((d) => d._id === editId);
-              if (indexOriginObj > -1) originObj = PanelForm.Data[idPanel].originData[indexOriginObj];
+              if (indexOriginObj > -1) {
+                originObj = PanelForm.Data[idPanel].originData[indexOriginObj];
+                originFileObj = PanelForm.Data[idPanel].filesData.find((d) => d._id === editId);
+              }
             }
 
-            await (async () => {
-              const body = new FormData();
-              body.append('md', md);
-              body.append('file', file);
-              const { status, data } = await FileService.post({ body });
-              // await timer(3000);
-              NotificationManager.Push({
-                html: Translate.Render(`${status}-upload-file`),
-                status,
-              });
-              if (status === 'success') {
-                mdFileId = data[0]._id;
-                if (data[1]) fileId = data[1]._id;
-              }
-            })();
-            const body = {
-              location,
-              tags,
-              fileId,
-              mdFileId,
-              title: data.title,
+            const mdBlob = {
+              data: {
+                data: await getDataFromInputFile(md),
+              },
+              mimetype: md.type,
+              name: md.name,
             };
-            const {
-              status,
-              message,
-              data: documentData,
-            } = originObj
-              ? await DocumentService.put({ id: originObj._id, body })
-              : await DocumentService.post({
-                  body,
+            const mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype));
+            const baseNewDoc = newInstance(data);
+            baseNewDoc.tags = tags.filter((t) => !prefixTags.includes(t));
+            baseNewDoc.mdFileId = marked.parse(data.mdFileId);
+            baseNewDoc.userId = Elements.Data.user.main.model.user._id;
+            baseNewDoc.tools = true;
+
+            const documents = [];
+            let message = '';
+            let status = 'success';
+            let indexFormDoc = -1;
+            const filesData = data.fileId ? data.fileId : [null];
+
+            for (const file of filesData) {
+              indexFormDoc++;
+              let fileId;
+
+              await (async () => {
+                const body = new FormData();
+                body.append('md', md);
+                if (file) body.append('file', file);
+                const { status, data } = await FileService.post({ body });
+                // await timer(3000);
+                NotificationManager.Push({
+                  html: Translate.Render(`${status}-upload-file`),
+                  status,
                 });
+                if (status === 'success') {
+                  mdFileId = data[0]._id;
+                  if (data[1]) fileId = data[1]._id;
+                }
+              })();
+              const body = {
+                location,
+                tags,
+                fileId,
+                mdFileId,
+                title: data.title,
+              };
+              const {
+                status: documentStatus,
+                message: documentMessage,
+                data: documentData,
+              } = originObj && indexFormDoc === 0
+                ? await DocumentService.put({ id: originObj._id, body })
+                : await DocumentService.post({
+                    body,
+                  });
 
-            let fileBlob = file
-                ? {
-                    data: {
-                      data: await getDataFromInputFile(file),
-                    },
-                    mimetype: file.type,
-                    name: file.name,
-                  }
-                : undefined,
-              mdBlob = md
-                ? {
-                    data: {
-                      data: await getDataFromInputFile(md),
-                    },
-                    mimetype: md.type,
-                    name: md.name,
-                  }
-                : undefined;
+              const newDoc = {
+                ...baseNewDoc,
+                fileId: file ? URL.createObjectURL(file) : undefined,
+                _id: documentData._id,
+                id: documentData._id,
+                createdAt: dateFormat(documentData.createdAt),
+              };
 
-            let mdPlain = await getRawContentFile(getBlobFromUint8ArrayFile(mdBlob.data.data, mdBlob.mimetype)),
-              filePlain = null;
+              if (documentStatus === 'error') status = 'error';
+              if (message) message += `${indexFormDoc === 0 ? '' : ', '}${documentMessage}`;
 
-            data.createdAt = dateFormat(documentData.createdAt);
-            if (file) data.fileId = URL.createObjectURL(file);
-            data.tags = tags.filter((t) => !prefixTags.includes(t));
-            data.mdFileId = marked.parse(data.mdFileId);
-            data.userId = Elements.Data.user.main.model.user._id;
-            data.tools = true;
-            data._id = documentData._id;
+              const filesData = {
+                id: documentData._id,
+                _id: documentData._id,
+                mdFileId: { mdBlob, mdPlain },
+                fileId: {
+                  fileBlob: file
+                    ? {
+                        data: {
+                          data: await getDataFromInputFile(file),
+                        },
+                        mimetype: file.type,
+                        name: file.name,
+                      }
+                    : undefined,
+                  filePlain: undefined,
+                },
+              };
 
-            const filesData = {
-              id: documentData._id,
-              _id: documentData._id,
-              mdFileId: { mdBlob, mdPlain },
-              fileId: { fileBlob, filePlain },
-            };
-            if (originObj) {
-              PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
-              PanelForm.Data[idPanel].data[indexOriginObj] = data;
-              PanelForm.Data[idPanel].filesData[indexOriginObj] = filesData;
-            } else {
-              PanelForm.Data[idPanel].originData.push(documentData);
-              PanelForm.Data[idPanel].data.push(data);
-              PanelForm.Data[idPanel].filesData.push(filesData);
+              if (originObj && indexFormDoc === 0) {
+                PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
+                PanelForm.Data[idPanel].data[indexOriginObj] = newDoc;
+                PanelForm.Data[idPanel].filesData[indexOriginObj] = filesData;
+              } else {
+                PanelForm.Data[idPanel].originData.push(documentData);
+                PanelForm.Data[idPanel].data.push(newDoc);
+                PanelForm.Data[idPanel].filesData.push(filesData);
+              }
+              documents.push(newDoc);
             }
 
             NotificationManager.Push({
@@ -293,10 +316,10 @@ const PanelForm = {
               status: status,
             });
 
-            setQueryPath({ path: options.route, queryPath: documentData._id });
+            setQueryPath({ path: options.route, queryPath: documents.map((d) => d._id).join(',') });
             if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
 
-            return { data, status, message };
+            return { data: documents, status, message };
           },
         },
       });
@@ -338,7 +361,7 @@ const PanelForm = {
 
             // const ext = file.name.split('.')[file.name.split('.').length - 1];
             fileBlob = file;
-            filePlain = null;
+            filePlain = undefined;
             fileId = getSrcFromFileData(file);
           }
 

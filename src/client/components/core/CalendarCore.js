@@ -290,6 +290,9 @@ const CalendarCore = {
                   CalendarCore.Data[options.idModal].data.push(data);
                   CalendarCore.Data[options.idModal].filesData.push(filesData);
                 }
+
+                setQueryPath({ path: options.route, queryPath: documentData._id });
+                if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
               }
               return { data, status, message };
             },
@@ -315,6 +318,12 @@ const CalendarCore = {
                   html: status,
                   status,
                 });
+
+                if (getQueryParams().cid === data.id) {
+                  setQueryPath({ path: options.route, queryPath: '' });
+                  if (CalendarCore.Data[options.idModal].updatePanel)
+                    await CalendarCore.Data[options.idModal].updatePanel();
+                }
 
                 return { status };
               }

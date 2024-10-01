@@ -93,7 +93,7 @@ const Panel = {
           logger.warn('delete', obj);
           const { status } = await options.on.remove({ e, data: obj });
           if (status === 'error') return;
-          s(`.${idPanel}-${id}`).remove();
+          if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
         });
         EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
           logger.warn('edit', obj);
@@ -402,13 +402,20 @@ const Panel = {
         if (errorMessage) return;
         const obj = Input.getValues(formData);
         obj.id = `${data.length}`;
+        let documents;
         if (options && options.on && options.on.add) {
-          const { status } = await options.on.add({ data: obj, editId });
+          const { status, data } = await options.on.add({ data: obj, editId });
           if (status === 'error') return;
+          documents = data;
         }
         s(`.btn-${idPanel}-clean`).click();
         if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
-        htmls(`.${idPanel}-render`, await renderPanel(obj));
+        if (Array.isArray(documents)) {
+          htmls(`.${idPanel}-render`, '');
+          for (const doc of documents) {
+            append(`.${idPanel}-render`, await renderPanel(doc));
+          }
+        } else htmls(`.${idPanel}-render`, await renderPanel(obj));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;
@@ -446,7 +453,11 @@ const Panel = {
       };
     });
 
-    for (const obj of data) render += await renderPanel(obj);
+    if (data.length > 0) for (const obj of data) render += await renderPanel(obj);
+    else
+      render += html`<div class="in" style="min-height: 200px">
+        <div class="abs center"><i class="fas fa-exclamation-circle"></i> ${Translate.Render(`no-result-found`)}</div>
+      </div>`;
 
     this.Tokens[idPanel] = { idPanel, scrollClassContainer, formData, data, titleKey, subTitleKey, renderPanel };
 

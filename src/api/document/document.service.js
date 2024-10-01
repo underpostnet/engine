@@ -3,6 +3,7 @@ import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { DocumentDto } from './document.model.js';
 import { uniqueArray } from '../../client/components/core/CommonJs.js';
 import { getBearerToken, verifyJWT } from '../../server/auth.js';
+import { isValidObjectId } from 'mongoose';
 
 const logger = loggerFactory(import.meta);
 
@@ -38,7 +39,13 @@ const DocumentService = {
           // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
           $all: uniqueArray(['public'].concat(req.query['tags'].split(','))),
         },
-        ...(req.query.cid ? { _id: req.query.cid } : undefined),
+        ...(req.query.cid
+          ? {
+              _id: {
+                $in: req.query.cid.split(',').filter((cid) => isValidObjectId(cid)),
+              },
+            }
+          : undefined),
       };
       logger.info('queryPayload', queryPayload);
       return await Document.find(queryPayload)
