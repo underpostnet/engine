@@ -427,6 +427,10 @@ const TranslateCore = {
       en: 'Post edited successfully',
       es: 'Post editado con éxito',
     };
+    Translate.Data['confirm-delete-all-data'] = {
+      en: 'Are you sure you want to delete all data?',
+      es: 'Estas seguro de eliminar todos los datos?',
+    };
   },
 };
 
