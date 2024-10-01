@@ -246,8 +246,7 @@ const MenuBms = {
             imageUrl: 'https://example.com/property5.jpg',
           },
         ];
-
-        await PanelForm.instance({
+        return await PanelForm.instance({
           idPanel: 'bms-panel',
           heightTopBar,
           heightBottomBar,
