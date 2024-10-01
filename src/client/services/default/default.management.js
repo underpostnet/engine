@@ -218,6 +218,17 @@ const DefaultManagement = {
         });
       });
       EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
+        const confirmResult = await Modal.RenderConfirm({
+          html: async () => {
+            return html`
+              <div class="in section-mp" style="text-align: center;">
+                <strong>${Translate.Render('confirm-delete-all-data')}</strong>
+              </div>
+            `;
+          },
+          id: `clean-table-${id}`,
+        });
+        if (confirmResult.status === 'cancelled') return;
         const result = await ServiceProvider.delete();
         NotificationManager.Push({
           html: result.status === 'error' ? result.message : Translate.Render('success-delete-all-items'),
