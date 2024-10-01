@@ -67,9 +67,9 @@ const DocumentService = {
 
         if (document.userId.toString() !== req.auth.user._id) throw new Error('invalid user');
 
-        if (document.imageFileId) {
-          const file = await File.findOne({ _id: document.imageFileId });
-          if (file) await File.findByIdAndDelete(document.imageFileId);
+        if (document.mdFileId) {
+          const file = await File.findOne({ _id: document.mdFileId });
+          if (file) await File.findByIdAndDelete(document.mdFileId);
         }
 
         if (document.fileId) {
@@ -92,9 +92,9 @@ const DocumentService = {
         const document = await Document.findOne({ _id: req.params.id });
         if (!document) throw new Error(`Document not found`);
 
-        if (document.imageFileId) {
-          const file = await File.findOne({ _id: document.imageFileId });
-          if (file) await File.findByIdAndDelete(document.imageFileId);
+        if (document.mdFileId) {
+          const file = await File.findOne({ _id: document.mdFileId });
+          if (file) await File.findByIdAndDelete(document.mdFileId);
         }
 
         if (document.fileId) {

@@ -183,8 +183,8 @@ const Input = {
               if (fileObj[inputData.model].fileBlob)
                 dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].fileBlob));
 
-              if (fileObj[inputData.model].imageBlob)
-                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].imageBlob));
+              if (fileObj[inputData.model].mdBlob)
+                dataTransfer.items.add(getFileFromFileData(fileObj[inputData.model].mdBlob));
 
               if (dataTransfer.files.length) {
                 s(`.${inputData.id}`).files = dataTransfer.files;

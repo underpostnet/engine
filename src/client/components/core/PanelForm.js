@@ -57,8 +57,8 @@ const PanelForm = {
         disableRender: true,
       },
       {
-        id: 'panel-imageFileId',
-        model: 'imageFileId',
+        id: 'panel-mdFileId',
+        model: 'mdFileId',
         inputType: 'file',
         rules: [],
         panel: {},
@@ -127,7 +127,7 @@ const PanelForm = {
               render: imageShimmer(),
             });
           }
-          if (!options.data.imageFileId)
+          if (!options.data.mdFileId)
             return await options.htmlRender({
               render: html`
                 <img
@@ -144,7 +144,7 @@ const PanelForm = {
               `,
             });
           return await options.fileRender({
-            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).imageFileId.imageBlob,
+            file: PanelForm.Data[idPanel].filesData.find((f) => f._id === options.data._id).mdFileId.mdBlob,
             style: {
               overflow: 'auto',
               width: '100%',
@@ -182,12 +182,12 @@ const PanelForm = {
           },
           add: async function ({ data, editId }) {
             let fileId;
-            let imageFileId;
+            let mdFileId;
             const fileName = `${getCapVariableName(data.title)}${extension}`;
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.fileId], { type: 'text/markdown' });
             const file = new File([blob], fileName, { type: 'text/markdown' });
-            const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
+            const md = data.mdFileId?.[0] ? data.mdFileId[0] : undefined;
             const tags = uniqueArray(
               data.tags
                 .replaceAll('/', ',')
@@ -208,7 +208,7 @@ const PanelForm = {
             await (async () => {
               const body = new FormData();
               body.append('file', file);
-              body.append('image', image);
+              body.append('md', md);
               const { status, data } = await FileService.post({ body });
               // await timer(3000);
               NotificationManager.Push({
@@ -217,14 +217,14 @@ const PanelForm = {
               });
               if (status === 'success') {
                 fileId = data[0]._id;
-                if (data[1]) imageFileId = data[1]._id;
+                if (data[1]) mdFileId = data[1]._id;
               }
             })();
             const body = {
               location,
               tags,
               fileId,
-              imageFileId,
+              mdFileId,
               title: data.title,
             };
             const {
@@ -244,21 +244,21 @@ const PanelForm = {
                 mimetype: file.type,
                 name: file.name,
               },
-              imageBlob = image
+              mdBlob = md
                 ? {
                     data: {
-                      data: await getDataFromInputFile(image),
+                      data: await getDataFromInputFile(md),
                     },
-                    mimetype: image.type,
-                    name: image.name,
+                    mimetype: md.type,
+                    name: md.name,
                   }
                 : undefined;
 
             let filePlain = await getRawContentFile(getBlobFromUint8ArrayFile(fileBlob.data.data, fileBlob.mimetype)),
-              imagePlain = null;
+              mdPlain = null;
 
             data.createdAt = dateFormat(documentData.createdAt);
-            if (image) data.imageFileId = URL.createObjectURL(image);
+            if (md) data.mdFileId = URL.createObjectURL(md);
             data.tags = tags.filter((t) => !prefixTags.includes(t));
             data.fileId = marked.parse(data.fileId);
             data.userId = Elements.Data.user.main.model.user._id;
@@ -269,7 +269,7 @@ const PanelForm = {
               id: documentData._id,
               _id: documentData._id,
               fileId: { fileBlob, filePlain },
-              imageFileId: { imageBlob, imagePlain },
+              mdFileId: { mdBlob, mdPlain },
             };
             if (originObj) {
               PanelForm.Data[idPanel].originData[indexOriginObj] = documentData;
@@ -309,9 +309,9 @@ const PanelForm = {
         PanelForm.Data[idPanel].filesData = [];
         PanelForm.Data[idPanel].data = [];
         for (const documentObject of result.data.reverse()) {
-          let fileId, imageFileId;
-          let fileBlob, imageBlob;
-          let filePlain, imagePlain;
+          let fileId, mdFileId;
+          let fileBlob, mdBlob;
+          let filePlain, mdPlain;
 
           {
             const {
@@ -324,23 +324,23 @@ const PanelForm = {
             filePlain = await getRawContentFile(getBlobFromUint8ArrayFile(file.data.data, file.mimetype));
             fileId = newInstance(filePlain);
           }
-          if (documentObject.imageFileId) {
+          if (documentObject.mdFileId) {
             const {
               data: [file],
               status,
-            } = await FileService.get({ id: documentObject.imageFileId });
+            } = await FileService.get({ id: documentObject.mdFileId });
 
             // const ext = file.name.split('.')[file.name.split('.').length - 1];
-            imageBlob = file;
-            imagePlain = null;
-            imageFileId = getSrcFromFileData(file);
+            mdBlob = file;
+            mdPlain = null;
+            mdFileId = getSrcFromFileData(file);
           }
 
           PanelForm.Data[idPanel].filesData.push({
             id: documentObject._id,
             _id: documentObject._id,
             fileId: { fileBlob, filePlain },
-            imageFileId: { imageBlob, imagePlain },
+            mdFileId: { mdBlob, mdPlain },
           });
 
           PanelForm.Data[idPanel].data.push({
@@ -350,7 +350,7 @@ const PanelForm = {
             tags: documentObject.tags.filter((t) => !prefixTags.includes(t)),
             fileId: marked.parse(fileId),
             userId: documentObject.userId._id,
-            imageFileId,
+            mdFileId,
             tools: Elements.Data.user.main.model.user._id === documentObject.userId._id,
             _id: documentObject._id,
           });

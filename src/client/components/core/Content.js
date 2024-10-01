@@ -26,7 +26,7 @@ const Content = {
         s(`.error-${idModal}`).classList.add('hide');
         s(`.ssr-shimmer-content-${idModal}`).classList.remove('hide');
         const queryParams = getQueryParams();
-        let documentObj, file, image;
+        let documentObj, file, md;
 
         if (!queryParams.cid) throw new Error(`no-result-found`);
 
@@ -46,12 +46,12 @@ const Content = {
           }
           file = data[0];
         }
-        if (documentObj.imageFileId) {
-          const { data, status, message } = await FileService.get({ id: documentObj.imageFileId });
+        if (documentObj.mdFileId) {
+          const { data, status, message } = await FileService.get({ id: documentObj.mdFileId });
           if (status !== 'success' || !data || !data[0]) {
             logger.error(message);
             // throw new Error(`no-preview-available`);
-          } else image = data[0];
+          } else md = data[0];
         }
 
         htmls(
@@ -62,7 +62,7 @@ const Content = {
           })} `,
         );
         htmls(`.content-render-${idModal}`, ``);
-        if (image) await this.RenderFile({ idModal, file: image, id: image._id });
+        if (md) await this.RenderFile({ idModal, file: md, id: md._id });
         await this.RenderFile({ idModal, file, id: file._id });
         Modal.Data[idModal].onObserverListener[`main-content-observer`]();
       } catch (error) {

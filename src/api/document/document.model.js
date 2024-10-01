@@ -15,7 +15,7 @@ const DocumentSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'File',
     },
-    imageFileId: {
+    mdFileId: {
       type: Schema.Types.ObjectId,
       ref: 'File',
     },

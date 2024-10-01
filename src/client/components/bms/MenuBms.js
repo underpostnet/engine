@@ -189,13 +189,6 @@ const MenuBms = {
             panel: { type: 'info-row' },
             rules: [],
           },
-          {
-            id: 'imageFileId',
-            model: 'imageFileId',
-            inputType: 'file',
-            panel: {},
-            rules: [{ type: 'isEmpty' }],
-          },
         ];
 
         const data = [
