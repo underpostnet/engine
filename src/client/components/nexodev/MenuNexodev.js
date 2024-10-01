@@ -631,9 +631,10 @@ const MenuNexodev = {
 
     EventsUI.onClick(`.main-btn-calendar`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
+      const route = 'calendar';
       await Modal.Render({
         id: 'modal-calendar',
-        route: 'calendar',
+        route,
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-calendar-alt"></i>`,
@@ -645,6 +646,8 @@ const MenuNexodev = {
             Elements: ElementsNexodev,
             heightBottomBar,
             heightTopBar,
+            route,
+            parentIdModal: 'modal-calendar',
           }),
         handleType: 'bar',
         maximize: true,

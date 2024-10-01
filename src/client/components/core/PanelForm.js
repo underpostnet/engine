@@ -116,7 +116,7 @@ const PanelForm = {
         formContainerClass: 'session-in-log-in',
         onClick: async function ({ payload }) {
           if (options.route) {
-            setQueryPath({ path: options.route, queryPath: payload._id }, 'cid');
+            setQueryPath({ path: options.route, queryPath: payload._id });
             if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
             if (PanelForm.Data[idPanel].updatePanel) await PanelForm.Data[idPanel].updatePanel();
           }
@@ -416,16 +416,13 @@ const PanelForm = {
       );
     };
     if (options.route)
-      listenQueryPathInstance(
-        {
-          id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
-          routeId: options.route,
-          event: async (path) => {
-            await this.Data[idPanel].updatePanel();
-          },
+      listenQueryPathInstance({
+        id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
+        routeId: options.route,
+        event: async (path) => {
+          await this.Data[idPanel].updatePanel();
         },
-        'cid',
-      );
+      });
 
     setTimeout(this.Data[idPanel].updatePanel);
 

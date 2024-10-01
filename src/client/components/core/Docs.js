@@ -161,7 +161,6 @@ const Docs = {
         };
       }
 
-      // if (!getQueryParams().p) s(`.btn-docs-src`).click();
       listenQueryPathInstance({
         id: options.idModal,
         routeId: 'docs',

@@ -50,14 +50,14 @@ const LoadRouter = function (RouterInstance) {
   window.onpopstate = (e) => Router({ ...RouterInstance, e });
 };
 
-const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'p') => {
+const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
   const { queryPath, path } = options;
   const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${queryPath ? `?${queryKey}=${queryPath}` : ''}`;
   const currentUri = `${window.location.pathname}${location.search}`;
   if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri);
 };
 
-const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'p') => {
+const listenQueryPathInstance = ({ id, routeId, event }, queryKey = 'cid') => {
   RouterEvents[id] = ({ path, pushPath, proxyPath, route }) => {
     if ((route === '' && routeId === 'home') || (route && routeId && route === routeId)) {
       setTimeout(() => {

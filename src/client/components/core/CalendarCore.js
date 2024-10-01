@@ -7,9 +7,9 @@ import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Panel } from './Panel.js';
 import { Responsive } from './Responsive.js';
-import { RouterEvents } from './Router.js';
+import { listenQueryPathInstance, RouterEvents, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
-import { append, getTimeZone, htmls, s, sa } from './VanillaJs.js';
+import { append, getQueryParams, getTimeZone, htmls, s, sa } from './VanillaJs.js';
 
 // https://fullcalendar.io/docs/event-object
 
@@ -53,7 +53,7 @@ const CalendarCore = {
 
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
-        id: `creatorUser${''}`,
+        id: `${getQueryParams().cid ? getQueryParams().cid : 'creatorUser'}`,
       });
       NotificationManager.Push({
         html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
@@ -62,7 +62,7 @@ const CalendarCore = {
       if (result.status === 'success') {
         this.Data[options.idModal].filesData = [];
         this.Data[options.idModal].originData = newInstance(result.data);
-        this.Data[options.idModal].data = result.data
+        this.Data[options.idModal].data = (Array.isArray(result.data) ? result.data : [result.data])
           .map((o) => {
             if (o.creatorUserId && options.Elements.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
             o.id = o._id;
@@ -74,8 +74,6 @@ const CalendarCore = {
           .reverse();
       }
     };
-
-    if (Auth.getToken()) await getPanelData();
 
     const renderCalendar = () => {
       const calendarEl = s(`.calendar-${idPanel}`);
@@ -214,6 +212,14 @@ const CalendarCore = {
           scrollClassContainer: `main-body-calendar-${options.idModal}`,
           originData: () => this.Data[options.idModal].originData,
           filesData: () => this.Data[options.idModal].filesData,
+          onClick: async function ({ payload }) {
+            if (options.route) {
+              setQueryPath({ path: options.route, queryPath: payload._id });
+              if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+              if (CalendarCore.Data[options.idModal].updatePanel)
+                await CalendarCore.Data[options.idModal].updatePanel();
+            }
+          },
           titleIcon,
           route: 'calendar',
           callBackPanelRender: async function ({ data, fileRender, htmlRender }) {
@@ -318,13 +324,29 @@ const CalendarCore = {
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
 
+    let lastCid;
     this.Data[options.idModal].updatePanel = async () => {
+      const cid = getQueryParams().cid ? getQueryParams().cid : '';
+      if (lastCid === cid) return;
+      if (options.route === 'home') Modal.homeCid = newInstance(cid);
+      lastCid = cid;
       if (s(`.main-body-calendar-${options.idModal}`)) {
         if (Auth.getToken()) await getPanelData();
         else getSrrData();
         htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
       }
     };
+
+    if (options.route)
+      listenQueryPathInstance({
+        id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
+        routeId: options.route,
+        event: async (path) => {
+          setTimeout(() => {
+            CalendarCore.Data[options.idModal].updatePanel();
+          });
+        },
+      });
 
     return html`
       <style>
