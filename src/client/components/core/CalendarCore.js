@@ -293,6 +293,8 @@ const CalendarCore = {
 
                 setQueryPath({ path: options.route, queryPath: documentData._id });
                 if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
+                if (CalendarCore.Data[options.idModal].updatePanel)
+                  await CalendarCore.Data[options.idModal].updatePanel();
               }
               return { data, status, message };
             },
