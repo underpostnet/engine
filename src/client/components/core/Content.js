@@ -90,7 +90,16 @@ const Content = {
   },
   RenderFile: async function (
     options = {
-      file: {},
+      file: {
+        _id: '',
+        data: {
+          data: [0],
+        },
+        mimetype: '',
+        url: '',
+        name: '',
+        cid: '', // TODO: IPFS env
+      },
       idModal: '',
       style: {},
       class: '',
