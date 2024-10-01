@@ -187,7 +187,6 @@ const PanelForm = {
             const location = `${prefixTags.join('/')}`;
             const blob = new Blob([data.fileId], { type: 'text/markdown' });
             const file = new File([blob], fileName, { type: 'text/markdown' });
-            // -> multiple content render imageFileId: []
             const image = data.imageFileId?.[0] ? data.imageFileId[0] : undefined;
             const tags = uniqueArray(
               data.tags
@@ -426,7 +425,7 @@ const PanelForm = {
         },
       });
 
-    setTimeout(this.Data[idPanel].updatePanel);
+    if (options.route === 'home' && !Auth.getToken()) setTimeout(this.Data[idPanel].updatePanel);
 
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());
