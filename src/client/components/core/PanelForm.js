@@ -403,11 +403,13 @@ const PanelForm = {
       });
 
     let lastCid;
+    let lasUserId;
     this.Data[idPanel].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      if (lastCid === cid) return;
+      if (lastCid === cid && lasUserId === Elements.Data.user.main.model.user._id) return;
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       lastCid = cid;
+      lasUserId = newInstance(Elements.Data.user.main.model.user._id);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
       htmls(

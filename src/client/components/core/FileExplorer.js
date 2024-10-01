@@ -640,9 +640,9 @@ const FileExplorer = {
             class: 'wfa section-mp btn-input-file-explorer',
             style: renderCssAttr({
               style: {
-                'font-size': '30px',
+                'font-size': '25px',
                 'text-align': 'center',
-                padding: '30px',
+                padding: '20px',
               },
             }),
             label: html`<i class="fa-solid fa-cloud-arrow-up"></i> ${Translate.Render('upload')}`,

@@ -325,10 +325,12 @@ const CalendarCore = {
     };
 
     let lastCid;
+    let lasUserId;
     this.Data[options.idModal].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      if (lastCid === cid) return;
+      if (lastCid === cid && lasUserId === options.Elements.Data.user.main.model.user._id) return;
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
+      lasUserId = newInstance(options.Elements.Data.user.main.model.user._id);
       lastCid = cid;
       if (s(`.main-body-calendar-${options.idModal}`)) {
         if (Auth.getToken()) await getPanelData();

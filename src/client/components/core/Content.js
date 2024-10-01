@@ -73,7 +73,7 @@ const Content = {
       }
       s(`.ssr-shimmer-content-${idModal}`).classList.add('hide');
     });
-    return html` <div class="in content-render content-render-${idModal}" style="min-height: 500px"></div>
+    return html` <div class="in content-render content-render-${idModal}" style="min-height: 200px"></div>
       <div
         class="abs ssr-shimmer-content-${idModal}"
         style="${renderCssAttr({
