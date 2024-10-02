@@ -67,6 +67,7 @@ const buildProxy = async () => {
 
       if (!(absoluteHost in options.router)) options.router[absoluteHost] = target;
     });
+    if (Object.keys(options.router).length === 0) continue;
 
     // order router
     const router = {};
@@ -74,10 +75,7 @@ const buildProxy = async () => {
       router[absoluteHostKey] = options.router[absoluteHostKey];
     options.router = router;
 
-    if (Object.keys(options.router).length === 0) continue;
-
     // instance proxy server
-
     const proxyPath = '/';
     const proxyHost = 'localhost';
 
