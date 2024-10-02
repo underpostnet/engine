@@ -139,7 +139,7 @@ const DefaultManagement = {
       {
         const result = await ServiceProvider.get();
         if (result.status === 'success') {
-          rowDataScope = result.data.reverse().map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
+          rowDataScope = result.data.map((row) => columnDefFormatter(row, columnDefs, options.customFormat));
           AgGrid.grids[gridId].setGridOption('rowData', rowDataScope);
         }
       }

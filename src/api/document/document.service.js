@@ -48,7 +48,15 @@ const DocumentService = {
           : undefined),
       };
       logger.info('queryPayload', queryPayload);
+      // sort in descending (-1) order by length
+      const sort = { createdAt: -1 };
+      const limit = 3;
+      const skip = 0;
+
       return await Document.find(queryPayload)
+        .sort(sort)
+        .limit(limit)
+        .skip(skip)
         .populate(DocumentDto.populate.file())
         .populate(DocumentDto.populate.user());
     }

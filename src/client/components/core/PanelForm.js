@@ -337,7 +337,7 @@ const PanelForm = {
         PanelForm.Data[idPanel].originData = newInstance(result.data);
         PanelForm.Data[idPanel].filesData = [];
         PanelForm.Data[idPanel].data = [];
-        for (const documentObject of result.data.reverse()) {
+        for (const documentObject of result.data) {
           let mdFileId, fileId;
           let mdBlob, fileBlob;
           let mdPlain, filePlain;
