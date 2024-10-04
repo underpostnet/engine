@@ -360,6 +360,8 @@ const CalendarCore = {
         },
       });
 
+    if (options.route === 'home') setTimeout(CalendarCore.Data[options.idModal].updatePanel);
+
     return html`
       <style>
         .main-body-calendar-${options.idModal} {

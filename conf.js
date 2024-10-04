@@ -49,6 +49,7 @@ const DefaultConf = {
           'Recover',
           'Panel',
           'PanelForm',
+          'Scroll',
         ],
         default: [
           'MenuDefault',

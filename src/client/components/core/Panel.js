@@ -587,6 +587,7 @@ const Panel = {
               label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
               type: 'button',
             })}
+            <!-- pagination component -->
             ${customButtonsRender}
           </div>
           <div class="in ${idPanel}-form-body hide" style="opacity: 0">
