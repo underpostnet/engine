@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import axios from 'axios';
-import ncp from 'copy-paste';
-import read from 'read';
+
 import dotenv from 'dotenv';
 import plantuml from 'plantuml';
 
@@ -19,10 +18,13 @@ import {
   addWsConf,
   buildWsSrc,
   cloneSrcComponents,
-  cliSpinner,
+  getDeployGroupId,
+  deployRun,
+  updateSrc,
   getDataDeploy,
   buildReplicaId,
   Cmd,
+  restoreMacroDb,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -34,104 +36,6 @@ const logger = loggerFactory(import.meta);
 logger.info('argv', process.argv);
 
 const [exe, dir, operator] = process.argv;
-
-const deployTest = async (dataDeploy) => {
-  const failed = [];
-  for (const deploy of dataDeploy) {
-    const deployServerConfPath = fs.existsSync(`./engine-private/replica/${deploy.deployId}/conf.server.json`)
-      ? `./engine-private/replica/${deploy.deployId}/conf.server.json`
-      : `./engine-private/conf/${deploy.deployId}/conf.server.json`;
-    const serverConf = loadReplicas(JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8')));
-    let fail = false;
-    for (const host of Object.keys(serverConf))
-      for (const path of Object.keys(serverConf[host])) {
-        const urlTest = `https://${host}${path}`;
-        try {
-          const result = await axios.get(urlTest);
-          const test = result.data.split('<title>');
-          if (test[1])
-            logger.info('Success deploy', {
-              ...deploy,
-              result: test[1].split('</title>')[0],
-              urlTest,
-            });
-          else {
-            logger.error('Error deploy', {
-              ...deploy,
-              result: result.data,
-              urlTest,
-            });
-            fail = true;
-          }
-        } catch (error) {
-          logger.error('Error deploy', {
-            ...deploy,
-            message: error.message,
-            urlTest,
-          });
-          fail = true;
-        }
-      }
-    if (fail) failed.push(deploy);
-  }
-  return { failed };
-};
-
-const getDeployGroupId = () => {
-  const deployGroupIndexArg = process.argv.findIndex((a) => a.match(`deploy-group:`));
-  if (deployGroupIndexArg > -1) return process.argv[deployGroupIndexArg].split(':')[1].trim();
-  return 'dd';
-};
-
-const execDeploy = async (options = { deployId: 'default' }) => {
-  const { deployId } = options;
-  shellExec(Cmd.delete(deployId));
-  shellExec(Cmd.conf(deployId));
-  shellExec(Cmd.run(deployId));
-  return await new Promise(async (resolve) => {
-    const maxTime = 1000 * 60 * 5;
-    const minTime = 10000 * 2;
-    const intervalTime = 1000;
-    let currentTime = 0;
-    const attempt = () => {
-      if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
-        clearInterval(processMonitor);
-        return resolve(true);
-      }
-      cliSpinner(
-        intervalTime,
-        `[deploy.js] `,
-        ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
-        'yellow',
-        'material',
-      );
-      currentTime += intervalTime;
-      if (currentTime >= maxTime) return resolve(false);
-    };
-    const processMonitor = setInterval(attempt, intervalTime);
-  });
-};
-
-const deployRun = async (dataDeploy, reset) => {
-  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-  if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
-  for (const deploy of dataDeploy) await execDeploy(deploy);
-  const { failed } = await deployTest(dataDeploy);
-  if (failed.length > 0) {
-    for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
-    await read({ prompt: 'Press enter to retry failed processes\n' });
-    await deployRun(failed);
-  } else logger.info(`Deploy process successfully`);
-};
-
-const updateSrc = () => {
-  const silent = true;
-  shellExec(`git pull origin master`, { silent });
-  shellCd(`engine-private`);
-  shellExec(`git pull origin master`, { silent });
-  shellCd(`..`);
-  // shellExec(`npm install && npm install --only=dev`);
-};
 
 try {
   switch (operator) {
@@ -662,6 +566,14 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // author_name: 'fcoverdugo',
       // author_email: 'fcoverdugoa@underpost.net'
     }
+
+    case 'restore-macro-db':
+      {
+        const deployGroupId = process.argv[3];
+        await restoreMacroDb(deployGroupId);
+      }
+
+      break;
     default:
       break;
   }
