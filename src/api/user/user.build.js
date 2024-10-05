@@ -1,6 +1,8 @@
 import fs from 'fs-extra';
 import { faBase64Png, getBufferPngText } from '../../server/client-icons.js';
 
+process.exit(0);
+
 fs.writeFileSync(
   './tmp/api-user-invalid-token.png',
   await getBufferPngText({ text: 'Invalid token', textColor: '#ff0000' }),

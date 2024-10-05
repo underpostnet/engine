@@ -9,6 +9,8 @@ import colors from 'colors';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
+import ncp from 'copy-paste';
+import read from 'read';
 
 colors.enable();
 dotenv.config();
@@ -531,7 +533,7 @@ const getDataDeploy = (
   }
 
   logger.info('buildDataDeploy', buildDataDeploy);
-  if (!options.disableSyncEnvPort) shellExec(Cmd.syncPorts(options.deployGroupId));
+  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(Cmd.syncPorts(options.deployGroupId));
   return buildDataDeploy;
 };
 
@@ -591,6 +593,130 @@ const validateTemplatePath = (absolutePath = '') => {
   return true;
 };
 
+const deployTest = async (dataDeploy) => {
+  const failed = [];
+  for (const deploy of dataDeploy) {
+    const deployServerConfPath = fs.existsSync(`./engine-private/replica/${deploy.deployId}/conf.server.json`)
+      ? `./engine-private/replica/${deploy.deployId}/conf.server.json`
+      : `./engine-private/conf/${deploy.deployId}/conf.server.json`;
+    const serverConf = loadReplicas(JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8')));
+    let fail = false;
+    for (const host of Object.keys(serverConf))
+      for (const path of Object.keys(serverConf[host])) {
+        const urlTest = `https://${host}${path}`;
+        try {
+          const result = await axios.get(urlTest);
+          const test = result.data.split('<title>');
+          if (test[1])
+            logger.info('Success deploy', {
+              ...deploy,
+              result: test[1].split('</title>')[0],
+              urlTest,
+            });
+          else {
+            logger.error('Error deploy', {
+              ...deploy,
+              result: result.data,
+              urlTest,
+            });
+            fail = true;
+          }
+        } catch (error) {
+          logger.error('Error deploy', {
+            ...deploy,
+            message: error.message,
+            urlTest,
+          });
+          fail = true;
+        }
+      }
+    if (fail) failed.push(deploy);
+  }
+  return { failed };
+};
+
+const getDeployGroupId = () => {
+  const deployGroupIndexArg = process.argv.findIndex((a) => a.match(`deploy-group:`));
+  if (deployGroupIndexArg > -1) return process.argv[deployGroupIndexArg].split(':')[1].trim();
+  return 'dd';
+};
+
+const getCronBackUpFolder = (host = '', path = '') => {
+  return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
+};
+
+const execDeploy = async (options = { deployId: 'default' }) => {
+  const { deployId } = options;
+  shellExec(Cmd.delete(deployId));
+  shellExec(Cmd.conf(deployId));
+  shellExec(Cmd.run(deployId));
+  return await new Promise(async (resolve) => {
+    const maxTime = 1000 * 60 * 5;
+    const minTime = 10000 * 2;
+    const intervalTime = 1000;
+    let currentTime = 0;
+    const attempt = () => {
+      if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
+        clearInterval(processMonitor);
+        return resolve(true);
+      }
+      cliSpinner(
+        intervalTime,
+        `[deploy.js] `,
+        ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
+        'yellow',
+        'material',
+      );
+      currentTime += intervalTime;
+      if (currentTime >= maxTime) return resolve(false);
+    };
+    const processMonitor = setInterval(attempt, intervalTime);
+  });
+};
+
+const deployRun = async (dataDeploy, reset) => {
+  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
+  if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
+  for (const deploy of dataDeploy) await execDeploy(deploy);
+  const { failed } = await deployTest(dataDeploy);
+  if (failed.length > 0) {
+    for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
+    await read({ prompt: 'Press enter to retry failed processes\n' });
+    await deployRun(failed);
+  } else logger.info(`Deploy process successfully`);
+};
+
+const updateSrc = () => {
+  const silent = true;
+  shellExec(`git pull origin master`, { silent });
+  shellCd(`engine-private`);
+  shellExec(`git pull origin master`, { silent });
+  shellCd(`..`);
+  // shellExec(`npm install && npm install --only=dev`);
+};
+
+const restoreMacroDb = async (deployGroupId = '') => {
+  const dataDeploy = await getDataDeploy({ deployGroupId, buildSingleReplica: false });
+  for (const deployGroup of dataDeploy) {
+    if (!deployGroup.replicaHost) {
+      const deployServerConfPath = `./engine-private/conf/${deployGroup.deployId}/conf.server.json`;
+      const serverConf = JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8'));
+
+      for (const host of Object.keys(serverConf)) {
+        for (const path of Object.keys(serverConf[host])) {
+          const { db, singleReplica } = serverConf[host][path];
+          if (db && !singleReplica) {
+            if (db.provider === 'mongoose') {
+              const cmd = `node bin/db ${host}${path} import ${deployGroup.deployId} cron`;
+              shellExec(cmd);
+            }
+          }
+        }
+      }
+    }
+  }
+};
+
 const Cmd = {
   delete: (deployId) => `pm2 delete ${deployId}`,
   run: (deployId) => `node bin/deploy run ${deployId}`,
@@ -620,4 +746,10 @@ export {
   getDataDeploy,
   validateTemplatePath,
   buildReplicaId,
+  restoreMacroDb,
+  getDeployGroupId,
+  execDeploy,
+  deployRun,
+  updateSrc,
+  getCronBackUpFolder,
 };

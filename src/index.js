@@ -24,7 +24,9 @@ class Underpost {
    * environment variables, the process's administrative privileges,
    * and the maximum available heap space size.
    *
-   * @memberof Underpost
+   * @static
+   * @method setUpInfo
+   * @returns {Promise<void>}
    */
   static async setUpInfo() {
     return await setUpInfo(logger);

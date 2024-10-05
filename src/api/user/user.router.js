@@ -12,9 +12,9 @@ const UserRouter = (options) => {
   (async () => {
     options.png = {
       buffer: {
-        'invalid-token': fs.readFileSync(`./tmp/api-user-invalid-token.png`),
-        recover: fs.readFileSync(`./tmp/api-user-recover.png`),
-        check: fs.readFileSync(`./tmp/api-user-check.png`),
+        'invalid-token': fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-invalid-token.png`),
+        recover: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-recover.png`),
+        check: fs.readFileSync(`./src/client/public/default/assets/mailer/api-user-check.png`),
       },
       header: (res) => {
         res.set('Content-Type', 'image/png');
