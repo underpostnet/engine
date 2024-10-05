@@ -41,7 +41,9 @@ const BackUpManagement = {
       const dataDeploy = getDataDeploy({ deployGroupId });
 
       for (const deployObj of dataDeploy) {
-        const { deployId } = deployObj;
+        const { deployId, replicaHost } = deployObj;
+
+        if (replicaHost) continue;
 
         const confServer = JSON.parse(
           fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
