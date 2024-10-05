@@ -706,10 +706,8 @@ const restoreMacroDb = async (deployGroupId = '') => {
         for (const path of Object.keys(serverConf[host])) {
           const { db, singleReplica } = serverConf[host][path];
           if (db && !singleReplica) {
-            if (db.provider === 'mongoose') {
-              const cmd = `node bin/db ${host}${path} import ${deployGroup.deployId} cron`;
-              shellExec(cmd);
-            }
+            const cmd = `node bin/db ${host}${path} import ${deployGroup.deployId} cron`;
+            shellExec(cmd);
           }
         }
       }

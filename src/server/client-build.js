@@ -79,7 +79,7 @@ const fullBuild = async ({
               .replace('test_dbname', db.name),
             'utf8',
           );
-        }
+        } else logger.error('not provided db config');
         break;
 
       default:
