@@ -70,7 +70,7 @@ try {
             `[mysqldump]
 # The following password will be sent to mysqldump 
 password="${password}"`,
-            'utf9',
+            'utf8',
           );
 
           cmd = `mysqldump --defaults-extra-file=${mysqlPasswordPath} -u ${user} -p ${name} > ${
