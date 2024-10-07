@@ -61,7 +61,7 @@ const BackUpManagement = {
             if (!backupFrequency) backupFrequency = 'daily';
             if (!maxBackupRetention) maxBackupRetention = 5;
 
-            const backUpPath = `./engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
+            const backUpPath = `${process.cwd()}/engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
             if (!fs.existsSync(backUpPath)) fs.mkdirSync(`${backUpPath}`, { recursive: true });
             // .isDirectory()
             const files = await fs.readdir(backUpPath, { withFileTypes: true });
