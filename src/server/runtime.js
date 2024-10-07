@@ -29,6 +29,18 @@ const buildRuntime = async () => {
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
 
+  if (fs.existsSync(`/root/.bashrc`)) {
+    fs.writeFileSync(
+      `/root/.bashrc`,
+      `export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+export PATH=$PATH:/opt/lampp/bin`,
+      'utf8',
+    );
+  }
+
   const promCounterOption = {
     name: `${deployId.replaceAll('-', '_')}_http_requests_total`,
     help: 'Total number of HTTP requests',

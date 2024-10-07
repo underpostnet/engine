@@ -732,15 +732,16 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
 
     // fs.mkdirSync(`./public/${host}${path}`, { recursive: true });
 
-    fs.moveSync(`./${git.split('/').pop()}`, directory ? directory : `./public/${host}${path}`, {
-      overwrite: true,
-    });
+    if (fs.existsSync(`./${git.split('/').pop()}`))
+      fs.moveSync(`./${git.split('/').pop()}`, directory ? directory : `./public/${host}${path}`, {
+        overwrite: true,
+      });
   }
 
   let cmd, currentBackupTimestamp, baseBackUpPath;
 
   if (process.argv.includes('cron')) {
-    baseBackUpPath = `./engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
+    baseBackUpPath = `${process.cwd()}/engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
 
     const files = await fs.readdir(baseBackUpPath, { withFileTypes: true });
 
