@@ -12,7 +12,7 @@ const buildSSL = async (host) => {
   const sslPath = process.env.CERTBOT_LIVE_PATH;
   host = host.replaceAll(`\\`, '/');
   const [hostSSL, path] = host.split('/');
-  if (path) return;
+  if (path || !fs.existsSync(sslPath)) return;
   const files = await fs.readdir(sslPath);
 
   for (const folderHost of files)
