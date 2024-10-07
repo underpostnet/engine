@@ -91,6 +91,7 @@ const BackUpManagement = {
       }
     }
     shellCd(`./engine-private`);
+    shellCd(`git pull origin master`);
     shellExec(`git add . && git commit -m "backup ${new Date().toLocaleDateString()}"`);
     shellExec(`git push origin master`);
     shellCd(`..`);

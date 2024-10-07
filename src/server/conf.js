@@ -715,6 +715,65 @@ const restoreMacroDb = async (deployGroupId = '') => {
   }
 };
 
+const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deployId: '' }) => {
+  const { host, path, conf, deployId } = options;
+  const { runtime, db, git, directory } = conf[host][path];
+  const { provider, name, user, password = '', backupPath = '' } = db;
+
+  if (['xampp', 'lampp'].includes(runtime)) {
+    logger.info('Create database', `node bin/db ${host}${path} create ${deployId}`);
+    shellExec(`node bin/db ${host}${path} create ${deployId}`);
+  }
+
+  if (git) {
+    if (directory && !fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
+
+    shellExec(`git clone ${git}`);
+
+    // fs.mkdirSync(`./public/${host}${path}`, { recursive: true });
+
+    fs.moveSync(`./${git.split('/').pop()}`, directory ? directory : `./public/${host}${path}`, {
+      overwrite: true,
+    });
+  }
+
+  let cmd, currentBackupTimestamp, baseBackUpPath;
+
+  if (process.argv.includes('cron')) {
+    baseBackUpPath = `./engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
+
+    const files = await fs.readdir(baseBackUpPath, { withFileTypes: true });
+
+    currentBackupTimestamp = files
+      .map((fileObj) => parseInt(fileObj.name))
+      .sort((a, b) => a - b)
+      .reverse()[0];
+  }
+
+  switch (provider) {
+    case 'mariadb':
+      {
+        if (process.argv.includes('cron')) {
+          cmd = `mysql -u ${user} -p ${name} < ${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`;
+        } else
+          cmd = `mysql -u ${user} -p ${name} < ${backupPath ? backupPath : `./engine-private/sql-backups/${name}.sql`}`;
+      }
+      break;
+
+    case 'mongoose':
+      {
+        if (process.argv.includes('cron')) {
+          cmd = `mongorestore -d ${name} ${baseBackUpPath}/${currentBackupTimestamp}/${name}`;
+        } else cmd = `mongorestore -d ${name} ${backupPath ? backupPath : `./engine-private/mongodb-backup/${name}`}`;
+      }
+      break;
+  }
+
+  logger.info('Restore', cmd);
+
+  return cmd;
+};
+
 const Cmd = {
   delete: (deployId) => `pm2 delete ${deployId}`,
   run: (deployId) => `node bin/deploy run ${deployId}`,
@@ -750,4 +809,5 @@ export {
   deployRun,
   updateSrc,
   getCronBackUpFolder,
+  getRestoreCronCmd,
 };

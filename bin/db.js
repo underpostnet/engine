@@ -1,13 +1,10 @@
 import fs from 'fs-extra';
-// import read from 'read';
-// import ncp from 'copy-paste';
-
 import { shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
-import { getCapVariableName, getCronBackUpFolder, loadConf } from '../src/server/conf.js';
+import { getCapVariableName, getRestoreCronCmd, loadConf } from '../src/server/conf.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { hashPassword } from '../src/server/auth.js';
 
@@ -23,7 +20,7 @@ try {
   let cmd;
   if (deployId) loadConf(deployId);
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
-  const db = confServer[host][path].db;
+  const { runtime, db, git, client, directory } = confServer[host][path];
   const { provider, name, user, password = '', backupPath = '' } = db;
   // logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
@@ -69,8 +66,7 @@ try {
           shellExec(cmd);
           break;
         case 'import':
-          cmd = `mysql -u ${user} -p ${name} < ${backupPath}`;
-          shellExec(cmd);
+          shellExec(await getRestoreCronCmd({ host, path, conf: confServer, deployId }));
           break;
         case 'init-xampp-service':
           await Xampp.initService();
@@ -127,20 +123,7 @@ try {
           break;
         case 'import':
           // mongorestore -d <database_name> <directory_backup>
-          const backUpPath = `./engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
-          if (process.argv.includes('cron') && fs.existsSync(backUpPath)) {
-            const files = await fs.readdir(backUpPath, { withFileTypes: true });
-
-            const currentBackupTimestamp = files
-              .map((fileObj) => parseInt(fileObj.name))
-              .sort((a, b) => a - b)
-              .reverse()[0];
-
-            const cmd = `mongorestore -d ${name} ${backUpPath}/${currentBackupTimestamp}/${name}`;
-
-            logger.info('Restore', { currentBackupTimestamp: new Date(currentBackupTimestamp), cmd });
-            shellExec(cmd);
-          } else shellExec(`mongorestore -d ${name} ./engine-private/mongodb-backup/${name}`);
+          shellExec(await getRestoreCronCmd({ host, path, conf: confServer, deployId }));
           break;
         case 'init-service':
           break;
