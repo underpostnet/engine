@@ -10,6 +10,11 @@ const Lampp = {
     // linux
     fs.writeFileSync(`/opt/lampp/apache2/conf/httpd.conf`, this.router || '', 'utf8');
     cmd = `sudo /opt/lampp/lampp stop`;
+    fs.writeFileSync(
+      `/opt/lampp/etc/extra/httpd-ssl.conf`,
+      fs.readFileSync(`/opt/lampp/etc/extra/httpd-ssl.conf`, 'utf8').replace(`Listen 443`, `# Listen 443`),
+      'utf8',
+    );
     shellExec(cmd);
     await network.port.portClean(3306);
     for (const port of this.ports) await network.port.portClean(port);
