@@ -62,7 +62,20 @@ try {
           await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
           break;
         case 'export':
-          cmd = `mysqldump --column-statistics=0 -u ${user} -p ${name} > ${arg0 ? `${arg0}/${name}.sql` : backupPath}`;
+          // cmd = `mysqldump --column-statistics=0
+          const mysqlPasswordPath = `./tmp/mysqlpassword.cnf`;
+
+          fs.writeFileSync(
+            mysqlPasswordPath,
+            `[mysqldump]
+# The following password will be sent to mysqldump 
+password="${password}"`,
+            'utf9',
+          );
+
+          cmd = `mysqldump --defaults-extra-file=${mysqlPasswordPath} -u ${user} -p ${name} > ${
+            arg0 ? `${arg0}/${name}.sql` : backupPath
+          }`;
           shellExec(cmd);
           break;
         case 'import':

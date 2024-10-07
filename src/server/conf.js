@@ -76,6 +76,7 @@ const loadConf = (deployId) => {
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
+  if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   const isValidDeployId = fs.existsSync(`${folder}`);
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = isValidDeployId
