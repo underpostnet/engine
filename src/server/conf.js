@@ -534,8 +534,11 @@ const getDataDeploy = (
     if (replicaDataDeploy.length > 0) buildDataDeploy = buildDataDeploy.concat(replicaDataDeploy);
   }
 
-  logger.info('buildDataDeploy', buildDataDeploy);
-  if (!options.disableSyncEnvPort && options.buildSingleReplica) shellExec(Cmd.syncPorts(options.deployGroupId));
+  const enableSyncEnvPort = !options.disableSyncEnvPort && options.buildSingleReplica;
+  if (enableSyncEnvPort) shellExec(Cmd.syncPorts(options.deployGroupId));
+
+  logger.info('buildDataDeploy', { buildDataDeploy, enableSyncEnvPort });
+
   return buildDataDeploy;
 };
 

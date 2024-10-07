@@ -659,6 +659,10 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
           },
         };
 
+        // plantuml
+        logger.info('copy plantuml', `${rootClientPath}/docs/plantuml`);
+        fs.copySync(`./src/client/public/default/plantuml`, `${rootClientPath}/docs/plantuml`);
+
         logger.warn('build swagger api docs', doc.info);
 
         const outputFile = `./public/${host}${path === '/' ? path : `${path}/`}swagger-output.json`;
