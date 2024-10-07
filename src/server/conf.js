@@ -11,6 +11,7 @@ import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import ncp from 'copy-paste';
 import read from 'read';
+import splitFile from 'split-file';
 
 colors.enable();
 dotenv.config();
@@ -716,6 +717,23 @@ const restoreMacroDb = async (deployGroupId = '') => {
   }
 };
 
+const mergeBackUp = async (baseBackJsonPath, outputFilePath) => {
+  const names = JSON.parse(fs.readFileSync(baseBackJsonPath, 'utf8')).map((p) =>
+    p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'),
+  );
+  await new Promise((resolve) => {
+    splitFile
+      .mergeFiles(names, outputFilePath)
+      .then(() => {
+        resolve();
+      })
+      .catch((err) => {
+        console.log('Error: ', err);
+        resolve();
+      });
+  });
+};
+
 const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deployId: '' }) => {
   const { host, path, conf, deployId } = options;
   const { runtime, db, git, directory } = conf[host][path];
@@ -756,9 +774,32 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
     case 'mariadb':
       {
         if (process.argv.includes('cron')) {
-          cmd = `mysql -u ${user} -p ${name} < ${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`;
-        } else
-          cmd = `mysql -u ${user} -p ${name} < ${backupPath ? backupPath : `./engine-private/sql-backups/${name}.sql`}`;
+          cmd = `mysql -u ${user} -p${password} ${name} < ${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`;
+          if (fs.existsSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`))
+            await mergeBackUp(
+              `${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`,
+              `${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`,
+            );
+        } else {
+          cmd = `mysql -u ${user} -p${password} ${name} < ${
+            backupPath ? backupPath : `./engine-private/sql-backups/${name}.sql`
+          }`;
+          if (
+            fs.existsSync(
+              `${
+                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
+              }/${name}-parths.json`,
+            )
+          )
+            await mergeBackUp(
+              `${
+                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
+              }/${name}-parths.json`,
+              `${
+                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
+              }/${name}.sql`,
+            );
+        }
       }
       break;
 
@@ -812,4 +853,5 @@ export {
   updateSrc,
   getCronBackUpFolder,
   getRestoreCronCmd,
+  mergeBackUp,
 };

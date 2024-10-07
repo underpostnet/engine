@@ -63,31 +63,33 @@ try {
           await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
           break;
         case 'export':
-          const cmdBackupPath = `${arg0 ? `${arg0}/${name}.sql` : backupPath}`;
+          {
+            const cmdBackupPath = `${arg0 ? `${arg0}/${name}.sql` : backupPath}`;
 
-          cmd = `mysqldump -u ${user} -p${password} ${name} > ${cmdBackupPath}`;
-          shellExec(cmd);
-          const stats = fs.statSync(cmdBackupPath);
-          const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
-          const fileSizeInBytes = stats.size;
-          if (fileSizeInBytes > maxSizeInBytes) {
-            await new Promise((resolve) => {
-              splitFile
-                .splitFileBySize(cmdBackupPath, maxSizeInBytes) // 50 mb
-                .then((names) => {
-                  fs.writeFileSync(
-                    `${cmdBackupPath.split('/').slice(0, -1).join('/')}/parths.json`,
-                    JSON.stringify(names, null, 4),
-                    'utf8',
-                  );
-                  resolve();
-                })
-                .catch((err) => {
-                  console.log('Error: ', err);
-                  resolve();
-                });
-            });
-            fs.removeSync(cmdBackupPath);
+            cmd = `mysqldump -u ${user} -p${password} ${name} > ${cmdBackupPath}`;
+            shellExec(cmd);
+            const stats = fs.statSync(cmdBackupPath);
+            const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
+            const fileSizeInBytes = stats.size;
+            if (fileSizeInBytes > maxSizeInBytes) {
+              await new Promise((resolve) => {
+                splitFile
+                  .splitFileBySize(cmdBackupPath, maxSizeInBytes) // 50 mb
+                  .then((names) => {
+                    fs.writeFileSync(
+                      `${cmdBackupPath.split('/').slice(0, -1).join('/')}/${name}-parths.json`,
+                      JSON.stringify(names, null, 4),
+                      'utf8',
+                    );
+                    resolve();
+                  })
+                  .catch((err) => {
+                    console.log('Error: ', err);
+                    resolve();
+                  });
+              });
+              fs.removeSync(cmdBackupPath);
+            }
           }
           break;
         case 'import':
