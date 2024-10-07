@@ -7,7 +7,7 @@ import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
-import { shellExec } from './process.js';
+import { shellExec, shellCd } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import ncp from 'copy-paste';
 import read from 'read';
