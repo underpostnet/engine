@@ -29,12 +29,14 @@ const buildRuntime = async () => {
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
 
-  if (fs.existsSync(`/root/.bashrc`)) {
+  if (fs.existsSync(`/root/.bashrc`) && !fs.readFileSync(`/root/.bashrc`, 'utf8').match(`underpost-engine`)) {
     fs.writeFileSync(
       `/root/.bashrc`,
-      `export NVM_DIR="$HOME/.nvm"
+      `${fs.readFileSync(`/root/.bashrc`, 'utf8')}
+` +
+        `export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm underpost-engine bash_completion
 
 export PATH=$PATH:/opt/lampp/bin`,
       'utf8',
