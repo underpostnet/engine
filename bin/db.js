@@ -76,7 +76,7 @@ try {
                 .splitFileBySize(cmdBackupPath, maxSizeInBytes) // 50 mb
                 .then((names) => {
                   fs.writeFileSync(
-                    `${cmdBackupPath.split('/').join('/')}parths.json`,
+                    `${cmdBackupPath.split('/').slice(0, -1).join('/')}/parths.json`,
                     JSON.stringify(names, null, 4),
                     'utf8',
                   );
