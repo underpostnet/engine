@@ -812,7 +812,7 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
       break;
   }
 
-  logger.info('Restore', cmd);
+  // logger.info('Restore', cmd);
 
   return cmd;
 };
