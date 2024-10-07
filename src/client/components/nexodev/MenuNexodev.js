@@ -20,7 +20,7 @@ import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
-import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthcare.js';
+import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthCare.js';
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
