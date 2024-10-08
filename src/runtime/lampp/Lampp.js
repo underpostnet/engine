@@ -22,6 +22,19 @@ const Lampp = {
         fs.readFileSync(`/opt/lampp/etc/extra/httpd-ssl.conf`, 'utf8').replace(`Listen 443`, `# Listen 443`),
         'utf8',
       );
+    if (!fs.readFileSync(`/opt/lampp/lampp`, 'utf8').match(`testport 443 && false`))
+      fs.writeFileSync(
+        `/opt/lampp/lampp`,
+        fs.readFileSync(`/opt/lampp/lampp`, 'utf8').replace(`testport 443`, `testport 443 && false`),
+        'utf8',
+      );
+    if (!fs.readFileSync(`/opt/lampp/lampp`, 'utf8').match(`testport 80 && false`))
+      fs.writeFileSync(
+        `/opt/lampp/lampp`,
+        fs.readFileSync(`/opt/lampp/lampp`, 'utf8').replace(`testport 80`, `testport 80 && false`),
+        'utf8',
+      );
+
     shellExec(cmd);
     await network.port.portClean(3306);
     for (const port of this.ports) await network.port.portClean(port);
