@@ -1,9 +1,11 @@
-name: Publish Package to npmjs
+name: publish to npmjs
 on:
   release:
-    types: [published]
+    types: [released]
 jobs:
-  build:
+  build-and-publish:
+    # prevents this action from running on forks
+    if: github.repository == 'underpostnet/pwa-microservices-template'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -14,6 +16,10 @@ jobs:
         with:
           node-version: '21.x'
           registry-url: 'https://registry.npmjs.org'
+
+      - name: Install Dependencies
+        run: npm install
+
       - run: npm ci
       - run: npm publish --provenance --access public
         env:
