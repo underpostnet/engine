@@ -59,6 +59,55 @@ const MongooseDB = {
         }
         break;
       case 'linux':
+        {
+          logger.info('remove');
+          shellExec(`sudo apt-get purge mongodb-org*`);
+          shellExec(`sudo rm -r /var/log/mongodb`);
+          shellExec(`sudo rm -r /var/lib/mongodb`);
+          // restore lib
+          // shellExec(`sudo chown -R mongodb:mongodb /var/lib/mongodb/*`);
+
+          if (process.argv.includes('legacy')) {
+            logger.info('install legacy 4.4');
+            shellExec(`wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -`);
+
+            shellExec(
+              `echo "deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/4.4 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-4.4.list`,
+            );
+
+            shellExec(`sudo apt-get update`);
+
+            shellExec(
+              `sudo apt-get install mongodb-org=4.4.8 mongodb-org-server=4.4.8 mongodb-org-shell=4.4.8 mongodb-org-mongos=4.4.8 mongodb-org-tools=4.4.8`,
+            );
+          } else {
+            logger.info('install 7.0');
+            shellExec(`curl -fsSL https://www.mongodb.org/static/pgp/server-7.0.asc | \
+   sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg \
+   --dearmor`);
+            shellExec(
+              `echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list`,
+            );
+
+            shellExec(`sudo apt-get update`);
+
+            shellExec(`sudo apt-get install -y mongodb-org`);
+          }
+
+          logger.info('run server');
+          shellExec(`sudo systemctl unmask mongod`);
+          shellExec(`sudo pkill -f mongod`);
+          shellExec(`sudo systemctl enable mongod.service`);
+
+          shellExec(`sudo chown -R mongodb:mongodb /var/lib/mongodb`);
+          shellExec(`sudo chown mongodb:mongodb /tmp/mongodb-27017.sock`);
+
+          shellExec(`sudo service mongod restart`);
+
+          logger.info('check status');
+          shellExec(`sudo systemctl status mongod`);
+          shellExec(`sudo systemctl --type=service | grep mongo`);
+        }
         break;
       default:
         break;

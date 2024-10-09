@@ -30,6 +30,7 @@ import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
 import toJsonSchema from 'to-json-schema';
 import simpleGit from 'simple-git';
+import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -574,6 +575,12 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       }
 
       break;
+
+    case 'install-mongodb': {
+      await MongooseDB.install();
+      break;
+    }
+
     default:
       break;
   }
