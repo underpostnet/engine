@@ -116,7 +116,7 @@ const MongooseDB = {
           checkStatus();
           // every 30 minute
           cron.schedule(
-            '/30 * * * *',
+            '0 */30 * * * *',
             async () => {
               checkStatus();
             },
