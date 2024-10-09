@@ -164,12 +164,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
       if (redirect || disabledRebuild) continue;
 
-      if (!enableLiveRebuild && runtime === 'lampp' && client === 'wordpress') {
-        shellExec(`node bin/install linux wordpress ${host}${path}`);
-        shellExec(`node bin/db ${host}${path} create`);
-        continue;
-      }
-
       if (fullBuildEnabled) {
         //  !(confServer[host]['/'] && confServer[host]['/'].liteBuild)
         await fullBuild({

@@ -14,10 +14,7 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-// usage
-// node bin/ssl windows <deploy-id> www.example.com
-
-const [exe, dir, os, deployId, hosts] = process.argv;
+const [exe, dir, deployId, hosts] = process.argv;
 
 try {
   let cmd;
@@ -44,14 +41,7 @@ try {
       await ncp.copy(cmd);
       await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
       // Certificate
-      switch (os) {
-        case 'windows':
-          await buildSSL(host);
-          break;
-
-        default:
-          break;
-      }
+      await buildSSL(host);
       logger.info('Certificate saved', host);
     } else throw new Error(`host not found: ${host}`);
   }
