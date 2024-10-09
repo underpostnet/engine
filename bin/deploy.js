@@ -31,6 +31,7 @@ import { range, setPad, timer, uniqueArray } from '../src/client/components/core
 import toJsonSchema from 'to-json-schema';
 import simpleGit from 'simple-git';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
+import { Lampp } from '../src/runtime/lampp/Lampp.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -579,6 +580,10 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     case 'mongo': {
       await MongooseDB.server();
       break;
+    }
+
+    case 'lampp': {
+      await Lampp.install();
     }
 
     default:

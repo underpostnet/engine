@@ -53,13 +53,13 @@ const ProcessController = {
   },
 };
 
-const shellExec = (cmd, options = { silent: false, async: false, stdout: false, disableLog: true }) => {
+const shellExec = (cmd, options = { silent: false, async: false, stdout: false, disableLog: false }) => {
   if (!options.disableLog) logger.info(`cmd`, cmd);
   return options.stdout ? shell.exec(cmd, options).stdout : shell.exec(cmd, options);
 };
 
-const shellCd = (cd, options = { disableLog: true }) => {
-  if (options.disableLog) logger.info(`cd`, cd);
+const shellCd = (cd, options = { disableLog: false }) => {
+  if (!options.disableLog) logger.info(`cd`, cd);
   return shell.cd(cd);
 };
 

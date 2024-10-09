@@ -1,7 +1,10 @@
 import fs from 'fs-extra';
 import { network } from '../../server/network.js';
-import { shellExec } from '../../server/process.js';
+import { shellCd, shellExec } from '../../server/process.js';
 import { timer } from '../../client/components/core/CommonJs.js';
+import { loggerFactory } from '../../server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 const Lampp = {
   ports: [],
@@ -63,6 +66,39 @@ const Lampp = {
   removeRouter: function () {
     this.router = undefined;
     if (fs.existsSync(`./tmp/lampp-router.conf`)) fs.rmSync(`./tmp/lampp-router.conf`);
+  },
+  install: async function () {
+    switch (process.platform) {
+      case 'linux':
+        {
+          if (!fs.existsSync(`./engine-private/setup`)) fs.mkdirSync(`./engine-private/setup`, { recursive: true });
+
+          shellCd(`./engine-private/setup`);
+
+          if (!process.argv.includes(`server`)) {
+            shellExec(
+              `curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.30/xampp-linux-x64-7.4.30-1-installer.run?from_af=true`,
+            );
+          }
+
+          shellExec(`sudo chmod +x xampp-linux-installer.run`);
+          shellExec(
+            `sudo ./xampp-linux-installer.run --mode unattended && \\` +
+              `ln -sf /opt/lampp/lampp /usr/bin/lampp && \\` +
+              `sed -i.bak s'/Require local/Require all granted/g' /opt/lampp/etc/extra/httpd-xampp.conf && \\` +
+              `sed -i.bak s'/display_errors=Off/display_errors=On/g' /opt/lampp/etc/php.ini && \\` +
+              `mkdir /opt/lampp/apache2/conf.d && \\` +
+              `echo "IncludeOptional /opt/lampp/apache2/conf.d/*.conf" >> /opt/lampp/etc/httpd.conf && \\` +
+              `mkdir /www && \\` +
+              `ln -s /www /opt/lampp/htdocs`,
+          );
+        }
+
+        break;
+
+      default:
+        break;
+    }
   },
 };
 
