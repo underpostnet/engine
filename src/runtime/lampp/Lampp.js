@@ -79,19 +79,29 @@ const Lampp = {
             shellExec(
               `curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.30/xampp-linux-x64-7.4.30-1-installer.run?from_af=true`,
             );
+            shellExec(`sudo chmod +x xampp-linux-installer.run`);
+            shellExec(
+              `sudo ./xampp-linux-installer.run --mode unattended && \\` +
+                `ln -sf /opt/lampp/lampp /usr/bin/lampp && \\` +
+                `sed -i.bak s'/Require local/Require all granted/g' /opt/lampp/etc/extra/httpd-xampp.conf && \\` +
+                `sed -i.bak s'/display_errors=Off/display_errors=On/g' /opt/lampp/etc/php.ini && \\` +
+                `mkdir /opt/lampp/apache2/conf.d && \\` +
+                `echo "IncludeOptional /opt/lampp/apache2/conf.d/*.conf" >> /opt/lampp/etc/httpd.conf && \\` +
+                `mkdir /www && \\` +
+                `ln -s /www /opt/lampp/htdocs`,
+            );
+
+            if (fs.existsSync(`/opt/lampp/logs/access_log`))
+              fs.copySync(`/opt/lampp/logs/access_log`, `/opt/lampp/logs/access.log`);
+            if (fs.existsSync(`/opt/lampp/logs/error_log`))
+              fs.copySync(`/opt/lampp/logs/error_log`, `/opt/lampp/logs/error.log`);
+            if (fs.existsSync(`/opt/lampp/logs/php_error_log`))
+              fs.copySync(`/opt/lampp/logs/php_error_log`, `/opt/lampp/logs/php_error.log`);
+            if (fs.existsSync(`/opt/lampp/logs/ssl_request_log`))
+              fs.copySync(`/opt/lampp/logs/ssl_request_log`, `/opt/lampp/logs/ssl_request.log`);
           }
 
-          shellExec(`sudo chmod +x xampp-linux-installer.run`);
-          shellExec(
-            `sudo ./xampp-linux-installer.run --mode unattended && \\` +
-              `ln -sf /opt/lampp/lampp /usr/bin/lampp && \\` +
-              `sed -i.bak s'/Require local/Require all granted/g' /opt/lampp/etc/extra/httpd-xampp.conf && \\` +
-              `sed -i.bak s'/display_errors=Off/display_errors=On/g' /opt/lampp/etc/php.ini && \\` +
-              `mkdir /opt/lampp/apache2/conf.d && \\` +
-              `echo "IncludeOptional /opt/lampp/apache2/conf.d/*.conf" >> /opt/lampp/etc/httpd.conf && \\` +
-              `mkdir /www && \\` +
-              `ln -s /www /opt/lampp/htdocs`,
-          );
+          Lampp.initService();
         }
 
         break;
