@@ -101,7 +101,7 @@ const Lampp = {
               fs.copySync(`/opt/lampp/logs/ssl_request_log`, `/opt/lampp/logs/ssl_request.log`);
           }
 
-          Lampp.initService();
+          await Lampp.initService({ daemon: true });
         }
 
         break;

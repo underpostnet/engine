@@ -253,6 +253,19 @@ try {
 
                 shellExec(Cmd.replica(deployId, host, path));
               }
+              if (serverConf[host][path].db) {
+                switch (serverConf[host][path].db.provider) {
+                  case 'mariadb':
+                    {
+                      shellExec(`node bin/db ${host}${path} create ${deployId}`);
+                    }
+
+                    break;
+
+                  default:
+                    break;
+                }
+              }
             }
           }
         }
