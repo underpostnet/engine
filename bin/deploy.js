@@ -576,8 +576,8 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
       break;
 
-    case 'install-mongodb': {
-      await MongooseDB.install();
+    case 'mongo': {
+      await MongooseDB.server();
       break;
     }
 
