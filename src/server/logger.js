@@ -177,4 +177,13 @@ const loggerMiddleware = (meta = { url: '' }) => {
   );
 };
 
-export { loggerFactory, loggerMiddleware, setUpInfo };
+const underpostASCI = () => `
+▗▖ ▗▖▗▖  ▗▖▗▄▄▄  ▗▄▄▄▖▗▄▄▖ ▄▄▄▄   ▄▄▄   ▄▄▄  ■  
+▐▌ ▐▌▐▛▚▖▐▌▐▌  █ ▐▌   ▐▌ ▐▌█   █ █   █ ▀▄▄▗▄▟▙▄▖
+▐▌ ▐▌▐▌ ▝▜▌▐▌  █ ▐▛▀▀▘▐▛▀▚▖█▄▄▄▀ ▀▄▄▄▀ ▄▄▄▀ ▐▌  
+▝▚▄▞▘▐▌  ▐▌▐▙▄▄▀ ▐▙▄▄▖▐▌ ▐▌█                ▐▌  
+                           ▀                ▐▌  
+                                                
+                                                `;
+
+export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCI };

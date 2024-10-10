@@ -105,7 +105,7 @@ const MongooseDB = {
           shellExec(`sudo chown mongodb:mongodb /tmp/mongodb-27017.sock`);
 
           logger.info('run server');
-          shellExec(`sudo service mongod restart`, { async: true });
+          shellExec(`sudo service mongod restart`);
 
           const checkStatus = () => {
             logger.info('check status');
@@ -114,6 +114,7 @@ const MongooseDB = {
           };
 
           checkStatus();
+          break;
           // every 30 minute
           cron.schedule(
             '0 */30 * * * *',
