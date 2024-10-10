@@ -10,11 +10,6 @@ const logger = loggerFactory(import.meta);
 
 logger.info('argv', process.argv);
 
-// usage:
-// node bin/file create './wena que-onda.py'
-// node bin/file create js-module './wena que-onda.js'
-// node bin/file copy-src 'c:/dd/excel-api' 'c:/dd/engine/engine-private/deploy/excel-api'
-
 let [exe, dir, type] = process.argv;
 let rawPath = process.argv[3].replaceAll(`'`, '');
 let toPath = process.argv[4].replaceAll(`'`, '');
@@ -75,6 +70,12 @@ try {
         logger.info('build', `${toPath}/${copyPath}`);
 
         fs.copyFileSync(absolutePath, `${toPath}/${copyPath}`);
+      }
+
+      if (type === 'update-template') {
+        fs.copySync(`./.vscode`, `../pwa-microservices-template/.vscode`);
+        fs.copySync(`./.github`, `../pwa-microservices-template/.github`);
+        fs.copySync(`./src/client/public/default`, `../pwa-microservices-template/src/client/public/default`);
       }
 
       break;
