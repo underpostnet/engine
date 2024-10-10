@@ -30,7 +30,7 @@ program
     console.log(
       underpostASCI() +
         `
-      v${version} https://www.nexodev.org/docs
+    v${version} https://www.nexodev.org/docs
     `,
     );
     await logger.setUpInfo();
