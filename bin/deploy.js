@@ -490,6 +490,21 @@ try {
     case 'build-macro-replica':
       getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
       break;
+
+    case 'rename-package': {
+      const name = process.argv[3];
+      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      originPackage.name = name;
+      fs.writeFileSync(`./package.json`, JSON.stringify(originPackage, null, 4), 'utf8');
+
+      const originPackageLockJson = JSON.parse(fs.readFileSync(`./package-lock.json`, 'utf8'));
+      originPackageLockJson.name = name;
+      originPackageLockJson.packages[''].name = name;
+      fs.writeFileSync(`./package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
+
+      break;
+    }
+
     case 'update-version':
       {
         const newVersion = process.argv[3];

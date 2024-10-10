@@ -21,6 +21,33 @@ jobs:
         run: npm install
 
       - run: npm ci
-      - run: npm publish --provenance --access public
+
+      # Publish to npm
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '21.x'
+          registry-url: 'https://registry.npmjs.org'
+          # Defaults to the user or organization that owns the workflow file
+          # scope: '@underpostnet'
+      - env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        name: Publish to npm
+        run: npm publish --provenance --access public
+
+      # Publish to GitHub Packages
+      - name: Setup node to publish to GitHub Packages
+        uses: actions/setup-node@v4
+        with:
+          node-version: 21.x
+          registry-url: 'https://npm.pkg.github.com'
+          # Defaults to the user or organization that owns the workflow file
+          scope: '@underpostnet'
+
+      - run: |
+          node ./bin/deploy rename-package @underpostnet/underpost
+          npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}
+          echo "//npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}" > ~/.npmrc
+          echo "@underposnet:registry=https://npm.pkg.github.com" >> ~/.npmrc
+          npm publish
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

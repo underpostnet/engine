@@ -19,7 +19,7 @@ const globalBinFolder = `${shellExec(`npm root -g`, {
 
 const program = new Command();
 
-const version = '2.7.2';
+const version = '2.7.5';
 
 program.name('underpost').description(`underpost.net ci/cd cli ${version}`).version(version);
 
@@ -62,6 +62,12 @@ program
   .command('test')
   .description('Run tests')
   .action(() => {
+    console.log(
+      underpostASCI() +
+        `
+    v${version} https://www.nexodev.org/docs
+    `,
+    );
     shellCd(`${globalBinFolder}`);
     shellExec(`npm run test`);
   });
