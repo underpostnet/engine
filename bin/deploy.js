@@ -568,6 +568,8 @@ try {
           fs.readFileSync(`./bin/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
           'utf8',
         );
+
+        shellExec(`node bin/deploy update-package`);
       }
       break;
 
