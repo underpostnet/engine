@@ -20,7 +20,24 @@ const TransactionSchema = new Schema({
   signature: { type: String, required: true, immutable: true },
 });
 
-const BlockSchema = new Schema({
+// Accountant validator protocol
+
+const PoSBlockSchema = new Schema({
+  // The hash of the previous block in the blockchain.
+  // If it is the first block previousHash is null
+  previousHash: { type: String, required: true, immutable: true },
+  // A list of transactions included in the block.
+  transactions: { type: [TransactionSchema], required: true, immutable: true },
+  // The timestamp of the block
+  timestamp: { type: Number, required: true, immutable: true },
+});
+
+const PoSBlockChainSchema = new Schema({
+  // A list of blocks in the blockchain.
+  blocks: [PoSBlockSchema],
+});
+
+const PoWBlockSchema = new Schema({
   // The hash of the previous block in the blockchain.
   // If it is the first block previousHash is null
   previousHash: { type: String, required: true, immutable: true },
@@ -35,7 +52,7 @@ const BlockSchema = new Schema({
   timestamp: { type: Number, required: true, immutable: true },
 });
 
-const BlockChainSchema = new Schema({
+const PoWBlockChainSchema = new Schema({
   // TODO: if add closed block to chain, validate:
   //    - previousHash with hashing block algorithm defined
   //    - transaction key format
@@ -43,7 +60,7 @@ const BlockChainSchema = new Schema({
   //    - block timestamp with last block
 
   // A list of blocks in the blockchain.
-  blocks: [BlockSchema],
+  blocks: [PoWBlockSchema],
   // The format of the transaction public keys, such as JWK.
   transactionKeyFormat: {
     format: { type: String, required: true, immutable: true },
@@ -60,6 +77,9 @@ const BlockChainSchema = new Schema({
     digest: { type: String, required: true, immutable: true },
   },
 });
+
+// default blockchain schema
+const BlockChainSchema = PoSBlockChainSchema;
 
 const BlockChainModel = model('BlockChain', BlockChainSchema);
 

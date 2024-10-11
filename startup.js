@@ -8,4 +8,4 @@ shellExec(`sudo /opt/lampp/lampp start`, { async: true });
 
 shellExec(`/usr/bin/mongod -f /etc/mongod.conf`, { async: true });
 
-shellExec(`underpost new app`);
+shellExec(`underpost new app server`);

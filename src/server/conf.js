@@ -12,6 +12,16 @@ import { DefaultConf } from '../../conf.js';
 import ncp from 'copy-paste';
 import read from 'read';
 import splitFile from 'split-file';
+import axios from 'axios';
+import https from 'https';
+
+axios.defaults.baseURL = BASE_URL;
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
+axios.defaults.httpsAgent = httpsAgent;
 
 colors.enable();
 dotenv.config();
