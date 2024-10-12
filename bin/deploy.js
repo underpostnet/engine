@@ -614,6 +614,42 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
     case 'lampp': {
       await Lampp.install();
+      break;
+    }
+
+    case 'heb': {
+      // https://besu.hyperledger.org/
+      // https://github.com/hyperledger/besu/archive/refs/tags/24.9.1.tar.gz
+
+      switch (process.platform) {
+        case 'linux':
+          {
+            shellCd(`..`);
+
+            // Download the Linux binary
+            shellExec(`wget https://github.com/hyperledger/besu/releases/download/24.9.1/besu-24.9.1.tar.gz`);
+
+            // Unzip the file:
+            shellExec(`tar -xvzf besu-24.9.1.tar.gz`);
+
+            shellCd(`besu-24.9.1`);
+
+            shellExec(`bin/besu --help`);
+
+            // Set env path
+            // export PATH=$PATH:/dd/besu-24.9.1/bin
+
+            // Open src
+            // shellExec(`sudo code /dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
+          }
+
+          break;
+
+        default:
+          break;
+      }
+
+      break;
     }
 
     default:

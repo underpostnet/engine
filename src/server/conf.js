@@ -15,7 +15,7 @@ import splitFile from 'split-file';
 import axios from 'axios';
 import https from 'https';
 
-axios.defaults.baseURL = BASE_URL;
+// axios.defaults.baseURL = BASE_URL;
 
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
