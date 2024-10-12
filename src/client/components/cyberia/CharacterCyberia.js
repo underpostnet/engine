@@ -1,7 +1,7 @@
 import Sortable from 'sortablejs';
 import { getId, range, timer, uniqueArray } from '../core/CommonJs.js';
 import { ItemModal, Slot, SlotEvents } from './BagCyberia.js';
-import { CharacterCyberiaSlotType } from './CommonCyberia.js';
+import { CharacterCyberiaStatsType } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { htmls, s } from '../core/VanillaJs.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -27,7 +27,7 @@ const CharacterCyberia = {
     setTimeout(async () => {
       const type = 'user';
       const id = 'main';
-      for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
+      for (const componentType of Object.keys(CharacterCyberiaStatsType)) {
         if (!ElementsCyberia.Data[type][id].components[componentType]) continue;
         this.RenderCharacterCyberiaSLot({ type, id, componentType });
       }
@@ -135,7 +135,7 @@ const CharacterCyberia = {
       <div class="fl">
         <div class="in fll section-mp character-container">
           <div class="in character-equip-container">
-            ${Object.keys(CharacterCyberiaSlotType)
+            ${Object.keys(CharacterCyberiaStatsType)
               .map((slotType, i) => {
                 setTimeout(() => {
                   this.Data[idModal].sortable[slotType] = new Sortable(s(`.character-slot-container-${slotType}`), {

@@ -26,6 +26,7 @@ const CyberiaUserSchema = new Schema({
   cooldown: { type: Number, default: 750 },
   timeLife: { type: Number, default: 300 },
   damage: { type: Number, default: 10 },
+  heal: { type: Number, default: 7 },
   lifeRegeneration: { type: Number, default: 5 },
   lifeRegenerationVel: { type: Number, default: 1500 },
   behavior: { type: String, default: 'user' },

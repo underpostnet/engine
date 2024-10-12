@@ -16,7 +16,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CharacterCyberiaSlotType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
+import { CharacterCyberiaStatsType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
@@ -568,7 +568,7 @@ const PixiCyberia = {
 
     let dim = this.MetaData.dim / MatrixCyberia.Data.dim;
 
-    for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
+    for (const componentType of Object.keys(CharacterCyberiaStatsType)) {
       if (!this.Data[type][id].components[componentType]) continue;
       // clear
       if (this.Data[type][id].intervals && this.Data[type][id].intervals[componentType]) {
@@ -822,7 +822,7 @@ const PixiCyberia = {
     const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
     if (currentDataSkin) skinPosition = currentDataSkin.position;
 
-    for (const componentType of Object.keys(CharacterCyberiaSlotType))
+    for (const componentType of Object.keys(CharacterCyberiaStatsType))
       if (this.Data[type][id].intervals[componentType]) {
         const currentComponentData = ElementsCyberia.Data[type][id].components[componentType].find((s) => s.enabled);
 

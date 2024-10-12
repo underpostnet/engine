@@ -384,7 +384,7 @@ const Stat = {
       element.coin = oldElement.coin;
     }
 
-    for (const componentType of Object.keys(CharacterCyberiaSlotType)) {
+    for (const componentType of Object.keys(CharacterCyberiaStatsType)) {
       if (!element.components[componentType]) continue;
       const component = element.components[componentType].find((e) => e.current);
       if (component) {
@@ -1203,7 +1203,7 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
   return element;
 };
 
-const CharacterCyberiaSlotType = {
+const CharacterCyberiaStatsType = {
   skin: {},
   weapon: {},
   'faction-symbol': {},
@@ -1211,6 +1211,12 @@ const CharacterCyberiaSlotType = {
   legs: {},
   helmet: {},
   talisman: {},
+};
+
+const CyberiaItemsType = {
+  ...CharacterCyberiaStatsType,
+  coin: {},
+  questItem: {},
 };
 
 const BehaviorElement = {
@@ -1292,7 +1298,7 @@ export {
   updateMovementDirection,
   BaseMatrixCyberia,
   getCollisionMatrixCyberia,
-  CharacterCyberiaSlotType,
+  CharacterCyberiaStatsType,
   PositionsComponent,
   Stat,
   setElementConsistency,
@@ -1303,4 +1309,5 @@ export {
   CyberiaServer,
   getK,
   DisplayComponent,
+  CyberiaItemsType,
 };
