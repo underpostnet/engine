@@ -2,6 +2,7 @@ import { Schema, model, Types } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
+// Data to hyperledger besu
 const TransactionSchema = new Schema({
   transaction: {
     // The sender public key of the transaction.
@@ -10,7 +11,7 @@ const TransactionSchema = new Schema({
     // The recipient public key  of the transaction.
     recipient: { type: String, required: true, immutable: true },
     // The value of the transaction, which can be an amount of currencies or array ipfs cid.
-    // TODO: reward algorithm
+    // @link reward algorithm
     value: { type: String, required: true, immutable: true },
     // The timestamp of the transaction.
     timestamp: { type: Number, required: true, immutable: true },
@@ -22,14 +23,13 @@ const TransactionSchema = new Schema({
 
 // Accountant validator protocol
 
+// internal registration
 const PoSBlockSchema = new Schema({
   // The hash of the previous block in the blockchain.
   // If it is the first block previousHash is null
   previousHash: { type: String, required: true, immutable: true },
   // A list of transactions included in the block.
   transactions: { type: [TransactionSchema], required: true, immutable: true },
-  // The timestamp of the block
-  timestamp: { type: Number, required: true, immutable: true },
 });
 
 const PoSBlockChainSchema = new Schema({
@@ -37,6 +37,7 @@ const PoSBlockChainSchema = new Schema({
   blocks: [PoSBlockSchema],
 });
 
+// PoW test Block version
 const PoWBlockSchema = new Schema({
   // The hash of the previous block in the blockchain.
   // If it is the first block previousHash is null
@@ -44,7 +45,7 @@ const PoWBlockSchema = new Schema({
   // A random value used in the mining process.
   nonce: { type: String, required: true, immutable: true },
   // The target hash for the block, which determines the difficulty of mining.
-  // TODO: difficulty algorithm
+  // @link difficulty algorithm
   target: { type: String, required: true, immutable: true },
   // A list of transactions included in the block.
   transactions: { type: [TransactionSchema], required: true, immutable: true },
@@ -52,8 +53,9 @@ const PoWBlockSchema = new Schema({
   timestamp: { type: Number, required: true, immutable: true },
 });
 
+// PoW test BlockChain version
 const PoWBlockChainSchema = new Schema({
-  // TODO: if add closed block to chain, validate:
+  // @link blockchain validator logic protocol
   //    - previousHash with hashing block algorithm defined
   //    - transaction key format
   //    - sort timestamp transactions and validate with last transaction timestamp of last block
@@ -78,7 +80,7 @@ const PoWBlockChainSchema = new Schema({
   },
 });
 
-// default blockchain schema
+// default blockchain schema (PoS)
 const BlockChainSchema = PoSBlockChainSchema;
 
 const BlockChainModel = model('BlockChain', BlockChainSchema);
