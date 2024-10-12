@@ -82,9 +82,10 @@ const Docs = {
         return `${getProxyPath()}docs/coverage`;
       },
       themeEvent: () => {
-        s(`.doc-icon-coverage`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
-          window.getComputedStyle(s('html')).color,
-        )}`;
+        if (s(`.doc-icon-coverage`))
+          s(`.doc-icon-coverage`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
+            window.getComputedStyle(s('html')).color,
+          )}`;
       },
     },
     {
@@ -95,9 +96,10 @@ const Docs = {
         return `https://coveralls.io/github/underpostnet/engine`;
       },
       themeEvent: () => {
-        s(`.doc-icon-coverage-link`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
-          window.getComputedStyle(s('html')).color,
-        )}`;
+        if (s(`.doc-icon-coverage-link`))
+          s(`.doc-icon-coverage-link`).src = `https://cdn.simpleicons.org/coveralls/${rgbToHex(
+            window.getComputedStyle(s('html')).color,
+          )}`;
       },
     },
   ].concat(
