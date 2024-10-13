@@ -1204,6 +1204,7 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
 };
 
 const CharacterCyberiaStatsType = {
+  // ERC-721
   skin: {},
   weapon: {},
   'faction-symbol': {},
@@ -1215,7 +1216,8 @@ const CharacterCyberiaStatsType = {
 
 const CyberiaItemsType = {
   ...CharacterCyberiaStatsType,
-  coin: {},
+  coin: {}, // centralized internal server coin
+  cryptokoyn: {}, // ERC-20
   questItem: {},
 };
 

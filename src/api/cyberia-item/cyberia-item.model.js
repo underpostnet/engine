@@ -21,6 +21,7 @@ const CyberiaItemSchema = new Schema({
           heal: { type: Number },
           lifeRegeneration: { type: Number },
           lifeRegenerationVel: { type: Number },
+          cooldown: { type: Number },
         },
         required: true,
         default: {},
