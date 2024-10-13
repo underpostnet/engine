@@ -681,6 +681,12 @@ function rgbToHex(rgb) {
 
 const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')).replaceAll(' ', '');
 
+const hexToNumber = (hex = 0xdc) => Number(hex) || parseInt(hex, 16);
+
+// 0x = Hexadecimal
+// 0b = Binary
+// 0o = Octal
+
 export {
   s4,
   range,
@@ -732,4 +738,5 @@ export {
   componentFromStr,
   rgbToHex,
   getCapVariableName,
+  hexToNumber,
 };
