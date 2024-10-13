@@ -5,38 +5,34 @@ import { BehaviorElement, CyberiaItemsType } from '../../client/components/cyber
 
 // All cyberia items associated with a public key can fully reconstruct a character's game state.
 
-const CyberiaItemSchema = new Schema(
-  {
-    data: {
-      type: {
-        itemType: { type: String, enum: Object.keys(CyberiaItemsType), required: true },
-        stats: {
-          type: {
-            dim: { type: Number },
-            vel: { type: Number },
-            maxLife: { type: Number },
-            life: { type: Number },
-            deadTime: { type: Number },
-            timeLife: { type: Number },
-            damage: { type: Number },
-            heal: { type: Number },
-            lifeRegeneration: { type: Number },
-            lifeRegenerationVel: { type: Number },
-          },
-          required: true,
-          default: {},
+const CyberiaItemSchema = new Schema({
+  data: {
+    type: {
+      itemType: { type: String, enum: Object.keys(CyberiaItemsType), required: true },
+      stats: {
+        type: {
+          dim: { type: Number },
+          vel: { type: Number },
+          maxLife: { type: Number },
+          life: { type: Number },
+          deadTime: { type: Number },
+          timeLife: { type: Number },
+          damage: { type: Number },
+          heal: { type: Number },
+          lifeRegeneration: { type: Number },
+          lifeRegenerationVel: { type: Number },
         },
-        behavior: { type: String, enum: Object.keys(BehaviorElement) },
-        id: { type: String, required: true },
+        required: true,
+        default: {},
       },
-      immutable: true,
+      behavior: { type: String, enum: Object.keys(BehaviorElement) },
+      timestamp: { type: Number, required: true },
+      id: { type: String, required: true },
     },
-    cid: { type: String, required: true, immutable: true }, // ipfs cid of JSON.stringify(item.data)
+    immutable: true,
   },
-  {
-    timestamps: true,
-  },
-);
+  cid: { type: String, required: true, immutable: true }, // ipfs cid of JSON.stringify(item.data)
+});
 
 const CyberiaItemModel = model('CyberiaItem', CyberiaItemSchema);
 

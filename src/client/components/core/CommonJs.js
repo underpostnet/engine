@@ -681,7 +681,7 @@ function rgbToHex(rgb) {
 
 const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')).replaceAll(' ', '');
 
-const hexToNumber = (hex = 0xdc) => Number(hex) || parseInt(hex, 16);
+const hexToNumber = (hex = 0xdc) => Number(hex) || parseFloat(hex, 16);
 
 // 0x = Hexadecimal
 // 0b = Binary
