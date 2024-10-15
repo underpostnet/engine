@@ -21,6 +21,10 @@ const FileFactory = {
     }
     return results;
   },
+  hex: (raw = '') => {
+    return Buffer.from(raw, 'utf8').toString('hex');
+    // reverse hexValue.toString()
+  },
   svg: (data = new Buffer(), name = '') => {
     return {
       name: name,

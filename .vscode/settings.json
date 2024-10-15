@@ -96,5 +96,8 @@
     "prometheus_data": true,
     "grafana_data": true,
     ".nyc_output": true
+  },
+  "[solidity]": {
+    "editor.defaultFormatter": "JuanBlanco.solidity"
   }
 }
