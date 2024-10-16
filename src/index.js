@@ -27,6 +27,7 @@ class Underpost {
    * @static
    * @method setUpInfo
    * @returns {Promise<void>}
+   * @memberof Underpost
    */
   static async setUpInfo() {
     return await setUpInfo(logger);
