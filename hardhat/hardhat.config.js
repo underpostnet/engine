@@ -12,8 +12,8 @@ module.exports = {
   networks: {
     hardhat: {},
     cryptokoyn: {
-      url: 'https://cryptokoyn.net/rpc/mainnet',
-      // url: "http://127.0.0.1:8545"
+      // url: 'https://cryptokoyn.net/rpc/mainnet',
+      url: 'http://127.0.0.1:8545',
       accounts: [process.env.ETH_PRIVATE_KEY],
       chainId: 777771,
     },
