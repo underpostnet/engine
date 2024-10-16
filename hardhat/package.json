@@ -16,6 +16,6 @@
   "scripts": {
     "hardhat": "npx hardhat init",
     "cryptokoyn-deploy": "npx hardhat run ./scripts/deployCryptokoyn.js --network cryptokoyn",
-    "cryptokoyn-server": "export PATH=$PATH:/dd/besu-24.9.1/bin && besu --rpc-http-enabled --rpc-ws-enabled --data-path=/dd/engine/hardhat/data/cryptokoyn --node-private-key-file=/dd/engine/hardhat/server/cryptokoyn/key --genesis-file=/dd/engine/hardhat/server/cryptokoyn/genesis.json"
+    "cryptokoyn-server": "export PATH=$PATH:/dd/besu-24.9.1/bin && besu --rpc-http-enabled --rpc-http-api=ADMIN,ETH,NET,WEB3,CLIQUE,IBFT,QBFT,PERM,DEBUG,MINER,EEA,TXPOOL,PRIV,PLUGINS --rpc-ws-enabled --rpc-ws-api=ADMIN,ETH,NET,WEB3,CLIQUE,IBFT,QBFT,PERM,DEBUG,MINER,EEA,TXPOOL,PRIV,PLUGINS --data-path=/dd/engine/hardhat/data/cryptokoyn --node-private-key-file=/dd/engine/hardhat/server/cryptokoyn/key --genesis-file=/dd/engine/hardhat/server/cryptokoyn/genesis.json"
   }
 }

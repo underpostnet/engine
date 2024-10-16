@@ -11,6 +11,9 @@ async function main() {
 
   console.log('CryptoKoyn deployed to:', testToken.address);
 
+  // Ensures that the deployment transaction is confirmed on the blockchain before proceeding,
+  // or wait closed blocks until the transaction is confirmed
+  console.log('Wait confirmed...', testToken.address);
   await testToken.deployed();
 }
 
