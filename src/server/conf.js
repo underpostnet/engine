@@ -595,6 +595,7 @@ const validateTemplatePath = (absolutePath = '') => {
   ) {
     return false;
   }
+  if (absolutePath.match('hardhat/')) return false;
   if (
     absolutePath.match('/client') &&
     absolutePath.match('.index.js') &&
