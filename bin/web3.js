@@ -18,7 +18,11 @@ try {
     case 'build-nodes': {
       const network = process.argv[3];
       const keysFolder = `/dd/engine/engine-private/eth-networks/${network}`;
-
+      if (fs.existsSync(keysFolder)) {
+        fs.removeSync(keysFolder);
+        fs.removeSync(`./hardhat/artifacts`);
+        fs.removeSync(`./hardhat/cache`);
+      }
       fs.mkdirSync(keysFolder, { recursive: true });
       shellExec(
         'export PATH=$PATH:/dd/besu-24.9.1/bin && besu' +
@@ -32,6 +36,12 @@ try {
         indexNode++;
         fs.copySync(`${keysFolder}/keys/${keyFile}`, `${keysFolder}/nodes/node-${indexNode}/data`);
       }
+
+      fs.writeFileSync(
+        `${keysFolder}/coinbase`,
+        '0x19bd4ec19a33f5abd53e8e3fd6df27ab9441bc9b0da8b1c9cfbf959f9b681fbb',
+        'utf8',
+      );
       break;
     }
     case 'run': {
@@ -46,15 +56,22 @@ try {
         ` --host-allowlist="*"` +
         ` --rpc-http-cors-origins="all"`;
 
-      let currentPort = 8544;
+      let currentPort;
+
+      // --p2p-port=3030 --p2p-host --p2p-interface
+      // --rpc-ws-port=8546
+      // --metrics-port=9545  metrics-push-port=9001
 
       for (const node of range(0, 3)) {
-        currentPort++;
-        if (`${process.argv[4]}` !== `${node}`) continue;
+        !currentPort ? (currentPort = 8545) : (currentPort += 10);
+        if (process.argv[4] && `${process.argv[4]}` !== `${node}`) continue;
         shellCd(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}`);
 
         shellExec(
-          `${cmd} --data-path=data --rpc-http-port=${currentPort}`,
+          `${cmd} --data-path=data` +
+            ` --rpc-http-port=${currentPort}` +
+            ` --rpc-ws-port=${currentPort + 1}` +
+            ` --p2p-port=${currentPort + 2}`,
           // `${cmd} --data-path=/dd/engine/hardhat/data/${network}-${node}` +
           //   ` --node-private-key-file=/dd/engine/hardhat/server/${network}/key${node}`,
           { async: true },
