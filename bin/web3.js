@@ -59,6 +59,9 @@ try {
         ` --rpc-ws-enabled --rpc-ws-api=${besuApis}` +
         ` --genesis-file=/dd/engine/engine-private/eth-networks/${network}/genesis.json` +
         ` --host-allowlist="*"` +
+        ` --max-peers=25` +
+        // ` --Xp2p-peer-lower-bound=1` +
+        //  ` --sync-mode=CHECKPOINT` +
         ` --rpc-http-cors-origins="all"`;
 
       let currentPort;
@@ -66,21 +69,42 @@ try {
       // --p2p-port=3030 --p2p-host --p2p-interface
       // --rpc-ws-port=8546
       // --metrics-port=9545  metrics-push-port=9001
+      let enodes = '--bootnodes=';
+      {
+        let currentPort;
 
-      for (const node of range(0, 3)) {
-        !currentPort ? (currentPort = 8545) : (currentPort += 10);
-        if (process.argv[4] && `${process.argv[4]}` !== `${node}`) continue;
-        shellCd(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}`);
+        // const keysFolder = `/dd/engine/engine-private/eth-networks/${network}`;
+        // const folderKeys = await fs.readdir(`${keysFolder}/keys`);
 
-        shellExec(
-          `${cmd} --data-path=data` +
-            ` --rpc-http-port=${currentPort}` +
-            ` --rpc-ws-port=${currentPort + 1}` +
-            ` --p2p-port=${currentPort + 2}`,
-          // `${cmd} --data-path=/dd/engine/hardhat/data/${network}-${node}` +
-          //   ` --node-private-key-file=/dd/engine/hardhat/server/${network}/key${node}`,
-          { async: true },
-        );
+        for (const node of range(0, 3)) {
+          !currentPort ? (currentPort = 8545) : (currentPort += 10);
+
+          enodes += `${enodes === '--bootnodes=' ? '' : ','}enode://${fs
+            .readFileSync(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}/data/key.pub`, 'utf8')
+            .slice(2)}@127.0.0.1:${currentPort + 2}`;
+
+          // If the TCP listening and UDP discovery ports differ, the UDP port is specified as query parameter discport.
+          // add '?discport=xxx'
+        }
+      }
+      {
+        let currentPort;
+        for (const node of range(0, 3)) {
+          !currentPort ? (currentPort = 8545) : (currentPort += 10);
+          if (process.argv[4] && `${process.argv[4]}` !== `${node}`) continue;
+          shellCd(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}`);
+
+          shellExec(
+            `${cmd} --data-path=data` +
+              ` --rpc-http-port=${currentPort}` +
+              ` --rpc-ws-port=${currentPort + 1}` +
+              ` --p2p-port=${currentPort + 2}` +
+              ` ${enodes}`,
+            // `${cmd} --data-path=/dd/engine/hardhat/data/${network}-${node}` +
+            //   ` --node-private-key-file=/dd/engine/hardhat/server/${network}/key${node}`,
+            { async: true },
+          );
+        }
       }
 
       break;
