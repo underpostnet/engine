@@ -37,11 +37,16 @@ try {
         fs.copySync(`${keysFolder}/keys/${keyFile}`, `${keysFolder}/nodes/node-${indexNode}/data`);
       }
 
-      fs.writeFileSync(
-        `${keysFolder}/coinbase`,
-        '0x19bd4ec19a33f5abd53e8e3fd6df27ab9441bc9b0da8b1c9cfbf959f9b681fbb',
-        'utf8',
-      );
+      shellExec(`node bin/web3 create-eth-keys ${keysFolder}/coinbase`);
+
+      const genesis = JSON.parse(fs.readFileSync(`${keysFolder}/genesis.json`, 'utf8'));
+      genesis.coinbase = fs.readFileSync(`${keysFolder}/coinbase.pub`, 'utf8');
+      genesis.alloc = {
+        [genesis.coinbase]: {
+          balance: '0x446c3b15f9926687d2c40534fdb564000000000000',
+        },
+      };
+      fs.writeFileSync(`${keysFolder}/genesis.json`, JSON.stringify(genesis, null, 4), 'utf8');
       break;
     }
     case 'run': {
@@ -103,7 +108,10 @@ try {
 */
         fs.writeFileSync(`./engine-private/eth-keys/${account.address}`, account.privateKey, 'utf8');
 
-        if (process.argv[3]) fs.writeFileSync(process.argv[3], account.address, 'utf8');
+        if (process.argv[3]) {
+          fs.writeFileSync(process.argv[3], account.privateKey, 'utf8');
+          fs.writeFileSync(process.argv[3] + '.pub', account.address, 'utf8');
+        }
 
         // transaction example:
         // const tx = web3.eth
