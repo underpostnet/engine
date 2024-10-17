@@ -3,8 +3,7 @@ require('@nomiclabs/hardhat-waffle');
 require('@nomiclabs/hardhat-ethers');
 require('@nomiclabs/hardhat-etherscan');
 require('dotenv').config();
-
-// require nodejs v22.9.0
+const fs = require('fs-extra');
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -14,7 +13,7 @@ module.exports = {
     cryptokoyn: {
       // url: 'https://cryptokoyn.net/rpc/mainnet',
       url: 'http://127.0.0.1:8545',
-      accounts: [process.env.ETH_PRIVATE_KEY],
+      accounts: [fs.readFileSync(`../engine-private/eth-networks/cryptokoyn/coinbase`, 'utf8')], // process.env.ETH_PRIVATE_KEY
       chainId: 777771,
     },
   },

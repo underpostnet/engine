@@ -37,7 +37,7 @@ RUN apt-get install -yq --no-install-recommends \
     gnupg
 
 # install nodejs https://github.com/nodesource/distributions/blob/master/README.md#deb
-RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     apt-get install -y nodejs \
     build-essential && \
     node --version && \ 

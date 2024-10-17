@@ -840,6 +840,23 @@ const Cmd = {
   syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
 };
 
+const fixDependencies = async () => {
+  // sed -i "$line_number s,.*,$new_text," "$file"
+  // sed -i "$line_number c \\$new_text" "$file"
+  const dep = fs.readFileSync(`./node_modules/peer/dist/module.mjs`, 'utf8');
+  const errorLine = `import {WebSocketServer as $hSjDC$WebSocketServer} from "ws";`;
+
+  fs.writeFileSync(
+    `./node_modules/peer/dist/module.mjs`,
+    dep.replaceAll(
+      errorLine,
+      `import WebSocketServer from "ws";
+    let $hSjDC$WebSocketServer = WebSocketServer.Server;`,
+    ),
+    'utf8',
+  );
+};
+
 export {
   Cmd,
   Config,
@@ -868,4 +885,5 @@ export {
   getCronBackUpFolder,
   getRestoreCronCmd,
   mergeBackUp,
+  fixDependencies,
 };

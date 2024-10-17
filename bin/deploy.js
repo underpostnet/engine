@@ -25,6 +25,7 @@ import {
   buildReplicaId,
   Cmd,
   restoreMacroDb,
+  fixDependencies,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -649,6 +650,11 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
           break;
       }
 
+      break;
+    }
+
+    case 'fix-deps': {
+      await fixDependencies();
       break;
     }
 

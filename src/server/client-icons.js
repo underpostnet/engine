@@ -1,5 +1,6 @@
 import { favicons } from 'favicons';
-import textToImage from 'text-to-image';
+// TODO: search alternatives
+// import textToImage from 'text-to-image';
 import { loggerFactory } from './logger.js';
 import fs from 'fs-extra';
 import { png3x } from 'font-awesome-assets';
@@ -52,7 +53,7 @@ const defaultBaseTextImgOptionsSizes = {
 
 const buildTextImg = async (text = 'APP', options, size = '1200x1200') => {
   options = { ...defaultBaseTextImgOptions, ...defaultBaseTextImgOptionsSizes[size], ...options };
-  await textToImage.generate(text, options);
+  // await textToImage.generate(text, options);
 };
 
 const getBufferPngText = async ({ text, textColor, bgColor, size, debugFilename }) => {
@@ -62,6 +63,7 @@ const getBufferPngText = async ({ text, textColor, bgColor, size, debugFilename 
   if (!size) size = '100x300';
   if (!debugFilename) debugFilename = `./${s4()}${s4()}${s4()}.png`;
   await buildTextImg(text, { textColor, bgColor, size, debugFilename }, size);
+  if (!fs.existsSync(debugFilename)) return Buffer.alloc(0); // Return empty buffer if file not found
   const bufferImage = fs.readFileSync(debugFilename);
   fs.removeSync(debugFilename);
   return bufferImage;

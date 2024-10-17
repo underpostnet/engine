@@ -9,7 +9,7 @@
     "pm2": "env-cmd -f .env.production pm2 start src/server.js --node-args=\"--max-old-space-size=8192\" --name engine && pm2 logs",
     "ssl": "env-cmd -f .env.production node bin/ssl",
     "pm2-delete": "pm2 delete engine",
-    "dev": "env-cmd -f .env.development nodemon src/server",
+    "dev": "node bin/deploy fix-deps && env-cmd -f .env.development nodemon src/server",
     "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
     "dev-client": "env-cmd -f .env.development node src/client.dev",
     "docs": "jsdoc -c jsdoc.json",
@@ -30,7 +30,9 @@
     "changelog": "auto-changelog",
     "global-root": "npm root -g",
     "underpost-publish": "npm publish --provenance --access public",
-    "underpost-unpublish": "npm unpublish underpost@2.5.x"
+    "underpost-unpublish": "npm unpublish underpost@2.5.x",
+    "hardhat": "cd hardhat && npx hardhat init",
+    "hardhat-cryptokoyn-deploy": "cd hardhat && npx hardhat run ./scripts/deployCryptokoyn.cjs --network cryptokoyn"
   },
   "bin": {
     "underpost": "bin/index.js"
@@ -111,24 +113,27 @@
     "simple-git": "^3.26.0",
     "simple-icons": "^13.9.0",
     "sitemap": "^7.1.1",
-    "socket.io": "^4.7.2",
+    "socket.io": "^4.8.0",
     "sortablejs": "^1.15.0",
     "split-file": "^2.3.0",
     "swagger-ui-express": "^5.0.0",
     "systeminformation": "^5.21.17",
-    "text-to-image": "^5.2.0",
     "uglify-js": "^3.17.4",
-    "underpost": "^2.7.5",
     "validator": "^13.11.0",
     "web3": "^4.13.0",
-    "winston": "^3.11.0"
+    "winston": "^3.11.0",
+    "@nomiclabs/hardhat-ethers": "^2.2.3",
+    "@nomiclabs/hardhat-etherscan": "^3.1.8",
+    "@nomiclabs/hardhat-waffle": "^2.0.6",
+    "@openzeppelin/contracts": "^5.0.2"
   },
   "devDependencies": {
     "clean-jsdoc-theme": "^4.3.0",
     "mocha": "^10.4.0",
     "plantuml": "^0.0.2",
     "swagger-autogen": "^2.23.7",
-    "to-json-schema": "^0.2.5"
+    "to-json-schema": "^0.2.5",
+    "hardhat": "^2.22.13"
   },
   "publishConfig": {
     "provenance": true,

@@ -170,7 +170,7 @@ const LoadingAnimation = {
             `.ssr-loading-info`,
             html`<span style="color: white">Download </span> <br />
               <br />
-              ...${nameSrcLoad.slice(-30)}`,
+              ...${nameSrcLoad.slice(-30).replaceAll('file', 'storage')}`,
           );
       }
     }
