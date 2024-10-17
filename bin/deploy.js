@@ -571,6 +571,7 @@ try {
         );
 
         shellExec(`node bin/deploy update-package`);
+        shellExec(`auto-changelog`);
       }
       break;
 
