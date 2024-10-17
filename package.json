@@ -57,6 +57,10 @@
         "@fortawesome/fontawesome-free": "^6.4.2",
         "@loadingio/css-spinner": "^2.0.2",
         "@neodrag/vanilla": "^2.0.3",
+        "@nomiclabs/hardhat-ethers": "^2.2.3",
+        "@nomiclabs/hardhat-etherscan": "^3.1.8",
+        "@nomiclabs/hardhat-waffle": "^2.0.6",
+        "@openzeppelin/contracts": "^5.0.2",
         "@xenova/transformers": "^2.17.2",
         "adm-zip": "^0.5.10",
         "ag-grid-community": "31.0.0",
@@ -119,21 +123,18 @@
         "swagger-ui-express": "^5.0.0",
         "systeminformation": "^5.21.17",
         "uglify-js": "^3.17.4",
+        "underpost": "^2.7.6",
         "validator": "^13.11.0",
         "web3": "^4.13.0",
-        "winston": "^3.11.0",
-        "@nomiclabs/hardhat-ethers": "^2.2.3",
-        "@nomiclabs/hardhat-etherscan": "^3.1.8",
-        "@nomiclabs/hardhat-waffle": "^2.0.6",
-        "@openzeppelin/contracts": "^5.0.2"
+        "winston": "^3.11.0"
     },
     "devDependencies": {
         "clean-jsdoc-theme": "^4.3.0",
+        "hardhat": "^2.22.13",
         "mocha": "^10.4.0",
         "plantuml": "^0.0.2",
         "swagger-autogen": "^2.23.7",
-        "to-json-schema": "^0.2.5",
-        "hardhat": "^2.22.13"
+        "to-json-schema": "^0.2.5"
     },
     "publishConfig": {
         "provenance": true,
