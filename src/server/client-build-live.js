@@ -41,6 +41,8 @@ const clientLiveBuild = async () => {
     const updates = JSON.parse(fs.readFileSync(`./tmp/client.build.json`, 'utf8'));
     const liveClientBuildPaths = [];
     for (let srcPath of updates) {
+      srcPath = srcPath.replaceAll('/', `\\`); // linux case
+
       const srcBuildPath = `./src${srcPath.split('src')[1].replace(/\\/g, '/')}`;
       if (
         srcPath.split('src')[1].startsWith(`\\client\\components`) ||
