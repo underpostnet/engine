@@ -1,5 +1,31 @@
 const getLang = () => navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
+const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
+const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
+function splitEveryXChar(originalString, everyXChar = 30, nextCharSplit) {
+  let modifiedString = '';
+  const arrayString = [];
+  let i = -1;
+  let charSplit = false;
+  for (let char of originalString) {
+    i++;
+    modifiedString += char;
+    if (i !== 0 && i % everyXChar === 0) charSplit = true;
+    if (modifiedString.length >= everyXChar && charSplit && (!nextCharSplit || nextCharSplit.includes(char))) {
+      arrayString.push(newInstance(modifiedString));
+      modifiedString = '';
+      charSplit = false;
+    }
+  }
+  if (modifiedString) arrayString.push(modifiedString);
+  return arrayString;
+}
+const range = (start, end) => {
+  return end < start
+    ? range(end, start).reverse()
+    : Array.apply(0, Array(end - start + 1)).map((element, index) => index + start);
+};
+const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 const htmls = (el, html) => (s(el).innerHTML = html);
 const typeWriter = async function ({ id, html, seconds, endHideBlink, container }) {
   if (!seconds) seconds = 2;
@@ -51,35 +77,97 @@ const typeWriter = async function ({ id, html, seconds, endHideBlink, container 
     }, seconds * 1000);
   });
 };
+const newInstance = (obj) => {
+  // structuredClone() 2022 ES6 feature
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (error) {
+    return { error: error.message };
+  }
+};
+const getSectionsStringData = (offsetWidth, text) => {
+  const sectionsIndex = [];
+  const everyXChar = parseInt(offsetWidth / 4);
+  const phraseArray = text
+    .split('.')
+    .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
+    .flat()
+    .filter((p) => p !== '.' && p.trim());
+
+  let currentIndex = [0];
+  let pi = -1;
+  for (const p of phraseArray) {
+    pi++;
+    if (p.indexOf('.') !== -1) {
+      currentIndex.push(newInstance(pi));
+      sectionsIndex.push(newInstance(currentIndex));
+      if (phraseArray[pi + 1]) currentIndex = [newInstance(pi + 1)];
+      else currentIndex = [];
+    }
+  }
+  if (currentIndex[0] && !currentIndex[1]) {
+    currentIndex[1] = phraseArray.length - 1;
+    sectionsIndex.push(newInstance(currentIndex));
+  }
+  return { phraseArray, sectionsIndex };
+};
+const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) =>
+  new Promise((resolve) => {
+    let cumulativeSeconds = 0;
+    for (const index of range(...rangeArraySectionIndex)) {
+      const subIdSalt = s4() + s4() + s4();
+      const seconds = phraseArray[index].trim().length * 0.1;
+      append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
+      setTimeout(async () => {
+        if (s(`.${container}-${subIdSalt}`)) {
+          append(`.${container}-${subIdSalt}`, html` <div class="render-typeWriter-${container}-${subIdSalt}"></div> `);
+          await typeWriter({
+            id: `typeWriter-${index}-${container}`,
+            html: phraseArray[index].trim(),
+            endHideBlink: index < rangeArraySectionIndex[1],
+            seconds,
+            container: `render-typeWriter-${container}-${subIdSalt}`,
+          });
+        }
+        if (index === rangeArraySectionIndex[1]) resolve();
+      }, cumulativeSeconds * 1000);
+      cumulativeSeconds += seconds;
+    }
+  });
+
+const renderSsrDialog = async ({ container, text }) => {
+  let currentDialogIndex = -1;
+
+  const renderTalkingDialog = async () => {
+    currentDialogIndex++;
+    const offsetWidth = s(`body`).offsetWidth;
+    const { phraseArray, sectionsIndex } = getSectionsStringData(offsetWidth * 0.3, text);
+
+    let currentPhraseArrayIndex = -1;
+    const renderPhrase = async () => {
+      if (!s(`.${container}`)) return;
+      currentPhraseArrayIndex++;
+      htmls(`.${container}`, '');
+      await typeWriteSectionsString({
+        container,
+        phraseArray,
+        rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
+      });
+      await timer(1500);
+      if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
+    };
+    await renderPhrase();
+  };
+  await renderTalkingDialog();
+};
+// <strong class="ssr-secondary-color ssr-lore-text"
 
 const LoreScreen = async () => {
   const translate = {
-    en: html` <br />One Conflict <br /><br />
-      <div class="ssr-lore-text">
-        In a galaxy scarred by catastrophe, three factions vie for dominance. <br />
-        <br /><strong class="ssr-secondary-color">The Colonists</strong>, descendants of Earth's pioneers, seek to
-        expand their dominion across the stars. <br /><br /><strong class="ssr-secondary-color">The Renegades</strong>,
-        mutants born from the ashes of disaster, fight for survival and retribution. <br /><br />
-        <strong class="ssr-secondary-color">The Synthetics</strong>, a fusion of flesh and machine, strive for a future
-        beyond human limitations
-      </div>
-      <br />
-      <br />`,
-    es: html` <br />
-      Un Conflicto <br /><br />
-      <div class="ssr-lore-text">
-        En una galaxia marcada por la catástrofe, tres facciones compiten por el dominio. <br />
-        <br /><strong class="ssr-secondary-color">Los colonos</strong>, descendientes de los pioneros de la Tierra,
-        buscan expandir su dominio a través de las estrellas. <br />
-        <br /><strong class="ssr-secondary-color">Los renegados</strong>, mutantes nacidos de las cenizas del desastre,
-        luchan por la supervivencia y la venganza.
-        <br />
-        <br />
-        <strong class="ssr-secondary-color">Los sintéticos</strong>, una fusión de carne y máquina, luchan por un futuro
-        más allá de las limitaciones humanas
-      </div>`,
+    en: `In a galaxy scarred by catastrophe, three factions vie for dominance. The Colonists, descendants of Earth's pioneers, seek to expand their dominion across the stars. The Renegades, mutants born from the ashes of disaster, fight for survival and retribution. And the Synthetics, a fusion of flesh and machine, strive for a future beyond human limitations.`,
+    es: `En una galaxia marcada por la catástrofe, tres facciones compiten por el dominio. Los colonos, descendientes de los pioneros de la Tierra, buscan expandir su dominio a través de las estrellas. Los renegados, mutantes nacidos de las cenizas del desastre, luchan por la supervivencia y la venganza. Y los sintéticos, una fusión de carne y máquina, luchan por un futuro más allá de las limitaciones humanas.`,
   };
-  await typeWriter({ id: 'ssr-lore', html: translate[getLang()] || translate.en, container: 'ssr-lore-container' });
+  await renderSsrDialog({ text: translate[getLang()] || translate.en, container: 'ssr-lore-container' });
 };
 
 SrrComponent = ({ host, path }) => html`
@@ -162,7 +250,8 @@ SrrComponent = ({ host, path }) => html`
         display: block;
         bottom: 0px;
       }
-      .ssr-lore-container {
+      .ssr-lore-container,
+      .ssr-lore-text {
         display: block;
         position: relative;
         margin: 5px;
@@ -190,6 +279,15 @@ SrrComponent = ({ host, path }) => html`
       {
         const s = ${s};
         const htmls = ${htmls};
+        const newInstance = ${newInstance};
+        const range = ${range};
+        const s4 = ${s4};
+        const append = ${append};
+        const timer = ${timer};
+        ${splitEveryXChar};
+        const getSectionsStringData = ${getSectionsStringData};
+        const typeWriteSectionsString = ${typeWriteSectionsString};
+        const renderSsrDialog = ${renderSsrDialog};
         const typeWriter = ${typeWriter};
         const getLang = ${getLang};
         const LoreScreen = ${LoreScreen};
