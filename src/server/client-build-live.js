@@ -20,8 +20,26 @@ const clientLiveBuild = async () => {
       (fs.existsSync(`./engine-private/conf/${deployId}`) || fs.existsSync(`./engine-private/replica/${deployId}`))
     ) {
       loadConf(deployId);
-      const confClient = JSON.parse(fs.readFileSync(`./conf/conf.client.json`, 'utf8'));
-      const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+      const confClient = JSON.parse(
+        fs.readFileSync(
+          fs.existsSync(`./engine-private/replica/${deployId}`)
+            ? `./engine-private/replica/${deployId}/conf.client.json`
+            : fs.existsSync(`./engine-private/conf/${deployId}/conf.client.json`)
+            ? `./engine-private/conf/${deployId}/conf.client.json`
+            : `./conf/conf.client.json`,
+          'utf8',
+        ),
+      );
+      const confServer = JSON.parse(
+        fs.readFileSync(
+          fs.existsSync(`./engine-private/replica/${deployId}`)
+            ? `./engine-private/replica/${deployId}/conf.server.json`
+            : fs.existsSync(`./engine-private/conf/${deployId}/conf.server.json`)
+            ? `./engine-private/conf/${deployId}/conf.server.json`
+            : `./conf/conf.server.json`,
+          'utf8',
+        ),
+      );
       host = process.argv[3];
       path = process.argv[4];
       clientId = confServer[host][path].client;
