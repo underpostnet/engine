@@ -114,13 +114,15 @@ const getSectionsStringData = (offsetWidth, text) => {
 const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) =>
   new Promise((resolve) => {
     let cumulativeSeconds = 0;
+    const minSeconds = s(`.${container}`).offsetWidth * 0.01;
     for (const index of range(...rangeArraySectionIndex)) {
       const subIdSalt = s4() + s4() + s4();
-      const seconds = phraseArray[index].trim().length * 0.1;
+      const seconds = phraseArray[index].trim().length * (1 / (s(`.${container}`).offsetWidth * 0.05));
       append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
       setTimeout(async () => {
         if (s(`.${container}-${subIdSalt}`)) {
           append(`.${container}-${subIdSalt}`, html` <div class="render-typeWriter-${container}-${subIdSalt}"></div> `);
+          // console.error('time delta line text', minSeconds - seconds);
           await typeWriter({
             id: `typeWriter-${index}-${container}`,
             html: phraseArray[index].trim(),
@@ -263,6 +265,9 @@ SrrComponent = ({ host, path }) => html`
       }
       .ssr-secondary-color {
         color: #ffcc00;
+      }
+      .clean-cache-container {
+        background: #1a1a1a !important;
       }
     </style>
 

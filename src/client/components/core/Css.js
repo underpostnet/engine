@@ -793,7 +793,7 @@ const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionInde
     let cumulativeSeconds = 0;
     for (const index of range(...rangeArraySectionIndex)) {
       const subIdSalt = s4() + s4() + s4();
-      const seconds = phraseArray[index].trim().length * 0.05;
+      const seconds = phraseArray[index].trim().length * (1 / (s(`.${container}`).offsetWidth * 0.05));
       append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
       setTimeout(async () => {
         if (s(`.${container}-${subIdSalt}`)) {
