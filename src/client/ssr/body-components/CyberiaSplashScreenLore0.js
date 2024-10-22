@@ -2,7 +2,24 @@ const getLang = () => navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
-
+function splitEveryXChar(originalString, everyXChar = 30, nextCharSplit) {
+  let modifiedString = '';
+  const arrayString = [];
+  let i = -1;
+  let charSplit = false;
+  for (let char of originalString) {
+    i++;
+    modifiedString += char;
+    if (i !== 0 && i % everyXChar === 0) charSplit = true;
+    if (modifiedString.length >= everyXChar && charSplit && (!nextCharSplit || nextCharSplit.includes(char))) {
+      arrayString.push(newInstance(modifiedString));
+      modifiedString = '';
+      charSplit = false;
+    }
+  }
+  if (modifiedString) arrayString.push(modifiedString);
+  return arrayString;
+}
 const range = (start, end) => {
   return end < start
     ? range(end, start).reverse()
@@ -10,7 +27,60 @@ const range = (start, end) => {
 };
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 const htmls = (el, html) => (s(el).innerHTML = html);
+const typeWriter = async function ({ id, html, seconds, endHideBlink, container }) {
+  if (!seconds) seconds = 2;
+  return new Promise((resolve) => {
+    // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
+    // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
+    const typingAnimationTransitionStyle = [
+      `1s linear`,
+      `${seconds}s steps(${html.split(' ').length * 6}, end)`,
+      `1s forwards`,
+    ];
+    const render = html`
+      <style class="style-${id}">
+        .tw-${id}-typed-out {
+          overflow: hidden;
+          border-right: 0.15em solid orange;
+          white-space: nowrap;
+          animation: typing-${id} ${typingAnimationTransitionStyle[1]}, blink-caret-${id} 0.5s step-end infinite;
+          animation-fill-mode: forwards;
+          width: 0;
+        }
+      </style>
+      <style>
+        .tw-${id}-container {
+        }
+        @keyframes typing-${id} {
+          from {
+            width: 0;
+          }
+          to {
+            width: 100%;
+          }
+        }
 
+        @keyframes blink-caret-${id} {
+          from,
+          to {
+            border-color: transparent;
+          }
+          50% {
+            border-color: orange;
+          }
+        }
+      </style>
+      <div class="inl tw-${id}-container">
+        <div class="tw-${id}-typed-out">${html}</div>
+      </div>
+    `;
+    htmls(`.${container}`, render);
+    setTimeout(() => {
+      if (endHideBlink && s(`.style-${id}`)) s(`.style-${id}`).remove();
+      resolve(render);
+    }, seconds * 1000);
+  });
+};
 const newInstance = (obj) => {
   // structuredClone() 2022 ES6 feature
   try {
@@ -19,7 +89,85 @@ const newInstance = (obj) => {
     return { error: error.message };
   }
 };
+const getSectionsStringData = (offsetWidth, text) => {
+  const sectionsIndex = [];
+  const everyXChar = parseInt(offsetWidth / 4);
+  const phraseArray = text
+    .split('.')
+    .map((t) => splitEveryXChar(t + '.', everyXChar, ['.', ' ']))
+    .flat()
+    .filter((p) => p !== '.' && p.trim());
 
+  let currentIndex = [0];
+  let pi = -1;
+  for (const p of phraseArray) {
+    pi++;
+    if (p.indexOf('.') !== -1) {
+      currentIndex.push(newInstance(pi));
+      sectionsIndex.push(newInstance(currentIndex));
+      if (phraseArray[pi + 1]) currentIndex = [newInstance(pi + 1)];
+      else currentIndex = [];
+    }
+  }
+  if (currentIndex[0] && !currentIndex[1]) {
+    currentIndex[1] = phraseArray.length - 1;
+    sectionsIndex.push(newInstance(currentIndex));
+  }
+  return { phraseArray, sectionsIndex };
+};
+const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionIndex }) =>
+  new Promise((resolve) => {
+    let cumulativeSeconds = 0;
+    const minSeconds = s(`.${container}`).offsetWidth * 0.01;
+    for (const index of range(...rangeArraySectionIndex)) {
+      const subIdSalt = s4() + s4() + s4();
+      const seconds = phraseArray[index].trim().length * 0.05;
+      // (1 / (s(`.${container}`).offsetWidth * 0.05))
+      append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
+      setTimeout(async () => {
+        if (s(`.${container}-${subIdSalt}`)) {
+          append(`.${container}-${subIdSalt}`, html` <div class="render-typeWriter-${container}-${subIdSalt}"></div> `);
+          // console.error('time delta line text', minSeconds - seconds);
+
+          await typeWriter({
+            id: `typeWriter-${index}-${container}`,
+            html: phraseArray[index].trim(),
+            endHideBlink: index < rangeArraySectionIndex[1],
+            seconds: seconds,
+            container: `render-typeWriter-${container}-${subIdSalt}`,
+          });
+        }
+        if (index === rangeArraySectionIndex[1]) resolve();
+      }, cumulativeSeconds * 1000);
+      cumulativeSeconds += seconds;
+    }
+  });
+
+const renderSsrDialog = async ({ container, text }) => {
+  let currentDialogIndex = -1;
+
+  const renderTalkingDialog = async () => {
+    currentDialogIndex++;
+    const offsetWidth = s(`body`).offsetWidth;
+    const { phraseArray, sectionsIndex } = getSectionsStringData(offsetWidth * 0.3, text);
+
+    let currentPhraseArrayIndex = -1;
+    const renderPhrase = async () => {
+      if (!s(`.${container}`)) return;
+      currentPhraseArrayIndex++;
+      htmls(`.${container}`, '');
+      await typeWriteSectionsString({
+        container,
+        phraseArray,
+        rangeArraySectionIndex: sectionsIndex[currentPhraseArrayIndex],
+      });
+      await timer(1500);
+      if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
+    };
+    await renderPhrase();
+  };
+  await renderTalkingDialog();
+};
 // <strong class="ssr-secondary-color ssr-lore-text"
 
 const borderChar = (px, color, selectors) => {
@@ -97,7 +245,10 @@ const LoreScreen = async () => {
     // biomecánicas, y los Androides, seres totalmente sintéticos creados por una IA avanzada. Ambos poseen una inmensa
     // inteligencia y adaptabilidad, pero son vulnerables a las fallas del sistema.`
   };
-  (await translate[getLang()]) || translate.en;
+  await renderSsrDialog({
+    text: translate[getLang()] || translate.en,
+    container: 'ssr-lore-container',
+  });
 };
 
 SrrComponent = ({ host, path, storage }) => html`
@@ -204,6 +355,44 @@ SrrComponent = ({ host, path, storage }) => html`
         background: #000000 !important;
       }
     </style>
+    ${borderChar(1, '#171717', ['.ssr-lore-container'])}
+    <!--   space-container -->
+
+    <style>
+      .space-container {
+        margin: 0;
+        height: 100vh;
+        background-color: #000000;
+        position: absolute;
+        width: 100%;
+        top: 0px;
+        left: 0px;
+        /* overflow: hidden; */
+      }
+
+      .space-background {
+        font-family: sans-serif;
+        font-size: 1.5em;
+        text-shadow: 1px 1px 7px #ccccccd1;
+        color: #ffffff;
+        font-weight: bold;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 5px;
+        height: 100%;
+        background-image: url('${storage['space-background']}');
+        background-size: 100% 100%;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
+    </style>
+    <div class="space-container">
+      <div class="space-background"></div>
+    </div>
+
+    <!-- end space-container -->
 
     <div class="ssr-center ssr-lore-container"></div>
 
@@ -223,6 +412,11 @@ SrrComponent = ({ host, path, storage }) => html`
         const s4 = ${s4};
         const append = ${append};
         const timer = ${timer};
+        ${splitEveryXChar};
+        const getSectionsStringData = ${getSectionsStringData};
+        const typeWriteSectionsString = ${typeWriteSectionsString};
+        const renderSsrDialog = ${renderSsrDialog};
+        const typeWriter = ${typeWriter};
         const getLang = ${getLang};
         const LoreScreen = ${LoreScreen};
 
