@@ -461,7 +461,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                     }
                     break;
 
-                  case 'CyberiaSplashScreenLore':
+                  case 'CyberiaSplashScreenLore': {
                     ssrBodyComponents += SrrComponent({
                       ssrPath,
                       host,
@@ -469,24 +469,19 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                       ttiLoadTimeLimit,
                       storage: {
                         // 'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
-                        lore0: `data:image/png;base64,${fs
-                          .readFileSync('./src/client/public/cyberia/assets/lore/lore0.png')
+                        lore0: `data:image/jpeg;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore0.jpeg')
                           .toString('base64')}`,
-                        lore1: `data:image/png;base64,${fs
-                          .readFileSync('./src/client/public/cyberia/assets/lore/lore1.png')
+                        lore1: `data:image/jpeg;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore1.jpeg')
                           .toString('base64')}`,
                         lore2: `data:image/jpeg;base64,${fs
                           .readFileSync('./src/client/public/cyberia/assets/lore/lore2.jpeg')
                           .toString('base64')}`,
-                        lore3: `data:image/png;base64,${fs
-                          .readFileSync('./src/client/public/cyberia/assets/lore/lore3.png')
-                          .toString('base64')}`,
-                        lore4: `data:image/jpeg;base64,${fs
-                          .readFileSync('./src/client/public/cyberia/assets/lore/lore4.jpeg')
-                          .toString('base64')}`,
                       },
                     });
                     break;
+                  }
 
                   default:
                     ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });

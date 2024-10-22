@@ -1,4 +1,4 @@
-const getLang = () => navigator.language || navigator.userLanguage;
+const getLang = () => 'es'; // navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
@@ -43,62 +43,78 @@ const borderChar = (px, color, selectors) => {
   `;
 };
 
+const framesLore = () => range(0, 2);
+
 const LoreScreen = async () => {
-  const translate = {
-    en: html`Year 2120. Earth, once a vibrant blue marble, now hangs in a precarious balance. Despite monumental strides
-    in sustainable technologies and the promise of a prosperous future, a single cataclysmic event irrevocably altered
-    the course of humanity.`,
-    //  `In 2045, a devastating nuclear disaster rocked the Eastern People's Republic, contaminating
-    // the sprawling industrial districts of Being and triggering a chain reaction of genetic mutations. Clandestine
-    // biological experiments, conducted in the shadows, amplified the devastation, birthing a plague that transformed much
-    // of terrestrial life into grotesque and hostile creatures. A third of the planet was rendered uninhabitable, a
-    // desolate wasteland irradiated beyond recognition. Yet, within the depths of these barren lands, new and terrifying
-    // life forms emerged. Abominations born of radiation and genetic manipulation posed a constant threat to the dwindling
-    // human population. Forced from their ancestral home, humanity scattered across the cosmos in search of a new
-    // beginning. The survivors, now known as neo-humans, embarked on a perilous journey into the unknown, seeking refuge
-    // among the stars.`,
+  const translate = [
+    {
+      en: html`Year 2120. Earth, once a vibrant blue marble, now hangs in a precarious balance. Despite monumental
+      strides in sustainable technologies and the promise of a prosperous future, a single cataclysmic event irrevocably
+      altered the course of humanity.`,
+      // Yet, within the depths of these barren lands, new and terrifying
+      // life forms emerged. Abominations born of radiation and genetic manipulation posed a constant threat to the dwindling
+      // human population. Forced from their ancestral home, humanity scattered across the cosmos in search of a new
+      // beginning. The survivors, now known as neo-humans, embarked on a perilous journey into the unknown, seeking refuge
+      // among the stars.`,
 
-    // The fate of the universe rests in your hands. Choose your path
+      // The fate of the universe rests in your hands. Choose your path
 
-    // `Colonists Descendants of humanity's early space pioneers, the Colonists are genetically and
-    // cybernetically enhanced to thrive in the harsh realities of extraterrestrial environments. Pragmatic,
-    // technologically adept, and driven by the relentless pursuit of survival, they seek to expand neo-human dominion
-    // across the cosmos. Renegades Born from the ashes of the nuclear apocalypse, the Renegades are a testament to
-    // humanity's adaptability and resilience. Exposed to radiation and mutagenic substances, they possess extraordinary
-    // abilities, but their existence is marked by genetic instability and a limited lifespan. Some seek coexistence with
-    // other factions, while others harbor a deep-seated desire for vengeance. Synthesized A fascinating blend of organic
-    // and artificial, the Synthesized are divided into two primary groups: The Cyborgs, former humans augmented with
-    // biomechanical enhancements, and the Androids, fully synthetic beings crafted by advanced AI. Both possess immense
-    // intelligence and adaptability but are vulnerable to system failures.`,
+      // `Colonists Descendants of humanity's early space pioneers, the Colonists are genetically and
+      // cybernetically enhanced to thrive in the harsh realities of extraterrestrial environments. Pragmatic,
+      // technologically adept, and driven by the relentless pursuit of survival, they seek to expand neo-human dominion
+      // across the cosmos. Renegades Born from the ashes of the nuclear apocalypse, the Renegades are a testament to
+      // humanity's adaptability and resilience. Exposed to radiation and mutagenic substances, they possess extraordinary
+      // abilities, but their existence is marked by genetic instability and a limited lifespan. Some seek coexistence with
+      // other factions, while others harbor a deep-seated desire for vengeance. Synthesized A fascinating blend of organic
+      // and artificial, the Synthesized are divided into two primary groups: The Cyborgs, former humans augmented with
+      // biomechanical enhancements, and the Androids, fully synthetic beings crafted by advanced AI. Both possess immense
+      // intelligence and adaptability but are vulnerable to system failures.`,
 
-    es: html` Año 2120. La Tierra, que alguna vez fue una vibrante esfera azul, ahora pende de un precario equilibrio. A
-    pesar de los avances monumentales en tecnologías sustentables y la promesa de un futuro próspero, un único evento
-    cataclísmico alteró irrevocablemente el curso de la humanidad. En 2045, un desastre nuclear devastador sacudió la
-    República Popular del Este, contaminando los distritos industriales en expansión de Being, desencadenando una
-    reacción en cadena de mutaciones genéticas. ademas Experimentos biológicos clandestinos, amplificaron la
-    devastación, dando origen a una plaga que transformó gran parte de la vida terrestre en criaturas grotescas y
-    hostiles. Un tercio del planeta se volvió inhabitable, un páramo desolado irradiado más allá del reconocimiento. Sin
-    embargo, en las profundidades de estas tierras estériles, surgieron nuevas y aterradoras formas de vida. Las
-    abominaciones nacidas de la radiación y la manipulación genética planteaban una amenaza constante para la menguante
-    población humana. Obligada a abandonar la tierra, la humanidad se dispersó por el cosmos en busca de un nuevo
-    comienzo. Los supervivientes, ahora conocidos como neohumanos, se embarcaron en un peligroso viaje hacia lo
-    desconocido, buscando refugio entre las estrellas.`,
+      es: html` Año 2120. La Tierra, que alguna vez fue una vibrante esfera azul, ahora pende de un precario equilibrio.
+      A pesar de los avances monumentales en tecnologías sustentables y la promesa de un futuro próspero, un único
+      evento cataclísmico alteró irrevocablemente el curso de la humanidad.`,
 
-    // El destino de la universo está en tus manos. Elige tu camino.
+      // `Sin embargo, en las profundidades de estas tierras estériles, surgieron nuevas y aterradoras
+      // formas de vida. Las abominaciones nacidas de la radiación y la manipulación genética planteaban una amenaza
+      // constante para la menguante población humana. Obligada a abandonar la tierra, la humanidad se dispersó por el
+      // cosmos en busca de un nuevo comienzo. Los supervivientes, ahora conocidos como neohumanos, se embarcaron en un
+      // peligroso viaje hacia lo desconocido, buscando refugio entre las estrellas.`,
 
-    // `Colonos Descendientes de los primeros pioneros espaciales de la
-    // humanidad, los Colonos están genéticamente y cibernéticamente mejorados para prosperar en las duras realidades de
-    // los entornos extraterrestres. Pragmáticos, tecnológicamente hábiles e impulsados ​​por la incesante búsqueda de la
-    // supervivencia, buscan expandir el dominio neohumano por todo el cosmos. Renegados Nacidos de las cenizas del
-    // apocalipsis nuclear, los Renegados son un testimonio de la adaptabilidad y la resiliencia de la humanidad. Expuestos
-    // a la radiación y a sustancias mutagénicas, poseen habilidades extraordinarias, pero su existencia está marcada por
-    // la inestabilidad genética y una esperanza de vida limitada. Algunos buscan coexistir con otras facciones, mientras
-    // que otros albergan un profundo deseo de venganza. Sintetizados Una fascinante mezcla de lo orgánico y lo artificial,
-    // los Sintetizados se dividen en dos grupos principales: los Ciborgs, antiguos humanos aumentados con mejoras
-    // biomecánicas, y los Androides, seres totalmente sintéticos creados por una IA avanzada. Ambos poseen una inmensa
-    // inteligencia y adaptabilidad, pero son vulnerables a las fallas del sistema.`
-  };
-  htmls('.ssr-lore-container', translate[getLang()] || translate.en);
+      // El destino de la universo está en tus manos. Elige tu camino.
+
+      // `Colonos Descendientes de los primeros pioneros espaciales de la
+      // humanidad, los Colonos están genéticamente y cibernéticamente mejorados para prosperar en las duras realidades de
+      // los entornos extraterrestres. Pragmáticos, tecnológicamente hábiles e impulsados ​​por la incesante búsqueda de la
+      // supervivencia, buscan expandir el dominio neohumano por todo el cosmos. Renegados Nacidos de las cenizas del
+      // apocalipsis nuclear, los Renegados son un testimonio de la adaptabilidad y la resiliencia de la humanidad. Expuestos
+      // a la radiación y a sustancias mutagénicas, poseen habilidades extraordinarias, pero su existencia está marcada por
+      // la inestabilidad genética y una esperanza de vida limitada. Algunos buscan coexistir con otras facciones, mientras
+      // que otros albergan un profundo deseo de venganza. Sintetizados Una fascinante mezcla de lo orgánico y lo artificial,
+      // los Sintetizados se dividen en dos grupos principales: los Ciborgs, antiguos humanos aumentados con mejoras
+      // biomecánicas, y los Androides, seres totalmente sintéticos creados por una IA avanzada. Ambos poseen una inmensa
+      // inteligencia y adaptabilidad, pero son vulnerables a las fallas del sistema.`
+    },
+    {
+      en: html`In 2045, a devastating nuclear disaster rocked the Eastern People's Republic, contaminating the sprawling
+      industrial districts of Being and triggering a chain reaction of genetic mutations. `,
+      es: html`En 2045, un desastre nuclear devastador sacudió la República Popular del Este, contaminando los distritos
+      industriales en expansión de Being, desencadenando una reacción en cadena de mutaciones genéticas.`,
+    },
+    {
+      en: html`Clandestine biological experiments, conducted in the shadows, amplified the devastation, birthing a
+      plague that transformed much of terrestrial life into grotesque and hostile creatures. A third of the planet was
+      rendered uninhabitable, a desolate wasteland irradiated beyond recognition`,
+      es: html`Sumado a eso experimentos biológicos clandestinos, amplificaron la devastación, dando origen a una plaga
+      que transformó gran parte de la vida terrestre en criaturas grotescas y hostiles. Un tercio del planeta se volvió
+      inhabitable, un páramo desolado irradiado más allá del reconocimiento.`,
+    },
+  ];
+
+  for (const frame of framesLore()) {
+    htmls('.ssr-lore-container', translate[frame][getLang().match('es') ? 'es' : 'en']);
+    s(`.ssr-background-image-lore-${frame}`).style.opacity = 1;
+    await timer(13000);
+  }
 };
 
 SrrComponent = ({ host, path, storage }) => html`
@@ -203,6 +219,7 @@ SrrComponent = ({ host, path, storage }) => html`
         display: block;
         position: relative;
         padding: 13px;
+        margin-top: 50px;
       }
       .clean-cache-container {
         /* background: #1a1a1a !important; */
@@ -222,9 +239,16 @@ SrrComponent = ({ host, path, storage }) => html`
         top: 0px;
         left: 0px;
         pointer-events: none;
-        background-image: url('${storage['lore4']}');
+        transition: 0.3s;
       }
-      .ssr-background-image-lore-gradient {
+      ${framesLore()
+          .map(
+            (i) => `.ssr-background-image-lore-${i} {
+        background-image: url('${storage[`lore${i}`]}');
+      }`,
+          )
+          .join('')}
+        .ssr-background-image-lore-gradient {
         position: absolute;
         display: block;
         top: 0px;
@@ -246,10 +270,11 @@ SrrComponent = ({ host, path, storage }) => html`
       }
     </style>
     ${borderChar(1, '#000000', ['.ssr-lore-container'])}
+    ${framesLore()
+      .map((i) => html`<div class="ssr-background-image-lore ssr-background-image-lore-${i}" style="opacity: 0"></div>`)
+      .join('')}
 
-    <div class="ssr-background-image-lore">
-      <div class="ssr-background-image-lore-gradient"></div>
-    </div>
+    <div class="ssr-background-image-lore-gradient"></div>
 
     <div class="ssr-lore-container"></div>
 
@@ -271,6 +296,7 @@ SrrComponent = ({ host, path, storage }) => html`
         const timer = ${timer};
         const getLang = ${getLang};
         const LoreScreen = ${LoreScreen};
+        const framesLore = ${framesLore};
 
         LoreScreen();
       }
