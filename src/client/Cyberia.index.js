@@ -1,7 +1,7 @@
 import { SocketIo } from './components/core/SocketIo.js';
 import { Responsive } from './components/core/Responsive.js';
 import { Keyboard } from './components/core/Keyboard.js';
-import { disableOptionsClick } from './components/core/VanillaJs.js';
+import { disableOptionsClick, htmls, s } from './components/core/VanillaJs.js';
 import { PixiCyberia } from './components/cyberia/PixiCyberia.js';
 import { ElementsCyberia } from './components/cyberia/ElementsCyberia.js';
 import { TranslateCyberia } from './components/cyberia/TranslateCyberia.js';
@@ -9,7 +9,7 @@ import { JoyStickCyberia } from './components/cyberia/JoyStickCyberia.js';
 import { MainUserCyberia } from './components/cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from './components/cyberia/SocketIoCyberia.js';
 import { LogOutCyberia } from './components/cyberia/LogOutCyberia.js';
-import { TranslateCore } from './components/core/Translate.js';
+import { Translate, TranslateCore } from './components/core/Translate.js';
 import { MenuCyberia } from './components/cyberia/MenuCyberia.js';
 import { RouterCyberia } from './components/cyberia/RoutesCyberia.js';
 import { Css } from './components/core/Css.js';
@@ -21,6 +21,7 @@ import { InteractionPanelCyberia } from './components/cyberia/InteractionPanelCy
 import { CyberiaParams } from './components/cyberia/CommonCyberia.js';
 import { Worker } from './components/core/Worker.js';
 import { MatrixCyberia } from './components/cyberia/MatrixCyberia.js';
+import { LoadingAnimation } from './components/core/LoadingAnimation.js';
 
 window.onload = () =>
   Worker.instance({
@@ -38,11 +39,16 @@ window.onload = () =>
       await InteractionPanelCyberia.Render({ id: 'menu-interaction-panel' });
       await SocketIo.Init({ channels: ElementsCyberia.Data });
       await SocketIoCyberia.Init();
+      LoadingAnimation.barLevel.append();
       await LogOutCyberia();
       await SignUpCyberia();
       disableOptionsClick('html', ['drag', 'select', 'menu']);
       await Keyboard.Init({ callBackTime: CyberiaParams.EVENT_CALLBACK_TIME });
       await JoyStickCyberia.Render();
       await MatrixCyberia.Render();
+      setTimeout(() => {
+        s(`.ssr-loading-bar`).style.display = 'none';
+        htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
+      }, 2000);
     },
   });

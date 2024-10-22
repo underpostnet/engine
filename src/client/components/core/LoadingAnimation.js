@@ -168,9 +168,7 @@ const LoadingAnimation = {
         if (nameSrcLoad)
           htmls(
             `.ssr-loading-info`,
-            html`<span style="color: white">Download </span> <br />
-              <br />
-              ...${nameSrcLoad.slice(-30).replaceAll('file', 'storage')}`,
+            html`<span style="color: white">Loading </span> ...${nameSrcLoad.slice(-30).replaceAll('file', 'storage')}`,
           );
       }
     }

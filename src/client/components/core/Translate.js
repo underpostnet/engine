@@ -431,6 +431,10 @@ const TranslateCore = {
       en: 'Are you sure you want to delete all data?',
       es: 'Estas seguro de eliminar todos los datos?',
     };
+    Translate.Data['charge-complete'] = {
+      en: 'Charge complete',
+      es: 'Carga completada',
+    };
   },
 };
 
