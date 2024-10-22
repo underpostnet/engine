@@ -468,7 +468,19 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                       path,
                       ttiLoadTimeLimit,
                       storage: {
-                        'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
+                        // 'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
+                        lore0: `data:image/png;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore0.png')
+                          .toString('base64')}`,
+                        lore1: `data:image/png;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore1.png')
+                          .toString('base64')}`,
+                        lore2: `data:image/jpeg;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore2.jpeg')
+                          .toString('base64')}`,
+                        lore3: `data:image/png;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore3.png')
+                          .toString('base64')}`,
                       },
                     });
                     break;
