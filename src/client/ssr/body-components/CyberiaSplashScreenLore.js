@@ -47,15 +47,16 @@ const LoreScreen = async () => {
   const translate = {
     en: html`Year 2120. Earth, once a vibrant blue marble, now hangs in a precarious balance. Despite monumental strides
     in sustainable technologies and the promise of a prosperous future, a single cataclysmic event irrevocably altered
-    the course of humanity. In 2045, a devastating nuclear disaster rocked the Eastern People's Republic, contaminating
-    the sprawling industrial districts of Being and triggering a chain reaction of genetic mutations. Clandestine
-    biological experiments, conducted in the shadows, amplified the devastation, birthing a plague that transformed much
-    of terrestrial life into grotesque and hostile creatures. A third of the planet was rendered uninhabitable, a
-    desolate wasteland irradiated beyond recognition. Yet, within the depths of these barren lands, new and terrifying
-    life forms emerged. Abominations born of radiation and genetic manipulation posed a constant threat to the dwindling
-    human population. Forced from their ancestral home, humanity scattered across the cosmos in search of a new
-    beginning. The survivors, now known as neo-humans, embarked on a perilous journey into the unknown, seeking refuge
-    among the stars.`,
+    the course of humanity.`,
+    //  `In 2045, a devastating nuclear disaster rocked the Eastern People's Republic, contaminating
+    // the sprawling industrial districts of Being and triggering a chain reaction of genetic mutations. Clandestine
+    // biological experiments, conducted in the shadows, amplified the devastation, birthing a plague that transformed much
+    // of terrestrial life into grotesque and hostile creatures. A third of the planet was rendered uninhabitable, a
+    // desolate wasteland irradiated beyond recognition. Yet, within the depths of these barren lands, new and terrifying
+    // life forms emerged. Abominations born of radiation and genetic manipulation posed a constant threat to the dwindling
+    // human population. Forced from their ancestral home, humanity scattered across the cosmos in search of a new
+    // beginning. The survivors, now known as neo-humans, embarked on a perilous journey into the unknown, seeking refuge
+    // among the stars.`,
 
     // The fate of the universe rests in your hands. Choose your path
 
@@ -97,7 +98,7 @@ const LoreScreen = async () => {
     // biomecánicas, y los Androides, seres totalmente sintéticos creados por una IA avanzada. Ambos poseen una inmensa
     // inteligencia y adaptabilidad, pero son vulnerables a las fallas del sistema.`
   };
-  (await translate[getLang()]) || translate.en;
+  htmls('.ssr-lore-container', translate[getLang()] || translate.en);
 };
 
 SrrComponent = ({ host, path, storage }) => html`
@@ -197,15 +198,60 @@ SrrComponent = ({ host, path, storage }) => html`
       .ssr-lore-container {
         /* color: white; */
         /* color: #000000; */
-        color: #ffcc00;
+        color: #dbdbdb;
+        font-size: 17px;
+        display: block;
+        position: relative;
+        padding: 13px;
       }
       .clean-cache-container {
         /* background: #1a1a1a !important; */
         background: #000000 !important;
       }
+      .ssr-background-image-lore {
+        position: absolute;
+        display: block;
+      }
+      .ssr-background-image-lore {
+        background-size: cover;
+        background-position: center;
+        height: 100vh;
+        width: 100vw;
+        object-fit: cover;
+        z-index: -1;
+        top: 0px;
+        left: 0px;
+        pointer-events: none;
+        background-image: url('${storage['lore4']}');
+      }
+      .ssr-background-image-lore-gradient {
+        position: absolute;
+        display: block;
+        top: 0px;
+        left: 0px;
+        width: 100vw;
+        height: 100vh;
+        background: linear-gradient(
+          to bottom,
+          #000000 0%,
+          #000000df 24%,
+          #000000ab 30%,
+          #0000000f 46%,
+          #00000024 59%,
+          #00000032 71%,
+          #00000098 84%,
+          #000000e6 100%
+        );
+        /* opacity: 0.5; */
+      }
     </style>
+    ${borderChar(1, '#000000', ['.ssr-lore-container'])}
 
-    <div class="ssr-center ssr-lore-container"></div>
+    <div class="ssr-background-image-lore">
+      <div class="ssr-background-image-lore-gradient"></div>
+    </div>
+
+    <div class="ssr-lore-container"></div>
 
     <div class="ssr-loading-container">
       <div class="ssr-loading-bar"><div class="ssr-loading-bar-block ssr-blink-bar"></div></div>
