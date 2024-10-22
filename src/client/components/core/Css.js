@@ -607,7 +607,11 @@ const typeWriter = async function ({ id, html, seconds, endHideBlink, container 
   return new Promise((resolve) => {
     // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
     // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
-    const typingAnimationTransitionStyle = [`1s linear`, `${seconds}s steps(30, end)`, `1s forwards`];
+    const typingAnimationTransitionStyle = [
+      `1s linear`,
+      `${seconds}s steps(${html.split(' ').length * 6}, end)`,
+      `1s forwards`,
+    ];
     const render = html`
       <style class="style-${id}">
         .tw-${id}-typed-out {
@@ -793,7 +797,7 @@ const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionInde
     let cumulativeSeconds = 0;
     for (const index of range(...rangeArraySectionIndex)) {
       const subIdSalt = s4() + s4() + s4();
-      const seconds = phraseArray[index].trim().length * (1 / (s(`.${container}`).offsetWidth * 0.05));
+      const seconds = phraseArray[index].trim().length * 0.05;
       append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
       setTimeout(async () => {
         if (s(`.${container}-${subIdSalt}`)) {

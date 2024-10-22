@@ -32,7 +32,11 @@ const typeWriter = async function ({ id, html, seconds, endHideBlink, container 
   return new Promise((resolve) => {
     // https://developer.mozilla.org/en-US/docs/Web/CSS/animation-timing-function
     // https://www.w3schools.com/cssref/css3_pr_animation-fill-mode.php
-    const typingAnimationTransitionStyle = [`1s linear`, `${seconds}s steps(30, end)`, `1s forwards`];
+    const typingAnimationTransitionStyle = [
+      `1s linear`,
+      `${seconds}s steps(${html.split(' ').length * 6}, end)`,
+      `1s forwards`,
+    ];
     const render = html`
       <style class="style-${id}">
         .tw-${id}-typed-out {
@@ -117,16 +121,19 @@ const typeWriteSectionsString = ({ container, phraseArray, rangeArraySectionInde
     const minSeconds = s(`.${container}`).offsetWidth * 0.01;
     for (const index of range(...rangeArraySectionIndex)) {
       const subIdSalt = s4() + s4() + s4();
-      const seconds = phraseArray[index].trim().length * (1 / (s(`.${container}`).offsetWidth * 0.05));
+      const seconds = phraseArray[index].trim().length * 0.05;
+      // (1 / (s(`.${container}`).offsetWidth * 0.05))
       append(`.${container}`, html` <div class="${container}-${subIdSalt}"></div> `);
       setTimeout(async () => {
         if (s(`.${container}-${subIdSalt}`)) {
           append(`.${container}-${subIdSalt}`, html` <div class="render-typeWriter-${container}-${subIdSalt}"></div> `);
+          // console.error('time delta line text', minSeconds - seconds);
+
           await typeWriter({
             id: `typeWriter-${index}-${container}`,
             html: phraseArray[index].trim(),
             endHideBlink: index < rangeArraySectionIndex[1],
-            seconds,
+            seconds: seconds,
             container: `render-typeWriter-${container}-${subIdSalt}`,
           });
         }
@@ -162,6 +169,27 @@ const renderSsrDialog = async ({ container, text }) => {
   await renderTalkingDialog();
 };
 // <strong class="ssr-secondary-color ssr-lore-text"
+
+const borderChar = (px, color, selectors) => {
+  if (selectors) {
+    return selectors
+      .map(
+        (selector) => html`
+          <style>
+            ${selector} {
+              text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
+                -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
+            }
+          </style>
+        `,
+      )
+      .join('');
+  }
+  return html`
+    text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px
+    ${color}, ${px}px ${px}px ${px}px ${color};
+  `;
+};
 
 const LoreScreen = async () => {
   const translate = {
@@ -240,6 +268,7 @@ SrrComponent = ({ host, path, storage }) => html`
         font-size: 18px;
         font-weight: bold;
         font-family: monospace;
+        overflow: hidden;
       }
       .ssr-center {
         position: absolute;
@@ -316,13 +345,18 @@ SrrComponent = ({ host, path, storage }) => html`
       .ssr-secondary-color {
         color: #ffcc00;
       }
+      .ssr-lore-container {
+        /* color: white; */
+        /* color: #000000; */
+        color: #ffcc00;
+      }
       .clean-cache-container {
         /* background: #1a1a1a !important; */
         background: #000000 !important;
       }
     </style>
-
-    <!-- space-container -->
+    ${borderChar(1, '#171717', ['.ssr-lore-container'])}
+    <!--   space-container -->
 
     <style>
       .space-container {
@@ -333,7 +367,7 @@ SrrComponent = ({ host, path, storage }) => html`
         width: 100%;
         top: 0px;
         left: 0px;
-        overflow: hidden;
+        /* overflow: hidden; */
       }
 
       .space-background {
@@ -358,9 +392,9 @@ SrrComponent = ({ host, path, storage }) => html`
       <div class="space-background"></div>
     </div>
 
-    <div class="ssr-center ssr-lore-container"></div>
-
     <!-- end space-container -->
+
+    <div class="ssr-center ssr-lore-container"></div>
 
     <div class="ssr-loading-container">
       <div class="ssr-loading-bar"><div class="ssr-loading-bar-block ssr-blink-bar"></div></div>

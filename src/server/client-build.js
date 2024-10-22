@@ -461,6 +461,18 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                     }
                     break;
 
+                  case 'CyberiaSplashScreenLore':
+                    ssrBodyComponents += SrrComponent({
+                      ssrPath,
+                      host,
+                      path,
+                      ttiLoadTimeLimit,
+                      storage: {
+                        'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
+                      },
+                    });
+                    break;
+
                   default:
                     ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });
                     break;
