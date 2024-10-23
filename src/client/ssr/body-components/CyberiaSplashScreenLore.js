@@ -88,6 +88,7 @@ const LoreScreen = async () => {
       s(`.ssr-lore-arrow-left`).style.display = 'block';
       s(`.ssr-lore-arrow-right`).style.display = 'block';
     }
+    htmls(`.ssr-lore-info-read-current`, currentFrame + 1);
     await timer(10000);
   };
 
@@ -285,8 +286,17 @@ SrrComponent = ({ host, path, storage }) => html`
         width: 40px;
         height: 40px;
       }
+      .ssr-lore-info-read {
+        position: absolute;
+        display: block;
+        right: 26px;
+        width: 60px;
+        text-align: center;
+        bottom: 100px;
+        font-size: 11px;
+      }
     </style>
-    ${borderChar(1, '#000000', ['.ssr-lore-container'])}
+    ${borderChar(1, '#000000', ['.ssr-lore-container', '.ssr-lore-info-read-current'])}
     ${framesLore()
       .map((i) => html`<div class="ssr-background-image-lore ssr-background-image-lore-${i}" style="opacity: 0"></div>`)
       .join('')}
@@ -294,6 +304,8 @@ SrrComponent = ({ host, path, storage }) => html`
     <div class="ssr-background-image-lore-gradient"></div>
 
     <div class="ssr-lore-container"></div>
+
+    <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
 
     <div class="ssr-lore-arrow-container ssr-lore-arrow-left" style="display:none">
       <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />

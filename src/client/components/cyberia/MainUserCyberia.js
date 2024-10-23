@@ -29,6 +29,7 @@ import { QuestManagementCyberia } from './QuestCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { Modal } from '../core/Modal.js';
 import { Translate } from '../core/Translate.js';
+import { BtnIcon } from '../core/BtnIcon.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -360,9 +361,25 @@ const MainUserCyberia = {
     }, 500);
   },
   finishSetup: () => {
-    setTimeout(() => {
+    setTimeout(async () => {
       s(`.ssr-loading-bar`).style.display = 'none';
       htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
+
+      append(
+        `.ssr-background-cyberia-lore`,
+        html`
+          <div class="abs ssr-center">
+            ${await BtnIcon.Render({
+              label: Translate.Render('play'),
+              class: 'main-play-btn',
+              style: 'width: 80px; background: rgba(0, 0, 0, 0.5);',
+            })}
+          </div>
+        `,
+      );
+      s(`.main-play-btn`).onclick = () => {
+        LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
+      };
     }, 2000);
   },
 };

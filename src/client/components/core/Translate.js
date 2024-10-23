@@ -435,6 +435,7 @@ const TranslateCore = {
       en: 'Charge complete',
       es: 'Carga completada',
     };
+    Translate.Data['play'] = { es: 'Jugar', en: 'Play' };
   },
 };
 
