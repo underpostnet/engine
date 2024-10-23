@@ -48,40 +48,54 @@ const framesLore = () => range(0, 5);
 const LoreScreen = async () => {
   const translate = [
     {
-      en: html``,
-      es: html`Año 2120. La Tierra, la que alguna vez fue una vibrante esfera azul, ahora pende de un precario
-      equilibrio. Un único evento cataclísmico alteró irrevocablemente el curso de la humanidad.`,
+      en: html`Year 2120. Earth, once a vibrant blue sphere, now hangs by a thread. A single cataclysmic event
+      irrevocably altered the course of humanity.`,
+      es: html`Año 2120. La Tierra, otrora una vibrante esfera azul, ahora pende de un hilo. Un único evento
+      cataclísmico alteró irrevocablemente el curso de la humanidad.`,
     },
     {
-      en: html``,
-      es: html`En 2045, un desastre nuclear devastador sacudió la República Popular de Oriente, desencadenando una
+      en: html`In 2045, a devastating nuclear disaster rocked the People's Republic of the Orient, triggering a chain
+      reaction of genetic mutations.`,
+      es: html`En 2045, un devastador desastre nuclear sacudió la República Popular de Oriente, desencadenando una
       reacción en cadena de mutaciones genéticas.`,
     },
     {
-      en: html``,
-
-      es: html`Tiempo depues una fuga de experimentos biológicos clandestinos dio origen a una plaga que transformó gran
-      parte de la vida terrestre en criaturas hostiles.`,
+      en: html`Later, a leak of clandestine biological experiments gave rise to a plague that transformed much of
+      terrestrial life into hostile creatures.`,
+      es: html`Tiempo después, una fuga de experimentos biológicos clandestinos dio origen a una plaga que transformó
+      gran parte de la vida terrestre en criaturas hostiles.`,
     },
     {
-      en: html``,
-      es: html`Ya con un tercio del planeta inhabitable, la humanidad se vio forzada buscar un nuevo hogar más allá de
-        las estrellas asi fue como los denominados <span class="ssr-secondary-color">Colonos</span> emprendieron esta
-        mision.`,
+      en: html`With a third of the planet uninhabitable, humanity was forced to seek a new home beyond the stars. Thus,
+        the so-called <span class="ssr-secondary-color">Colonists</span> embarked on this mission.`,
+      es: html`Con un tercio del planeta inhabitable, la humanidad se vio forzada a buscar un nuevo hogar más allá de
+        las estrellas. Así fue como los denominados <span class="ssr-secondary-color">Colonos</span> emprendieron esta
+        misión.`,
     },
     {
-      en: html``,
-      es: html`Sin embargo, en las zonas de exclusión, humanos sobrevientes a las mutaciones de radiacion o experimentos
-        geneticos, fueron rechazados por colonos, asi estos <span class="ssr-secondary-color">Mutagenicos</span> juraron
-        venganza sobre su ex-humanidad.`,
+      en: html`However, in the exclusion zones, humans who survived the radiation mutations or genetic experiments were
+        rejected by the colonists. Thus, these <span class="ssr-secondary-color">Mutagens</span> swore vengeance on
+        their former humanity.`,
+      es: html`Sin embargo, en las zonas de exclusión, humanos sobrevivientes a las mutaciones de radiación o
+        experimentos genéticos, fueron rechazados por los colonos. Así, estos
+        <span class="ssr-secondary-color">Mutagénicos</span> juraron venganza sobre su ex-humanidad.`,
     },
     {
-      en: html``,
-      es: html`Dada la falta de poblacion las inteligencias artificiales a traves de la nanotecnolgia y transistores
-        integrados crearon humanoides completamente <span class="ssr-secondary-color">Sinteticos</span>, algunos buscan
-        integrarse, otros hacer valer su condicion de artificial.`,
+      en: html`Artificial intelligences, through nanotechnology and integrated transistors, created fully
+        <span class="ssr-secondary-color">Synthetic</span> humanoids. Some were created to serve the colonists, others,
+        however, desire something more.`,
+      es: html`Inteligencias artificiales a través de la nanotecnología y transistores integrados crearon humanoides
+        completamente <span class="ssr-secondary-color">Sintéticos</span>. Algunos fueron creados para servir a los
+        colonos, otros, sin embargo, desean algo más.`,
     },
-    // competir por la supremacia de los neo-humanos
+    {
+      en: html`Today, humanity lives in ring-shaped space stations, asteroids, and extrasolar planets.`,
+      es: html`Hoy, la humanidad vive en estaciones espaciales en forma de anillo, asteroides y planetas extrasolares.`,
+    },
+    {
+      en: html`Welcome to Cyberia. Explore, find your path, and carve out your space in the new neo-humanity.`,
+      es: html`Bienvenido a Cyberia. Explora, encuentra tu camino y hazte un espacio en la nueva neo-humanidad.`,
+    },
   ];
   let autoSlideLore = true;
   let currentFrame = 0;
