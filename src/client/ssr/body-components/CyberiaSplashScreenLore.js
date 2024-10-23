@@ -54,7 +54,7 @@ const LoreScreen = async () => {
     },
     {
       en: html``,
-      es: html`En 2045, un desastre nuclear devastador sacudió la República Popular del Este, desencadenando una
+      es: html`En 2045, un desastre nuclear devastador sacudió la República Popular de Oriente, desencadenando una
       reacción en cadena de mutaciones genéticas.`,
     },
     {
@@ -87,25 +87,24 @@ const LoreScreen = async () => {
   let currentFrame = 0;
 
   const frameRender = async () => {
-    if (currentFrame > framesLore().length - 1) currentFrame = framesLore().length - 1;
+    if (currentFrame > framesLore().length - 1) currentFrame = 0;
     else if (currentFrame < 0) {
-      currentFrame = 0;
-      return;
+      currentFrame = framesLore().length - 1;
     }
     htmls('.ssr-lore-container', translate[currentFrame][getLang().match('es') ? 'es' : 'en']);
     for (const _frame of framesLore()) {
       s(`.ssr-background-image-lore-${_frame}`).style.opacity = _frame === currentFrame ? 1 : 0;
     }
-    if (currentFrame === 0) {
-      s(`.ssr-lore-arrow-left`).style.display = 'none';
-      s(`.ssr-lore-arrow-right`).style.display = 'block';
-    } else if (currentFrame === framesLore().length - 1) {
-      s(`.ssr-lore-arrow-left`).style.display = 'block';
-      s(`.ssr-lore-arrow-right`).style.display = 'none';
-    } else {
-      s(`.ssr-lore-arrow-left`).style.display = 'block';
-      s(`.ssr-lore-arrow-right`).style.display = 'block';
-    }
+    // if (currentFrame === 0) {
+    //   s(`.ssr-lore-arrow-left`).style.display = 'none';
+    //   s(`.ssr-lore-arrow-right`).style.display = 'block';
+    // } else if (currentFrame === framesLore().length - 1) {
+    //   s(`.ssr-lore-arrow-left`).style.display = 'block';
+    //   s(`.ssr-lore-arrow-right`).style.display = 'none';
+    // } else {
+    //   s(`.ssr-lore-arrow-left`).style.display = 'block';
+    //   s(`.ssr-lore-arrow-right`).style.display = 'block';
+    // }
     htmls(`.ssr-lore-info-read-current`, currentFrame + 1);
     await timer(10000);
   };
@@ -328,8 +327,8 @@ SrrComponent = ({ host, path, storage }) => html`
     <div class="ssr-lore-container"></div>
     <div class="ssr-lore-arrows-container" style="display: none">
       <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
-
-      <div class="ssr-lore-arrow-container ssr-lore-arrow-left" style="display:none">
+      <!--style="display:none"-->
+      <div class="ssr-lore-arrow-container ssr-lore-arrow-left">
         <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
       </div>
       <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
