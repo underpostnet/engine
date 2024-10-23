@@ -16,7 +16,7 @@ import {
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Account } from '../core/Account.js';
-import { append, getProxyPath, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, s, htmls } from '../core/VanillaJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { CyberiaParams, isElementCollision, updateMovementDirection } from './CommonCyberia.js';
 import { Application, Container, Sprite, Texture } from 'pixi.js';
@@ -28,6 +28,7 @@ import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { Modal } from '../core/Modal.js';
+import { Translate } from '../core/Translate.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -357,6 +358,12 @@ const MainUserCyberia = {
     setTimeout(() => {
       MainUserCyberia.focusTargetBlock = false;
     }, 500);
+  },
+  finishSetup: () => {
+    setTimeout(() => {
+      s(`.ssr-loading-bar`).style.display = 'none';
+      htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
+    }, 2000);
   },
 };
 

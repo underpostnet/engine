@@ -96,6 +96,7 @@ const SocketIoCyberia = {
               }
               if (type === 'user' && id === 'main') {
                 if (ElementsCyberia.Data[type][id].life <= 0) SkillCyberia.renderDeadCooldown({ type, id });
+                LoadingAnimation.barLevel.append();
                 resolve();
               }
               break;

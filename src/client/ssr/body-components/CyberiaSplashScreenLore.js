@@ -65,14 +65,47 @@ const LoreScreen = async () => {
       que transformó gran parte de la vida terrestre en criaturas grotescas y hostiles.`,
     },
   ];
+  let autoSlideLore = true;
+  let currentFrame = 0;
 
-  s(`.ssr-lore-arrow-left`).onclick = () => {};
-  s(`.ssr-lore-arrow-right`).onclick = () => {};
+  const frameRender = async () => {
+    if (currentFrame > framesLore().length - 1) currentFrame = framesLore().length - 1;
+    else if (currentFrame < 0) {
+      currentFrame = 0;
+      return;
+    }
+    htmls('.ssr-lore-container', translate[currentFrame][getLang().match('es') ? 'es' : 'en']);
+    for (const _frame of framesLore()) {
+      s(`.ssr-background-image-lore-${_frame}`).style.opacity = _frame === currentFrame ? 1 : 0;
+    }
+    if (currentFrame === 0) {
+      s(`.ssr-lore-arrow-left`).style.display = 'none';
+      s(`.ssr-lore-arrow-right`).style.display = 'block';
+    } else if (currentFrame === framesLore().length - 1) {
+      s(`.ssr-lore-arrow-left`).style.display = 'block';
+      s(`.ssr-lore-arrow-right`).style.display = 'none';
+    } else {
+      s(`.ssr-lore-arrow-left`).style.display = 'block';
+      s(`.ssr-lore-arrow-right`).style.display = 'block';
+    }
+    await timer(10000);
+  };
+
+  s(`.ssr-lore-arrow-left`).onclick = () => {
+    autoSlideLore = false;
+    currentFrame--;
+    frameRender();
+  };
+  s(`.ssr-lore-arrow-right`).onclick = () => {
+    autoSlideLore = false;
+    currentFrame++;
+    frameRender();
+  };
 
   for (const frame of framesLore()) {
-    htmls('.ssr-lore-container', translate[frame][getLang().match('es') ? 'es' : 'en']);
-    s(`.ssr-background-image-lore-${frame}`).style.opacity = 1;
-    await timer(10000);
+    currentFrame = frame;
+    if (!autoSlideLore) continue;
+    await frameRender();
   }
 };
 
