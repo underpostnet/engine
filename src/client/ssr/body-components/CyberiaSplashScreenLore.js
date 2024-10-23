@@ -43,14 +43,13 @@ const borderChar = (px, color, selectors) => {
   `;
 };
 
-const framesLore = () => range(0, 2);
+const framesLore = () => range(0, 5);
 
 const LoreScreen = async () => {
   const translate = [
     {
       en: html``,
-
-      es: html` Año 2120. La Tierra, la que alguna vez fue una vibrante esfera azul, ahora pende de un precario
+      es: html`Año 2120. La Tierra, la que alguna vez fue una vibrante esfera azul, ahora pende de un precario
       equilibrio. Un único evento cataclísmico alteró irrevocablemente el curso de la humanidad.`,
     },
     {
@@ -61,9 +60,28 @@ const LoreScreen = async () => {
     {
       en: html``,
 
-      es: html`Sumado a eso experimentos biológicos clandestinos, amplificaron la devastación, dando origen a una plaga
-      que transformó gran parte de la vida terrestre en criaturas grotescas y hostiles.`,
+      es: html`Tiempo depues una fuga de experimentos biológicos clandestinos dio origen a una plaga que transformó gran
+      parte de la vida terrestre en criaturas hostiles.`,
     },
+    {
+      en: html``,
+      es: html`Ya con un tercio del planeta inhabitable, la humanidad se vio forzada buscar un nuevo hogar más allá de
+        las estrellas asi fue como los denominados <span class="ssr-secondary-color">Colonos</span> emprendieron esta
+        mision.`,
+    },
+    {
+      en: html``,
+      es: html`Sin embargo, en las zonas de exclusión, humanos sobrevientes a las mutaciones de radiacion o experimentos
+        geneticos, fueron rechazados por colonos, asi estos <span class="ssr-secondary-color">Mutagenicos</span> juraron
+        venganza sobre su ex-humanidad.`,
+    },
+    {
+      en: html``,
+      es: html`Dada la falta de poblacion las inteligencias artificiales a traves de la nanotecnolgia y transistores
+        integrados crearon humanoides completamente <span class="ssr-secondary-color">Sinteticos</span>, algunos buscan
+        integrarse, otros hacer valer su condicion de artificial.`,
+    },
+    // competir por la supremacia de los neo-humanos
   ];
   let autoSlideLore = true;
   let currentFrame = 0;
@@ -103,11 +121,15 @@ const LoreScreen = async () => {
     frameRender();
   };
 
-  for (const frame of framesLore()) {
-    currentFrame = frame;
-    if (!autoSlideLore) continue;
-    await frameRender();
-  }
+  const loreAutoSlide = async () => {
+    for (const frame of framesLore()) {
+      if (!autoSlideLore) continue;
+      currentFrame = frame;
+      await frameRender();
+    }
+    if (autoSlideLore) loreAutoSlide();
+  };
+  loreAutoSlide();
 };
 
 SrrComponent = ({ host, path, storage }) => html`
@@ -304,14 +326,15 @@ SrrComponent = ({ host, path, storage }) => html`
     <div class="ssr-background-image-lore-gradient"></div>
 
     <div class="ssr-lore-container"></div>
+    <div class="ssr-lore-arrows-container" style="display: none">
+      <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
 
-    <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
-
-    <div class="ssr-lore-arrow-container ssr-lore-arrow-left" style="display:none">
-      <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
-    </div>
-    <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
-      <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-right']}" />
+      <div class="ssr-lore-arrow-container ssr-lore-arrow-left" style="display:none">
+        <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
+      </div>
+      <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
+        <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-right']}" />
+      </div>
     </div>
 
     <div class="ssr-loading-container">

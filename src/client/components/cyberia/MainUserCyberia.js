@@ -363,12 +363,14 @@ const MainUserCyberia = {
   finishSetup: () => {
     setTimeout(async () => {
       s(`.ssr-loading-bar`).style.display = 'none';
-      htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
-
+      // htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
+      htmls('.ssr-loading-info', html``);
+      if (s(`.ssr-lore-arrows-container`)) s(`.ssr-lore-arrows-container`).style.display = null;
       append(
         `.ssr-background-cyberia-lore`,
         html`
           <div class="abs ssr-center">
+            <!-- style="animation: ssr-blink-animation 1s linear infinite" -->
             ${await BtnIcon.Render({
               label: Translate.Render('play'),
               class: 'main-play-btn',
