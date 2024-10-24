@@ -2,7 +2,6 @@ const getLang = () => navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
-
 const range = (start, end) => {
   return end < start
     ? range(end, start).reverse()
@@ -10,7 +9,6 @@ const range = (start, end) => {
 };
 const timer = (ms) => new Promise((res) => setTimeout(res, ms));
 const htmls = (el, html) => (s(el).innerHTML = html);
-
 const newInstance = (obj) => {
   // structuredClone() 2022 ES6 feature
   try {
@@ -19,9 +17,6 @@ const newInstance = (obj) => {
     return { error: error.message };
   }
 };
-
-// <strong class="ssr-secondary-color ssr-lore-text"
-
 const borderChar = (px, color, selectors) => {
   if (selectors) {
     return selectors
@@ -43,7 +38,7 @@ const borderChar = (px, color, selectors) => {
   `;
 };
 
-const framesLore = () => range(0, 7);
+const framesLore = () => range(0, 8);
 
 const LoreScreen = async () => {
   const translate = [
@@ -87,6 +82,14 @@ const LoreScreen = async () => {
       es: html`Inteligencias artificiales a través de la nanotecnología y transistores integrados crearon humanoides
         completamente <span class="ssr-secondary-color">Sintéticos</span>. Algunos fueron creados para servir a los
         colonos, otros, sin embargo, desean algo más.`,
+    },
+    {
+      en: html`The proliferation of hyperrealities, digital worlds so realistic they were indistinguishable from the
+      real world, allowed neohumans to escape the isolation of a hostile universe, but at the same time they were under
+      the watchful eye of the space cyber powers vying for domination of these new virtual spaces`,
+      es: html`La proliferación de las hiperrealidades, mundos digitales tan realistas que eran indistinguibles de la
+      realidad, permitió a los neohumanos escapar del aislamiento de un universo hostil, pero al mismo tiempo estar bajo
+      el asecho de las cyber potencias espaciales que luchan por la dominación de estos nuevos espacios virtuales`,
     },
     {
       en: html`Today, humanity lives in ring-shaped space stations, asteroids, and extrasolar planets.`,
@@ -250,7 +253,7 @@ SrrComponent = ({ host, path, storage }) => html`
         display: block;
         position: relative;
         padding: 13px;
-        margin-top: 50px;
+        margin-top: 70px;
       }
       .clean-cache-container {
         /* background: #1a1a1a !important; */

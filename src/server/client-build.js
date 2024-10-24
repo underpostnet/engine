@@ -493,6 +493,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                         lore7: `data:image/jpeg;base64,${fs
                           .readFileSync('./src/client/public/cyberia/assets/lore/lore7.jpeg')
                           .toString('base64')}`,
+                        lore8: `data:image/jpeg;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/lore/lore8.jpeg')
+                          .toString('base64')}`,
                         ['arrow-left']: `data:image/png;base64,${fs
                           .readFileSync('./src/client/public/cyberia/assets/ui-icons/arrow-left.png')
                           .toString('base64')}`,

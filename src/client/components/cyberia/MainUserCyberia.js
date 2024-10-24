@@ -369,13 +369,20 @@ const MainUserCyberia = {
       append(
         `.ssr-background-cyberia-lore`,
         html`
-          <div class="abs ssr-center">
+          <div class="abs cyberia-splash-screen-logo-container">
+            <img class="inl logo-cyberia-splash-screen" src="${getProxyPath()}assets/ui-icons/cyberia-yellow.png" /> C Y
+            B E R I A <br />
+            <span class="cyberia-splash-screen-logo-span"> online</span>
+          </div>
+          <div class="abs center">
             <!-- style="animation: ssr-blink-animation 1s linear infinite" -->
-            ${await BtnIcon.Render({
-              label: Translate.Render('play'),
-              class: 'main-play-btn',
-              style: 'width: 80px; background: rgba(0, 0, 0, 0.5);',
-            })}
+            <div class="in cyberia-splash-screen-logo-container">
+              ${await BtnIcon.Render({
+                label: Translate.Render('play'),
+                class: 'main-play-btn',
+                style: 'width: 80px; background: rgba(0, 0, 0, 0.5);',
+              })}
+            </div>
           </div>
         `,
       );

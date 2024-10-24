@@ -145,7 +145,30 @@ const CssCommonCyberia = async () => {
         top: 6px !important;
         color: #ffcc00 !important;
       }
+      .cyberia-splash-screen-logo-container {
+        font-family: 'retro-font';
+        color: black;
+        font-size: 30px;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+      }
+      .cyberia-splash-screen-logo-span {
+        font-family: 'retro-font-title';
+        font-size: 14px;
+        font-weight: normal;
+        top: -12px;
+        position: relative;
+        color: white;
+      }
+      .logo-cyberia-splash-screen {
+        width: 40px;
+        height: auto;
+        top: 20px;
+      }
     </style>
+    ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
+    ${borderChar(1, 'black', ['.cyberia-splash-screen-logo-span'])}
     <div class="ag-grid-style"></div>`;
 };
 
