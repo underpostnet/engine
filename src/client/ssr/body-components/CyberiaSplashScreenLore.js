@@ -102,10 +102,10 @@ const LoreScreen = async () => {
     {
       en: html`The proliferation of hyperrealities, digital worlds so realistic they were indistinguishable from the
       real world, allowed neohumans to escape the isolation of a hostile universe, but at the same time they were under
-      the watchful eye of the space cyber powers vying for domination of these new virtual spaces`,
+      the watchful eye of the space cyber powers.`,
       es: html`La proliferación de las hiperrealidades, mundos digitales tan realistas que eran indistinguibles de la
       realidad, permitió a los neohumanos escapar del aislamiento de un universo hostil, pero al mismo tiempo estar bajo
-      el asecho de las cyber potencias espaciales que luchan por la dominación de estos nuevos espacios virtuales`,
+      el asecho de las cyber potencias espaciales.`,
     },
     {
       en: html`Today, humanity lives in ring-shaped space stations, asteroids, and extrasolar planets.`,
