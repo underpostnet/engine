@@ -1,4 +1,4 @@
-const getLang = () => 'es'; // navigator.language || navigator.userLanguage;
+const getLang = () => navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
