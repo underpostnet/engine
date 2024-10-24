@@ -19,7 +19,7 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-// // every minutes
+// every minutes
 CronManagement.add('ip', '* * * * *', await Dns.InitIpDaemon());
 
 // every day at 1 am
