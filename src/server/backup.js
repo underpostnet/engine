@@ -46,7 +46,7 @@ const BackUpManagement = {
         for (const host of Object.keys(confServer))
           for (const path of Object.keys(confServer[host])) {
             // retention policy
-            let { db, backupFrequency, maxBackupRetention, singleReplica } = confServer[host][path];
+            let { db, backupFrequency, maxBackupRetention, singleReplica, wp, git, directory } = confServer[host][path];
 
             if (!db || singleReplica) continue;
 
@@ -80,15 +80,28 @@ const BackUpManagement = {
             fs.mkdirSync(`${backUpPath}/${currentDate}`, { recursive: true });
 
             shellExec(`node bin/db ${host}${path} export ${deployId} ${backUpPath}/${currentDate}`);
+
+            if (wp) {
+              const repoUrl = `https://${process.env.GITHUB_BACKUP_TOKEN}@github.com/${
+                process.env.GITHUB_BACKUP_USERNAME
+              }/${git.split('/').pop()}.git`;
+
+              shellExec(
+                `cd ${directory}` +
+                  ` && git pull ${repoUrl}` +
+                  ` && git add . && git commit -m "backup ${new Date().toLocaleDateString()}"` +
+                  ` && git push ${repoUrl}`,
+              );
+            }
           }
       }
     }
-    shellCd(`./engine-private/cron-backups`);
-    shellExec(`git pull ${BackUpManagement.repoUrl}`);
-    shellExec(`git add . && git commit -m "backup ${new Date().toLocaleDateString()}"`);
-    shellExec(`git push ${BackUpManagement.repoUrl}`);
-    shellCd(`..`);
-    shellCd(`..`);
+    shellExec(
+      `cd ./engine-private/cron-backups` +
+        ` && git pull ${BackUpManagement.repoUrl}` +
+        ` && git add . && git commit -m "backup ${new Date().toLocaleDateString()}"` +
+        ` && git push ${BackUpManagement.repoUrl}`,
+    );
   },
 };
 
