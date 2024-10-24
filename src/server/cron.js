@@ -6,6 +6,8 @@ const logger = loggerFactory(import.meta);
 const CronManagement = {
   data: {},
   init: function () {
+    // verify tokens
+    // https://github.com/settings/tokens
     for (const cronKey of Object.keys(this.data)) {
       if (this.data[cronKey].valid) {
         this.data[cronKey].task.start();
