@@ -702,15 +702,6 @@ const deployRun = async (dataDeploy, reset) => {
   } else logger.info(`Deploy process successfully`);
 };
 
-const updateSrc = () => {
-  const silent = true;
-  shellExec(`git pull origin master`, { silent });
-  shellCd(`engine-private`);
-  shellExec(`git pull origin master`, { silent });
-  shellCd(`..`);
-  // shellExec(`npm install && npm install --only=dev`);
-};
-
 const restoreMacroDb = async (deployGroupId = '') => {
   const dataDeploy = await getDataDeploy({ deployGroupId, buildSingleReplica: false });
   for (const deployGroup of dataDeploy) {
@@ -881,7 +872,6 @@ export {
   getDeployGroupId,
   execDeploy,
   deployRun,
-  updateSrc,
   getCronBackUpFolder,
   getRestoreCronCmd,
   mergeBackUp,
