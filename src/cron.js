@@ -9,6 +9,7 @@ import { Dns } from './server/dns.js';
 import { ProcessController } from './server/process.js';
 import { Config } from './server/conf.js';
 import { BackUpManagement } from './server/backup.js';
+import { CronManagement } from './server/cron.js';
 
 dotenv.config();
 
@@ -18,8 +19,12 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
-await Dns.InitIpDaemon();
+// // every minutes
+CronManagement.add('ip', '* * * * *', await Dns.InitIpDaemon());
 
-await BackUpManagement.Init();
+// every day at 1 am
+CronManagement.add('backup', '0 1 * * *', await BackUpManagement.Init());
+
+await CronManagement.init();
 
 ProcessController.init(logger);

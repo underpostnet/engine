@@ -14,6 +14,7 @@ const logger = loggerFactory(import.meta);
 const Dns = {
   ip: null,
   ipDaemon: null,
+  callback: () => null,
   InitIpDaemon: async function () {
     // WAN | NAT-VPS | LAN
     // enabled DMZ Host to proxy IP 80-443 (79-444) sometimes router block first port
@@ -58,18 +59,8 @@ const Dns = {
         }
       }
     };
-    await callback();
-    // every minute
-    cron.schedule(
-      '* * * * *',
-      async () => {
-        await callback();
-      },
-      {
-        scheduled: true,
-        timezone: process.env.TIME_ZONE || 'America/New_York',
-      },
-    );
+    this.callback = callback;
+    return callback;
   },
   services: {
     updateIp: {

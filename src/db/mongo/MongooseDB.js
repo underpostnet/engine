@@ -114,18 +114,6 @@ const MongooseDB = {
           };
 
           checkStatus();
-          break;
-          // every 30 minute
-          cron.schedule(
-            '0 */30 * * * *',
-            async () => {
-              checkStatus();
-            },
-            {
-              scheduled: true,
-              timezone: process.env.TIME_ZONE || 'America/New_York',
-            },
-          );
         }
         break;
       default:
