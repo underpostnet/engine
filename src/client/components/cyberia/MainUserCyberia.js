@@ -369,11 +369,12 @@ const MainUserCyberia = {
       append(
         `.ssr-background-cyberia-lore`,
         html`
-          <div class="abs cyberia-splash-screen-logo-container">
-            <img class="inl logo-cyberia-splash-screen" src="${getProxyPath()}assets/ui-icons/cyberia-yellow.png" /> C Y
-            B E R I A <br />
-            <span class="cyberia-splash-screen-logo-span"> online</span>
-          </div>
+          <!-- <div class="abs cyberia-splash-screen-logo-container">
+              <img class="inl logo-cyberia-splash-screen" src="${getProxyPath()}assets/ui-icons/cyberia-yellow.png" />
+              C&nbsp; Y&nbsp; B&nbsp; E&nbsp; R&nbsp; I&nbsp; A <br />
+          
+            </div>-->
+          <!-- <span class="cyberia-splash-screen-logo-span"> online</span> -->
           <div class="abs center">
             <!-- style="animation: ssr-blink-animation 1s linear infinite" -->
             <div class="in cyberia-splash-screen-logo-container">

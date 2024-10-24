@@ -502,6 +502,12 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                         ['arrow-right']: `data:image/png;base64,${fs
                           .readFileSync('./src/client/public/cyberia/assets/ui-icons/arrow-right.png')
                           .toString('base64')}`,
+                        ['fullscreen']: `data:image/png;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/ui-icons/fullscreen.png')
+                          .toString('base64')}`,
+                        ['cyberia-logo']: `data:image/png;base64,${fs
+                          .readFileSync('./src/client/public/cyberia/assets/util/cyberia-retro-banner.png')
+                          .toString('base64')}`,
                       },
                     });
                     break;

@@ -1,4 +1,4 @@
-const getLang = () => navigator.language || navigator.userLanguage;
+const getLang = () => 'es'; // navigator.language || navigator.userLanguage;
 const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
@@ -15,6 +15,22 @@ const newInstance = (obj) => {
     return JSON.parse(JSON.stringify(obj));
   } catch (error) {
     return { error: error.message };
+  }
+};
+const fullScreenIn = () => {
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+  } else if (elem.mozRequestFullScreen) {
+    /* Firefox */
+    elem.mozRequestFullScreen();
+  } else if (elem.webkitRequestFullscreen) {
+    /* Chrome, Safari & Opera */
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) {
+    /* IE/Edge */
+    elem = window.top.document.body; //To break out of frame in IE
+    elem.msRequestFullscreen();
   }
 };
 const borderChar = (px, color, selectors) => {
@@ -149,6 +165,11 @@ const LoreScreen = async () => {
     }
   };
   loreAutoSlide();
+
+  s(`.ssr-fullscreen-img`).onclick = () => {
+    fullScreenIn();
+    s(`.ssr-fullscreen-img`).style.display = 'none';
+  };
 };
 
 SrrComponent = ({ host, path, storage }) => html`
@@ -336,6 +357,23 @@ SrrComponent = ({ host, path, storage }) => html`
         bottom: 100px;
         font-size: 11px;
       }
+      .ssr-fullscreen-img {
+        position: absolute;
+        display: block;
+        top: 10px;
+        right: 10px;
+        width: 35px;
+        height: 35px;
+        cursor: pointer;
+      }
+      .ssr-image-logo-cyberia {
+        top: 25px;
+        left: 10px;
+        height: 40px;
+        width: auto;
+        position: absolute;
+        display: block;
+      }
     </style>
     ${borderChar(1, '#000000', ['.ssr-lore-container', '.ssr-lore-info-read-current'])}
     ${framesLore()
@@ -363,6 +401,8 @@ SrrComponent = ({ host, path, storage }) => html`
         ...${`${host}${path}`.slice(-30)}
       </div>
     </div>
+    <img src="${storage['cyberia-logo']}" class="ssr-image-logo-cyberia" />
+    <img src="${storage['fullscreen']}" class="ssr-fullscreen-img" />
     <script>
       {
         const s = ${s};
@@ -373,6 +413,7 @@ SrrComponent = ({ host, path, storage }) => html`
         const append = ${append};
         const timer = ${timer};
         const getLang = ${getLang};
+        const fullScreenIn = ${fullScreenIn};
         const LoreScreen = ${LoreScreen};
         const framesLore = ${framesLore};
 

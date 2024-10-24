@@ -164,7 +164,8 @@ const CssCommonCyberia = async () => {
       .logo-cyberia-splash-screen {
         width: 40px;
         height: auto;
-        top: 20px;
+        top: 14px;
+        left: -6px;
       }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
