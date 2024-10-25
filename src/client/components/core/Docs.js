@@ -63,7 +63,7 @@ const Docs = {
       icon: html`<i class="fa-brands fa-osi"></i>`,
       text: 'Source Docs',
       url: function () {
-        return `${getProxyPath()}docs/engine/2.7.6`;
+        return `${getProxyPath()}docs/engine/2.7.7`;
       },
     },
     {
