@@ -619,6 +619,8 @@ const deployTest = async (dataDeploy) => {
     let fail = false;
     for (const host of Object.keys(serverConf))
       for (const path of Object.keys(serverConf[host])) {
+        const { singleReplica } = serverConf[host][path];
+        if (singleReplica) continue;
         const urlTest = `https://${host}${path}`;
         try {
           const result = await axios.get(urlTest);
