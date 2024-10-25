@@ -49,7 +49,7 @@ window.onload = () => {
         }
       </style>
 
-      <div class="abs center" style="top: 40%">${serverIcon}<br /><br />${Translate['server-maintenance'][lang]}</div>
+      <div class="abs center" style="top: 45%">${serverIcon}<br /><br />${Translate['server-maintenance'][lang]}</div>
     `,
   );
 };
