@@ -1,10 +1,21 @@
-import { getLang, s, append, s4, range, timer, htmls, newInstance, fullScreenIn, borderChar } from '../ssr/Lib.js';
+import {
+  getLang,
+  s,
+  append,
+  s4,
+  range,
+  timer,
+  htmls,
+  newInstance,
+  fullScreenIn,
+  borderChar,
+  loggerFactory,
+} from '../ssr/Lib.js';
 /*imports*/
-import { loggerFactory } from '../components/core/Logger.js';
 
 const lang = getLang().match('es') ? 'es' : 'en';
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory({ url: '/offline.js' });
 
 const Translate = {
   ['server-maintenance']: {
@@ -25,6 +36,7 @@ const serverIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="80" heigh
 </svg>`;
 
 window.onload = () => {
+  window.serviceWorkerReady = true;
   append(
     'body',
     html`

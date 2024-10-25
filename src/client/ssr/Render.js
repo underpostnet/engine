@@ -231,8 +231,7 @@ selection
             ${baseSsrLib};
           </script>`
         : ''}
-      ${ssrBodyComponents}
-      <script async type="module" src="./${buildId}.js"></script>
+      ${ssrBodyComponents} ${buildId ? html`<script async type="module" src="./${buildId}.js"></script>` : ''}
     </body>
   </html>
 `;

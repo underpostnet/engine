@@ -306,13 +306,15 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           );
 
           // offline html
+
           const htmlSrc = Render({
             title: metadata?.title ? metadata.title : cap(client),
-            buildId: 'offline',
             ssrPath: '/',
             ssrHeadComponents: '',
             ssrBodyComponents: '',
-            baseSsrLib: fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0],
+            baseSsrLib:
+              fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0] +
+              fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
           });
 
           fs.writeFileSync(

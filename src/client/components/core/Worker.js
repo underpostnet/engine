@@ -99,10 +99,15 @@ const Worker = {
           await caches.delete(cacheName);
         }
       }
-      this.updateServiceWorker();
+      await this.updateServiceWorker();
+      try {
+        await fetch('/offline.html');
+      } catch (error) {
+        logger.error('error');
+      }
     }
   },
-  updateServiceWorker: function () {},
+  updateServiceWorker: async function () {},
   status: function () {
     let status = false;
     return new Promise((resolve, reject) => {
@@ -115,7 +120,7 @@ const Worker = {
               else if (registration.waiting) logger.info('waiting', registration);
               else if (registration.active) {
                 logger.info('active', registration);
-                this.updateServiceWorker = () => registration.update();
+                this.updateServiceWorker = async () => await registration.update();
               }
             }
             if (registrations.length > 0) status = true;
