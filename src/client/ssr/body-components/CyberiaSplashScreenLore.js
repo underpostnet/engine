@@ -1,59 +1,5 @@
-const getLang = () =>
-  localStorage.getItem('lang') ? localStorage.getItem('lang') : navigator.language || navigator.userLanguage;
-const s = (el) => document.querySelector(el);
-const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
-const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
-const range = (start, end) => {
-  return end < start
-    ? range(end, start).reverse()
-    : Array.apply(0, Array(end - start + 1)).map((element, index) => index + start);
-};
-const timer = (ms) => new Promise((res) => setTimeout(res, ms));
-const htmls = (el, html) => (s(el).innerHTML = html);
-const newInstance = (obj) => {
-  // structuredClone() 2022 ES6 feature
-  try {
-    return JSON.parse(JSON.stringify(obj));
-  } catch (error) {
-    return { error: error.message };
-  }
-};
-const fullScreenIn = () => {
-  const elem = document.documentElement;
-  if (elem.requestFullscreen) {
-    elem.requestFullscreen();
-  } else if (elem.mozRequestFullScreen) {
-    /* Firefox */
-    elem.mozRequestFullScreen();
-  } else if (elem.webkitRequestFullscreen) {
-    /* Chrome, Safari & Opera */
-    elem.webkitRequestFullscreen();
-  } else if (elem.msRequestFullscreen) {
-    /* IE/Edge */
-    elem = window.top.document.body; //To break out of frame in IE
-    elem.msRequestFullscreen();
-  }
-};
-const borderChar = (px, color, selectors) => {
-  if (selectors) {
-    return selectors
-      .map(
-        (selector) => html`
-          <style>
-            ${selector} {
-              text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
-                -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
-            }
-          </style>
-        `,
-      )
-      .join('');
-  }
-  return html`
-    text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px
-    ${color}, ${px}px ${px}px ${px}px ${color};
-  `;
-};
+import { getLang, s, append, s4, range, timer, htmls, newInstance, fullScreenIn, borderChar } from '../Lib.js';
+/*imports*/
 
 const framesLore = () => range(0, 8);
 
@@ -406,15 +352,6 @@ SrrComponent = ({ host, path, storage }) => html`
     <img src="${storage['fullscreen']}" class="ssr-fullscreen-img" />
     <script>
       {
-        const s = ${s};
-        const htmls = ${htmls};
-        const newInstance = ${newInstance};
-        const range = ${range};
-        const s4 = ${s4};
-        const append = ${append};
-        const timer = ${timer};
-        const getLang = ${getLang};
-        const fullScreenIn = ${fullScreenIn};
         const LoreScreen = ${LoreScreen};
         const framesLore = ${framesLore};
 

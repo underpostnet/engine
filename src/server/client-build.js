@@ -1,7 +1,7 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, viewFormatted } from './client-formatted.js';
+import { srcFormatted, componentFormatted, viewFormatted, ssrFactory } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
 import { cap, newInstance, orderArrayFromAttrInt, titleFormatted } from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
@@ -345,12 +345,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 confSSR[view.ssr].head.unshift('Production');
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                let SrrComponent;
-                eval(
-                  await srcFormatted(
-                    fs.readFileSync(`./src/client/ssr/head-components/${ssrHeadComponent}.js`, 'utf8'),
-                  ),
-                );
+                const SrrComponent = await ssrFactory(`./src/client/ssr/head-components/${ssrHeadComponent}.js`);
 
                 switch (ssrHeadComponent) {
                   case 'Pwa':
@@ -431,12 +426,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                let SrrComponent;
-                eval(
-                  await srcFormatted(
-                    fs.readFileSync(`./src/client/ssr/body-components/${ssrBodyComponent}.js`, 'utf8'),
-                  ),
-                );
+                const SrrComponent = await ssrFactory(`./src/client/ssr/body-components/${ssrBodyComponent}.js`);
                 switch (ssrBodyComponent) {
                   case 'UnderpostDefaultSplashScreen':
                   case 'CyberiaDefaultSplashScreen':
@@ -531,6 +521,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
+              baseSsrLib: fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0],
             });
 
             /** @type {import('sitemap').SitemapItem} */
