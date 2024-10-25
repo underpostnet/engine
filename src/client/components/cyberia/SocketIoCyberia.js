@@ -141,8 +141,8 @@ const SocketIoCyberia = {
             <br />
             ...${location.hostname.slice(-30)}`,
         );
-        s('.ssr-background').style.display = 'block';
-        setTimeout((s('.ssr-background').style.opacity = '1'));
+        s('.ssr-background-cyberia-lore').style.display = 'block';
+        setTimeout((s('.ssr-background-cyberia-lore').style.opacity = '1'));
         s(`.main-user-container`).style.display = 'none';
         PixiCyberia.removeAll();
         ElementsCyberia.removeAll();
