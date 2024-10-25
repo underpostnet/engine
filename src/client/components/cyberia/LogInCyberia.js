@@ -59,7 +59,6 @@ const LogInCyberia = async function () {
       await SocketIo.Init({ channels: ElementsCyberia.Data });
       return await SocketIoCyberia.Init();
     }
-    LoadingAnimation.barLevel.append();
     if (resultUserCyberia.status === 'success') {
       ElementsCyberia.Init({ type, id, element: resultUserCyberia.data });
       WebhookCyberia.register({ user: resultUserCyberia.data });
