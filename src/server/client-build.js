@@ -274,25 +274,60 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
       const buildId = `${client}.index`;
       const siteMapLinks = [];
+      let Render = () => '';
+      eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
       if (views) {
         // build service worker
         if (path === '/') {
-          const jsSrcPath = fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-            ? `./src/client/sw/${publicClientId}.sw.js`
-            : `./src/client/sw/default.sw.js`;
+          const buildSwSrc = async (jsSrcPath, jsPublicPath) => {
+            if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
+              let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+              if (jsSrc.split('/*imports*/')[1]) jsSrc = jsSrc.split('/*imports*/')[1];
 
-          const jsPublicPath = `${rootClientPath}/sw.js`;
+              fs.writeFileSync(
+                jsPublicPath,
+                minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+                'utf8',
+              );
+            }
+          };
+          await buildSwSrc(
+            fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+              ? `./src/client/sw/${publicClientId}.sw.js`
+              : `./src/client/sw/default.sw.js`,
+            `${rootClientPath}/sw.js`,
+          );
+          await buildSwSrc(
+            fs.existsSync(`./src/client/offline/${publicClientId}.index.js`)
+              ? `./src/client/offline/${publicClientId}.index.js`
+              : `./src/client/offline/default.index.js`,
+            `${rootClientPath}/offline.js`,
+          );
 
-          if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-            const jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+          // offline html
+          const htmlSrc = Render({
+            title: metadata?.title ? metadata.title : cap(client),
+            buildId: 'offline',
+            ssrPath: '/',
+            ssrHeadComponents: '',
+            ssrBodyComponents: '',
+            baseSsrLib: fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0],
+          });
 
-            fs.writeFileSync(
-              jsPublicPath,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
-          }
+          fs.writeFileSync(
+            `${rootClientPath}offline.html`,
+            minifyBuild || process.env.NODE_ENV === 'production'
+              ? await minify(htmlSrc, {
+                  minifyCSS: true,
+                  minifyJS: true,
+                  collapseBooleanAttributes: true,
+                  collapseInlineTagWhitespace: true,
+                  collapseWhitespace: true,
+                })
+              : htmlSrc,
+            'utf8',
+          );
         }
         if (
           !(
@@ -511,10 +546,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 }
               }
             }
-
-            let Render = () => '';
-            eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
-
             const htmlSrc = Render({
               title,
               buildId,

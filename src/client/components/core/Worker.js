@@ -90,7 +90,12 @@ const Worker = {
     if (isInstall) {
       const cacheNames = await caches.keys();
       for (const cacheName of cacheNames) {
-        if (cacheName.match('components/') || cacheName.match('services/') || cacheName.match('.index.js')) {
+        if (
+          cacheName.match('components/') ||
+          cacheName.match('services/') ||
+          cacheName.match('.index.js') ||
+          cacheName.match('offline.')
+        ) {
           await caches.delete(cacheName);
         }
       }

@@ -34,6 +34,8 @@ Copyright 2015, 2019 Google Inc. All Rights Reserved.
 even while offline, can asynchronously save files and many other things)
 
 */
+const OFF_LINE_CACHE_NAME = 'offline';
+const OFF_LINE_PRE_CACHED_RESOURCES = ['/offline.html', 'offline.js'];
 
 const logger = loggerFactory(import.meta);
 
@@ -48,9 +50,11 @@ self.addEventListener('install', (event) => {
       // isn't fulfilled from the HTTP cache; i.e., it will be from the network.
       // await cache.add(new Request(OFFLINE_URL, { cache: 'reload' }));
       // Open the app's cache.
-      // const cache = await caches.open(CACHE_NAME);
+
+      // The list of static files your app needs to start.
+      const cache = await caches.open(OFF_LINE_CACHE_NAME);
       // Cache all static resources.
-      // await cache.addAll(PRE_CACHED_RESOURCES);
+      await cache.addAll(OFF_LINE_PRE_CACHED_RESOURCES);
     })(),
   );
 });
@@ -180,9 +184,9 @@ self.addEventListener('fetch', (event) => {
 
           logger.error('Fetch failed; returning offline page instead.', { error, path });
 
-          // const cache = await caches.open(CACHE_NAME);
-          // const cachedResponse = await cache.match(OFFLINE_URL);
-          // return cachedResponse;
+          const cache = await caches.open(OFF_LINE_CACHE_NAME);
+          const cachedResponse = await cache.match('/offline.html');
+          return cachedResponse;
 
           const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
           // response.status = 200;

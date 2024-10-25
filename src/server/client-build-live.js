@@ -71,6 +71,12 @@ const clientLiveBuild = async () => {
       } else if (srcPath.split('src')[1].startsWith(`\\client\\sw`)) {
         const publicBuildPath = `./public/${baseHost}/sw.js`;
         liveClientBuildPaths.push({ srcBuildPath, publicBuildPath });
+      } else if (
+        srcPath.split('src')[1].startsWith(`\\client\\offline`) &&
+        srcPath.split('src')[1].startsWith(`index.js`)
+      ) {
+        const publicBuildPath = `./public/${baseHost}/offline.js`;
+        liveClientBuildPaths.push({ srcBuildPath, publicBuildPath });
       } else if (srcPath.split('src')[1].startsWith(`\\client`) && srcPath.slice(-9) === '.index.js') {
         for (const view of views) {
           const publicBuildPath = `./public/${baseHost}${view.path === '/' ? '' : view.path}/${clientId}.index.js`;
