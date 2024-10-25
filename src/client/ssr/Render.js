@@ -6,6 +6,9 @@ Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, baseS
       <link rel="icon" type="image/x-icon" href="${ssrPath}favicon.ico" />
       <meta charset="UTF-8" />
       <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+      ${ssrHeadComponents}
+    </head>
+    <body>
       <style>
         html {
           scroll-behavior: smooth;
@@ -138,9 +141,9 @@ Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, baseS
         }
         /*
 
-      placeholder
+placeholder
 
-      */
+*/
 
         ::placeholder {
           color: black;
@@ -163,9 +166,9 @@ Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, baseS
 
         /*
 
-      selection
+selection
 
-      */
+*/
 
         ::-moz-selection {
           /* Code for Firefox */
@@ -223,12 +226,11 @@ Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, baseS
         </style>
       </div>
       <div class="theme"></div>
-      <script>
-        ${baseSsrLib};
-      </script>
-      ${ssrHeadComponents}
-    </head>
-    <body>
+      ${baseSsrLib
+        ? html`<script>
+            ${baseSsrLib};
+          </script>`
+        : ''}
       ${ssrBodyComponents}
       <script async type="module" src="./${buildId}.js"></script>
     </body>
