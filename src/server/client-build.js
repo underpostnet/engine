@@ -448,7 +448,10 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                           .readFileSync(backgroundImage)
                           .toString('base64')}`,
                       });
+                      break;
                     } else {
+                      ssrHeadComponents += SrrComponent({ metadata });
+                      break;
                       const bufferBackgroundImage = await getBufferPngText({
                         text: ' ',
                         textColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
@@ -459,7 +462,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                         base64BackgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
                       });
                     }
-                    break;
 
                   case 'CyberiaSplashScreenLore': {
                     ssrBodyComponents += SrrComponent({

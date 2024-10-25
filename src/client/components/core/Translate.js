@@ -1,7 +1,7 @@
 import { newInstance, getId, cap, capFirst } from './CommonJs.js';
 import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
-import { s, htmls } from './VanillaJs.js';
+import { s, htmls, getLang } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -66,7 +66,11 @@ const Translate = {
 
 const TranslateCore = {
   Init: async function () {
-    if (localStorage.getItem('lang')) s('html').lang = localStorage.getItem('lang');
+    s('html').lang = localStorage.getItem('lang')
+      ? localStorage.getItem('lang')
+      : getLang() && getLang().match('es')
+      ? 'es'
+      : 'en';
     Translate.Data = {
       ...Translate.Data,
       isEmpty: {
