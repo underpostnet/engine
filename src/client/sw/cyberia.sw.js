@@ -179,15 +179,17 @@ self.addEventListener('fetch', (event) => {
           }
 
           logger.error('Fetch failed; returning offline page instead.', { error, path });
-
-          // const cache = await caches.open(CACHE_NAME);
-          // const cachedResponse = await cache.match(OFFLINE_URL);
-          // return cachedResponse;
-
-          const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
-          // response.status = 200;
-          response.headers.set('Content-Type', 'application/json');
-          return response;
+          try {
+            const cache = await caches.open('/offline.html');
+            const cachedResponse = await cache.match('/offline.html');
+            return cachedResponse;
+          } catch (error) {
+            logger.error('Error opening cache for offline page', { error, path });
+            const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
+            // response.status = 200;
+            response.headers.set('Content-Type', 'application/json');
+            return response;
+          }
         }
       })(),
     );

@@ -184,7 +184,7 @@ self.addEventListener('fetch', (event) => {
             const cachedResponse = await cache.match('/offline.html');
             return cachedResponse;
           } catch (error) {
-            logger.error('Error opening cache for offline page', { error });
+            logger.error('Error opening cache for offline page', { error, path });
             const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
             // response.status = 200;
             response.headers.set('Content-Type', 'application/json');
