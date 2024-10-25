@@ -67,7 +67,7 @@ const BackUpManagement = {
               case 'daily':
 
               default:
-                if (currentBackupsDirs[0] && currentDate - currentBackupsDirs[0] < 1000 * 60 * 60 * 24) continue;
+                // if (currentBackupsDirs[0] && currentDate - currentBackupsDirs[0] < 1000 * 60 * 60 * 24) continue;
                 break;
             }
 
