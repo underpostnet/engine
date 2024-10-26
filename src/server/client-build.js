@@ -112,6 +112,16 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   const enableLiveRebuild =
     options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
 
+  // common ssr components
+  let jsSsrCommonComponents = '';
+  {
+    const files = await fs.readdir(`./src/client/ssr/common-components`);
+    for (const relativePath of files)
+      jsSsrCommonComponents += await srcFormatted(
+        fs.readFileSync(`./src/client/ssr/common-components/${relativePath}`, 'utf8').split('export')[0],
+      );
+  }
+
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
@@ -292,44 +302,71 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               );
             }
           };
+          // service woker
           await buildSwSrc(
             fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
               ? `./src/client/sw/${publicClientId}.sw.js`
               : `./src/client/sw/default.sw.js`,
             `${rootClientPath}/sw.js`,
           );
-          await buildSwSrc(
-            fs.existsSync(`./src/client/offline/${publicClientId}.index.js`)
-              ? `./src/client/offline/${publicClientId}.index.js`
-              : `./src/client/offline/default.index.js`,
-            `${rootClientPath}/offline.js`,
-          );
 
           // offline html
+          {
+            await buildSwSrc(
+              fs.existsSync(`./src/client/offline/${publicClientId}.index.js`)
+                ? `./src/client/offline/${publicClientId}.index.js`
+                : `./src/client/offline/default.index.js`,
+              `${rootClientPath}/offline.js`,
+            );
 
-          const htmlSrc = Render({
-            title: metadata?.title ? metadata.title : cap(client),
-            ssrPath: '/',
-            ssrHeadComponents: '',
-            ssrBodyComponents: '',
-            baseSsrLib:
-              fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0] +
-              fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
-          });
+            const htmlSrc = Render({
+              title: metadata?.title ? metadata.title : cap(client),
+              ssrPath: '/',
+              ssrHeadComponents: '',
+              ssrBodyComponents: '',
+              baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
+            });
 
-          fs.writeFileSync(
-            `${rootClientPath}offline.html`,
-            minifyBuild || process.env.NODE_ENV === 'production'
-              ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
-              : htmlSrc,
-            'utf8',
-          );
+            fs.writeFileSync(
+              `${rootClientPath}offline.html`,
+              minifyBuild || process.env.NODE_ENV === 'production'
+                ? await minify(htmlSrc, {
+                    minifyCSS: true,
+                    minifyJS: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
+                  })
+                : htmlSrc,
+              'utf8',
+            );
+          }
+          // 400 html
+          {
+            await buildSwSrc(`./src/client/ssr/error-components/404.js`, `${rootClientPath}/404.js`);
+
+            const htmlSrc = Render({
+              title: metadata?.title ? metadata.title : cap(client),
+              ssrPath: '/',
+              ssrHeadComponents: '',
+              ssrBodyComponents: '',
+              baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/404.js`, 'utf8'),
+            });
+
+            fs.writeFileSync(
+              `${rootClientPath}404.html`,
+              minifyBuild || process.env.NODE_ENV === 'production'
+                ? await minify(htmlSrc, {
+                    minifyCSS: true,
+                    minifyJS: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
+                  })
+                : htmlSrc,
+              'utf8',
+            );
+          }
         }
         if (
           !(
@@ -382,7 +419,10 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 confSSR[view.ssr].head.unshift('Production');
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/head-components/${ssrHeadComponent}.js`);
+                const SrrComponent = await ssrFactory(
+                  `./src/client/ssr/head-components/${ssrHeadComponent}.js`,
+                  jsSsrCommonComponents,
+                );
 
                 switch (ssrHeadComponent) {
                   case 'Pwa':
@@ -463,7 +503,10 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/body-components/${ssrBodyComponent}.js`);
+                const SrrComponent = await ssrFactory(
+                  `./src/client/ssr/body-components/${ssrBodyComponent}.js`,
+                  jsSsrCommonComponents,
+                );
                 switch (ssrBodyComponent) {
                   case 'UnderpostDefaultSplashScreen':
                   case 'CyberiaDefaultSplashScreen':
@@ -554,7 +597,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
-              baseSsrLib: fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0],
+              baseSsrLib: jsSsrCommonComponents,
             });
 
             /** @type {import('sitemap').SitemapItem} */

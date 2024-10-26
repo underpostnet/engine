@@ -47,13 +47,11 @@ const viewFormatted = (src, dists, proxyPath, baseHost = '') => {
   return src.replaceAll(`from './`, componentFromFormatted).replaceAll(`from '../`, componentFromFormatted);
 };
 
-const ssrLib = await srcFormatted(fs.readFileSync(`./src/client/ssr/Lib.js`, 'utf8').split('export')[0]);
-
-const ssrFactory = async (componentPath = '') => {
+const ssrFactory = async (componentPath = '', jsSsrCommonComponents) => {
   let SrrComponent = () => {};
   let render = await srcFormatted(fs.readFileSync(componentPath, 'utf8'));
   if (render.split('/*imports*/')[1]) render = render.split('/*imports*/')[1];
-  eval(ssrLib + render);
+  eval(jsSsrCommonComponents + render);
   return SrrComponent;
 };
 

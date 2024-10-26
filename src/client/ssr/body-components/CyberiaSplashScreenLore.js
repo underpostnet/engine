@@ -1,4 +1,15 @@
-import { getLang, s, append, s4, range, timer, htmls, newInstance, fullScreenIn, borderChar } from '../Lib.js';
+import {
+  getLang,
+  s,
+  append,
+  s4,
+  range,
+  timer,
+  htmls,
+  newInstance,
+  fullScreenIn,
+  borderChar,
+} from '../common-components/SsrCore.js';
 /*imports*/
 
 const framesLore = () => range(0, 8);

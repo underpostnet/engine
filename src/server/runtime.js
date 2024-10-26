@@ -369,9 +369,10 @@ export PATH=$PATH:/opt/lampp/bin`,
                 app.use(`${apiPath}/${api}`, router);
               })();
           }
-
           app.use(function (req, res, next) {
-            res.status(404).send('Sorry cant find that!');
+            const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404.html`;
+            if (path404) return res.status(404).sendFile(path404);
+            else res.status(404).send('Sorry cant find that!');
           });
 
           app.use(function (err, req, res, next) {
