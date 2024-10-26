@@ -13,7 +13,17 @@ import { Responsive } from '../core/Responsive.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
-import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
+import {
+  AnimatedSprite,
+  Application,
+  TextureSource,
+  Container,
+  Sprite,
+  Text,
+  TextStyle,
+  Texture,
+  Ticker,
+} from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterCyberiaStatsType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
@@ -261,7 +271,7 @@ const PixiCyberia = {
     this.clearBiomeCyberiaContainers();
 
     this.currentBiomeCyberiaContainer = 'floorContainer';
-    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
+    this.Data.biome.floor = Sprite.from(new TextureSource(blobUrl));
     this.Data.biome.floor.width = this.MetaData.dim;
     this.Data.biome.floor.height = this.MetaData.dim;
     this.Data.biome.floor.x = 0;
@@ -270,7 +280,7 @@ const PixiCyberia = {
   },
   setFloorTopLevelColor: function (blobUrl) {
     this.AppTopLevelColor.stage.removeChildren();
-    const componentInstance = Sprite.from(new BaseTexture(blobUrl));
+    const componentInstance = Sprite.from(new TextureSource(blobUrl));
     componentInstance.width = this.MetaData.dim;
     componentInstance.height = this.MetaData.dim;
     componentInstance.x = 0;

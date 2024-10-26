@@ -35,7 +35,7 @@ import {
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
-import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
+import { Application, TextureSource, Container, Sprite, Texture } from 'pixi.js';
 
 const logger = loggerFactory(import.meta);
 
