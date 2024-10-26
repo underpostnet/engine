@@ -240,8 +240,8 @@ const buildClientSrc = async (
   }
 
   fs.writeFileSync(
-    `./src/client/ssr/head-components/${toClientVariableName}Scripts.js`,
-    formattedSrc(fs.readFileSync(`./src/client/ssr/head-components/${fromClientVariableName}Scripts.js`, 'utf8')),
+    `./src/client/ssr/components/head/${toClientVariableName}Scripts.js`,
+    formattedSrc(fs.readFileSync(`./src/client/ssr/components/head/${fromClientVariableName}Scripts.js`, 'utf8')),
     'utf8',
   );
 
@@ -584,14 +584,14 @@ const validateTemplatePath = (absolutePath = '') => {
     return false;
   }
   if (
-    absolutePath.match('src/client/ssr/body-components') &&
-    !confSsr.body.find((p) => absolutePath.match(`src/client/ssr/body-components/${p}.js`))
+    absolutePath.match('src/client/ssr/components/body') &&
+    !confSsr.body.find((p) => absolutePath.match(`src/client/ssr/components/body/${p}.js`))
   ) {
     return false;
   }
   if (
-    absolutePath.match('src/client/ssr/head-components') &&
-    !confSsr.head.find((p) => absolutePath.match(`src/client/ssr/head-components/${p}.js`))
+    absolutePath.match('src/client/ssr/components/head') &&
+    !confSsr.head.find((p) => absolutePath.match(`src/client/ssr/components/head/${p}.js`))
   ) {
     return false;
   }

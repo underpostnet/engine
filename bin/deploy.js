@@ -553,9 +553,9 @@ try {
         );
 
         fs.writeFileSync(
-          `./src/client/ssr/body-components/CacheControl.js`,
+          `./src/client/ssr/components/body/CacheControl.js`,
           fs
-            .readFileSync(`./src/client/ssr/body-components/CacheControl.js`, 'utf8')
+            .readFileSync(`./src/client/ssr/components/body/CacheControl.js`, 'utf8')
             .replaceAll(`v${version}`, `v${newVersion}`),
           'utf8',
         );

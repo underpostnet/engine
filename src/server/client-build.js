@@ -115,10 +115,10 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   // common ssr components
   let jsSsrCommonComponents = '';
   {
-    const files = await fs.readdir(`./src/client/ssr/common-components`);
+    const files = await fs.readdir(`./src/client/ssr/common`);
     for (const relativePath of files)
       jsSsrCommonComponents += await srcFormatted(
-        fs.readFileSync(`./src/client/ssr/common-components/${relativePath}`, 'utf8').split('export')[0],
+        fs.readFileSync(`./src/client/ssr/common/${relativePath}`, 'utf8').split('export')[0],
       );
   }
 
@@ -313,9 +313,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           // offline html
           {
             await buildSwSrc(
-              fs.existsSync(`./src/client/offline/${publicClientId}.index.js`)
-                ? `./src/client/offline/${publicClientId}.index.js`
-                : `./src/client/offline/default.index.js`,
+              fs.existsSync(`./src/client/ssr/offline/${publicClientId}.index.js`)
+                ? `./src/client/ssr/offline/${publicClientId}.index.js`
+                : `./src/client/ssr/offline/default.index.js`,
               `${rootClientPath}/offline.js`,
             );
 
@@ -343,7 +343,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           }
           // 400 html
           {
-            await buildSwSrc(`./src/client/ssr/error-components/404.js`, `${rootClientPath}/404.js`);
+            await buildSwSrc(`./src/client/ssr/pages/404.js`, `${rootClientPath}/404.js`);
 
             const htmlSrc = Render({
               title: metadata?.title ? metadata.title : cap(client),
@@ -420,7 +420,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
                 const SrrComponent = await ssrFactory(
-                  `./src/client/ssr/head-components/${ssrHeadComponent}.js`,
+                  `./src/client/ssr/components/head/${ssrHeadComponent}.js`,
                   jsSsrCommonComponents,
                 );
 
@@ -504,7 +504,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
                 const SrrComponent = await ssrFactory(
-                  `./src/client/ssr/body-components/${ssrBodyComponent}.js`,
+                  `./src/client/ssr/components/body/${ssrBodyComponent}.js`,
                   jsSsrCommonComponents,
                 );
                 switch (ssrBodyComponent) {

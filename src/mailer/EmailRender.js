@@ -59,7 +59,7 @@ const EmailRender = {
     for (const templateKey of Object.keys(options.templates)) {
       const ssrEmailComponent = options.templates[templateKey];
       let SrrComponent;
-      eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/email-components/${ssrEmailComponent}.js`, 'utf8')));
+      eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/components/email/${ssrEmailComponent}.js`, 'utf8')));
       templates[templateKey] = SrrComponent(this, options);
     }
     return templates;
