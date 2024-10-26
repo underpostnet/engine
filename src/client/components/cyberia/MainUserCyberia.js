@@ -43,7 +43,9 @@ const MainUserCyberia = {
       </div>`,
     );
 
-    this.PixiCyberiaMainUserCyberia = new Application({
+    this.PixiCyberiaMainUserCyberia = new Application();
+
+    await this.PixiCyberiaMainUserCyberia.init({
       view: s(`.main-user-pixi-container`),
       width: PixiCyberia.MetaData.dim,
       height: PixiCyberia.MetaData.dim,

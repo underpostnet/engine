@@ -14,7 +14,7 @@ const ElementPreviewCyberia = {
   Render: async function (options = { renderId: '' }) {
     const selector = `element-preview-${options.renderId}`;
     const appDim = 400;
-    setTimeout(() => {
+    setTimeout(async () => {
       this.Tokens[options.renderId] = {
         selector,
         appDim,
@@ -27,7 +27,9 @@ const ElementPreviewCyberia = {
         AppInstance: null,
         intervals: [],
       };
-      this.Tokens[options.renderId].AppInstance = new Application(this.Tokens[options.renderId].appOption);
+      this.Tokens[options.renderId].AppInstance = new Application();
+
+      await this.Tokens[options.renderId].AppInstance.init(this.Tokens[options.renderId].appOption);
     });
     return html`
       ${renderStyleTag('style-element-preview', `.${selector}`, options)}

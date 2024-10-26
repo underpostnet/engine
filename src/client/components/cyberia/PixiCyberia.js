@@ -89,16 +89,21 @@ const PixiCyberia = {
         <div class="fix pixi-container-top-level" style="opacity: 1"></div>
       `,
     );
-    this.App = new Application({
+    this.App = new Application();
+
+    await this.App.init({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
       background: '#c7c7c7',
     });
+
     this.App.view.classList.add('abs');
     this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
 
-    this.AppTopLevelColor = new Application({
+    this.AppTopLevelColor = new Application();
+
+    await this.AppTopLevelColor.init({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
       background: undefined,

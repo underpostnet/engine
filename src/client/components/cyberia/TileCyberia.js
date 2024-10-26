@@ -52,7 +52,7 @@ const TileCyberia = {
           }
         }
     };
-    setTimeout(() => {
+    setTimeout(async () => {
       const RenderTileCyberiaGrid = () => {
         dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
           range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
@@ -112,7 +112,9 @@ const TileCyberia = {
       RenderTileCyberiaGrid();
 
       this.TileCyberiaAppDim = 600;
-      this.TileCyberiaApp = new Application({
+      this.TileCyberiaApp = new Application();
+
+      await this.TileCyberiaApp.init({
         width: this.TileCyberiaAppDim,
         height: this.TileCyberiaAppDim,
         background: 'gray',

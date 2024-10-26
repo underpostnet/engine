@@ -1194,9 +1194,11 @@ const BiomeCyberiaEngine = {
       `;
     }
 
-    setTimeout(() => {
+    setTimeout(async () => {
       this.PixiCyberiaBiomeCyberiaDim = 1600;
-      this.PixiCyberiaBiomeCyberia = new Application({
+      this.PixiCyberiaBiomeCyberia = new Application();
+
+      await this.PixiCyberiaBiomeCyberia.init({
         width: this.PixiCyberiaBiomeCyberiaDim,
         height: this.PixiCyberiaBiomeCyberiaDim,
         background: 'gray',
@@ -1207,7 +1209,9 @@ const BiomeCyberiaEngine = {
 
       s('.biome-pixi-container').appendChild(this.PixiCyberiaBiomeCyberia.view);
 
-      this.PixiCyberiaBiomeCyberiaTopLevelColor = new Application({
+      this.PixiCyberiaBiomeCyberiaTopLevelColor = new Application();
+
+      await this.PixiCyberiaBiomeCyberiaTopLevelColor.init({
         width: this.PixiCyberiaBiomeCyberiaDim,
         height: this.PixiCyberiaBiomeCyberiaDim,
         backgroundAlpha: 0,
