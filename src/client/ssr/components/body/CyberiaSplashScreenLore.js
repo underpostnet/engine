@@ -9,7 +9,7 @@ import {
   newInstance,
   fullScreenIn,
   borderChar,
-} from '../common-components/SsrCore.js';
+} from '../../common/SsrCore.js';
 /*imports*/
 
 const framesLore = () => range(0, 8);

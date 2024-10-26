@@ -10,9 +10,9 @@ import {
   fullScreenIn,
   borderChar,
   loggerFactory,
-} from '../ssr/common-components/SsrCore.js';
-import { Alert } from '../ssr/common-components/Alert.js';
-import { Translate } from '../ssr/common-components/Translate.js';
+} from '../common/SsrCore.js';
+import { Alert } from '../common/Alert.js';
+import { Translate } from '../common/Translate.js';
 /*imports*/
 
 const logger = loggerFactory({ url: '/offline.js' });
