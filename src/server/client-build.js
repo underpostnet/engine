@@ -288,86 +288,87 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
       if (views) {
-        // build service worker
-        if (path === '/') {
-          const buildSwSrc = async (jsSrcPath, jsPublicPath) => {
-            if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-              let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
-              if (jsSrc.split('/*imports*/')[1]) jsSrc = jsSrc.split('/*imports*/')[1];
+        const buildJsSrcPage = async (jsSrcPath, jsPublicPath) => {
+          if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
+            let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+            if (jsSrc.split('/*imports*/')[1]) jsSrc = jsSrc.split('/*imports*/')[1];
 
-              fs.writeFileSync(
-                jsPublicPath,
-                minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-                'utf8',
-              );
-            }
-          };
+            fs.writeFileSync(
+              jsPublicPath,
+              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+              'utf8',
+            );
+          }
+        };
+
+        if (path === '/') {
           // service woker
-          await buildSwSrc(
+          await buildJsSrcPage(
             fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
               ? `./src/client/sw/${publicClientId}.sw.js`
               : `./src/client/sw/default.sw.js`,
             `${rootClientPath}/sw.js`,
           );
-
-          // offline html
-          {
-            await buildSwSrc(
-              fs.existsSync(`./src/client/ssr/offline/${publicClientId}.index.js`)
-                ? `./src/client/ssr/offline/${publicClientId}.index.js`
-                : `./src/client/ssr/offline/default.index.js`,
-              `${rootClientPath}/offline.js`,
-            );
-
-            const htmlSrc = Render({
-              title: metadata?.title ? metadata.title : cap(client),
-              ssrPath: '/',
-              ssrHeadComponents: '',
-              ssrBodyComponents: '',
-              baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
-            });
-
-            fs.writeFileSync(
-              `${rootClientPath}offline.html`,
-              minifyBuild || process.env.NODE_ENV === 'production'
-                ? await minify(htmlSrc, {
-                    minifyCSS: true,
-                    minifyJS: true,
-                    collapseBooleanAttributes: true,
-                    collapseInlineTagWhitespace: true,
-                    collapseWhitespace: true,
-                  })
-                : htmlSrc,
-              'utf8',
-            );
-          }
-          // 400 html
-          {
-            await buildSwSrc(`./src/client/ssr/pages/404.js`, `${rootClientPath}/404.js`);
-
-            const htmlSrc = Render({
-              title: metadata?.title ? metadata.title : cap(client),
-              ssrPath: '/',
-              ssrHeadComponents: '',
-              ssrBodyComponents: '',
-              baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/404.js`, 'utf8'),
-            });
-
-            fs.writeFileSync(
-              `${rootClientPath}404.html`,
-              minifyBuild || process.env.NODE_ENV === 'production'
-                ? await minify(htmlSrc, {
-                    minifyCSS: true,
-                    minifyJS: true,
-                    collapseBooleanAttributes: true,
-                    collapseInlineTagWhitespace: true,
-                    collapseWhitespace: true,
-                  })
-                : htmlSrc,
-              'utf8',
-            );
-          }
         }
+
+        // offline html
+        {
+          await buildJsSrcPage(
+            fs.existsSync(`./src/client/ssr/offline/${publicClientId}.index.js`)
+              ? `./src/client/ssr/offline/${publicClientId}.index.js`
+              : `./src/client/ssr/offline/default.index.js`,
+            `${rootClientPath}/offline.js`,
+          );
+
+          const htmlSrc = Render({
+            title: metadata?.title ? metadata.title : cap(client),
+            ssrPath: '/',
+            ssrHeadComponents: '',
+            ssrBodyComponents: '',
+            baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
+          });
+
+          fs.writeFileSync(
+            `${rootClientPath}offline.html`,
+            minifyBuild || process.env.NODE_ENV === 'production'
+              ? await minify(htmlSrc, {
+                  minifyCSS: true,
+                  minifyJS: true,
+                  collapseBooleanAttributes: true,
+                  collapseInlineTagWhitespace: true,
+                  collapseWhitespace: true,
+                })
+              : htmlSrc,
+            'utf8',
+          );
+        }
+        // ssr pages
+        for (const page of await fs.readdir('./src/client/ssr/pages')) {
+          await buildJsSrcPage(`./src/client/ssr/pages/${page}`, `${rootClientPath}/${page}`);
+
+          const htmlSrc = Render({
+            title: metadata?.title ? metadata.title : cap(client),
+            ssrPath: '/',
+            ssrHeadComponents: '',
+            ssrBodyComponents: '',
+            baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/${page}`, 'utf8'),
+          });
+
+          fs.writeFileSync(
+            `${rootClientPath}${page.slice(0, -3)}.html`,
+            minifyBuild || process.env.NODE_ENV === 'production'
+              ? await minify(htmlSrc, {
+                  minifyCSS: true,
+                  minifyJS: true,
+                  collapseBooleanAttributes: true,
+                  collapseInlineTagWhitespace: true,
+                  collapseWhitespace: true,
+                })
+              : htmlSrc,
+            'utf8',
+          );
+        }
+
         if (
           !(
             enableLiveRebuild &&

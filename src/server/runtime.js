@@ -1,4 +1,4 @@
-import fs from 'fs';
+import fs from 'fs-extra';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -114,10 +114,10 @@ export PATH=$PATH:/opt/lampp/bin`,
         Listen ${port}
 
         <VirtualHost *:${port}>    
-            DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
+            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
             ServerName ${host}:${port}
 
-            <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
+            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
               Options Indexes FollowSymLinks MultiViews
               AllowOverride All
               Require all granted
@@ -133,6 +133,13 @@ export PATH=$PATH:/opt/lampp/bin`,
               `
                   : ''
               }
+
+            ErrorDocument 400 ${path === '/' ? '' : path}/400.html
+            ErrorDocument 404 ${path === '/' ? '' : path}/400.html
+            ErrorDocument 500 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 502 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 503 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 504 ${path === '/' ? '' : path}/500.html
 
           </VirtualHost>
             
@@ -196,10 +203,10 @@ export PATH=$PATH:/opt/lampp/bin`,
         Listen ${port}
 
         <VirtualHost *:${port}>    
-            DocumentRoot "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}"
+            DocumentRoot "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}"
             ServerName ${host}:${port}
 
-            <Directory "${directory ? directory.replace(path, '/') : `${getRootDirectory()}${rootHostPath}`}">
+            <Directory "${directory ? directory : `${getRootDirectory()}${rootHostPath}`}">
               Options Indexes FollowSymLinks MultiViews
               AllowOverride All
               Require all granted
@@ -215,6 +222,13 @@ export PATH=$PATH:/opt/lampp/bin`,
             `
                 : ''
             }
+
+            ErrorDocument 400 ${path === '/' ? '' : path}/400.html
+            ErrorDocument 404 ${path === '/' ? '' : path}/400.html
+            ErrorDocument 500 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 502 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 503 ${path === '/' ? '' : path}/500.html
+            ErrorDocument 504 ${path === '/' ? '' : path}/500.html
 
           </VirtualHost>
             
@@ -371,12 +385,14 @@ export PATH=$PATH:/opt/lampp/bin`,
           }
           app.use(function (req, res, next) {
             const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404.html`;
-            if (path404) return res.status(404).sendFile(path404);
+            if (fs.existsSync(path404)) return res.status(404).sendFile(path404);
             else res.status(404).send('Sorry cant find that!');
           });
 
           app.use(function (err, req, res, next) {
             logger.error(err, err.stack);
+            const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500.html`;
+            if (fs.existsSync(path500)) return res.status(500).sendFile(path500);
             res.status(500).send('Something broke!');
           });
 

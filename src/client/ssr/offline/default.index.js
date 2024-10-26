@@ -1,39 +1,31 @@
-import {
-  getLang,
-  s,
-  append,
-  s4,
-  range,
-  timer,
-  htmls,
-  newInstance,
-  fullScreenIn,
-  borderChar,
-  loggerFactory,
-} from '../common/SsrCore.js';
+import { htmls, loggerFactory } from '../common/SsrCore.js';
 import { Alert } from '../common/Alert.js';
 import { Translate } from '../common/Translate.js';
+import { Worker } from '../common/Worker.js';
 /*imports*/
 
 const logger = loggerFactory({ url: '/offline.js' });
 
-window.onload = async () => {
-  window.serviceWorkerReady = true;
-  append(
-    'body',
-    html`
-      <style>
-        body {
-          background-color: #dcdcdc;
-          color: #191919;
-          font-family: arial;
-          font-size: 16px;
+window.onload = () =>
+  Worker.instance({
+    render: async () => {
+      window.ononline = async () => {
+        location.href = '/';
+      };
+      window.onoffline = async () => {
+        htmls(`.page-render`, html`${await Alert.noInternet({ Translate })}`);
+      };
+      try {
+        if (navigator.onLine) {
+          const maintenance = await fetch(location.origin + '/favicon.ico');
+          if (maintenance.status !== 200) {
+            htmls(`.page-render`, html`${await Alert.maintenance({ Translate })}`);
+          } else window.ononline();
         }
-      </style>
-      ${await Alert.maintenance({ Translate })}
-    `,
-  );
-  window.ononline = () => {
-    location.href = '/';
-  };
-};
+        throw new Error(`no internet connection`);
+      } catch (error) {
+        logger.error(error);
+        window.onoffline();
+      }
+    },
+  });
