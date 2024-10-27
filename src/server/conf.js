@@ -560,7 +560,7 @@ const validateTemplatePath = (absolutePath = '') => {
   const confServer = DefaultConf.server[host][path];
   const confClient = DefaultConf.client[client];
   const confSsr = DefaultConf.ssr[ssr];
-  const clients = Object.keys(confClient).concat(['core', 'test']);
+  const clients = Object.keys(confClient).concat(['core', 'test', 'default']);
 
   if (absolutePath.match('src/api') && !confServer.apis.find((p) => absolutePath.match(`src/api/${p}/`))) {
     return false;
@@ -599,6 +599,7 @@ const validateTemplatePath = (absolutePath = '') => {
   if (
     absolutePath.match('/client') &&
     absolutePath.match('.index.js') &&
+    !absolutePath.match('/offline') &&
     !clients.find((p) => absolutePath.match(`src/client/${capFirst(p)}.index.js`))
   ) {
     return false;
