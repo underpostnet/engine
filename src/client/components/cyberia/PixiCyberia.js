@@ -13,17 +13,7 @@ import { Responsive } from '../core/Responsive.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
-import {
-  AnimatedSprite,
-  Application,
-  TextureSource,
-  Container,
-  Sprite,
-  Text,
-  TextStyle,
-  Texture,
-  Ticker,
-} from 'pixi.js';
+import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { CharacterCyberiaStatsType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
@@ -89,9 +79,7 @@ const PixiCyberia = {
         <div class="fix pixi-container-top-level" style="opacity: 1"></div>
       `,
     );
-    this.App = new Application();
-
-    await this.App.init({
+    this.App = new Application({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
       background: '#c7c7c7',
@@ -101,9 +89,7 @@ const PixiCyberia = {
     this.App.view.classList.add('pixi-canvas');
     s('.pixi-container').appendChild(this.App.view);
 
-    this.AppTopLevelColor = new Application();
-
-    await this.AppTopLevelColor.init({
+    this.AppTopLevelColor = new Application({
       width: this.MetaData.dim,
       height: this.MetaData.dim,
       background: undefined,
@@ -276,7 +262,7 @@ const PixiCyberia = {
     this.clearBiomeCyberiaContainers();
 
     this.currentBiomeCyberiaContainer = 'floorContainer';
-    this.Data.biome.floor = Sprite.from(new TextureSource(blobUrl));
+    this.Data.biome.floor = Sprite.from(new BaseTexture(blobUrl));
     this.Data.biome.floor.width = this.MetaData.dim;
     this.Data.biome.floor.height = this.MetaData.dim;
     this.Data.biome.floor.x = 0;
@@ -285,7 +271,7 @@ const PixiCyberia = {
   },
   setFloorTopLevelColor: function (blobUrl) {
     this.AppTopLevelColor.stage.removeChildren();
-    const componentInstance = Sprite.from(new TextureSource(blobUrl));
+    const componentInstance = Sprite.from(new BaseTexture(blobUrl));
     componentInstance.width = this.MetaData.dim;
     componentInstance.height = this.MetaData.dim;
     componentInstance.x = 0;

@@ -35,7 +35,7 @@ import {
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
-import { Application, TextureSource, Container, Sprite, Texture } from 'pixi.js';
+import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -1196,9 +1196,7 @@ const BiomeCyberiaEngine = {
 
     setTimeout(async () => {
       this.PixiCyberiaBiomeCyberiaDim = 1600;
-      this.PixiCyberiaBiomeCyberia = new Application();
-
-      await this.PixiCyberiaBiomeCyberia.init({
+      this.PixiCyberiaBiomeCyberia = new Application({
         width: this.PixiCyberiaBiomeCyberiaDim,
         height: this.PixiCyberiaBiomeCyberiaDim,
         background: 'gray',
@@ -1209,9 +1207,7 @@ const BiomeCyberiaEngine = {
 
       s('.biome-pixi-container').appendChild(this.PixiCyberiaBiomeCyberia.view);
 
-      this.PixiCyberiaBiomeCyberiaTopLevelColor = new Application();
-
-      await this.PixiCyberiaBiomeCyberiaTopLevelColor.init({
+      this.PixiCyberiaBiomeCyberiaTopLevelColor = new Application({
         width: this.PixiCyberiaBiomeCyberiaDim,
         height: this.PixiCyberiaBiomeCyberiaDim,
         backgroundAlpha: 0,

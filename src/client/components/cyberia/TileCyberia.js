@@ -10,7 +10,7 @@ import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { htmls, s } from '../core/VanillaJs.js';
 
-import { Application, TextureSource, Container, Sprite, Texture } from 'pixi.js';
+import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const TileCyberia = {
   Render: async function (options) {
@@ -112,9 +112,7 @@ const TileCyberia = {
       RenderTileCyberiaGrid();
 
       this.TileCyberiaAppDim = 600;
-      this.TileCyberiaApp = new Application();
-
-      await this.TileCyberiaApp.init({
+      this.TileCyberiaApp = new Application({
         width: this.TileCyberiaAppDim,
         height: this.TileCyberiaAppDim,
         background: 'gray',
