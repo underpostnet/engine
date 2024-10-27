@@ -502,6 +502,17 @@ try {
       break;
     }
 
+    case 'set-repo': {
+      const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+      originPackage.repository = {
+        type: 'git',
+        url: `git+https://github.com/${process.argv[3]}.git`,
+      };
+      fs.writeFileSync(`./package.json`, JSON.stringify(originPackage, null, 4), 'utf8');
+
+      break;
+    }
+
     case 'update-version':
       {
         const newVersion = process.argv[3];
