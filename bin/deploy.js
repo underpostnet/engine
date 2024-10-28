@@ -32,6 +32,8 @@ import toJsonSchema from 'to-json-schema';
 import simpleGit from 'simple-git';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
+import { DefaultConf } from '../conf.js';
+import { JSONweb } from '../src/server/client-formatted.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -230,9 +232,9 @@ try {
         const serverConf = deployId
           ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
           : Config.default.server;
-        if (!deployId) {
-          argHost = 'default.net';
-          argPath = '/';
+        if (!deployId && !argHost[0] && !argPath[0]) {
+          argHost = ['default.net'];
+          argPath = ['/'];
         }
         for (const host of Object.keys(serverConf)) {
           for (const path of Object.keys(serverConf[host])) {
@@ -663,6 +665,28 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
     case 'fix-deps': {
       await fixDependencies();
+      break;
+    }
+
+    case 'update-default-conf': {
+      const host = process.argv[3] ? process.argv[3] : 'underpostnet.github.io';
+      const path = process.argv[4] ? process.argv[4] : '/pwa-microservices-template-ghpkg';
+      DefaultConf.server = {
+        [host]: { [path]: DefaultConf.server['default.net']['/'] },
+      };
+      DefaultConf.server[host][path].apiBaseProxyPath = '/';
+      DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
+      fs.writeFileSync(
+        './conf.js',
+        `
+        const DefaultConf = ${JSONweb(DefaultConf)};
+        
+        export { DefaultConf }
+
+        `,
+        'utf8',
+      );
+
       break;
     }
 
