@@ -168,7 +168,7 @@ const DefaultConf = {
   },
   ssr: {
     Default: {
-      head: ['PwaDefault', 'Css', 'DefaultScripts'],
+      head: ['Pwa', 'Css', 'DefaultScripts'],
       body: ['CacheControl', 'DefaultSplashScreen'],
     },
   },
