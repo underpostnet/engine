@@ -226,8 +226,8 @@ try {
       {
         const { deployId, folder } = loadConf(process.argv[3]);
 
-        let argHost = process.argv[4] ? process.argv[4].split(',') : undefined;
-        let argPath = process.argv[5] ? process.argv[5].split(',') : undefined;
+        let argHost = process.argv[4] ? process.argv[4].split(',') : [];
+        let argPath = process.argv[5] ? process.argv[5].split(',') : [];
         let deployIdSingleReplicas = [];
         const serverConf = deployId
           ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
