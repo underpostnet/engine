@@ -248,8 +248,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                   'const getBaseHost = () => location.host;',
                   `const getBaseHost = () => '${apiBaseHost}';`,
                 );
-              if (apiBaseProxyPath)
+              if (apiBaseProxyPath) {
                 jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}/`);
+                jsSrc = jsSrc.replace(
+                  "const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined);",
+                  `const getWsBasePath = () => '${apiBaseProxyPath}socket.io/';`,
+                );
+              }
             }
             fs.writeFileSync(
               jsPublicPath,
