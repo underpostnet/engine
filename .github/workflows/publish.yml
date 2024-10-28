@@ -34,25 +34,24 @@ jobs:
         name: Publish to npm
         run: npm publish --provenance --access public
 
-      - name: Clone github package repository
-        run: |
-          git clone https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
-          rm -rf ./.git
-          cp -a  ./pwa-microservices-template-ghpkg/.git ./.git
-          rm -rf ./pwa-microservices-template-ghpkg
-          node ./bin/deploy rename-package @underpostnet/underpost
-          node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
+  build-and-publish-ghpkg:
+    # prevents this action from running on forks
+    if: github.repository == 'underpostnet/pwa-microservices-template-ghpkg'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          registry-url: 'https://registry.npmjs.org'
 
-      - name: Set git credentials
-        run: |
-          git config --global credential.helper ""
-          git config credential.helper ""
-          git config --global user.name 'underpostnet'
-          git config --global user.email 'fcoverdugoa@underpost.net'
-          git config --global credential.interactive always
-          git config user.name 'underpostnet'
-          git config user.email 'fcoverdugoa@underpost.net'
-          git config credential.interactive always
+      - name: Install Dependencies
+        run: npm install
+
+      - run: npm ci
 
       # Publish to npm git hub package
       - uses: actions/setup-node@v4
