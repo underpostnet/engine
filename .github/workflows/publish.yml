@@ -34,6 +34,26 @@ jobs:
         name: Publish to npm
         run: npm publish --provenance --access public
 
+      - name: Clone github package repository
+        run: |
+          git clone https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
+          rm -rf ./.git
+          cp -a  ./pwa-microservices-template-ghpkg/.git ./.git
+          rm -rf ./pwa-microservices-template-ghpkg
+          node ./bin/deploy rename-package @underpostnet/underpost
+          node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
+
+      - name: Set git credentials
+        run: |
+          git config --global credential.helper ""
+          git config credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global credential.interactive always
+          git config user.name 'underpostnet'
+          git config user.email 'fcoverdugoa@underpost.net'
+          git config credential.interactive always
+
       # Publish to npm git hub package
       - uses: actions/setup-node@v4
         with:
@@ -45,9 +65,6 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
         name: Publish to npm
         run: |
-          node ./bin/deploy rename-package @underpostnet/underpost
-          node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
-          git config set url https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
           npm publish --provenance --access public
 
       # Publish to GitHub Packages
@@ -60,9 +77,6 @@ jobs:
           scope: '@underpostnet'
 
       - run: |
-          node ./bin/deploy rename-package @underpostnet/underpost
-          node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
-          git config set url https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
           npm config set //npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}
           echo "//npm.pkg.github.com/:_authToken=${{ secrets.GIT_AUTH_TOKEN }}" > ~/.npmrc
           echo "@underposnet:registry=https://npm.pkg.github.com" >> ~/.npmrc
