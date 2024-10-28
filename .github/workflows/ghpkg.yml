@@ -4,35 +4,72 @@ on:
     branches: ['master']
   pull_request:
     branches: ['master']
+permissions:
+  contents: write
+  packages: write
+  id-token: write
 jobs:
   test:
     if: github.repository == 'underpostnet/pwa-microservices-template'
-    name: Node ${{ matrix.node }} on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        node-version: [21.x]
-        os: [ubuntu-latest]
-      #  os: [ubuntu-latest, windows-latest]
-
+    name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
     steps:
-      - name: Clone repository
-        uses: actions/checkout@v3
-
-      - name: Set Node.js version
-        uses: actions/setup-node@v3
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
         with:
-          node-version: ${{ matrix.node }}
+          node-version: '22.x'
 
-      - name: Get npm root
-        run: sudo npm root -g
+        # - name: Get npm root
+        #   run: sudo npm root -g
 
-      - name: Install underpost cli
-        run: sudo npm install -g underpost
+        # - run: npm ci
 
-      - name: Update github repo package
+        # - name: Install underpost cli
+        #   run: sudo npm install -g underpost
+
+        # usage: git remote set-url [--push] <name> <newurl> [<oldurl>]
+        #    or: git remote set-url --add <name> <newurl>
+        #    or: git remote set-url --delete <name> <url>
+        #     --[no-]push           manipulate push URLs
+        #     --[no-]add            add URL
+        #     --[no-]delete         delete URLs
+
+      - name: Install dependencies and set repo configuration
         run: |
+          npm install
           node ./bin/deploy rename-package @underpostnet/underpost
           node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
-          git config set url https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
-          git push origin https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
+
+      - name: Clone github package repository
+        run: |
+          git clone https://github.com/underpostnet/pwa-microservices-template-ghpkg.git
+          rm -rf ./.git
+          cp -a  ./pwa-microservices-template-ghpkg/.git ./.git
+          rm -rf ./pwa-microservices-template-ghpkg
+
+      - name: Set git credentials
+        run: |
+          git config --global credential.helper ""
+          git config credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global credential.interactive always
+          git config user.name 'underpostnet'
+          git config user.email 'fcoverdugoa@underpost.net'
+          git config credential.interactive always
+
+      - name: Push to github package repository
+        run: |
+          pwd
+          git status
+          git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
+          git add .       
+          git commit -m "Update github repo package"
+          git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
+
+# git push -u origin https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
+# git push -u origin master
