@@ -70,11 +70,11 @@ const getHexMatrix = ({ imageFilePath }) =>
         // range(1, 2).map(() => {});
 
         switch (fileId) {
-          case 'orange-over-purple.PNG':
-          case 'orange-over-purple0.PNG':
+          case 'orange-over-purple.png':
+          case 'orange-over-purple0.png':
             break;
-          case 'yupark.PNG':
-          case 'zax-shop.PNG':
+          case 'yupark.png':
+          case 'zax-shop.png':
             break;
 
           default:

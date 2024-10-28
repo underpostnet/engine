@@ -774,7 +774,7 @@ const BiomeCyberia = {
         if (dataSection) {
           src = `${getProxyPath()}assets/custom-biome/seed-city/${
             dataSection.src ? dataSection.src : dataSection.name_map
-          }.PNG`;
+          }.png`;
           if (cut.enable) {
             const result = await CyberiaTileService.post({ id: 'hex-matrix-from-png', body: { src } });
 
@@ -782,7 +782,7 @@ const BiomeCyberia = {
           }
 
           // get hex color matrix
-        } else src = `${getProxyPath()}assets/custom-biome/seed-city/void.PNG`;
+        } else src = `${getProxyPath()}assets/custom-biome/seed-city/void.png`;
 
         let sectionSolidMatrixCyberia;
         if (dataSection) {
