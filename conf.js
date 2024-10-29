@@ -9,6 +9,7 @@ const DefaultConf = {
         author: 'https://github.com/underpostnet',
         thumbnail: 'android-chrome-384x384.png',
         themeColor: '#ececec',
+        pwaAssetsPath: '',
       },
       components: {
         core: [
