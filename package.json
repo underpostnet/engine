@@ -34,7 +34,9 @@
     "hardhat": "cd hardhat && npx hardhat init",
     "hardhat-cryptokoyn-deploy": "cd hardhat && npx hardhat run ./scripts/deployCryptokoyn.cjs --network cryptokoyn",
     "s": "node engine-private/s",
-    "build-production": "env-cmd -f .env.production node bin/deploy build-full-client"
+    "build-production": "env-cmd -f .env.production node bin/deploy build-full-client",
+    "set-shell": "npm config set script-shell",
+    "delete-shell": "npm config delete script-shell"
   },
   "bin": {
     "underpost": "bin/index.js"

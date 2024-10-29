@@ -1,5 +1,8 @@
 import { newInstance } from './CommonJs.js';
+import { loggerFactory } from './Logger.js';
 import { getResponsiveData } from './VanillaJs.js';
+
+const logger = loggerFactory(import.meta);
 
 const Responsive = {
   Data: {},
@@ -43,6 +46,12 @@ const Responsive = {
     // alternative option
     // this.Observer = new ResizeObserver(this.resizeCallback);
     // this.Observer.observe(document.documentElement);
+    screen.orientation.addEventListener('change', (event) => {
+      const type = event.target.type; // landscape-primary | portrait-primary
+      const angle = event.target.angle; // 90 degrees.
+      logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
+      setTimeout(window.onresize);
+    });
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
