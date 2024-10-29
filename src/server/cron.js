@@ -24,7 +24,7 @@ const CronManagement = {
     this.data[name] = {
       ...args,
       task: cron.schedule(expression, callback, {
-        scheduled: false,
+        scheduled: true,
         timezone: process.env.TIME_ZONE || 'America/New_York',
         name,
       }),
