@@ -191,10 +191,12 @@ const Modal = {
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'block';
               // s(`.title-modal-${idModal}`).style.display = 'block';
-              if (s(`.main-body-top`)) {
-                s(`.btn-bar-center-icon-close`).classList.remove('hide');
-                s(`.btn-bar-center-icon-menu`).classList.add('hide');
-              }
+              setTimeout(() => {
+                if (s(`.btn-bar-center-icon-menu`)) {
+                  s(`.btn-bar-center-icon-close`).classList.remove('hide');
+                  s(`.btn-bar-center-icon-menu`).classList.add('hide');
+                }
+              });
 
               Responsive.Event[`slide-menu-${idModal}`]();
             };
@@ -204,10 +206,12 @@ const Modal = {
               s(`.btn-menu-${idModal}`).classList.remove('hide');
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'none';
-              if (s(`.main-body-top`)) {
-                s(`.btn-bar-center-icon-menu`).classList.remove('hide');
-                s(`.btn-bar-center-icon-close`).classList.add('hide');
-              }
+              setTimeout(() => {
+                if (s(`.btn-bar-center-icon-menu`)) {
+                  s(`.btn-bar-center-icon-menu`).classList.remove('hide');
+                  s(`.btn-bar-center-icon-close`).classList.add('hide');
+                }
+              });
               // s(`.title-modal-${idModal}`).style.display = 'none';
               Responsive.Event[`slide-menu-${idModal}`]();
             };
@@ -1117,7 +1121,10 @@ const Modal = {
 
           <div class="in html-${idModal}">
             ${options.mode && options.mode.match('slide-menu')
-              ? html`<div class="in" style="${renderCssAttr({ style: { height: '50px' } })}">
+              ? html`<div
+                  class="stq modal"
+                  style="${renderCssAttr({ style: { height: '50px', 'z-index': 1, top: '0px' } })}"
+                >
                   ${await BtnIcon.Render({
                     style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-mode`,
@@ -1133,6 +1140,11 @@ const Modal = {
                           : ''}"
                       ></i>
                     </div>`,
+                  })}
+                  ${await BtnIcon.Render({
+                    style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
+                    class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
+                    label: html`<div class="abs center"><i class="fa-solid fa-bars"></i></div>`,
                   })}
                 </div>`
               : ''}
@@ -1178,6 +1190,11 @@ const Modal = {
           }
           s(`.btn-close-modal-menu`).click();
         };
+        EventsUI.onClick(`.btn-icon-menu-back`, () => {
+          htmls(`.menu-btn-container-children`, '');
+          s(`.btn-icon-menu-back`).classList.add('hide');
+          s(`.menu-btn-container-main`).classList.remove('hide');
+        });
         EventsUI.onClick(`.btn-icon-menu-mode`, () => {
           if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
             s(`.btn-icon-menu-mode-right`).classList.remove('hide');
@@ -1195,6 +1212,8 @@ const Modal = {
                 sa(`.tooltip-menu`).forEach((el) => el.classList.remove('hide'));
                 s(`.${idModal}`).style.overflow = 'visible';
               }
+              if (s(`.menu-btn-container-main`) && s(`.menu-btn-container-main`).classList.contains('hide'))
+                s(`.btn-icon-menu-back`).classList.add('hide');
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
           } else {
@@ -1205,6 +1224,8 @@ const Modal = {
               sa(`.tooltip-menu`).forEach((el) => el.classList.add('hide'));
               s(`.${idModal}`).style.overflow = null;
             }
+            if (s(`.menu-btn-container-main`) && s(`.menu-btn-container-main`).classList.contains('hide'))
+              s(`.btn-icon-menu-back`).classList.remove('hide');
 
             if (options.onExtendMenu) options.onExtendMenu();
           }

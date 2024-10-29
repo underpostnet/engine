@@ -46,235 +46,238 @@ const MenuNexodev = {
       id: 'modal-menu',
       html: html`
         <div class="fl menu-btn-container">
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-blog',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-file-invoice"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
-            }),
-            attrs: `data-id="blog"`,
-            tabHref: `${getProxyPath()}blog`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-calendar',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-calendar-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
-            }),
-            attrs: `data-id="calendar"`,
-            tabHref: `${getProxyPath()}calendar`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-dashboard',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-chart-line"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
-            }),
-            attrs: `data-id="dashboard"`,
-            tabHref: `${getProxyPath()}dashboard`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-stream',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-video"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
-            }),
-            attrs: `data-id="stream"`,
-            tabHref: `${getProxyPath()}stream`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-docs',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-book"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
-            }),
-            attrs: `data-id="docs"`,
-            tabHref: `${getProxyPath()}docs`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-content',
-            label: renderMenuLabel({
-              icon: html`<i class="far fa-file"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
-            }),
-            attrs: `data-id="content"`,
-            tabHref: `${getProxyPath()}content`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-cloud',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-cloud"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
-            }),
-            attrs: `data-id="cloud"`,
-            tabHref: `${getProxyPath()}cloud`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-chat',
-            label: html`${renderMenuLabel({
-              icon: html`<i class="far fa-comments"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
+          <div class="fl menu-btn-container-children"></div>
+          <div class="fl menu-btn-container-main">
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-blog',
+              label: renderMenuLabel({
+                icon: html`<i class="fa-solid fa-file-invoice"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('blog')}</span>`,
+              }),
+              attrs: `data-id="blog"`,
+              tabHref: `${getProxyPath()}blog`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog', 'right')),
             })}
-            ${await Badge.Render({
-              id: 'main-btn-chat',
-              type: 'circle-red',
-              style: badgeNotificationMenuStyle,
-              classList: 'hide',
-            })}`,
-            attrs: `data-id="chat"`,
-            tabHref: `${getProxyPath()}chat`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-settings',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sliders-h"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
-            }),
-            attrs: `data-id="settings"`,
-            tabHref: `${getProxyPath()}settings`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-home"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
-            }),
-            // style: 'display: none',
-            attrs: `data-id="home"`,
-            tabHref: `${getProxyPath()}`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-log-in',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-in-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
-            }),
-            attrs: `data-id="log-in"`,
-            tabHref: `${getProxyPath()}log-in`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-sign-up',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-plus"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
-            }),
-            attrs: `data-id="sign-up"`,
-            tabHref: `${getProxyPath()}sign-up`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-log-out',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-sign-out-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
-            }),
-            attrs: `data-id="log-out"`,
-            tabHref: `${getProxyPath()}log-out`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out', 'right')),
-            style: 'display: none',
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-account',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-user-circle"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
-            }),
-            style: 'display: none',
-            attrs: `data-id="account"`,
-            tabHref: `${getProxyPath()}account`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
-            label: renderMenuLabel({
-              icon: html` <i class="fas fa-medkit"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
-            }),
-            attrs: `data-id="healthcare-appointment"`,
-            tabHref: `${getProxyPath()}healthcare-appointment`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-wallet',
-            label: renderMenuLabel({
-              icon: html` <i class="fas fa-wallet"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('wallet')}</span>`,
-            }),
-            attrs: `data-id="wallet"`,
-            tabHref: `${getProxyPath()}wallet`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('wallet', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-recover hide',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
-            }),
-            attrs: `data-id="recover"`,
-            tabHref: `${getProxyPath()}recover`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-default-management',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
-            }),
-            attrs: `data-id="default-management"`,
-            tabHref: `${getProxyPath()}default-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-user-management',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-users-cog"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('user-management')}</span>`,
-            }),
-            attrs: `data-id="user-management"`,
-            tabHref: `${getProxyPath()}user-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('user-management', 'right')),
-          })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-instance-management',
-            label: renderMenuLabel({
-              icon: html`<i class="fas fa-layer-group"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('instance-management')}</span>`,
-            }),
-            attrs: `data-id="instance-management"`,
-            tabHref: `${getProxyPath()}instance-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('instance-management', 'right')),
-          })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-calendar',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-calendar-alt"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
+              }),
+              attrs: `data-id="calendar"`,
+              tabHref: `${getProxyPath()}calendar`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-dashboard',
+              label: renderMenuLabel({
+                icon: html`<i class="fa-solid fa-chart-line"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('dashboard')}</span>`,
+              }),
+              attrs: `data-id="dashboard"`,
+              tabHref: `${getProxyPath()}dashboard`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dashboard', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-stream',
+              label: renderMenuLabel({
+                icon: html`<i class="fa-solid fa-video"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('stream')}</span>`,
+              }),
+              attrs: `data-id="stream"`,
+              tabHref: `${getProxyPath()}stream`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('stream', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-docs',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-book"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
+              }),
+              attrs: `data-id="docs"`,
+              tabHref: `${getProxyPath()}docs`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('docs', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-content',
+              label: renderMenuLabel({
+                icon: html`<i class="far fa-file"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('content')}</span>`,
+              }),
+              attrs: `data-id="content"`,
+              tabHref: `${getProxyPath()}content`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('content', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-cloud',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-cloud"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('cloud')}</span>`,
+              }),
+              attrs: `data-id="cloud"`,
+              tabHref: `${getProxyPath()}cloud`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cloud', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-chat',
+              label: html`${renderMenuLabel({
+                icon: html`<i class="far fa-comments"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('chat')}</span>`,
+              })}
+              ${await Badge.Render({
+                id: 'main-btn-chat',
+                type: 'circle-red',
+                style: badgeNotificationMenuStyle,
+                classList: 'hide',
+              })}`,
+              attrs: `data-id="chat"`,
+              tabHref: `${getProxyPath()}chat`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('chat', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-settings',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-sliders-h"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
+              }),
+              attrs: `data-id="settings"`,
+              tabHref: `${getProxyPath()}settings`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('settings', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-home main-btn-menu-active',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-home"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('home')}</span>`,
+              }),
+              // style: 'display: none',
+              attrs: `data-id="home"`,
+              tabHref: `${getProxyPath()}`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-log-in',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-sign-in-alt"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
+              }),
+              attrs: `data-id="log-in"`,
+              tabHref: `${getProxyPath()}log-in`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-sign-up',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-user-plus"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
+              }),
+              attrs: `data-id="sign-up"`,
+              tabHref: `${getProxyPath()}sign-up`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('sign-up', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-log-out',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-sign-out-alt"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('log-out')}</span>`,
+              }),
+              attrs: `data-id="log-out"`,
+              tabHref: `${getProxyPath()}log-out`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-out', 'right')),
+              style: 'display: none',
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-account',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-user-circle"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('account')}</span>`,
+              }),
+              style: 'display: none',
+              attrs: `data-id="account"`,
+              tabHref: `${getProxyPath()}account`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
+              label: renderMenuLabel({
+                icon: html` <i class="fas fa-medkit"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
+              }),
+              attrs: `data-id="healthcare-appointment"`,
+              tabHref: `${getProxyPath()}healthcare-appointment`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-wallet',
+              label: renderMenuLabel({
+                icon: html` <i class="fas fa-wallet"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('wallet')}</span>`,
+              }),
+              attrs: `data-id="wallet"`,
+              tabHref: `${getProxyPath()}wallet`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('wallet', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-recover hide',
+              label: renderMenuLabel({
+                icon: html`<i class="fa-solid fa-arrow-rotate-left"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('recover')}</span>`,
+              }),
+              attrs: `data-id="recover"`,
+              tabHref: `${getProxyPath()}recover`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-default-management',
+              label: renderMenuLabel({
+                icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
+              }),
+              attrs: `data-id="default-management"`,
+              tabHref: `${getProxyPath()}default-management`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-user-management',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-users-cog"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('user-management')}</span>`,
+              }),
+              attrs: `data-id="user-management"`,
+              tabHref: `${getProxyPath()}user-management`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('user-management', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-instance-management',
+              label: renderMenuLabel({
+                icon: html`<i class="fas fa-layer-group"></i>`,
+                text: html`<span class="menu-label-text">${Translate.Render('instance-management')}</span>`,
+              }),
+              attrs: `data-id="instance-management"`,
+              tabHref: `${getProxyPath()}instance-management`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('instance-management', 'right')),
+            })}
+          </div>
         </div>
       `,
       barConfig: newInstance(barConfig),
@@ -355,7 +358,7 @@ const MenuNexodev = {
       },
     });
 
-    this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
+    this.Data[id].sortable = new Sortable(s(`.menu-btn-container-main`), {
       animation: 150,
       group: `menu-sortable`,
       forceFallback: true,
@@ -786,6 +789,16 @@ const MenuNexodev = {
     });
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
+      setTimeout(async () => {
+        // s(`.btn-bar-center-icon-menu`).classList.add('hide');
+        // s(`.btn-bar-center-icon-close`).classList.remove('hide');
+        s(`.btn-icon-menu-back`).classList.remove('hide');
+        await Docs.Init({
+          idModal: 'modal-docs',
+        });
+      });
+      s(`.btn-menu-${'modal-menu'}`).click();
+      return;
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
         id: 'modal-docs',

@@ -1,11 +1,13 @@
+import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
 import { rgbToHex } from './CommonJs.js';
 import { Css, darkTheme, dynamicCol, renderCssAttr, ThemeEvents, Themes } from './Css.js';
 import { DropDown } from './DropDown.js';
-import { Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
+import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from './Modal.js';
 import { listenQueryPathInstance, setQueryPath } from './Router.js';
 import { Translate } from './Translate.js';
 import { getProxyPath, getQueryParams, htmls, s } from './VanillaJs.js';
+import Sortable from 'sortablejs';
 
 // https://mintlify.com/docs/quickstart
 
@@ -55,7 +57,21 @@ const Docs = {
       icon: html`<i class="fab fa-github"></i>`,
       text: `Last Release`,
       url: function () {
-        return `https://github.com/underpostnet/engine/`;
+        return `https://github.com/underpostnet/pwa-microservices-template-ghpkg/`;
+      },
+    },
+    {
+      type: 'demo',
+      icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 32 32">
+        <path fill="currentColor" d="M20 2v12l10-6z" />
+        <path
+          fill="currentColor"
+          d="M28 14v8H4V6h10V4H4a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8v4H8v2h16v-2h-4v-4h8a2 2 0 0 0 2-2v-8zM18 28h-4v-4h4z"
+        />
+      </svg>`,
+      text: html`Demo`,
+      url: function () {
+        return `https://underpostnet.github.io/pwa-microservices-template-ghpkg/`;
       },
     },
     {
@@ -109,6 +125,9 @@ const Docs = {
         type: umlId,
         icon: html`<i class="fas fa-sitemap"></i>`,
         text: Translate.Render(`${umlType} config uml`),
+        url: function () {
+          return `/docs/?cid=${umlId}`;
+        },
         renderHtml: function () {
           return html` <div class="in section-mp">
               <div class="in sub-title-modal"><i class="fas fa-project-diagram"></i> Schema</div>
@@ -130,8 +149,10 @@ const Docs = {
       };
     }),
   ),
+  Tokens: {},
   Init: async function (options) {
     const { idModal } = options;
+    this.Tokens[idModal] = options;
     setTimeout(() => {
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
@@ -152,6 +173,10 @@ const Docs = {
       };
       s(`.btn-docs-repo`).onclick = () => {
         const docData = this.Data.find((d) => d.type === 'repo');
+        location.href = docData.url();
+      };
+      s(`.btn-docs-demo`).onclick = () => {
+        const docData = this.Data.find((d) => d.type === 'demo');
         location.href = docData.url();
       };
 
@@ -181,7 +206,6 @@ const Docs = {
       switch (docData.type) {
         case 'repo':
         case 'coverage-link':
-          tabHref = docData.url();
           style = renderCssAttr({ style: { height: '45px' } });
           labelStyle = renderCssAttr({ style: { top: '8px', left: '9px' } });
           break;
@@ -189,16 +213,74 @@ const Docs = {
         default:
           break;
       }
-      docMenuRender += html` <div class="in">
+      tabHref = docData.url();
+      docMenuRender += html`
         ${await BtnIcon.Render({
-          class: `inl section-mp btn-custom btn-docs-${docData.type}`,
-          label: html`${docData.icon} ${docData.text}`,
+          class: `in wfa main-btn-menu btn-docs-${docData.type}`,
+          label: html`<span class="menu-btn-icon">${docData.icon}</span
+            ><span class="menu-label-text"> ${docData.text} </span>`,
           tabHref,
-          style,
-          labelStyle,
+          handleContainerClass: 'handle-btn-container',
+          tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption(docData.text, 'right')),
+          attrs: `data-id="${docData.type}"`,
+          handleContainerClass: 'handle-btn-container',
         })}
-      </div>`;
+      `;
     }
+
+    htmls('.menu-btn-container-children', html` <div class="fl menu-btn-container-docs">${docMenuRender}</div>`);
+    s(`.menu-btn-container-main`).classList.add('hide');
+
+    this.Tokens[idModal] = new Sortable(s(`.menu-btn-container-docs`), {
+      animation: 150,
+      group: `docs-sortable`,
+      forceFallback: true,
+      fallbackOnBody: true,
+      handle: '.handle-btn-container',
+      store: {
+        /**
+         * Get the order of elements. Called once during initialization.
+         * @param   {Sortable}  sortable
+         * @returns {Array}
+         */
+        get: function (sortable) {
+          const order = localStorage.getItem(sortable.options.group.name);
+          return order ? order.split('|') : [];
+        },
+
+        /**
+         * Save the order of elements. Called onEnd (when the item is dropped).
+         * @param {Sortable}  sortable
+         */
+        set: function (sortable) {
+          const order = sortable.toArray();
+          localStorage.setItem(sortable.options.group.name, order.join('|'));
+        },
+      },
+      // chosenClass: 'css-class',
+      // ghostClass: 'css-class',
+      // Element dragging ended
+      onEnd: function (/**Event*/ evt) {
+        // console.log('Sortable onEnd', evt);
+        // console.log('evt.oldIndex', evt.oldIndex);
+        // console.log('evt.newIndex', evt.newIndex);
+        const slotId = Array.from(evt.item.classList).pop();
+        // console.log('slotId', slotId);
+        if (evt.oldIndex === evt.newIndex) s(`.${slotId}`).click();
+
+        // var itemEl = evt.item; // dragged HTMLElement
+        // evt.to; // target list
+        // evt.from; // previous list
+        // evt.oldIndex; // element's old index within old parent
+        // evt.newIndex; // element's new index within new parent
+        // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+        // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+        // evt.clone; // the clone element
+        // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+      },
+    });
+
+    return '';
     return html` <div class="in section-mp">${docMenuRender}</div>`;
     return html` <div class="in section-mp">
       ${await DropDown.Render({
