@@ -293,11 +293,11 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
       if (views) {
-        const buildJsSrcPage = async (jsSrcPath, jsPublicPath) => {
+        const buildJsSrcPage = async (jsSrcPath, jsPublicPath, filter) => {
           if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
             let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
             if (jsSrc.split('/*imports*/')[1]) jsSrc = jsSrc.split('/*imports*/')[1];
-
+            if (filter) jsSrc = await filter(jsSrc);
             fs.writeFileSync(
               jsPublicPath,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
@@ -312,6 +312,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
             ? `./src/client/sw/${publicClientId}.sw.js`
             : `./src/client/sw/default.sw.js`,
           `${rootClientPath}/sw.js`,
+          path !== '/'
+            ? (jsSrc) => jsSrc.replaceAll(`const PROXY_PATH = '/';`, `const PROXY_PATH = '${path}/';`)
+            : undefined,
         );
 
         // offline html

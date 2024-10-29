@@ -51,6 +51,7 @@ const Worker = {
     const isInstall = await this.status();
     if (!isInstall) await this.install();
     else await this.update();
+    await this.updateOfflineSrc();
     // else if (location.hostname === 'localhost') await this.update();
     this.RouterInstance = router();
     await render();
@@ -90,21 +91,11 @@ const Worker = {
     if (isInstall) {
       const cacheNames = await caches.keys();
       for (const cacheName of cacheNames) {
-        if (
-          cacheName.match('components/') ||
-          cacheName.match('services/') ||
-          cacheName.match('.index.js') ||
-          cacheName.match('offline.')
-        ) {
+        if (cacheName.match('components/') || cacheName.match('services/') || cacheName.match('.index.js')) {
           await caches.delete(cacheName);
         }
       }
       await this.updateServiceWorker();
-      try {
-        await fetch(`${getProxyPath()}offline.html`);
-      } catch (error) {
-        logger.error('error');
-      }
     }
   },
   updateServiceWorker: async function () {},
@@ -220,6 +211,13 @@ const Worker = {
         });
       }
     });
+  },
+  updateOfflineSrc: async function () {
+    try {
+      await fetch(`${getProxyPath()}offline.html`);
+    } catch (error) {
+      logger.error('error');
+    }
   },
   // TODO: GPS management
   RenderSetting: async function () {

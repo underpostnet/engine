@@ -37,6 +37,8 @@ even while offline, can asynchronously save files and many other things)
 
 const logger = loggerFactory(import.meta);
 
+const PROXY_PATH = '/';
+
 self.addEventListener('install', (event) => {
   // Activate right away
   self.skipWaiting();
@@ -180,8 +182,8 @@ self.addEventListener('fetch', (event) => {
 
           logger.error('Fetch failed; returning offline page instead.', { error, path });
           try {
-            const cache = await caches.open('/offline.html');
-            const cachedResponse = await cache.match('/offline.html');
+            const cache = await caches.open(`${PROXY_PATH}offline.html`);
+            const cachedResponse = await cache.match(`${PROXY_PATH}offline.html`);
             return cachedResponse;
           } catch (error) {
             logger.error('Error opening cache for offline page', { error, path });
