@@ -332,7 +332,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           });
 
           fs.writeFileSync(
-            `${rootClientPath}offline.html`,
+            `${rootClientPath}/offline.html`,
             minifyBuild || process.env.NODE_ENV === 'production'
               ? await minify(htmlSrc, {
                   minifyCSS: true,
@@ -358,7 +358,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           });
 
           fs.writeFileSync(
-            `${rootClientPath}${page.slice(0, -3)}.html`,
+            `${rootClientPath}/${page.slice(0, -3)}.html`,
             minifyBuild || process.env.NODE_ENV === 'production'
               ? await minify(htmlSrc, {
                   minifyCSS: true,
