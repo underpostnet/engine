@@ -101,7 +101,7 @@ const Worker = {
       }
       await this.updateServiceWorker();
       try {
-        await fetch('/offline.html');
+        await fetch(`${getProxyPath()}offline.html`);
       } catch (error) {
         logger.error('error');
       }
