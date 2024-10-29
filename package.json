@@ -33,7 +33,8 @@
     "underpost-unpublish": "npm unpublish underpost@2.5.x",
     "hardhat": "cd hardhat && npx hardhat init",
     "hardhat-cryptokoyn-deploy": "cd hardhat && npx hardhat run ./scripts/deployCryptokoyn.cjs --network cryptokoyn",
-    "s": "node engine-private/s"
+    "s": "node engine-private/s",
+    "build-production": "env-cmd -f .env.production node bin/deploy build-full-client"
   },
   "bin": {
     "underpost": "bin/index.js"

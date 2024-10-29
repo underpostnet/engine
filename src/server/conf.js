@@ -89,6 +89,11 @@ const loadConf = (deployId) => {
   if (!fs.existsSync(`./conf`)) fs.mkdirSync(`./conf`);
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   const isValidDeployId = fs.existsSync(`${folder}`);
+  if (!isValidDeployId) {
+    logger.info(`Save new deploy conf: '${deployId}'`);
+    shellExec(`node bin/deploy save ${deployId}`);
+    return loadConf(deployId);
+  }
   for (const typeConf of Object.keys(Config.default)) {
     let srcConf = isValidDeployId
       ? fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8')
