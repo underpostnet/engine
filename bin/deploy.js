@@ -232,7 +232,7 @@ try {
         const serverConf = deployId
           ? JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'))
           : Config.default.server;
-        if (!deployId && !argHost[0] && !argPath[0]) {
+        if (!argHost[0] && !argPath[0]) {
           argHost = ['default.net'];
           argPath = ['/'];
         }

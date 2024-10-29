@@ -52,7 +52,7 @@ const fullBuild = async ({
       if (!fs.existsSync(defaultBaseIconPath))
         await buildTextImg(metadata.title, { debugFilename: defaultBaseIconPath });
 
-      if (path === '/' && !fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`))
+      if (!fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`))
         await buildIcons({ publicClientId, metadata });
     }
     fs.copySync(
@@ -306,15 +306,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           }
         };
 
-        if (path === '/') {
-          // service woker
-          await buildJsSrcPage(
-            fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-              ? `./src/client/sw/${publicClientId}.sw.js`
-              : `./src/client/sw/default.sw.js`,
-            `${rootClientPath}/sw.js`,
-          );
-        }
+        // service woker
+        await buildJsSrcPage(
+          fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+            ? `./src/client/sw/${publicClientId}.sw.js`
+            : `./src/client/sw/default.sw.js`,
+          `${rootClientPath}/sw.js`,
+        );
 
         // offline html
         {
@@ -437,7 +435,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                       fs.existsSync(`./src/client/public/${publicClientId}/browserconfig.xml`) &&
                       fs.existsSync(`./src/client/public/${publicClientId}/site.webmanifest`);
 
-                    if (view.path === '/' && validPwaBuild) {
+                    if (validPwaBuild) {
                       // build webmanifest
                       const webmanifestJson = JSON.parse(
                         fs.readFileSync(`./src/client/public/${publicClientId}/site.webmanifest`, 'utf8'),

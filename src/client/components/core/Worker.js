@@ -143,7 +143,7 @@ const Worker = {
     return new Promise((resolve, reject) => {
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker
-          .register(`/sw.js`, {
+          .register(`${getProxyPath()}sw.js`, {
             // scope: getProxyPath(),
             // scope: '/',
             type: 'module',

@@ -2,8 +2,13 @@ const DefaultConf = {
   client: {
     default: {
       metadata: {
-        title: 'Default',
+        title: 'Demo App',
         backgroundImage: './src/client/public/default/assets/background/white0-min.jpg',
+        description: 'Web application',
+        keywords: ['web', 'app', 'spa', 'demo', 'github-pages'],
+        author: 'https://github.com/underpostnet',
+        thumbnail: 'android-chrome-384x384.png',
+        themeColor: '#ececec',
       },
       components: {
         core: [
@@ -168,7 +173,7 @@ const DefaultConf = {
   },
   ssr: {
     Default: {
-      head: ['Pwa', 'Css', 'DefaultScripts', 'Production'],
+      head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
       body: ['CacheControl', 'DefaultSplashScreen'],
     },
   },
