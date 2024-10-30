@@ -198,6 +198,11 @@ const Modal = {
                 }
               });
 
+              setTimeout(() => {
+                s(`.main-body-btn-container`).style[
+                  options.mode && options.mode.match('right') ? 'right' : 'left'
+                ] = `${slideMenuWidth}px`;
+              });
               Responsive.Event[`slide-menu-${idModal}`]();
             };
             barConfig.buttons.close.onClick = () => {
@@ -213,9 +218,84 @@ const Modal = {
                 }
               });
               // s(`.title-modal-${idModal}`).style.display = 'none';
+              setTimeout(() => {
+                s(`.main-body-btn-container`).style[
+                  options.mode && options.mode.match('right') ? 'right' : 'left'
+                ] = `${0}px`;
+              });
               Responsive.Event[`slide-menu-${idModal}`]();
             };
             transition += `, width 0.3s`;
+
+            setTimeout(() => {
+              append(
+                'body',
+                html`
+                  <div
+                    class="abs main-body-btn-container"
+                    style="top: ${options.heightTopBar + 50}px; z-index: 9; ${options.mode &&
+                    options.mode.match('right')
+                      ? 'right'
+                      : 'left'}: 50px; width: 100px; transition: .3s"
+                  >
+                    <div
+                      class="abs main-body-btn main-body-btn-menu hide"
+                      style="top: 0px; ${options.mode && options.mode.match('right') ? 'right' : 'left'}: 50px"
+                    >
+                      <div class="abs center">
+                        <i class="fa-solid fa-xmark hide"></i>
+                        <i class="fa-solid fa-bars"></i>
+                      </div>
+                    </div>
+                    <div
+                      class="abs main-body-btn main-body-btn-ui"
+                      style="top: 0px; ${options.mode && options.mode.match('right') ? 'right' : 'left'}: 0px"
+                    >
+                      <div class="abs center">
+                        <i class="fas fa-caret-down main-body-btn-ui-open hide"></i>
+                        <i class="fas fa-caret-up main-body-btn-ui-close"></i>
+                      </div>
+                    </div>
+                  </div>
+                `,
+              );
+
+              s(`.main-body-btn-menu`).onclick = () => {};
+
+              let _heightTopBar, _heightBottomBar, _topMenu;
+              s(`.main-body-btn-ui`).onclick = () => {
+                if (s(`.main-body-btn-ui-open`).classList.contains('hide')) {
+                  s(`.main-body-btn-ui-open`).classList.remove('hide');
+                  s(`.main-body-btn-ui-close`).classList.add('hide');
+                  _heightTopBar = newInstance(options.heightTopBar);
+                  _heightBottomBar = newInstance(options.heightBottomBar);
+                  _topMenu = newInstance(s(`.modal-menu`).style.top);
+                  options.heightTopBar = 0;
+                  options.heightBottomBar = 0;
+                  s(`.slide-menu-top-bar`).classList.add('hide');
+                  s(`.bottom-bar`).classList.add('hide');
+                  s(`.modal-menu`).style.top = '0px';
+                  s(`.main-body-btn-container`).style.top = '50px';
+                } else {
+                  s(`.main-body-btn-ui-close`).classList.remove('hide');
+                  s(`.main-body-btn-ui-open`).classList.add('hide');
+                  options.heightTopBar = _heightTopBar;
+                  options.heightBottomBar = _heightBottomBar;
+                  s(`.modal-menu`).style.top = _topMenu;
+                  s(`.main-body-btn-container`).style.top = `${options.heightTopBar + 50}px`;
+                  s(`.slide-menu-top-bar`).classList.remove('hide');
+                  s(`.bottom-bar`).classList.remove('hide');
+                }
+                s(`.btn-menu-${'modal-menu'}`).click();
+                Object.keys(this.Data).map((_idModal) => {
+                  if (this.Data[_idModal].slideMenu) {
+                    s(`.btn-maximize-${_idModal}`).click();
+                  }
+                });
+                Responsive.Event[`view-${'main-body'}`]();
+                if (Responsive.Event[`view-${'bottom-bar'}`]) Responsive.Event[`view-${'bottom-bar'}`]();
+              };
+            });
 
             const inputSearchBoxId = `top-bar-search-box`;
             append(
@@ -1170,7 +1250,7 @@ const Modal = {
                   })}
                   <div class="abs sub-menu-title-container-${idModal} ac">
                     <div class="abs nav-title-display-${idModal}">
-                      <i class="fas fa-home"></i> ${Translate.Render('home')}
+                      <!-- <i class="fas fa-home"></i> ${Translate.Render('home')} -->
                     </div>
                   </div>
                   <div class="abs nav-path-container-${idModal} ahc bold">
@@ -1212,7 +1292,8 @@ const Modal = {
         const backMenuButtonEvent = async () => {
           if (location.pathname !== getProxyPath()) setPath(getProxyPath());
           if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
-          htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
+          // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
+          htmls(`.nav-title-display-${'modal-menu'}`, html``);
           htmls(`.nav-path-display-${idModal}`, '');
           s(`.btn-icon-menu-back`).classList.add('hide');
           if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
@@ -1240,6 +1321,12 @@ const Modal = {
           }
           if (slideMenuWidth === originSlideMenuWidth) {
             slideMenuWidth = collapseSlideMenuWidth;
+            setTimeout(() => {
+              s(`.main-body-btn-container`).style[
+                options.mode && options.mode.match('right') ? 'right' : 'left'
+              ] = `${slideMenuWidth}px`;
+            }, 1);
+
             if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
               sa(`.handle-btn-container`).forEach((el) => el.classList.add('hide'));
               sa(`.menu-label-text`).forEach((el) => el.classList.add('hide'));
@@ -1255,6 +1342,12 @@ const Modal = {
             s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
           } else {
             slideMenuWidth = originSlideMenuWidth;
+            setTimeout(() => {
+              s(`.main-body-btn-container`).style[
+                options.mode && options.mode.match('right') ? 'right' : 'left'
+              ] = `${slideMenuWidth}px`;
+            }, 1);
+
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
             sa(`.menu-label-text`).forEach((el) => el.classList.remove('hide'));
             if (!Modal.mobileModal()) {
@@ -1405,13 +1498,23 @@ const Modal = {
           callBack,
           id: options.slideMenu,
         };
-        s(`.${idModal}`).style.height = `${
-          window.innerHeight -
-          (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-          (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-        }px`;
-        s(`.${idModal}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+        Responsive.Event['h-ui-hide-' + idModal] = () => {
+          setTimeout(() => {
+            s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
+              ? `${window.innerHeight}px`
+              : `${
+                  window.innerHeight -
+                  (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+                  (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                }px`;
+            s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
+              ? `0px`
+              : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+          });
+        };
+        Responsive.Event['h-ui-hide-' + idModal]();
       } else {
+        delete Responsive.Event['h-ui-hide-' + idModal];
         s(`.${idModal}`).style.width = '100%';
         s(`.${idModal}`).style.height = '100%';
         s(`.${idModal}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;

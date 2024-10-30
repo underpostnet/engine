@@ -167,8 +167,25 @@ const CssCommonCyberia = async () => {
         top: 14px;
         left: -6px;
       }
+      .down-arrow-submenu {
+        top: -20px;
+        text-align: right;
+        padding-right: 42px;
+        color: #5f5f5f;
+      }
+      .main-body-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 18px;
+        cursor: pointer;
+        color: black;
+      }
+      .main-body-btn:hover {
+        font-size: 21px;
+      }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
+    ${borderChar(1, 'yellow', ['.main-body-btn-container'])}
     ${borderChar(1, 'black', ['.cyberia-splash-screen-logo-span'])}
     <div class="ag-grid-style"></div>`;
 };
