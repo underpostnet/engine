@@ -1,11 +1,17 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
-import cron from 'node-cron';
+import https from 'https';
 
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
 import { isIPv4 } from 'is-ip';
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+
+axios.defaults.httpsAgent = httpsAgent;
 
 dotenv.config();
 

@@ -10,7 +10,7 @@ const CronManagement = {
     // https://github.com/settings/tokens
     for (const cronKey of Object.keys(this.data)) {
       if (this.data[cronKey].valid) {
-        this.data[cronKey].task.start();
+        // this.data[cronKey].task.start();
         logger.info(`Cron task "${this.data[cronKey].name}" started`);
       } else {
         logger.error(
@@ -23,11 +23,21 @@ const CronManagement = {
     const args = { name, expression, valid: cron.validate(expression) };
     this.data[name] = {
       ...args,
-      task: cron.schedule(expression, callback, {
-        scheduled: true,
-        timezone: process.env.TIME_ZONE || 'America/New_York',
-        name,
-      }),
+      task: cron.schedule(
+        expression,
+        async () => {
+          try {
+            await callback();
+          } catch (error) {
+            logger.error(error, args);
+          }
+        },
+        {
+          scheduled: true,
+          timezone: process.env.TIME_ZONE || 'America/New_York',
+          name,
+        },
+      ),
     };
   },
 };
