@@ -96,7 +96,9 @@ const MenuNexodev = {
               class: 'in wfa main-btn-menu main-btn-docs',
               label: renderMenuLabel({
                 icon: html`<i class="fas fa-book"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('docs')}</span>`,
+                text: html`<span class="menu-label-text"
+                  >${Translate.Render('docs')} <i class="fas fa-caret-down in down-arrow-submenu"></i
+                ></span>`,
               }),
               attrs: `data-id="docs"`,
               tabHref: `${getProxyPath()}docs`,
@@ -793,10 +795,7 @@ const MenuNexodev = {
         if (!location.pathname.startsWith(`${getProxyPath()}docs`)) setPath(`${getProxyPath()}docs`);
         if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) s(`.btn-icon-menu-mode`).click();
         s(`.btn-icon-menu-back`).classList.remove('hide');
-        htmls(
-          `.sub-menu-title-container-${'modal-menu'}`,
-          html`<div class="abs center"><i class="fas fa-book"></i> ${Translate.Render('docs')}</div>`,
-        );
+        htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);
         await Docs.Init({
           idModal: 'modal-docs',
         });

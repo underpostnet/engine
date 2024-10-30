@@ -1053,7 +1053,8 @@ const Modal = {
           top: 5%;
           left: 5%;
         }
-        .sub-menu-title-container-${idModal} {
+        .sub-menu-title-container-${idModal},
+        .nav-path-container-${idModal} {
           top: 0px;
           left: 0px;
           width: 200px;
@@ -1061,6 +1062,18 @@ const Modal = {
           overflow: hidden;
           font-size: 20px;
           cursor: default;
+        }
+        .nav-path-display-${idModal} {
+          font-size: 11px;
+          width: 100%;
+          top: 35px;
+          left: 37px;
+        }
+        .nav-title-display-${idModal} {
+          font-size: 19px;
+          width: 100%;
+          top: 13px;
+          left: 13px;
         }
       </style>
       ${renderStyleTag(`style-${idModal}`, `.${idModal}`, options)}
@@ -1155,7 +1168,14 @@ const Modal = {
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
                     label: html`<div class="abs center"><i class="fas fa-undo-alt"></i></div>`,
                   })}
-                  <div class="abs sub-menu-title-container-${idModal} ac"></div>
+                  <div class="abs sub-menu-title-container-${idModal} ac">
+                    <div class="abs nav-title-display-${idModal}">
+                      <i class="fas fa-home"></i> ${Translate.Render('home')}
+                    </div>
+                  </div>
+                  <div class="abs nav-path-container-${idModal} ahc bold">
+                    <div class="abs nav-path-display-${idModal}"><!-- ${location.pathname} --></div>
+                  </div>
                 </div>`
               : ''}
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
@@ -1189,6 +1209,14 @@ const Modal = {
       case 'slide-menu':
       case 'slide-menu-right':
       case 'slide-menu-left':
+        const backMenuButtonEvent = async () => {
+          if (location.pathname !== getProxyPath()) setPath(getProxyPath());
+          if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
+          htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
+          htmls(`.nav-path-display-${idModal}`, '');
+          s(`.btn-icon-menu-back`).classList.add('hide');
+          if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
+        };
         s(`.main-btn-home`).onclick = () => {
           for (const keyModal of Object.keys(this.Data)) {
             if (
@@ -1197,15 +1225,11 @@ const Modal = {
                 .includes(keyModal)
             )
               s(`.btn-close-${keyModal}`).click();
+            backMenuButtonEvent();
           }
           s(`.btn-close-modal-menu`).click();
         };
-        EventsUI.onClick(`.btn-icon-menu-back`, () => {
-          htmls(`.menu-btn-container-children`, '');
-          htmls(`.sub-menu-title-container-${idModal}`, '');
-          s(`.btn-icon-menu-back`).classList.add('hide');
-          s(`.menu-btn-container-main`).classList.remove('hide');
-        });
+        EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);
         EventsUI.onClick(`.btn-icon-menu-mode`, () => {
           if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) {
             s(`.btn-icon-menu-mode-right`).classList.remove('hide');
@@ -1228,6 +1252,7 @@ const Modal = {
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
+            s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
           } else {
             slideMenuWidth = originSlideMenuWidth;
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
@@ -1241,6 +1266,7 @@ const Modal = {
 
             if (options.onExtendMenu) options.onExtendMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
+            s(`.nav-path-container-${'modal-menu'}`).classList.remove('hide');
           }
           // btn-bar-center-icon-menu
           this.actionBtnCenter();

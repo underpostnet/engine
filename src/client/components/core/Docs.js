@@ -154,16 +154,31 @@ const Docs = {
     const { idModal } = options;
     this.Tokens[idModal] = options;
     setTimeout(() => {
+      const cleanActive = () => {
+        s(`.btn-docs-src`).classList.remove('main-btn-menu-active');
+        s(`.btn-docs-api`).classList.remove('main-btn-menu-active');
+        s(`.btn-docs-coverage`).classList.remove('main-btn-menu-active');
+        for (const umlType of umlTypes) {
+          const umlId = `uml-${umlType}`;
+          s(`.btn-docs-${umlId}`).classList.remove('main-btn-menu-active');
+        }
+      };
       s(`.btn-docs-src`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'src' });
+        cleanActive();
+        s(`.btn-docs-src`).classList.add('main-btn-menu-active');
         await this.RenderModal('src', options.modalOptions);
       };
       s(`.btn-docs-api`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'api' });
+        cleanActive();
+        s(`.btn-docs-api`).classList.add('main-btn-menu-active');
         await this.RenderModal('api', options.modalOptions);
       };
       s(`.btn-docs-coverage`).onclick = async () => {
         setQueryPath({ path: 'docs', queryPath: 'coverage' });
+        cleanActive();
+        s(`.btn-docs-coverage`).classList.add('main-btn-menu-active');
         await this.RenderModal('coverage', options.modalOptions);
       };
 
@@ -183,6 +198,8 @@ const Docs = {
       for (const umlType of umlTypes) {
         const umlId = `uml-${umlType}`;
         s(`.btn-docs-${umlId}`).onclick = async () => {
+          cleanActive();
+          s(`.btn-docs-${umlId}`).classList.add('main-btn-menu-active');
           setQueryPath({ path: 'docs', queryPath: umlId });
           await this.RenderModal(umlId, { ...options.modalOptions, handleType: 'bar' });
         };
@@ -229,7 +246,8 @@ const Docs = {
     }
 
     htmls('.menu-btn-container-children', html` <div class="fl menu-btn-container-docs">${docMenuRender}</div>`);
-    s(`.menu-btn-container-main`).classList.add('hide');
+    if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.add('hide');
+    htmls(`.nav-path-display-${'modal-menu'}`, location.pathname);
 
     this.Tokens[idModal] = new Sortable(s(`.menu-btn-container-docs`), {
       animation: 150,

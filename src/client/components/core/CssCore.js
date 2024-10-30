@@ -135,6 +135,12 @@ const CssCommonCore = async () => {
         width: 100%;
         height: auto;
       }
+      .down-arrow-submenu {
+        top: -20px;
+        text-align: right;
+        padding-right: 42px;
+        color: #5f5f5f;
+      }
     </style>
     <style>
       .lds-dual-ring,
