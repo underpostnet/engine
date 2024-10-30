@@ -1053,6 +1053,14 @@ const Modal = {
           top: 5%;
           left: 5%;
         }
+        .sub-menu-title-container-${idModal} {
+          top: 0px;
+          left: 0px;
+          width: 200px;
+          height: 50px;
+          overflow: hidden;
+          font-size: 20px;
+        }
       </style>
       ${renderStyleTag(`style-${idModal}`, `.${idModal}`, options)}
       <div class="fix ${options && options.class ? options.class : ''} modal box-shadow ${idModal}">
@@ -1146,6 +1154,7 @@ const Modal = {
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
                     label: html`<div class="abs center"><i class="fa-solid fa-bars"></i></div>`,
                   })}
+                  <div class="abs sub-menu-title-container-${idModal}"></div>
                 </div>`
               : ''}
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
@@ -1192,6 +1201,7 @@ const Modal = {
         };
         EventsUI.onClick(`.btn-icon-menu-back`, () => {
           htmls(`.menu-btn-container-children`, '');
+          htmls(`.sub-menu-title-container-${idModal}`, '');
           s(`.btn-icon-menu-back`).classList.add('hide');
           s(`.menu-btn-container-main`).classList.remove('hide');
         });
@@ -1216,6 +1226,7 @@ const Modal = {
                 s(`.btn-icon-menu-back`).classList.add('hide');
             }
             if (options.onCollapseMenu) options.onCollapseMenu();
+            s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
           } else {
             slideMenuWidth = originSlideMenuWidth;
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
@@ -1228,6 +1239,7 @@ const Modal = {
               s(`.btn-icon-menu-back`).classList.remove('hide');
 
             if (options.onExtendMenu) options.onExtendMenu();
+            s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
           }
           // btn-bar-center-icon-menu
           this.actionBtnCenter();

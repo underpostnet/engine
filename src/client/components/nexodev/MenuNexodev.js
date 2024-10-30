@@ -8,7 +8,7 @@ import { LogOut } from '../core/LogOut.js';
 import { buildBadgeToolTipMenuOption, Modal, renderMenuLabel, renderViewTitle } from '../core/Modal.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, getQueryParams, htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, getQueryParams, htmls, s, setPath } from '../core/VanillaJs.js';
 import { ElementsNexodev } from './ElementsNexodev.js';
 import Sortable from 'sortablejs';
 import { RouterNexodev } from './RoutesNexodev.js';
@@ -790,9 +790,15 @@ const MenuNexodev = {
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
       setTimeout(async () => {
-        // s(`.btn-bar-center-icon-menu`).classList.add('hide');
-        // s(`.btn-bar-center-icon-close`).classList.remove('hide');
+        if (!location.pathname.startsWith(`${getProxyPath()}docs`)) setPath(`${getProxyPath()}docs`);
+        if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) s(`.btn-icon-menu-mode`).click();
         s(`.btn-icon-menu-back`).classList.remove('hide');
+        htmls(
+          `.sub-menu-title-container-${'modal-menu'}`,
+          html`<a href="#"
+            ><div class="abs center"><i class="fas fa-book"></i> ${Translate.Render('docs')}</div></a
+          >`,
+        );
         await Docs.Init({
           idModal: 'modal-docs',
         });
