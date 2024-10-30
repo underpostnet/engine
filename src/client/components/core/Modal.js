@@ -200,8 +200,8 @@ const Modal = {
 
               setTimeout(() => {
                 s(`.main-body-btn-container`).style[
-                  options.mode && options.mode.match('right') ? 'right' : 'left'
-                ] = `${slideMenuWidth}px`;
+                  true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
+                ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
               });
               Responsive.Event[`slide-menu-${idModal}`]();
             };
@@ -220,7 +220,7 @@ const Modal = {
               // s(`.title-modal-${idModal}`).style.display = 'none';
               setTimeout(() => {
                 s(`.main-body-btn-container`).style[
-                  options.mode && options.mode.match('right') ? 'right' : 'left'
+                  true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
                 ] = `${0}px`;
               });
               Responsive.Event[`slide-menu-${idModal}`]();
@@ -233,14 +233,16 @@ const Modal = {
                 html`
                   <div
                     class="abs main-body-btn-container"
-                    style="top: ${options.heightTopBar + 50}px; z-index: 9; ${options.mode &&
-                    options.mode.match('right')
+                    style="top: ${options.heightTopBar + 50}px; z-index: 9; ${true ||
+                    (options.mode && options.mode.match('right'))
                       ? 'right'
                       : 'left'}: 50px; width: 100px; transition: .3s"
                   >
                     <div
                       class="abs main-body-btn main-body-btn-menu hide"
-                      style="top: 0px; ${options.mode && options.mode.match('right') ? 'right' : 'left'}: 50px"
+                      style="top: 0px; ${true || (options.mode && options.mode.match('right'))
+                        ? 'right'
+                        : 'left'}: 50px"
                     >
                       <div class="abs center">
                         <i class="fa-solid fa-xmark hide"></i>
@@ -249,7 +251,7 @@ const Modal = {
                     </div>
                     <div
                       class="abs main-body-btn main-body-btn-ui"
-                      style="top: 0px; ${options.mode && options.mode.match('right') ? 'right' : 'left'}: 0px"
+                      style="top: 0px; ${true || (options.mode && options.mode.match('right')) ? 'right' : 'left'}: 0px"
                     >
                       <div class="abs center">
                         <i class="fas fa-caret-down main-body-btn-ui-open hide"></i>
@@ -1323,8 +1325,8 @@ const Modal = {
             slideMenuWidth = collapseSlideMenuWidth;
             setTimeout(() => {
               s(`.main-body-btn-container`).style[
-                options.mode && options.mode.match('right') ? 'right' : 'left'
-              ] = `${slideMenuWidth}px`;
+                true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
+              ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
             }, 1);
 
             if (!s(`.btn-bar-center-icon-close`).classList.contains('hide')) {
@@ -1344,8 +1346,8 @@ const Modal = {
             slideMenuWidth = originSlideMenuWidth;
             setTimeout(() => {
               s(`.main-body-btn-container`).style[
-                options.mode && options.mode.match('right') ? 'right' : 'left'
-              ] = `${slideMenuWidth}px`;
+                true || (options.mode && options.mode.match('right')) ? 'right' : 'left'
+              ] = options.mode && options.mode.match('right') ? `${slideMenuWidth}px` : '0px';
             }, 1);
 
             sa(`.handle-btn-container`).forEach((el) => el.classList.remove('hide'));
