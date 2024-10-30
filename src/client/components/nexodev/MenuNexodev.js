@@ -795,9 +795,7 @@ const MenuNexodev = {
         s(`.btn-icon-menu-back`).classList.remove('hide');
         htmls(
           `.sub-menu-title-container-${'modal-menu'}`,
-          html`<a href="#"
-            ><div class="abs center"><i class="fas fa-book"></i> ${Translate.Render('docs')}</div></a
-          >`,
+          html`<div class="abs center"><i class="fas fa-book"></i> ${Translate.Render('docs')}</div>`,
         );
         await Docs.Init({
           idModal: 'modal-docs',

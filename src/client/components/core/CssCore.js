@@ -484,6 +484,12 @@ const CssCoreDark = {
         a:hover {
           color: #cdcdcd;
         }
+        .ac {
+          color: #b1a7a7 !important;
+        }
+        .ahc {
+          color: #cdcdcd !important;
+        }
         .content-render {
           font-size: 16px;
           font-family: monospace;
@@ -794,6 +800,12 @@ const CssCoreLight = {
         }
         a:hover {
           color: #e89f4c;
+        }
+        .ac {
+          color: #6d68ff !important;
+        }
+        .ahc {
+          color: #e89f4c !important;
         }
         .content-render {
           font-size: 16px;

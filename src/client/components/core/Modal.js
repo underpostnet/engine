@@ -1060,6 +1060,7 @@ const Modal = {
           height: 50px;
           overflow: hidden;
           font-size: 20px;
+          cursor: default;
         }
       </style>
       ${renderStyleTag(`style-${idModal}`, `.${idModal}`, options)}
@@ -1152,9 +1153,9 @@ const Modal = {
                   ${await BtnIcon.Render({
                     style: renderCssAttr({ style: { height: '100%', color: '#5f5f5f' } }),
                     class: `in flr main-btn-menu action-bar-box btn-icon-menu-back hide`,
-                    label: html`<div class="abs center"><i class="fa-solid fa-bars"></i></div>`,
+                    label: html`<div class="abs center"><i class="fas fa-undo-alt"></i></div>`,
                   })}
-                  <div class="abs sub-menu-title-container-${idModal}"></div>
+                  <div class="abs sub-menu-title-container-${idModal} ac"></div>
                 </div>`
               : ''}
             ${options && options.html ? (typeof options.html === 'function' ? await options.html() : options.html) : ''}
