@@ -296,6 +296,7 @@ const Modal = {
                 });
                 Responsive.Event[`view-${'main-body'}`]();
                 if (Responsive.Event[`view-${'bottom-bar'}`]) Responsive.Event[`view-${'bottom-bar'}`]();
+                if (Responsive.Event[`view-${'main-body-top'}`]) Responsive.Event[`view-${'main-body-top'}`]();
               };
             });
 
@@ -1056,11 +1057,19 @@ const Modal = {
 
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
-                  s(`.${id}`).style.height = `${
-                    window.innerHeight -
-                    (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                    (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                  }px`;
+                  s(`.${id}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
+                    ? `${window.innerHeight}px`
+                    : `${
+                        window.innerHeight -
+                        (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+                        (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                      }px`;
+
+                  if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
+                    s(`.${id}`).style.top = '0px';
+                  } else {
+                    s(`.${id}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+                  }
                 };
                 Responsive.Event[`view-${id}`]();
 
