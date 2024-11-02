@@ -1,6 +1,6 @@
-#### **Crytokoyn & Itemledger: Cyberian Frontier Tokenomics**
+#### **Cryptokoyn & Itemledger: Cyberian Frontier Tokenomics**
 
-A descentralized solution for player progression
+A decentralized solution for player progression
 
 #### **Table of Contents**
 
@@ -12,7 +12,7 @@ A descentralized solution for player progression
 3. **Technology Stack**
    - Hyperledger Besu
    - Hardhat
-   - Smart Contracts: cryptokoyn.net (ERC-20) and itemledger.com (ERC-721)
+   - ERC Smart Contracts
    - MongoDB schemas
    - IPFS storage
 4. **Tokenomics**
@@ -30,3 +30,16 @@ A descentralized solution for player progression
 7. **Conclusion**
    - Recap of key points and future outlook
 8. **References**
+
+#### 1. **Executive Summary**
+
+This whitepaper introduces "Cyberian Frontier Tokenomics," a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages ERC standards for in-game currency and item ownership.
+
+**Key Findings:**
+
+- Players own their characters and items on a distributed ledger, ensuring tamper-proof progression.
+- Cryptokoyn.net (ERC-20) serves as the in-game currency, facilitating transactions and item purchases.
+- Itemledger.com (ERC-721) grants ownership of unique in-game items as NFTs, enabling secure trading and a thriving in-game economy.
+- Smart contracts automate token issuance, validation, and game mechanics, promoting transparency and trust.
+
+This system aims to revolutionize the MMORPG experience by empowering players and fostering a secure, decentralized in-game ecosystem.
