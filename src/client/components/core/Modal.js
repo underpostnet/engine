@@ -86,6 +86,7 @@ const Modal = {
       onDragEndListener: {},
       onObserverListener: {},
       onClickListener: {},
+      onExpandUiListener: {},
       query: options.query ? `${window.location.search}` : undefined,
     };
     if (options && 'mode' in options) {
@@ -297,6 +298,11 @@ const Modal = {
                 Responsive.Event[`view-${'main-body'}`]();
                 if (Responsive.Event[`view-${'bottom-bar'}`]) Responsive.Event[`view-${'bottom-bar'}`]();
                 if (Responsive.Event[`view-${'main-body-top'}`]) Responsive.Event[`view-${'main-body-top'}`]();
+                for (const keyEvent of Object.keys(this.Data[idModal].onExpandUiListener)) {
+                  this.Data[idModal].onExpandUiListener[keyEvent](
+                    !s(`.main-body-btn-ui-open`).classList.contains('hide'),
+                  );
+                }
               };
             });
 

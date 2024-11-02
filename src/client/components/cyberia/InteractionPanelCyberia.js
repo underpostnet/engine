@@ -867,10 +867,16 @@ const InteractionPanelCyberia = {
           await InteractionPanelCyberia.Render({ id: idPanel });
         }
       }
-
+      Modal.Data['modal-menu'].onExpandUiListener[id] = (expand) =>
+        setTimeout(() => {
+          s(`.top-bar`).classList.add('hide');
+          s(`.bottom-bar`).classList.add('hide');
+          s(`.slide-menu-top-bar`).classList.add('hide');
+          if (expand) s(`.menu-interaction-panel`).classList.add('hide');
+          else s(`.menu-interaction-panel`).classList.remove('hide');
+        });
       setTimeout(() => {
-        s(`.top-bar`).classList.add('hide');
-        s(`.bottom-bar`).classList.add('hide');
+        Modal.Data['modal-menu'].onExpandUiListener[id]();
       });
     }
   },
