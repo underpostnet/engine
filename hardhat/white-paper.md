@@ -36,6 +36,8 @@
 
 ### 1. Executive Summary
 
+#### 1.1 Brief overview of the whitepaper and its key findings
+
 This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages ERC standards for in-game currency and item ownership.
 
 **Key Findings**
