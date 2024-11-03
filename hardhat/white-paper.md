@@ -5,31 +5,34 @@ A decentralized solution for player progression
 #### Table of Contents
 
 1. **Executive Summary**
-   - Brief overview of the whitepaper and its key findings.
+   - **1.1** <a target='_top' href='https://github.com/underpostnet/engine/blob/master/hardhat/white-paper.md#1.1-executive-summary'>Brief overview of the whitepaper and its key findings.</a>
 2. **Introduction**
-   - Overview of gaming industry and Cyberia Online
-   - Problem statement: need for a decentralized solution for player progression
+
+   - **2.1** <a target='_top' href='https://github.com/underpostnet/engine/blob/master/hardhat/white-paper.md#2.1-overview-of-the-gaming-industry-and-cyberia-online'>Overview of gaming industry and Cyberia Online</a>
+
+   - **2.2** Problem statement: need for a decentralized solution for player progression
+
 3. **Technology Stack**
-   - Hyperledger Besu
-   - Hardhat
-   - ERC Smart Contracts
-   - MongoDB schemas
-   - IPFS storage
+   - **3.1** Hyperledger Besu
+   - **3.2** Hardhat
+   - **3.3** ERC Smart Contracts
+   - **3.4** MongoDB schemas
+   - **3.5** IPFS storage
 4. **Tokenomics**
-   - Cryptokoyn.net (ERC-20): In-game currency
-   - Itemledger.com (ERC-721): NFT for in-game items
-   - Token distribution and allocation
-   - Consensus mechanism
-   - Token use cases and mechanics
+   - **4.1** Cryptokoyn.net (ERC-20): In-game currency
+   - **4.2** Itemledger.com (ERC-721): NFT for in-game items
+   - **4.3** Token distribution and allocation
+   - **4.4** Consensus mechanism
+   - **4.5** Token use cases and mechanics
 5. **Game Mechanics and Progression**
-   - How tokens are integrated into gameplay
-   - Decentralized player progression
-   - Item crafting and trading
+   - **5.1** How tokens are integrated into gameplay
+   - **5.2** Decentralized player progression
+   - **5.3** Item crafting and trading
 6. **Security and Transparency**
-   - Blockchain security measures
-   - Smart contract audits
+   - **6.1** Blockchain security measures
+   - **6.2** Smart contract audits
 7. **Conclusion**
-   - Recap of key points and future outlook
+   - **6.3** Recap of key points and future outlook
 8. **References**
 
 #### 1. Executive Summary
@@ -45,13 +48,15 @@ This whitepaper introduces "Cyberian Frontier Tokenomics" a decentralized soluti
 
 This system aims to revolutionize the MMORPG experience by empowering players and fostering a secure, decentralized in-game ecosystem.
 
-#### 1. Overview of the Gaming Industry and Cyberia Online
+#### 2. Introduction
+
+#### 2.1 Overview of the Gaming Industry and Cyberia Online
 
 **The Rise of Multi-Platform Gaming, Procedural algorithms, and AI Content Generation**
 
-The gaming industry has experienced explosive growth in recent years, driven by the proliferation of mobile devices and the increasing demand for cross-platform gaming experiences. Games like _Albion Online_ have demonstrated the potential of non-linear MMORPGs by allowing players to build their own economies and explore vast virtual worlds.
+The gaming industry has experienced explosive growth in recent years, driven by the proliferation of mobile devices and the increasing demand for cross-platform gaming experiences. Games like _Albion Online_ (<a target="_top" href='https://www.affinitymediagroup.co/albion'>case study</a>) have demonstrated the potential of non-linear MMORPGs by allowing players to build their own economies and explore vast virtual worlds.
 
-A key factor in this growth has been the adoption of procedural content generation technologies. Games such as _Minecraft_ have popularized the idea of randomly generated worlds, offering players unique and infinite experiences. These technologies, combined with advancements in artificial intelligence, have democratized content creation in video games.
+A key factor in this growth has been the adoption of procedural content generation technologies. Games such as _Minecraft_ (<a target="_top" href='https://www.kodeby.com/blog/post/exploring-the-impact-of-procedural-generation-in-modern-game-development-techniques'>source</a>) have popularized the idea of randomly generated worlds, offering players unique and infinite experiences. These technologies, combined with advancements in artificial intelligence, have democratized content creation in video games.
 
 **Artificial Intelligence and Content Generation**
 
