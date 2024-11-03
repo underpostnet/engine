@@ -82,3 +82,4 @@ Cyberia Online is poised to capitalize on these trends by offering a unique brow
 - Pixel art aesthetic
 - Action RPG mechanics
 - Cyberpunk setting
+- Open source auditable
