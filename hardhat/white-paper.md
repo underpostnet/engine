@@ -5,9 +5,9 @@
 ## Table of Contents
 
 1.  **Executive Summary**
-    - 1.1 [Brief overview of the whitepaper and its key findings](#header-0)
+    - 1.1 [Brief overview of the whitepaper and its key findings](#header-1.1)
 2.  **Introduction**
-    - 2.1 [Overview of gaming industry and Cyberia Online](#header-1)
+    - 2.1 [Overview of gaming industry and Cyberia Online](#header-2.1)
     - 2.2 Problem statement: need for a decentralized solution for player progression
 3.  **Technology Stack**
     - 3.1 Hyperledger Besu
@@ -34,7 +34,7 @@
 
 ### 1. Executive Summary
 
-<a name="header-0"/>
+<a name="header-1.1"/>
 
 #### 1.1 Brief overview of the whitepaper and its key findings
 
@@ -51,13 +51,13 @@ This system aims to revolutionize the MMORPG experience by empowering players an
 
 ### 2. Introduction
 
-<a name="header-1"/>
+<a name="header-2.1"/>
 
 #### 2.1 Overview of the Gaming Industry and Cyberia Online
 
 **The Rise of Multi-Platform Gaming, Procedural algorithms, and AI Content Generation**
 
-The gaming industry has experienced explosive growth in recent years, driven by the proliferation of mobile devices and the increasing demand for cross-platform gaming experiences. Games like _Albion Online_ (<a target="_top" href='https://www.affinitymediagroup.co/albion'>case study</a>) have demonstrated the potential of non-linear MMORPGs by allowing players to build their own economies and explore vast virtual worlds.
+The gaming industry has experienced explosive growth in recent years, driven by the proliferation of mobile devices and the increasing demand for cross-platform gaming experiences (<a target="_top" href='https://www2.deloitte.com/us/en/insights/industry/technology/future-crossplay-gaming-demand.html'>1</a>,<a target="_top" href='https://unity.com/resources/gaming-report'>2</a>,<a target="_top" href='https://www.servers.com/news/blog/is-cross-platform-the-future-of-gaming'>3</a>,<a target="_top" href='https://www.servers.com/news/blog/my-6-big-takeaways-from-gdc-2023'>4</a>). Games like _Albion Online_ (<a target="_top" href='https://www.affinitymediagroup.co/albion'>case study</a>) have demonstrated the potential of non-linear MMORPGs by allowing players to build their own economies and explore vast virtual worlds.
 
 A key factor in this growth has been the adoption of procedural content generation technologies. Games such as _Minecraft_ (<a target="_top" href='https://www.kodeby.com/blog/post/exploring-the-impact-of-procedural-generation-in-modern-game-development-techniques'>source</a>) have popularized the idea of randomly generated worlds, offering players unique and infinite experiences. These technologies, combined with advancements in artificial intelligence, have democratized content creation in video games.
 
@@ -75,7 +75,9 @@ Cyberia Online is poised to capitalize on these trends by offering a unique brow
 
 **Key Features of Cyberia Online:**
 
-- Browser-based accessibility
+- Browser-based, cross-platform accessibility
+- Trust character and items ownership
+- Sandbox no lineal
 - Free-to-play
 - Pixel art aesthetic
 - Action RPG mechanics
