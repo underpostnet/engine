@@ -32,9 +32,9 @@
     - 7.1 Recap of key points and future outlook
 8.  **References**
 
-<a name="header-0"/>
-
 ### 1. Executive Summary
+
+<a name="header-0"/>
 
 #### 1.1 Brief overview of the whitepaper and its key findings
 
