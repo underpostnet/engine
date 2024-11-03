@@ -1063,15 +1063,20 @@ const Modal = {
 
                 Responsive.Event[`view-${id}`] = () => {
                   if (!this.Data[id] || !s(`.${id}`)) return delete Responsive.Event[`view-${id}`];
-                  s(`.${id}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                    ? `${window.innerHeight}px`
-                    : `${
-                        window.innerHeight -
-                        (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                        (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                      }px`;
+                  s(`.${id}`).style.height =
+                    s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+                    s(`.btn-restore-${id}`).style.display !== 'none'
+                      ? `${window.innerHeight}px`
+                      : `${
+                          window.innerHeight -
+                          (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+                          (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                        }px`;
 
-                  if (s(`.main-body-btn-ui-close`).classList.contains('hide')) {
+                  if (
+                    s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+                    s(`.btn-restore-${id}`).style.display !== 'none'
+                  ) {
                     s(`.${id}`).style.top = '0px';
                   } else {
                     s(`.${id}`).style.top = `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
@@ -1517,16 +1522,20 @@ const Modal = {
         };
         Responsive.Event['h-ui-hide-' + idModal] = () => {
           setTimeout(() => {
-            s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
-              ? `${window.innerHeight}px`
-              : `${
-                  window.innerHeight -
-                  (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
-                  (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
-                }px`;
-            s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-              ? `0px`
-              : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
+            s(`.${idModal}`).style.height =
+              s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+              s(`.btn-restore-${idModal}`).style.display !== 'none'
+                ? `${window.innerHeight}px`
+                : `${
+                    window.innerHeight -
+                    (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
+                    (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
+                  }px`;
+            s(`.${idModal}`).style.top =
+              s(`.main-body-btn-ui-close`).classList.contains('hide') &&
+              s(`.btn-restore-${idModal}`).style.display !== 'none'
+                ? `0px`
+                : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
           });
         };
         Responsive.Event['h-ui-hide-' + idModal]();
