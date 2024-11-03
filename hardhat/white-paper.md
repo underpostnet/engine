@@ -1,45 +1,44 @@
-#### Cryptokoyn & Itemledger: Cyberian Frontier Tokenomics
+## Cryptokoyn & Itemledger: Cyberian Frontier Tokenomics
 
-A decentralized solution for player progression
+**A decentralized solution for player progression**
 
-#### Table of Contents
+## Table of Contents
 
-1. **Executive Summary**
-   - **1.1** <a target='_top' href='https://github.com/underpostnet/engine/blob/master/hardhat/white-paper.md#1.1-executive-summary'>Brief overview of the whitepaper and its key findings.</a>
-2. **Introduction**
+1.  **Executive Summary** ([Link to Executive Summary](#header-0) )
+    - 1.1 [Brief overview of the whitepaper and its key findings](#header-0)
+2.  **Introduction**
+    - 2.1 [Overview of gaming industry and Cyberia Online](#header-1)
+    - 2.2 Problem statement: need for a decentralized solution for player progression
+3.  **Technology Stack**
+    - 3.1 Hyperledger Besu
+    - 3.2 Hardhat
+    - 3.3 ERC Smart Contracts
+    - 3.4 MongoDB schemas
+    - 3.5 IPFS storage
+4.  **Tokenomics**
+    - 4.1 Cryptokoyn.net (ERC-20): In-game currency
+    - 4.2 Itemledger.com (ERC-721): NFT for in-game items
+    - 4.3 Token distribution and allocation
+    - 4.4 Consensus mechanism
+    - 4.5 Token use cases and mechanics
+5.  **Game Mechanics and Progression**
+    - 5.1 How tokens are integrated into gameplay
+    - 5.2 Decentralized player progression
+    - 5.3 Item crafting and trading
+6.  **Security and Transparency**
+    - 6.1 Blockchain security measures
+    - 6.2 Smart contract audits
+7.  **Conclusion**
+    - 7.1 Recap of key points and future outlook
+8.  **References**
 
-   - **2.1** <a target='_top' href='https://github.com/underpostnet/engine/blob/master/hardhat/white-paper.md#2.1-overview-of-the-gaming-industry-and-cyberia-online'>Overview of gaming industry and Cyberia Online</a>
+<a name="header-0"/>
 
-   - **2.2** Problem statement: need for a decentralized solution for player progression
+### 1. Executive Summary
 
-3. **Technology Stack**
-   - **3.1** Hyperledger Besu
-   - **3.2** Hardhat
-   - **3.3** ERC Smart Contracts
-   - **3.4** MongoDB schemas
-   - **3.5** IPFS storage
-4. **Tokenomics**
-   - **4.1** Cryptokoyn.net (ERC-20): In-game currency
-   - **4.2** Itemledger.com (ERC-721): NFT for in-game items
-   - **4.3** Token distribution and allocation
-   - **4.4** Consensus mechanism
-   - **4.5** Token use cases and mechanics
-5. **Game Mechanics and Progression**
-   - **5.1** How tokens are integrated into gameplay
-   - **5.2** Decentralized player progression
-   - **5.3** Item crafting and trading
-6. **Security and Transparency**
-   - **6.1** Blockchain security measures
-   - **6.2** Smart contract audits
-7. **Conclusion**
-   - **6.3** Recap of key points and future outlook
-8. **References**
+This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages ERC standards for in-game currency and item ownership.
 
-#### 1. Executive Summary
-
-This whitepaper introduces "Cyberian Frontier Tokenomics" a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages ERC standards for in-game currency and item ownership.
-
-**Key Findings:**
+**Key Findings**
 
 - Players own their characters and items on a distributed ledger, ensuring tamper-proof progression.
 - Cryptokoyn.net (ERC-20) serves as the in-game currency, facilitating transactions and item purchases.
@@ -48,7 +47,9 @@ This whitepaper introduces "Cyberian Frontier Tokenomics" a decentralized soluti
 
 This system aims to revolutionize the MMORPG experience by empowering players and fostering a secure, decentralized in-game ecosystem.
 
-#### 2. Introduction
+### 2. Introduction
+
+<a name="header-1"/>
 
 #### 2.1 Overview of the Gaming Industry and Cyberia Online
 
@@ -72,8 +73,8 @@ Cyberia Online is poised to capitalize on these trends by offering a unique brow
 
 **Key Features of Cyberia Online:**
 
-- **Browser-based accessibility:** Play from any device with a web browser.
-- **Free-to-play:** Enjoy the game without any upfront costs.
-- **Pixel art aesthetic:** A nostalgic and visually appealing style.
-- **Action RPG mechanics:** Engage in fast-paced combat and character progression.
-- **Cyberpunk setting:** Explore a futuristic, dystopian world filled with intrigue.
+- Browser-based accessibility
+- Free-to-play
+- Pixel art aesthetic
+- Action RPG mechanics
+- Cyberpunk setting
