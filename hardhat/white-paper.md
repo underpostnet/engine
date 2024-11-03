@@ -4,7 +4,7 @@
 
 ## Table of Contents
 
-1.  **Executive Summary** ([Link to Executive Summary](#header-0) )
+1.  **Executive Summary**
     - 1.1 [Brief overview of the whitepaper and its key findings](#header-0)
 2.  **Introduction**
     - 2.1 [Overview of gaming industry and Cyberia Online](#header-1)
