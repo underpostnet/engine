@@ -76,10 +76,11 @@ Cyberia Online is poised to capitalize on these trends by offering a unique brow
 **Key Features of Cyberia Online**
 
 - Browser-based, cross-platform accessibility
+- Open source auditable
 - Trust character and items ownership
 - Sandbox no lineal
 - Free-to-play
 - Pixel art aesthetic
 - Action RPG mechanics
 - Cyberpunk setting
-- Open source auditable
+- Content AI scalable
