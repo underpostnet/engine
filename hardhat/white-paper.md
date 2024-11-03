@@ -12,7 +12,7 @@
 3.  **Technology Stack**
     - 3.1 Hyperledger Besu
     - 3.2 Hardhat
-    - 3.3 ERC Smart Contracts
+    - 3.3 Openzeppelin ERC Smart Contracts
     - 3.4 MongoDB schemas
     - 3.5 IPFS storage
 4.  **Tokenomics**
@@ -73,7 +73,7 @@ Large language models (LLMs) and diffusion models are revolutionizing how conten
 
 Cyberia Online is poised to capitalize on these trends by offering a unique browser-based MMORPG set in a cyberpunk universe. As a non-linear sandbox game, Cyberia Online empowers players to explore a dynamic world and shape their own narratives. By procedurally generating vast areas of its cyberpunk world, Cyberia Online ensures that each player has a unique and personalized experience. Additionally, AI will be used to create dynamic stories and characters that players can interact with meaningfully.
 
-**Key Features of Cyberia Online:**
+**Key Features of Cyberia Online**
 
 - Browser-based, cross-platform accessibility
 - Trust character and items ownership

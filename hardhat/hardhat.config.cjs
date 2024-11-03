@@ -7,13 +7,14 @@ const fs = require('fs-extra');
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
-  defaultNetwork: 'cryptokoyn',
+  defaultNetwork: 'cryptokoyn-itemledger',
   networks: {
     hardhat: {},
-    cryptokoyn: {
+    'cryptokoyn-itemledger': {
       // url: 'https://cryptokoyn.net/rpc/mainnet',
+      // url: 'https://itemledger.com/rpc/mainnet',
       url: 'http://127.0.0.1:8545',
-      accounts: [fs.readFileSync(`../engine-private/eth-networks/cryptokoyn/coinbase`, 'utf8')], // process.env.ETH_PRIVATE_KEY
+      accounts: [fs.readFileSync(`../engine-private/eth-networks/cryptokoyn-itemledger/coinbase`, 'utf8')], // process.env.ETH_PRIVATE_KEY
       chainId: 777771,
     },
   },
