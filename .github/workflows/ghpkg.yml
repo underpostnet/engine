@@ -9,7 +9,46 @@ permissions:
   packages: write
   id-token: write
 jobs:
-  test:
+  pwa-microservices-template:
+    if: github.repository == 'underpostnet/engine'
+    name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Set git credentials
+        run: |
+          git config --global credential.helper ""
+          git config credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global credential.interactive always
+          git config user.name 'underpostnet'
+          git config user.email 'fcoverdugoa@underpost.net'
+          git config credential.interactive always
+
+      - name: Clone github package repository
+        run: |
+          cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
+          cd engine
+          npm run update-template
+          cd ../pwa-microservices-template
+          git add .       
+          git commit -m "Update github repo package"
+          git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
+
+  pwa-microservices-template-ghpk:
     if: github.repository == 'underpostnet/pwa-microservices-template'
     name: Update github repo package Jobs
     runs-on: ubuntu-latest

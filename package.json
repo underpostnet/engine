@@ -39,7 +39,8 @@
     "s": "node engine-private/s",
     "build-production": "env-cmd -f .env.production node bin/deploy build-full-client",
     "set-shell": "npm config set script-shell",
-    "delete-shell": "npm config delete script-shell"
+    "delete-shell": "npm config delete script-shell",
+    "set-node-version": "nvm alias default 22.9.0 && nvm use"
   },
   "bin": {
     "underpost": "bin/index.js"

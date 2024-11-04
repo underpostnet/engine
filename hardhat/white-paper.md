@@ -8,7 +8,7 @@
     - 1.1 [Brief overview of the whitepaper and its key findings](#header-1.1)
 2.  **Introduction**
     - 2.1 [Overview of gaming industry and Cyberia Online](#header-2.1)
-    - 2.2 Problem statement: need for a decentralized solution for player progression
+    - 2.2 [Problem statement: need for a decentralized solution for player progression](#header-2.2)
 3.  **Technology Stack**
     - 3.1 Hyperledger Besu
     - 3.2 Hardhat
@@ -84,3 +84,21 @@ Cyberia Online is poised to capitalize on these trends by offering a unique brow
 - Action RPG mechanics
 - Cyberpunk setting
 - Content AI scalable
+
+<a name="header-2.2"/>
+
+#### 2.2 Problem Statement: Need for a Decentralized Solution for Player Progression
+
+Traditional MMORPGs often struggle to strike a balance between player ownership, transparency, and a healthy in-game economy (<a target="_top" href='https://ieeexplore.ieee.org/abstract/document/10585540'>source</a>). Centralized servers controlled by game developers raise concerns about:
+
+- **Lack of Ownership:** Players may invest significant time and resources into building characters and acquiring items, but ultimately lack true ownership of these digital assets. Server shutdowns or changes in game rules can erase player progress.
+- **Opacity and Manipulation:** Game developers hold significant power over in-game economies, potentially manipulating item value or introducing pay-to-win mechanics that erode trust and fairness.
+- **Security Risks:** Centralized servers can be vulnerable to hacks or exploits, jeopardizing player data and in-game assets.
+
+This whitepaper proposes a solution: a **decentralized player progression system** built on blockchain technology. This system aims to address the limitations of traditional MMORPGs by offering:
+
+- **Verifiable Ownership:** Players hold their characters and items as digital assets on a distributed ledger, ensuring tamper-proof progression and true ownership.
+- **Transparency and Trust:** Smart contracts automate game mechanics and token issuance, creating a transparent and verifiable system that players can trust.
+- **Secure and Thriving Economy:** Blockchain technology provides a secure platform for in-game transactions and item trading, fostering a robust and player-driven economy.
+
+By implementing a decentralized solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and revolutionize the MMORPG experience.

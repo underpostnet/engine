@@ -2,7 +2,7 @@ import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { cap, getCapVariableName, getDirname } from '../src/client/components/core/CommonJs.js';
-import { shellExec } from '../src/server/process.js';
+import { shellCd, shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
 
@@ -76,6 +76,20 @@ try {
         fs.copySync(`./.vscode`, `../pwa-microservices-template/.vscode`);
         fs.copySync(`./.github`, `../pwa-microservices-template/.github`);
         fs.copySync(`./src/client/public/default`, `../pwa-microservices-template/src/client/public/default`);
+
+        shellCd('../pwa-microservices-template');
+        for (const deletePath of ['CHANGELOG.md', 'README.md', 'package-lock.json', 'package.json']) {
+          shellExec(`git checkout ${deletePath}`);
+        }
+        for (const deletePath of [
+          '.github/workflows/coverall.yml',
+          '.github/workflows/docker-image.yml',
+          'bin/web3.js',
+          'src/ipfs.js',
+          'src/k8s.js',
+        ]) {
+          fs.removeSync('../pwa-microservices-template/' + deletePath);
+        }
       }
 
       break;
