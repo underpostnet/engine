@@ -100,7 +100,7 @@ This whitepaper proposes a solution: a **decentralized player progression system
 - **Transparency and Trust:** Smart contracts automate game mechanics and token issuance, creating a transparent and verifiable system that players can trust.
 - **Secure and Thriving Economy:** Blockchain technology provides a secure platform for in-game transactions and item trading, fostering a robust and player-driven economy.
 
-By implementing a decentralized solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and innovative MMORPG experience.
+By implementing a distributed solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and innovative MMORPG experience.
 
 ### 3. Technology Stack
 
@@ -157,7 +157,7 @@ By implementing a decentralized solution, Cyberian Frontier aims to empower play
 
 #### 3.5 IPFS Storage
 
-- **Overview:** IPFS (InterPlanetary File System) is a decentralized storage and file-sharing network. We leverage IPFS to store large files and static assets, such as images, videos, and documents, ensuring data durability and accessibility.
+- **Overview:** IPFS (InterPlanetary File System) is a distributed storage and file-sharing network. We leverage IPFS to store large files and static assets, such as images, videos, and documents, ensuring data durability and accessibility.
 - **Key Benefits:**
   - **Decentralization:** Reduces reliance on centralized servers and improves data resilience.
   - **Content Addressing:** Efficiently stores and retrieves data based on its content hash.
