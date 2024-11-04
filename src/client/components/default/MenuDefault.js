@@ -20,7 +20,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 
 const MenuDefault = {
   Data: {},
-  Render: async function () {
+  Render: async function (options = { htmlMainBody: () => html`` }) {
     const id = getId(this.Data, 'menu-');
     this.Data[id] = {};
     const RouterInstance = RouterDefault();
@@ -150,6 +150,7 @@ const MenuDefault = {
       mode: 'slide-menu',
       heightTopBar,
       heightBottomBar,
+      htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,
     });
 
     this.Data[id].sortable = new Sortable(s(`.menu-btn-container`), {
