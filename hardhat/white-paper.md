@@ -42,11 +42,11 @@ This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solut
 
 **Key Findings**
 
-- **Player Ownership:** Blockchain ensures players truly own their characters and items (NFTs) on a tamper-proof ledger.
-- **Decentralized Economy:** Cryptokoyn (ERC-20) facilitates secure in-game transactions and item purchases.
-- **Transparent Gameplay:** Smart contracts automate game mechanics and token issuance, fostering trust and fairness.
-- **Empowered Players:** Players can participate in a thriving, player-driven economy with secure trading (ERC-721 NFTs).
+- **Player Ownership:** By leveraging ERC-721 standards, Itemledger.com (IL), tokens can represent unique in-game items in Cyberia Online. Owning all ERC-721 tokens associated with a public key allows for full reconstruction of a character's game state, including their inventory and equipment.
+- **Decentralized Economy:** ERC-20 tokens, represented by Cryptokoyn.net (CKY),serve as the in-game currency for Cyberia Online. This allows players to hold their character's coin balance on a secure and transparent blockchain ledger.
 - **Open Ecosystems:** External developers can potentially leverage character data and validate authenticity for future innovations.
+
+The following sections will delve deeper into the technical aspects, game mechanics, and economic benefits of this decentralized approach.
 
 ### 2. Introduction
 
