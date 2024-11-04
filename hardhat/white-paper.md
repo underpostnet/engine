@@ -43,7 +43,7 @@ This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solut
 **Key Findings**
 
 - **Player Ownership:** By leveraging ERC-721 standards, Itemledger.com (IL), tokens can represent unique in-game items in Cyberia Online. Owning all ERC-721 tokens associated with a public key allows for full reconstruction of a character's game state, including their inventory and equipment.
-- **Decentralized Economy:** ERC-20 tokens, represented by Cryptokoyn.net (CKY),serve as the in-game currency for Cyberia Online. This allows players to hold their character's coin balance on a secure and transparent blockchain ledger.
+- **Decentralized Economy:** ERC-20 tokens, represented by Cryptokoyn.net (CKY), serve as the in-game currency for Cyberia Online. This allows players to hold their character's coin balance on a secure and transparent blockchain ledger.
 - **Open Ecosystems:** External developers can potentially leverage character data and validate authenticity for future innovations.
 
 The following sections will delve deeper into the technical aspects, game mechanics, and economic benefits of this decentralized approach.
@@ -62,7 +62,7 @@ A key factor in this growth has been the adoption of procedural content generati
 
 **Artificial Intelligence and Content Generation**
 
-Large language models (LLMs) and diffusion models are revolutionizing how content is created for video games. These AI tools enable the rapid and efficient generation of:
+Large language models (LLMs) and diffusion models are innovative way how content is created for video games. These AI tools enable the rapid and efficient generation of:
 
 - **Stories and scripts:** LLMs can create compelling and personalized narratives for each player.
 - **Art assets:** Diffusion models generate a wide variety of art assets, such as characters, environments, and objects, at a significantly lower cost than traditional methods.
@@ -100,4 +100,4 @@ This whitepaper proposes a solution: a **decentralized player progression system
 - **Transparency and Trust:** Smart contracts automate game mechanics and token issuance, creating a transparent and verifiable system that players can trust.
 - **Secure and Thriving Economy:** Blockchain technology provides a secure platform for in-game transactions and item trading, fostering a robust and player-driven economy.
 
-By implementing a decentralized solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and revolutionize the MMORPG experience.
+By implementing a decentralized solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and innovative MMORPG experience.
