@@ -10,11 +10,11 @@
     - 2.1 [Overview of gaming industry and Cyberia Online](#header-2.1)
     - 2.2 [Problem statement: need for a decentralized solution for player progression](#header-2.2)
 3.  **Technology Stack**
-    - 3.1 Hyperledger Besu
-    - 3.2 Hardhat
-    - 3.3 Openzeppelin ERC Smart Contracts
-    - 3.4 MongoDB schemas
-    - 3.5 IPFS storage
+    - 3.1 [Hyperledger Besu](#header-3.1)
+    - 3.2 [Hardhat](#header-3.2)
+    - 3.3 [Openzeppelin ERC Smart Contracts](#header-3.3)
+    - 3.4 [MongoDB schemas](#header-3.4)
+    - 3.5 [IPFS storage](#header-3.5)
 4.  **Tokenomics**
     - 4.1 Cryptokoyn.net (ERC-20): In-game currency
     - 4.2 Itemledger.com (ERC-721): NFT for in-game items
@@ -38,7 +38,7 @@
 
 #### 1.1 Brief overview of the whitepaper and its key findings
 
-This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages ERC standards for in-game currency and item ownership.
+This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solution for player progression in the MMORPG "Cyberia Online." We propose a blockchain-based system built on Hyperledger Besu that leverages Ethereum Request for Comment (ERC), Protocol that provides guidelines for creating tokens and smart contracts, and for data formatting and transmission on the Ethereum ecosystem, in this case for in-game currency and item ownership.
 
 **Key Findings**
 
@@ -101,3 +101,66 @@ This whitepaper proposes a solution: a **decentralized player progression system
 - **Secure and Thriving Economy:** Blockchain technology provides a secure platform for in-game transactions and item trading, fostering a robust and player-driven economy.
 
 By implementing a decentralized solution, Cyberian Frontier aims to empower players, create a fair and transparent gaming environment, and innovative MMORPG experience.
+
+### 3. Technology Stack
+
+<a name="header-3.1"/>
+
+#### 3.1 Hyperledger Besu
+
+- **Overview:** Hyperledger Besu is an enterprise-grade Ethereum client that provides a robust and secure platform for executing smart contracts. It ensures high performance, reliability, and scalability, making it an ideal choice for our dApp's blockchain operations.
+- **Key Benefits:**
+  - **Privacy and Security:** Offers advanced privacy features and security protocols.
+  - **Performance and Scalability:** Optimized for high-throughput and low-latency transactions.
+  - **Enterprise-Grade:** Designed for production environments with robust governance and support.
+
+<a href='https://hyperledger-fabric.readthedocs.io/' target='_top'>See official documentation.</a>
+
+<a name="header-3.2"/>
+
+#### 3.2 Hardhat
+
+- **Overview:** Hardhat is a powerful development environment for Ethereum. It streamlines the development, testing, and deployment of smart contracts, significantly accelerating the development cycle.
+- **Key Benefits:**
+
+  - **Rapid Development:** Provides a rich set of tools and plugins for efficient development.
+  - **Robust Testing:** Offers a comprehensive testing framework to ensure code quality and security.
+  - **Simplified Deployment:** Facilitates seamless deployment of smart contracts to various networks.
+
+<a href='https://hardhat.org/docs' target='_top'>See official documentation.</a>
+
+<a name="header-3.3"/>
+
+#### 3.3 OpenZeppelin Contracts
+
+- **Overview:** OpenZeppelin Contracts is a library of reusable, audited smart contract code. It provides a solid foundation for building secure and efficient smart contracts, reducing the risk of vulnerabilities.
+- **Key Benefits:**
+  - **Security:** Rigorously audited and battle-tested code.
+  - **Efficiency:** Optimized for gas efficiency and performance.
+  - **Flexibility:** Modular design allows for customization and extension.
+
+<a href='https://docs.openzeppelin.com/' target='_top'>See official OpenZeppelin documentation.</a>
+
+<a name="header-3.4"/>
+
+#### 3.4 MongoDB Schemas
+
+- **Overview:** MongoDB is a flexible, high-performance NoSQL database that enables efficient storage and retrieval of data. We utilize MongoDB to store and manage non-blockchain data, such as user profiles, transaction history, and application state.
+- **Key Benefits:**
+  - **Scalability:** Easily horizontal scales to handle increasing data volumes and user loads.
+  - **Flexibility:** Schema-less design allows for dynamic data structures.
+  - **High Performance:** Optimized for fast read and write operations.
+
+<a href='https://www.mongodb.com/docs/' target='_top'>See official MongoDB documentation.</a>
+
+<a name="header-3.5"/>
+
+#### 3.5 IPFS Storage
+
+- **Overview:** IPFS (InterPlanetary File System) is a decentralized storage and file-sharing network. We leverage IPFS to store large files and static assets, such as images, videos, and documents, ensuring data durability and accessibility.
+- **Key Benefits:**
+  - **Decentralization:** Reduces reliance on centralized servers and improves data resilience.
+  - **Content Addressing:** Efficiently stores and retrieves data based on its content hash.
+  - **Global Distribution:** Distributes data across a network of nodes, enhancing availability.
+
+<a href='https://docs.ipfs.tech/' target='_top'>See official IPFS documentation.</a>
