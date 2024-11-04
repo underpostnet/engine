@@ -42,12 +42,11 @@ This whitepaper introduces "Cyberian Frontier Tokenomics", a decentralized solut
 
 **Key Findings**
 
-- Players own their characters and items on a distributed ledger, ensuring tamper-proof progression.
-- Cryptokoyn.net (ERC-20) serves as the in-game currency, facilitating transactions and item purchases.
-- Itemledger.com (ERC-721) grants ownership of unique in-game items as NFTs, enabling secure trading and a thriving in-game economy.
-- Smart contracts automate token issuance, validation, and game mechanics, promoting transparency and trust.
-
-This system aims to revolutionize the MMORPG experience by empowering players and fostering a secure, decentralized in-game ecosystem.
+- **Player Ownership:** Blockchain ensures players truly own their characters and items (NFTs) on a tamper-proof ledger.
+- **Decentralized Economy:** Cryptokoyn (ERC-20) facilitates secure in-game transactions and item purchases.
+- **Transparent Gameplay:** Smart contracts automate game mechanics and token issuance, fostering trust and fairness.
+- **Empowered Players:** Players can participate in a thriving, player-driven economy with secure trading (ERC-721 NFTs).
+- **Open Ecosystems:** External developers can potentially leverage character data and validate authenticity for future innovations.
 
 ### 2. Introduction
 
