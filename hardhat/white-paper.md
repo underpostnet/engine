@@ -114,7 +114,7 @@ By implementing a decentralized solution, Cyberian Frontier aims to empower play
   - **Performance and Scalability:** Optimized for high-throughput and low-latency transactions.
   - **Enterprise-Grade:** Designed for production environments with robust governance and support.
 
-<a href='https://hyperledger-fabric.readthedocs.io/' target='_top'>See official documentation.</a>
+<a href='https://hyperledger-fabric.readthedocs.io/' target='_top'>See official Hyperledger Besu documentation.</a>
 
 <a name="header-3.2"/>
 
@@ -127,7 +127,7 @@ By implementing a decentralized solution, Cyberian Frontier aims to empower play
   - **Robust Testing:** Offers a comprehensive testing framework to ensure code quality and security.
   - **Simplified Deployment:** Facilitates seamless deployment of smart contracts to various networks.
 
-<a href='https://hardhat.org/docs' target='_top'>See official documentation.</a>
+<a href='https://hardhat.org/docs' target='_top'>See official Hardhat documentation.</a>
 
 <a name="header-3.3"/>
 
