@@ -27,8 +27,12 @@ jobs:
         run: |
           npm install
 
-      - name: Set git credentials
+      - name: Clone github package repository
         run: |
+          cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
+          cd engine
+          npm run update-template
+          cd ../pwa-microservices-template
           git config --global credential.helper ""
           git config credential.helper ""
           git config --global user.name 'underpostnet'
@@ -37,13 +41,6 @@ jobs:
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
           git config credential.interactive always
-
-      - name: Clone github package repository
-        run: |
-          cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
-          cd engine
-          npm run update-template
-          cd ../pwa-microservices-template
           git add .       
           git commit -m "Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
