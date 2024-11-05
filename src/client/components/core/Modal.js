@@ -237,17 +237,17 @@ const Modal = {
                     style="top: ${options.heightTopBar + 50}px; z-index: 9; ${true ||
                     (options.mode && options.mode.match('right'))
                       ? 'right'
-                      : 'left'}: 50px; width: 100px; transition: .3s"
+                      : 'left'}: 50px; width: 50px; height: 100px; transition: .3s"
                   >
                     <div
-                      class="abs main-body-btn main-body-btn-menu hide"
-                      style="top: 0px; ${true || (options.mode && options.mode.match('right'))
+                      class="abs main-body-btn main-body-btn-menu"
+                      style="top: 50px; ${true || (options.mode && options.mode.match('right'))
                         ? 'right'
-                        : 'left'}: 50px"
+                        : 'left'}: 0px"
                     >
                       <div class="abs center">
-                        <i class="fa-solid fa-xmark hide"></i>
-                        <i class="fa-solid fa-bars"></i>
+                        <i class="fa-solid fa-xmark hide main-body-btn-ui-menu-close"></i>
+                        <i class="fa-solid fa-bars main-body-btn-ui-menu-menu"></i>
                       </div>
                     </div>
                     <div
@@ -263,7 +263,9 @@ const Modal = {
                 `,
               );
 
-              s(`.main-body-btn-menu`).onclick = () => {};
+              s(`.main-body-btn-menu`).onclick = () => {
+                Modal.actionBtnCenter();
+              };
 
               let _heightTopBar, _heightBottomBar, _topMenu;
               s(`.main-body-btn-ui`).onclick = () => {
@@ -289,7 +291,7 @@ const Modal = {
                   s(`.slide-menu-top-bar`).classList.remove('hide');
                   s(`.bottom-bar`).classList.remove('hide');
                 }
-                s(`.btn-menu-${'modal-menu'}`).click();
+                Responsive.Event[`slide-menu-modal-menu`]();
                 Object.keys(this.Data).map((_idModal) => {
                   if (this.Data[_idModal].slideMenu) {
                     s(`.btn-maximize-${_idModal}`).click();
@@ -1736,8 +1738,16 @@ const Modal = {
   headerTitleHeight: 40,
   actionBtnCenter: function () {
     // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
-    if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.btn-close-modal-menu`).click();
-    if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) return s(`.btn-menu-modal-menu`).click();
+    if (!s(`.btn-close-modal-menu`).classList.contains('hide')) {
+      s(`.main-body-btn-ui-menu-close`).classList.add('hide');
+      s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
+      return s(`.btn-close-modal-menu`).click();
+    }
+    if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) {
+      s(`.main-body-btn-ui-menu-menu`).classList.add('hide');
+      s(`.main-body-btn-ui-menu-close`).classList.remove('hide');
+      return s(`.btn-menu-modal-menu`).click();
+    }
   },
   cleanUI: function () {
     s(`.top-bar`).classList.add('hide');
