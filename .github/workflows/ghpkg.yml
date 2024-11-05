@@ -43,7 +43,7 @@ jobs:
           git config credential.interactive always
           git add .       
           git commit -m "Update github repo package"
-          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
+          git push origin https://${{ secrets.GITHUB_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
 
   pwa-microservices-template-ghpk:
     if: github.repository == 'underpostnet/pwa-microservices-template'
