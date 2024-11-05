@@ -188,7 +188,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           iconsBuild,
           metadata,
         });
-        if (apis)
+        if (apis && false)
           for (const apiBuildScript of apis) {
             const scriptPath = `src/api/${apiBuildScript}/${apiBuildScript}.build.js`;
             if (fs.existsSync(`./${scriptPath}`)) {
@@ -692,7 +692,7 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
         fs.copySync(`./coverage`, coverageBuildPath);
 
         // uml
-        shellExec(`node bin/deploy uml ${host} ${path}`);
+        // shellExec(`node bin/deploy uml ${host} ${path}`);
 
         // https://swagger-autogen.github.io/docs/
 

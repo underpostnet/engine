@@ -168,6 +168,7 @@ try {
             shellExec(Cmd.cron(process.argv[3], job, confCronConfig.jobs[job].expression));
         }
       }
+      if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
       break;
     }
     case 'remove-await-deploy': {
