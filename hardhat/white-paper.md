@@ -20,7 +20,7 @@
     - 4.2 Itemledger.com (ERC-721): NFT for in-game items
     - 4.3 Token distribution and allocation
     - 4.4 Consensus mechanism
-    - 4.5 [Token use cases and mechanics](#header-4.5)
+    - 4.5 [Governance and Circulation](#header-4.5)
 5.  **Game Mechanics and Progression**
     - 5.1 How tokens are integrated into gameplay
     - 5.2 Decentralized player progression
@@ -169,7 +169,7 @@ By implementing a distributed solution, Cyberian Frontier aims to empower player
 
 <a name="header-4.5"/>
 
-#### 4.5 Token use cases and mechanics
+#### 4.5 Governance and Circulation
 
 ```mermaid
 flowchart LR
