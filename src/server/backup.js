@@ -9,16 +9,19 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 const BackUpManagement = {
-  repoUrl: `https://${process.env.GITHUB_BACKUP_TOKEN}@github.com/${process.env.GITHUB_BACKUP_USERNAME}/${process.env.GITHUB_BACKUP_REPO}.git`,
-  Init: async function () {
+  repoUrl: `https://${process.env.GITHUB_TOKEN}@github.com/${process.env.GITHUB_USERNAME}/${process.env.GITHUB_BACKUP_REPO}.git`,
+  Init: async function ({ deployId }) {
     const Callback = async function () {
-      const privateCronConfPath = `./engine-private/conf/${process.argv[2]}/conf.cron.json`;
+      const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
 
       const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
 
       const { backups } = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
 
       if (!backups) return;
+
+      logger.info('init backups callback');
+      await logger.setUpInfo();
 
       const currentDate = new Date().getTime();
 
@@ -80,9 +83,9 @@ const BackUpManagement = {
               shellExec(`node bin/db ${host}${path} export ${deployId} ${backUpPath}/${currentDate}`);
 
               if (wp) {
-                const repoUrl = `https://${process.env.GITHUB_BACKUP_TOKEN}@github.com/${
-                  process.env.GITHUB_BACKUP_USERNAME
-                }/${git.split('/').pop()}.git`;
+                const repoUrl = `https://${process.env.GITHUB_TOKEN}@github.com/${process.env.GITHUB_USERNAME}/${git
+                  .split('/')
+                  .pop()}.git`;
 
                 shellExec(
                   `cd ${directory}` +

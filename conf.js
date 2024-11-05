@@ -233,8 +233,6 @@ const DefaultConf = {
   cron: {
     ipDaemon: {
       ip: null,
-      minutesTimeInterval: 3,
-      disabled: false,
     },
     records: {
       A: [
@@ -251,6 +249,16 @@ const DefaultConf = {
         deployGroupId: 'default-group',
       },
     ],
+    jobs: {
+      dns: {
+        expression: '* * * * *',
+        enabled: true,
+      },
+      backups: {
+        expression: '0 1 * * *',
+        enabled: true,
+      },
+    },
   },
 };
 

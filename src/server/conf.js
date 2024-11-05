@@ -674,7 +674,7 @@ const execDeploy = async (options = { deployId: 'default' }) => {
   shellExec(Cmd.delete(deployId));
   shellExec(Cmd.conf(deployId));
   shellExec(Cmd.run(deployId));
-  return await new Promise(async (resolve) => {
+  const runtime = await new Promise(async (resolve) => {
     const maxTime = 1000 * 60 * 5;
     const minTime = 10000 * 2;
     const intervalTime = 1000;
@@ -696,6 +696,16 @@ const execDeploy = async (options = { deployId: 'default' }) => {
     };
     const processMonitor = setInterval(attempt, intervalTime);
   });
+  if (!runtime) return runtime;
+  if (fs.existsSync(`./engine-private/conf/${process.argv[3]}/conf.cron.json`)) {
+    try {
+      shellExec(`node bin/deploy run-cron ${process.argv[3]}`);
+      return runtime;
+    } catch (error) {
+      logger.error(`Error cron config`, error.message);
+      return false;
+    }
+  }
 };
 
 const deployRun = async (dataDeploy, reset) => {
@@ -838,6 +848,8 @@ const Cmd = {
   conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
   replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
   syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
+  cron: (deployId, job, expression) =>
+    `env-cmd -f .env.production pm2 start bin/cron.js --no-autorestart --instances 1 --cron "${expression}" --name ${deployId}-${job} -- ${deployId} ${job}`,
 };
 
 const fixDependencies = async () => {

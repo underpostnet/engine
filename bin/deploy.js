@@ -154,10 +154,26 @@ try {
           await deployRun(dataDeploy);
         } else {
           loadConf(process.argv[3]);
-          shellExec(`npm start ${process.argv[3]}`);
+          shellExec(`npm start`);
         }
       }
       break;
+
+    case 'run-cron': {
+      const confCronConfig = JSON.parse(fs.readFileSync(`./engine-private/conf/${process.argv[3]}/conf.cron.json`));
+      if (confCronConfig.jobs && Object.keys(confCronConfig.jobs).length > 0) {
+        shellExec(`node bin/deploy conf ${process.argv[3]} production`);
+        for (const job of Object.keys(confCronConfig.jobs)) {
+          if (confCronConfig.jobs[job].enabled)
+            shellExec(Cmd.cron(process.argv[3], job, confCronConfig.jobs[job].expression));
+        }
+      }
+      break;
+    }
+    case 'remove-await-deploy': {
+      if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
+      break;
+    }
     case 'new-nodejs-app':
       {
         const deployId = process.argv[3];
