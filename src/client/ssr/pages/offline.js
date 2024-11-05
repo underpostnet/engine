@@ -10,7 +10,7 @@ window.onload = () =>
   Worker.instance({
     render: async () => {
       window.ononline = async () => {
-        location.href = location.pathname;
+        location.href = location.origin;
       };
       window.onoffline = async () => {
         htmls(`.page-render`, html`${await Alert.noInternet({ Translate })}`);
