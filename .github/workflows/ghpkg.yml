@@ -41,9 +41,10 @@ jobs:
           git config user.name 'underpostnet'
           git config user.email 'fcoverdugoa@underpost.net'
           git config credential.interactive always
+          git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
           git add .       
           git commit -m "Update github repo package"
-          git push -u origin https://${{ secrets.GITHUB_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
+          git push https://${{ secrets.GITHUB_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
 
   pwa-microservices-template-ghpk:
     if: github.repository == 'underpostnet/pwa-microservices-template'
