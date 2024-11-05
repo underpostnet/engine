@@ -20,7 +20,7 @@
     - 4.2 Itemledger.com (ERC-721): NFT for in-game items
     - 4.3 Token distribution and allocation
     - 4.4 Consensus mechanism
-    - 4.5 Token use cases and mechanics
+    - 4.5 [Token use cases and mechanics](#header-4.5)
 5.  **Game Mechanics and Progression**
     - 5.1 How tokens are integrated into gameplay
     - 5.2 Decentralized player progression
@@ -164,3 +164,66 @@ By implementing a distributed solution, Cyberian Frontier aims to empower player
   - **Global Distribution:** Distributes data across a network of nodes, enhancing availability.
 
 <a href='https://docs.ipfs.tech/' target='_top'>See official IPFS documentation.</a>
+
+### 4. Tokenomics
+
+<a name="header-4.5"/>
+
+#### 4.5 Token use cases and mechanics
+
+```mermaid
+flowchart LR
+subgraph Governance-Runtime["Governance_Runtime"]
+
+     subgraph Sync["Sync (Drain)"]
+        Sync2["Voting power"]
+        Sync1["Aestethic Premium Features"]
+        Sync0["Burn"]
+    end
+
+    subgraph Faucet["Faucet"]
+        Faucet0["ERC-20 Initial coin offering (ICO)"]
+        Faucet1["ERC-721 "]
+    end
+end
+
+
+subgraph Circulation
+    subgraph Players
+
+    end
+    subgraph Black-Market-Sales["Black Market Sales"]
+
+    end
+    subgraph Transformation["Transformation"]
+
+    end
+end
+
+
+Faucet --> |Airdrop / Minting|Players
+Players --> |Stacking|Sync2
+Players --> |Consumption|Sync1
+Players <--> Black-Market-Sales
+Players <--> Transformation
+Sync1 --> Sync0
+Sync1 --> |Supply renewal|Faucet
+
+classDef H1 font-size: 40px;
+classDef H2 font-size: 30px;
+classDef H3 font-size: 25px;
+
+class Players H1;
+class Circulation H2;
+class Governance-Runtime H2;
+class Faucet H2;
+class Faucet0 H3;
+class Faucet1 H3;
+class Sync H2;
+class Sync0 H3;
+class Sync1 H3;
+class Sync2 H3;
+class Black-Market-Sales H3;
+class Transformation H3;
+
+```
