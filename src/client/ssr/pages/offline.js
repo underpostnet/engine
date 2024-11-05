@@ -4,7 +4,7 @@ import { Translate } from '../common/Translate.js';
 import { Worker } from '../common/Worker.js';
 /*imports*/
 
-const logger = loggerFactory(import.meta);
+const logger = loggerFactory({ url: location.href });
 
 window.onload = () =>
   Worker.instance({
