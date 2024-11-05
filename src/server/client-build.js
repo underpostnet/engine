@@ -317,37 +317,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
             : undefined,
         );
 
-        // offline html
-        {
-          await buildJsSrcPage(
-            fs.existsSync(`./src/client/ssr/offline/${publicClientId}.index.js`)
-              ? `./src/client/ssr/offline/${publicClientId}.index.js`
-              : `./src/client/ssr/offline/default.index.js`,
-            `${rootClientPath}/offline.js`,
-          );
-
-          const htmlSrc = Render({
-            title: metadata?.title ? metadata.title : cap(client),
-            ssrPath: '/',
-            ssrHeadComponents: '',
-            ssrBodyComponents: '',
-            baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/offline.js`, 'utf8'),
-          });
-
-          fs.writeFileSync(
-            `${rootClientPath}/offline.html`,
-            minifyBuild || process.env.NODE_ENV === 'production'
-              ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
-              : htmlSrc,
-            'utf8',
-          );
-        }
         // ssr pages
         for (const page of await fs.readdir('./src/client/ssr/pages')) {
           await buildJsSrcPage(`./src/client/ssr/pages/${page}`, `${rootClientPath}/${page}`);
