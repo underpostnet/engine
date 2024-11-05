@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import cron from 'node-cron';
 import { loggerFactory } from '../../server/logger.js';
 import { getCapVariableName } from '../../client/components/core/CommonJs.js';
 import { shellCd, shellExec } from '../../server/process.js';
