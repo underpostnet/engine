@@ -16,8 +16,8 @@
     - 3.4 [MongoDB schemas](#header-3.4)
     - 3.5 [IPFS storage](#header-3.5)
 4.  **Tokenomics**
-    - 4.1 Cryptokoyn.net (ERC-20): In-game currency
-    - 4.2 Itemledger.com (ERC-721): NFT for in-game items
+    - 4.1 [Cryptokoyn.net (ERC-20): In-game currency](#header-4.1)
+    - 4.2 [Itemledger.com (ERC-721): NFT for in-game items](#header-4.2)
     - 4.3 Token distribution and allocation
     - 4.4 Consensus mechanism
     - 4.5 [Governance and Circulation](#header-4.5)
@@ -166,6 +166,243 @@ By implementing a distributed solution, Cyberian Frontier aims to empower player
 <a href='https://docs.ipfs.tech/' target='_top'>See official IPFS documentation.</a>
 
 ### 4. Tokenomics
+
+**A decentralized in-game economy**
+
+This section details the economic structure of Cyberian Frontier, outlining the two tokens that power the ecosystem and the mechanisms governing their distribution, circulation, and governance.
+
+<a name="header-4.1"/>
+
+#### 4.1 Cryptokoyn.net (ERC-20): In-game currency
+
+Cryptokoyn.net (CKY) serves as the primary in-game currency of Cyberia Online. It functions as a tradable ERC-20 token on the Hyperledger Besu blockchain, enabling players to:
+
+- **Purchase in-game items:** Players can utilize CKY to acquire various items within the game, such as weapons, armor, consumables, and cosmetic enhancements.
+- **Engage in peer-to-peer trading:** The blockchain facilitates secure and transparent peer-to-peer trading between players, fostering a vibrant in-game economy.
+- **Earn rewards:** Players can earn CKY through various gameplay activities, such as completing quests, defeating enemies, and participating in events.
+
+- **Proposed smart contract**
+
+```solidity
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts ^5.0.0
+pragma solidity ^0.8.20;
+
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Pausable.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol';
+
+/**
+ * @title CryptoKoyn Token
+ * @dev An ERC20 token with minting, burning, pausing, and permit functionalities.
+ */
+contract CryptoKoyn is ERC20, ERC20Burnable, ERC20Pausable, Ownable, ERC20Permit {
+  /**
+   * @dev Constructs a new CryptoKoyn token.
+   * @param initialOwner The initial owner of the token.
+   */
+  constructor(address initialOwner) ERC20('CryptoKoyn', 'CKY') Ownable(initialOwner) ERC20Permit('CryptoKoyn') {
+    _mint(msg.sender, 10000000 * 10 ** decimals());
+  }
+
+  /**
+   * @dev Pauses all token transfers.
+   * @dev Only the owner can call this function.
+   */
+  function pause() public onlyOwner {
+    _pause();
+  }
+
+  /**
+   * @dev Unpauses all token transfers.
+   * @dev Only the owner can call this function.
+   */
+  function unpause() public onlyOwner {
+    _unpause();
+  }
+
+  /**
+   * @dev Mints new tokens.
+   * @param to The recipient of the minted tokens.
+   * @param amount The amount of tokens to mint.
+   * @dev Only the owner can call this function.
+   */
+  function mint(address to, uint256 amount) public onlyOwner {
+    _mint(to, amount);
+  }
+
+  /**
+   * @dev Overrides the `_update` function to ensure proper token transfer handling.
+   * @param from The sender of the tokens.
+   * @param to The recipient of the tokens.
+   * @param value The amount of tokens to transfer.
+   */
+  function _update(address from, address to, uint256 value) internal override(ERC20, ERC20Pausable) {
+    super._update(from, to, value);
+  }
+}
+
+```
+
+**Understanding the CryptoKoyn Smart Contract**
+
+This Solidity smart contract, named `CryptoKoyn`, implements an ERC20 token standard with additional features: minting, burning, pausing, and permit. Let's break down its functionality:
+
+**Import Statements:**
+
+- **ERC20:** The core ERC20 standard for fungible tokens.
+- **ERC20Burnable:** Extends ERC20 to allow token holders to burn their tokens.
+- **ERC20Pausable:** Extends ERC20 to allow pausing and unpausing token transfers.
+- **Ownable:** Provides ownership and access control mechanisms.
+- **ERC20Permit:** Enables token transfers using signatures, bypassing the need for transaction fees.
+
+**Constructor:**
+
+- **Initializes the contract:** Sets the token name, symbol, and initial supply.
+- **Mints initial tokens:** Assigns 10 million tokens to the contract's owner.
+
+**Functions:**
+
+- **pause():** Pauses all token transfers, preventing any further activity.
+- **unpause():** Unpauses token transfers, allowing normal operations to resume.
+- **mint(address to, uint256 amount):** Mints new tokens and assigns them to the specified address. Only the contract owner can call this function.
+- **\_update(address from, address to, uint256 value):** Overrides the `_update` function from the ERC20 and ERC20Pausable contracts to ensure proper token transfer handling, especially when the contract is paused.
+
+**Key Points:**
+
+- **Security:** The `Ownable` contract ensures that only the designated owner can perform certain actions like minting and pausing.
+- **Flexibility:** The `ERC20Burnable` and `ERC20Pausable` features provide additional control over the token supply and its circulation.
+- **User-Friendliness:** The `ERC20Permit` feature enables efficient and gas-efficient token transfers, especially for users with low transaction fees.
+
+This smart contract creates a flexible and secure ERC20 token that can be controlled by the owner. It can be used for various purposes, such as fundraising, governance tokens, or loyalty programs.
+
+<a name="header-4.2"/>
+
+#### 4.2 Itemledger.com (ERC-721): NFT for in-game items
+
+Itemledger.com (IL) tokens represent unique in-game items on the Ethereum blockchain standard ERC-721. Owning an IL token grants a player verifiable ownership of a corresponding item within Cyberia Online. These tokens offer several advantages:
+
+- **True ownership:** Players hold demonstrably scarce and unique digital assets.
+- **Secure trading:** Secure and transparent peer-to-peer trading of in-game items is enabled on NFT marketplaces.
+- **Interoperability:** Potentially, IL tokens could hold value or utility outside of Cyberia Online, fostering a broader digital asset ecosystem.
+
+- **Proposed smart contract**
+
+```solidity
+// SPDX-License-Identifier: MIT
+// Compatible with OpenZeppelin Contracts ^5.0.0
+pragma solidity ^0.8.20;
+
+import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Enumerable.sol';
+import '@openzeppelin/contracts/token/ERC721/extensions/ERC721Burnable.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+
+/**
+ * @title ItemLedger
+ * @dev An ERC721 token contract for managing items, with minting and burning capabilities.
+ */
+contract ItemLedger is ERC721, ERC721Enumerable, ERC721Burnable, Ownable {
+  /**
+   * @dev Constructs a new ItemLedger contract.
+   * @param initialOwner The initial owner of the contract.
+   */
+  constructor(address initialOwner) ERC721('ItemLedger', 'IL') Ownable(initialOwner) {}
+
+  /**
+   * @dev Sets the base URI for token URIs.
+   */
+  function _baseURI() internal pure override returns (string memory) {
+    return 'IL';
+  }
+
+  /**
+   * @dev Mints a new NFT to a specified address.
+   * @param to The address to mint the NFT to.
+   * @param tokenId The ID of the token to be minted.
+   * @dev Only the owner can call this function.
+   */
+  function safeMint(address to, uint256 tokenId) public onlyOwner {
+    _safeMint(to, tokenId);
+  }
+
+  // The following functions are overrides required by Solidity.
+  // They ensure proper interaction with the inherited ERC721 and ERC721Enumerable contracts.
+
+  /**
+   * @dev Overrides the `_update` function to ensure proper token ownership updates.
+   * @param to The new owner of the token.
+   * @param tokenId The ID of the token.
+   * @param auth The authorized address for the transfer.
+   * @return The address of the previous owner.
+   */
+  function _update(
+    address to,
+    uint256 tokenId,
+    address auth
+  ) internal override(ERC721, ERC721Enumerable) returns (address) {
+    return super._update(to, tokenId, auth);
+  }
+
+  /**
+   * @dev Overrides the `_increaseBalance` function to ensure proper token balance updates.
+   * @param account The account to increase the balance of.
+   * @param value The amount to increase the balance by.
+   */
+  function _increaseBalance(address account, uint128 value) internal override(ERC721, ERC721Enumerable) {
+    super._increaseBalance(account, value);
+  }
+
+  /**
+   * @dev Overrides the `supportsInterface` function to ensure proper interface checks.
+   * @param interfaceId The interface ID to check.
+   * @return True if the contract implements the interface, false otherwise.
+   */
+  function supportsInterface(bytes4 interfaceId) public view override(ERC721, ERC721Enumerable) returns (bool) {
+    return super.supportsInterface(interfaceId);
+  }
+}
+```
+
+**Understanding the ItemLedger Smart Contract**
+
+This Solidity smart contract, named `ItemLedger`, implements an ERC721 token standard, specifically designed for managing unique items. It leverages several OpenZeppelin contracts to provide essential functionalities:
+
+**Import Statements:**
+
+- **ERC721:** The core ERC721 standard for non-fungible tokens.
+- **ERC721Enumerable:** Extends ERC721 to allow enumerating all tokens and tokens owned by a specific owner.
+- **ERC721Burnable:** Extends ERC721 to allow token holders to burn their tokens.
+- **Ownable:** Provides ownership and access control mechanisms.
+
+**Constructor:**
+
+- **Initializes the contract:** Sets the token name and symbol.
+- **Assigns ownership:** Grants ownership to the specified initial owner.
+
+**Functions:**
+
+- **\_baseURI():** Defines the base URI for token metadata. In this case, it's set to 'IL'.
+- **safeMint(address to, uint256 tokenId):** Mints a new NFT to the specified address with the given token ID. Only the contract owner can call this function.
+
+**Override Functions:**
+
+The contract overrides several functions from the inherited contracts to ensure correct behavior:
+
+- **\_update():** Updates token ownership information.
+- **\_increaseBalance():** Updates the balance of a token owner.
+- **supportsInterface():** Checks if the contract implements a specific interface.
+
+**Key Points:**
+
+- **Unique Items:** Each token represents a unique item, allowing for tracking ownership and provenance.
+- **Ownership Control:** The `Ownable` contract ensures that only the designated owner can mint new NFTs.
+- **Token Metadata:** The `_baseURI()` function sets the base URI for token metadata, which can be used to store additional information about each item.
+- **Flexibility:** The `ERC721Enumerable` and `ERC721Burnable` features provide additional functionalities for managing and controlling NFTs.
+
+This smart contract creates a flexible and secure platform for managing unique items. It can be used for various applications, such as digital collectibles, in-game items, or real-world asset tokenization.
 
 <a name="header-4.5"/>
 
