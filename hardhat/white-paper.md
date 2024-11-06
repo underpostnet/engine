@@ -410,57 +410,92 @@ This smart contract creates a flexible and secure platform for managing unique i
 
 ```mermaid
 flowchart LR
-subgraph Governance-Runtime["Governance_Runtime"]
-
-     subgraph Sync["Sync (Drain)"]
-        Sync2["Voting power"]
-        Sync1["Aestethic Premium Features"]
-        Sync0["Burn"]
-    end
-
-    subgraph Faucet["Faucet"]
-        Faucet0["ERC-20 Initial coin offering (ICO)"]
-        Faucet1["ERC-721 "]
-    end
-end
-
 
 subgraph Circulation
-    subgraph Players
+
+    subgraph Black-Market-Sales["External Markets Sales"]
 
     end
-    subgraph Black-Market-Sales["Black Market Sales"]
+    subgraph Transformation["Transformation: transactions between players"]
 
     end
-    subgraph Transformation["Transformation"]
+        subgraph Players
 
     end
 end
 
 
-Faucet --> |Airdrop / Minting|Players
-Players --> |Stacking|Sync2
-Players --> |Consumption|Sync1
+subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
+
+    subgraph Faucet["Faucet_validation_emition_protocol"]
+        ERC-20["**Supply** <br> ERC-20 Token (CKY)"]
+        ERC-721["**Mint** <br> ERC-721 Token (IL)"]
+    end
+     subgraph Coinbase["Coinbase address"]
+    end
+
+    subgraph Sync["Sync_drain_burning_protocol"]
+        Stacking["Voting power"]
+        Unlock-Features["Unlock Features"]
+    end
+end
+
+
+
+Burn["Burn"]
+Investors --> Coinbase
+Faucet --> |Airdrop / Mint|Players
+Players --> |Stacking|Stacking
+Players --> |Consumption|Unlock-Features
 Players <--> Black-Market-Sales
 Players <--> Transformation
-Sync1 --> Sync0
-Sync1 --> |Supply renewal|Faucet
+Sync --> Burn
+Coinbase-->|ICO|ERC-20
+Players-->Coinbase
+Coinbase-->Players
+Sync-->|Supply renewal|Faucet
 
-classDef H1 font-size: 40px;
+%% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
+
+linkStyle 0 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 1 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 2 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 3 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 4 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 5 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 6 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 7 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 8 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 9 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 10 font-size: 25px, color: black, back: white,stroke: yellow;
+
+classDef H1 font-size: 40px, padding-: 10px;
 classDef H2 font-size: 30px;
 classDef H3 font-size: 25px;
 
+classDef SR fill: gray, color: black;
+classDef SR0 fill:#222222;
+
 class Players H1;
+class Players SR;
+
 class Circulation H2;
+class Circulation SR0;
+class Coinbase H1;
 class Governance-Runtime H2;
 class Faucet H2;
-class Faucet0 H3;
-class Faucet1 H3;
+class ERC-20 H3;
+class ERC-721 H3;
 class Sync H2;
-class Sync0 H3;
-class Sync1 H3;
-class Sync2 H3;
+class Stacking H3;
+class Burn H3;
+class Stackin H3;
+class Unlock-Features H3;
 class Black-Market-Sales H3;
 class Transformation H3;
+class Investors H2;
 
 ```
+
+<hr style='color: green; width: 80px'> Fiat money
+<hr style='color: yellow; width: 80px'> Virtual currency/items
