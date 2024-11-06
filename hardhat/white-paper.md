@@ -424,14 +424,13 @@ subgraph Circulation
     end
 end
 
-
-subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
+subgraph Governance-Runtime["_________________________Governance_Runtime_Node_Server"]
 
     subgraph Faucet["Faucet_validation_emition_protocol"]
         ERC-20["**Supply** <br> ERC-20 Token (CKY)"]
         ERC-721["**Mint** <br> ERC-721 Token (IL)"]
     end
-     subgraph Coinbase["Coinbase address"]
+    subgraph Coinbase["Coinbase address"]
     end
 
     subgraph Sync["Sync_drain_burning_protocol"]
@@ -440,7 +439,10 @@ subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
     end
 end
 
+subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
 
+
+end
 
 Burn["Burn"]
 Investors --> Coinbase
@@ -469,7 +471,7 @@ linkStyle 8 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 9 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 10 font-size: 25px, color: black, back: white,stroke: yellow;
 
-classDef H1 font-size: 40px, padding-: 10px;
+classDef H1 font-size: 40px;
 classDef H2 font-size: 30px;
 classDef H3 font-size: 25px;
 
@@ -479,10 +481,12 @@ classDef SR0 fill:#222222;
 class Players H1;
 class Players SR;
 
+
+class Legends H3;
+class Governance-Runtime H2;
 class Circulation H2;
 class Circulation SR0;
 class Coinbase H1;
-class Governance-Runtime H2;
 class Faucet H2;
 class ERC-20 H3;
 class ERC-721 H3;
@@ -494,8 +498,4 @@ class Unlock-Features H3;
 class Black-Market-Sales H3;
 class Transformation H3;
 class Investors H2;
-
 ```
-
-<hr style='color: green; width: 80px'> Fiat money
-<hr style='color: yellow; width: 80px'> Virtual currency/items
