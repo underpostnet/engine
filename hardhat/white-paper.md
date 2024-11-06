@@ -409,7 +409,32 @@ This smart contract creates a flexible and secure platform for managing unique i
 #### 4.5 Governance and Circulation
 
 ```mermaid
+
 flowchart LR
+
+subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
+
+
+end
+
+subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
+
+    subgraph Faucet["Faucet_validation_emition_protocol"]
+        ERC-20["**Supply** <br> ERC-20 Token (CKY)"]
+        ERC-721["**Mint** <br> ERC-721 Token (IL)"]
+    end
+    subgraph Coinbase["Coinbase address"]
+    end
+
+    subgraph Sync["Sync_drain_burning_protocol"]
+        Stacking["Voting power"]
+        Unlock-Features["Unlock Features"]
+    end
+
+    subgraph Withdrawal["**Withdrawal Protocol** <br> Crypto to Fiat"]
+    end
+end
+
 
 subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
 
@@ -424,25 +449,7 @@ subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
     end
 end
 
-subgraph Governance-Runtime["_________________________Governance_Runtime_Node_Server"]
 
-    subgraph Faucet["Faucet_validation_emition_protocol"]
-        ERC-20["**Supply** <br> ERC-20 Token (CKY)"]
-        ERC-721["**Mint** <br> ERC-721 Token (IL)"]
-    end
-    subgraph Coinbase["Coinbase address"]
-    end
-
-    subgraph Sync["Sync_drain_burning_protocol"]
-        Stacking["Voting power"]
-        Unlock-Features["Unlock Features"]
-    end
-end
-
-subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
-
-
-end
 
 Burn["Burn"]
 Investors --> Coinbase
@@ -454,8 +461,12 @@ Players <--> Transformation
 Sync --> Burn
 Coinbase-->|ICO|ERC-20
 Players-->Coinbase
-Coinbase-->Players
-Sync-->|Supply renewal|Faucet
+Withdrawal-->Players
+Players-->Withdrawal
+Withdrawal-->|Supply <br> __renewal <span style='color: yellow'>&rarr;</span>|Faucet
+Coinbase-->|Liquidity Pool|Withdrawal
+Unlock-Features-->|Supply renewal|Faucet
+
 
 %% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
 
@@ -470,8 +481,11 @@ linkStyle 7 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 8 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 9 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 10 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 11 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 12 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 13 font-size: 25px, color: black, back: white,stroke: yellow;
 
-classDef H1 font-size: 40px;
+classDef H1 font-size: 40px, pxline-height:10px;
 classDef H2 font-size: 30px;
 classDef H3 font-size: 25px;
 
@@ -481,7 +495,7 @@ classDef SR0 fill:#222222;
 class Players H1;
 class Players SR;
 
-
+class Withdrawal H3;
 class Legends H3;
 class Governance-Runtime H2;
 class Circulation H2;
