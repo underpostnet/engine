@@ -457,7 +457,7 @@ Burn["Burn"]
 Investors --> Coinbase
 Faucet --> |__**Airdrop / Mint**|Players
 Players --> |Stacking|Stacking
-Players --> |Consumption|Unlock-Features
+Players --> |Buy <br> Consumption|Unlock-Features
 Players <--> Black-Market-Sales
 Players <--> Transformation
 Sync --> Burn
@@ -466,7 +466,7 @@ Withdrawal-->|Sell<br>withdrawal<br>|Players
 Players-->Withdrawal
 Coinbase-->|Liquidity Pool|Withdrawal
 Sync-->|Supply renewal  <br>  <span style='color: yellow'>&rarr;</span>|Faucet
-
+Players-->Unlock-Features
 
 
 %% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
@@ -483,6 +483,7 @@ linkStyle 8 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 9 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 10 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 11 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 12 font-size: 25px, color: black, back: white,stroke: green;
 
 classDef H1 font-size: 40px, pxline-height:10px;
 classDef H2 font-size: 30px;
