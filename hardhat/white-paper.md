@@ -411,7 +411,7 @@ This smart contract creates a flexible and secure platform for managing unique i
 ```mermaid
 flowchart LR
 
-subgraph Circulation
+subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
 
     subgraph Black-Market-Sales["External Markets Sales"]
 
