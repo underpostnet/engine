@@ -465,7 +465,7 @@ Withdrawal-->Players
 Players-->Withdrawal
 Withdrawal-->|Supply <br> __renewal <span style='color: yellow'>&rarr;</span>|Faucet
 Coinbase-->|Liquidity Pool|Withdrawal
-Unlock-Features-->|Supply renewal|Faucet
+Sync-->|Supply renewal|Faucet
 
 
 %% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
