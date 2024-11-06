@@ -412,10 +412,8 @@ This smart contract creates a flexible and secure platform for managing unique i
 
 flowchart LR
 
-subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
 
 
-end
 
 subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
 
@@ -429,14 +427,15 @@ subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
     subgraph Sync["Sync_drain_burning_protocol"]
         Stacking["Voting power"]
         Unlock-Features["Unlock Features"]
+        subgraph Withdrawal["**Withdrawal Protocol** <br> Crypto to Fiat"]
+        end
     end
 
-    subgraph Withdrawal["**Withdrawal Protocol** <br> Crypto to Fiat"]
-    end
 end
 
 
-subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
+
+subgraph Circulation["<br><br><br><br><br><br>Circulation"]
 
     subgraph Black-Market-Sales["External Markets Sales"]
 
@@ -449,23 +448,25 @@ subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
     end
 end
 
+subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
 
+
+end
 
 Burn["Burn"]
 Investors --> Coinbase
-Faucet --> |Airdrop / Mint|Players
+Faucet --> |__**Airdrop / Mint**|Players
 Players --> |Stacking|Stacking
 Players --> |Consumption|Unlock-Features
 Players <--> Black-Market-Sales
 Players <--> Transformation
 Sync --> Burn
 Coinbase-->|ICO|ERC-20
-Players-->Coinbase
-Withdrawal-->Players
+Withdrawal-->|Sell<br>withdrawal<br>|Players
 Players-->Withdrawal
-Withdrawal-->|Supply <br> __renewal <span style='color: yellow'>&rarr;</span>|Faucet
 Coinbase-->|Liquidity Pool|Withdrawal
-Sync-->|Supply renewal|Faucet
+Sync-->|Supply renewal  <br>  <span style='color: yellow'>&rarr;</span>|Faucet
+
 
 
 %% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
@@ -478,12 +479,10 @@ linkStyle 4 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 5 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 6 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 7 font-size: 25px, color: black, back: white,stroke: yellow;
-linkStyle 8 font-size: 25px, color: black, back: white,stroke: yellow;
-linkStyle 9 font-size: 25px, color: black, back: white,stroke: green;
-linkStyle 10 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 8 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 9 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 10 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 11 font-size: 25px, color: black, back: white,stroke: yellow;
-linkStyle 12 font-size: 25px, color: black, back: white,stroke: green;
-linkStyle 13 font-size: 25px, color: black, back: white,stroke: yellow;
 
 classDef H1 font-size: 40px, pxline-height:10px;
 classDef H2 font-size: 30px;
