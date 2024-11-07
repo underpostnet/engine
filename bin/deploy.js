@@ -724,7 +724,8 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // Match User newuser
       //   PasswordAuthentication yes
 
-      // ssh username@ip_address
+      // ssh [sudo username]@[host/ip]
+      // open port 22
 
       break;
     }
