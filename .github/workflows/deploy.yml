@@ -11,6 +11,7 @@ jobs:
         uses: varunsridharan/action-repository-meta@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PORT: 8080
 
       - name: Deploy to server
         uses: appleboy/ssh-action@v1.1.0
