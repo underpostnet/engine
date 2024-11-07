@@ -1,0 +1,20 @@
+name: SSH Deploy
+on: [push]
+jobs:
+  deployment:
+    ## ${{ github.event.workflow_run.head_commit.message }} git automatically commits
+    if: github.event.head_commit.message == 'deploy'
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: executing remote ssh commands for deployment
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
+            pwd
+            ls -a
+            pm2 list
