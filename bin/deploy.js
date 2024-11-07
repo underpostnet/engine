@@ -704,6 +704,31 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       break;
     }
 
+    case 'ssh': {
+      if (!process.argv.includes('server')) {
+        shellExec(`sudo apt update`);
+        shellExec(`sudo apt install openssh-server -y`);
+      }
+      shellExec(`sudo systemctl enable ssh`);
+      shellExec(`sudo systemctl restart ssh`);
+      shellExec(`sudo systemctl status ssh`);
+      shellExec(`ip a`);
+
+      // adduser newuser
+      // usermod -aG sudo newuser
+
+      // 2. Open /etc/ssh/sshd_config file
+      // nano /etc/ssh/sshd_config
+
+      // 3. add example code to last line of file
+      // Match User newuser
+      //   PasswordAuthentication yes
+
+      // ssh username@ip_address
+
+      break;
+    }
+
     default:
       break;
   }
