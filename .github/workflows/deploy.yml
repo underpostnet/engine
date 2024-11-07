@@ -17,7 +17,7 @@ jobs:
           # ssh port of the server
           # port: # optional, default is 22
           # user of the server
-          user: ${{ secrets.USERNAME }}
+          user: ${{ secrets.SSH_USERNAME }}
           # private ssh key registered on the server
           private_key: ${{ secrets.SSH_PASSWORD }}
           # Fingerprint of the server, preventing man-in-the-middle attacks
