@@ -413,32 +413,32 @@ flowchart LR
 
 subgraph Circulation["Circulation"]
 
-    Transformation["Transformation: transactions between players"]
+    Transformation["Transformation:<br> transactions<br> between players"]
 
     subgraph Players["Cyberia Online<br>players"]
 
     end
 end
 
-subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
-    subgraph Sync["Sync_drain_burning_protocol"]
+subgraph Governance-Runtime["Governance<br> Runtime Node <br> Server"]
+    subgraph Sync["<br> <br> <br> <br> <br> <br> <br> <br> <br>Sync drain <br> burning protocol"]
         Stacking["Voting power"]
         Unlock-Features["Unlock Features"]
         subgraph Withdrawal["**Withdrawal Protocol** <br> Crypto to Fiat"]
         end
     end
 
-    subgraph Faucet["Faucet_validation_emition_protocol"]
+    subgraph Faucet["<br><br><br><br><br><br><br>Faucet <br>validation <br> emiter protocol"]
         ERC-20["**Token emitter** <br> ERC-20 (CKY)"]
         ERC-721["**Token emitter** <br> ERC-721 (IL)"]
         Airdrop-Mint["Airdrop Mint <br> pool"]
     end
-    subgraph Coinbase["Coinbase address"]
+    subgraph Coinbase["Coinbase <br> address"]
     end
 
 end
 
-Black-Market-Sales["External Markets Sales"]
+Black-Market-Sales["External Markets <br>Sales"]
 Burn["Burn"]
 
 subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
@@ -456,11 +456,13 @@ Sync ==> Burn
 Coinbase==>|ICO|ERC-20
 Withdrawal==>|Sell<br>withdrawal<br>|Players
 Players==>Withdrawal
-Coinbase==>|Liquidity Pool|Withdrawal
+Coinbase=======>|Liquidity Pool|Withdrawal
 Sync==>|Supply renewal|Airdrop-Mint
 Players==>Unlock-Features
 ERC-721==>Airdrop-Mint
 Airdrop-Mint<==>Players
+Airdrop-Mint==>|ICO|Investors
+Investors==>Players
 
 
 
@@ -481,6 +483,8 @@ linkStyle 11 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 12 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 13 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 14 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 15 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 16 font-size: 25px, color: black, back: white,stroke: yellow;
 
 classDef H1 font-size: 40px, pxline-height:10px;
 classDef H2 font-size: 30px;
@@ -488,6 +492,7 @@ classDef H3 font-size: 25px;
 
 classDef SR fill: gray, color: black;
 classDef SR0 fill:#222222;
+classDef SR1 height: 500px;
 
 class Players H1;
 class Players SR;
@@ -499,9 +504,11 @@ class Circulation H2;
 class Circulation SR0;
 class Coinbase H1;
 class Faucet H2;
+class Faucet SR1;
 class ERC-20 H3;
 class ERC-721 H3;
 class Sync H2;
+class Sync SR1;
 class Stacking H3;
 class Burn H3;
 class Stackin H3;
@@ -510,4 +517,5 @@ class Black-Market-Sales H3;
 class Transformation H3;
 class Investors H2;
 class Airdrop-Mint H1;
+
 ```
