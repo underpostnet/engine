@@ -409,21 +409,18 @@ This smart contract creates a flexible and secure platform for managing unique i
 #### 4.5 Governance and Circulation
 
 ```mermaid
-
 flowchart LR
 
+subgraph Circulation["Circulation"]
 
+    Transformation["Transformation: transactions between players"]
 
+    subgraph Players["Cyberia Online<br>players"]
+
+    end
+end
 
 subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
-
-    subgraph Faucet["Faucet_validation_emition_protocol"]
-        ERC-20["**Supply** <br> ERC-20 Token (CKY)"]
-        ERC-721["**Mint** <br> ERC-721 Token (IL)"]
-    end
-    subgraph Coinbase["Coinbase address"]
-    end
-
     subgraph Sync["Sync_drain_burning_protocol"]
         Stacking["Voting power"]
         Unlock-Features["Unlock Features"]
@@ -431,42 +428,40 @@ subgraph Governance-Runtime["Governance_Runtime_Node_Server"]
         end
     end
 
+    subgraph Faucet["Faucet_validation_emition_protocol"]
+        ERC-20["**Token emitter** <br> ERC-20 (CKY)"]
+        ERC-721["**Token emitter** <br> ERC-721 (IL)"]
+        Airdrop-Mint["Airdrop Mint <br> pool"]
+    end
+    subgraph Coinbase["Coinbase address"]
+    end
+
 end
 
-
-
-subgraph Circulation["<br><br><br><br><br><br><br>Circulation"]
-
-    subgraph Black-Market-Sales["External Markets Sales"]
-
-    end
-    subgraph Transformation["Transformation: transactions between players"]
-
-    end
-        subgraph Players
-
-    end
-end
+Black-Market-Sales["External Markets Sales"]
+Burn["Burn"]
 
 subgraph Legends["<span style='color: yellow'>&rarr; Virtual Currency/Items </span> <br> <span style='color: green'>&rarr; Fiat</span>"]
 
 
 end
 
-Burn["Burn"]
-Investors --> Coinbase
-Faucet --> |__**Airdrop / Mint**|Players
-Players --> |Stacking|Stacking
-Players --> |Buy <br> Consumption|Unlock-Features
-Players <--> Black-Market-Sales
-Players <--> Transformation
-Sync --> Burn
-Coinbase-->|ICO|ERC-20
-Withdrawal-->|Sell<br>withdrawal<br>|Players
-Players-->Withdrawal
-Coinbase-->|Liquidity Pool|Withdrawal
-Sync-->|Supply renewal  <br>  <span style='color: yellow'>&rarr;</span>|Faucet
-Players-->Unlock-Features
+Investors ==> Coinbase
+ERC-20 ==> Airdrop-Mint
+Players ==> |Stacking|Stacking
+Players ==> |Buy <br> Consumption|Unlock-Features
+Players <==> Black-Market-Sales
+Players <==> Transformation
+Sync ==> Burn
+Coinbase==>|ICO|ERC-20
+Withdrawal==>|Sell<br>withdrawal<br>|Players
+Players==>Withdrawal
+Coinbase==>|Liquidity Pool|Withdrawal
+Sync==>|Supply renewal|Airdrop-Mint
+Players==>Unlock-Features
+ERC-721==>Airdrop-Mint
+Airdrop-Mint<==>Players
+
 
 
 %% style Governance-Runtime padding:40px,margin:40px,stroke:#333,stroke-width:4pxline-height:60px
@@ -484,6 +479,8 @@ linkStyle 9 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 10 font-size: 25px, color: black, back: white,stroke: green;
 linkStyle 11 font-size: 25px, color: black, back: white,stroke: yellow;
 linkStyle 12 font-size: 25px, color: black, back: white,stroke: green;
+linkStyle 13 font-size: 25px, color: black, back: white,stroke: yellow;
+linkStyle 14 font-size: 25px, color: black, back: white,stroke: yellow;
 
 classDef H1 font-size: 40px, pxline-height:10px;
 classDef H2 font-size: 30px;
@@ -512,4 +509,5 @@ class Unlock-Features H3;
 class Black-Market-Sales H3;
 class Transformation H3;
 class Investors H2;
+class Airdrop-Mint H1;
 ```
