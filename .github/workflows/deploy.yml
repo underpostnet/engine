@@ -7,21 +7,23 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Get repository metadata
-        uses: varunsridharan/action-repository-meta@main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          PORT: 8080
-
       - name: Deploy to server
-        uses: appleboy/ssh-action@v1.1.0
+        # You may pin to the exact commit or the version.
+        # uses: D3rHase/ssh-command-action@a2d33a241057592ef36e4e552ff44485201acf10
+        uses: D3rHase/ssh-command-action@latest
         with:
+          # hostname / IP of the server
           host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: ${{ secrets.SSH_PORT }}
-          command_timeout: 30m
-          script: |
+          # ssh port of the server
+          # port: # optional, default is 22
+          # user of the server
+          user: ${{ secrets.USERNAME }}
+          # private ssh key registered on the server
+          private_key: ${{ secrets.SSH_PASSWORD }}
+          # Fingerprint of the server, preventing man-in-the-middle attacks
+          # host_fingerprint: # optional
+          # command to be executed
+          command: |
             pwd
             ls -a
             pm2 list
