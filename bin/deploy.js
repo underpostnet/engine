@@ -703,6 +703,21 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
       break;
     }
+    case 'ssh-keys': {
+      // create ssh keys
+      const sshAccount = process.argv[3]; // [sudo username]@[host/ip]
+      const destPath = process.argv[4];
+      shellExec(`ssh-keygen -t ed25519 -C "${sshAccount}" -f ${destPath}`);
+
+      // > write
+      // >> append
+
+      // add to ssh server
+      const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
+      if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
+      break;
+    }
 
     case 'ssh': {
       if (!process.argv.includes('server')) {
