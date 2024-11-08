@@ -8,8 +8,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ssh-scp-ssh-pipelines
-        # You may pin to the exact commit or the version.
-        # uses: cross-the-world/ssh-scp-ssh-pipelines@78e864b4890087a58248ff39320406971ca88b89
         uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
         with:
           # ssh remote host
