@@ -719,6 +719,14 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       break;
     }
 
+    case 'set-ssh-keys': {
+      const destPath = process.argv[3];
+      const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
+      if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
+      break;
+    }
+
     case 'ssh': {
       if (!process.argv.includes('server')) {
         shellExec(`sudo apt update`);
