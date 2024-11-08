@@ -15,7 +15,7 @@ jobs:
           # ssh remote host
           host: ${{ secrets.SSH_HOST }}
           # ssh remote port
-          port: ${{ secrets.PORT }}
+          port: ${{ secrets.SSH_PORT }}
           # ssh remote user
           user: ${{ secrets.SSH_USERNAME }}
           # content of ssh private key. ex raw content of ~/.ssh/id_rsa
