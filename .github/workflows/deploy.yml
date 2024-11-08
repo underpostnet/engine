@@ -7,23 +7,34 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Deploy to server
+      - name: ssh-scp-ssh-pipelines
         # You may pin to the exact commit or the version.
-        # uses: D3rHase/ssh-command-action@a2d33a241057592ef36e4e552ff44485201acf10
-        uses: D3rHase/ssh-command-action@latest
+        # uses: cross-the-world/ssh-scp-ssh-pipelines@78e864b4890087a58248ff39320406971ca88b89
+        uses: cross-the-world/ssh-scp-ssh-pipelines@v1.1.4
         with:
-          # hostname / IP of the server
+          # ssh remote host
           host: ${{ secrets.SSH_HOST }}
-          # ssh port of the server
-          # port: # optional, default is 22
-          # user of the server
+          # ssh remote port
+          port: ${{ secrets.PORT }}
+          # ssh remote user
           user: ${{ secrets.SSH_USERNAME }}
-          # private ssh key registered on the server
-          private_key: ${{ secrets.SSH_PRIV_KEY }}
-          # Fingerprint of the server, preventing man-in-the-middle attacks
-          # host_fingerprint: # optional
-          # command to be executed
-          command: |
+          # content of ssh private key. ex raw content of ~/.ssh/id_rsa
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          # # ssh remote password
+          # pass: # optional
+          # # connection timeout to remote host
+          # connect_timeout: # optional, default is 30s
+          # # execute pre-commands before scp
+          # first_ssh: # optional
+          # # scp from local to remote
+          # scp: # optional
+          # # execute post-commands after scp
+          # last_ssh: # optional
+          first_ssh: |
+            echo "Hello, world!"
+            pwd
+          # scp: |
+          last_ssh: |
             pwd
             ls -a
             pm2 list
