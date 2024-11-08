@@ -717,6 +717,21 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // adduser newuser
       // usermod -aG sudo newuser
 
+      // ssh -i '/path/to/keyfile' username@server
+
+      // ssh-keygen -t ed25519 -C "your_email@example.com" -f $HOME/.ssh/id_rsa
+
+      // legacy: ssh-keygen -t rsa -b 4096 -C "your_email@example.com" -f $HOME/.ssh/id_rsa
+
+      // vi .ssh/authorized_keys
+      // chmod 700 .ssh
+      // chmod 600 authorized_keys
+
+      // cat id_rsa.pub > .ssh/authorized_keys
+
+      // add public key to authorized keys
+      // cat .ssh/id_ed25519.pub | ssh [sudo username]@[host/ip] 'cat >> .ssh/authorized_keys'
+
       // 2. Open /etc/ssh/sshd_config file
       // nano /etc/ssh/sshd_config
 

@@ -1,19 +1,11 @@
 name: SSH Deploy
 on: [push]
-permissions:
-  contents: write
-  packages: write
-  id-token: write
 jobs:
   deployment:
     ## ${{ github.event.workflow_run.head_commit.message }} git automatically commits
     if: github.event.head_commit.message == 'deploy'
     name: Build
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      packages: write
-      id-token: write
     steps:
       - name: Deploy to server
         # You may pin to the exact commit or the version.
@@ -27,7 +19,7 @@ jobs:
           # user of the server
           user: ${{ secrets.SSH_USERNAME }}
           # private ssh key registered on the server
-          private_key: ${{ secrets.SSH_PASSWORD }}
+          private_key: ${{ secrets.SSH_PRIV_KEY }}
           # Fingerprint of the server, preventing man-in-the-middle attacks
           # host_fingerprint: # optional
           # command to be executed
