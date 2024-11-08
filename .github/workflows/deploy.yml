@@ -9,7 +9,6 @@ jobs:
     steps:
       - name: ssh deploy
         # You may pin to the exact commit or the version.
-        # uses: easingthemes/ssh-deploy@ece05a22752e524363164bfb2f69a5ba4f8ded0d
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           # Private key part of an SSH key pair
