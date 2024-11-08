@@ -47,9 +47,6 @@ const Dns = {
       }
       if (testIp && typeof testIp === 'string' && isIPv4(testIp) && Dns.ip !== testIp) {
         logger.info(`New ip`, testIp);
-        Dns.ip = testIp;
-        confCronData.ipDaemon.ip = Dns.ip;
-        fs.writeFileSync(confCronPath, JSON.stringify(confCronData, null, 4), 'utf8');
         for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {
             case 'A':
@@ -63,12 +60,16 @@ const Dns = {
               break;
           }
         }
-        shellExec(
-          `cd ./engine-private` +
-            ` && git pull ${Dns.repoUrl}` +
-            ` && git add . && git commit -m "update ip ${new Date().toLocaleDateString()}"` +
-            ` && git push ${Dns.repoUrl}`,
-        );
+        try {
+          const response = await axios.get(process.env.DNS_TEST_URL);
+          const verifyIp = response.request.socket.remoteAddress;
+          logger.info(process.env.DNS_TEST_URL + ' IP', verifyIp);
+          if (verifyIp === testIp) {
+            await this.saveIp(confCronPath, confCronData, testIp);
+          } else logger.error('ip not updated');
+        } catch (error) {
+          logger.error(error), 'ip not updated';
+        }
       }
     };
     await callback();
@@ -96,6 +97,20 @@ const Dns = {
         });
       },
     },
+  },
+  saveIp: async (confCronPath, confCronData, ip) => {
+    Dns.ip = ip;
+    confCronData.ipDaemon.ip = ip;
+    fs.writeFileSync(confCronPath, JSON.stringify(confCronData, null, 4), 'utf8');
+    shellExec(
+      `cd ./engine-private` +
+        ` && git pull ${Dns.repoUrl}` +
+        ` && git add . && git commit -m "update ip ${new Date().toLocaleDateString()}"` +
+        ` && git push ${Dns.repoUrl}`,
+      {
+        disableLog: true,
+      },
+    );
   },
 };
 

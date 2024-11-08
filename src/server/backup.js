@@ -92,6 +92,9 @@ const BackUpManagement = {
                     ` && git pull ${repoUrl}` +
                     ` && git add . && git commit -m "backup ${new Date().toLocaleDateString()}"` +
                     ` && git push ${repoUrl}`,
+                  {
+                    disableLog: true,
+                  },
                 );
               }
             }
@@ -102,6 +105,9 @@ const BackUpManagement = {
           ` && git pull ${BackUpManagement.repoUrl}` +
           ` && git add . && git commit -m "backup ${new Date().toLocaleDateString()}"` +
           ` && git push ${BackUpManagement.repoUrl}`,
+        {
+          disableLog: true,
+        },
       );
     };
     await Callback();

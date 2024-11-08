@@ -3,6 +3,8 @@ import merge from 'deepmerge';
 import si from 'systeminformation';
 import * as dir from 'path';
 import { svg } from 'font-awesome-assets';
+import axios from 'axios';
+import https from 'https';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { shellCd, shellExec } from '../src/server/process.js';
@@ -11,6 +13,11 @@ import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
 import { buildTextImg, faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
+
+const httpsAgent = new https.Agent({
+  rejectUnauthorized: false,
+});
+axios.defaults.httpsAgent = httpsAgent;
 
 const logger = loggerFactory(import.meta);
 
@@ -173,6 +180,11 @@ try {
     case 'b64-image':
       fs.writeFileSync('b64-image', `data:image/jpg;base64,${fs.readFileSync(process.argv[3]).toString('base64')}`);
       break;
+
+    case 'get-ip': {
+      const response = await axios.get(process.argv[3]);
+      logger.info(process.argv[3] + ' IP', response.request.socket.remoteAddress);
+    }
 
     default:
       break;
