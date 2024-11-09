@@ -20,14 +20,16 @@ const RichText = {
               s(`.${options.parentIdModal}`).style.top = '0px';
               s(`.${options.parentIdModal}`).style.height = `${window.innerHeight}px`;
             }
-            Modal.cleanUI();
+            // Modal.cleanUI();
+            if (s(`.slide-menu-top-bar`)) s(`.slide-menu-top-bar`).classList.add('hide');
           } else {
             if (options.parentIdModal) {
               s(`.btn-bar-modal-container-${options.parentIdModal}`).classList.remove('hide');
               s(`.${options.parentIdModal}`).style.top = top;
               s(`.${options.parentIdModal}`).style.height = height;
             }
-            Modal.restoreUI();
+            if (s(`.slide-menu-top-bar`)) s(`.slide-menu-top-bar`).classList.add('remove');
+            // Modal.restoreUI();
           }
         },
       });

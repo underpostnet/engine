@@ -507,10 +507,12 @@ const MenuNexodev = {
 
             const resizeModal = () => {
               Modal.Data[idModal].onObserverListener[idEvent] = () => {
-                if (s(`.html-${idModal}`))
-                  s(`.html-${idModal}`).style.height = `${
-                    s(`.${idModal}`).offsetHeight - Modal.headerTitleHeight - 1
-                  }px`;
+                setTimeout(() => {
+                  if (s(`.html-${idModal}`))
+                    s(`.html-${idModal}`).style.height = `${
+                      s(`.${idModal}`).offsetHeight - Modal.headerTitleHeight - 1
+                    }px`;
+                }, 750);
               };
               Modal.Data[idModal].onObserverListener[idEvent]();
             };
