@@ -703,6 +703,20 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
       break;
     }
+    case 'ssh-export-server-keys': {
+      fs.copyFile('/etc/ssh/ssh_host_rsa_key', './engine-private/deploy/ssh_host_rsa_key');
+      fs.copyFile('/etc/ssh/ssh_host_rsa_key.pub', './engine-private/deploy/ssh_host_rsa_key.pub');
+      break;
+    }
+    case 'ssh-import-server-keys': {
+      fs.copyFile('./engine-private/deploy/ssh_host_rsa_key', '/etc/ssh/ssh_host_rsa_key');
+      fs.copyFile('./engine-private/deploy/ssh_host_rsa_key.pub', '/etc/ssh/ssh_host_rsa_key.pub');
+      break;
+    }
+    case 'ssh-import-client-keys': {
+      const host = process.argv[3];
+      shellExec(`node bin/deploy set-ssh-keys ./engine-private/deploy/ssh_host_rsa_key${host ? ` ${host}` : ``} clean`);
+    }
     case 'ssh-keys': {
       // create ssh keys
       const sshAccount = process.argv[3]; // [sudo username]@[host/ip]
