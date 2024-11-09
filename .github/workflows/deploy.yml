@@ -6,28 +6,22 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      # - name: Checkout repository
+      #   uses: actions/checkout@v3
+
+      - name: Set up SSH key
+        run: |
+          env
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIV_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          echo "${{ secrets.SSH_PUB_KEY }}" > ~/.ssh/id_rsa.pub
+          chmod 600 ~/.ssh/id_rsa.pub
+          ssh-keyscan -p 22 ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+      #          sudo apt-get install sshpass
       - name: Executing remote ssh commands to deploy
-        uses: easingthemes/ssh-deploy@main
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
-          # ARGS: '-rlgoDzvc -i --delete'
-          # SOURCE: 'dist/'
-          REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          SCRIPT_BEFORE: |
-            pwd
-            ls -a
-            pm2 list
-          # TARGET: ${{ secrets.REMOTE_TARGET }}
-          # EXCLUDE: '/dist/, /node_modules/'
-          # uses: appleboy/ssh-action@v1.1.0
-          # with:
-          #   host: ${{ secrets.SSH_HOST }}
-          #   username: ${{ secrets.SSH_USERNAME }}
-          #   password: ${{ secrets.SSH_PASSWORD }}
-          #   key: ${{ secrets.SSH_PUB_KEY }}
-          #   # port: ${{ secrets.SSH_PORT }}
-          #   script: |
-          #     pwd
-          #     ls -a
-          #     pm2 list
+        run: |
+          ssh -v -o StrictHostKeyChecking=no ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}
+           pwd
+           ls -a
+           pm2 list
