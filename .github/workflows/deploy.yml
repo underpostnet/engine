@@ -1,47 +1,30 @@
 name: remote ssh command
 on: [push]
 jobs:
-  deploy:
+  build:
     if: github.event.head_commit.message == 'deploy'
-    name: Deploy to server
+    name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3 # Check out your repository code
 
-      - name: Set up SSH key
+      - name: SSH and run commands
+        env:
+          PRIVATE_KEY: ${{ secrets.SSH_PRI_KEY }} # Reference the private key stored in GitHub Secrets
         run: |
-          env
-          mkdir -p ~/.ssh
-          echo "${{ secrets.ARTIFACT_SSH_KEY }}" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan -p 22 ${{ secrets.ARTIFACT_HOST }} >> ~/.ssh/known_hosts
-          sudo apt-get install sshpass
+          echo "$PRIVATE_KEY" > private_key.pem # Write the private key to a file
+          chmod 600 private_key.pem # Set the appropriate permissions for the key file
 
-      - name: Deploy to server
-        run: |
-          sshpass -p '${{ secrets.SSH_PASSWORD }}' ssh -v -o StrictHostKeyChecking=no ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} <<'ENDSSH'
-          pwd
-          ls -a
-          pm2 list
+          # Establish an SSH connection and execute commands on the remote server
+          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} <<EOF
+            pwd
+            ls -a
+            pm2 list
+          EOF
 
-# name: remote ssh command
-# on: [push]
-# jobs:
-#   build:
-#     if: github.event.head_commit.message == 'deploy'
-#     name: Build
-#     runs-on: ubuntu-latest
-#     steps:
-#       - name: executing remote ssh commands using password
-#         uses: appleboy/ssh-action@v1.1.0
-#         with:
-#           host: ${{ secrets.SSH_HOST }}
-#           username: ${{ secrets.SSH_USERNAME }}
-#           key: ${{ secrets.SSH_PRIV_KEY }}
-#           # password: ${{ secrets.SSH_PASSWORD }}
-#           port: ${{ secrets.SSH_PORT }}
-#           script: |
-#             pwd
-#             ls -a
-#             pm2 list
+          rm -f private_key.pem # Remove the private key file after use for security
+    permissions:
+      contents: read
+      actions: write
+      id-token: write
