@@ -756,6 +756,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
       if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
       shellExec(`cat ${destPath}.pub > ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath} >> ${sshAuthKeyTarget}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
       shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
