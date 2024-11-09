@@ -84,6 +84,7 @@ try {
         for (const deletePath of [
           '.github/workflows/coverall.yml',
           '.github/workflows/docker-image.yml',
+          '.github/workflows/deploy.yml',
           'bin/web3.js',
           'src/ipfs.js',
           'src/k8s.js',
