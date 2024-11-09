@@ -52,7 +52,7 @@ const Dns = {
             case 'A':
               for (const dnsProvider of confCronData.records[recordType]) {
                 if (typeof Dns.services.updateIp[dnsProvider.dns] === 'function')
-                  await Dns.services.updateIp[dnsProvider.dns](dnsProvider);
+                  await Dns.services.updateIp[dnsProvider.dns]({ ...dnsProvider, ip: testIp });
               }
               break;
 
@@ -79,8 +79,8 @@ const Dns = {
   services: {
     updateIp: {
       dondominio: (options) => {
-        const { user, api_key, host, dns } = options;
-        const url = `https://dondns.dondominio.com/json/?user=${user}&password=${api_key}&host=${host}&ip=${Dns.ip}`;
+        const { user, api_key, host, dns, ip } = options;
+        const url = `https://dondns.dondominio.com/json/?user=${user}&password=${api_key}&host=${host}&ip=${ip}`;
         logger.info(`${dns} update ip url`, url);
         if (process.env.NODE_ENV !== 'production') return false;
         return new Promise((resolve) => {
