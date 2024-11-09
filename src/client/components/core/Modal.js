@@ -193,6 +193,8 @@ const Modal = {
               s(`.html-${idModal}`).style.display = 'block';
               // s(`.title-modal-${idModal}`).style.display = 'block';
               setTimeout(() => {
+                s(`.main-body-btn-ui-menu-menu`).classList.add('hide');
+                s(`.main-body-btn-ui-menu-close`).classList.remove('hide');
                 if (s(`.btn-bar-center-icon-menu`)) {
                   s(`.btn-bar-center-icon-close`).classList.remove('hide');
                   s(`.btn-bar-center-icon-menu`).classList.add('hide');
@@ -213,6 +215,8 @@ const Modal = {
               s(`.${idModal}`).style.width = `${this.Data[idModal][options.mode].width}px`;
               s(`.html-${idModal}`).style.display = 'none';
               setTimeout(() => {
+                s(`.main-body-btn-ui-menu-close`).classList.add('hide');
+                s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
                 if (s(`.btn-bar-center-icon-menu`)) {
                   s(`.btn-bar-center-icon-menu`).classList.remove('hide');
                   s(`.btn-bar-center-icon-close`).classList.add('hide');
@@ -1739,13 +1743,9 @@ const Modal = {
   actionBtnCenter: function () {
     // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
     if (!s(`.btn-close-modal-menu`).classList.contains('hide')) {
-      s(`.main-body-btn-ui-menu-close`).classList.add('hide');
-      s(`.main-body-btn-ui-menu-menu`).classList.remove('hide');
       return s(`.btn-close-modal-menu`).click();
     }
     if (!s(`.btn-menu-modal-menu`).classList.contains('hide')) {
-      s(`.main-body-btn-ui-menu-menu`).classList.add('hide');
-      s(`.main-body-btn-ui-menu-close`).classList.remove('hide');
       return s(`.btn-menu-modal-menu`).click();
     }
   },
