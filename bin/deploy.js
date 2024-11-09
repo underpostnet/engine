@@ -708,30 +708,48 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       const sshAccount = process.argv[3]; // [sudo username]@[host/ip]
       const destPath = process.argv[4];
       shellExec(`ssh-keygen -t ed25519 -C "${sshAccount}" -f ${destPath}`);
-
-      // > write
-      // >> append
-
-      // add to ssh server
-      const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
-      // /root/.ssh/id_rsa
-      // /root/.ssh/id_rsa.pub
-      if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
       break;
     }
 
     case 'set-ssh-keys': {
+      const files = ['authorized_keys', 'id_rsa', 'id_rsa.pub', 'known_hosts ', 'known_hosts.old'];
+
+      // > write
+      // >> append
+
+      // /root/.ssh/id_rsa
+      // /root/.ssh/id_rsa.pub
+      if (process.argv.includes('clean')) {
+        for (const file of files) {
+          fs.removeSync(`/root/.ssh/${file}`);
+        }
+      }
+
       const destPath = process.argv[3];
       const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
       if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath}.pub > ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
-      shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
+      shellExec(`cat ${destPath} >> ${'/root/.ssh/id_rsa'}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa.pub')) shellExec(`touch ${'/root/.ssh/id_rsa.pub'}`);
-      shellExec(`cat ${destPath}.pub > ${'/root/.ssh/id_rsa.pub'}`);
+      shellExec(`cat ${destPath}.pub >> ${'/root/.ssh/id_rsa.pub'}`);
+
+      shellExec(`chmod 700 /root/.ssh/`);
+      for (const file of files) {
+        shellExec(`chmod 600 /root/.ssh/${file}`);
+      }
+
+      // init ssh agent service
+      shellExec('eval `ssh-agent -s`');
+
+      // add key
+      shellExec(`ssh-add /root/.ssh/id_rsa`);
+
+      // list keys
+      shellExec(`ssh-add -l`);
+
       break;
     }
 
@@ -773,6 +791,21 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
       // ssh [sudo username]@[host/ip]
       // open port 22
+
+      // init ssh agent service
+      // eval `ssh-agent -s`
+
+      // list keys
+      // ssh-add -l
+
+      // add key
+      // ssh-add /root/.ssh/id_rsa
+
+      // remove
+      // ssh-add -d /path/to/private/key
+
+      // remove all
+      // ssh-add -D
 
       break;
     }
