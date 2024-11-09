@@ -735,10 +735,10 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
-      shellExec(`cat ${destPath} >> ${'/root/.ssh/id_rsa'}`);
+      shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa.pub')) shellExec(`touch ${'/root/.ssh/id_rsa.pub'}`);
-      shellExec(`cat ${destPath}.pub >> ${'/root/.ssh/id_rsa.pub'}`);
+      shellExec(`cat ${destPath}.pub > ${'/root/.ssh/id_rsa.pub'}`);
 
       shellExec(`chmod 700 /root/.ssh/`);
       for (const file of files) {
