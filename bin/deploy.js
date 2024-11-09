@@ -716,6 +716,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     case 'ssh-import-client-keys': {
       const host = process.argv[3];
       shellExec(`node bin/deploy set-ssh-keys ./engine-private/deploy/ssh_host_rsa_key${host ? ` ${host}` : ``} clean`);
+      break;
     }
     case 'ssh-keys': {
       // create ssh keys
