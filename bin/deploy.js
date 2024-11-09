@@ -714,7 +714,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       }
       shellExec(`ssh-keygen -t rsa -b 4096 -C "${sshAccount}" -f ${destPath}`);
       // add host to keyscan
-      shellExec(`ssh-keyscan -t rsa ${sshAccount.split(`@`)[1]} >> ~/.ssh/known_hosts`);
+      // shellExec(`ssh-keyscan -t rsa ${sshAccount.split(`@`)[1]} >> ~/.ssh/known_hosts`);
       break;
     }
 
@@ -732,6 +732,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
             logger.info('remove', `/root/.ssh/${file}`);
             fs.removeSync(`/root/.ssh/${file}`);
           }
+          fs.writeFileSync(`/root/.ssh/${file}`, '', 'utf8');
         }
         shellExec('eval `ssh-agent -s`' + ` && ssh-add -D`);
       }
@@ -739,7 +740,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       const destPath = process.argv[3];
       const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
       if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath}.pub > ${sshAuthKeyTarget}`);
 
       if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
       shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
@@ -751,9 +752,10 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       for (const file of files) {
         shellExec(`chmod 600 /root/.ssh/${file}`);
       }
-
+      const host = process.argv[4];
       // add key
       shellExec('eval `ssh-agent -s`' + ' && ssh-add /root/.ssh/id_rsa' + ' && ssh-add -l');
+      if (host) shellExec(`ssh-keyscan -H ${host} >> ~/.ssh/known_hosts`);
       shellExec(`sudo systemctl enable ssh`);
       shellExec(`sudo systemctl restart ssh`);
       shellExec(`sudo systemctl status ssh`);
