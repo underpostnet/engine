@@ -714,6 +714,8 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
       // add to ssh server
       const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
+      // /root/.ssh/id_rsa
+      // /root/.ssh/id_rsa.pub
       if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
       shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
       break;
@@ -723,7 +725,13 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       const destPath = process.argv[3];
       const sshAuthKeyTarget = '/root/.ssh/authorized_keys';
       if (!fs.existsSync(sshAuthKeyTarget)) shellExec(`touch ${sshAuthKeyTarget}`);
-      shellExec(`cat ${destPath}.pub >> ${sshAuthKeyTarget}`);
+      shellExec(`cat ${destPath}.pub > ${sshAuthKeyTarget}`);
+
+      if (!fs.existsSync('/root/.ssh/id_rsa')) shellExec(`touch ${'/root/.ssh/id_rsa'}`);
+      shellExec(`cat ${destPath} > ${'/root/.ssh/id_rsa'}`);
+
+      if (!fs.existsSync('/root/.ssh/id_rsa.pub')) shellExec(`touch ${'/root/.ssh/id_rsa.pub'}`);
+      shellExec(`cat ${destPath}.pub > ${'/root/.ssh/id_rsa.pub'}`);
       break;
     }
 
@@ -735,6 +743,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       shellExec(`sudo systemctl enable ssh`);
       shellExec(`sudo systemctl restart ssh`);
       shellExec(`sudo systemctl status ssh`);
+      // sudo service ssh restart
       shellExec(`ip a`);
 
       // adduser newuser
