@@ -721,8 +721,12 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // /root/.ssh/id_rsa.pub
       if (process.argv.includes('clean')) {
         for (const file of files) {
-          fs.removeSync(`/root/.ssh/${file}`);
+          if (fs.existsSync(`/root/.ssh/${file}`)) {
+            logger.info('remove', `/root/.ssh/${file}`);
+            fs.removeSync(`/root/.ssh/${file}`);
+          }
         }
+        shellExec('eval `ssh-agent -s`' + ` && ssh-add -D`);
       }
 
       const destPath = process.argv[3];
@@ -741,14 +745,11 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
         shellExec(`chmod 600 /root/.ssh/${file}`);
       }
 
-      // init ssh agent service
-      shellExec('eval `ssh-agent -s`');
-
       // add key
-      shellExec(`ssh-add /root/.ssh/id_rsa`);
-
-      // list keys
-      shellExec(`ssh-add -l`);
+      shellExec('eval `ssh-agent -s`' + ' && ssh-add /root/.ssh/id_rsa' + ' && ssh-add -l');
+      shellExec(`sudo systemctl enable ssh`);
+      shellExec(`sudo systemctl restart ssh`);
+      shellExec(`sudo systemctl status ssh`);
 
       break;
     }
