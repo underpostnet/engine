@@ -707,7 +707,14 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // create ssh keys
       const sshAccount = process.argv[3]; // [sudo username]@[host/ip]
       const destPath = process.argv[4];
-      shellExec(`ssh-keygen -t ed25519 -C "${sshAccount}" -f ${destPath}`);
+      // shellExec(`ssh-keygen -t ed25519 -C "${sshAccount}" -f ${destPath}`);
+      if (fs.existsSync(destPath)) {
+        fs.removeSync(destPath);
+        fs.removeSync(destPath + '.pub');
+      }
+      shellExec(`ssh-keygen -t rsa -b 4096 -C "${sshAccount}" -f ${destPath}`);
+      // add host to keyscan
+      shellExec(`ssh-keyscan -t rsa ${sshAccount.split(`@`)[1]} >> ~/.ssh/known_hosts`);
       break;
     }
 
@@ -758,6 +765,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       if (!process.argv.includes('server')) {
         shellExec(`sudo apt update`);
         shellExec(`sudo apt install openssh-server -y`);
+        shellExec(`sudo apt install ssh-askpass`);
       }
       shellExec(`sudo systemctl enable ssh`);
       shellExec(`sudo systemctl restart ssh`);
