@@ -7,24 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: SSH and run commands
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }} # Reference the private key stored in GitHub Secrets
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIV_KEY }}
+          known_hosts: ${{ secrets.SSH_HOST }}
+      - uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIV_KEY }}
+      - name: Build the project
         run: |
-          echo "$PRIVATE_KEY" > private_key.pem # Write the private key to a file
-          chmod 600 private_key.pem # Set the appropriate permissions for the key file
-
-          # Establish an SSH connection and execute commands on the remote server
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} <<EOF
-            # Your server commands go here. Replace these commands with those relevant to your project.
-
-            pwd
-            ls -a
-            pm2 list
-
-          EOF
-
-          rm -f private_key.pem # Remove the private key file after use for security
-    permissions:
-      contents: read
-      actions: write
-      id-token: write
+          pwd
+          ls -a
+          pm2 list
