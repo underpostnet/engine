@@ -11,8 +11,8 @@ jobs:
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
-          #          password: ${{ secrets.SSH_PASSWORD }}
-          key: ${{ secrets.SSH_PUB_KEY }}
+          password: ${{ secrets.SSH_PASSWORD }}
+          # key: ${{ secrets.SSH_PUB_KEY }}
           port: ${{ secrets.SSH_PORT }}
           script: |
             pwd
