@@ -1,5 +1,9 @@
 name: Deploy to Server
 on: [push]
+permissions:
+  contents: write
+  packages: write
+  id-token: write
 jobs:
   build:
     if: github.event.head_commit.message == 'deploy'
@@ -12,7 +16,7 @@ jobs:
         uses: easingthemes/ssh-deploy@v5.1.0
         with:
           # Private key part of an SSH key pair
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PUB_KEY }}
           # Remote host
           REMOTE_HOST: ${{ secrets.SSH_HOST }}
           # Remote user
@@ -40,3 +44,7 @@ jobs:
           # SCRIPT_AFTER: # optional, default is
           # # If not an empty string, the action will fail if the after script fails. Note: The string 'false' will be treated as true
           # SCRIPT_AFTER_REQUIRED: # optional, default is
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
