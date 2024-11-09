@@ -6,25 +6,15 @@ jobs:
     name: Build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3 # Check out your repository code
-
-      - name: SSH and run commands
-        env:
-          PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }} # Reference the private key stored in GitHub Secrets
-        run: |
-          echo "$PRIVATE_KEY" > private_key.pem # Write the private key to a file
-          chmod 600 private_key.pem # Set the appropriate permissions for the key file
-
-          # Establish an SSH connection and execute commands on the remote server
-          ssh -o StrictHostKeyChecking=no -i private_key.pem ${{ secrets.SSH_USERNAME }}@${{ secrets.SSH_HOST }} <<EOF
+      - name: executing remote ssh commands using password
+        uses: appleboy/ssh-action@v1.1.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          #          password: ${{ secrets.SSH_PASSWORD }}
+          key: ${{ secrets.SSH_PUB_KEY }}
+          port: ${{ secrets.SSH_PORT }}
+          script: |
             pwd
             ls -a
             pm2 list
-          EOF
-
-          rm -f private_key.pem # Remove the private key file after use for security
-    permissions:
-      contents: read
-      actions: write
-      id-token: write
