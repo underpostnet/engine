@@ -6,6 +6,7 @@ on:
     branches: ['master']
 jobs:
   build:
+    if: github.event.head_commit.message == '[ci] build docker image'
     runs-on: ubuntu-latest
 
     permissions:
