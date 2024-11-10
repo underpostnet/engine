@@ -125,17 +125,6 @@ const MenuItemledger = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
-          ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-itemledger-management',
-            label: renderMenuLabel({
-              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('itemledger-management')}</span>`,
-            }),
-            attrs: `data-id="itemledger-management"`,
-            tabHref: `${getProxyPath()}itemledger-management`,
-            handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('itemledger-management')),
-          })}
         </div>
       `,
       barConfig: newInstance(barConfig),
@@ -146,7 +135,7 @@ const MenuItemledger = {
           const srcLogo = `${getProxyPath()}android-chrome-192x192.png`;
           htmls(
             '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+            html`<img class="inl top-bar-app-icon ${!darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
           );
         };
         setTimeout(ThemeEvents['titleRender']);
@@ -358,27 +347,6 @@ const MenuItemledger = {
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsItemledger.Data.user.main.model.user }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-itemledger-management`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-itemledger-management',
-        route: 'itemledger-management',
-        barConfig,
-        title: renderViewTitle({
-          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.Render('itemledger-management'),
-        }),
-        html: async () => await DefaultManagement.RenderTable(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

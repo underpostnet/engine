@@ -30,12 +30,7 @@ const RoutesItemledger = () => {
       translateTitle: true,
     },
     '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(), translateTitle: true },
-    '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
-    '/itemledger-management': {
-      title: 'itemledger-management',
-      render: () => s(`.main-btn-itemledger-management`).click(),
-      translateTitle: true,
-    },
+     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
   };
 };
 
