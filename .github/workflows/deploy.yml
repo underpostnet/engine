@@ -15,7 +15,6 @@ jobs:
       - name: SSH Setup
         run: |
           mkdir -p ~/.ssh/
-          which ssh-agent || (sudo apk update && sudo apk add openssh-client)
           install -m 600 -D /dev/null ~/.ssh/id_rsa
           echo "${{ secrets.SSH_PRIV_KEY }}" > ~/.ssh/id_rsa
           echo "${{ secrets.SSH_PUB_KEY }}" > ~/.ssh/id_rsa.pub
@@ -32,6 +31,7 @@ jobs:
       #     ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{secrets.SSH_HOST }} "pwd"
       #     ls -a
       #     pm2 list
+    #                   which ssh-agent || (sudo apk update && sudo apk add openssh-client)
     # #          rsync -vrm  .output/* ${{ secrets.SSH_HOST }}:${{ secrets.SSH_TARGE_PATH }}
     # #          which rsync || (sudo apk update && sudo apk add rsync)
     permissions:
