@@ -24,11 +24,14 @@ jobs:
           chmod 600 ~/.ssh/id_rsa.pub
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
-      - name: SSH Deploy
-        run: |
           ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{secrets.SSH_HOST }} "pwd"
           ls -a
           pm2 list
+      # - name: SSH Deploy
+      #   run: |
+      #     ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{secrets.SSH_HOST }} "pwd"
+      #     ls -a
+      #     pm2 list
     # #          rsync -vrm  .output/* ${{ secrets.SSH_HOST }}:${{ secrets.SSH_TARGE_PATH }}
     # #          which rsync || (sudo apk update && sudo apk add rsync)
     permissions:
