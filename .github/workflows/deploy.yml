@@ -6,7 +6,7 @@ permissions:
   id-token: write
 jobs:
   build:
-    if: github.event.head_commit.message == '[deploy] engine remote server'
+    if: github.event.head_commit.message.match('#deploy')
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:
