@@ -6,7 +6,7 @@ permissions:
   id-token: write
 jobs:
   build:
-    if: startsWith(github.event.head_commit.message, '#deploy-engine')
+    if: startsWith(github.event.head_commit.message, '[engine-deploy](https://www.nexodev.org/)')
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:
