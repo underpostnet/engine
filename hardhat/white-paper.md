@@ -18,7 +18,7 @@
 4.  **Tokenomics**
     - 4.1 [Cryptokoyn.net (ERC-20): In-game currency](#header-4.1)
     - 4.2 [Itemledger.com (ERC-721): NFT for in-game items](#header-4.2)
-    - 4.3 [Token distribution and allocation](#header-4.2)
+    - 4.3 [Token distribution and allocation](#header-4.3)
     - 4.4 Consensus mechanism
     - 4.5 [Governance and Circulation](#header-4.5)
 5.  **Game Mechanics and Progression**
