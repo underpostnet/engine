@@ -432,6 +432,42 @@ This smart contract creates a flexible and secure platform for managing unique i
 
 This revised token distribution and allocation plan aims to provide a more balanced approach, considering both community engagement and investor interests. By incorporating airdrops, minting pools, and staking mechanisms, the project can foster a strong and active community while ensuring the long-term viability of the CKY token.
 
+## Voting System Formula
+
+**Formula:**
+
+```
+Vote Weight = 0.5 * (Amount Staked / Total Staked Amount) + 0.5 * (Staking Duration / Max Staking Duration)
+```
+
+**Explanation:**
+
+- **Amount Staked:** The quantity of tokens a user has staked.
+- **Total Staked Amount:** The total amount of tokens staked across all users.
+- **Staking Duration:** The length of time for which the tokens are locked in staking.
+- **Max Staking Duration:** The maximum allowable staking duration.
+
+This formula ensures that both the amount of tokens staked and the duration of the staking period contribute equally to the voting weight. A user who stakes a larger amount of tokens for a longer period will have a higher voting weight.
+
+## Item Incubation and Minting
+
+### Incubation Time
+
+- **Variable Incubation:** The incubation time for an item earned in-game can vary based on its characteristics. For example, rarer or more powerful items might have longer incubation periods.
+- **Active Time:** The incubation period is essentially the time the item is actively used or held within the game.
+
+### Minting and NFT Conversion
+
+- **Earned In-Game Items:**
+  - **Incubation Period:** Before these items can be exchanged for CKY tokens, they must undergo an incubation period based on their specific characteristics. This period ensures that players have actively engaged with the game and utilized the items.
+- **Dropped or Default Items:**
+  - **Incubation Period:** Farm, dropped, craft, and default items and must under go an incubation period before they can be converted into NFTs.
+  - **Minting Cost:** To convert these items into NFTs, players must pay a minting fee in CKY tokens.
+
+The voting system, combined with the staking mechanism, can effectively track and reward active players. By requiring a certain amount of staked tokens and a minimum staking duration to participate in governance, the system ensures that only active and committed community members have a significant influence on decision-making.
+
+By implementing an incubation period and a minting fee, the game can control the supply of NFTs and prevent players from immediately selling off their newly acquired items without contributing to the game's ecosystem.
+
 <a name="header-4.5"/>
 
 #### 4.5 Governance and Circulation
