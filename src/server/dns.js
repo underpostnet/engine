@@ -61,9 +61,10 @@ const Dns = {
           }
         }
         try {
-          const response = await axios.get(process.env.DNS_TEST_URL);
+          const ipUrlTest = `https://${process.env.DEFAULT_DEPLOY_HOST}`;
+          const response = await axios.get(ipUrlTest);
           const verifyIp = response.request.socket.remoteAddress;
-          logger.info(process.env.DNS_TEST_URL + ' IP', verifyIp);
+          logger.info(ipUrlTest + ' IP', verifyIp);
           if (verifyIp === testIp) {
             await this.saveIp(confCronPath, confCronData, testIp);
           } else logger.error('ip not updated');

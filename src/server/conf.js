@@ -251,8 +251,8 @@ const buildClientSrc = async (
   );
 
   fs.writeFileSync(
-    `./src/client/${toClientVariableName}.js`,
-    formattedSrc(fs.readFileSync(`./src/client/${fromClientVariableName}.js`, 'utf8')),
+    `./src/client/${toClientVariableName}.index.js`,
+    formattedSrc(fs.readFileSync(`./src/client/${fromClientVariableName}.index.js`, 'utf8')),
     'utf8',
   );
 

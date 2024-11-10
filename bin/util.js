@@ -184,6 +184,16 @@ try {
     case 'get-ip': {
       const response = await axios.get(process.argv[3]);
       logger.info(process.argv[3] + ' IP', response.request.socket.remoteAddress);
+      break;
+    }
+
+    case 'clean-env': {
+      shellExec(`git checkout package.json`);
+      shellExec(`git checkout .env.production`);
+      shellExec(`git checkout .env.development`);
+      shellExec(`git checkout .env.test`);
+      shellExec(`git checkout jsdoc.json`);
+      break;
     }
 
     default:

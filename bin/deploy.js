@@ -834,6 +834,12 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // remove all
       // ssh-add -D
 
+      // sshpass -p ${{ secrets.PSWD }} ssh -o StrictHostKeyChecking=no -p 22 ${{ secrets.USER}}@${{ secrets.VPS_IP }} 'cd /home/adam && ./deploy.sh'
+
+      // copies the public key of your default identity (use -i identity_file for other identities) to the remote host.
+      // ssh-copy-id user@hostname.example.com
+      // ssh-copy-id "user@hostname.example.com -p <port-number>"
+
       break;
     }
 
