@@ -18,7 +18,7 @@
 4.  **Tokenomics**
     - 4.1 [Cryptokoyn.net (ERC-20): In-game currency](#header-4.1)
     - 4.2 [Itemledger.com (ERC-721): NFT for in-game items](#header-4.2)
-    - 4.3 Token distribution and allocation
+    - 4.3 [Token distribution and allocation](#header-4.2)
     - 4.4 Consensus mechanism
     - 4.5 [Governance and Circulation](#header-4.5)
 5.  **Game Mechanics and Progression**
@@ -403,6 +403,34 @@ The contract overrides several functions from the inherited contracts to ensure 
 - **Flexibility:** The `ERC721Enumerable` and `ERC721Burnable` features provide additional functionalities for managing and controlling NFTs.
 
 This smart contract creates a flexible and secure platform for managing unique items. It can be used for various applications, such as digital collectibles, in-game items, or real-world asset tokenization.
+
+<a name="header-4.3"/>
+
+#### 4.3 Token distribution and Allocation
+
+**Cryptokoyn.net (CKY)**
+
+- **Total Supply:** 10,000,000 CKY
+- **Initial Allocation:**
+  - **90% Airdrop and Mint Pool:** A significant portion will be allocated to an airdrop pool and a minting pool to distribute tokens to a wider audience.
+  - **10% Direct Investor Wallets:** Directly distributed to investor wallets proportionally to their financial participation.
+
+**Itemledger.com (IL)**
+
+- **Total Supply:** Variable, based on the number of unique in-game items created.
+- **Distribution:**
+  - **In-Game Activities:** Players can earn IL tokens by completing specific quests, achievements, or participating in special events.
+  - **Crafting:** Players can craft unique items and mint corresponding IL tokens, adding to the overall supply.
+  - **Marketplace Trading:** IL tokens can be freely traded on NFT marketplaces, allowing players to acquire desired items or monetize their in-game achievements.
+
+**Token Mechanics:**
+
+- **Token Burning:** Only tokens held in the Coinbase address can be burned. This mechanism can be used to adjust the token supply and potentially increase token value.
+- **Staking:**
+  - **Asset Freezing:** Staked assets are frozen, meaning they cannot be used for other purposes while they are staked.
+  - **Voting Rights:** The weight or influence of a vote is directly proportional to the amount of staked tokens and the duration of the staking period. This ensures that long-term commitment to the project is rewarded and that larger stakeholders have a greater say in the project's future.
+
+This revised token distribution and allocation plan aims to provide a more balanced approach, considering both community engagement and investor interests. By incorporating airdrops, minting pools, and staking mechanisms, the project can foster a strong and active community while ensuring the long-term viability of the CKY token.
 
 <a name="header-4.5"/>
 
