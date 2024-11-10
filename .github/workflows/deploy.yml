@@ -11,49 +11,64 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: ssh deploy
-        uses: appleboy/ssh-action@master
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USERNAME }}
-          key: ${{ secrets.SSH_PRIV_KEY }}
-          port: 22
-          script: |
-            pwd
-            ls -a
-            pm2 list
-          # # You may pin to the exact commit or the version.
-          # # uses: easingthemes/ssh-deploy@ece05a22752e524363164bfb2f69a5ba4f8ded0d
-          # uses: easingthemes/ssh-deploy@v5.1.0
-          # with:
-          #   # Private key part of an SSH key pair
-          #   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
-          #   # Remote host
-          #   REMOTE_HOST: ${{ secrets.SSH_HOST }}
-          #   # Remote user
-          #   REMOTE_USER: ${{ secrets.SSH_USERNAME }}
-          #   # Remote port
-          #   REMOTE_PORT: ${{ secrets.SSH_PORT }} # optional, default is 22
-          #   # # Source directory, path relative to `$GITHUB_WORKSPACE` root, eg: `dist/`
-          #   # SOURCE: # optional, default is
-          #   # # Target directory
-          #   # TARGET: # optional, default is
-          #   # # Arguments to pass to rsync
-          #   # ARGS: # optional, default is -rlgoDzvc -i
-          #   # # An array of ssh arguments, they must be prefixed with -o and separated by a comma, for example: -o SomeArgument=no, -o SomeOtherArgument=5
-          #   # SSH_CMD_ARGS: # optional, default is -o StrictHostKeyChecking=no
-          #   # # paths to exclude separated by `,`, ie: `/dist/, /node_modules/`
-          #   # EXCLUDE: # optional, default is
-          #   # # Script to run on host machine before rsync
-          #   SCRIPT_BEFORE: # optional, default is
-          #     pwd
-          #     ls -a
-          #     pm2 list
-          #   # # If not an empty string, the action will fail if the before script fails. Note: The string 'false' will be treated as true
-          #   # SCRIPT_BEFORE_REQUIRED: # optional, default is
-          #   # # Script to run on host machine after rsync
-          #   # SCRIPT_AFTER: # optional, default is
-          #   # # If not an empty string, the action will fail if the after script fails. Note: The string 'false' will be treated as true
-          #   # SCRIPT_AFTER_REQUIRED: # optional, default is
+        run: |
+          mkdir -p ~/.ssh/
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          sudo chmod 700 ~/.ssh
+          sudo chmod 600 ~/.ssh/id_rsa
+          echo "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/id_rsa ${{ secrets.SSH_USERNAME }}@${{secrets.SSH_HOST}}
+          pwd
+          ls -a
+          pm2 list
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{secrets.SSH_PRIV_KEY}}
+          SSH_KNOWN_HOSTS: ${{secrets.SSH_HOST}}
+          SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+        # uses: appleboy/ssh-action@master
+        # with:
+        #   host: ${{ secrets.SSH_HOST }}
+        #   username: ${{ secrets.SSH_USERNAME }}
+        #   key: ${{ secrets.SSH_PRIV_KEY }}
+        #   port: 22
+        #   script: |
+        #     pwd
+        #     ls -a
+        #     pm2 list
+        # # You may pin to the exact commit or the version.
+        # # uses: easingthemes/ssh-deploy@ece05a22752e524363164bfb2f69a5ba4f8ded0d
+        # uses: easingthemes/ssh-deploy@v5.1.0
+        # with:
+        #   # Private key part of an SSH key pair
+        #   SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIV_KEY }}
+        #   # Remote host
+        #   REMOTE_HOST: ${{ secrets.SSH_HOST }}
+        #   # Remote user
+        #   REMOTE_USER: ${{ secrets.SSH_USERNAME }}
+        #   # Remote port
+        #   REMOTE_PORT: ${{ secrets.SSH_PORT }} # optional, default is 22
+        #   # # Source directory, path relative to `$GITHUB_WORKSPACE` root, eg: `dist/`
+        #   # SOURCE: # optional, default is
+        #   # # Target directory
+        #   # TARGET: # optional, default is
+        #   # # Arguments to pass to rsync
+        #   # ARGS: # optional, default is -rlgoDzvc -i
+        #   # # An array of ssh arguments, they must be prefixed with -o and separated by a comma, for example: -o SomeArgument=no, -o SomeOtherArgument=5
+        #   # SSH_CMD_ARGS: # optional, default is -o StrictHostKeyChecking=no
+        #   # # paths to exclude separated by `,`, ie: `/dist/, /node_modules/`
+        #   # EXCLUDE: # optional, default is
+        #   # # Script to run on host machine before rsync
+        #   SCRIPT_BEFORE: # optional, default is
+        #     pwd
+        #     ls -a
+        #     pm2 list
+        #   # # If not an empty string, the action will fail if the before script fails. Note: The string 'false' will be treated as true
+        #   # SCRIPT_BEFORE_REQUIRED: # optional, default is
+        #   # # Script to run on host machine after rsync
+        #   # SCRIPT_AFTER: # optional, default is
+        #   # # If not an empty string, the action will fail if the after script fails. Note: The string 'false' will be treated as true
+        #   # SCRIPT_AFTER_REQUIRED: # optional, default is
     permissions:
       contents: write
       packages: write
