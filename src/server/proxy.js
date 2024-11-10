@@ -10,10 +10,15 @@ import { listenPortController, network } from './network.js';
 import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
 import { buildProxyRouter } from './conf.js';
+import { getRootDirectory } from './process.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
+
+const maintenancePath = `${getRootDirectory()}/public/${process.env.DEFAULT_DEPLOY_HOST}${
+  process.env.DEFAULT_DEPLOY_PATH
+}/maintenance.html`;
 
 const buildProxy = async () => {
   // default target
@@ -25,6 +30,9 @@ const buildProxy = async () => {
   for (let port of Object.keys(proxyRouter)) {
     port = parseInt(port);
     const hosts = proxyRouter[port];
+    const proxyPath = '/';
+    const proxyHost = 'localhost';
+    const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
     const app = express();
 
     // set logger
@@ -75,10 +83,6 @@ const buildProxy = async () => {
       router[absoluteHostKey] = options.router[absoluteHostKey];
     options.router = router;
 
-    // instance proxy server
-    const proxyPath = '/';
-    const proxyHost = 'localhost';
-
     const filter = false
       ? (pathname, req) => {
           // return pathname.match('^/api') && req.method === 'GET';
@@ -88,7 +92,11 @@ const buildProxy = async () => {
     app.use(proxyPath, createProxyMiddleware(filter, options));
     await network.port.portClean(port);
 
-    const runningData = { host: proxyHost, path: proxyPath, client: null, runtime: 'nodejs', meta: import.meta };
+    if (fs.existsSync(maintenancePath))
+      app.use(function (err, req, res, next) {
+        logger.error(err, err.stack);
+        return res.status(500).sendFile(maintenancePath);
+      });
 
     switch (process.env.NODE_ENV) {
       case 'production':
