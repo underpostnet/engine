@@ -9,6 +9,10 @@ const InstanceManagement = {
     let columnDefs = [
       { field: 'host', headerName: 'host', editable: role === 'admin' },
       { field: 'path', headerName: 'path', editable: role === 'admin' },
+      { field: 'runtime', headerName: 'runtime', editable: role === 'admin' },
+      { field: 'port', headerName: 'port', editable: role === 'admin' },
+      { field: 'client', headerName: 'client', editable: role === 'admin' },
+      { field: 'apis', headerName: 'apis', editable: role === 'admin' },
       { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
       { field: 'updatedAt', headerName: 'updatedAt', cellDataType: 'date', editable: false },
     ];

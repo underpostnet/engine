@@ -5,6 +5,8 @@ import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { killPortProcess } from 'kill-port-process';
 import { loggerFactory } from './logger.js';
 import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
+import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import { getDeployId } from './conf.js';
 
 // Network Address Translation Management
 
@@ -66,12 +68,49 @@ const logRuntimeRouter = () => {
   logger.info('Runtime network', displayLog);
 };
 
-const saveRuntimeRouter = () =>
-  fs.writeFileSync(
-    `./tmp/runtime-router.${process.argv[3] ? process.argv[3] : 'default'}.json`,
-    JSON.stringify(networkRouter, null, 4),
-    'utf-8',
-  );
+const saveRuntimeRouter = async () => {
+  try {
+    const deployId = process.env.DEFAULT_DEPLOY_ID;
+    const host = process.env.DEFAULT_DEPLOY_HOST;
+    const path = process.env.DEFAULT_DEPLOY_PATH;
+    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+    const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+    const { db } = confServer[host][path];
+
+    let closeConn;
+    if (!DataBaseProvider.instance[`${host}${path}`]) {
+      await DataBaseProvider.load({ apis: ['instance'], host, path, db });
+      closeConn = true;
+    }
+
+    /** @type {import('../api/instance/instance.model.js').InstanceModel} */
+    const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
+
+    for (const _host of Object.keys(networkRouter)) {
+      for (const _path of Object.keys(networkRouter[_host])) {
+        const body = {
+          host,
+          path,
+          deployId: getDeployId(),
+          client: networkRouter[_host][_path].client,
+          runtime: networkRouter[_host][_path].runtime,
+          port: networkRouter[_host][_path].port,
+          apis: networkRouter[_host][_path].apis,
+        };
+        const instance = await Instance.findOne({ deployId: body.deployId, port: body.port });
+        if (instance) {
+          await Instance.findByIdAndUpdate(instance._id, body);
+        } else {
+          await new Instance(body).save();
+        }
+      }
+    }
+
+    if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+  } catch (error) {
+    logger.error(error);
+  }
+};
 
 const listenServerFactory = (logic = async () => {}) => {
   return {
@@ -109,6 +148,7 @@ const listenPortController = async (server, port, metadata) =>
               ? `https://${host}${path}`
               : `http://${host}:${port}${path}`,
           local: `http://localhost:${port}${path}`,
+          apis: metadata.apis,
         };
 
         return resolve(true);

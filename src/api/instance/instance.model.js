@@ -14,6 +14,7 @@ const InstanceSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+    apis: [{ type: String }],
   },
   {
     timestamps: true,

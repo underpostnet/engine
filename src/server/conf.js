@@ -665,6 +665,14 @@ const getDeployGroupId = () => {
   return 'dd';
 };
 
+const getDeployId = () => {
+  for (const deployId of process.argv.slice(2)) {
+    if (fs.existsSync(`./engine-private/conf/${deployId}`)) return deployId;
+    else if (fs.existsSync(`./engine-private/replica/${deployId}`)) return deployId;
+  }
+  return 'default';
+};
+
 const getCronBackUpFolder = (host = '', path = '') => {
   return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
 };
@@ -889,4 +897,5 @@ export {
   getRestoreCronCmd,
   mergeBackUp,
   fixDependencies,
+  getDeployId,
 };

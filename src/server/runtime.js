@@ -18,13 +18,14 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
+import { getDeployId } from './conf.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
 
 const buildRuntime = async () => {
-  const deployId = `${process.argv[3] ? process.argv[3] : 'default'}`;
+  const deployId = getDeployId();
 
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
@@ -95,6 +96,7 @@ export PATH=$PATH:/opt/lampp/bin`,
         runtime,
         client,
         meta: import.meta,
+        apis,
       };
 
       let redirectUrl;
