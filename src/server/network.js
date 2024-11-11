@@ -89,8 +89,8 @@ const saveRuntimeRouter = async () => {
     for (const _host of Object.keys(networkRouter)) {
       for (const _path of Object.keys(networkRouter[_host])) {
         const body = {
-          host,
-          path,
+          host: _host,
+          path: _path,
           deployId: getDeployId(),
           client: networkRouter[_host][_path].client,
           runtime: networkRouter[_host][_path].runtime,
