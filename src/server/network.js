@@ -112,6 +112,43 @@ const saveRuntimeRouter = async () => {
   }
 };
 
+const netWorkCron = [];
+
+const saveRuntimeCron = async () => {
+  try {
+    const deployId = process.env.DEFAULT_DEPLOY_ID;
+    const host = process.env.DEFAULT_DEPLOY_HOST;
+    const path = process.env.DEFAULT_DEPLOY_PATH;
+    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
+    const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
+    const { db } = confServer[host][path];
+
+    let closeConn;
+    if (!DataBaseProvider.instance[`${host}${path}`]) {
+      await DataBaseProvider.load({ apis: ['cron'], host, path, db });
+      closeConn = true;
+    }
+
+    /** @type {import('../api/cron/cron.model.js').CronModel} */
+    const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
+
+    // await Cron.insertMany(netWorkCron);
+
+    for (const cronInstance of netWorkCron) {
+      const cron = await Cron.findOne({ deployId: cronInstance.deployId, jobId: cronInstance.jobId });
+      if (cron) {
+        await Cron.findByIdAndUpdate(cron._id, cronInstance);
+      } else {
+        await new Cron(cronInstance).save();
+      }
+    }
+
+    if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+  } catch (error) {
+    logger.error(error);
+  }
+};
+
 const listenServerFactory = (logic = async () => {}) => {
   return {
     listen: async (...args) => (logic ? await logic(...args) : undefined, args[1]()),
@@ -159,4 +196,14 @@ const listenPortController = async (server, port, metadata) =>
     }
   });
 
-export { ip, network, listenPortController, networkRouter, saveRuntimeRouter, logRuntimeRouter, listenServerFactory };
+export {
+  ip,
+  network,
+  listenPortController,
+  networkRouter,
+  netWorkCron,
+  saveRuntimeRouter,
+  logRuntimeRouter,
+  listenServerFactory,
+  saveRuntimeCron,
+};
