@@ -44,7 +44,9 @@ const Config = {
       this.default.server = {};
       for (const deployId of process.argv[3].split(',')) {
         let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
-        const privateConfDevPath = `./engine-private/conf/${deployId}/conf.server.dev.${process.argv[4]}.json`;
+        const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
+          ? `./engine-private/replica/${deployId}/conf.server.json`
+          : `./engine-private/conf/${deployId}/conf.server.dev.${process.argv[4]}.json`;
         const confDevPath = fs.existsSync(privateConfDevPath)
           ? privateConfDevPath
           : `./engine-private/conf/${deployId}/conf.server.dev.json`;

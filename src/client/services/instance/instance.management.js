@@ -7,10 +7,11 @@ const InstanceManagement = {
     const user = Elements.Data.user.main.model.user;
     const { role } = user;
     let columnDefs = [
+      { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },
+      { field: 'port', headerName: 'port', editable: role === 'admin' },
       { field: 'host', headerName: 'host', editable: role === 'admin' },
       { field: 'path', headerName: 'path', editable: role === 'admin' },
       { field: 'runtime', headerName: 'runtime', editable: role === 'admin' },
-      { field: 'port', headerName: 'port', editable: role === 'admin' },
       { field: 'client', headerName: 'client', editable: role === 'admin' },
       { field: 'apis', headerName: 'apis', editable: role === 'admin' },
       { field: 'createdAt', headerName: 'createdAt', cellDataType: 'date', editable: false },
@@ -20,7 +21,6 @@ const InstanceManagement = {
       case 'admin':
         {
           columnDefs = columnDefs.concat([
-            { field: 'deployId', headerName: 'deployId', editable: role === 'admin' },
             {
               field: 'userId',
               headerName: 'User',
