@@ -666,7 +666,9 @@ const getDeployGroupId = () => {
 };
 
 const getDeployId = () => {
-  for (const deployId of process.argv.slice(2)) {
+  const deployIndexArg = process.argv.findIndex((a) => a.match(`deploy-id:`));
+  if (deployIndexArg > -1) return process.argv[deployIndexArg].split(':')[1].trim();
+  for (const deployId of process.argv) {
     if (fs.existsSync(`./engine-private/conf/${deployId}`)) return deployId;
     else if (fs.existsSync(`./engine-private/replica/${deployId}`)) return deployId;
   }

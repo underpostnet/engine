@@ -468,7 +468,7 @@ try {
               `./engine-private/replica/${replicaDeployId}/package.json`,
               fs
                 .readFileSync(`./engine-private/replica/${replicaDeployId}/package.json`, 'utf8')
-                .replaceAll(`--name ${deployId}`, `--name ${replicaDeployId}`),
+                .replaceAll(`${deployId}`, `${replicaDeployId}`),
               'utf8',
             );
           }
