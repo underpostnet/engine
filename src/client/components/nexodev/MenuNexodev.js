@@ -29,6 +29,7 @@ import { InstanceManagement } from '../../services/instance/instance.management.
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { RouterEvents } from '../core/Router.js';
+import { CronManagement } from '../../services/cron/cron.management.js';
 
 const MenuNexodev = {
   Data: {},
@@ -278,6 +279,22 @@ const MenuNexodev = {
               tabHref: `${getProxyPath()}instance-management`,
               handleContainerClass: 'handle-btn-container',
               tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('instance-management', 'right')),
+            })}
+            ${await BtnIcon.Render({
+              class: 'in wfa main-btn-menu main-btn-cron-management',
+              label: renderMenuLabel({
+                icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
+                  <path
+                    fill="currentColor"
+                    d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
+                  />
+                </svg>`,
+                text: html`<span class="menu-label-text">${Translate.Render('cron-management')}</span>`,
+              }),
+              attrs: `data-id="cron-management"`,
+              tabHref: `${getProxyPath()}cron-management`,
+              handleContainerClass: 'handle-btn-container',
+              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('cron-management', 'right')),
             })}
           </div>
         </div>
@@ -907,6 +924,33 @@ const MenuNexodev = {
           text: Translate.Render('instance-management'),
         }),
         html: async () => InstanceManagement.RenderTable({ Elements: ElementsNexodev }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        barMode,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cron-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cron-management',
+        route: 'cron-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
+            <path
+              fill="currentColor"
+              d="M22.8 19.4c.1 0 .1.1 0 .2l-1 1.7c-.1.1-.2.1-.3.1l-1.2-.4c-.3.2-.5.3-.8.5l-.2 1.3c0 .1-.1.2-.2.2h-2c-.1 0-.2-.1-.3-.2l-.2-1.3c-.3-.1-.6-.3-.8-.5l-1.2.5c-.1 0-.2 0-.3-.1l-1-1.7c-.1-.1 0-.2.1-.3l1.1-.8v-1l-1.1-.8c-.1-.1-.1-.2-.1-.3l1-1.7c.1-.1.2-.1.3-.1l1.2.5c.3-.2.5-.3.8-.5l.2-1.3c0-.1.1-.2.3-.2h2c.1 0 .2.1.2.2l.2 1.3c.3.1.6.3.9.5l1.2-.5c.1 0 .3 0 .3.1l1 1.7c.1.1 0 .2-.1.3l-1.1.8v1zM19.5 18c0-.8-.7-1.5-1.5-1.5s-1.5.7-1.5 1.5s.7 1.5 1.5 1.5s1.5-.7 1.5-1.5M13 14V8h-2v6m4-13H9v2h6zm-3.7 19C7.8 19.6 5 16.6 5 13c0-3.9 3.1-7 7-7c3.2 0 5.9 2.1 6.7 5c.8.1 1.5.3 2.2.6c-.3-1.6-.9-3-1.9-4.2L20.5 6c-.5-.5-1-1-1.5-1.4L17.6 6c-1.5-1.3-3.5-2-5.6-2c-5 0-9 4-9 9s4 9 9 9h.3c-.5-.6-.8-1.3-1-2"
+            />
+          </svg>`,
+          text: Translate.Render('cron-management'),
+        }),
+        html: async () => CronManagement.RenderTable({ Elements: ElementsNexodev }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

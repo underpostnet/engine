@@ -58,6 +58,11 @@ const RoutesNexodev = () => {
       render: () => s(`.main-btn-instance-management`).click(),
       translateTitle: true,
     },
+    '/cron-management': {
+      title: 'cron-management',
+      render: () => s(`.main-btn-cron-management`).click(),
+      translateTitle: true,
+    },
   };
 };
 
