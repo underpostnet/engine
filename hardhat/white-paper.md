@@ -432,9 +432,7 @@ This smart contract creates a flexible and secure platform for managing unique i
 
 This revised token distribution and allocation plan aims to provide a more balanced approach, considering both community engagement and investor interests. By incorporating airdrops, minting pools, and staking mechanisms, the project can foster a strong and active community while ensuring the long-term viability of the CKY token.
 
-## Voting System Formula
-
-**Formula:**
+**Voting System Formula**
 
 ```
 Vote Weight = 0.5 * (Amount Staked / Total Staked Amount) + 0.5 * (Staking Duration / Max Staking Duration)
@@ -449,14 +447,12 @@ Vote Weight = 0.5 * (Amount Staked / Total Staked Amount) + 0.5 * (Staking Durat
 
 This formula ensures that both the amount of tokens staked and the duration of the staking period contribute equally to the voting weight. A user who stakes a larger amount of tokens for a longer period will have a higher voting weight.
 
-## Item Incubation and Minting
-
-### Incubation Time
+**Item Incubation Time**
 
 - **Variable Incubation:** The incubation time for an item earned in-game can vary based on its characteristics. For example, rarer or more powerful items might have longer incubation periods.
 - **Active Time:** The incubation period is essentially the time the item is actively used or held within the game.
 
-### Minting and NFT Conversion
+**Minting and NFT Conversion**
 
 - **Earned In-Game Items:**
   - **Incubation Period:** Before these items can be exchanged for CKY tokens, they must undergo an incubation period based on their specific characteristics. This period ensures that players have actively engaged with the game and utilized the items.
