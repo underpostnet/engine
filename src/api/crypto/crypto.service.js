@@ -6,9 +6,9 @@ const logger = loggerFactory(import.meta);
 const CryptoService = {
   post: async (req, res, options) => {
     /** @type {import('./crypto.model.js').CryptoModel} */
-    const Crypto = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Crypto;
+    const Crypto = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Crypto;
     /** @type {import('../user/user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     switch (req.params.id) {
       case 'verify': {

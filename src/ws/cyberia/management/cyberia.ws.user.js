@@ -9,7 +9,7 @@ const CyberiaWsUserManagement = {
   localElementScope: {},
   updateCyberiaUser: async function (wsManagementId, timeInterval) {
     /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
-    const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaUser;
+    const CyberiaUser = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaUser;
 
     await timer(timeInterval);
     for (const elementId of Object.keys(this.element[wsManagementId])) {

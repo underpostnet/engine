@@ -24,7 +24,7 @@ const createIoServer = async (httpServer, options) => {
   const wsManagementId = `${host}${path}`;
 
   /** @type {import('../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-  const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+  const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
   CyberiaWsInstanceScope[wsManagementId] = {
     world: {
@@ -38,7 +38,7 @@ const createIoServer = async (httpServer, options) => {
     const biomeId = CyberiaWsInstanceScope[wsManagementId].world.instance.face[0];
 
     /** @type {import('../../api/cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaBiome;
 
     const biome = await CyberiaBiome.findOne({ _id: biomeId });
 

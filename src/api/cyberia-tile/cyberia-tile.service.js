@@ -90,7 +90,7 @@ const getHexMatrix = ({ imageFilePath }) =>
 const CyberiaTileService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
-    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
+    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaTile;
 
     switch (req.params.id) {
       case 'hex-matrix-from-png': {
@@ -119,7 +119,7 @@ const CyberiaTileService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
-    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
+    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaTile;
 
     switch (req.params.id) {
       case 'all':
@@ -136,7 +136,7 @@ const CyberiaTileService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
-    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaTile;
+    const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaTile;
 
     switch (req.params.id) {
       default:

@@ -7,7 +7,7 @@ const logger = loggerFactory(import.meta);
 const CyberiaBiomeService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
 
     switch (req.params.id) {
       default: {
@@ -20,7 +20,7 @@ const CyberiaBiomeService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
 
     switch (req.params.id) {
       case 'all':
@@ -37,7 +37,7 @@ const CyberiaBiomeService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
 
     switch (req.params.id) {
       default:

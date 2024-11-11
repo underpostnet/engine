@@ -19,7 +19,7 @@ const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
 const CyberiaWorldService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
     switch (req.params.id) {
       default: {
         const { _id } = await new CyberiaWorld(req.body).save();
@@ -33,7 +33,7 @@ const CyberiaWorldService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
     switch (req.params.id) {
       case 'all':
@@ -55,7 +55,7 @@ const CyberiaWorldService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
     switch (req.params.id) {
       default:

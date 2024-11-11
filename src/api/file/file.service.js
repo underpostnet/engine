@@ -43,12 +43,12 @@ const FileFactory = {
 const FileService = {
   post: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
     return await FileFactory.upload(req, File);
   },
   get: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     if (req.path.startsWith('/blob') && req.params.id) {
       const file = await File.findOne({ _id: req.params.id });
@@ -68,7 +68,7 @@ const FileService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     switch (req.params.id) {
       default:

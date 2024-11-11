@@ -6,12 +6,12 @@ const logger = loggerFactory(import.meta);
 const EventSchedulerService = {
   post: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
+    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
     return await new EventScheduler({ ...req.body, creatorUserId: req.auth.user._id }).save();
   },
   get: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
+    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
     if (req.path.startsWith('/creatorUser')) {
       return await EventScheduler.find({ creatorUserId: req.params.id ? req.params.id : req.auth.user._id });
     }
@@ -20,12 +20,12 @@ const EventSchedulerService = {
   },
   put: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
+    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
     return await EventScheduler.findByIdAndUpdate(req.params.id, req.body);
   },
   delete: async (req, res, options) => {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
-    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.EventScheduler;
+    const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
     if (req.params.id) return await EventScheduler.findByIdAndDelete(req.params.id);
     else return await await EventScheduler.deleteMany();
   },

@@ -27,10 +27,10 @@ const getDefaultProfileImageId = async (File) => {
 const UserService = {
   post: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     if (req.params.id === 'recover-verify-email') {
       const user = await User.findOne({
@@ -254,10 +254,10 @@ const UserService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     if (req.path.startsWith('/email')) {
       return await User.findOne({
@@ -368,7 +368,7 @@ const UserService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
     switch (req.params.id) {
       default: {
         const user = await User.findOne({
@@ -394,10 +394,10 @@ const UserService = {
   },
   put: async (req, res, options) => {
     /** @type {import('./user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     // req.path | req.baseUrl
 

@@ -13,10 +13,10 @@ const logger = loggerFactory(import.meta);
 const CyberiaUserService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
-    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
+    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaUser;
 
     /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
     if (!req.body.model.user._id) throw new Error('User id is required');
 
@@ -26,9 +26,9 @@ const CyberiaUserService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-user.model.js').CyberiaUserModel} */
-    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
+    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaUser;
     /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
     switch (req.params.id) {
       case 'auth': {

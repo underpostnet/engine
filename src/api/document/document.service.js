@@ -10,7 +10,7 @@ const logger = loggerFactory(import.meta);
 const DocumentService = {
   post: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
 
     switch (req.params.id) {
       default:
@@ -20,9 +20,9 @@ const DocumentService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../user/user.model.js').UserModel} */
-    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.User;
+    const User = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.User;
 
     if (req.path.startsWith('/public') && req.query['tags']) {
       const publisherUsers = await User.find({ $or: [{ role: 'admin' }, { role: 'moderator' }] });
@@ -71,9 +71,9 @@ const DocumentService = {
   },
   delete: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     switch (req.params.id) {
       default: {
@@ -98,9 +98,9 @@ const DocumentService = {
   },
   put: async (req, res, options) => {
     /** @type {import('./document.model.js').DocumentModel} */
-    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.Document;
+    const Document = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Document;
     /** @type {import('../file/file.model.js').FileModel} */
-    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.File;
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
 
     switch (req.params.id) {
       default: {

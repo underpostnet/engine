@@ -30,7 +30,7 @@ const CyberiaWsSkillManagement = {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaWorld;
   },
   createSkill: function (wsManagementId = '', parent = { id: '', type: '' }, skillKey = '') {
     let parentElement;

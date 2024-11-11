@@ -455,9 +455,9 @@ const CyberiaWsBotManagement = {
       heuristic: pathfinding.Heuristic.chebyshev,
     });
     /** @type {import('../../../api/cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaBiome;
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.CyberiaWorld;
+    const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaWorld;
     (async () => {
       const world = CyberiaWsInstanceScope[wsManagementId].world.instance;
 

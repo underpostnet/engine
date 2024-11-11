@@ -8,9 +8,9 @@ const logger = loggerFactory(import.meta);
 const CyberiaQuestService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
-    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaQuest;
+    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuest;
     /** @type {import('../cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
-    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaUser;
+    const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaUser;
 
     const wsManagementId = `${options.host}${options.path}`;
 
@@ -96,17 +96,17 @@ const CyberiaQuestService = {
   },
   get: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
-    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaQuest;
+    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuest;
     return await CyberiaQuest.findById(req.params.id);
   },
   put: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
-    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaQuest;
+    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuest;
     return await CyberiaQuest.findByIdAndUpdate(req.params.id, req.body);
   },
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-quest.model.js').CyberiaQuestModel} */
-    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaQuest;
+    const CyberiaQuest = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaQuest;
     return await CyberiaQuest.findByIdAndDelete(req.params.id);
   },
 };

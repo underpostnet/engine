@@ -113,7 +113,7 @@ try {
         case 'update':
           {
             await DataBaseProvider.load({ apis: [arg0], host, path, db });
-            const models = DataBaseProvider.instance[`${host}${path}`].mongoose[getCapVariableName(arg0)];
+            const models = DataBaseProvider.instance[`${host}${path}`].mongoose.models[getCapVariableName(arg0)];
 
             const select = JSON.parse(arg1.replaceAll("'", `"`));
             const update = JSON.parse(arg2.replaceAll("'", `"`));

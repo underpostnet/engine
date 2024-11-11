@@ -15,7 +15,7 @@ const CyberiaUserRouter = (options) => {
   if (!options.cyberia)
     (async () => {
       /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-      const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+      const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
       options.cyberia = {
         world: {
@@ -28,7 +28,7 @@ const CyberiaUserRouter = (options) => {
       };
       if (options.cyberia.world.instance) {
         /** @type {import('../cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
-        const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaBiome;
+        const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
 
         for (const biomeId of options.cyberia.world.instance.face) {
           if (!options.cyberia.biome.instance[biomeId])

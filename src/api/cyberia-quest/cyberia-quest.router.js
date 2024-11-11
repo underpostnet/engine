@@ -15,7 +15,7 @@ const CyberiaQuestRouter = (options) => {
   if (!options.cyberia)
     (async () => {
       /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
-      const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.CyberiaWorld;
+      const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
 
       options.cyberia = {
         world: {
