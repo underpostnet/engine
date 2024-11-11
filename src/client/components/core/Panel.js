@@ -507,7 +507,7 @@ const Panel = {
           color: black;
           padding: 10px;
           cursor: pointer;
-          max-height: 400px;
+          min-height: 400px;
           overflow: hidden;
         }
         .${idPanel}:hover {

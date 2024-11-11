@@ -7,7 +7,7 @@ import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import colors from 'colors';
 import { loggerFactory } from './logger.js';
-import { shellExec, shellCd } from './process.js';
+import { shellExec, shellCd, getRootDirectory } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import ncp from 'copy-paste';
 import read from 'read';
@@ -873,6 +873,27 @@ const fixDependencies = async () => {
   );
 };
 
+const maintenancePath = `${getRootDirectory()}/public/${process.env.DEFAULT_DEPLOY_HOST}${
+  process.env.DEFAULT_DEPLOY_PATH
+}/maintenance.html`;
+
+const maintenanceMiddleware = (req, res, port, proxyRouter) => {
+  if (process.argv.includes('maintenance') && fs.existsSync(maintenancePath)) {
+    if (req.method.toUpperCase() === 'GET') return res.status(503).sendFile(maintenancePath);
+    return res.status(503).json({
+      status: 'maintenance',
+      message: 'Server is under maintenance',
+    });
+  }
+};
+
+const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
+  shellExec(`pm2 kill`);
+  const proxyDeployId = fs.readFileSync(`./engine-private/deploy/${deployGroupId}.proxy`, 'utf8').trim();
+  shellExec(`node bin/deploy conf ${proxyDeployId} production`);
+  shellExec(`node bin/deploy run ${proxyDeployId} maintenance`);
+};
+
 export {
   Cmd,
   Config,
@@ -902,4 +923,7 @@ export {
   mergeBackUp,
   fixDependencies,
   getDeployId,
+  maintenancePath,
+  maintenanceMiddleware,
+  setUpProxyMaintenanceServer,
 };

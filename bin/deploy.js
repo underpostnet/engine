@@ -25,6 +25,7 @@ import {
   Cmd,
   restoreMacroDb,
   fixDependencies,
+  setUpProxyMaintenanceServer,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -154,7 +155,7 @@ try {
           await deployRun(dataDeploy);
         } else {
           loadConf(process.argv[3]);
-          shellExec(`npm start`);
+          shellExec(`npm start ${process.argv.includes('maintenance') ? 'maintenance' : ''}`);
         }
       }
       break;
@@ -296,6 +297,7 @@ try {
 
     case 'run-macro':
       {
+        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
         await deployRun(dataDeploy, true);
@@ -304,6 +306,7 @@ try {
 
     case 'run-macro-build':
       {
+        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
         for (const deploy of dataDeploy) {

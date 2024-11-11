@@ -9,16 +9,12 @@ import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
 import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
-import { buildProxyRouter } from './conf.js';
+import { buildProxyRouter, maintenanceMiddleware } from './conf.js';
 import { getRootDirectory } from './process.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
-
-const maintenancePath = `${getRootDirectory()}/public/${process.env.DEFAULT_DEPLOY_HOST}${
-  process.env.DEFAULT_DEPLOY_PATH
-}/maintenance.html`;
 
 const buildProxy = async () => {
   // default target
@@ -55,6 +51,7 @@ const buildProxy = async () => {
       onProxyReq: (proxyReq, req, res, options) => {
         // https://wtools.io/check-http-status-code
         // http://nexodev.org
+        maintenanceMiddleware(req, res, port, proxyRouter);
         sslRedirectMiddleware(req, res, port, proxyRouter);
       },
       pathRewrite: {
@@ -91,12 +88,6 @@ const buildProxy = async () => {
       : proxyPath;
     app.use(proxyPath, createProxyMiddleware(filter, options));
     await network.port.portClean(port);
-
-    if (fs.existsSync(maintenancePath))
-      app.use(function (err, req, res, next) {
-        logger.error(err, err.stack);
-        return res.status(500).sendFile(maintenancePath);
-      });
 
     switch (process.env.NODE_ENV) {
       case 'production':
