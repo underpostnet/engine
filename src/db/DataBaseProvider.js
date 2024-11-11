@@ -18,7 +18,18 @@ const DataBaseProvider = {
         case 'mongoose':
           {
             const conn = await MongooseDB.connect(db.host, db.name);
-            this.instance[`${host}${path}`][db.provider] = await MongooseDB.loadModels({ conn, apis });
+            this.instance[`${host}${path}`][db.provider] = {
+              models: await MongooseDB.loadModels({ conn, apis }),
+              connection: conn,
+              close: async () => {
+                return await new Promise((resolve) => {
+                  DataBaseProvider.instance[`${host}${path}`][db.provider].connection.close().then(() => {
+                    // logger.info('Mongoose connection is disconnected', db);
+                    return resolve();
+                  });
+                });
+              },
+            };
           }
           break;
         default:

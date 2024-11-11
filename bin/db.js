@@ -133,6 +133,7 @@ try {
                 runValidators: true,
               });
               logger.info(`successfully updated doc`, doc._doc);
+              await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
             } else throw new Error(`no doc found`);
           }
           break;
@@ -143,6 +144,13 @@ try {
         case 'create':
           break;
         case 'delete':
+          {
+            await DataBaseProvider.load({ apis: [arg0], host, path, db });
+            const models = DataBaseProvider.instance[`${host}${path}`].mongoose.models[getCapVariableName(arg0)];
+            await models.collection.drop();
+            logger.info(`successfully drop collection`, arg0);
+            await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+          }
           break;
         case 'export':
           // mongodump -d <database_name> -o <directory_backup>

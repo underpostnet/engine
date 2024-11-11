@@ -7,6 +7,9 @@ const InstanceSchema = new Schema(
     deployId: { type: String },
     host: { type: String },
     path: { type: String },
+    port: { type: String },
+    client: { type: String },
+    runtime: { type: String },
     userId: {
       type: Schema.Types.ObjectId,
       ref: 'User',
