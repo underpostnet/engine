@@ -34,7 +34,6 @@ import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
 import { JSONweb } from '../src/server/client-formatted.js';
-import { netWorkCron, saveRuntimeCron } from '../src/server/network.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -160,25 +159,6 @@ try {
       }
       break;
 
-    case 'run-cron': {
-      const confCronConfig = JSON.parse(fs.readFileSync(`./engine-private/conf/${process.argv[3]}/conf.cron.json`));
-      if (confCronConfig.jobs && Object.keys(confCronConfig.jobs).length > 0) {
-        shellExec(`node bin/deploy conf ${process.argv[3]} production`);
-        for (const job of Object.keys(confCronConfig.jobs)) {
-          if (confCronConfig.jobs[job].enabled) {
-            shellExec(Cmd.cron(process.argv[3], job, confCronConfig.jobs[job].expression));
-            netWorkCron.push({
-              deployId: process.argv[3],
-              jobId: job,
-              expression: confCronConfig.jobs[job].expression,
-            });
-          }
-        }
-      }
-      await saveRuntimeCron();
-      if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-      break;
-    }
     case 'remove-await-deploy': {
       if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
       break;
