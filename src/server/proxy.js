@@ -59,26 +59,27 @@ const buildProxy = async () => {
         // '^/target-path': '/',
       },
     };
+    if (!process.argv.includes('maintenance')) {
+      // build router
+      Object.keys(hosts).map((hostKey) => {
+        let { host, path, target, proxy, peer } = hosts[hostKey];
+        if (process.env.NODE_ENV === 'development') host = `localhost`;
 
-    // build router
-    Object.keys(hosts).map((hostKey) => {
-      let { host, path, target, proxy, peer } = hosts[hostKey];
-      if (process.env.NODE_ENV === 'development') host = `localhost`;
+        if (!proxy.includes(port)) return;
+        const absoluteHost = [80, 443].includes(port)
+          ? `${host}${path === '/' ? '' : path}`
+          : `${host}:${port}${path === '/' ? '' : path}`;
 
-      if (!proxy.includes(port)) return;
-      const absoluteHost = [80, 443].includes(port)
-        ? `${host}${path === '/' ? '' : path}`
-        : `${host}:${port}${path === '/' ? '' : path}`;
+        if (!(absoluteHost in options.router)) options.router[absoluteHost] = target;
+      });
+      if (Object.keys(options.router).length === 0) continue;
 
-      if (!(absoluteHost in options.router)) options.router[absoluteHost] = target;
-    });
-    if (Object.keys(options.router).length === 0) continue;
-
-    // order router
-    const router = {};
-    for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(options.router), 'length'))
-      router[absoluteHostKey] = options.router[absoluteHostKey];
-    options.router = router;
+      // order router
+      const router = {};
+      for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(options.router), 'length'))
+        router[absoluteHostKey] = options.router[absoluteHostKey];
+      options.router = router;
+    }
 
     const filter = false
       ? (pathname, req) => {
