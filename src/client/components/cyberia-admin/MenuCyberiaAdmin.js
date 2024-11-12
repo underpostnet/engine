@@ -163,6 +163,13 @@ const MenuCyberiaAdmin = {
             tabHref: `${getProxyPath()}world`,
           })}
           ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-item hide',
+            label: renderMenuLabel({ img: 'engine.png', text: 'ItemCyberia Engine' }),
+            attrs: `data-id="item"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}item`,
+          })}
+          ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-blockchain hide',
             label: renderMenuLabel({ img: 'engine.png', text: 'BlockChain Engine' }),
             attrs: `data-id="blockchain"`,
@@ -374,6 +381,24 @@ const MenuCyberiaAdmin = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'WorldCyberia Engine' }),
         html: async () => await WorldCyberia.Render({ idModal: 'modal-world-engine' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-item`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-item-engine',
+        route: 'item',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'ItemCyberia Engine' }),
+        html: async () => 'test',
         handleType: 'bar',
         maximize: true,
         mode: 'view',

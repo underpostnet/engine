@@ -688,7 +688,7 @@ const execDeploy = async (options = { deployId: 'default' }) => {
   shellExec(Cmd.run(deployId));
   return await new Promise(async (resolve) => {
     const maxTime = 1000 * 60 * 5;
-    const minTime = 10000 * 2;
+    const minTime = 7 * 1000;
     const intervalTime = 1000;
     let currentTime = 0;
     const attempt = () => {

@@ -28,6 +28,7 @@ const LogInCyberiaAdmin = async function () {
       s(`.main-btn-tile`).classList.remove('hide');
       s(`.main-btn-3d`).classList.remove('hide');
       s(`.main-btn-world`).classList.remove('hide');
+      s(`.main-btn-item`).classList.remove('hide');
       s(`.main-btn-blockchain`).classList.remove('hide');
       s(`.main-btn-cloud`).classList.remove('hide');
       s(`.main-btn-server`).classList.remove('hide');

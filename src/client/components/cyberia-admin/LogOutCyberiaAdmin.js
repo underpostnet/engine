@@ -21,6 +21,7 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-tile`).classList.add('hide');
     s(`.main-btn-3d`).classList.add('hide');
     s(`.main-btn-world`).classList.add('hide');
+    s(`.main-btn-item`).classList.add('hide');
     s(`.main-btn-blockchain`).classList.add('hide');
     s(`.main-btn-cloud`).classList.add('hide');
     s(`.main-btn-server`).classList.add('hide');

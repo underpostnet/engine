@@ -8,7 +8,7 @@ const CoreService = {
   post: async (req, res, options) => {
     /** @type {import('./core.model.js').CoreModel} */
     const Core = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Core;
-    if (req.path.startsWith('/sh')) return shellExec(req.body.sh, { stdout: true, silent: true, disableLog: true });
+    if (req.path.startsWith('/sh')) return shellExec(req.body.sh, { stdout: true });
     return await new Core(req.body).save();
   },
   get: async (req, res, options) => {
