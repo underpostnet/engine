@@ -295,24 +295,41 @@ try {
       }
       break;
 
+    case 'run-single-build': {
+      const deployId = process.argv[3];
+      shellExec(Cmd.delete(deployId));
+      shellExec(Cmd.conf(deployId));
+      shellExec(Cmd.build(deployId));
+      shellExec(Cmd.run(deployId));
+      break;
+    }
+
+    case 'run-single': {
+      const deployId = process.argv[3];
+      shellExec(Cmd.delete(deployId));
+      shellExec(Cmd.conf(deployId));
+      shellExec(Cmd.run(deployId));
+      break;
+    }
+
     case 'run-macro':
       {
-        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
+        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         await deployRun(dataDeploy, true);
       }
       break;
 
     case 'run-macro-build':
       {
-        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
         for (const deploy of dataDeploy) {
           shellExec(Cmd.conf(deploy.deployId));
           shellExec(Cmd.build(deploy.deployId));
         }
+        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
         await deployRun(dataDeploy, true);
       }
       break;
