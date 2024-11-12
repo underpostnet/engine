@@ -881,7 +881,7 @@ const maintenanceMiddleware = (req, res, port, proxyRouter) => {
   if (process.argv.includes('maintenance') && fs.existsSync(maintenancePath)) {
     if (req.method.toUpperCase() === 'GET') return res.status(503).sendFile(maintenancePath);
     return res.status(503).json({
-      status: 'maintenance',
+      status: 'error',
       message: 'Server is under maintenance',
     });
   }
