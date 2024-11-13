@@ -1,16 +1,21 @@
+import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaTileService } from '../../services/cyberia-tile/cyberia-tile.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { JSONmatrix, range, s4 } from '../core/CommonJs.js';
-import { dynamicCol } from '../core/Css.js';
+import { dynamicCol, renderCssAttr } from '../core/Css.js';
+import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
+import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
-import { htmls, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
+
+const logger = loggerFactory(import.meta);
 
 const TileCyberia = {
   Render: async function (options) {
@@ -18,6 +23,7 @@ const TileCyberia = {
     let dataColor = [];
     let dataSolid = [];
     let solidMode = false;
+    let tileType = 'custom';
     const paint = (x, y) => {
       for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
         for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
@@ -52,59 +58,109 @@ const TileCyberia = {
           }
         }
     };
+    const RenderTileCyberiaGrid = () => {
+      dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
+        range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
+          if (dataColor[y] && dataColor[y][x] !== undefined) return dataColor[y][x];
+          return '#000000';
+        }),
+      );
+      dataSolid = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
+        range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
+          if (dataSolid[y] && dataSolid[y][x] !== undefined) return dataSolid[y][x];
+          return 0;
+        }),
+      );
+      setTimeout(() => {
+        s(`.tile-grid-container`).onmousedown = () => (mouseDown = true);
+        s(`.tile-grid-container`).onmouseup = () => (mouseDown = false);
+      });
+      htmls(
+        `.tile-grid-container`,
+        html`
+          <div class="in">
+            ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
+              .map(
+                (y) =>
+                  html`
+                    <div class="fl">
+                      ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
+                        .map((x) => {
+                          setTimeout(() => {
+                            s(`.tile-cell-${x}-${y}`).onmouseover = () => {
+                              if (mouseDown) paint(x, y);
+                            };
+                            s(`.tile-cell-${x}-${y}`).onclick = () => {
+                              paint(x, y);
+                            };
+                          });
+                          return html`<div
+                            class="in fll tile-cell tile-cell-${x}-${y}"
+                            ${dataColor[y] && dataColor[y][x] ? `style='background: ${dataColor[y][x]}'` : ''}
+                          >
+                            <div class="abs center tile-cords">${x}<br />${y}</div>
+                          </div>`;
+                        })
+                        .join('')}
+                    </div>
+                  `,
+              )
+              .join('')}
+          </div>
+        `,
+      );
+    };
+
+    const changeTileType = async (tileKey = 'custom') => {
+      tileType = tileKey;
+      switch (tileKey) {
+        case 'item-skin-08':
+          {
+            s(`.tile-dimPaintByCell`).value = 1;
+            s(`.tile-dim`).value = 26;
+            htmls(
+              `.style-tile-cell`,
+              html`
+                <style>
+                  .tile-cell {
+                    width: 23px;
+                    height: 23px;
+                  }
+                </style>
+              `,
+            );
+            const template = JSON.parse(
+              await CoreService.getRaw({
+                url: `${getProxyPath()}assets/templates/item-skin-08.json`,
+              }),
+            );
+            dataColor = template.color;
+          }
+          break;
+
+        default:
+          {
+            dataColor = [];
+            s(`.tile-dimPaintByCell`).value = 3;
+            s(`.tile-dim`).value = 16;
+            htmls(
+              `.style-tile-cell`,
+              html`
+                <style>
+                  .tile-cell {
+                    width: 10px;
+                    height: 10px;
+                  }
+                </style>
+              `,
+            );
+          }
+          break;
+      }
+      RenderTileCyberiaGrid();
+    };
     setTimeout(async () => {
-      const RenderTileCyberiaGrid = () => {
-        dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
-          range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
-            if (dataColor[y] && dataColor[y][x] !== undefined) return dataColor[y][x];
-            return '#000000';
-          }),
-        );
-        dataSolid = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
-          range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
-            if (dataSolid[y] && dataSolid[y][x] !== undefined) return dataSolid[y][x];
-            return 0;
-          }),
-        );
-        setTimeout(() => {
-          s(`.tile-grid-container`).onmousedown = () => (mouseDown = true);
-          s(`.tile-grid-container`).onmouseup = () => (mouseDown = false);
-        });
-        htmls(
-          `.tile-grid-container`,
-          html`
-            <div class="in">
-              ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
-                .map(
-                  (y) =>
-                    html`
-                      <div class="fl">
-                        ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
-                          .map((x) => {
-                            setTimeout(() => {
-                              s(`.tile-cell-${x}-${y}`).onmouseover = () => {
-                                if (mouseDown) paint(x, y);
-                              };
-                              s(`.tile-cell-${x}-${y}`).onclick = () => {
-                                paint(x, y);
-                              };
-                            });
-                            return html`<div
-                              class="in fll tile-cell tile-cell-${x}-${y}"
-                              ${dataColor[y] && dataColor[y][x] ? `style='background: ${dataColor[y][x]}'` : ''}
-                            >
-                              <!-- ${x} - ${y} -->
-                            </div>`;
-                          })
-                          .join('')}
-                      </div>
-                    `,
-                )
-                .join('')}
-            </div>
-          `,
-        );
-      };
+      changeTileType();
       s(`.tile-dim`).oninput = RenderTileCyberiaGrid;
       s(`.tile-dim`).onblur = RenderTileCyberiaGrid;
       s(`.tile-dimPaintByCell`).oninput = RenderTileCyberiaGrid;
@@ -146,6 +202,7 @@ const TileCyberia = {
             name: s(`.tile-name`).value,
             dim: parseInt(s(`.tile-dim`).value),
             dimPaintByCell: parseInt(s(`.tile-dimPaintByCell`).value),
+            type: tileType,
           };
           const { data, status } = await CyberiaTileService.post({ body });
           NotificationManager.Push({
@@ -156,6 +213,28 @@ const TileCyberia = {
       });
     });
     return html`
+      <style>
+        .tile-cell {
+          border: 1px solid gray;
+          box-sizing: border-box;
+          cursor: pointer;
+        }
+        .tile-cell:hover {
+          border: 1px solid yellow;
+        }
+        .tile-cords {
+          color: gray;
+          font-size: 10px;
+        }
+      </style>
+      <div class="style-tile-cords">
+        <style>
+          .tile-cords {
+            display: none;
+          }
+        </style>
+      </div>
+      <div class="style-tile-cell"></div>
       ${dynamicCol({ containerSelector: options.idModal, id: 'tile' })}
       <div class="fl">
         <div class="in fll tile-col-a">
@@ -164,6 +243,54 @@ const TileCyberia = {
               <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-tiles')}
             </div>
           </div>
+
+          <div class="in section-mp">
+            ${await DropDown.Render({
+              value: 'custom',
+              label: html`${Translate.Render('select-type')}`,
+              data: Object.keys({
+                custom: {},
+                'item-skin-08': {},
+              }).map((tileKey) => {
+                return {
+                  value: tileKey,
+                  display: tileKey,
+                  onClick: async () => {
+                    changeTileType(tileKey);
+                  },
+                };
+              }),
+            })}
+          </div>
+          <div class="in section-mp toggle-form-container toggle-form-container-coordinates hover">
+            <div class="fl ">
+              <div class="in fll" style="width: 70%">
+                <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('coordinates')}</div>
+              </div>
+              <div class="in fll" style="width: 30%">
+                ${await ToggleSwitch.Render({
+                  id: 'toggle-tile-coordinates',
+                  checked: false,
+                  on: {
+                    unchecked: () => {
+                      htmls(
+                        `.style-tile-cords`,
+                        html` <style>
+                          .tile-cords {
+                            display: none;
+                          }
+                        </style>`,
+                      );
+                    },
+                    checked: () => {
+                      htmls(`.style-tile-cords`, '');
+                    },
+                  },
+                })}
+              </div>
+            </div>
+          </div>
+
           ${await Input.Render({
             id: `tile-name`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,
