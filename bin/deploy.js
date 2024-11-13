@@ -297,9 +297,9 @@ try {
 
     case 'run-single-build': {
       const deployId = process.argv[3];
-      shellExec(Cmd.delete(deployId));
       shellExec(Cmd.conf(deployId));
       shellExec(Cmd.build(deployId));
+      shellExec(Cmd.delete(deployId));
       shellExec(Cmd.run(deployId));
       break;
     }
