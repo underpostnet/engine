@@ -285,6 +285,7 @@ const Modal = {
                   s(`.bottom-bar`).classList.add('hide');
                   s(`.modal-menu`).style.top = '0px';
                   s(`.main-body-btn-container`).style.top = '50px';
+                  s(`.main-body`).style.top = '0px';
                 } else {
                   s(`.main-body-btn-ui-close`).classList.remove('hide');
                   s(`.main-body-btn-ui-open`).classList.add('hide');
@@ -294,11 +295,12 @@ const Modal = {
                   s(`.main-body-btn-container`).style.top = `${options.heightTopBar + 50}px`;
                   s(`.slide-menu-top-bar`).classList.remove('hide');
                   s(`.bottom-bar`).classList.remove('hide');
+                  s(`.main-body`).style.top = `${options.heightTopBar}px`;
                 }
                 Responsive.Event[`slide-menu-modal-menu`]();
                 Object.keys(this.Data).map((_idModal) => {
                   if (this.Data[_idModal].slideMenu) {
-                    s(`.btn-maximize-${_idModal}`).click();
+                    if (s(`.btn-maximize-${_idModal}`)) s(`.btn-maximize-${_idModal}`).click();
                   }
                 });
                 Responsive.Event[`view-${'main-body'}`]();
@@ -1528,6 +1530,7 @@ const Modal = {
         };
         Responsive.Event['h-ui-hide-' + idModal] = () => {
           setTimeout(() => {
+            if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
             s(`.${idModal}`).style.height =
               s(`.main-body-btn-ui-close`).classList.contains('hide') &&
               s(`.btn-restore-${idModal}`).style.display !== 'none'

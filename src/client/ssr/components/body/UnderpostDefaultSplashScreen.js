@@ -1,8 +1,12 @@
 SrrComponent = ({ base64BackgroundImage }) => html`
+  ${base64BackgroundImage
+    ? html`<style>
+        .ssr-background-image {
+          background-image: url('${base64BackgroundImage}');
+        }
+      </style>`
+    : ''}
   <style>
-    .ssr-background-image {
-      background-image: url('${base64BackgroundImage}');
-    }
     .ssr-top-bar {
       background: #121212;
       height: 100px;
