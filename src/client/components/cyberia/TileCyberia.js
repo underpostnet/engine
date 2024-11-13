@@ -2,7 +2,7 @@ import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaTileService } from '../../services/cyberia-tile/cyberia-tile.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { JSONmatrix, range, s4 } from '../core/CommonJs.js';
+import { JSONmatrix, random, range, s4 } from '../core/CommonJs.js';
 import { dynamicCol, renderCssAttr } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
 import { EventsUI } from '../core/EventsUI.js';
@@ -11,7 +11,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { copyData, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
@@ -24,7 +24,34 @@ const TileCyberia = {
     let dataSolid = [];
     let solidMode = false;
     let tileType = 'custom';
+    let coordinatePreview = [];
+    let pixiColorMatrix = [];
     const paint = (x, y) => {
+      const pixiPaint = (x, y) => {
+        const rangeTileCyberia = range(
+          0,
+          parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1,
+        );
+        const dim = this.TileCyberiaAppDim / rangeTileCyberia.length;
+
+        coordinatePreview.push([x, y]);
+
+        const existsCell = pixiColorMatrix[y] && pixiColorMatrix[y][x];
+
+        const cell = existsCell ? pixiColorMatrix[y][x] : new Sprite(Texture.WHITE);
+
+        cell.tint = dataColor[y][x];
+        cell.x = dim * x;
+        cell.y = dim * y;
+        cell.width = dim;
+        cell.height = dim;
+
+        if (!existsCell) {
+          if (!pixiColorMatrix[y]) pixiColorMatrix[y] = [];
+          pixiColorMatrix[y][x] = cell;
+          this.TileCyberiaApp.stage.addChild(pixiColorMatrix[y][x]);
+        }
+      };
       for (const sumY of range(0, parseInt(s(`.tile-weight`).value) - 1))
         for (const sumX of range(0, parseInt(s(`.tile-weight`).value) - 1)) {
           if (s(`.tile-cell-${x + sumX}-${y + sumY}`)) {
@@ -32,18 +59,14 @@ const TileCyberia = {
             if (!dataColor[y + sumY]) dataColor[y + sumY] = [];
             if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
             dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
+            pixiPaint(x + sumX, y + sumY);
             dataSolid[y + sumY][x + sumX] = solidMode ? Input.parseJsonEval('.tile-solid') : 0;
           }
         }
 
-      htmls(
-        `.tile-object-container`,
-        JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
-      );
-      this.TileCyberiaApp.stage.removeChildren();
+      // this.TileCyberiaApp.stage.removeChildren();
 
-      const rangeTileCyberia = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1);
-      const dim = this.TileCyberiaAppDim / rangeTileCyberia.length;
+      return;
 
       for (const y of rangeTileCyberia)
         for (const x of rangeTileCyberia) {
@@ -62,7 +85,7 @@ const TileCyberia = {
       dataColor = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
         range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((x) => {
           if (dataColor[y] && dataColor[y][x] !== undefined) return dataColor[y][x];
-          return '#000000';
+          return '#363636';
         }),
       );
       dataSolid = range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1).map((y) =>
@@ -87,6 +110,7 @@ const TileCyberia = {
                       ${range(0, parseInt(s(`.tile-dim`).value) * parseInt(s(`.tile-dimPaintByCell`).value) - 1)
                         .map((x) => {
                           setTimeout(() => {
+                            if (!s(`.tile-cell-${x}-${y}`)) return;
                             s(`.tile-cell-${x}-${y}`).onmouseover = () => {
                               if (mouseDown) paint(x, y);
                             };
@@ -109,10 +133,15 @@ const TileCyberia = {
           </div>
         `,
       );
+      htmls(
+        `.tile-object-container`,
+        JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
+      );
     };
 
     const changeTileType = async (tileKey = 'custom') => {
       tileType = tileKey;
+      s(`.tile-weight`).value = 1;
       switch (tileKey) {
         case 'item-skin-08':
           {
@@ -157,15 +186,30 @@ const TileCyberia = {
           }
           break;
       }
-      RenderTileCyberiaGrid();
+
+      const originColor = s(`.tile-color`).value;
+      setTimeout(() => {
+        RenderTileCyberiaGrid();
+        pixiColorMatrix = [];
+        let y = -1;
+        for (const row of dataColor) {
+          y++;
+          let x = -1;
+          for (const value of row) {
+            x++;
+            // if (dataColor[y] && dataColor[y][x]) {   }
+            s(`.tile-color`).value = value;
+            paint(x, y);
+          }
+        }
+        s(`.tile-color`).value = originColor;
+      });
     };
     setTimeout(async () => {
-      changeTileType();
       s(`.tile-dim`).oninput = RenderTileCyberiaGrid;
       s(`.tile-dim`).onblur = RenderTileCyberiaGrid;
       s(`.tile-dimPaintByCell`).oninput = RenderTileCyberiaGrid;
       s(`.tile-dimPaintByCell`).onblur = RenderTileCyberiaGrid;
-      RenderTileCyberiaGrid();
 
       this.TileCyberiaAppDim = 600;
       this.TileCyberiaApp = new Application({
@@ -176,6 +220,50 @@ const TileCyberia = {
 
       s('.tile-pixi-container').appendChild(this.TileCyberiaApp.view);
       // s('canvas').classList.add('');
+
+      const seed = [
+        [5, 10],
+        [6, 9],
+        [6, 8],
+        [7, 7],
+        [8, 6],
+        [9, 5],
+        [10, 4],
+        [11, 4],
+        [12, 4],
+        [13, 4],
+        [14, 4],
+        [15, 4],
+        [16, 5],
+        [17, 6],
+        [18, 7],
+        [19, 8],
+        [19, 9],
+        [20, 10],
+      ];
+
+      EventsUI.onClick(`.btn-generate-tile`, async () => {
+        for (const _c of seed) {
+          dataColor[_c[1]][_c[0]] = `#000000`;
+
+          for (const _y of range(-1, 1)) {
+            for (const _x of range(-1, 1)) {
+              if (random(0, 1) === 1) {
+                dataColor[_c[1] + _y][_c[0] + _x] = `#494949`;
+                // paint();
+              }
+            }
+          }
+        }
+        RenderTileCyberiaGrid();
+      });
+      EventsUI.onClick(`.btn-copy-coordinates-tile`, async () => {
+        await copyData(JSON.stringify(coordinatePreview));
+        NotificationManager.Push({
+          html: Translate.Render('success-copy-data'),
+          status: 'success',
+        });
+      });
 
       EventsUI.onClick(`.btn-upload-tile`, async () => {
         const tileImg = await this.TileCyberiaApp.renderer.extract.image(this.TileCyberiaApp.stage);
@@ -211,6 +299,8 @@ const TileCyberia = {
           });
         }
       });
+
+      changeTileType();
     });
     return html`
       <style>
@@ -281,16 +371,29 @@ const TileCyberia = {
                           }
                         </style>`,
                       );
+                      coordinatePreview = [];
                     },
                     checked: () => {
                       htmls(`.style-tile-cords`, '');
+                      coordinatePreview = [];
                     },
                   },
                 })}
               </div>
             </div>
           </div>
-
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-mp btn-custom btn-copy-coordinates-tile`,
+              label: html`<i class="fas fa-copy"></i> ${Translate.Render(`copy-coordinates`)}`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-mp btn-custom btn-generate-tile`,
+              label: html`<i class="fa-solid fa-arrows-rotate"></i> ${Translate.Render(`generate`)}`,
+            })}
+          </div>
           ${await Input.Render({
             id: `tile-name`,
             label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('name')}`,

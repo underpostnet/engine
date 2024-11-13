@@ -15,7 +15,7 @@ window.onload = () =>
       window.onoffline = async () => {
         htmls(`.page-render`, html`${await Alert.noInternet({ Translate })}`);
       };
-      if (navigator.onLine) window.ononline();
+      if (navigator.onLine && !location.hostname.match('localhost')) window.ononline();
       else window.onoffline();
     },
   });
