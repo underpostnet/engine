@@ -26,6 +26,11 @@ const TileCyberia = {
     let tileType = 'custom';
     let coordinatePreview = [];
     let pixiColorMatrix = [];
+    const renderDataSolid = () =>
+      htmls(
+        `.tile-object-container`,
+        JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
+      );
     const paint = (x, y) => {
       const pixiPaint = (x, y) => {
         const rangeTileCyberia = range(
@@ -63,6 +68,7 @@ const TileCyberia = {
             dataSolid[y + sumY][x + sumX] = solidMode ? Input.parseJsonEval('.tile-solid') : 0;
           }
         }
+      renderDataSolid();
 
       // this.TileCyberiaApp.stage.removeChildren();
 
@@ -95,6 +101,7 @@ const TileCyberia = {
         }),
       );
       setTimeout(() => {
+        if (!s(`.tile-grid-container`)) return;
         s(`.tile-grid-container`).onmousedown = () => (mouseDown = true);
         s(`.tile-grid-container`).onmouseup = () => (mouseDown = false);
       });
@@ -133,10 +140,7 @@ const TileCyberia = {
           </div>
         `,
       );
-      htmls(
-        `.tile-object-container`,
-        JSONmatrix(dataSolid).replaceAll('1', html`<span style="color: yellow">1</span>`),
-      );
+      renderDataSolid();
     };
 
     const changeTileType = async (tileKey = 'custom') => {

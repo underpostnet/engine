@@ -51,12 +51,18 @@ const Responsive = {
       const angle = event.target.angle; // 90 degrees.
       logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
       setTimeout(window.onresize);
+      for (const event of Object.keys(this.orientationEvent)) this.orientationEvent[event]();
+      setTimeout(() => {
+        for (const event of Object.keys(this.orientationDelayEvent)) this.orientationDelayEvent[event]();
+      }, 750);
     });
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
     return Object.keys(this.Event).map((key) => this.Event[key]());
   },
+  orientationEvent: {},
+  orientationDelayEvent: {},
 };
 
 export { Responsive };

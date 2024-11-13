@@ -19,6 +19,8 @@ const MatrixCyberia = {
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
+    Responsive.orientationEvent['matrix-cyberia'] = this.UpdateAllCamera;
+    Responsive.orientationDelayEvent['matrix-cyberia'] = this.UpdateAllCamera;
   },
   UpdateAllCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
