@@ -37,7 +37,7 @@ const RoutesCyberiaAdmin = () => {
     '/world': { title: 'World Engine', render: () => s(`.main-btn-world`).click() },
     '/item': { title: 'Item Engine', render: () => s(`.main-btn-item`).click() },
     '/cyberia-tile-management': {
-      title: 'Item Management',
+      title: 'Cyberia Tile Management',
       render: () => s(`.main-btn-cyberia-tile-management`).click(),
     },
     '/blockchain': { title: 'BlockChain Engine', render: () => s(`.main-btn-blockchain`).click() },
