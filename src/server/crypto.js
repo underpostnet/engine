@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import fs from 'fs-extra';
 
-const Crypto = {
+const CryptoBuilder = {
   symmetric: {
     instance: function (options = { iv: '', encryptionKey: '' }) {
       // Generate a random 32-byte encryption key
@@ -88,4 +88,4 @@ const Crypto = {
   },
 };
 
-export { Crypto };
+export { CryptoBuilder };
