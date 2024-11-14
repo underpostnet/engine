@@ -34,14 +34,7 @@ const CyberiaTileManagement = {
           ...obj,
         };
       },
-      onRowValueChanged: async (...args) => {
-        const [event] = args;
-        const { data } = {};
-        if (data) {
-          return { status: 'success', data: event.data };
-        }
-        return { status: 'error', message: 'user email not found' };
-      },
+      onRowValueChanged: async (...args) => {},
       defaultColKeyFocus: 'host',
       ServiceProvider: CyberiaTileService,
     });
