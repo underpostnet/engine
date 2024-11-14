@@ -6,7 +6,7 @@ on:
     branches: ['master']
 jobs:
   build:
-    if: startsWith(github.event.head_commit.message, '[docker-image-ci]')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[ci][docker-image][engine]')
     runs-on: ubuntu-latest
 
     permissions:

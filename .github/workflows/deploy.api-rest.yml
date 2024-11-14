@@ -6,7 +6,7 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[api-rest-engine-deploy]')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[cd][api-rest][engine]')
     name: Remote API REST deployment
     runs-on: ubuntu-latest
     permissions:

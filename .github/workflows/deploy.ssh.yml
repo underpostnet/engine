@@ -6,7 +6,7 @@ permissions:
   id-token: write
 jobs:
   build:
-    if: startsWith(github.event.head_commit.message, '[ssh-engine-deploy]')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[cd][ssh][engine]')
     name: Remote SSH deployment
     runs-on: ubuntu-latest
     steps:

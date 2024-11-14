@@ -10,7 +10,7 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[pwa-microservices-template-package]')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[ci][package][pwa-microservices-template]')
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     permissions:
