@@ -225,40 +225,58 @@ const TileCyberia = {
       s('.tile-pixi-container').appendChild(this.TileCyberiaApp.view);
       // s('canvas').classList.add('');
 
-      const seed = [
-        [5, 10],
-        [6, 9],
-        [6, 8],
-        [7, 7],
-        [8, 6],
-        [9, 5],
-        [10, 4],
-        [11, 4],
-        [12, 4],
-        [13, 4],
-        [14, 4],
-        [15, 4],
-        [16, 5],
-        [17, 6],
-        [18, 7],
-        [19, 8],
-        [19, 9],
-        [20, 10],
-      ];
+      const SEED = {};
 
-      EventsUI.onClick(`.btn-generate-tile`, async () => {
-        for (const _c of seed) {
-          dataColor[_c[1]][_c[0]] = `#000000`;
+      (async () => {
+        SEED['style_hair'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-hair.json`,
+          }),
+        );
+      })();
+      (async () => {
+        SEED['style_base_skin'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-skin.json`,
+          }),
+        );
+      })();
+
+      const style_hair = () => {
+        const style = [
+          [`#000000`, `#494949`],
+          [`#fee635`, `#e5d871`],
+          [`#89510c`, `#7a7132`],
+        ];
+        const _style = style[random(0, style.length - 1)];
+        for (const _c of SEED['style_hair']) {
+          dataColor[_c[1]][_c[0]] = _style[0];
 
           for (const _y of range(-1, 1)) {
             for (const _x of range(-1, 1)) {
               if (random(0, 1) === 1) {
-                dataColor[_c[1] + _y][_c[0] + _x] = `#494949`;
+                dataColor[_c[1] + _y][_c[0] + _x] = _style[random(1, _style.length - 1)];
                 // paint();
               }
             }
           }
         }
+      };
+
+      const style_base_skin = () => {
+        const style = [
+          [`#ffc4ff`, `#ffa6ff`, `#e4a9e4`, `#ffadef`],
+          [`#fff8c3`, `#fff9cf`, `#d3b98c`, `#ffef78`],
+        ];
+        const _style = style[random(0, style.length - 1)];
+        for (const _c of SEED['style_base_skin']) {
+          dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
+        }
+      };
+
+      EventsUI.onClick(`.btn-generate-tile`, async () => {
+        style_base_skin();
+        style_hair();
         RenderTileCyberiaGrid();
       });
       EventsUI.onClick(`.btn-copy-coordinates-tile`, async () => {
