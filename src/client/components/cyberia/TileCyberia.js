@@ -147,6 +147,7 @@ const TileCyberia = {
       tileType = tileKey;
       s(`.tile-weight`).value = 1;
       switch (tileKey) {
+        case 'item-skin-06':
         case 'item-skin-08':
           {
             s(`.tile-dimPaintByCell`).value = 1;
@@ -164,7 +165,7 @@ const TileCyberia = {
             );
             const template = JSON.parse(
               await CoreService.getRaw({
-                url: `${getProxyPath()}assets/templates/item-skin-08.json`,
+                url: `${getProxyPath()}assets/templates/${tileKey}.json`,
               }),
             );
             dataColor = template.color;
@@ -366,6 +367,7 @@ const TileCyberia = {
               data: Object.keys({
                 custom: {},
                 'item-skin-08': {},
+                'item-skin-06': {},
               }).map((tileKey) => {
                 return {
                   value: tileKey,
