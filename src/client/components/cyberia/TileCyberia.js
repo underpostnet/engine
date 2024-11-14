@@ -143,6 +143,26 @@ const TileCyberia = {
       renderDataSolid();
     };
 
+    const updatePaintGrid = () => {
+      const originColor = s(`.tile-color`).value;
+      setTimeout(() => {
+        RenderTileCyberiaGrid();
+        pixiColorMatrix = [];
+        let y = -1;
+        for (const row of dataColor) {
+          y++;
+          let x = -1;
+          for (const value of row) {
+            x++;
+            // if (dataColor[y] && dataColor[y][x]) {   }
+            s(`.tile-color`).value = value;
+            paint(x, y);
+          }
+        }
+        s(`.tile-color`).value = originColor;
+      });
+    };
+
     const changeTileType = async (tileKey = 'custom') => {
       tileType = tileKey;
       s(`.tile-weight`).value = 1;
@@ -192,23 +212,7 @@ const TileCyberia = {
           break;
       }
 
-      const originColor = s(`.tile-color`).value;
-      setTimeout(() => {
-        RenderTileCyberiaGrid();
-        pixiColorMatrix = [];
-        let y = -1;
-        for (const row of dataColor) {
-          y++;
-          let x = -1;
-          for (const value of row) {
-            x++;
-            // if (dataColor[y] && dataColor[y][x]) {   }
-            s(`.tile-color`).value = value;
-            paint(x, y);
-          }
-        }
-        s(`.tile-color`).value = originColor;
-      });
+      updatePaintGrid();
     };
     setTimeout(async () => {
       s(`.tile-dim`).oninput = RenderTileCyberiaGrid;
@@ -326,6 +330,11 @@ const TileCyberia = {
         }
       });
 
+      EventsUI.onClick(`.btn-flip-tile`, async () => {
+        dataColor = dataColor.map((row) => row.reverse());
+        updatePaintGrid();
+      });
+
       changeTileType();
     });
     return html`
@@ -377,6 +386,12 @@ const TileCyberia = {
                   },
                 };
               }),
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-mp btn-custom btn-flip-tile`,
+              label: html`<i class="fas fa-exchange-alt"></i> ${Translate.Render(`flip`)}`,
             })}
           </div>
           <div class="in section-mp toggle-form-container toggle-form-container-coordinates hover">
