@@ -17,6 +17,12 @@ import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 
 const logger = loggerFactory(import.meta);
 
+const tileModels = {
+  custom: {},
+  'item-skin-08': {},
+  'item-skin-06': {},
+};
+
 const TileCyberia = {
   Render: async function (options) {
     let mouseDown = false;
@@ -240,9 +246,16 @@ const TileCyberia = {
         );
       })();
       (async () => {
-        SEED['style_base_skin'] = JSON.parse(
+        SEED['style_base_skin_08'] = JSON.parse(
           await CoreService.getRaw({
-            url: `${getProxyPath()}assets/templates/item-skin-style-skin.json`,
+            url: `${getProxyPath()}assets/templates/item-skin-style-skin-08.json`,
+          }),
+        );
+      })();
+      (async () => {
+        SEED['style_base_skin_06'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-skin-06.json`,
           }),
         );
       })();
@@ -275,7 +288,21 @@ const TileCyberia = {
           [`#fff8c3`, `#fff9cf`, `#d3b98c`, `#ffef78`],
         ];
         const _style = style[random(0, style.length - 1)];
-        for (const _c of SEED['style_base_skin']) {
+
+        let keyStyle;
+
+        switch (tileType) {
+          case 'item-skin-06':
+            keyStyle = 'style_base_skin_06';
+            break;
+          case 'item-skin-08':
+            keyStyle = 'style_base_skin_08';
+            break;
+          default:
+            break;
+        }
+
+        for (const _c of SEED[keyStyle]) {
           dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
           s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
           paint(_c[0], _c[1]);
@@ -373,11 +400,7 @@ const TileCyberia = {
             ${await DropDown.Render({
               value: 'custom',
               label: html`${Translate.Render('select-type')}`,
-              data: Object.keys({
-                custom: {},
-                'item-skin-08': {},
-                'item-skin-06': {},
-              }).map((tileKey) => {
+              data: Object.keys(tileModels).map((tileKey) => {
                 return {
                   value: tileKey,
                   display: tileKey,
