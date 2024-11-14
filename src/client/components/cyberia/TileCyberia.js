@@ -256,7 +256,8 @@ const TileCyberia = {
             for (const _x of range(-1, 1)) {
               if (random(0, 1) === 1) {
                 dataColor[_c[1] + _y][_c[0] + _x] = _style[random(1, _style.length - 1)];
-                // paint();
+                s(`.tile-color`).value = dataColor[_c[1] + _y][_c[0] + _x];
+                paint(_c[0] + _x, _c[1] + _y);
               }
             }
           }
@@ -271,6 +272,8 @@ const TileCyberia = {
         const _style = style[random(0, style.length - 1)];
         for (const _c of SEED['style_base_skin']) {
           dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
+          s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
+          paint(_c[0], _c[1]);
         }
       };
 
