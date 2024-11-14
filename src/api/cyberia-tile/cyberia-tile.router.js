@@ -18,8 +18,8 @@ const CyberiaTileRouter = (options) => {
     moderatorGuard,
     async (req, res) => await CyberiaTileController.post(req, res, options),
   );
-  router.get(`/:id`, async (req, res) => await CyberiaTileController.get(req, res, options));
-  router.get(`/`, async (req, res) => await CyberiaTileController.get(req, res, options));
+  router.get(`/:id`, authMiddleware, async (req, res) => await CyberiaTileController.get(req, res, options));
+  router.get(`/`, authMiddleware, async (req, res) => await CyberiaTileController.get(req, res, options));
   router.delete(
     `/:id`,
     authMiddleware,

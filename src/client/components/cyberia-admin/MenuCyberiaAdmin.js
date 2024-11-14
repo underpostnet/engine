@@ -23,6 +23,7 @@ import { TileCyberia } from '../cyberia/TileCyberia.js';
 import { WorldCyberia } from '../cyberia/WorldCyberia.js';
 import Sortable from 'sortablejs';
 import { Recover } from '../core/Recover.js';
+import { CyberiaTileManagement } from '../../services/cyberia-tile/cyberia-tile.management.js';
 
 const MenuCyberiaAdmin = {
   Data: {},
@@ -168,6 +169,13 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="item"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `${getProxyPath()}item`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-cyberia-tile-management hide',
+            label: renderMenuLabel({ img: 'engine.png', text: 'TileCyberia Management' }),
+            attrs: `data-id="cyberia-tile-management"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}cyberia-tile-management`,
           })}
           ${await BtnIcon.Render({
             class: 'in fll main-btn-square-menu main-btn-blockchain hide',
@@ -554,6 +562,24 @@ const MenuCyberiaAdmin = {
               },
             },
           }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-tile-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cyberia-tile-management',
+        route: 'cyberia-tile-management',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'cyberia-tile-management' }),
+        html: async () => await CyberiaTileManagement.RenderTable({ Elements: ElementsCyberiaAdmin }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

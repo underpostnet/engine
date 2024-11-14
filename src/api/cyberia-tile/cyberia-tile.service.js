@@ -122,16 +122,17 @@ const CyberiaTileService = {
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaTile;
 
     switch (req.params.id) {
-      case 'all':
-        return await CyberiaTile.find();
-
-      case 'all-name':
-        return await CyberiaTile.find().select(CyberiaTileDto.select.get());
-
       default:
-        return await CyberiaTile.find({
-          _id: req.params.id,
-        });
+        switch (req.auth.user.role) {
+          case 'admin':
+            if (req.params.id) return await CyberiaTile.findById(req.params.id);
+            return await CyberiaTile.find();
+
+          default:
+            return await CyberiaTile.find({
+              _id: req.params.id,
+            });
+        }
     }
   },
   delete: async (req, res, options) => {

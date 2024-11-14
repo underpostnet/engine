@@ -12,7 +12,7 @@ const CyberiaTileSchema = new Schema({
   name: { type: String },
   dim: { type: Number },
   dimPaintByCell: { type: Number },
-  type: { type: String, enum: ['custom', 'item-skin-08'], default: 'custom' },
+  type: { type: String, enum: ['custom', 'item-skin-08', 'item-skin-06'], default: 'custom' },
 });
 
 const CyberiaTileModel = model('CyberiaTile', CyberiaTileSchema);
