@@ -32,6 +32,10 @@ const TileCyberia = {
     let tileType = 'custom';
     let coordinatePreview = [];
     let pixiColorMatrix = [];
+
+    let lockStyle = false;
+    let lastStyle = {};
+
     const renderDataSolid = () =>
       htmls(
         `.tile-object-container`,
@@ -171,6 +175,7 @@ const TileCyberia = {
 
     const changeTileType = async (tileKey = 'custom') => {
       tileType = tileKey;
+      coordinatePreview = [];
       s(`.tile-weight`).value = 1;
       switch (tileKey) {
         case 'item-skin-06':
@@ -266,7 +271,11 @@ const TileCyberia = {
           [`#fee635`, `#e5d871`],
           [`#89510c`, `#7a7132`],
         ];
-        const _style = style[random(0, style.length - 1)];
+
+        const _style =
+          lockStyle && lastStyle['style_hair'] ? lastStyle['style_hair'] : style[random(0, style.length - 1)];
+        if (!lockStyle) lastStyle['style_hair'] = _style;
+
         for (const _c of SEED['style_hair']) {
           dataColor[_c[1]][_c[0]] = _style[0];
 
@@ -287,7 +296,10 @@ const TileCyberia = {
           [`#ffc4ff`, `#ffa6ff`, `#e4a9e4`, `#ffadef`],
           [`#fff8c3`, `#fff9cf`, `#d3b98c`, `#ffef78`],
         ];
-        const _style = style[random(0, style.length - 1)];
+
+        const _style =
+          lockStyle && lastStyle['style_base_skin'] ? lastStyle['style_base_skin'] : style[random(0, style.length - 1)];
+        if (!lockStyle) lastStyle['style_base_skin'] = _style;
 
         let keyStyle;
 
@@ -310,6 +322,7 @@ const TileCyberia = {
       };
 
       EventsUI.onClick(`.btn-generate-tile`, async () => {
+        coordinatePreview = [];
         style_base_skin();
         style_hair();
         RenderTileCyberiaGrid();
@@ -447,6 +460,28 @@ const TileCyberia = {
               </div>
             </div>
           </div>
+          <div class="in section-mp toggle-form-container toggle-form-container-lock-style hover">
+            <div class="fl ">
+              <div class="in fll" style="width: 70%">
+                <div class="in"><i class="fas fa-lock"></i> ${Translate.Render('lock-style')}</div>
+              </div>
+              <div class="in fll" style="width: 30%">
+                ${await ToggleSwitch.Render({
+                  id: 'toggle-tile-lock-style',
+                  checked: lockStyle,
+                  on: {
+                    unchecked: () => {
+                      lockStyle = false;
+                    },
+                    checked: () => {
+                      lockStyle = true;
+                    },
+                  },
+                })}
+              </div>
+            </div>
+          </div>
+
           <div class="in">
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom btn-copy-coordinates-tile`,
