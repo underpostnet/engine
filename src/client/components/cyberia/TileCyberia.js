@@ -263,6 +263,34 @@ const TileCyberia = {
           }),
         );
       })();
+      (async () => {
+        SEED['item-skin-style-legs-08'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-legs-08.json`,
+          }),
+        );
+      })();
+      (async () => {
+        SEED['item-skin-style-legs-06'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-legs-06.json`,
+          }),
+        );
+      })();
+      (async () => {
+        SEED['item-skin-style-breastplate-08'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-breastplate-08.json`,
+          }),
+        );
+      })();
+      (async () => {
+        SEED['item-skin-style-breastplate-06'] = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}assets/templates/item-skin-style-breastplate-06.json`,
+          }),
+        );
+      })();
       const RENDER = {
         [`item-skin-style-hair`]: () => {
           const style = [
@@ -289,6 +317,72 @@ const TileCyberia = {
                 }
               }
             }
+          }
+        },
+        [`item-skin-style-legs`]: () => {
+          const style = [
+            [`#4e1700`, `#4c0000`, `#a11313`],
+            [`#22393e`, `#23467b`, `#464a91`],
+            [`#185722`, `#3fb751`, `#39a113`],
+            [`#e123f2`, `#e34ac2`, `#823671`],
+          ];
+
+          const _style =
+            lockStyle && lastStyle['item-skin-style-legs']
+              ? lastStyle['item-skin-style-legs']
+              : style[random(0, style.length - 1)];
+          if (!lockStyle) lastStyle['item-skin-style-legs'] = _style;
+
+          let keyStyle;
+
+          switch (tileType) {
+            case 'item-skin-06':
+              keyStyle = 'item-skin-style-legs-06';
+              break;
+            case 'item-skin-08':
+              keyStyle = 'item-skin-style-legs-08';
+              break;
+            default:
+              break;
+          }
+
+          for (const _c of SEED[keyStyle]) {
+            dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
+            s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
+            paint(_c[0], _c[1]);
+          }
+        },
+        [`item-skin-style-breastplate`]: () => {
+          const style = [
+            [`#4e1700`, `#4c0000`, `#a11313`],
+            [`#22393e`, `#23467b`, `#464a91`],
+            [`#185722`, `#3fb751`, `#39a113`],
+            [`#e123f2`, `#e34ac2`, `#823671`],
+          ];
+
+          const _style =
+            lockStyle && lastStyle['item-skin-style-breastplate']
+              ? lastStyle['item-skin-style-breastplate']
+              : style[random(0, style.length - 1)];
+          if (!lockStyle) lastStyle['item-skin-style-breastplate'] = _style;
+
+          let keyStyle;
+
+          switch (tileType) {
+            case 'item-skin-06':
+              keyStyle = 'item-skin-style-breastplate-06';
+              break;
+            case 'item-skin-08':
+              keyStyle = 'item-skin-style-breastplate-08';
+              break;
+            default:
+              break;
+          }
+
+          for (const _c of SEED[keyStyle]) {
+            dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
+            s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
+            paint(_c[0], _c[1]);
           }
         },
         ['item-skin-style-skin']: () => {
@@ -328,6 +422,8 @@ const TileCyberia = {
         coordinatePreview = [];
         RENDER['item-skin-style-skin']();
         RENDER[`item-skin-style-hair`]();
+        RENDER[`item-skin-style-legs`]();
+        RENDER[`item-skin-style-breastplate`]();
         RenderTileCyberiaGrid();
       });
       EventsUI.onClick(`.btn-copy-coordinates-tile`, async () => {
