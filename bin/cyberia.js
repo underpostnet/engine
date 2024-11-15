@@ -1,7 +1,7 @@
 import { loggerFactory } from '../src/server/logger.js';
 
 import fs from 'fs-extra';
-import { range, s4 } from '../src/client/components/core/CommonJs.js';
+import { newInstance, range, s4 } from '../src/client/components/core/CommonJs.js';
 import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
@@ -68,8 +68,51 @@ switch (process.argv[2]) {
           cellPixelDim: 20,
           imagePath: `${folderPath}/0.png`,
           tile: tile08,
-          opacityFilter: (color) => (color === tile08.color[0][0] ? 0 : 255),
+          opacityFilter: (x, y, color) => (color === tile08.color[0][0] ? 0 : 255),
         });
+      }
+      if (tile08 && position.positionId === '18') {
+        const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+
+        const paint = {
+          [`#000000`]: {
+            0: [
+              [9, 23],
+              [10, 23],
+            ],
+            1: [
+              [15, 23],
+              [16, 23],
+            ],
+          },
+        };
+
+        const opacity = {
+          0: [
+            [9, 24],
+            [10, 24],
+          ],
+          1: [
+            [15, 24],
+            [16, 24],
+          ],
+        };
+
+        for (const frame of range(0, position.frames - 1)) {
+          const tile = newInstance(tile08._doc);
+
+          for (const hex of Object.keys(paint))
+            for (const cord of paint[hex][frame]) tile.color[cord[1]][cord[0]] = hex;
+
+          await buildImgFromTile({
+            cellPixelDim: 20,
+            imagePath: `${folderPath}/${frame}.png`,
+            tile,
+            opacityFilter: (x, y, color) =>
+              color === tile08.color[0][0] || opacity[frame].find((c) => c[0] === x && c[1] === y) ? 0 : 255,
+          });
+        }
       }
     }
     break;

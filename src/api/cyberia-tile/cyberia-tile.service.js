@@ -110,7 +110,7 @@ const getHexMatrix = ({ imageFilePath }) =>
   });
 
 const buildImgFromTile = async (
-  options = { tile: {}, imagePath: '', cellPixelDim: 20, opacityFilter: (color) => 255 },
+  options = { tile: {}, imagePath: '', cellPixelDim: 20, opacityFilter: (x, y, color) => 255 },
 ) => {
   const { tile, imagePath, cellPixelDim, opacityFilter } = options;
   let image = await sharp({
@@ -135,7 +135,7 @@ const buildImgFromTile = async (
       for (const _y of range(0, cellPixelDim - 1)) {
         for (const _x of range(0, cellPixelDim - 1)) {
           image.setPixelColor(
-            Jimp.rgbaToInt(...hexa2Rgba(tile.color[y][x], opacityFilter ? opacityFilter(tile.color[y][x]) : 255)),
+            Jimp.rgbaToInt(...hexa2Rgba(tile.color[y][x], opacityFilter ? opacityFilter(x, y, tile.color[y][x]) : 255)),
             x_paint + _y,
             y_paint + _x,
           );
