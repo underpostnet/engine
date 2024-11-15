@@ -67,7 +67,8 @@ const CyberiaWsBotManagement = {
 
     const getRandomPosition = () => getRandomAvailablePositionCyberia({ biomeData: biome, element: bot });
     let x, y;
-    switch (displayBotMetaData.behavior) {
+    const behavior = displayBotMetaData.behavior;
+    switch (behavior) {
       case 'pet': {
         const parentBotId = Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find((botId) => {
           const dataSkin = CyberiaWsBotManagement.element[wsManagementId][botId].components.skin.find((s) => s.current);
@@ -198,78 +199,79 @@ const CyberiaWsBotManagement = {
                   if (this.element[wsManagementId][id].life <= 0) return false;
                   const xBot = round10(this.element[wsManagementId][id].x);
                   const yBot = round10(this.element[wsManagementId][id].y);
-                  for (const yTarget of range(
-                    yBot - this.localElementScope[wsManagementId][id].target.Radius,
-                    yBot + this.localElementScope[wsManagementId][id].target.Radius,
-                  )) {
-                    for (const xTarget of range(
-                      xBot - this.localElementScope[wsManagementId][id].target.Radius,
-                      xBot + this.localElementScope[wsManagementId][id].target.Radius,
+                  if (!['generic-people'].includes(behavior))
+                    for (const yTarget of range(
+                      yBot - this.localElementScope[wsManagementId][id].target.Radius,
+                      yBot + this.localElementScope[wsManagementId][id].target.Radius,
                     )) {
-                      for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
-                        if (
-                          CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
-                          objectEquals(
-                            CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
-                            this.element[wsManagementId][id].model.world,
-                          ) &&
-                          yTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y) &&
-                          xTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x)
-                        ) {
-                          this.localElementScope[wsManagementId][id].target.Element.type = 'user';
-                          this.localElementScope[wsManagementId][id].target.Element.id = clientId;
-
-                          const Path = insertTransitionCoordinates(
-                            this.pathfinding.findPath(
-                              xBot,
-                              yBot,
-                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
-                              round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
-                              new pathfinding.Grid(collisionMatrixCyberia),
-                            ),
-                            this.localElementScope[wsManagementId][id].movement.TransitionFactor,
-                          );
-
+                      for (const xTarget of range(
+                        xBot - this.localElementScope[wsManagementId][id].target.Radius,
+                        xBot + this.localElementScope[wsManagementId][id].target.Radius,
+                      )) {
+                        for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
                           if (
-                            getDistance(
-                              this.localElementScope[wsManagementId][id].movement.Path[
-                                this.localElementScope[wsManagementId][id].movement.Path.length - 1
-                              ][0],
-                              this.localElementScope[wsManagementId][id].movement.Path[
-                                this.localElementScope[wsManagementId][id].movement.Path.length - 1
-                              ][1],
-                              Path[Path.length - 1] ? ([0] ? Path[Path.length - 1][0] : undefined) : undefined,
-                              Path[Path.length - 1] ? ([1] ? Path[Path.length - 1][1] : undefined) : undefined,
-                            ) > 1.5 &&
-                            !Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find(
-                              (botId) =>
-                                objectEquals(
-                                  this.element[wsManagementId][id].model.world,
-                                  CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
-                                ) &&
-                                ['quest-passive', 'generic-people'].includes(
-                                  CyberiaWsBotManagement.element[wsManagementId][botId].behavior,
-                                ) &&
-                                getDistance(
-                                  CyberiaWsBotManagement.element[wsManagementId][botId].x,
-                                  CyberiaWsBotManagement.element[wsManagementId][botId].y,
-                                  Path[Path.length - 1][0],
-                                  Path[Path.length - 1][1],
-                                ) < 4,
-                            )
+                            CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
+                            objectEquals(
+                              CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
+                              this.element[wsManagementId][id].model.world,
+                            ) &&
+                            yTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y) &&
+                            xTarget === round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x)
                           ) {
-                            Path.pop();
-                            Path.pop();
-                            Path.pop();
-                            this.localElementScope[wsManagementId][id].movement.Path = Path;
-                            this.localElementScope[wsManagementId][id].target.Active = true;
-                            return true;
+                            this.localElementScope[wsManagementId][id].target.Element.type = 'user';
+                            this.localElementScope[wsManagementId][id].target.Element.id = clientId;
+
+                            const Path = insertTransitionCoordinates(
+                              this.pathfinding.findPath(
+                                xBot,
+                                yBot,
+                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].x),
+                                round10(CyberiaWsUserManagement.element[wsManagementId][clientId].y),
+                                new pathfinding.Grid(collisionMatrixCyberia),
+                              ),
+                              this.localElementScope[wsManagementId][id].movement.TransitionFactor,
+                            );
+
+                            if (
+                              getDistance(
+                                this.localElementScope[wsManagementId][id].movement.Path[
+                                  this.localElementScope[wsManagementId][id].movement.Path.length - 1
+                                ][0],
+                                this.localElementScope[wsManagementId][id].movement.Path[
+                                  this.localElementScope[wsManagementId][id].movement.Path.length - 1
+                                ][1],
+                                Path[Path.length - 1] ? ([0] ? Path[Path.length - 1][0] : undefined) : undefined,
+                                Path[Path.length - 1] ? ([1] ? Path[Path.length - 1][1] : undefined) : undefined,
+                              ) > 1.5 &&
+                              !Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find(
+                                (botId) =>
+                                  objectEquals(
+                                    this.element[wsManagementId][id].model.world,
+                                    CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
+                                  ) &&
+                                  ['quest-passive'].includes(
+                                    CyberiaWsBotManagement.element[wsManagementId][botId].behavior,
+                                  ) &&
+                                  getDistance(
+                                    CyberiaWsBotManagement.element[wsManagementId][botId].x,
+                                    CyberiaWsBotManagement.element[wsManagementId][botId].y,
+                                    Path[Path.length - 1][0],
+                                    Path[Path.length - 1][1],
+                                  ) < 4,
+                              )
+                            ) {
+                              Path.pop();
+                              Path.pop();
+                              Path.pop();
+                              this.localElementScope[wsManagementId][id].movement.Path = Path;
+                              this.localElementScope[wsManagementId][id].target.Active = true;
+                              return true;
+                            }
+                            return false;
                           }
-                          return false;
                         }
                       }
                     }
-                  }
 
                   this.localElementScope[wsManagementId][id].target.Active = false;
                   return false;
