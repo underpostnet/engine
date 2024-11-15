@@ -7,6 +7,9 @@ import { hexa2Rgba } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 
 const logger = loggerFactory(import.meta);
 
+// https://jimp-dev.github.io/jimp/api/jimp/classes/jimp/
+// https://sharp.pixelplumbing.com/api-constructor
+
 await logger.setUpInfo();
 
 switch (process.argv[2]) {
