@@ -59,17 +59,60 @@ switch (process.argv[2]) {
     const tile02 = process.argv[6] ? await CyberiaTile.findOne({ _id: process.argv[6] }) : undefined;
     const tile06 = process.argv[7] ? await CyberiaTile.findOne({ _id: process.argv[7] }) : undefined;
     const tile04 = process.argv[8] ? await CyberiaTile.findOne({ _id: process.argv[8] }) : undefined;
-
+    const cellPixelDim = 20;
     for (const position of PositionsComponent.default()) {
       if (tile08 && position.positionId === '08') {
         const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
         if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
         await buildImgFromTile({
-          cellPixelDim: 20,
+          cellPixelDim,
           imagePath: `${folderPath}/0.png`,
           tile: tile08,
           opacityFilter: (x, y, color) => (color === tile08.color[0][0] ? 0 : 255),
         });
+      }
+      if (tile02 && position.positionId === '02') {
+        const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+        await buildImgFromTile({
+          cellPixelDim,
+          imagePath: `${folderPath}/0.png`,
+          tile: tile02,
+          opacityFilter: (x, y, color) => (color === tile02.color[0][0] ? 0 : 255),
+        });
+      }
+      if (tile06 && position.positionId === '06') {
+        const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+        await buildImgFromTile({
+          cellPixelDim,
+          imagePath: `${folderPath}/0.png`,
+          tile: tile06,
+          opacityFilter: (x, y, color) => (color === tile06.color[0][0] ? 0 : 255),
+        });
+      }
+      if (position.positionId === '04') {
+        if (tile04) {
+          const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+          if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+          await buildImgFromTile({
+            cellPixelDim,
+            imagePath: `${folderPath}/0.png`,
+            tile: tile04,
+            opacityFilter: (x, y, color) => (color === tile04.color[0][0] ? 0 : 255),
+          });
+        } else if (tile06) {
+          const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+          if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+          const tile04 = newInstance(tile06._doc);
+          tile04.color = tile04.color.map((c) => c.reverse());
+          await buildImgFromTile({
+            cellPixelDim,
+            imagePath: `${folderPath}/0.png`,
+            tile: tile04,
+            opacityFilter: (x, y, color) => (color === tile04.color[0][0] ? 0 : 255),
+          });
+        }
       }
       if (tile08 && position.positionId === '18') {
         const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
@@ -106,7 +149,7 @@ switch (process.argv[2]) {
             for (const cord of paint[hex][frame]) tile.color[cord[1]][cord[0]] = hex;
 
           await buildImgFromTile({
-            cellPixelDim: 20,
+            cellPixelDim,
             imagePath: `${folderPath}/${frame}.png`,
             tile,
             opacityFilter: (x, y, color) =>
