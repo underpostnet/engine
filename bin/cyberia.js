@@ -1,12 +1,12 @@
-import Jimp from 'jimp';
 import { loggerFactory } from '../src/server/logger.js';
-import sharp from 'sharp';
+
 import fs from 'fs-extra';
 import { range, s4 } from '../src/client/components/core/CommonJs.js';
-import { hexa2Rgba } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
+import { PositionsComponent } from '../src/client/components/cyberia/CommonCyberia.js';
+import { buildImgFromTile } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 
 dotenv.config();
 
@@ -30,7 +30,7 @@ await DataBaseProvider.load({ apis: ['cyberia-tile'], host, path, db });
 const CyberiaTile = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaTile;
 
 switch (process.argv[2]) {
-  case 'tile-view':
+  case 'view-tile':
     {
       const tile = await CyberiaTile.findOne({ _id: process.argv[3] });
 
@@ -38,37 +38,12 @@ switch (process.argv[2]) {
       const imagePath = `./tmp/${s4()}-${s4()}-${s4()}.png`;
 
       const cellPixelDim = 20;
+      await buildImgFromTile({
+        cellPixelDim,
+        imagePath,
+        tile,
+      });
 
-      let image = await sharp({
-        create: {
-          width: cellPixelDim * tile.color.length,
-          height: cellPixelDim * tile.color.length,
-          channels: 4,
-          background: { r: 255, g: 255, b: 255, alpha: 1 }, // white
-        },
-      })
-        .png()
-        .toBuffer();
-
-      fs.writeFileSync(imagePath, image);
-
-      image = await Jimp.read(imagePath);
-
-      let y_paint = 0;
-      for (const y of range(0, tile.color.length - 1)) {
-        let x_paint = 0;
-        for (const x of range(0, tile.color.length - 1)) {
-          for (const _y of range(0, cellPixelDim - 1)) {
-            for (const _x of range(0, cellPixelDim - 1)) {
-              image.setPixelColor(Jimp.rgbaToInt(...hexa2Rgba(tile.color[y][x], 255)), x_paint + _y, y_paint + _x);
-            }
-          }
-          x_paint += cellPixelDim;
-        }
-        y_paint += cellPixelDim;
-      }
-
-      await image.write(imagePath);
       setTimeout(() => {
         shellExec(`xdg-open ${imagePath}`);
         fs.removeSync(imagePath);
@@ -76,6 +51,29 @@ switch (process.argv[2]) {
     }
 
     break;
+
+  case 'build-asset': {
+    const itemType = process.argv[3];
+    const itemId = process.argv[4] === '-' ? s4() + s4() + s4() : process.argv[4];
+    const tile08 = process.argv[5] ? await CyberiaTile.findOne({ _id: process.argv[5] }) : undefined;
+    const tile02 = process.argv[6] ? await CyberiaTile.findOne({ _id: process.argv[6] }) : undefined;
+    const tile06 = process.argv[7] ? await CyberiaTile.findOne({ _id: process.argv[7] }) : undefined;
+    const tile04 = process.argv[8] ? await CyberiaTile.findOne({ _id: process.argv[8] }) : undefined;
+
+    for (const position of PositionsComponent.default()) {
+      if (tile08 && position.positionId === '08') {
+        const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
+        if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
+        await buildImgFromTile({
+          cellPixelDim: 20,
+          imagePath: `${folderPath}/0.png`,
+          tile: tile08,
+          opacityFilter: (color) => (color === tile08.color[0][0] ? 0 : 255),
+        });
+      }
+    }
+    break;
+  }
 
   default:
     break;

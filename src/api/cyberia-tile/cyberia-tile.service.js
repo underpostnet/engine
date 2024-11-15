@@ -1,12 +1,14 @@
-import { loggerFactory } from '../../server/logger.js';
-import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { Downloader } from '../../server/downloader.js';
 import fs from 'fs-extra';
 import Jimp from 'jimp';
 import Color from 'color';
 import dotenv from 'dotenv';
+import sharp from 'sharp';
+
 import { ceil10, range } from '../../client/components/core/CommonJs.js';
 import { CyberiaTileDto } from './cyberia-tile.model.js';
+import { loggerFactory } from '../../server/logger.js';
+import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { Downloader } from '../../server/downloader.js';
 
 dotenv.config();
 
@@ -107,6 +109,46 @@ const getHexMatrix = ({ imageFilePath }) =>
       });
   });
 
+const buildImgFromTile = async (
+  options = { tile: {}, imagePath: '', cellPixelDim: 20, opacityFilter: (color) => 255 },
+) => {
+  const { tile, imagePath, cellPixelDim, opacityFilter } = options;
+  let image = await sharp({
+    create: {
+      width: cellPixelDim * tile.color.length,
+      height: cellPixelDim * tile.color.length,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 }, // white
+    },
+  })
+    .png()
+    .toBuffer();
+
+  fs.writeFileSync(imagePath, image);
+
+  image = await Jimp.read(imagePath);
+
+  let y_paint = 0;
+  for (const y of range(0, tile.color.length - 1)) {
+    let x_paint = 0;
+    for (const x of range(0, tile.color.length - 1)) {
+      for (const _y of range(0, cellPixelDim - 1)) {
+        for (const _x of range(0, cellPixelDim - 1)) {
+          image.setPixelColor(
+            Jimp.rgbaToInt(...hexa2Rgba(tile.color[y][x], opacityFilter ? opacityFilter(tile.color[y][x]) : 255)),
+            x_paint + _y,
+            y_paint + _x,
+          );
+        }
+      }
+      x_paint += cellPixelDim;
+    }
+    y_paint += cellPixelDim;
+  }
+
+  await image.write(imagePath);
+};
+
 const CyberiaTileService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
@@ -158,6 +200,12 @@ const CyberiaTileService = {
   delete: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
     const CyberiaTile = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaTile;
+    /** @type {import('../file/file.model.js').FileModel} */
+    const File = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.File;
+
+    const tile = await CyberiaTile.findOne({ _id: req.params.id });
+
+    await File.findByIdAndDelete(tile.fileId);
 
     switch (req.params.id) {
       default:
@@ -166,4 +214,4 @@ const CyberiaTileService = {
   },
 };
 
-export { CyberiaTileService, rgba2Hexa, hexa2Rgba };
+export { CyberiaTileService, rgba2Hexa, hexa2Rgba, buildImgFromTile };
