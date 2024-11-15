@@ -114,7 +114,7 @@ switch (process.argv[2]) {
           });
         }
       }
-      if (tile08 && position.positionId === '18') {
+      if (position.positionId[0] === '1') {
         const folderPath = `./src/client/public/cyberia/assets/${itemType}/${itemId}/${position.positionId}`;
         if (!fs.existsSync(folderPath)) fs.mkdirSync(`${folderPath}`, { recursive: true });
 
@@ -143,7 +143,29 @@ switch (process.argv[2]) {
         };
 
         for (const frame of range(0, position.frames - 1)) {
-          const tile = newInstance(tile08._doc);
+          let tile;
+          switch (position.positionId) {
+            case '18':
+              tile = newInstance(tile08._doc);
+              break;
+            case '16':
+              tile = newInstance(tile06._doc);
+              break;
+            case '12':
+              tile = newInstance(tile02._doc);
+              break;
+            case '14':
+              {
+                if (tile04) tile = newInstance(tile04._doc);
+                else if (tile06) {
+                  tile = newInstance(tile06._doc);
+                  tile.color = tile.color.map((c) => c.reverse());
+                }
+              }
+              break;
+            default:
+              break;
+          }
 
           for (const hex of Object.keys(paint))
             for (const cord of paint[hex][frame]) tile.color[cord[1]][cord[0]] = hex;
@@ -153,7 +175,7 @@ switch (process.argv[2]) {
             imagePath: `${folderPath}/${frame}.png`,
             tile,
             opacityFilter: (x, y, color) =>
-              color === tile08.color[0][0] || opacity[frame].find((c) => c[0] === x && c[1] === y) ? 0 : 255,
+              color === tile.color[0][0] || opacity[frame].find((c) => c[0] === x && c[1] === y) ? 0 : 255,
           });
         }
       }
