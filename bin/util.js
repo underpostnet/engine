@@ -125,6 +125,10 @@ try {
       break;
     case 'delete-empty-folder':
       function cleanEmptyFoldersRecursively(folder) {
+        if (!fs.existsSync(folder)) {
+          logger.warn('Does not exist', folder);
+          return;
+        }
         const isDir = fs.statSync(folder).isDirectory();
         if (!isDir) return;
 
@@ -142,7 +146,11 @@ try {
 
         if (files.length === 0) {
           console.log('removing: ', folder);
-          fs.rmdirSync(folder);
+          try {
+            fs.rmdirSync(folder);
+          } catch (error) {
+            logger.error(error);
+          }
           return;
         }
       }
