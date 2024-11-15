@@ -449,7 +449,9 @@ const UserService = {
         });
         switch (user.role) {
           case 'admin': {
-            if (req.body.password) req.body.password = await hashPassword(req.body.password);
+            if (req.body.password !== undefined && req.body.password !== user.password)
+              req.body.password = await hashPassword(req.body.password);
+            else delete req.body.password;
             return await User.findByIdAndUpdate(req.params.id, req.body, {
               runValidators: true,
             });

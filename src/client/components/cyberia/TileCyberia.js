@@ -242,89 +242,92 @@ const TileCyberia = {
       // s('canvas').classList.add('');
 
       const SEED = {};
-
       (async () => {
-        SEED['style_hair'] = JSON.parse(
+        SEED['item-skin-style-hair'] = JSON.parse(
           await CoreService.getRaw({
             url: `${getProxyPath()}assets/templates/item-skin-style-hair.json`,
           }),
         );
       })();
       (async () => {
-        SEED['style_base_skin_08'] = JSON.parse(
+        SEED['item-skin-style-skin-08'] = JSON.parse(
           await CoreService.getRaw({
             url: `${getProxyPath()}assets/templates/item-skin-style-skin-08.json`,
           }),
         );
       })();
       (async () => {
-        SEED['style_base_skin_06'] = JSON.parse(
+        SEED['item-skin-style-skin-06'] = JSON.parse(
           await CoreService.getRaw({
             url: `${getProxyPath()}assets/templates/item-skin-style-skin-06.json`,
           }),
         );
       })();
+      const RENDER = {
+        [`item-skin-style-hair`]: () => {
+          const style = [
+            [`#000000`, `#494949`],
+            [`#fee635`, `#e5d871`],
+            [`#89510c`, `#7a7132`],
+          ];
 
-      const style_hair = () => {
-        const style = [
-          [`#000000`, `#494949`],
-          [`#fee635`, `#e5d871`],
-          [`#89510c`, `#7a7132`],
-        ];
+          const _style =
+            lockStyle && lastStyle['item-skin-style-hair']
+              ? lastStyle['item-skin-style-hair']
+              : style[random(0, style.length - 1)];
+          if (!lockStyle) lastStyle['item-skin-style-hair'] = _style;
 
-        const _style =
-          lockStyle && lastStyle['style_hair'] ? lastStyle['style_hair'] : style[random(0, style.length - 1)];
-        if (!lockStyle) lastStyle['style_hair'] = _style;
+          for (const _c of SEED['item-skin-style-hair']) {
+            dataColor[_c[1]][_c[0]] = _style[0];
 
-        for (const _c of SEED['style_hair']) {
-          dataColor[_c[1]][_c[0]] = _style[0];
-
-          for (const _y of range(-1, 1)) {
-            for (const _x of range(-1, 1)) {
-              if (random(0, 1) === 1) {
-                dataColor[_c[1] + _y][_c[0] + _x] = _style[random(1, _style.length - 1)];
-                s(`.tile-color`).value = dataColor[_c[1] + _y][_c[0] + _x];
-                paint(_c[0] + _x, _c[1] + _y);
+            for (const _y of range(-1, 1)) {
+              for (const _x of range(-1, 1)) {
+                if (random(0, 1) === 1) {
+                  dataColor[_c[1] + _y][_c[0] + _x] = _style[random(1, _style.length - 1)];
+                  s(`.tile-color`).value = dataColor[_c[1] + _y][_c[0] + _x];
+                  paint(_c[0] + _x, _c[1] + _y);
+                }
               }
             }
           }
-        }
-      };
+        },
+        ['item-skin-style-skin']: () => {
+          const style = [
+            [`#ffc4ff`, `#ffa6ff`, `#e4a9e4`, `#ffadef`],
+            [`#fff8c3`, `#fff9cf`, `#d3b98c`, `#ffef78`],
+          ];
 
-      const style_base_skin = () => {
-        const style = [
-          [`#ffc4ff`, `#ffa6ff`, `#e4a9e4`, `#ffadef`],
-          [`#fff8c3`, `#fff9cf`, `#d3b98c`, `#ffef78`],
-        ];
+          const _style =
+            lockStyle && lastStyle['item-skin-style-skin']
+              ? lastStyle['item-skin-style-skin']
+              : style[random(0, style.length - 1)];
+          if (!lockStyle) lastStyle['item-skin-style-skin'] = _style;
 
-        const _style =
-          lockStyle && lastStyle['style_base_skin'] ? lastStyle['style_base_skin'] : style[random(0, style.length - 1)];
-        if (!lockStyle) lastStyle['style_base_skin'] = _style;
+          let keyStyle;
 
-        let keyStyle;
+          switch (tileType) {
+            case 'item-skin-06':
+              keyStyle = 'item-skin-style-skin-06';
+              break;
+            case 'item-skin-08':
+              keyStyle = 'item-skin-style-skin-08';
+              break;
+            default:
+              break;
+          }
 
-        switch (tileType) {
-          case 'item-skin-06':
-            keyStyle = 'style_base_skin_06';
-            break;
-          case 'item-skin-08':
-            keyStyle = 'style_base_skin_08';
-            break;
-          default:
-            break;
-        }
-
-        for (const _c of SEED[keyStyle]) {
-          dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
-          s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
-          paint(_c[0], _c[1]);
-        }
+          for (const _c of SEED[keyStyle]) {
+            dataColor[_c[1]][_c[0]] = _style[random(0, _style.length - 1)];
+            s(`.tile-color`).value = dataColor[_c[1]][_c[0]];
+            paint(_c[0], _c[1]);
+          }
+        },
       };
 
       EventsUI.onClick(`.btn-generate-tile`, async () => {
         coordinatePreview = [];
-        style_base_skin();
-        style_hair();
+        RENDER['item-skin-style-skin']();
+        RENDER[`item-skin-style-hair`]();
         RenderTileCyberiaGrid();
       });
       EventsUI.onClick(`.btn-copy-coordinates-tile`, async () => {
