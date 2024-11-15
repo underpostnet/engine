@@ -47,6 +47,7 @@ const ElementsCyberia = {
     switch (this.Data[type][id].behavior) {
       case 'user-hostile':
         return htmlDisplay(this.formatDisplayText('creature'));
+      case 'generic-people':
       case 'quest-passive':
         return htmlDisplay(this.formatDisplayText('villager'));
       case 'user':

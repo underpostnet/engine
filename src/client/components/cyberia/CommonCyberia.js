@@ -273,6 +273,9 @@ const DisplayComponent = {
   },
 };
 
+DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
+DisplayComponent.get['gp1'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp1' });
+
 const Stat = {
   get: {
     anon: () => {
@@ -411,6 +414,9 @@ const Stat = {
     return element;
   },
 };
+
+Stat.get['gp0'] = () => Stat.get['anon']();
+Stat.get['gp1'] = () => Stat.get['anon']();
 
 const QuestComponent = {
   Data: {
@@ -1238,6 +1244,9 @@ const BehaviorElement = {
     color: 'yellow',
   },
   pet: {
+    color: 'yellow',
+  },
+  'generic-people': {
     color: 'yellow',
   },
 };

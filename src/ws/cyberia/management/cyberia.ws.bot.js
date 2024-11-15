@@ -247,7 +247,9 @@ const CyberiaWsBotManagement = {
                                   this.element[wsManagementId][id].model.world,
                                   CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
                                 ) &&
-                                CyberiaWsBotManagement.element[wsManagementId][botId].behavior === 'quest-passive' &&
+                                ['quest-passive', 'generic-people'].includes(
+                                  CyberiaWsBotManagement.element[wsManagementId][botId].behavior,
+                                ) &&
                                 getDistance(
                                   CyberiaWsBotManagement.element[wsManagementId][botId].x,
                                   CyberiaWsBotManagement.element[wsManagementId][botId].y,
@@ -418,6 +420,7 @@ const CyberiaWsBotManagement = {
     this.element[wsManagementId][id] = bot;
 
     switch (displayBotMetaData.behavior) {
+      case 'generic-people':
       case 'pet':
         {
           this.localElementScope[wsManagementId][id].movement.Callback();

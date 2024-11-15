@@ -124,7 +124,9 @@ const QuestManagementCyberia = {
               ((questData &&
                 (QuestComponent.componentsScope[displayId].questKeyContext !== 'displaySearchObjects' ||
                   enabledQuestPanel)) ||
-                (!['user-hostile', 'pet'].includes(ElementsCyberia.Data[typeTarget][elementTargetId].behavior) &&
+                (!['user-hostile', 'pet', 'generic-people'].includes(
+                  ElementsCyberia.Data[typeTarget][elementTargetId].behavior,
+                ) &&
                   MainUserCyberia.lastArrowElement &&
                   MainUserCyberia.lastArrowElement.type === typeTarget &&
                   MainUserCyberia.lastArrowElement.id === elementTargetId)) &&

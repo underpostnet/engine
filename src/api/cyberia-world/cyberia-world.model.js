@@ -16,7 +16,10 @@ const CyberiaWorldSchema = new Schema({
         bots: {
           type: [
             {
-              behavior: { type: String, enum: ['user-hostile', 'quest-passive', 'item-quest', 'pet'] },
+              behavior: {
+                type: String,
+                enum: ['user-hostile', 'quest-passive', 'item-quest', 'pet', 'generic-people'],
+              },
               displayIds: [
                 {
                   id: { type: String },
@@ -63,6 +66,13 @@ const CyberiaWorldSchema = new Schema({
             displayIds: [
               { id: 'purple', quantity: [4, 7] },
               { id: 'kishins', quantity: [2, 5] },
+            ],
+          },
+          {
+            behavior: 'generic-people',
+            displayIds: [
+              { id: 'gp0', quantity: [1] },
+              { id: 'gp1', quantity: [1] },
             ],
           },
         ],
