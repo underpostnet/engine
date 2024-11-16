@@ -309,13 +309,18 @@ try {
 
     case 'build-macro':
       {
-        shellExec(Cmd.conf(process.argv[3]));
-        shellExec(Cmd.build(process.argv[3]));
+        const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
+        for (const deploy of dataDeploy) {
+          if (!process.argv[4] || (process.argv[4] && process.argv[4] === deploy.deployId)) {
+            shellExec(Cmd.conf(deploy.deployId));
+            shellExec(Cmd.build(deploy.deployId));
+          }
+        }
       }
       break;
     case 'macro': {
       shellExec(`git checkout .`);
-      shellExec(`node bin/deploy build-macro ${process.argv[4]}`);
+      shellExec(`node bin/deploy build-macro ${process.argv.slice(3).join(' ')}`);
       shellExec(`git checkout .`);
       shellExec(`node bin/deploy run-macro ${process.argv.slice(3).join(' ')}`);
     }
