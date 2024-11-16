@@ -295,51 +295,29 @@ try {
       }
       break;
 
-    case 'run-single-build': {
-      const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
-      const deployId = process.argv[4];
-      shellExec(Cmd.conf(deployId, 'production'));
-      shellExec(Cmd.build(deployId));
-      for (const deploy of dataDeploy)
-        if (deploy.deployId.match(deployId)) {
-          shellExec(Cmd.delete(deploy.deployId));
-          shellExec(Cmd.conf(deploy.deployId, 'production'));
-          shellExec(Cmd.run(deploy.deployId));
-        }
-      break;
-    }
-
-    case 'run-single': {
-      const deployId = process.argv[3];
-      shellExec(Cmd.delete(deployId));
-      shellExec(Cmd.conf(deployId));
-      shellExec(Cmd.run(deployId));
-      break;
-    }
-
     case 'run-macro':
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
-        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
-        await deployRun(dataDeploy, true);
+        if (!process.argv[4]) await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
+        await deployRun(
+          process.argv[4] ? dataDeploy.filter((d) => d.deployId.match(process.argv[4])) : dataDeploy,
+          true,
+        );
       }
       break;
 
     case 'build-macro':
       {
-        const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
-        for (const deploy of dataDeploy) {
-          shellExec(Cmd.conf(deploy.deployId));
-          shellExec(Cmd.build(deploy.deployId));
-        }
+        shellExec(Cmd.conf(process.argv[3]));
+        shellExec(Cmd.build(process.argv[3]));
       }
       break;
     case 'macro': {
       shellExec(`git checkout .`);
-      shellExec(`node bin/deploy build-macro ${process.argv.slice(2).join(' ')}`);
+      shellExec(`node bin/deploy build-macro ${process.argv[4]}`);
       shellExec(`git checkout .`);
-      shellExec(`node bin/deploy run-macro ${process.argv.slice(2).join(' ')}`);
+      shellExec(`node bin/deploy run-macro ${process.argv.slice(3).join(' ')}`);
     }
 
     case 'keep-server': {
