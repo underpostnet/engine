@@ -336,6 +336,11 @@ try {
       shellExec(`git checkout .`);
       shellExec(`node bin/deploy run-macro ${process.argv.slice(2).join(' ')}`);
     }
+
+    case 'keep-server': {
+      await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
+      break;
+    }
     case 'prometheus':
     case 'prom':
       {
