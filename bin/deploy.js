@@ -298,11 +298,12 @@ try {
     case 'run-single-build': {
       const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
       const deployId = process.argv[4];
+      shellExec(Cmd.conf(deployId, 'production'));
+      shellExec(Cmd.build(deployId));
       for (const deploy of dataDeploy)
         if (deploy.deployId.match(deployId)) {
-          shellExec(Cmd.conf(deploy.deployId));
-          shellExec(Cmd.build(deploy.deployId));
           shellExec(Cmd.delete(deploy.deployId));
+          shellExec(Cmd.conf(deploy.deployId, 'production'));
           shellExec(Cmd.run(deploy.deployId));
         }
       break;
