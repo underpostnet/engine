@@ -200,6 +200,10 @@ const CyberiaWorldSchema = new Schema({
               { id: 'bone-brown', quantity: [1] },
             ],
           },
+          {
+            behavior: 'generic-people',
+            displayIds: [{ id: 'marciano', quantity: [1] }],
+          },
         ],
       },
     ],
