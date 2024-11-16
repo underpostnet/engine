@@ -53,8 +53,9 @@ const Responsive = {
       setTimeout(window.onresize);
       for (const event of Object.keys(this.orientationEvent)) this.orientationEvent[event]();
       setTimeout(() => {
+        window.onresize();
         for (const event of Object.keys(this.orientationDelayEvent)) this.orientationDelayEvent[event]();
-      }, 750);
+      }, 1500);
     });
   },
   triggerEvents: function (keyEvent) {

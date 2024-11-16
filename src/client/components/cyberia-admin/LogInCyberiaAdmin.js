@@ -21,15 +21,19 @@ const LogInCyberiaAdmin = async function () {
     s(`.main-btn-account`).style.display = null;
     if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
-    if (user.role === 'admin') {
+
+    if (['admin', 'moderator'].includes(user.role)) {
       s(`.main-btn-colors`).classList.remove('hide');
       s(`.main-btn-chat`).classList.remove('hide');
-      s(`.main-btn-biome`).classList.remove('hide');
       s(`.main-btn-tile`).classList.remove('hide');
+      s(`.main-btn-cyberia-tile-management`).classList.remove('hide');
+    }
+
+    if (user.role === 'admin') {
+      s(`.main-btn-biome`).classList.remove('hide');
       s(`.main-btn-3d`).classList.remove('hide');
       s(`.main-btn-world`).classList.remove('hide');
       s(`.main-btn-item`).classList.remove('hide');
-      s(`.main-btn-cyberia-tile-management`).classList.remove('hide');
       s(`.main-btn-blockchain`).classList.remove('hide');
       s(`.main-btn-cloud`).classList.remove('hide');
       s(`.main-btn-server`).classList.remove('hide');

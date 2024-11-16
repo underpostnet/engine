@@ -186,6 +186,7 @@ const CyberiaTileService = {
     switch (req.params.id) {
       default:
         switch (req.auth.user.role) {
+          case 'moderator':
           case 'admin':
             if (req.params.id) return await CyberiaTile.findById(req.params.id);
             return await CyberiaTile.find();

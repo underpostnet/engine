@@ -82,6 +82,8 @@ const ElementsCyberia = {
               : id.slice(0, 7),
           ),
         );
+      case 'generic-people':
+        return '';
       case 'user-hostile':
       case 'quest-passive':
       case 'item-quest':
