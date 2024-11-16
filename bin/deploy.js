@@ -321,18 +321,21 @@ try {
       }
       break;
 
-    case 'run-macro-build':
+    case 'build-macro':
       {
-        if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
         const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
         for (const deploy of dataDeploy) {
           shellExec(Cmd.conf(deploy.deployId));
           shellExec(Cmd.build(deploy.deployId));
         }
-        await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
-        await deployRun(dataDeploy, true);
       }
       break;
+    case 'macro': {
+      shellExec(`git checkout .`);
+      shellExec(`node bin/deploy build-macro ${process.argv.slice(2).join(' ')}`);
+      shellExec(`git checkout .`);
+      shellExec(`node bin/deploy run-macro ${process.argv.slice(2).join(' ')}`);
+    }
     case 'prometheus':
     case 'prom':
       {
