@@ -323,6 +323,7 @@ try {
       shellExec(`node bin/deploy build-macro ${process.argv.slice(3).join(' ')}`);
       shellExec(`git checkout .`);
       shellExec(`node bin/deploy run-macro ${process.argv.slice(3).join(' ')}`);
+      break;
     }
 
     case 'keep-server': {
