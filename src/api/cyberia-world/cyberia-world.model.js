@@ -91,6 +91,10 @@ const CyberiaWorldSchema = new Schema({
               },
               { id: 'punk', quantity: [1] },
               { id: 'scp-2040', quantity: [1], title: `SCP`, name: '2040' },
+              {
+                behavior: 'generic-people',
+                displayIds: [{ id: 'marciano', quantity: [1] }],
+              },
             ],
           },
           {
