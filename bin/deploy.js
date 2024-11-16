@@ -296,11 +296,15 @@ try {
       break;
 
     case 'run-single-build': {
-      const deployId = process.argv[3];
-      shellExec(Cmd.conf(deployId));
-      shellExec(Cmd.build(deployId));
-      shellExec(Cmd.delete(deployId));
-      shellExec(Cmd.run(deployId));
+      const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
+      const deployId = process.argv[4];
+      for (const deploy of dataDeploy)
+        if (deploy.deployId.match(deployId)) {
+          shellExec(Cmd.conf(deploy.deployId));
+          shellExec(Cmd.build(deploy.deployId));
+          shellExec(Cmd.delete(deploy.deployId));
+          shellExec(Cmd.run(deploy.deployId));
+        }
       break;
     }
 
