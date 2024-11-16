@@ -415,8 +415,8 @@ const Stat = {
   },
 };
 
-Stat.get['gp0'] = () => ({ ...Stat.get['anon'](), vel: 0.05 });
-Stat.get['gp1'] = () => ({ ...Stat.get['anon'](), vel: 0.05 });
+Stat.get['gp0'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+Stat.get['gp1'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 
 const QuestComponent = {
   Data: {

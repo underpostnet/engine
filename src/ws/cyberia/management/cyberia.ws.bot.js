@@ -138,7 +138,7 @@ const CyberiaWsBotManagement = {
         InitPosition: { x, y },
         CellRadius: 3,
         Path: [],
-        TransitionFactor: CyberiaParams.MOVEMENT_TRANSITION_FACTOR,
+        TransitionFactor: CyberiaParams.MOVEMENT_TRANSITION_FACTOR * (1 / bot.vel),
         Callback: async () => {
           try {
             let x;
