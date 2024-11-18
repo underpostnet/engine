@@ -5,8 +5,10 @@ import { newInstance, range, s4 } from '../src/client/components/core/CommonJs.j
 import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
-import { PositionsComponent } from '../src/client/components/cyberia/CommonCyberia.js';
+import { PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { buildImgFromTile } from '../src/api/cyberia-tile/cyberia-tile.service.js';
+import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
+import toJsonSchema from 'to-json-schema';
 
 dotenv.config();
 
@@ -180,6 +182,71 @@ switch (process.argv[2]) {
         }
       }
     }
+    break;
+  }
+
+  case 'create-quest': {
+    const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+    const GEMINI_MODEL_NAME = 'gemini-1.5-pro';
+
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: GEMINI_MODEL_NAME }); // 'gemini-1.5-flash'
+
+    const generationConfig = {
+      temperature: 0.9,
+      topK: 32,
+      topP: 0.95,
+      maxOutputTokens: 1024,
+    };
+
+    const safetySettings = [
+      {
+        category: HarmCategory.HARM_CATEGORY_HARASSMENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+      {
+        category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+        threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      },
+    ];
+
+    const parts = [
+      {
+        text: `Generate json example instance for cyberpunk mmorpg quest. Please respond in the following JSON format:
+        ${JSON.stringify(toJsonSchema(QuestComponent.Data['floki-bone']()), null, 4)}
+    `,
+      },
+      // {
+      //   inlineData: {
+      //     mimeType: 'image/jpeg',
+      //     data: imageBuffer.toString('base64'),
+      //   },
+      // },
+    ];
+
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts }],
+      generationConfig,
+      safetySettings,
+    });
+
+    const response = result.response;
+
+    console.log(
+      response
+        .text()
+        .replace(/```json/g, '')
+        .replace(/```/g, ''),
+    );
+
     break;
   }
 
