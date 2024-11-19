@@ -90,16 +90,16 @@ const Lampp = {
                 `mkdir /www && \\` +
                 `ln -s /www /opt/lampp/htdocs`,
             );
-
-            if (fs.existsSync(`/opt/lampp/logs/access_log`))
-              fs.copySync(`/opt/lampp/logs/access_log`, `/opt/lampp/logs/access.log`);
-            if (fs.existsSync(`/opt/lampp/logs/error_log`))
-              fs.copySync(`/opt/lampp/logs/error_log`, `/opt/lampp/logs/error.log`);
-            if (fs.existsSync(`/opt/lampp/logs/php_error_log`))
-              fs.copySync(`/opt/lampp/logs/php_error_log`, `/opt/lampp/logs/php_error.log`);
-            if (fs.existsSync(`/opt/lampp/logs/ssl_request_log`))
-              fs.copySync(`/opt/lampp/logs/ssl_request_log`, `/opt/lampp/logs/ssl_request.log`);
           }
+
+          if (fs.existsSync(`/opt/lampp/logs/access_log`))
+            fs.copySync(`/opt/lampp/logs/access_log`, `/opt/lampp/logs/access.log`);
+          if (fs.existsSync(`/opt/lampp/logs/error_log`))
+            fs.copySync(`/opt/lampp/logs/error_log`, `/opt/lampp/logs/error.log`);
+          if (fs.existsSync(`/opt/lampp/logs/php_error_log`))
+            fs.copySync(`/opt/lampp/logs/php_error_log`, `/opt/lampp/logs/php_error.log`);
+          if (fs.existsSync(`/opt/lampp/logs/ssl_request_log`))
+            fs.copySync(`/opt/lampp/logs/ssl_request_log`, `/opt/lampp/logs/ssl_request.log`);
 
           await Lampp.initService({ daemon: true });
         }
