@@ -283,6 +283,40 @@ try {
       }
       break;
 
+    case 'pma':
+      {
+        const directory = './public/phpmyadmin';
+        const host = '127.0.0.1';
+        const port = 80;
+        // data config path: /etc/phpmyadmin
+
+        if (!process.argv.includes('server')) {
+          shellExec(`sudo apt install phpmyadmin php-mbstring php-zip php-gd php-json php-curl`);
+          shellExec(`sudo phpenmod mbstring`);
+        }
+
+        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
+        if (!fs.existsSync('./public/phpmyadmin/phpmyadmin'))
+          fs.copySync('/usr/share/phpmyadmin', './public/phpmyadmin/phpmyadmin');
+
+        Lampp.removeRouter();
+        Lampp.appendRouter(`   Listen ${port}
+
+        <VirtualHost *:${port}>    
+            DocumentRoot "${directory}"
+            ServerName ${host}:${port}
+
+            <Directory "${directory}">
+              Options Indexes FollowSymLinks MultiViews
+              AllowOverride All
+              Require all granted
+            </Directory>
+
+          </VirtualHost>`);
+        if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
+      }
+      break;
+
     case 'update-package':
       const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
       const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
