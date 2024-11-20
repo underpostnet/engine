@@ -52,6 +52,7 @@ try {
       // skip-networking -> #skip-networking
 
       // Create user:
+      // DROP USER 'username'@'%';
       // CREATE USER 'username'@'%' IDENTIFIED BY 'password';
 
       // Set DB user:

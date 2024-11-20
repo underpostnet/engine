@@ -285,12 +285,26 @@ try {
 
     case 'pma':
       {
-        const directory = './public/phpmyadmin';
-        const host = '127.0.0.1';
+        const directory = '/dd/engine/public/phpmyadmin';
+        // const host = '127.0.0.1';
+        const host = 'localhost';
         const port = 80;
         // data config path: /etc/phpmyadmin
 
+        // The config.inc.php file is not required, and only needed for custom configurations
+
+        // phpmyadmin will first refer to ./libraries/config.default.php to retrieve the default values.
+
+        // If for some reason you need to modify the default values, and the ./config.inc.php
+        // file doesn't exist, you will need to create one as per the Installation documentation.
+
+        // You will also need to configure pmadb for some of phpmyadmin's special features such as bookmarks.
+
+        // CREATE USER 'pma'@'localhost' IDENTIFIED VIA mysql_native_password USING 'pmapass';
+        // GRANT SELECT, INSERT, UPDATE, DELETE ON `<pma_db>`.* TO 'pma'@'localhost';
+
         if (!process.argv.includes('server')) {
+          if (fs.existsSync(directory)) fs.removeSync(directory);
           shellExec(`sudo apt install phpmyadmin php-mbstring php-zip php-gd php-json php-curl`);
           shellExec(`sudo phpenmod mbstring`);
         }
@@ -313,7 +327,8 @@ try {
             </Directory>
 
           </VirtualHost>`);
-        if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
+        if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
+        shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
       }
       break;
 
