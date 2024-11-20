@@ -101,6 +101,17 @@ try {
         case 'init-lampp-service':
           await Lampp.initService();
           break;
+        case 'remote-client-access':
+          {
+            // https://docs.anaconda.com/miniconda/install/#quick-command-line-install
+            // https://mariadb.com/kb/en/configuring-mariadb-for-remote-client-access/
+            // conf: /opt/lampp/etc
+            // conf: /etc/mysql/my.cnf
+            // cli: /opt/lampp/bin/mysql
+            // cli: mysql -h 127.0.0.1
+            // select db: use db0;
+          }
+          break;
         default:
           break;
       }
