@@ -33,7 +33,7 @@ try {
       // mysql -u root -h localhost -p mysql
 
       // Get Users:
-      // SELECT host, user, password FROM mysql.user;
+      // SELECT user,authentication_string,plugin,host FROM mysql.user;
 
       // Get DB User:
       // SELECT User, Db, Host from mysql.db;
@@ -45,6 +45,26 @@ try {
 
       // Get all user privileges:
       // select * from information_schema.user_privileges;
+
+      // Expose public server:
+      // '/etc/mysql/my.cnf' Change lines:
+      // bind-address = 127.0.0.1 -> bind-address = 0.0.0.0
+      // skip-networking -> #skip-networking
+
+      // Create user:
+      // CREATE USER 'username'@'%' IDENTIFIED BY 'password';
+
+      // Set DB user:
+      // FLUSH PRIVILEGES;
+      // ON databasename.*
+      // TO 'username'@'%'
+      // IDENTIFIED BY 'newpassword';
+      // FLUSH PRIVILEGES;
+
+      // Set admin:
+      // FLUSH PRIVILEGES;
+      // GRANT ALL PRIVILEGES ON *.* TO 'username'@'%' IDENTIFIED BY 'password' WITH GRANT OPTION;
+      // FLUSH PRIVILEGES;
 
       switch (operator) {
         case 'show-all':
