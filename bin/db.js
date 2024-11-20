@@ -107,6 +107,7 @@ try {
             // https://mariadb.com/kb/en/configuring-mariadb-for-remote-client-access/
             // conf: /opt/lampp/etc
             // conf: /etc/mysql/my.cnf
+            // conf: /etc/mysql/mariadb.conf.d/50-server.cnf
             // cli: /opt/lampp/bin/mysql
             // cli: mysql -h 127.0.0.1
             // select db: use db0;
