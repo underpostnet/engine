@@ -304,19 +304,48 @@ try {
         // GRANT SELECT, INSERT, UPDATE, DELETE ON `<pma_db>`.* TO 'pma'@'localhost';
 
         if (!process.argv.includes('server')) {
-          if (fs.existsSync(directory)) fs.removeSync(directory);
+          // if (fs.existsSync(directory)) fs.removeSync(directory);
           shellExec(`sudo apt install phpmyadmin php-mbstring php-zip php-gd php-json php-curl`);
           shellExec(`sudo phpenmod mbstring`);
+          shellExec(
+            `cd /usr/share/phpmyadmin && git init && git add . && git commit -m "Base phpMyAdmin implementation"`,
+          );
         }
 
-        if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
-        if (!fs.existsSync('./public/phpmyadmin/phpmyadmin'))
-          fs.copySync('/usr/share/phpmyadmin', './public/phpmyadmin/phpmyadmin');
+        // if (!fs.existsSync(directory)) fs.mkdirSync(directory, { recursive: true });
+        // if (!fs.existsSync('./public/phpmyadmin/phpmyadmin'))
+        //   fs.copySync('/usr/share/phpmyadmin', './public/phpmyadmin/phpmyadmin');
 
         Lampp.removeRouter();
+        Lampp.appendRouter(`  Listen ${port} `);
+        if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
+        // shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
+
+        // Create a link in /var/www like this:
+
+        // sudo ln -s /usr/share/phpmyadmin /var/www/
+
+        // Note: since 14.04 you may want to use /var/www/html/ instead of /var/www/
+
+        // If that's not working for you, you need to include PHPMyAdmin inside apache configuration.
+
+        // Open apache.conf using your favorite editor, mine is vim :)
+
+        // sudo vim /etc/apache2/apache2.conf
+
+        // Then add the following line:
+
+        // Include /etc/phpmyadmin/apache.conf
+
+        // For Ubuntu 15.04 and 16.04
+
+        // sudo ln -s /etc/phpmyadmin/apache.conf /etc/apache2/conf-available/phpmyadmin.conf
+        // sudo a2enconf phpmyadmin.conf
+        // sudo service apache2 reload
+        break;
         Lampp.appendRouter(`   Listen ${port}
 
-        <VirtualHost *:${port}>    
+        <VirtualHost *:${port}>
             DocumentRoot "${directory}"
             ServerName ${host}:${port}
 
@@ -327,8 +356,49 @@ try {
             </Directory>
 
           </VirtualHost>`);
-        if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
-        shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
+        // phpMyAdmin default Apache configuration:
+        Lampp.appendRouter(`
+
+          Listen ${port}
+
+          Alias /phpmyadmin /usr/share/phpmyadmin
+
+<Directory /usr/share/phpmyadmin>
+    Options Indexes FollowSymLinks
+    DirectoryIndex index.php
+
+    <IfModule mod_php5.c>
+        AddType application/x-httpd-php .php
+
+        php_flag magic_quotes_gpc Off
+        php_flag track_vars On
+        php_flag register_globals Off
+        php_value include_path .
+    </IfModule>
+
+</Directory>
+
+# Authorize for setup
+<Directory /usr/share/phpmyadmin/setup>
+    <IfModule mod_authn_file.c>
+    AuthType Basic
+    AuthName "phpMyAdmin Setup"
+    AuthUserFile /etc/phpmyadmin/htpasswd.setup
+    </IfModule>
+    Require valid-user
+</Directory>
+
+# Disallow web access to directories that don't need it
+<Directory /usr/share/phpmyadmin/libraries>
+    Order Deny,Allow
+    Deny from All
+</Directory>
+<Directory /usr/share/phpmyadmin/setup/lib>
+    Order Deny,Allow
+    Deny from All
+</Directory>
+
+          `);
       }
       break;
 

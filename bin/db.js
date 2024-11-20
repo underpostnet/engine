@@ -26,11 +26,8 @@ try {
   // logger.info('database', confServer[host][`/${path}`].db);
   switch (provider) {
     case 'mariadb':
-      // https://www.cyberciti.biz/faq/how-to-show-list-users-in-a-mysql-mariadb-database/
-
       // Login:
-      // mysql -u root -p
-      // mysql -u root -h localhost -p mysql
+      // mysql -u root -h localhost -p
 
       // Get Users:
       // SELECT user,authentication_string,plugin,host FROM mysql.user;
@@ -81,8 +78,23 @@ try {
           await MariaDB.query({ user, password, query: `DROP DATABASE IF EXISTS ${name}` });
           break;
         case 'select':
-          await MariaDB.query({ user, password, query: `SELECT ${arg0} FROM ${name}.${arg1}` });
+          {
+            const pageSize = 10;
+            const pageNumber = 1;
+            await MariaDB.query({
+              user,
+              password,
+              query: `SELECT ${arg0} FROM ${name}.${arg1} LIMIT ${pageSize} OFFSET ${(pageNumber - 1) * pageSize}`,
+            });
+          }
           break;
+        case 'count': {
+          await MariaDB.query({
+            user,
+            password,
+            query: `SELECT COUNT(*) AS total FROM ${name}.${arg0}`,
+          });
+        }
         case 'export':
           {
             const cmdBackupPath = `${arg0 ? `${arg0}/${name}.sql` : backupPath}`;
