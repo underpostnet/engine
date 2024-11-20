@@ -283,6 +283,35 @@ try {
       }
       break;
 
+    case 'adminer': {
+      const directory = '/dd/engine/public/adminer';
+      // const host = '127.0.0.1';
+      const host = 'localhost';
+      const port = 80;
+      if (!process.argv.includes('server')) {
+        if (fs.existsSync(directory)) fs.removeSync(directory);
+        fs.mkdirSync(directory, { recursive: true });
+        shellExec(`cd ${directory} && wget https://www.adminer.org/latest.php -O adminer.php`);
+      }
+      Lampp.removeRouter();
+      Lampp.appendRouter(`  Listen ${port} 
+         <VirtualHost *:${port}>
+          DocumentRoot "${directory}"
+          ServerName ${host}:${port}
+
+          <Directory "${directory}">
+            Options Indexes FollowSymLinks MultiViews
+            AllowOverride All
+            Require all granted
+          </Directory>
+
+        </VirtualHost>
+        `);
+      if (Lampp.enabled() && Lampp.router) Lampp.initService({ daemon: true });
+      shellExec(`open /opt/lampp/apache2/conf/httpd.conf`);
+      break;
+    }
+
     case 'pma':
       {
         const directory = '/dd/engine/public/phpmyadmin';
