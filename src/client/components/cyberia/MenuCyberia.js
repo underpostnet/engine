@@ -21,6 +21,7 @@ import { SettingsCyberia } from './SettingsCyberia.js';
 import Sortable from 'sortablejs';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { Recover } from '../core/Recover.js';
+import { MapCyberia } from './MapCyberia.js';
 
 const MenuCyberia = {
   Data: {},
@@ -173,6 +174,13 @@ const MenuCyberia = {
             attrs: `data-id="recover"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `${getProxyPath()}recover`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-map',
+            label: renderMenuLabel({ img: 'map.png', text: Translate.Render('map') }),
+            attrs: `data-id="map"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}map`,
           })}
         </div>
       `,
@@ -487,6 +495,24 @@ const MenuCyberia = {
         title: renderViewTitle({ 'ui-icon': 'arrow-left.png', text: 'recover' }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberia.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-map`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-map',
+        route: 'map',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'map.png', text: 'map' }),
+        html: async () => await MapCyberia.Render({ idModal: 'modal-map' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
