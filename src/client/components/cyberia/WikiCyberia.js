@@ -62,8 +62,8 @@ const WikiCyberia = {
           ${'&nbsp'.repeat(4)}<strong>Resource Exploitation:</strong> Exploiting resource-rich planets and asteroids to
           fuel their war machine.
           <br />
-          ${'&nbsp'.repeat(4)}<strong>Corporate Domination:</strong> Monopolizing key industries and markets through
-          strategic acquisitions and mergers.
+          ${'&nbsp'.repeat(4)}<strong>Synthetic Labor:</strong> Utilizing synthetic workers in various industries,
+          reducing labor costs and increasing efficiency.
           <br />
           <br />`,
       })}
@@ -127,8 +127,8 @@ const WikiCyberia = {
           ${'&nbsp'.repeat(4)}<strong>Technological Innovation:</strong> Developing advanced AI systems for various
           purposes, and cutting-edge technologies for selling them to other factions.
           <br />
-          ${'&nbsp'.repeat(4)}<strong>Synthetic Labor:</strong> Utilizing synthetic workers in various industries,
-          reducing labor costs and increasing efficiency.
+          ${'&nbsp'.repeat(4)}<strong>Corporate Domination:</strong> Monopolizing key industries and markets through
+          strategic acquisitions and mergers.
           <br />
           ${'&nbsp'.repeat(4)}<strong>Virtual Reality:</strong> Developing and selling virtual reality experiences,
           entertainment, and training simulations.
