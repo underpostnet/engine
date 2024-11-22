@@ -64,6 +64,11 @@ const fullBuild = async ({
           },
         } */,
     );
+  } else if (publicClientId.startsWith('html-website-templates')) {
+    if (!fs.existsSync(`/dd/html-website-templates/`))
+      shellExec(`cd /dd && git clone https://github.com/designmodo/html-website-templates.git`);
+    if (!fs.existsSync(`${rootClientPath}/index.php`))
+      fs.copySync(`/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
   } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
     switch (publicClientId) {
       case 'mysql_test':
