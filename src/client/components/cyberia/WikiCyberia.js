@@ -42,13 +42,15 @@ const WikiCyberia = {
         body: html`<strong>Culture </strong> Militaristic and expansionist. They believe in the superiority of their
           civilization and the need to dominate space.
           <br />
-          <strong> Characteristic</strong> They develop advanced military technologies and have a large space fleet.
+          <strong> Characteristic:</strong> They develop advanced military technologies and have a large space fleet.
           Their population is primarily composed of genetically modified Colonists bred to be soldiers.
           <br />
-          <strong>Alliance</strong> They maintain strategic alliances with other military powers, such as the Nova
+          <strong>Alliance:</strong> They maintain strategic alliances with other technological powers, such as the Nova
           Republic.
           <br />
-          <strong>Rivalries</strong> Their main rival is the Stellar Atlas Confederation, due to their pacifist ideals.`,
+          <strong>Rivalries:</strong>Their primary rival is the Stellar Atlas Confederation, which they view as weak and
+          indecisive. The Confederation's tolerance of Mutagenics, considered a biothreat by the Zenith Empire, further
+          fuels this rivalry.`,
       })}
       ${renderSection({
         title: `Atlas Confederation`,
@@ -60,11 +62,11 @@ const WikiCyberia = {
           <strong>Characteristics:</strong> They dominate space exploration and planetary colonization technologies.
           Their population is a balanced mix of Colonists, Mutagens, and Synthetics living in harmony.
           <br />
-          <strong>Alliances:</strong> They maintain diplomatic relations with most space powers, promoting peace and
-          cooperation.
+          <strong>Alliances:</strong> They maintain diplomatic relations with most space powers, and above all with
+          diversity of minor clans.
           <br />
-          <strong>Rivalries:</strong> Although they seek peace, they sometimes conflict with the Zenith Empire due to
-          their expansionist policies.`,
+          <strong>Rivalries:</strong> It often has conflicts with the Zenith Empire over substance and biological
+          organisms trafficking, and by the policies of exploitation of planetary resources.`,
       })}
       ${renderSection({
         title: `Nova Republic`,
@@ -83,7 +85,8 @@ const WikiCyberia = {
           They maintain strategic alliances with the Zenith Empire, sharing interests in territorial expansion.
           <br />
           <strong>Rivalries:</strong>
-          They have a historical rivalry with Mutagens, whom they consider a threat to the established order.
+          They have a historical rivalry with hacker organizations and sometimes conflict with the Stellar Atlas
+          Confederation and its Colonists.
         `,
       })}
     `;
