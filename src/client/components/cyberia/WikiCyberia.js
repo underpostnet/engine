@@ -13,7 +13,7 @@ const WikiCyberia = {
 
           <div class="in fll" style="width: 70%">
             <div class="in section-mp">
-              <div class="in wiki-text-2 wiki-text-2-shadow-${color}">${title}</div>
+              <div class="in section-mp wiki-text-2 wiki-text-2-shadow-${color}">${title}</div>
               <div class="in  m">${body}</div>
             </div>
           </div>
@@ -50,14 +50,30 @@ const WikiCyberia = {
           <br />
           <strong>Rivalries:</strong>Their primary rival is the Stellar Atlas Confederation, which they view as weak and
           indecisive. The Confederation's tolerance of Mutagenics, considered a biothreat by the Zenith Empire, further
-          fuels this rivalry.`,
+          fuels this rivalry.
+          <br />
+          <br />
+          <strong>key activities:</strong>
+          <br />
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Military Industry:</strong> Manufacturing advanced weaponry and spacecraft for
+          their military.
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Resource Exploitation:</strong> Exploiting resource-rich planets and asteroids to
+          fuel their war machine.
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Corporate Domination:</strong> Monopolizing key industries and markets through
+          strategic acquisitions and mergers.
+          <br />
+          <br />`,
       })}
       ${renderSection({
         title: `Atlas Confederation`,
         color: 'yellow',
         imgPath: `${getProxyPath()}assets/lore/macro-factions/atlas-confederation.jpeg`,
-        body: html` <strong>Culture:</strong> Based on peaceful exploration and cultural exchange. They value diversity
-          and cooperation between species.
+        body: html`
+          <strong>Culture:</strong> Based on peaceful exploration and cultural exchange. They value diversity and
+          cooperation between species.
           <br />
           <strong>Characteristics:</strong> They dominate space exploration and planetary colonization technologies.
           Their population is a balanced mix of Colonists, Mutagens, and Synthetics living in harmony.
@@ -66,7 +82,23 @@ const WikiCyberia = {
           diversity of minor clans.
           <br />
           <strong>Rivalries:</strong> It often has conflicts with the Zenith Empire over substance and biological
-          organisms trafficking, and by the policies of exploitation of planetary resources.`,
+          organisms trafficking, and by the policies of exploitation of planetary resources.
+          <br />
+          <br />
+          <strong>key activities:</strong>
+          <br />
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Exploration technologies:</strong> Renowned for its advanced exploration
+          technologies and its ability to explore and terraform new worlds
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Bioengineering:</strong> Developing advanced bioengineering techniques to improve
+          human capabilities and adapt to extreme environments.
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Mercenary Work:</strong> Providing specialized services, such as combat,
+          infiltration, and survival skills, to other factions.
+          <br />
+          <br />
+        `,
       })}
       ${renderSection({
         title: `Nova Republic`,
@@ -87,6 +119,21 @@ const WikiCyberia = {
           <strong>Rivalries:</strong>
           They have a historical rivalry with hacker organizations and sometimes conflict with the Stellar Atlas
           Confederation and its Colonists.
+          <br />
+          <br />
+          <strong>key activities:</strong>
+          <br />
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Technological Innovation:</strong> Developing advanced AI systems for various
+          purposes, and cutting-edge technologies for selling them to other factions.
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Synthetic Labor:</strong> Utilizing synthetic workers in various industries,
+          reducing labor costs and increasing efficiency.
+          <br />
+          ${'&nbsp'.repeat(4)}<strong>Virtual Reality:</strong> Developing and selling virtual reality experiences,
+          entertainment, and training simulations.
+          <br />
+          <br />
         `,
       })}
     `;
