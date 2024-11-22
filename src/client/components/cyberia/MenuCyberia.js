@@ -22,6 +22,7 @@ import Sortable from 'sortablejs';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { Recover } from '../core/Recover.js';
 import { MapCyberia } from './MapCyberia.js';
+import { WikiCyberia } from './WikiCyberia.js';
 
 const MenuCyberia = {
   Data: {},
@@ -181,6 +182,13 @@ const MenuCyberia = {
             attrs: `data-id="map"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `${getProxyPath()}map`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-wiki',
+            label: renderMenuLabel({ img: 'wiki.png', text: Translate.Render('wiki') }),
+            attrs: `data-id="wiki"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}wiki`,
           })}
         </div>
       `,
@@ -513,6 +521,24 @@ const MenuCyberia = {
         barConfig,
         title: renderViewTitle({ 'ui-icon': 'map.png', text: 'map' }),
         html: async () => await MapCyberia.Render({ idModal: 'modal-map' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-wiki`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-wiki',
+        route: 'wiki',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'wiki.png', text: 'wiki' }),
+        html: async () => await WikiCyberia.Render({ idModal: 'modal-wiki' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

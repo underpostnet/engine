@@ -20,6 +20,7 @@ const RoutesCyberia = () => {
     '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(), translateTitle: false },
     '/character': { title: 'character', render: () => s(`.main-btn-character`).click(), translateTitle: true },
     '/map': { title: 'map', render: () => s(`.main-btn-map`).click(), translateTitle: true },
+    '/wiki': { title: 'wiki', render: () => s(`.main-btn-wiki`).click(), translateTitle: true },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),

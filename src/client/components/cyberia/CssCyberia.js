@@ -34,6 +34,9 @@ const CssCommonCyberia = async () => {
         font-family: 'retro-font-sensitive';
         src: URL('${getProxyPath()}assets/fonts/VT323-Regular.ttf') format('truetype');
       }
+      strong {
+        color: #ffcc00;
+      }
       .server-icon {
         width: 40px;
         height: 40px;
