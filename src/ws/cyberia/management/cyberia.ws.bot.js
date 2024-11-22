@@ -23,6 +23,7 @@ import {
   updateMovementDirection,
   QuestComponent,
   DisplayComponent,
+  ResourcesComponentCyberia,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
@@ -69,6 +70,11 @@ const CyberiaWsBotManagement = {
     let x, y;
     const behavior = displayBotMetaData.behavior;
     switch (behavior) {
+      case 'resource': {
+        x = displayBotMetaData.x;
+        y = displayBotMetaData.y;
+        break;
+      }
       case 'pet': {
         const parentBotId = Object.keys(CyberiaWsBotManagement.element[wsManagementId]).find((botId) => {
           const dataSkin = CyberiaWsBotManagement.element[wsManagementId][botId].components.skin.find((s) => s.current);
@@ -76,6 +82,7 @@ const CyberiaWsBotManagement = {
         });
         x = newInstance(CyberiaWsBotManagement.element[wsManagementId][parentBotId].x);
         y = newInstance(CyberiaWsBotManagement.element[wsManagementId][parentBotId].y);
+        break;
       }
 
       default: {
@@ -503,6 +510,22 @@ const CyberiaWsBotManagement = {
               displayBotMetaData,
             });
           }
+          if (biome.resources)
+            for (const resource of biome.resources) {
+              const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
+                biome,
+                instanceIndex,
+                wsManagementId,
+                displayBotMetaData: {
+                  id: resource.id,
+                  behavior: 'resource',
+                  title: `${resource.type} resource`,
+                  name: ResourcesComponentCyberia[resource.type].tree[resource.id].name,
+                  x: resource.x / biome.dimPaintByCell,
+                  y: resource.y / biome.dimPaintByCell,
+                },
+              });
+            }
         }
       }
     })();

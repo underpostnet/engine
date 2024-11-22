@@ -1,4 +1,5 @@
 import { Schema, model } from 'mongoose';
+import { ResourcesComponentCyberia } from '../../client/components/cyberia/CommonCyberia.js';
 
 const CyberiaBiomeSchema = new Schema({
   fileId: {
@@ -17,6 +18,14 @@ const CyberiaBiomeSchema = new Schema({
   dim: { type: Number },
   dimPaintByCell: { type: Number },
   dimAmplitude: { type: Number },
+  resources: [
+    {
+      id: { type: String },
+      type: { type: String, enum: Object.keys(ResourcesComponentCyberia) },
+      x: { type: Number },
+      y: { type: Number },
+    },
+  ],
 });
 
 const CyberiaBiomeModel = model('CyberiaBiome', CyberiaBiomeSchema);

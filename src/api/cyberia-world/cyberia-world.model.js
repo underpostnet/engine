@@ -18,7 +18,7 @@ const CyberiaWorldSchema = new Schema({
             {
               behavior: {
                 type: String,
-                enum: ['user-hostile', 'quest-passive', 'item-quest', 'pet', 'generic-people'],
+                enum: ['user-hostile', 'quest-passive', 'item-quest', 'pet', 'generic-people', 'resource'],
               },
               displayIds: [
                 {

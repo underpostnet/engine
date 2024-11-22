@@ -415,6 +415,7 @@ const BiomeCyberia = {
       color: {},
       solid: {},
       topLevelColor: {},
+      resources: [],
     };
     let colorCell;
     let defaultColor;
@@ -553,7 +554,16 @@ const BiomeCyberia = {
                 const topLevelColorEnabled = sumY > 0;
                 if (BiomeCyberiaMatrixCyberia.solid[y + sumY + 2])
                   BiomeCyberiaMatrixCyberia.solid[y + sumY + 2][x + sumX] = topLevelColorEnabled ? 0 : 1;
-                if (topLevelColorEnabled) BiomeCyberiaMatrixCyberia.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
+                if (topLevelColorEnabled) {
+                  BiomeCyberiaMatrixCyberia.topLevelColor[y + sumY][x + sumX] = `${colorCell}`;
+                  if (random(0, 1) === 1)
+                    BiomeCyberiaMatrixCyberia.resources.push({
+                      x: x + sumX,
+                      y: y + sumY,
+                      id: 'generic-wood',
+                      type: 'organic',
+                    });
+                }
               }
               colorCell = '#AF5E06';
             }),
@@ -1238,7 +1248,7 @@ const BiomeCyberiaEngine = {
               status: 'error',
             });
 
-          let { solid, color, topLevelColor } = BiomeCyberiaScope.Keys[biome];
+          let { solid, color, topLevelColor, resources } = BiomeCyberiaScope.Keys[biome];
           if (!solid)
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
@@ -1287,6 +1297,7 @@ const BiomeCyberiaEngine = {
                   dim,
                   dimPaintByCell,
                   dimAmplitude,
+                  resources,
                 },
               });
               NotificationManager.Push({

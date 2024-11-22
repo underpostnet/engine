@@ -270,6 +270,16 @@ const DisplayComponent = {
         extension: 'png',
       };
     },
+    'generic-wood': () => {
+      return {
+        displayId: 'generic-wood',
+        position: '08',
+        positions: PositionsComponent['frames1'](),
+        velFrame: 0.1,
+        assetFolder: 'resources',
+        extension: 'png',
+      };
+    },
   },
 };
 
@@ -366,6 +376,11 @@ const Stat = {
       };
     },
     dog: () => {
+      return {
+        dim: 1,
+      };
+    },
+    'generic-wood': () => {
       return {
         dim: 1,
       };
@@ -1248,9 +1263,25 @@ const BehaviorElement = {
   pet: {
     color: 'yellow',
   },
+  resource: {
+    color: 'yellow',
+  },
   'generic-people': {
     color: 'yellow',
   },
+};
+
+const ResourcesComponentCyberia = {
+  gas: {},
+  mineral: {},
+  organic: {
+    tree: {
+      'generic-wood': {
+        name: 'common wood',
+      },
+    },
+  },
+  exotic: {},
 };
 
 const getK = (value) => {
@@ -1323,4 +1354,5 @@ export {
   getK,
   DisplayComponent,
   CyberiaItemsType,
+  ResourcesComponentCyberia,
 };
