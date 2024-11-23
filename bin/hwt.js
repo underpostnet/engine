@@ -18,6 +18,8 @@ logger.info('argv', process.argv);
 
 const [exe, dir, operator, templateId, publicPath] = process.argv;
 
+// engine for 'html-website-templates'
+
 try {
   switch (operator) {
     case 'set-base':
