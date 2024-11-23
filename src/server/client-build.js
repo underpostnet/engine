@@ -67,8 +67,12 @@ const fullBuild = async ({
   } else if (publicClientId.startsWith('html-website-templates')) {
     if (!fs.existsSync(`/dd/html-website-templates/`))
       shellExec(`cd /dd && git clone https://github.com/designmodo/html-website-templates.git`);
-    if (!fs.existsSync(`${rootClientPath}/index.php`))
+    if (!fs.existsSync(`${rootClientPath}/index.php`)) {
       fs.copySync(`/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
+      shellExec(`cd ${rootClientPath} && git init && git add . && git commit -m "Base template implementation"`);
+      // git remote add origin git@github.com:<username>/<repo>.git
+      fs.writeFileSync(`${rootClientPath}/.git/.htaccess`, `Deny from all`, 'utf8');
+    }
   } else if (fs.existsSync(`./engine-private/src/client/public/${publicClientId}`)) {
     switch (publicClientId) {
       case 'mysql_test':
