@@ -46,7 +46,6 @@ const fullBuild = async ({
     if (!fs.existsSync(`/dd/html-website-templates/`))
       shellExec(`cd /dd && git clone https://github.com/designmodo/html-website-templates.git`);
     if (!fs.existsSync(`${rootClientPath}/index.php`)) {
-      // ->
       fs.copySync(`/dd/html-website-templates/${publicClientId.split('-publicClientId-')[1]}`, rootClientPath);
       shellExec(`cd ${rootClientPath} && git init && git add . && git commit -m "Base template implementation"`);
       // git remote add origin git@github.com:<username>/<repo>.git
