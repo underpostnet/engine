@@ -385,6 +385,8 @@ const Stat = {
         dim: 1,
         damage: 2,
         cooldown: 500,
+        timeLife: 300,
+        vel: 0.3,
       };
     },
     bone: () => {
@@ -974,7 +976,18 @@ const SkillCyberiaType = {
 const SkillCyberiaData = {
   'red-power': { type: 'basic', folder: 'skill' },
   'green-power': { type: 'basic', folder: 'skill' },
-  hatchet: { type: 'basic', folder: 'weapon' },
+  hatchet: {
+    type: 'basic',
+    folder: 'weapon',
+    skillDisplayData: {
+      displayId: 'hatchet',
+      position: '08',
+      positions: PositionsComponent['wing'](),
+      velFrame: 0.03,
+      assetFolder: 'skill',
+      extension: 'png',
+    },
+  },
 };
 
 const SkillCyberiaElement = () => {
