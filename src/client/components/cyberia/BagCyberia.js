@@ -104,6 +104,19 @@ const ItemModal = {
         status: 'update-skill',
         element: { skill: ElementsCyberia.Data[type][id].skill },
       });
+      const currentWeapon = ElementsCyberia.Data[type][id].components.weapon.find((w) => w.current);
+      if (currentWeapon && currentWeapon.displayId !== skill.id)
+        switch (currentWeapon.displayId) {
+          case 'hatchet':
+            {
+              ItemModal.Unequip.weapon({ type, id, weapon: skill, disabledSubEquip: true });
+            }
+
+            break;
+
+          default:
+            break;
+        }
       if (!disabledSubEquip)
         switch (skill.id) {
           case 'hatchet':
