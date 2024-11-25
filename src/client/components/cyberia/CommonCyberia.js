@@ -384,6 +384,7 @@ const Stat = {
       return {
         dim: 1,
         damage: 2,
+        cooldown: 500,
       };
     },
     bone: () => {
@@ -971,8 +972,9 @@ const SkillCyberiaType = {
 };
 
 const SkillCyberiaData = {
-  'red-power': { type: 'basic' },
-  'green-power': { type: 'basic' },
+  'red-power': { type: 'basic', folder: 'skill' },
+  'green-power': { type: 'basic', folder: 'skill' },
+  hatchet: { type: 'basic', folder: 'weapon' },
 };
 
 const SkillCyberiaElement = () => {

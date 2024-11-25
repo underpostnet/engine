@@ -6,7 +6,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Modal } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { append, getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { SkillCyberiaType, Stat } from './CommonCyberia.js';
+import { SkillCyberiaData, SkillCyberiaType, Stat } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
 const logger = loggerFactory(import.meta);
@@ -52,9 +52,9 @@ const SkillCyberia = {
           `.main-skill-img-container-${indexSkillCyberia}`,
           html` <img class="abs center main-skill-img main-skill-img-${indexSkillCyberia}" /> `,
         );
-        s(`.main-skill-img-${indexSkillCyberia}`).src = `${getProxyPath()}assets/skill/${
-          ElementsCyberia.Data.user.main.skill.keys[skillKey]
-        }/animation.gif`;
+        s(`.main-skill-img-${indexSkillCyberia}`).src = `${getProxyPath()}assets/${
+          SkillCyberiaData[ElementsCyberia.Data.user.main.skill.keys[skillKey]].folder
+        }/${ElementsCyberia.Data.user.main.skill.keys[skillKey]}/animation.gif`;
         triggerSkillCyberia = (e, ms, headerRender = '', type) => {
           if (e && e.preventDefault) e.preventDefault();
           if (ElementsCyberia.Data.user.main.life <= 0 && type !== 'dead') return;

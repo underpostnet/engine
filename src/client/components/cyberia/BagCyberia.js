@@ -135,6 +135,21 @@ const ItemModal = {
         },
       );
       ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      switch (weapon.id) {
+        case 'hatchet':
+          {
+            ElementsCyberia.Data.user.main.skill.keys.basic = weapon.id;
+            ElementsCyberia.Data.user.main.skill.tree.push = weapon;
+            setTimeout(async () => {
+              await SkillCyberia.setMainKeysSkillCyberia();
+              CharacterCyberia.RenderCharacterCyberiaSkillSLot({ type, id, skillKey: 'basic' });
+            });
+          }
+          break;
+
+        default:
+          break;
+      }
       PixiCyberia.setDisplayComponent({ type, id });
       CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
@@ -519,7 +534,10 @@ const Slot = {
               x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
           </div>
-          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/skill/${displayId}/animation.gif" />
+          <img
+            class="abs center bag-slot-img"
+            src="${getProxyPath()}assets/${SkillCyberiaData[displayId].folder}/${displayId}/animation.gif"
+          />
           <div class="in bag-slot-type-text">${SkillCyberiaData[displayId].type}<br />skill</div>
           <div class="in bag-slot-name-text">${displayId}</div>
         `,
@@ -530,7 +548,7 @@ const Slot = {
           id: `modal-skill-${slotId}`,
           barConfig,
           title: renderViewTitle({
-            img: `${getProxyPath()}assets/skill/${displayId}/animation.gif`,
+            img: `${getProxyPath()}assets/${SkillCyberiaData[displayId].folder}/${displayId}/animation.gif`,
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({
