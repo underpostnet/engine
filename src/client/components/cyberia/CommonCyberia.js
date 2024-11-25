@@ -120,6 +120,16 @@ const DisplayComponent = {
         extension: 'gif',
       };
     },
+    hatchet: () => {
+      return {
+        displayId: 'hatchet',
+        position: '08',
+        positions: PositionsComponent.frames1(),
+        velFrame: 0.03,
+        assetFolder: 'weapon',
+        extension: 'png',
+      };
+    },
     'bone-brown': () => {
       return {
         displayId: 'bone-brown',
@@ -365,10 +375,16 @@ const Stat = {
         vel: 1.5,
       };
     },
-    'bone-browne': {
-      return: {
+    'bone-browne': () => {
+      return {
         dim: 1.8,
-      },
+      };
+    },
+    hatchet: () => {
+      return {
+        dim: 1,
+        damage: 2,
+      };
     },
     bone: () => {
       return {
@@ -892,7 +908,7 @@ const ComponentElement = {
       components: {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [{ enabled: true, current: true, ...DisplayComponent.get['anon']() }, DisplayComponent.get['ghost']()],
-        weapon: [],
+        weapon: [DisplayComponent.get['hatchet']()],
         breastplate: [],
         lifeBar: {},
         lifeIndicator: {},
@@ -983,7 +999,11 @@ const PlayerElement = () => {
       ],
     },
     weapon: {
-      tree: [],
+      tree: [
+        {
+          id: 'hatchet',
+        },
+      ],
     },
     breastplate: {
       tree: [],

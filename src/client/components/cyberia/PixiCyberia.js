@@ -1025,6 +1025,12 @@ const PixiCyberia = {
         componentInstance.width = dim * element.dim;
         componentInstance.height = dim * element.dim * 0.4;
         break;
+      case 'hatchet':
+        componentInstance.width = (dim * element.dim) / 2;
+        componentInstance.height = (dim * element.dim) / 2;
+        componentInstance.x = dim * element.dim - dim * element.dim * 0.3;
+        componentInstance.y = (dim * element.dim) / 3;
+        break;
       default:
         componentInstance.width = dim * element.dim;
         componentInstance.height = dim * element.dim;

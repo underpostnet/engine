@@ -40,7 +40,7 @@ const CyberiaUserSchema = new Schema({
     tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }] },
   },
   weapon: {
-    tree: { type: [{ id: { type: String } }], default: [] },
+    tree: { type: [{ id: { type: String } }], default: [{ id: 'hatchet' }] },
   },
   breastplate: {
     tree: { type: [{ id: { type: String } }], default: [] },
@@ -52,7 +52,7 @@ const CyberiaUserSchema = new Schema({
     },
     weapon: {
       type: [DisplaySchema],
-      default: [],
+      default: [DisplayComponent.get['hatchet']()],
     },
     breastplate: {
       type: [DisplaySchema],

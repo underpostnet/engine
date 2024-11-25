@@ -512,19 +512,21 @@ const CyberiaWsBotManagement = {
           }
           if (biome.resources)
             for (const resource of biome.resources) {
-              const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
-                biome,
-                instanceIndex,
-                wsManagementId,
-                displayBotMetaData: {
-                  id: resource.id,
-                  behavior: 'resource',
-                  title: `${resource.type} resource`,
-                  name: ResourcesComponentCyberia[resource.type].tree[resource.id].name,
-                  x: resource.x / biome.dimPaintByCell,
-                  y: resource.y / biome.dimPaintByCell,
-                },
-              });
+              if (random(1, 10) === 1) {
+                const { id, bot, skinId, collisionMatrixCyberia } = this.botFactory({
+                  biome,
+                  instanceIndex,
+                  wsManagementId,
+                  displayBotMetaData: {
+                    id: resource.id,
+                    behavior: 'resource',
+                    title: `${resource.type} resource`,
+                    name: ResourcesComponentCyberia[resource.type].tree[resource.id].name,
+                    x: resource.x / biome.dimPaintByCell,
+                    y: resource.y / biome.dimPaintByCell,
+                  },
+                });
+              }
             }
         }
       }
