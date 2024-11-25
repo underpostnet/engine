@@ -97,13 +97,24 @@ const ItemModal = {
     `;
   },
   Equip: {
-    skill: function ({ type, id, skill }) {
+    skill: function ({ type, id, skill, disabledSubEquip }) {
       console.log('Equip skill', { type, id, skill });
       ElementsCyberia.Data[type][id].skill.keys[SkillCyberiaData[skill.id].type] = skill.id;
       SocketIo.Emit(type, {
         status: 'update-skill',
         element: { skill: ElementsCyberia.Data[type][id].skill },
       });
+      if (!disabledSubEquip)
+        switch (skill.id) {
+          case 'hatchet':
+            {
+              this.weapon({ type, id, weapon: skill, disabledSubEquip: true });
+            }
+            break;
+
+          default:
+            break;
+        }
       CharacterCyberia.RenderCharacterCyberiaSkillSLot({ type, id, skillKey: SkillCyberiaData[skill.id].type });
       SkillCyberia.setMainKeysSkillCyberia();
     },
@@ -126,7 +137,7 @@ const ItemModal = {
       });
       CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'skin' });
     },
-    weapon: function ({ type, id, weapon }) {
+    weapon: function ({ type, id, weapon, disabledSubEquip }) {
       ElementsCyberia.Data[type][id].components.weapon = ElementsCyberia.Data[type][id].components.weapon.map(
         (weaponData) => {
           weaponData.enabled = weaponData.displayId === weapon.id;
@@ -135,21 +146,17 @@ const ItemModal = {
         },
       );
       ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
-      switch (weapon.id) {
-        case 'hatchet':
-          {
-            ElementsCyberia.Data.user.main.skill.keys.basic = weapon.id;
-            ElementsCyberia.Data.user.main.skill.tree.push = weapon;
-            setTimeout(async () => {
-              await SkillCyberia.setMainKeysSkillCyberia();
-              CharacterCyberia.RenderCharacterCyberiaSkillSLot({ type, id, skillKey: 'basic' });
-            });
-          }
-          break;
+      if (!disabledSubEquip)
+        switch (weapon.id) {
+          case 'hatchet':
+            {
+              this.skill({ type, id, skill: weapon, disabledSubEquip: true });
+            }
+            break;
 
-        default:
-          break;
-      }
+          default:
+            break;
+        }
       PixiCyberia.setDisplayComponent({ type, id });
       CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
@@ -179,9 +186,20 @@ const ItemModal = {
     },
   },
   Unequip: {
-    skill: function ({ type, id, skill }) {
+    skill: function ({ type, id, skill, disabledSubEquip }) {
       console.log('Unequip skill', { type, id, skill });
       ElementsCyberia.Data[type][id].skill.keys[SkillCyberiaData[skill.id].type] = null;
+      if (!disabledSubEquip)
+        switch (skill.id) {
+          case 'hatchet':
+            {
+              this.weapon({ type, id, weapon: skill, disabledSubEquip: true });
+            }
+            break;
+
+          default:
+            break;
+        }
       SocketIo.Emit(type, {
         status: 'update-skill',
         element: { skill: ElementsCyberia.Data[type][id].skill },
@@ -210,7 +228,7 @@ const ItemModal = {
       });
       CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'skin' });
     },
-    weapon: function ({ type, id, weapon }) {
+    weapon: function ({ type, id, weapon, disabledSubEquip }) {
       ElementsCyberia.Data[type][id].components.weapon = ElementsCyberia.Data[type][id].components.weapon.map(
         (weaponData) => {
           // weaponData.enabled = weapon?.id ? weaponData.displayId === weapon.id : false;
@@ -221,6 +239,17 @@ const ItemModal = {
         },
       );
       ElementsCyberia.Data[type][id] = Stat.set(type, ElementsCyberia.Data[type][id]);
+      if (!disabledSubEquip)
+        switch (weapon.id) {
+          case 'hatchet':
+            {
+              this.skill({ type, id, skill: weapon, disabledSubEquip: true });
+            }
+            break;
+
+          default:
+            break;
+        }
       PixiCyberia.setDisplayComponent({ type, id });
       CharacterCyberia.renderCharacterCyberiaStat();
       SocketIo.Emit(type, {
