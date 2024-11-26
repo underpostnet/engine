@@ -4,6 +4,7 @@ import {
   BaseMatrixCyberia,
   CyberiaParams,
   QuestComponent,
+  ResourcesComponentCyberia,
   SkillCyberiaData,
   Stat,
   WorldCyberiaType,
@@ -168,8 +169,9 @@ const CyberiaWsSkillManagement = {
               switch (parent.type) {
                 case 'user':
                   if (
-                    CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.behavior ===
-                      'user-hostile' &&
+                    ['user-hostile', 'resource'].includes(
+                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.behavior,
+                    ) &&
                     CyberiaWsBotManagement.element[wsManagementId][botId].life > 0 &&
                     isElementCollision({
                       A: this.element[wsManagementId][id],
@@ -177,6 +179,31 @@ const CyberiaWsSkillManagement = {
                       dimPaintByCell: this.matrixData.dimPaintByCell,
                     })
                   ) {
+                    let enabledFlow = true;
+                    switch (
+                      CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.behavior
+                    ) {
+                      case 'resource':
+                        {
+                          enabledFlow = false;
+                          for (const itemSubtractData of ResourcesComponentCyberia[
+                            CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.id
+                          ].subtractItemId) {
+                            const testDisplayItemSubtract = CyberiaWsUserManagement.element[wsManagementId][
+                              parent.id
+                            ].components[itemSubtractData.itemType].find((t) => t.current === true);
+                            if (testDisplayItemSubtract && testDisplayItemSubtract.displayId === itemSubtractData.id) {
+                              enabledFlow = true;
+                              break;
+                            }
+                          }
+                        }
+                        break;
+
+                      default:
+                        break;
+                    }
+                    if (!enabledFlow) break;
                     const newLife =
                       CyberiaWsBotManagement.element[wsManagementId][botId].life -
                       skillData.damage -
@@ -187,17 +214,56 @@ const CyberiaWsSkillManagement = {
                       life: newLife,
                     });
                     if (newLife <= 0) {
-                      CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
-                        CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
-                        CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
-                      );
-                      CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
-                        status: 'update-coin',
-                        id: parent.id,
-                        element: {
-                          coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
-                        },
-                      });
+                      switch (
+                        CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.behavior
+                      ) {
+                        case 'resource':
+                          {
+                            let indexDataResource = CyberiaWsUserManagement.element[wsManagementId][
+                              parent.id
+                            ].resource.tree.findIndex(
+                              (r) =>
+                                r.id ===
+                                CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.id,
+                            );
+
+                            if (indexDataResource < 0) {
+                              indexDataResource = newInstance(
+                                CyberiaWsUserManagement.element[wsManagementId][parent.id].resource.tree.length,
+                              );
+                              CyberiaWsUserManagement.element[wsManagementId][parent.id].resource.tree.push({
+                                id: CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData
+                                  .id,
+                                quantity: 0,
+                              });
+                            }
+
+                            const quantity = random(
+                              ...ResourcesComponentCyberia[
+                                CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.id
+                              ].drop.range,
+                            );
+
+                            console.log('drop resource quantity', quantity);
+                          }
+                          break;
+
+                        default:
+                          {
+                            CyberiaWsUserManagement.element[wsManagementId][parent.id].coin += random(
+                              CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[0],
+                              CyberiaWsBotManagement.localElementScope[wsManagementId][botId].drop.coin.range[1],
+                            );
+                            CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
+                              status: 'update-coin',
+                              id: parent.id,
+                              element: {
+                                coin: CyberiaWsUserManagement.element[wsManagementId][parent.id].coin,
+                              },
+                            });
+                          }
+                          break;
+                      }
                       const componentData = CyberiaWsBotManagement.element[wsManagementId][botId].components.skin.find(
                         (s) => s.current,
                       );

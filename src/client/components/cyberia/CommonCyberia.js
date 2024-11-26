@@ -1021,6 +1021,12 @@ const PlayerElement = () => {
     breastplate: {
       tree: [],
     },
+    resource: {
+      tree: [],
+    },
+    skin: {
+      tree: [],
+    },
     maxLife: 150,
     life: 150,
     deadTime: 3000,
@@ -1304,17 +1310,27 @@ const BehaviorElement = {
   },
 };
 
-const ResourcesComponentCyberia = {
+const ResourcesComponentTypeCyberia = {
+  organic: {},
   gas: {},
   mineral: {},
-  organic: {
-    tree: {
-      'generic-wood': {
-        name: 'common wood',
+  exotic: {},
+};
+
+const ResourcesComponentCyberia = {
+  'generic-wood': {
+    name: 'common wood',
+    type: 'organic',
+    subtractItemId: [
+      {
+        itemType: 'weapon',
+        id: 'hatchet',
       },
+    ],
+    drop: {
+      range: [1, 3],
     },
   },
-  exotic: {},
 };
 
 const getK = (value) => {
@@ -1388,4 +1404,5 @@ export {
   DisplayComponent,
   CyberiaItemsType,
   ResourcesComponentCyberia,
+  ResourcesComponentTypeCyberia,
 };

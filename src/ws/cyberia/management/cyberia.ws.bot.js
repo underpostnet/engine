@@ -520,8 +520,8 @@ const CyberiaWsBotManagement = {
                   displayBotMetaData: {
                     id: resource.id,
                     behavior: 'resource',
-                    title: `${resource.type} resource`,
-                    name: ResourcesComponentCyberia[resource.type].tree[resource.id].name,
+                    title: `${ResourcesComponentCyberia[resource.id].type} resource`,
+                    name: ResourcesComponentCyberia[resource.id].name,
                     x: resource.x / biome.dimPaintByCell,
                     y: resource.y / biome.dimPaintByCell,
                   },
@@ -559,7 +559,20 @@ const CyberiaWsBotManagement = {
       this.localElementScope[wsManagementId][id].target.Active = false;
 
       this.element[wsManagementId][id].components.skin = this.element[wsManagementId][id].components.skin.map((s) => {
-        s.enabled = s.displayId === 'ghost';
+        switch (this.element[wsManagementId][id].behavior) {
+          case 'resource':
+            {
+              s.enabled = false;
+            }
+
+            break;
+
+          default:
+            {
+              s.enabled = s.displayId === 'ghost';
+            }
+            break;
+        }
         return s;
       });
 

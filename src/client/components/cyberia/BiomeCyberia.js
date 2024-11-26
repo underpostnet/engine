@@ -561,7 +561,6 @@ const BiomeCyberia = {
                       x: x + sumX,
                       y: y + sumY,
                       id: 'generic-wood',
-                      type: 'organic',
                     });
                 }
               }

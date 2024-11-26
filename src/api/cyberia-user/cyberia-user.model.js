@@ -17,6 +17,7 @@ const DisplaySchema = new Schema({
 const CyberiaUserSchema = new Schema({
   x: { type: Number, default: 1 },
   y: { type: Number, default: 1 },
+  // ERC-721 stats
   dim: { type: Number, default: 1 },
   vel: { type: Number, default: 0.5 },
   maxLife: { type: Number, default: 150 },
@@ -29,6 +30,7 @@ const CyberiaUserSchema = new Schema({
   heal: { type: Number, default: 7 },
   lifeRegeneration: { type: Number, default: 5 },
   lifeRegenerationVel: { type: Number, default: 1500 },
+  // ERC-721 items
   behavior: { type: String, default: 'user' },
   skill: {
     keys: {
@@ -45,6 +47,11 @@ const CyberiaUserSchema = new Schema({
   breastplate: {
     tree: { type: [{ id: { type: String } }], default: [] },
   },
+  // ERC-20 resources
+  resource: {
+    tree: { type: [{ id: { type: String }, quantity: { type: Number } }], default: [] },
+  },
+  // pixi.js data render
   components: {
     skin: {
       type: [DisplaySchema],
@@ -55,6 +62,10 @@ const CyberiaUserSchema = new Schema({
       default: [DisplayComponent.get['hatchet']()],
     },
     breastplate: {
+      type: [DisplaySchema],
+      default: [],
+    },
+    resource: {
       type: [DisplaySchema],
       default: [],
     },
@@ -69,6 +80,7 @@ const CyberiaUserSchema = new Schema({
     title: { type: Object, default: {} },
     pointerArrow: { type: Object, default: {} },
   },
+  // mongo db schemas refs
   model: {
     user: {
       _id: {
