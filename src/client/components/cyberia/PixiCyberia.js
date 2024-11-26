@@ -16,7 +16,13 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { CharacterCyberiaStatsType, CyberiaParams, BehaviorElement, DisplayComponent } from './CommonCyberia.js';
+import {
+  CharacterCyberiaStatsType,
+  CyberiaParams,
+  BehaviorElement,
+  DisplayComponent,
+  SkillCyberiaData,
+} from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 
@@ -596,11 +602,24 @@ const PixiCyberia = {
       let skinPosition = '08';
       const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
       if (currentDataSkin) skinPosition = currentDataSkin.position;
+      if (ElementsCyberia.Data[type][id].parent) {
+        skinPosition = `1${
+          ElementsCyberia.Data[ElementsCyberia.Data[type][id].parent.type][
+            ElementsCyberia.Data[type][id].parent.id === SocketIo.socket.id
+              ? 'main'
+              : ElementsCyberia.Data[type][id].parent.id
+          ].components.skin.find((s) => s.current).position[1]
+        }`;
+      }
 
       // set skin
       let index = 0;
       for (const component of ElementsCyberia.Data[type][id].components[componentType]) {
-        const { displayId, position, enabled, positions, velFrame, assetFolder, extension, current } = component;
+        const { displayId, position, enabled, positions, velFrame, assetFolder, extension, current } =
+          componentType === 'skill' && SkillCyberiaData[displayId] && SkillCyberiaData[displayId].skillDisplayData
+            ? SkillCyberiaData[displayId].skillDisplayData
+            : component;
+
         for (const positionData of positions) {
           const { positionId, frames } = positionData;
           const pixiFrames = [];
@@ -677,7 +696,7 @@ const PixiCyberia = {
           for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
             anim[attr] = dataSpriteFormat.componentInstance[attr];
           }
-          anim.animationSpeed = DisplayComponent.get[displayId]().velFrame; // 0 - 1
+          anim.animationSpeed = velFrame; // 0 - 1
 
           let componentContainer;
           if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;
@@ -1028,8 +1047,16 @@ const PixiCyberia = {
       case 'hatchet':
         componentInstance.width = (dim * element.dim) / 2;
         componentInstance.height = (dim * element.dim) / 2;
-        componentInstance.x = dim * element.dim - dim * element.dim * 0.3;
         componentInstance.y = (dim * element.dim) / 3;
+        switch (positionId) {
+          case '04':
+          case '14':
+            componentInstance.x = dim * element.dim * 0.2 * -1;
+            break;
+          default:
+            componentInstance.x = dim * element.dim - dim * element.dim * 0.3;
+            break;
+        }
         break;
       default:
         componentInstance.width = dim * element.dim;

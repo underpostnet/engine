@@ -980,12 +980,10 @@ const SkillCyberiaData = {
     type: 'basic',
     folder: 'weapon',
     skillDisplayData: {
-      displayId: 'hatchet',
-      position: '08',
-      positions: PositionsComponent['wing'](),
-      velFrame: 0.03,
+      ...DisplayComponent.get['hatchet'](),
       assetFolder: 'skill',
-      extension: 'png',
+      positions: PositionsComponent.wing(),
+      velFrame: 0.8,
     },
   },
 };
