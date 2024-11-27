@@ -336,6 +336,52 @@ const ItemModal = {
 const SlotEvents = {};
 
 const Slot = {
+  resource: {
+    render: function ({ slotId, displayId, disabledCount, bagId }) {
+      SlotEvents[slotId] = {};
+      if (!s(`.${slotId}`)) return;
+      const count = ElementsCyberia.Data.user.main.resource.tree.find((s) => s.id === displayId).quantity;
+      const componentData = ElementsCyberia.Data.user.main.components.resource.find((s) => s.displayId === displayId);
+      htmls(
+        `.${slotId}`,
+        html`
+          <div class="abs bag-slot-count">
+            <div class="abs center ${disabledCount ? 'hide' : ''}">
+              x<span class="bag-slot-value-${bagId}-${displayId}">${getK(count)}</span>
+            </div>
+          </div>
+          <img
+            class="abs center bag-slot-img"
+            src="${getProxyPath()}assets/resources/${displayId}/08/0.${componentData.extension}"
+          />
+          <div class="in bag-slot-type-text">resource</div>
+          <div class="in bag-slot-name-text">${displayId}</div>
+        `,
+      );
+    },
+    renderBagCyberiaSlots: function ({ bagId, indexBagCyberia, displayId }) {
+      const setQuestItem = ElementsCyberia.Data.user.main.resource.tree.map((r) => r.id);
+      for (const id of setQuestItem) {
+        if (displayId && displayId !== id) continue;
+        const slotId = `${bagId}-${indexBagCyberia}`;
+        this.render({ slotId, displayId: id, bagId });
+        indexBagCyberia++;
+      }
+      return indexBagCyberia;
+    },
+    update: async ({ bagId, displayId, type, id }) => {
+      if (!s(`.modal-bag`)) return;
+      if (!s(`.bag-slot-value-${bagId}-${displayId}`)) {
+        BagCyberia.indexBagCyberia = await Slot.resource.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: BagCyberia.indexBagCyberia,
+          displayId,
+        });
+      }
+      const count = ElementsCyberia.Data.user.main.resource.tree.find((s) => s.id === displayId).quantity;
+      htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(count));
+    },
+  },
   questItem: {
     render: function ({ slotId, displayId, disabledCount, bagId }) {
       SlotEvents[slotId] = {};
@@ -421,7 +467,7 @@ const Slot = {
     render: function ({ slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.components.skin.filter((s) => s.displayId === displayId).length;
+      const count = ElementsCyberia.Data.user.main.skin.tree.filter((s) => s.id === displayId).length;
       const componentData = ElementsCyberia.Data.user.main.components.skin.find((s) => s.displayId === displayId);
       htmls(
         `.${slotId}`,
@@ -656,7 +702,7 @@ const BagCyberia = {
   Tokens: {},
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
-    const totalSlots = 15;
+    const totalSlots = 20;
     this.Tokens[bagId] = { ...options, bagId, totalSlots };
     setTimeout(async () => {
       this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
@@ -788,6 +834,8 @@ const BagCyberia = {
       indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       // indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
       indexBagCyberia = await Slot.questItem.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      indexBagCyberia = await Slot.resource.renderBagCyberiaSlots({ bagId, indexBagCyberia });
+      this.indexBagCyberia = indexBagCyberia;
     });
     return html`
       <div class="fl ${bagId}">

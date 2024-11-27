@@ -912,6 +912,7 @@ const ComponentElement = {
         background: [{ pixi: { tint: 'blue', visible: true }, enabled: false }],
         skin: [{ enabled: true, current: true, ...DisplayComponent.get['anon']() }, DisplayComponent.get['ghost']()],
         weapon: [DisplayComponent.get['hatchet']()],
+        resource: [],
         breastplate: [],
         lifeBar: {},
         lifeIndicator: {},

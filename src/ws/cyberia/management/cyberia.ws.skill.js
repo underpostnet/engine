@@ -3,6 +3,7 @@ import {
   BaseElement,
   BaseMatrixCyberia,
   CyberiaParams,
+  DisplayComponent,
   QuestComponent,
   ResourcesComponentCyberia,
   SkillCyberiaData,
@@ -236,6 +237,11 @@ const CyberiaWsSkillManagement = {
                                   .id,
                                 quantity: 0,
                               });
+                              CyberiaWsUserManagement.element[wsManagementId][parent.id].components.resource.push(
+                                DisplayComponent.get[
+                                  CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.id
+                                ](),
+                              );
                             }
 
                             const quantity = random(
@@ -243,8 +249,24 @@ const CyberiaWsSkillManagement = {
                                 CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData.id
                               ].drop.range,
                             );
-
-                            console.log('drop resource quantity', quantity);
+                            CyberiaWsUserManagement.element[wsManagementId][parent.id].resource.tree[
+                              indexDataResource
+                            ].quantity += quantity;
+                            CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[parent.id], {
+                              status: 'update-resource',
+                              id: parent.id,
+                              element: {
+                                resource: {
+                                  id: CyberiaWsBotManagement.localElementScope[wsManagementId][botId].displayBotMetaData
+                                    .id,
+                                  tree: CyberiaWsUserManagement.element[wsManagementId][parent.id].resource.tree,
+                                },
+                                components: {
+                                  resource:
+                                    CyberiaWsUserManagement.element[wsManagementId][parent.id].components.resource,
+                                },
+                              },
+                            });
                           }
                           break;
 

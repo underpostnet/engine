@@ -111,6 +111,13 @@ const SocketIoCyberia = {
                 Slot.coin.update({ bagId: 'cyberia-bag', type, id });
               }
               break;
+            case 'update-resource':
+              if (type === 'user' && id === 'main') {
+                ElementsCyberia.Data[type][id].resource.tree = element.resource.tree;
+                ElementsCyberia.Data[type][id].components.resource = element.components.resource;
+                Slot.resource.update({ bagId: 'cyberia-bag', displayId: element.resource.id, type, id });
+              }
+              break;
             case 'update-quantity-quest-item':
               if (type === 'user' && id === 'main') {
                 const { questData, displayId, questIndex, itemQuestIndex } = args;
