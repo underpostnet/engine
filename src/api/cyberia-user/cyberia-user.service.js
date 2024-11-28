@@ -33,6 +33,8 @@ const CyberiaUserService = {
     const CyberiaUser = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaUser;
     /** @type {import('../cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaWorld;
+    /** @type {import('../cyberia-biome/cyberia-biome.model.js').CyberiaBiomeModel} */
+    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
 
     switch (req.params.id) {
       case 'auth': {
