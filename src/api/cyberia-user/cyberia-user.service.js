@@ -1,6 +1,9 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { getRandomAvailablePositionCyberia } from '../../client/components/cyberia/CommonCyberia.js';
+import {
+  getRandomAvailablePositionCyberia,
+  isElementCollision,
+} from '../../client/components/cyberia/CommonCyberia.js';
 import dotenv from 'dotenv';
 import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 
@@ -43,9 +46,29 @@ const CyberiaUserService = {
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {
           // const redirectPort = getCyberiaPortByWorldPath(options, `/${userCyberiaWorld._doc.name}`);
           if (req.auth.user.role !== 'admin' && req.auth.user.role !== 'moderator') {
-            return {
-              redirect: `/${userCyberiaWorld._doc.name}`,
-            };
+            const userCyberiaBiome = await CyberiaBiome.findOne({
+              _id: userCyberiaWorld.face[userCyberia.model.world.face - 1],
+            });
+            const isRedirect =
+              !userCyberiaBiome ||
+              !userCyberiaBiome._doc.transports ||
+              !userCyberiaBiome._doc.transports.find(
+                (t) =>
+                  t.path === userCyberiaWorld._doc.name &&
+                  isElementCollision({
+                    A: {
+                      dim: t.dim / 2,
+                      x: t.x / userCyberiaBiome._doc.dimPaintByCell,
+                      y: t.y / userCyberiaBiome._doc.dimPaintByCell,
+                    },
+                    B: userCyberiaWorld._doc,
+                    dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
+                  }),
+              );
+            if (isRedirect)
+              return {
+                redirect: `/${userCyberiaWorld._doc.name}`,
+              };
           }
 
           userCyberia.model.world._id = options.cyberia.world.instance._id.toString();
