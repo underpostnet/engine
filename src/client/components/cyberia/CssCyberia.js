@@ -450,6 +450,7 @@ const CssCyberiaDark = {
             height: 30px;
             top: 5px;
             right: 5px;
+            z-index: 1;
           }
           .bag-slot-type-text {
             padding-top: 70%;

@@ -22,9 +22,11 @@ import {
   BehaviorElement,
   DisplayComponent,
   SkillCyberiaData,
+  isElementCollision,
 } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
+import { SocketIoCyberia } from './SocketIoCyberia.js';
 
 // https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
@@ -728,6 +730,7 @@ const PixiCyberia = {
       ElementsCyberia.Data[type][id].dim *
       (ElementsCyberia.Data[type][id].life / ElementsCyberia.Data[type][id].maxLife);
   },
+  transportBlock: false,
   updatePosition: function (options) {
     const { type, id } = options;
 
@@ -751,6 +754,39 @@ const PixiCyberia = {
     }
 
     if (type === 'user' && id === 'main') {
+      (async () => {
+        if (
+          !PixiCyberia.transportBlock &&
+          BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId] &&
+          BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports
+        ) {
+          PixiCyberia.transportBlock = true;
+          setTimeout(() => (PixiCyberia.transportBlock = false), 1000);
+          const lastX = ElementsCyberia.Data[type][id].x;
+          const lastY = ElementsCyberia.Data[type][id].y;
+          for (const transport of BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports) {
+            if (
+              isElementCollision({
+                A: {
+                  x: transport.x / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
+                  y: transport.y / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
+                  dim: transport.dim / 2,
+                },
+                B: ElementsCyberia.Data[type][id],
+                dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
+              })
+            ) {
+              setTimeout(() => {
+                if (lastX === ElementsCyberia.Data[type][id].x && lastY === ElementsCyberia.Data[type][id].y) {
+                  SocketIoCyberia.changeServer({ server: transport.path });
+                }
+              }, 1000);
+              break;
+            }
+          }
+        }
+      })();
+
       this.topLevelCallBack({ type, id });
       SocketIo.Emit(type, {
         status: 'update-position',

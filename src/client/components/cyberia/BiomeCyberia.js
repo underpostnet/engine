@@ -233,6 +233,7 @@ const BiomeCyberia = {
       color: {},
       solid: {},
       topLevelColor: {},
+      transports: [],
     };
     let colorCell;
     let defaultColor;
@@ -382,6 +383,12 @@ const BiomeCyberia = {
             );
             if (!validDoor) return;
             colorCell = 'black';
+            BiomeCyberiaMatrixCyberia.transports.push({
+              x: xDoor,
+              y: yDoor - dimDoor,
+              path: 'interior32',
+              dim: 1,
+            });
             range(0, dimDoor).map((deltaX) =>
               range(0, dimDoor).map((deltaY) => {
                 if (
@@ -1247,7 +1254,7 @@ const BiomeCyberiaEngine = {
               status: 'error',
             });
 
-          let { solid, color, topLevelColor, resources } = BiomeCyberiaScope.Keys[biome];
+          let { solid, color, topLevelColor, resources, transports } = BiomeCyberiaScope.Keys[biome];
           if (!solid)
             return NotificationManager.Push({
               html: Translate.Render('invalid-data'),
@@ -1297,6 +1304,7 @@ const BiomeCyberiaEngine = {
                   dimPaintByCell,
                   dimAmplitude,
                   resources,
+                  transports,
                 },
               });
               NotificationManager.Push({
