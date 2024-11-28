@@ -148,48 +148,52 @@ const WorldCyberiaManagement = {
         ElementsCyberia.Data[type][id].model.world.face
       ][direction];
 
-      console.warn('newFace', newFace);
-      let newBiomeCyberia;
-      for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
-        if (BiomeCyberiaScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
-          newBiomeCyberia = BiomeCyberiaScope.Data[biomeKey];
-          break;
-        }
-      }
-      let newX = newInstance(ElementsCyberia.Data[type][id].x);
-      let newY = newInstance(ElementsCyberia.Data[type][id].y);
-      switch (initDirection) {
-        case 'left':
-          newX = 0.5;
-          break;
-        case 'right':
-          newX = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
-          break;
-        case 'bottom':
-          newY = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
-          break;
-        case 'top':
-          newY = 0.5;
-          break;
-        default:
-          break;
-      }
-      if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
-      console.warn('newBiomeCyberia', newBiomeCyberia);
-      console.warn('initDirection', initDirection);
-
-      ElementsCyberia.Data[type][id].x = newX;
-      ElementsCyberia.Data[type][id].y = newY;
-      ElementsCyberia.Data[type][id].model.world.face = newFace;
-      await BiomeCyberiaRender.load({
-        data: newBiomeCyberia,
-      });
-      this.LoadAdjacentFaces(type, id);
-      InteractionPanelCyberia.PanelRender.map({ face: newFace });
-      InteractionPanelCyberia.PanelRender.element({ type, id });
-      PointAndClickMovementCyberia.TriggerTargetEvents({ type, id });
-      this.EmitNewWorldCyberiaFace({ type, id });
+      await this.InstanceFace({ type, id, newFace, initDirection });
     }
+  },
+  InstanceFace: async function (options = { type: 'user', id: 'main', newFace: 0, initDirection: '' }) {
+    console.warn('InstanceFace', options);
+    const { type, id, newFace, initDirection } = options;
+    let newBiomeCyberia;
+    for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
+      if (BiomeCyberiaScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
+        newBiomeCyberia = BiomeCyberiaScope.Data[biomeKey];
+        break;
+      }
+    }
+    let newX = newInstance(ElementsCyberia.Data[type][id].x);
+    let newY = newInstance(ElementsCyberia.Data[type][id].y);
+    switch (initDirection) {
+      case 'left':
+        newX = 0.5;
+        break;
+      case 'right':
+        newX = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
+        break;
+      case 'bottom':
+        newY = MatrixCyberia.Data.dim - ElementsCyberia.Data[type][id].dim - 0.5;
+        break;
+      case 'top':
+        newY = 0.5;
+        break;
+      default:
+        break;
+    }
+    if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
+    console.warn('newBiomeCyberia', newBiomeCyberia);
+    console.warn('initDirection', initDirection);
+
+    ElementsCyberia.Data[type][id].x = newX;
+    ElementsCyberia.Data[type][id].y = newY;
+    ElementsCyberia.Data[type][id].model.world.face = newFace;
+    await BiomeCyberiaRender.load({
+      data: newBiomeCyberia,
+    });
+    this.LoadAdjacentFaces(type, id);
+    InteractionPanelCyberia.PanelRender.map({ face: newFace });
+    InteractionPanelCyberia.PanelRender.element({ type, id });
+    PointAndClickMovementCyberia.TriggerTargetEvents({ type, id });
+    this.EmitNewWorldCyberiaFace({ type, id });
   },
   EmitNewWorldCyberiaFace: (options) => {
     const { type, id } = options;
@@ -225,7 +229,10 @@ const WorldCyberiaManagement = {
     let indexFace = -1;
     for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
-      if (ElementsCyberia.Data.user.main.model.world.face - 1 === indexFace) {
+      if (
+        ElementsCyberia.Data.user.main.model.world.face ===
+        WorldCyberiaType[this.Data[type][id].model.world.type].worldFaces[indexFace]
+      ) {
         await BiomeCyberiaRender.load({
           data: await BiomeCyberiaRender.loadData({
             data: { _id },

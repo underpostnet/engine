@@ -29,6 +29,7 @@ const CyberiaBiomeSchema = new Schema({
       path: { type: String },
       x: { type: Number },
       y: { type: Number },
+      face: { type: Number },
       dim: { type: Number, default: 1 },
     },
   ],

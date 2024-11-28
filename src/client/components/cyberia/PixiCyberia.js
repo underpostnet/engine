@@ -778,6 +778,12 @@ const PixiCyberia = {
                 if (lastX === ElementsCyberia.Data[type][id].x && lastY === ElementsCyberia.Data[type][id].y) {
                   PixiCyberia.transportBlock = true;
                   await SocketIoCyberia.changeServer({ server: transport.path });
+                  await WorldCyberiaManagement.InstanceFace({
+                    type,
+                    id,
+                    newFace: transport.face,
+                    initDirection: 'bottom',
+                  });
                   PixiCyberia.transportBlock = false;
                 }
               }, 1000);

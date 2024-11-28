@@ -683,6 +683,8 @@ const getCapVariableName = (value = 'default') => cap(value.replaceAll('-', ' ')
 
 const hexToNumber = (hex = 0xdc) => Number(hex) || parseFloat(hex, 16);
 
+const numberToHex = (number = 0) => number.toString(16);
+
 // 0x = Hexadecimal
 // 0b = Binary
 // 0o = Octal
@@ -739,4 +741,5 @@ export {
   rgbToHex,
   getCapVariableName,
   hexToNumber,
+  numberToHex,
 };

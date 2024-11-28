@@ -1144,17 +1144,6 @@ const getCollisionMatrixCyberia = (biome, element) => {
   );
 };
 
-const WorldCyberiaType = {
-  width: {
-    worldFaces: [1, 6, 3, 5],
-    spaceFace: [2, 4],
-  },
-  height: {
-    worldFaces: [1, 2, 3, 4],
-    spaceFace: [5, 6],
-  },
-};
-
 const WorldCyberiaLimit = (options = { type: undefined }) => {
   const { type } = options;
   return {
@@ -1367,10 +1356,21 @@ const CyberiaParams = {
   CYBERIA_WORLD_ID: '',
 };
 
+const WorldCyberiaType = {
+  width: {
+    worldFaces: [1, 6, 3, 5],
+    spaceFace: [2, 4],
+  },
+  height: {
+    worldFaces: [1, 2, 3, 4],
+    spaceFace: [5, 6],
+  },
+};
+
 const CyberiaServer = {
   instances: [
-    { server: 'interior32' },
-    { server: 'seed-city' },
+    { server: 'interior32', worldType: 'width' },
+    { server: 'seed-city', worldType: 'width' },
     // { server: 'lol' },
     // { server: 'dim32' },
     // { server: 'hhworld' },

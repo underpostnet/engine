@@ -28,9 +28,11 @@ import { Validator } from '../core/Validator.js';
 import { downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import {
   BaseMatrixCyberia,
+  CyberiaServer,
   getCollisionMatrixCyberia,
   getRandomAvailablePositionCyberia,
   isBiomeCyberiaCollision,
+  WorldCyberiaType,
 } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
@@ -229,6 +231,34 @@ const BiomeCyberia = {
       },
     ];
     const pavementStyle = ['#373737', '#282828', '#1d1d1d', 'black'];
+
+    let currentIndexPathTransport = 0;
+    let currentIndexPathFace = 0;
+
+    const transportsTargets = [
+      {
+        path: 'interior32',
+        dim: 1,
+      },
+    ];
+
+    const getCurrentTransportData = () => {
+      const target = transportsTargets[currentIndexPathTransport];
+      const faces =
+        WorldCyberiaType[CyberiaServer.instances.find((instance) => instance.server === target.path).worldType]
+          .worldFaces;
+      const face = faces[currentIndexPathFace];
+      currentIndexPathFace++;
+      if (currentIndexPathFace >= faces.length) {
+        currentIndexPathFace = 0;
+        currentIndexPathTransport++;
+        if (currentIndexPathTransport >= transportsTargets.length) currentIndexPathTransport = 0;
+      }
+      return {
+        ...target,
+        face,
+      };
+    };
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
@@ -386,8 +416,7 @@ const BiomeCyberia = {
             BiomeCyberiaMatrixCyberia.transports.push({
               x: xDoor,
               y: yDoor - dimDoor,
-              path: 'interior32',
-              dim: 1,
+              ...getCurrentTransportData(),
             });
             range(0, dimDoor).map((deltaX) =>
               range(0, dimDoor).map((deltaY) => {
