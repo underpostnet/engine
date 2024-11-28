@@ -1056,6 +1056,8 @@ const BiomeCyberiaRender = {
     // MatrixCyberia.Data.dimAmplitude = BiomeCyberiaScope.Data[rowId].dimAmplitude;
     PixiCyberia.setFloor(BiomeCyberiaScope.Data[rowId].imageSrc);
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
+    if (BiomeCyberiaScope.Data[rowId].transports)
+      PixiCyberia.setTransportComponents(BiomeCyberiaScope.Data[rowId].transports);
   },
 };
 

@@ -760,8 +760,6 @@ const PixiCyberia = {
           BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId] &&
           BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports
         ) {
-          PixiCyberia.transportBlock = true;
-          setTimeout(() => (PixiCyberia.transportBlock = false), 1000);
           const lastX = ElementsCyberia.Data[type][id].x;
           const lastY = ElementsCyberia.Data[type][id].y;
           for (const transport of BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports) {
@@ -776,9 +774,11 @@ const PixiCyberia = {
                 dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
               })
             ) {
-              setTimeout(() => {
+              setTimeout(async () => {
                 if (lastX === ElementsCyberia.Data[type][id].x && lastY === ElementsCyberia.Data[type][id].y) {
-                  SocketIoCyberia.changeServer({ server: transport.path });
+                  PixiCyberia.transportBlock = true;
+                  await SocketIoCyberia.changeServer({ server: transport.path });
+                  PixiCyberia.transportBlock = false;
                 }
               }, 1000);
               break;
@@ -1102,6 +1102,17 @@ const PixiCyberia = {
         break;
     }
     return { componentInstance, indexLayer };
+  },
+  setTransportComponents: async function (transports = []) {
+    const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    for (const transport of transports) {
+      const componentInstance = Sprite.from(new BaseTexture(`${getProxyPath()}assets/ui-icons/transport.png`));
+      componentInstance.width = dim / 2;
+      componentInstance.height = dim / 2;
+      componentInstance.x = dim * (transport.x / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+      componentInstance.y = dim * (transport.y / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+      this.AppTopLevelColor.stage.addChild(componentInstance);
+    }
   },
 };
 
