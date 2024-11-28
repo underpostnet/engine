@@ -6,6 +6,7 @@ import {
 } from '../../client/components/cyberia/CommonCyberia.js';
 import dotenv from 'dotenv';
 import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
+import { CyberiaWsUserManagement } from '../../ws/cyberia/management/cyberia.ws.user.js';
 
 dotenv.config();
 
@@ -79,6 +80,13 @@ const CyberiaUserService = {
           });
           userCyberia.x = x;
           userCyberia.y = y;
+          const wsManagementId = `${options.host}${options.path}`;
+          const socketId = CyberiaWsUserManagement.getCyberiaUserWsId(wsManagementId, userCyberia._id.toString());
+          if (socketId) {
+            CyberiaWsUserManagement.element[wsManagementId][socketId].model = userCyberia.model;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].x = x;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].y = y;
+          }
           await CyberiaUser.findByIdAndUpdate(
             userCyberia._id.toString(),
             { x, y, model: userCyberia.model },
