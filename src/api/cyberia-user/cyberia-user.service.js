@@ -58,11 +58,11 @@ const CyberiaUserService = {
               !userCyberiaBiome._doc.transports.find((t) => {
                 const collision = isElementCollision({
                   A: {
-                    dim: t.dim,
+                    dim: t.dim / 2,
                     x: t.x / userCyberiaBiome._doc.dimPaintByCell,
                     y: t.y / userCyberiaBiome._doc.dimPaintByCell,
                   },
-                  B: userCyberiaWorld._doc,
+                  B: userCyberia._doc,
                   dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
                 });
                 console.log([t.path === userCyberiaWorld._doc.name, collision]);
