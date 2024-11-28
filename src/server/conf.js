@@ -107,7 +107,6 @@ const loadConf = (deployId) => {
     if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(JSON.parse(srcConf)), null, 4);
     fs.writeFileSync(`./conf/conf.${typeConf}.json`, srcConf, 'utf8');
   }
-  if (!isValidDeployId) return {};
   fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
@@ -127,7 +126,12 @@ const loadReplicas = (confServer) => {
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
       const { replicas, singleReplica } = confServer[host][path];
-      if (replicas && (process.argv[2] === 'proxy' || !singleReplica))
+      if (
+        replicas &&
+        (process.argv[2] === 'proxy' ||
+          !singleReplica ||
+          (singleReplica && process.env.NODE_ENV === 'development' && !process.argv[3]))
+      )
         for (const replicaPath of replicas) {
           confServer[host][replicaPath] = newInstance(confServer[host][path]);
           delete confServer[host][replicaPath].replicas;
