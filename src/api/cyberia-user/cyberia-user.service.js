@@ -56,17 +56,18 @@ const CyberiaUserService = {
               !userCyberiaBiome ||
               !userCyberiaBiome._doc.transports ||
               !userCyberiaBiome._doc.transports.find((t) => {
-                const collision = isElementCollision({
-                  A: {
-                    dim: t.dim / 2,
-                    x: t.x / userCyberiaBiome._doc.dimPaintByCell,
-                    y: t.y / userCyberiaBiome._doc.dimPaintByCell,
-                  },
-                  B: userCyberia._doc,
-                  dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
-                });
-                console.log([t.path === userCyberiaWorld._doc.name, collision]);
-                return t.path === userCyberiaWorld._doc.name && collision;
+                return (
+                  t.path === options.cyberia.world.instance.name &&
+                  isElementCollision({
+                    A: {
+                      dim: t.dim / 2,
+                      x: t.x / userCyberiaBiome._doc.dimPaintByCell,
+                      y: t.y / userCyberiaBiome._doc.dimPaintByCell,
+                    },
+                    B: userCyberia._doc,
+                    dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
+                  })
+                );
               });
             if (isRedirect)
               return {
