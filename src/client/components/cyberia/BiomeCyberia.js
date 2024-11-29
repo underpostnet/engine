@@ -660,10 +660,17 @@ const BiomeCyberia = {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
 
     const validateMatrixCyberiaLimit = (x, y) => x >= 0 && y >= 0 && x <= dim - 1 && y <= dim - 1;
+    const transportsTargets = [
+      {
+        path: 'seed-city',
+        dim: 1,
+      },
+    ];
 
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
+      transports: [],
     };
     let colorCell;
 
@@ -680,6 +687,13 @@ const BiomeCyberia = {
         } else {
           colorCell = '#080808';
         }
+
+        if (random(0, 700 * 4) <= 3)
+          BiomeCyberiaMatrixCyberia.transports.push({
+            x,
+            y,
+            ...getCurrentTransportData('space', transportsTargets),
+          });
 
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
