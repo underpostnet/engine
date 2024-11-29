@@ -367,7 +367,7 @@ const MainUserCyberia = {
       htmls('.ssr-loading-info', html``);
       if (s(`.ssr-lore-arrows-container`)) s(`.ssr-lore-arrows-container`).style.display = null;
       append(
-        `.ssr-background-cyberia-lore`,
+        `.ssr-lore-display`,
         html`
           <!-- <div class="abs cyberia-splash-screen-logo-container">
               <img class="inl logo-cyberia-splash-screen" src="${getProxyPath()}assets/ui-icons/cyberia-yellow.png" />

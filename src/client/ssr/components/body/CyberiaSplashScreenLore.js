@@ -377,23 +377,29 @@ SrrComponent = ({ host, path }) => html`
       }
     </style>
     ${borderChar(1, '#000000', ['.ssr-lore-container', '.ssr-lore-info-read-current'])}
-    ${framesLore()
-      .map((i) => html`<div class="ssr-background-image-lore ssr-background-image-lore-${i}" style="opacity: 0"></div>`)
-      .join('')}
+    <div class="ssr-lore-display">
+      ${framesLore()
+        .map(
+          (i) => html`<div class="ssr-background-image-lore ssr-background-image-lore-${i}" style="opacity: 0"></div>`,
+        )
+        .join('')}
 
-    <div class="ssr-background-image-lore-gradient"></div>
+      <div class="ssr-background-image-lore-gradient"></div>
 
-    <div class="ssr-lore-container"></div>
-    <div class="ssr-lore-arrows-container" style="display: none">
-      <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
-      <!--style="display:none"-->
-      <div class="ssr-lore-arrow-container ssr-lore-arrow-left">
-        <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
-      </div>
-      <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
-        <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-right']}" />
+      <div class="ssr-lore-container"></div>
+      <div class="ssr-lore-arrows-container" style="display: none">
+        <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
+        <!--style="display:none"-->
+        <div class="ssr-lore-arrow-container ssr-lore-arrow-left">
+          <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
+        </div>
+        <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
+          <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-right']}" />
+        </div>
       </div>
     </div>
+
+    <div class="ssr-custom-display" style="display: none;"></div>
 
     <div class="ssr-loading-container">
       <div class="ssr-loading-bar"><div class="ssr-loading-bar-block ssr-blink-bar"></div></div>

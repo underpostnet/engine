@@ -62,9 +62,9 @@ const Worker = {
       // Dev mode
 
       window.addEventListener('visibilitychange', (event) => {
-        if (document.visibilityState === 'visible') {
-          Worker.reload(delayLiveReload);
-        }
+        // if (document.visibilityState === 'visible') {
+        //   Worker.reload(delayLiveReload);
+        // }
       });
       window.addEventListener('focus', function () {
         // Worker.reload(delayLiveReload);

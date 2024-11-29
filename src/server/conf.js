@@ -135,6 +135,7 @@ const loadReplicas = (confServer) => {
         for (const replicaPath of replicas) {
           confServer[host][replicaPath] = newInstance(confServer[host][path]);
           delete confServer[host][replicaPath].replicas;
+          delete confServer[host][replicaPath].singleReplica;
         }
     }
   }

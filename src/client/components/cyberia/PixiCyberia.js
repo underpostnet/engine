@@ -1,4 +1,4 @@
-import { s, append, getProxyPath } from '../core/VanillaJs.js';
+import { s, append, getProxyPath, htmls } from '../core/VanillaJs.js';
 import {
   getDistance,
   getId,
@@ -27,6 +27,7 @@ import {
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 // https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
@@ -605,13 +606,18 @@ const PixiCyberia = {
       const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
       if (currentDataSkin) skinPosition = currentDataSkin.position;
       if (ElementsCyberia.Data[type][id].parent) {
-        skinPosition = `1${
+        const parentElement =
           ElementsCyberia.Data[ElementsCyberia.Data[type][id].parent.type][
             ElementsCyberia.Data[type][id].parent.id === SocketIo.socket.id
               ? 'main'
               : ElementsCyberia.Data[type][id].parent.id
-          ].components.skin.find((s) => s.current).position[1]
-        }`;
+          ];
+        if (parentElement) skinPosition = `1${parentElement.components.skin.find((s) => s.current).position[1]}`;
+        else {
+          console.error(`Parent element not found for ${type}-${id}`);
+          SocketIoCyberia.disconnect({ type, id });
+          return;
+        }
       }
 
       // set skin
@@ -777,6 +783,23 @@ const PixiCyberia = {
               setTimeout(async () => {
                 if (lastX === ElementsCyberia.Data[type][id].x && lastY === ElementsCyberia.Data[type][id].y) {
                   PixiCyberia.transportBlock = true;
+                  s(`.ssr-lore-display`).style.display = 'none';
+                  s(`.ssr-loading-bar`).style.display = 'flow-root';
+                  htmls(
+                    '.ssr-custom-display',
+                    html`
+                      <div class="abs center" style="top: 45%">
+                        <img
+                          style="width: 100px"
+                          alt="CYBERIA ONLINE"
+                          src="${getProxyPath()}/assets/ui-icons/world-default-forest-city.png"
+                        />
+                        <br /><br />
+                        ${transport.path}
+                      </div>
+                    `,
+                  );
+                  s(`.ssr-custom-display`).style.display = null;
                   await SocketIoCyberia.changeServer({ server: transport.path });
                   await WorldCyberiaManagement.InstanceFace({
                     type,
@@ -785,6 +808,9 @@ const PixiCyberia = {
                     initDirection: 'bottom',
                   });
                   PixiCyberia.transportBlock = false;
+                  LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
+                  s(`.ssr-custom-display`).style.display = 'none';
+                  s(`.ssr-lore-display`).style.display = null;
                 }
               }, 1000);
               break;
