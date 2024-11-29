@@ -78,9 +78,18 @@ const getCurrentTransportData = (id, transportsTargets) => {
 const BiomeCyberia = {
   'city-interior': async function () {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
+
+    const transportsTargets = [
+      {
+        path: 'seed-city',
+        dim: 1,
+      },
+    ];
+
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
+      transports: [],
     };
 
     const squareSeedDimLimit = round10((dim - 1) * [0.2, 0.15, 0.1, 0.05][random(0, 3)]);
@@ -256,9 +265,6 @@ const BiomeCyberia = {
     ];
     const pavementStyle = ['#373737', '#282828', '#1d1d1d', 'black'];
 
-    let currentIndexPathTransport = 0;
-    let currentIndexPathFace = 0;
-
     const transportsTargets = [
       {
         path: 'interior32',
@@ -266,23 +272,6 @@ const BiomeCyberia = {
       },
     ];
 
-    const getCurrentTransportData = () => {
-      const target = transportsTargets[currentIndexPathTransport];
-      const faces =
-        WorldCyberiaType[CyberiaServer.instances.find((instance) => instance.server === target.path).worldType]
-          .worldFaces;
-      const face = faces[currentIndexPathFace];
-      currentIndexPathFace++;
-      if (currentIndexPathFace >= faces.length) {
-        currentIndexPathFace = 0;
-        currentIndexPathTransport++;
-        if (currentIndexPathTransport >= transportsTargets.length) currentIndexPathTransport = 0;
-      }
-      return {
-        ...target,
-        face,
-      };
-    };
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
@@ -440,7 +429,7 @@ const BiomeCyberia = {
             BiomeCyberiaMatrixCyberia.transports.push({
               x: xDoor,
               y: yDoor - dimDoor,
-              ...getCurrentTransportData(),
+              ...getCurrentTransportData('city', transportsTargets),
             });
             range(0, dimDoor).map((deltaX) =>
               range(0, dimDoor).map((deltaY) => {
