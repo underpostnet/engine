@@ -51,6 +51,30 @@ const cut = {
   y2: 3,
 };
 
+const transportDataScope = {};
+
+const getCurrentTransportData = (id, transportsTargets) => {
+  if (!transportDataScope[id]) transportDataScope[id] = { currentIndexPathTransport: 0, currentIndexPathFace: 0 };
+
+  const target = transportsTargets[transportDataScope[id].currentIndexPathTransport];
+  const faces =
+    WorldCyberiaType[CyberiaServer.instances.find((instance) => instance.server === target.path).worldType].worldFaces;
+  const face = faces[transportDataScope[id].currentIndexPathFace];
+  transportDataScope[id].currentIndexPathFace++;
+  if (transportDataScope[id].currentIndexPathFace >= faces.length) {
+    transportDataScope[id].currentIndexPathFace = 0;
+    transportDataScope[id].currentIndexPathTransport++;
+    if (transportDataScope[id].currentIndexPathTransport >= transportsTargets.length)
+      transportDataScope[id].currentIndexPathTransport = 0;
+  }
+  const transportTarget = newInstance({
+    ...target,
+    face,
+  });
+  console.warn({ transportTarget });
+  return transportTarget;
+};
+
 const BiomeCyberia = {
   'city-interior': async function () {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
