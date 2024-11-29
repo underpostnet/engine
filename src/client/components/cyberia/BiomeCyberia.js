@@ -247,6 +247,30 @@ const BiomeCyberia = {
       });
     });
 
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (
+          BiomeCyberiaMatrixCyberia.color[y] &&
+          BiomeCyberiaMatrixCyberia.color[y][x] &&
+          BiomeCyberiaMatrixCyberia.color[y][x] === `#1fa92d` &&
+          !BiomeCyberiaMatrixCyberia.transports.find((to) => {
+            for (const testY of range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1)) {
+              for (const testX of range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1)) {
+                if (to.x <= x && x <= to.x + testX && to.y <= y && y <= to.y + testY) return true;
+              }
+            }
+            return false;
+          })
+        ) {
+          BiomeCyberiaMatrixCyberia.transports.push({
+            x,
+            y,
+            ...getCurrentTransportData('city-interior', transportsTargets),
+          });
+        }
+      });
+    });
+
     return BiomeCyberiaMatrixCyberia;
   },
   city: async function () {
