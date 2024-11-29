@@ -160,6 +160,7 @@ const SocketIoCyberia = {
   },
   changeServer: async function (options = { server: '' }) {
     if (options && options.server) setPath('/' + options.server);
+    LoadingAnimation.barLevel.clear();
     await SocketIo.Init({ channels: ElementsCyberia.Data });
     return await this.Init();
   },

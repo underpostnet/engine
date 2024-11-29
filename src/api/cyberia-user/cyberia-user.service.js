@@ -86,9 +86,9 @@ const CyberiaUserService = {
           const wsManagementId = `${options.host}${options.path}`;
           const socketId = CyberiaWsUserManagement.getCyberiaUserWsId(wsManagementId, userCyberia._id.toString());
           if (socketId) {
-            CyberiaWsUserManagement.element[wsManagementId][socketId].model = userCyberia.model;
-            CyberiaWsUserManagement.element[wsManagementId][socketId].x = x;
-            CyberiaWsUserManagement.element[wsManagementId][socketId].y = y;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].model = userCyberia._doc.model;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].x = userCyberia._doc.x;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].y = userCyberia._doc.y;
           }
           await CyberiaUser.findByIdAndUpdate(
             userCyberia._id.toString(),

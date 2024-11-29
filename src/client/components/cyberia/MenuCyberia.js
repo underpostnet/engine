@@ -480,6 +480,7 @@ const MenuCyberia = {
             idModal: 'modal-server',
             events: {
               'change-server': async ({ server }) => {
+                s(`.ssr-loading-bar`).style.display = 'none';
                 await SocketIoCyberia.changeServer({ server });
               },
             },

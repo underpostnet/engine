@@ -420,6 +420,7 @@ const Stat = {
       element.components = oldElement.components;
       element.life = oldElement.life;
       element.coin = oldElement.coin;
+      element.resource = oldElement.resource;
     }
 
     for (const componentType of Object.keys(CharacterCyberiaStatsType)) {
