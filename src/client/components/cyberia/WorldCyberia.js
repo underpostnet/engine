@@ -226,13 +226,10 @@ const WorldCyberiaManagement = {
     }
 
     // load single world
-    let indexFace = -1;
+    let indexFace = 0;
     for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
-      if (
-        ElementsCyberia.Data.user.main.model.world.face ===
-        WorldCyberiaType[this.Data[type][id].model.world.type].worldFaces[indexFace]
-      ) {
+      if (ElementsCyberia.Data.user.main.model.world.face === indexFace) {
         await BiomeCyberiaRender.load({
           data: await BiomeCyberiaRender.loadData({
             data: { _id },
