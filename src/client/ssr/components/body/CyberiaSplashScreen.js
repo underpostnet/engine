@@ -81,8 +81,7 @@ SrrComponent = ({ host, path }) => html` <div class="ssr-background" style="opac
     <div class="ssr-loading-bar"><div class="ssr-loading-bar-block ssr-blink-bar"></div></div>
     <br /><br />
     <div class="ssr-loading-info">
-      <span style="color: white">connecting </span> <br />
-      <br />
+      <span style="color: white">connecting </span>
       ...${`${host}${path}`.slice(-30)}
     </div>
   </div>

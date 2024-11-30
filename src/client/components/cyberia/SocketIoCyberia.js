@@ -144,9 +144,7 @@ const SocketIoCyberia = {
         LoadingAnimation.barLevel.clear();
         htmls(
           `.ssr-loading-info`,
-          html`<span style="color: white">connecting </span> <br />
-            <br />
-            ...${location.hostname.slice(-30)}`,
+          html`<span style="color: white">connecting </span> ...${location.hostname.slice(-30)}`,
         );
         s('.ssr-background-cyberia-lore').style.display = 'block';
         setTimeout((s('.ssr-background-cyberia-lore').style.opacity = '1'));

@@ -3,7 +3,7 @@ import { BtnIcon } from './BtnIcon.js';
 import { s4 } from './CommonJs.js';
 import { darkTheme, renderCssAttr } from './Css.js';
 import { loggerFactory } from './Logger.js';
-import { append, getAllChildNodes, getProxyPath, htmls, s } from './VanillaJs.js';
+import { append, getAllChildNodes, getProxyPath, htmls, s, sa } from './VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -129,6 +129,7 @@ const LoadingAnimation = {
   },
   barLevel: {
     append: () => {
+      if (Array.from(sa('.ssr-loading-bar-block')).length >= 5) return;
       s(`.ssr-blink-bar`).classList.remove('ssr-blink-bar');
       append('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
     },
@@ -136,7 +137,7 @@ const LoadingAnimation = {
       htmls('.ssr-loading-bar', html`<div class="ssr-loading-bar-block ssr-blink-bar"></div>`);
     },
   },
-  removeSplashScreen: function (backgroundContainer) {
+  removeSplashScreen: function (backgroundContainer, callBack) {
     if (s(`.clean-cache-container`)) s(`.clean-cache-container`).style.display = 'none';
     if (!backgroundContainer) backgroundContainer = '.ssr-background';
     if (s(backgroundContainer))
@@ -144,6 +145,7 @@ const LoadingAnimation = {
         s(backgroundContainer).style.opacity = 0;
         setTimeout(async () => {
           s(backgroundContainer).style.display = 'none';
+          if (callBack) callBack();
         }, 300);
       });
   },

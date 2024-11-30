@@ -366,8 +366,8 @@ const MainUserCyberia = {
       // htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
       htmls('.ssr-loading-info', html``);
       if (s(`.ssr-lore-arrows-container`)) s(`.ssr-lore-arrows-container`).style.display = null;
-      append(
-        `.ssr-lore-display`,
+      htmls(
+        `.ssr-play-btn-container`,
         html`
           <!-- <div class="abs cyberia-splash-screen-logo-container">
               <img class="inl logo-cyberia-splash-screen" src="${getProxyPath()}assets/ui-icons/cyberia-yellow.png" />
@@ -388,6 +388,7 @@ const MainUserCyberia = {
         `,
       );
       s(`.main-play-btn`).onclick = () => {
+        htmls(`.ssr-play-btn-container`, '');
         LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
       };
     }, 2000);

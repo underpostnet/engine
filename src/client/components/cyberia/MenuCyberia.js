@@ -479,10 +479,7 @@ const MenuCyberia = {
           await ServerCyberiaPortal.Render({
             idModal: 'modal-server',
             events: {
-              'change-server': async ({ server }) => {
-                s(`.ssr-loading-bar`).style.display = 'none';
-                await SocketIoCyberia.changeServer({ server });
-              },
+              'change-server': ServerCyberiaPortal.internalChangeServer,
             },
           }),
         handleType: 'bar',

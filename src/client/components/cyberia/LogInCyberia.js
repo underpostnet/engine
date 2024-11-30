@@ -14,6 +14,7 @@ import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 
 const initAnonSession = async () => {
   LoadingAnimation.barLevel.append();
@@ -56,8 +57,9 @@ const LogInCyberia = async function () {
       // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
       // return (location.href = redirect);
       setPath(resultUserCyberia.data.redirect);
-      await SocketIo.Init({ channels: ElementsCyberia.Data });
-      return await SocketIoCyberia.Init();
+      return await ServerCyberiaPortal.internalChangeServer();
+      // await SocketIo.Init({ channels: ElementsCyberia.Data });
+      // return await SocketIoCyberia.Init();
     }
     if (resultUserCyberia.status === 'success') {
       ElementsCyberia.Init({ type, id, element: resultUserCyberia.data });

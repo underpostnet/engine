@@ -47,6 +47,9 @@ const CyberiaUserSchema = new Schema({
   breastplate: {
     tree: { type: [{ id: { type: String } }], default: [] },
   },
+  skin: {
+    tree: { type: [{ id: { type: String } }], default: [{ id: 'anon' }, { id: 'ghost' }] },
+  },
   // ERC-20 resources
   resource: {
     tree: { type: [{ id: { type: String }, quantity: { type: Number } }], default: [] },

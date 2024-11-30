@@ -399,6 +399,8 @@ SrrComponent = ({ host, path }) => html`
       </div>
     </div>
 
+    <div class="ssr-play-btn-container"></div>
+
     <div class="ssr-custom-display" style="display: none;"></div>
 
     <div class="ssr-loading-container">

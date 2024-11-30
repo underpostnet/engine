@@ -808,9 +808,12 @@ const PixiCyberia = {
                     initDirection: 'bottom',
                   });
                   PixiCyberia.transportBlock = false;
-                  LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
-                  s(`.ssr-custom-display`).style.display = 'none';
-                  s(`.ssr-lore-display`).style.display = null;
+                  LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore', () => {
+                    s(`.ssr-loading-bar`).style.display = 'none';
+                    s(`.ssr-custom-display`).style.display = 'none';
+                    s(`.ssr-lore-display`).style.display = null;
+                    LoadingAnimation.barLevel.clear();
+                  });
                 }
               }, 1000);
               break;

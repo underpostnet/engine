@@ -10,6 +10,7 @@ import { WebhookCyberia } from './WebhookCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
+import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 
 const LogOutCyberia = function () {
   LogOut.Event['LogOutCyberia'] = async () => {
@@ -33,8 +34,8 @@ const LogOutCyberia = function () {
     // const oldElement = newInstance(ElementsCyberia.Data[type][id]);
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     // await MainUserCyberia.Update({ oldElement });
+    await ServerCyberiaPortal.internalChangeServer();
 
-    await SocketIoCyberia.changeServer();
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
       status: 'success',

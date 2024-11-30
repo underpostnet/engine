@@ -1027,7 +1027,7 @@ const PlayerElement = () => {
       tree: [],
     },
     skin: {
-      tree: [],
+      tree: [{ id: 'ghost' }, { id: 'anon' }],
     },
     maxLife: 150,
     life: 150,
