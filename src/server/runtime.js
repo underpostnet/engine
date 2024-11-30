@@ -327,7 +327,7 @@ export PATH=$PATH:/opt/lampp/bin`,
               apis && process.env.NODE_ENV === 'development' ? [`http://localhost:${currentPort + 2}`] : [],
             ),
           };
-          logger.info('originPayload', originPayload);
+          // logger.info('originPayload', originPayload);
           app.use(cors(originPayload));
 
           if (redirect) {
