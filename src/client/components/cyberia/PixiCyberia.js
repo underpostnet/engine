@@ -783,6 +783,7 @@ const PixiCyberia = {
               setTimeout(async () => {
                 if (lastX === ElementsCyberia.Data[type][id].x && lastY === ElementsCyberia.Data[type][id].y) {
                   PixiCyberia.transportBlock = true;
+                  s(`.ssr-play-btn-container`).style.display = 'none';
                   s(`.ssr-lore-display`).style.display = 'none';
                   s(`.ssr-loading-bar`).style.display = 'flow-root';
                   htmls(
@@ -812,6 +813,7 @@ const PixiCyberia = {
                     s(`.ssr-loading-bar`).style.display = 'none';
                     s(`.ssr-custom-display`).style.display = 'none';
                     s(`.ssr-lore-display`).style.display = null;
+                    s(`.ssr-play-btn-container`).style.display = null;
                     LoadingAnimation.barLevel.clear();
                   });
                 }

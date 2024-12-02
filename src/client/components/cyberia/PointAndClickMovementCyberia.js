@@ -49,6 +49,22 @@ const PointAndClickMovementCyberia = {
       const x = (matrixDim * e.offsetX) / ResponsiveDataAmplitude.minValue;
       const y = (matrixDim * e.offsetY) / ResponsiveDataAmplitude.minValue;
 
+      {
+        const botCollision = Object.keys(ElementsCyberia.Data['bot']).find((botId) =>
+          isElementCollision({
+            A: {
+              x,
+              y,
+              dim: 1,
+            },
+            B: ElementsCyberia.Data['bot'][botId],
+            dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
+          }),
+        );
+        if (botCollision) {
+          ElementsCyberia.LocalDataScope['user']['main']['skill'][0]();
+        }
+      }
       for (const eventKey of Object.keys(this.Event)) this.Event[eventKey]({ x, y });
 
       // console.log({ x, y, e: ElementsCyberia.Data.user.main });

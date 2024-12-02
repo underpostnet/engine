@@ -120,7 +120,6 @@ const ServerCyberiaPortal = {
   },
   internalChangeServer: async (options = { server: '' }) => {
     s(`.ssr-loading-bar`).style.display = 'flow-root';
-    htmls(`.ssr-play-btn-container`, '');
     await SocketIoCyberia.changeServer(options?.server ? options : undefined);
     await MainUserCyberia.finishSetup();
   },

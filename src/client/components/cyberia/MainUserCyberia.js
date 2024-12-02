@@ -388,7 +388,6 @@ const MainUserCyberia = {
         `,
       );
       s(`.main-play-btn`).onclick = () => {
-        htmls(`.ssr-play-btn-container`, '');
         LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
       };
     }, 2000);
