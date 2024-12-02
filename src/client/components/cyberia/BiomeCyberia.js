@@ -76,6 +76,33 @@ const getCurrentTransportData = (id, transportsTargets) => {
 };
 
 const BiomeCyberia = {
+  shop0: async function () {
+    const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
+    const BiomeCyberiaMatrixCyberia = {
+      color: {},
+      solid: {},
+      transports: [],
+    };
+    range(0, dim - 1).map((y) => {
+      range(0, dim - 1).map((x) => {
+        if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
+        if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
+        if (
+          x % (BiomeCyberiaParamsScope.dimPaintByCell * 5) === 0 ||
+          x <= BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
+          x > dim - BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
+          y <= BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
+          y > dim - BiomeCyberiaParamsScope.dimPaintByCell - 1
+        ) {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#282828`;
+        } else {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#7885c7`;
+        }
+      });
+    });
+
+    return BiomeCyberiaMatrixCyberia;
+  },
   shop: async function () {
     return this['city-interior']({
       type: 'shop',
