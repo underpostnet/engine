@@ -76,7 +76,12 @@ const getCurrentTransportData = (id, transportsTargets) => {
 };
 
 const BiomeCyberia = {
-  'city-interior': async function () {
+  shop: async function () {
+    return this['city-interior']({
+      type: 'shop',
+    });
+  },
+  'city-interior': async function (options = { type: '' }) {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
 
     const transportsTargets = [
@@ -106,7 +111,19 @@ const BiomeCyberia = {
           y >= squareSeedDimLimit &&
           y <= dim - 1 - squareSeedDimLimit
         ) {
-          BiomeCyberiaMatrixCyberia.color[y][x] = `#ffd900`;
+          switch (options.type) {
+            case 'shop':
+              {
+                BiomeCyberiaMatrixCyberia.color[y][x] = `#7885c7`;
+              }
+              break;
+
+            default:
+              {
+                BiomeCyberiaMatrixCyberia.color[y][x] = `#ffd900`;
+              }
+              break;
+          }
           BiomeCyberiaMatrixCyberia.solid[y][x] = 0;
         } else {
           BiomeCyberiaMatrixCyberia.color[y][x] = `#000000`;
@@ -270,6 +287,41 @@ const BiomeCyberia = {
         }
       });
     });
+    switch (options.type) {
+      case 'shop':
+        {
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              if (BiomeCyberiaMatrixCyberia.color[y] && BiomeCyberiaMatrixCyberia.color[y][x] === `#7885c7`) {
+                try {
+                  range(0, MatrixCyberia.Data.dimPaintByCell * 2 - 1).map((y0) => {
+                    range(0, MatrixCyberia.Data.dimPaintByCell * 2 - 1).map((x0) => {
+                      if (
+                        x0 <= MatrixCyberia.Data.dimPaintByCell * 1 - 1 &&
+                        (!BiomeCyberiaMatrixCyberia.color[y + y0] ||
+                          !BiomeCyberiaMatrixCyberia.color[y + y0][x + x0] ||
+                          BiomeCyberiaMatrixCyberia.color[y + y0][x + x0] !== `#7885c7`)
+                      ) {
+                        throw null;
+                      }
+                      if (BiomeCyberiaMatrixCyberia.color[y + y0][x + x0] === `#000000`) throw null;
+                    });
+                  });
+                  range(0, MatrixCyberia.Data.dimPaintByCell * 1 - 1).map((y0) => {
+                    range(0, MatrixCyberia.Data.dimPaintByCell * 1 - 1).map((x0) => {
+                      BiomeCyberiaMatrixCyberia.color[y + y0][x + x0] = `#000000`;
+                    });
+                  });
+                } catch (error) {}
+              }
+            });
+          });
+        }
+        break;
+
+      default:
+        break;
+    }
 
     return BiomeCyberiaMatrixCyberia;
   },
