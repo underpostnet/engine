@@ -87,7 +87,7 @@ const BiomeCyberia = {
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
 
-        const cellLimitAreaFactor = 3;
+        const cellLimitAreaFactor = 2;
         const limitAreaRestriction =
           x < dim - 1 - cellLimitAreaFactor &&
           x > cellLimitAreaFactor &&
@@ -129,16 +129,32 @@ const BiomeCyberia = {
                     BiomeCyberiaMatrixCyberia.color[y][x - 1] !== '#00ff00') &&
                   random(0, 2) === 0
                 )
-                  range(0, limitBuild).map((sumY) => {
-                    range(0, limitBuild).map((sumX) => {
-                      if (
-                        BiomeCyberiaMatrixCyberia.color[y + sumY] &&
-                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
-                      ) {
-                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#00ff00';
-                      }
+                  try {
+                    range(0, limitBuild).map((sumY) => {
+                      range(0, limitBuild).map((sumX) => {
+                        if (
+                          BiomeCyberiaMatrixCyberia.color[y + sumY] &&
+                          (BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] === `#ffff03` ||
+                            BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] === `#282828` ||
+                            BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] === `#bd09ce`)
+                        ) {
+                          throw new Error('');
+                        }
+                      });
                     });
-                  });
+                    range(0, limitBuild).map((sumY) => {
+                      range(0, limitBuild).map((sumX) => {
+                        if (
+                          BiomeCyberiaMatrixCyberia.color[y + sumY] &&
+                          BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
+                        ) {
+                          if (sumY > BiomeCyberiaParamsScope.dimPaintByCell - 1)
+                            BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#006300';
+                          else BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#00ff00';
+                        }
+                      });
+                    });
+                  } catch (error) {}
               }
             });
           });
