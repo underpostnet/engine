@@ -76,7 +76,7 @@ const getCurrentTransportData = (id, transportsTargets) => {
 };
 
 const BiomeCyberia = {
-  'grid-test': async function () {
+  'grid-base': async function (options = { type: '' }) {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
     const BiomeCyberiaMatrixCyberia = {
       color: {},
@@ -117,10 +117,43 @@ const BiomeCyberia = {
       });
     });
 
+    switch (options.type) {
+      case 'shop':
+        {
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              if (BiomeCyberiaMatrixCyberia.color[y][x] === `#ee0e0e`) {
+                const limitBuild = BiomeCyberiaParamsScope.dimPaintByCell * 2 - 1;
+                if (
+                  (!BiomeCyberiaMatrixCyberia.color[y][x - 1] ||
+                    BiomeCyberiaMatrixCyberia.color[y][x - 1] !== '#00ff00') &&
+                  random(0, 2) === 0
+                )
+                  range(0, limitBuild).map((sumY) => {
+                    range(0, limitBuild).map((sumX) => {
+                      if (
+                        BiomeCyberiaMatrixCyberia.color[y + sumY] &&
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
+                      ) {
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#00ff00';
+                      }
+                    });
+                  });
+              }
+            });
+          });
+        }
+
+        break;
+
+      default:
+        break;
+    }
+
     return BiomeCyberiaMatrixCyberia;
   },
   shop: async function () {
-    return this['city-interior']({
+    return this['grid-base']({
       type: 'shop',
     });
   },
