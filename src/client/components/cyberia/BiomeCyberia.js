@@ -76,27 +76,43 @@ const getCurrentTransportData = (id, transportsTargets) => {
 };
 
 const BiomeCyberia = {
-  shop0: async function () {
+  'grid-test': async function () {
     const dim = BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell;
     const BiomeCyberiaMatrixCyberia = {
       color: {},
       solid: {},
-      transports: [],
     };
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
+
+        const cellLimitAreaFactor = 3;
+        const limitAreaRestriction =
+          x < dim - 1 - cellLimitAreaFactor &&
+          x > cellLimitAreaFactor &&
+          y < dim - 1 - cellLimitAreaFactor &&
+          y > cellLimitAreaFactor;
+
+        const cellDim = 5;
         if (
-          x % (BiomeCyberiaParamsScope.dimPaintByCell * 5) === 0 ||
-          x <= BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
-          x > dim - BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
-          y <= BiomeCyberiaParamsScope.dimPaintByCell - 1 ||
-          y > dim - BiomeCyberiaParamsScope.dimPaintByCell - 1
+          y % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0 &&
+          x % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0
         ) {
-          BiomeCyberiaMatrixCyberia.color[y][x] = `#282828`;
-        } else {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#bd09ce`;
+        } else if (
+          (x % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0 && !limitAreaRestriction) ||
+          (y % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0 && !limitAreaRestriction)
+        ) {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#ffff03`;
+        } else if (y % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0) {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#ee0e0e`;
+        } else if (x % (BiomeCyberiaParamsScope.dimPaintByCell * cellDim) === 0) {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#0e12ee`;
+        } else if (limitAreaRestriction) {
           BiomeCyberiaMatrixCyberia.color[y][x] = `#7885c7`;
+        } else {
+          BiomeCyberiaMatrixCyberia.color[y][x] = `#282828`;
         }
       });
     });
