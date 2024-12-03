@@ -42,7 +42,7 @@ const fullBuild = async ({
 
   buildAcmeChallengePath(acmeChallengeFullPath);
 
-  if (publicClientId.startsWith('html-website-templates')) {
+  if (publicClientId && publicClientId.startsWith('html-website-templates')) {
     if (!fs.existsSync(`/dd/html-website-templates/`))
       shellExec(`cd /dd && git clone https://github.com/designmodo/html-website-templates.git`);
     if (!fs.existsSync(`${rootClientPath}/index.php`)) {
