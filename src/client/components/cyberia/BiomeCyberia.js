@@ -82,17 +82,19 @@ const BiomeCyberia = {
       color: {},
       solid: {},
     };
+    const cellLimitAreaFactor = 2;
+    const getLimitAreaRestriction = (x, y) =>
+      x < dim - 1 - cellLimitAreaFactor &&
+      x > cellLimitAreaFactor &&
+      y < dim - 1 - cellLimitAreaFactor &&
+      y > cellLimitAreaFactor;
+
     range(0, dim - 1).map((y) => {
       range(0, dim - 1).map((x) => {
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
 
-        const cellLimitAreaFactor = 2;
-        const limitAreaRestriction =
-          x < dim - 1 - cellLimitAreaFactor &&
-          x > cellLimitAreaFactor &&
-          y < dim - 1 - cellLimitAreaFactor &&
-          y > cellLimitAreaFactor;
+        const limitAreaRestriction = getLimitAreaRestriction(x, y);
 
         const cellDim = 5;
         if (
@@ -155,6 +157,67 @@ const BiomeCyberia = {
                       });
                     });
                   } catch (error) {}
+              }
+            });
+          });
+
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              const limitAreaRestriction = getLimitAreaRestriction(x, y);
+              if (!limitAreaRestriction) {
+                if (
+                  random(1, 10) === 1 &&
+                  BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff` &&
+                  BiomeCyberiaMatrixCyberia.color[y][x] === `#ffff03`
+                ) {
+                  let validA = true,
+                    validB = true,
+                    validC = true,
+                    validD = true;
+
+                  range(0, cellLimitAreaFactor).map((sum) => {
+                    if (
+                      !BiomeCyberiaMatrixCyberia.color[y + sum] ||
+                      BiomeCyberiaMatrixCyberia.color[y + sum][x - 1] !== `#7885c7`
+                    )
+                      validA = false;
+                  });
+
+                  range(0, cellLimitAreaFactor).map((sum) => {
+                    if (
+                      !BiomeCyberiaMatrixCyberia.color[y + sum] ||
+                      BiomeCyberiaMatrixCyberia.color[y + sum][x + cellLimitAreaFactor + 1] !== `#7885c7`
+                    )
+                      validB = false;
+                  });
+
+                  range(0, cellLimitAreaFactor).map((sum) => {
+                    if (
+                      !BiomeCyberiaMatrixCyberia.color[y - 1] ||
+                      BiomeCyberiaMatrixCyberia.color[y - 1][x + sum] !== `#7885c7`
+                    )
+                      validC = false;
+                  });
+
+                  range(0, cellLimitAreaFactor).map((sum) => {
+                    if (
+                      !BiomeCyberiaMatrixCyberia.color[y + cellLimitAreaFactor + 1] ||
+                      BiomeCyberiaMatrixCyberia.color[y + cellLimitAreaFactor + 1][x + sum] !== `#7885c7`
+                    )
+                      validD = false;
+                  });
+
+                  if (validA || validB || validC || validD)
+                    range(0, cellLimitAreaFactor).map((sumY) => {
+                      range(0, cellLimitAreaFactor).map((sumX) => {
+                        if (
+                          BiomeCyberiaMatrixCyberia.color[y + sumY] &&
+                          BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
+                        )
+                          BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = `#ffffff`;
+                      });
+                    });
+                }
               }
             });
           });
