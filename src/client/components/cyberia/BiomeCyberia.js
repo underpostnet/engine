@@ -82,6 +82,7 @@ const BiomeCyberia = {
       color: {},
       solid: {},
       topLevelColor: {},
+      asset: {},
     };
     const cellLimitAreaFactor = 2;
     const getLimitAreaRestriction = (x, y) =>
@@ -95,6 +96,7 @@ const BiomeCyberia = {
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
         if (!BiomeCyberiaMatrixCyberia.topLevelColor[y]) BiomeCyberiaMatrixCyberia.topLevelColor[y] = {};
+        if (!BiomeCyberiaMatrixCyberia.asset[y]) BiomeCyberiaMatrixCyberia.asset[y] = {};
 
         const limitAreaRestriction = getLimitAreaRestriction(x, y);
 
@@ -232,6 +234,24 @@ const BiomeCyberia = {
                         }
                       });
                     });
+                }
+              }
+            });
+          });
+
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              if (y <= cellLimitAreaFactor && x > cellLimitAreaFactor && x < dim - 1 - cellLimitAreaFactor) {
+                if (x % (cellLimitAreaFactor + 1) === 0) {
+                  BiomeCyberiaMatrixCyberia.color[y][x] = `#922424`;
+                  if (y === 0) {
+                    BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                      src: 'assets/furnies/wood-wall-window/08/0.png',
+                      dim: cellLimitAreaFactor + 1,
+                    };
+                  }
+                } else {
+                  BiomeCyberiaMatrixCyberia.color[y][x] = `#03443f`;
                 }
               }
             });
@@ -1932,6 +1952,21 @@ const BiomeCyberiaEngine = {
           cell.width = dim;
           cell.height = dim;
           cell.tint = BiomeCyberiaMatrixCyberia.color[y][x];
+          this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
+        }
+      }
+    for (const y of rangeBiomeCyberia)
+      for (const x of rangeBiomeCyberia) {
+        if (
+          BiomeCyberiaMatrixCyberia.asset &&
+          BiomeCyberiaMatrixCyberia.asset[y] &&
+          BiomeCyberiaMatrixCyberia.asset[y][x]
+        ) {
+          const cell = Sprite.from(`${getProxyPath()}${BiomeCyberiaMatrixCyberia.asset[y][x].src}`);
+          cell.x = dim * x;
+          cell.y = dim * y;
+          cell.width = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
+          cell.height = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
           this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
         }
       }
