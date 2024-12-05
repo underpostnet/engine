@@ -183,7 +183,9 @@ const BiomeCyberia = {
                 if (
                   random(1, 10) === 1 &&
                   BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff` &&
-                  BiomeCyberiaMatrixCyberia.color[y][x] === `#ffff03`
+                  BiomeCyberiaMatrixCyberia.color[y][x] === `#ffff03` &&
+                  x % (cellLimitAreaFactor + 1) === 0 &&
+                  y % (cellLimitAreaFactor + 1) === 0
                 ) {
                   let validA = true,
                     validB = true,
@@ -241,18 +243,13 @@ const BiomeCyberia = {
 
           range(0, dim - 1).map((y) => {
             range(0, dim - 1).map((x) => {
-              if (y <= cellLimitAreaFactor && x > cellLimitAreaFactor && x < dim - 1 - cellLimitAreaFactor) {
-                if (x % (cellLimitAreaFactor + 1) === 0) {
-                  BiomeCyberiaMatrixCyberia.color[y][x] = `#922424`;
-                  if (y === 0) {
+              if (x % (cellLimitAreaFactor + 1) === 0 && y % (cellLimitAreaFactor + 1) === 0) {
+                if (y === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
                     BiomeCyberiaMatrixCyberia.asset[y][x] = {
                       src: 'assets/furnies/wood-wall-window/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                     };
                   }
-                } else {
-                  BiomeCyberiaMatrixCyberia.color[y][x] = `#03443f`;
-                }
               }
             });
           });
