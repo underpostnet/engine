@@ -245,11 +245,20 @@ const BiomeCyberia = {
             range(0, dim - 1).map((x) => {
               if (x % (cellLimitAreaFactor + 1) === 0 && y % (cellLimitAreaFactor + 1) === 0) {
                 if (y === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                    BiomeCyberiaMatrixCyberia.asset[y][x] = {
-                      src: 'assets/furnies/wood-wall-window/08/0.png',
-                      dim: cellLimitAreaFactor + 1,
-                    };
-                  }
+                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                    src: 'assets/furnies/wood-wall-window/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
+                  };
+                }
+                if (y === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
+                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                    src: 'assets/furnies/wood-wall/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
+                    params: {
+                      rotation: Math.PI / 2,
+                    },
+                  };
+                }
               }
             });
           });
@@ -1964,6 +1973,23 @@ const BiomeCyberiaEngine = {
           cell.y = dim * y;
           cell.width = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
           cell.height = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
+
+          if (BiomeCyberiaMatrixCyberia.asset[y][x].params) {
+            if (BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation) {
+              cell.rotation = BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation;
+
+              switch (BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation) {
+                case Math.PI / 2:
+                  {
+                    cell.x = cell.x + dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
+                  }
+                  break;
+
+                default:
+                  break;
+              }
+            }
+          }
           this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
         }
       }
