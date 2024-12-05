@@ -83,7 +83,10 @@ const BiomeCyberia = {
       solid: {},
       topLevelColor: {},
     };
-    range(0, 5).map((layer) => (BiomeCyberiaMatrixCyberia[`layer${layer}`] = {}));
+    range(0, 5).map((layer) => {
+      BiomeCyberiaMatrixCyberia[`${'layer'}${layer}`] = {};
+      BiomeCyberiaMatrixCyberia[`${'topLayer'}${layer}`] = {};
+    });
     const cellLimitAreaFactor = 2;
     const getLimitAreaRestriction = (x, y) =>
       x < dim - 1 - cellLimitAreaFactor &&
@@ -97,9 +100,12 @@ const BiomeCyberia = {
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
         if (!BiomeCyberiaMatrixCyberia.topLevelColor[y]) BiomeCyberiaMatrixCyberia.topLevelColor[y] = {};
 
-        range(0, 5).map((layer) =>
-          !BiomeCyberiaMatrixCyberia[`layer${layer}`][y] ? (BiomeCyberiaMatrixCyberia[`layer${layer}`][y] = {}) : null,
-        );
+        range(0, 5).map((layer) => {
+          if (!BiomeCyberiaMatrixCyberia[`${'layer'}${layer}`][y]) {
+            BiomeCyberiaMatrixCyberia[`${'layer'}${layer}`][y] = {};
+            BiomeCyberiaMatrixCyberia[`${'topLayer'}${layer}`][y] = {};
+          }
+        });
         const limitAreaRestriction = getLimitAreaRestriction(x, y);
 
         const cellDim = 5;
@@ -168,6 +174,18 @@ const BiomeCyberia = {
                           if (sumY > BiomeCyberiaParamsScope.dimPaintByCell - 1) {
                             BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#006300';
                             BiomeCyberiaMatrixCyberia.solid[y + sumY][x + sumX] = 1;
+                            if (sumY === BiomeCyberiaParamsScope.dimPaintByCell && sumX === 0) {
+                              BiomeCyberiaMatrixCyberia[`topLayer${0}`][y][x] = {
+                                src: 'assets/furnies/wood-products-shelf/08/top.png',
+                                width: cellLimitAreaFactor * 2 + 1,
+                                height: cellLimitAreaFactor + 1,
+                              };
+                              BiomeCyberiaMatrixCyberia[`layer${1}`][y + sumY][x] = {
+                                src: 'assets/furnies/wood-products-shelf/08/bottom.png',
+                                width: cellLimitAreaFactor * 2 + 1,
+                                height: cellLimitAreaFactor + 1,
+                              };
+                            }
                           } else {
                             BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#4d4d4d';
                             BiomeCyberiaMatrixCyberia.topLevelColor[y + sumY][x + sumX] = '#00ff00';
@@ -246,30 +264,31 @@ const BiomeCyberia = {
           });
 
           {
+            const typeLayer = 'layer';
             const layer = 0;
             range(0, dim - 1).map((y) => {
               range(0, dim - 1).map((x) => {
                 if (x % (cellLimitAreaFactor + 1) === 0 && y % (cellLimitAreaFactor + 1) === 0) {
                   if (y === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                    BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x] = {
+                    BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x] = {
                       src: 'assets/furnies/wood-wall-window/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                     };
                   }
                   if (x === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                    BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x] = {
+                    BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x] = {
                       src: 'assets/furnies/wood-wall/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                     };
                   }
                   if (x === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                    BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x] = {
+                    BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x] = {
                       src: 'assets/furnies/wood-wall/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                     };
                   }
                   if (y === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                    BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x] = {
+                    BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x] = {
                       src: 'assets/furnies/wood-wall/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                       params: {
@@ -277,8 +296,8 @@ const BiomeCyberia = {
                       },
                     };
                   }
-                  if (!BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x]) {
-                    BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x] = {
+                  if (!BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x]) {
+                    BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x] = {
                       src: 'assets/furnies/wood-floor/08/0.png',
                       dim: cellLimitAreaFactor + 1,
                     };
@@ -1946,16 +1965,22 @@ const BiomeCyberiaEngine = {
     for (const y of rangeBiomeCyberia)
       for (const x of rangeBiomeCyberia) {
         if (
-          BiomeCyberiaMatrixCyberia.topLevelColor &&
-          BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
-          BiomeCyberiaMatrixCyberia.topLevelColor[y][x]
+          (x === 0 && y === 0) ||
+          (x === rangeBiomeCyberia[rangeBiomeCyberia.length - 1] &&
+            y === rangeBiomeCyberia[rangeBiomeCyberia.length - 1])
+          //   ||
+          // (BiomeCyberiaMatrixCyberia.topLevelColor &&
+          //   BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
+          //   BiomeCyberiaMatrixCyberia.topLevelColor[y][x])
         ) {
           const cell = new Sprite(Texture.WHITE);
           cell.x = dim * x;
           cell.y = dim * y;
           cell.width = dim;
           cell.height = dim;
-          cell.tint = BiomeCyberiaMatrixCyberia.topLevelColor[y][x];
+          cell.tint = BiomeCyberiaMatrixCyberia.topLevelColor[y]?.[x]
+            ? BiomeCyberiaMatrixCyberia.topLevelColor[y][x]
+            : `#151515`;
           this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.addChild(cell);
         }
       }
@@ -1986,39 +2011,59 @@ const BiomeCyberiaEngine = {
           this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
         }
       }
-    for (const layer of range(0, 5))
-      for (const y of rangeBiomeCyberia)
-        for (const x of rangeBiomeCyberia) {
-          if (
-            BiomeCyberiaMatrixCyberia[`layer${layer}`] &&
-            BiomeCyberiaMatrixCyberia[`layer${layer}`][y] &&
-            BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x]
-          ) {
-            const cell = Sprite.from(`${getProxyPath()}${BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].src}`);
-            cell.x = dim * x;
-            cell.y = dim * y;
-            cell.width = dim * BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].dim;
-            cell.height = dim * BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].dim;
+    for (const typeLayer of ['layer', 'topLayer'])
+      for (const layer of range(0, 5))
+        for (const y of rangeBiomeCyberia)
+          for (const x of rangeBiomeCyberia) {
+            if (
+              BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`] &&
+              BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y] &&
+              BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x]
+            ) {
+              const cell = Sprite.from(
+                `${getProxyPath()}${BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].src}`,
+              );
+              cell.x = dim * x;
+              cell.y = dim * y;
+              cell.width =
+                dim *
+                (BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].width
+                  ? BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].width
+                  : BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].dim);
+              cell.height =
+                dim *
+                (BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].height
+                  ? BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].height
+                  : BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].dim);
 
-            if (BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].params) {
-              if (BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].params.rotation) {
-                cell.rotation = BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].params.rotation;
+              if (BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].params) {
+                if (BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].params.rotation) {
+                  cell.rotation = BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].params.rotation;
 
-                switch (BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].params.rotation) {
-                  case Math.PI / 2:
-                    {
-                      cell.x = cell.x + dim * BiomeCyberiaMatrixCyberia[`layer${layer}`][y][x].dim;
-                    }
-                    break;
+                  switch (BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].params.rotation) {
+                    case Math.PI / 2:
+                      {
+                        cell.x = cell.x + dim * BiomeCyberiaMatrixCyberia[`${typeLayer}${layer}`][y][x].dim;
+                      }
+                      break;
 
-                  default:
-                    break;
+                    default:
+                      break;
+                  }
                 }
               }
+              switch (typeLayer) {
+                case 'layer':
+                  this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
+                  break;
+                case 'topLayer':
+                  this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.addChild(cell);
+                  break;
+                default:
+                  break;
+              }
             }
-            this.PixiCyberiaBiomeCyberia.stage.addChild(cell);
           }
-        }
   },
 };
 
