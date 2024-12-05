@@ -82,8 +82,8 @@ const BiomeCyberia = {
       color: {},
       solid: {},
       topLevelColor: {},
-      asset: {},
     };
+    range(0, 5).map((layer) => (BiomeCyberiaMatrixCyberia[`layer${layer}`] = {}));
     const cellLimitAreaFactor = 2;
     const getLimitAreaRestriction = (x, y) =>
       x < dim - 1 - cellLimitAreaFactor &&
@@ -96,8 +96,10 @@ const BiomeCyberia = {
         if (!BiomeCyberiaMatrixCyberia.color[y]) BiomeCyberiaMatrixCyberia.color[y] = {};
         if (!BiomeCyberiaMatrixCyberia.solid[y]) BiomeCyberiaMatrixCyberia.solid[y] = {};
         if (!BiomeCyberiaMatrixCyberia.topLevelColor[y]) BiomeCyberiaMatrixCyberia.topLevelColor[y] = {};
-        if (!BiomeCyberiaMatrixCyberia.asset[y]) BiomeCyberiaMatrixCyberia.asset[y] = {};
 
+        range(0, 5).map((layer) =>
+          !BiomeCyberiaMatrixCyberia[`layer${layer}`][y] ? (BiomeCyberiaMatrixCyberia[`layer${layer}`][y] = {}) : null,
+        );
         const limitAreaRestriction = getLimitAreaRestriction(x, y);
 
         const cellDim = 5;
@@ -247,25 +249,25 @@ const BiomeCyberia = {
             range(0, dim - 1).map((x) => {
               if (x % (cellLimitAreaFactor + 1) === 0 && y % (cellLimitAreaFactor + 1) === 0) {
                 if (y === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                  BiomeCyberiaMatrixCyberia.layer0[y][x] = {
                     src: 'assets/furnies/wood-wall-window/08/0.png',
                     dim: cellLimitAreaFactor + 1,
                   };
                 }
                 if (x === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                  BiomeCyberiaMatrixCyberia.layer0[y][x] = {
                     src: 'assets/furnies/wood-wall/08/0.png',
                     dim: cellLimitAreaFactor + 1,
                   };
                 }
                 if (x === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                  BiomeCyberiaMatrixCyberia.layer0[y][x] = {
                     src: 'assets/furnies/wood-wall/08/0.png',
                     dim: cellLimitAreaFactor + 1,
                   };
                 }
                 if (y === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
-                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                  BiomeCyberiaMatrixCyberia.layer0[y][x] = {
                     src: 'assets/furnies/wood-wall/08/0.png',
                     dim: cellLimitAreaFactor + 1,
                     params: {
@@ -273,13 +275,8 @@ const BiomeCyberia = {
                     },
                   };
                 }
-                if (
-                  !BiomeCyberiaMatrixCyberia.asset[y][x] &&
-                  [`#7885c7`, `#bd09ce`, `#ee0e0e`, `#0e12ee`, `#ffffff`, '#4d4d4d'].includes(
-                    BiomeCyberiaMatrixCyberia.color[y][x],
-                  )
-                ) {
-                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                if (!BiomeCyberiaMatrixCyberia.layer0[y][x]) {
+                  BiomeCyberiaMatrixCyberia.layer0[y][x] = {
                     src: 'assets/furnies/wood-floor/08/0.png',
                     dim: cellLimitAreaFactor + 1,
                   };
@@ -1989,24 +1986,24 @@ const BiomeCyberiaEngine = {
     for (const y of rangeBiomeCyberia)
       for (const x of rangeBiomeCyberia) {
         if (
-          BiomeCyberiaMatrixCyberia.asset &&
-          BiomeCyberiaMatrixCyberia.asset[y] &&
-          BiomeCyberiaMatrixCyberia.asset[y][x]
+          BiomeCyberiaMatrixCyberia.layer0 &&
+          BiomeCyberiaMatrixCyberia.layer0[y] &&
+          BiomeCyberiaMatrixCyberia.layer0[y][x]
         ) {
-          const cell = Sprite.from(`${getProxyPath()}${BiomeCyberiaMatrixCyberia.asset[y][x].src}`);
+          const cell = Sprite.from(`${getProxyPath()}${BiomeCyberiaMatrixCyberia.layer0[y][x].src}`);
           cell.x = dim * x;
           cell.y = dim * y;
-          cell.width = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
-          cell.height = dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
+          cell.width = dim * BiomeCyberiaMatrixCyberia.layer0[y][x].dim;
+          cell.height = dim * BiomeCyberiaMatrixCyberia.layer0[y][x].dim;
 
-          if (BiomeCyberiaMatrixCyberia.asset[y][x].params) {
-            if (BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation) {
-              cell.rotation = BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation;
+          if (BiomeCyberiaMatrixCyberia.layer0[y][x].params) {
+            if (BiomeCyberiaMatrixCyberia.layer0[y][x].params.rotation) {
+              cell.rotation = BiomeCyberiaMatrixCyberia.layer0[y][x].params.rotation;
 
-              switch (BiomeCyberiaMatrixCyberia.asset[y][x].params.rotation) {
+              switch (BiomeCyberiaMatrixCyberia.layer0[y][x].params.rotation) {
                 case Math.PI / 2:
                   {
-                    cell.x = cell.x + dim * BiomeCyberiaMatrixCyberia.asset[y][x].dim;
+                    cell.x = cell.x + dim * BiomeCyberiaMatrixCyberia.layer0[y][x].dim;
                   }
                   break;
 
