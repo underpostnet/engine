@@ -158,6 +158,8 @@ const BiomeCyberia = {
                     range(0, limitBuild).map((sumY) => {
                       range(0, limitBuild).map((sumX) => {
                         if (
+                          x % (cellLimitAreaFactor + 1) === 0 &&
+                          y % (cellLimitAreaFactor + 1) === 0 &&
                           BiomeCyberiaMatrixCyberia.color[y + sumY] &&
                           BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
                         ) {
@@ -250,6 +252,18 @@ const BiomeCyberia = {
                     dim: cellLimitAreaFactor + 1,
                   };
                 }
+                if (x === 0 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
+                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                    src: 'assets/furnies/wood-wall/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
+                  };
+                }
+                if (x === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
+                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                    src: 'assets/furnies/wood-wall/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
+                  };
+                }
                 if (y === dim - cellLimitAreaFactor - 1 && BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff`) {
                   BiomeCyberiaMatrixCyberia.asset[y][x] = {
                     src: 'assets/furnies/wood-wall/08/0.png',
@@ -257,6 +271,17 @@ const BiomeCyberia = {
                     params: {
                       rotation: Math.PI / 2,
                     },
+                  };
+                }
+                if (
+                  !BiomeCyberiaMatrixCyberia.asset[y][x] &&
+                  [`#7885c7`, `#bd09ce`, `#ee0e0e`, `#0e12ee`, `#ffffff`, '#4d4d4d'].includes(
+                    BiomeCyberiaMatrixCyberia.color[y][x],
+                  )
+                ) {
+                  BiomeCyberiaMatrixCyberia.asset[y][x] = {
+                    src: 'assets/furnies/wood-floor/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
                   };
                 }
               }
