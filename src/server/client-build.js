@@ -101,8 +101,15 @@ const fullBuild = async ({
   if (dists)
     for (const dist of dists) {
       if ('folder' in dist) {
-        fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
-        fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+        if (fs.statSync(dist.folder).isDirectory()) {
+          fs.mkdirSync(`${rootClientPath}${dist.public_folder}`, { recursive: true });
+          fs.copySync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+        } else {
+          const folder = dist.public_folder.split('/');
+          folder.pop();
+          fs.mkdirSync(`${rootClientPath}${folder.join('/')}`, { recursive: true });
+          fs.copyFileSync(dist.folder, `${rootClientPath}${dist.public_folder}`);
+        }
       }
       if ('styles' in dist) {
         fs.mkdirSync(`${rootClientPath}${dist.public_styles_folder}`, { recursive: true });

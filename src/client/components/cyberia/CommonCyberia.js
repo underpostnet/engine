@@ -1324,6 +1324,182 @@ const ResourcesComponentCyberia = {
   },
 };
 
+const CyberiaInstancesStructs = {
+  default: [
+    {
+      type: 'pve',
+      bots: [
+        {
+          behavior: 'quest-passive',
+          displayIds: [{ id: 'ayleen', quantity: [1] }],
+        },
+        {
+          behavior: 'pet',
+          displayIds: [
+            {
+              id: 'dog',
+              quantity: [1],
+              name: 'floki',
+              title: `ayleen's dog`,
+              parentId: 'ayleen',
+            },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'generic-people',
+          displayIds: [
+            { id: 'gp0', quantity: [1] },
+            { id: 'gp1', quantity: [1] },
+          ],
+        },
+      ],
+    },
+    {
+      type: 'pvp',
+      bots: [
+        {
+          behavior: 'quest-passive',
+          displayIds: [
+            {
+              id: 'agent',
+              quantity: [1],
+              title: `SCP Agent`,
+              name: 'Kinoshita',
+            },
+            { id: 'punk', quantity: [1] },
+            { id: 'scp-2040', quantity: [1], title: `SCP`, name: '2040' },
+          ],
+        },
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+        {
+          behavior: 'generic-people',
+          displayIds: [{ id: 'marciano', quantity: [1] }],
+        },
+      ],
+    },
+    {
+      type: 'pvp',
+      bots: [
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+      ],
+    },
+    {
+      type: 'pvp',
+      bots: [
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+      ],
+    },
+    {
+      type: 'pvp',
+      bots: [
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+      ],
+    },
+    {
+      type: 'pvp',
+      bots: [
+        {
+          behavior: 'quest-passive',
+          displayIds: [
+            {
+              id: 'agent',
+              quantity: [1],
+              title: `SCP Agent`,
+              name: 'Kinoshita',
+            },
+            { id: 'punk', quantity: [1] },
+            { id: 'scp-2040', quantity: [1], title: `SCP`, name: '2040' },
+          ],
+        },
+        {
+          behavior: 'user-hostile',
+          displayIds: [
+            { id: 'purple', quantity: [4, 7] },
+            { id: 'kishins', quantity: [2, 5] },
+          ],
+        },
+        {
+          behavior: 'item-quest',
+          displayIds: [
+            { id: 'bone', quantity: [2] },
+            { id: 'bone-brown', quantity: [1] },
+          ],
+        },
+        {
+          behavior: 'generic-people',
+          displayIds: [{ id: 'marciano', quantity: [1] }],
+        },
+      ],
+    },
+  ],
+};
+
 const getK = (value) => {
   /*
 
@@ -1407,4 +1583,5 @@ export {
   CyberiaItemsType,
   ResourcesComponentCyberia,
   ResourcesComponentTypeCyberia,
+  CyberiaInstancesStructs,
 };

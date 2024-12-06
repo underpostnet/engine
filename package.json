@@ -132,6 +132,7 @@
     "uglify-js": "^3.17.4",
     "underpost": "^2.7.7",
     "validator": "^13.11.0",
+    "vanilla-jsoneditor": "^2.3.2",
     "web3": "^4.13.0",
     "winston": "^3.11.0"
   },

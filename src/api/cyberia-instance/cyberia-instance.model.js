@@ -2,16 +2,29 @@ import { Schema, model, Types } from 'mongoose';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
-const CyberiaInstanceSchema = new Schema(
-  {
-    0: { type: String },
-    1: { type: String },
-    2: { type: String },
+const CyberiaInstanceSchema = new Schema({
+  name: { type: String },
+  type: { type: String, enum: ['pvp', 'pve'] },
+  bots: {
+    type: [
+      {
+        behavior: {
+          type: String,
+          enum: ['user-hostile', 'quest-passive', 'item-quest', 'pet', 'generic-people', 'resource'],
+        },
+        displayIds: [
+          {
+            id: { type: String },
+            quantity: [{ type: Number }],
+            name: { type: String },
+            title: { type: String },
+            parentId: { type: String },
+          },
+        ],
+      },
+    ],
   },
-  {
-    timestamps: true,
-  },
-);
+});
 
 const CyberiaInstanceModel = model('CyberiaInstance', CyberiaInstanceSchema);
 
