@@ -335,10 +335,20 @@ const BiomeCyberia = {
               }
             });
           });
+
+          const conClose = random(0, 1);
           range(0, dim - 1).map((y) => {
             range(0, dim - 1).map((x) => {
-              if ((x === x1 && y === y1) || (x === x1 && y === y1 + y2)) {
-                BiomeCyberiaMatrixCyberia.color[y][x] = '#000000';
+              if ((conClose === 0 && x === x1 && y === y1) || (conClose === 1 && x === x1 && y === y1 + y2)) {
+                range(cellLimitAreaFactor + 1, x1).map((_x1) => {
+                  range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumY) => {
+                    range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumX) => {
+                      if (BiomeCyberiaMatrixCyberia.color[y + sumY]) {
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][_x1 + sumX] = '#000000';
+                      }
+                    });
+                  });
+                });
               }
             });
           });
