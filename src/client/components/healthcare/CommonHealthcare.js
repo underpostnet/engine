@@ -166,6 +166,8 @@ const medicalSpecialties = [
       es: 'Medicina de Emergencia',
       en: 'Emergency Medicine',
     },
+  },
+  {
     id: 'nutrition',
     displayName: {
       en: 'Nutrition and Dietetics',
