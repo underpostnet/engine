@@ -16,7 +16,7 @@ const buildSSL = async (host) => {
   const files = await fs.readdir(sslPath);
 
   for (const folderHost of files)
-    if (folderHost.match(host.split('/')[0])) {
+    if (folderHost.match(host.split('/')[0]) && host.split('.')[0] === folderHost.split('.')[0]) {
       for (const i of [''].concat(range(1, 10))) {
         const privateKeyPath = `${sslPath}/${folderHost}/privkey${i}.pem`;
         const certificatePath = `${sslPath}/${folderHost}/cert${i}.pem`;
@@ -51,7 +51,7 @@ const buildSSL = async (host) => {
           fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
           fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
 
-          // fs.removeSync(`${sslPath}/${folderHost}`);
+          fs.removeSync(`${sslPath}/${folderHost}`);
           return true;
         }
       }
