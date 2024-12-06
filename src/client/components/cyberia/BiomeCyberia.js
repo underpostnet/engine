@@ -308,6 +308,69 @@ const BiomeCyberia = {
           }
         }
 
+        {
+          // wood tables
+          // const y1 = random(0, parseInt((dim - 1) / 2));
+          const y1 = BiomeCyberiaParamsScope.dimPaintByCell * random(0, 4);
+          const y2 = BiomeCyberiaParamsScope.dimPaintByCell * random(4, 6);
+          const x1 = BiomeCyberiaParamsScope.dimPaintByCell * random(2, 3);
+          const conClose = random(0, 1);
+
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              if ((conClose === 0 && x === x1 && y === y1) || (conClose === 1 && x === x1 && y === y1 + y2)) {
+                range(cellLimitAreaFactor + 1, x1).map((_x1) => {
+                  range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumY) => {
+                    range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumX) => {
+                      if (BiomeCyberiaMatrixCyberia.color[y + sumY]) {
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][_x1 + sumX] = '#000000';
+                        if (
+                          (y + sumY) % BiomeCyberiaParamsScope.dimPaintByCell === 0 &&
+                          (_x1 + sumX) % BiomeCyberiaParamsScope.dimPaintByCell === 0
+                        )
+                          BiomeCyberiaMatrixCyberia[`layer${1}`][y + sumY][_x1 + sumX] = {
+                            src: 'assets/furnies/wood-table-front/08/0.png',
+                            dim: cellLimitAreaFactor + 1,
+                            // params: {
+                            //   rotation: Math.PI / 2,
+                            // },
+                          };
+                      }
+                    });
+                  });
+                });
+              }
+            });
+          });
+
+          range(0, dim - 1).map((y) => {
+            range(0, dim - 1).map((x) => {
+              if (
+                x % BiomeCyberiaParamsScope.dimPaintByCell === 0 &&
+                y % BiomeCyberiaParamsScope.dimPaintByCell === 0
+              ) {
+                if (x === x1 && y >= y1 && y <= y1 + y2) {
+                  range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumY) => {
+                    range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumX) => {
+                      if (BiomeCyberiaMatrixCyberia.color[y + sumY]) {
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#ffffff';
+                      }
+                    });
+                  });
+
+                  BiomeCyberiaMatrixCyberia[`layer${1}`][y][x] = {
+                    src: 'assets/furnies/wood-table/08/0.png',
+                    dim: cellLimitAreaFactor + 1,
+                    // params: {
+                    //   rotation: Math.PI / 2,
+                    // },
+                  };
+                }
+              }
+            });
+          });
+        }
+
         break;
 
       default:
