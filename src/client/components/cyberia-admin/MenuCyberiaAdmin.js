@@ -24,6 +24,7 @@ import { WorldCyberia } from '../cyberia/WorldCyberia.js';
 import Sortable from 'sortablejs';
 import { Recover } from '../core/Recover.js';
 import { CyberiaTileManagement } from '../../services/cyberia-tile/cyberia-tile.management.js';
+import { InstanceEngineCyberiaAdmin } from './InstanceEngineCyberiaAdmin.js';
 
 const MenuCyberiaAdmin = {
   Data: {},
@@ -204,6 +205,13 @@ const MenuCyberiaAdmin = {
             attrs: `data-id="recover"`,
             handleContainerClass: 'handle-btn-container',
             tabHref: `${getProxyPath()}recover`,
+          })}
+          ${await BtnIcon.Render({
+            class: 'in fll main-btn-square-menu main-btn-cyberia-instance-engine hide',
+            label: renderMenuLabel({ img: 'engine.png', text: 'Cyberia Instance Engine' }),
+            attrs: `data-id="cyberia-instance-engine"`,
+            handleContainerClass: 'handle-btn-container',
+            tabHref: `${getProxyPath()}cyberia-instance-engine`,
           })}
         </div>
       `,
@@ -599,6 +607,24 @@ const MenuCyberiaAdmin = {
         title: renderViewTitle({ 'ui-icon': 'arrow-left.png', text: 'recover' }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsCyberiaAdmin.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-cyberia-instance-engine`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-cyberia-instance-engine',
+        route: 'cyberia-instance-engine',
+        barConfig,
+        title: renderViewTitle({ 'ui-icon': 'engine.png', text: 'cyberia-instance-engine' }),
+        html: async () => await InstanceEngineCyberiaAdmin.Render({ idModal: 'modal-cyberia-instance-engine' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

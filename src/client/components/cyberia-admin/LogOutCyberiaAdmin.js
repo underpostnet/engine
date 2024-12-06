@@ -26,6 +26,7 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-blockchain`).classList.add('hide');
     s(`.main-btn-cloud`).classList.add('hide');
     s(`.main-btn-server`).classList.add('hide');
+    s(`.main-btn-cyberia-instance-engine`).classList.add('hide');
     ElementsCyberiaAdmin.Data.user.main.model.user = { _id: '' };
     Auth.deleteToken();
 

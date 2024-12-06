@@ -43,6 +43,10 @@ const RoutesCyberiaAdmin = () => {
     '/blockchain': { title: 'BlockChain Engine', render: () => s(`.main-btn-blockchain`).click() },
     '/cloud': { title: 'Cloud', render: () => s(`.main-btn-cloud`).click() },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/cyberia-instance-engine': {
+      title: 'cyberia-instance-engine',
+      render: () => s(`.main-btn-cyberia-instance-engine`).click(),
+    },
   };
 };
 

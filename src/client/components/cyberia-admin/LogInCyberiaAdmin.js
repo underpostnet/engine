@@ -37,6 +37,7 @@ const LogInCyberiaAdmin = async function () {
       s(`.main-btn-blockchain`).classList.remove('hide');
       s(`.main-btn-cloud`).classList.remove('hide');
       s(`.main-btn-server`).classList.remove('hide');
+      s(`.main-btn-cyberia-instance-engine`).classList.remove('hide');
     }
   };
   const token = localStorage.getItem('jwt');
