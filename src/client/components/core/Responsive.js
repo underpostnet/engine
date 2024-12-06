@@ -51,12 +51,25 @@ const Responsive = {
       const angle = event.target.angle; // 90 degrees.
       logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
       setTimeout(window.onresize);
-      for (const event of Object.keys(this.orientationEvent)) this.orientationEvent[event]();
-      setTimeout(() => {
-        window.onresize();
-        for (const event of Object.keys(this.orientationDelayEvent)) this.orientationDelayEvent[event]();
-      }, 1500);
+      this.triggerOrientationEvents();
     });
+    this.matchMediaOrientationInstance = matchMedia('screen and (orientation:portrait)');
+
+    this.matchMediaOrientationInstance.onchange = (e) => {
+      console.log('orientation change', query.matches ? 'portrait' : 'landscape');
+      // though beware square will be marked as landscape here,
+      // if you want to handle this special case
+      // create an other mediaquery (orientation:landscape)
+      setTimeout(window.onresize);
+      this.triggerOrientationEvents();
+    };
+  },
+  triggerEventOrientation: function () {
+    for (const event of Object.keys(this.orientationEvent)) this.orientationEvent[event]();
+    setTimeout(() => {
+      window.onresize();
+      for (const event of Object.keys(this.orientationDelayEvent)) this.orientationDelayEvent[event]();
+    }, 1500);
   },
   triggerEvents: function (keyEvent) {
     if (keyEvent) return this.Event[keyEvent]();
