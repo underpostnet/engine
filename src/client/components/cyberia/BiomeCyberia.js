@@ -201,13 +201,23 @@ const BiomeCyberia = {
           range(0, dim - 1).map((y) => {
             range(0, dim - 1).map((x) => {
               const limitAreaRestriction = getLimitAreaRestriction(x, y);
-              if (!limitAreaRestriction) {
-                if (
+              if (!limitAreaRestriction && x % (cellLimitAreaFactor + 1) === 0 && y % (cellLimitAreaFactor + 1) === 0) {
+                if (y === (cellLimitAreaFactor + 1) * 4)
+                  range(0, cellLimitAreaFactor).map((sumY) => {
+                    range(0, cellLimitAreaFactor).map((sumX) => {
+                      if (
+                        BiomeCyberiaMatrixCyberia.color[y + sumY] &&
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX]
+                      ) {
+                        BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = `#ffffff`;
+                        BiomeCyberiaMatrixCyberia.solid[y + sumY][x + sumX] = 0;
+                      }
+                    });
+                  });
+                else if (
                   random(1, 10) === 1 &&
                   BiomeCyberiaMatrixCyberia.color[y][x] !== `#ffffff` &&
-                  BiomeCyberiaMatrixCyberia.color[y][x] === `#ffff03` &&
-                  x % (cellLimitAreaFactor + 1) === 0 &&
-                  y % (cellLimitAreaFactor + 1) === 0
+                  BiomeCyberiaMatrixCyberia.color[y][x] === `#ffff03`
                 ) {
                   let validA = true,
                     validB = true,
