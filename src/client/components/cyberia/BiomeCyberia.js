@@ -180,7 +180,7 @@ const BiomeCyberia = {
                                 width: cellLimitAreaFactor * 2 + 1,
                                 height: cellLimitAreaFactor + 1,
                               };
-                              BiomeCyberiaMatrixCyberia[`layer${1}`][y + sumY][x] = {
+                              BiomeCyberiaMatrixCyberia[`layer${2}`][y + sumY][x] = {
                                 src: 'assets/furnies/wood-products-shelf/08/bottom.png',
                                 width: cellLimitAreaFactor * 2 + 1,
                                 height: cellLimitAreaFactor + 1,
@@ -324,6 +324,7 @@ const BiomeCyberia = {
                     range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumX) => {
                       if (BiomeCyberiaMatrixCyberia.color[y + sumY]) {
                         BiomeCyberiaMatrixCyberia.color[y + sumY][_x1 + sumX] = '#000000';
+                        BiomeCyberiaMatrixCyberia.solid[y + sumY][_x1 + sumX] = 1;
                         if (
                           (y + sumY) % BiomeCyberiaParamsScope.dimPaintByCell === 0 &&
                           (_x1 + sumX) % BiomeCyberiaParamsScope.dimPaintByCell === 0
@@ -354,12 +355,13 @@ const BiomeCyberia = {
                     range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1).map((sumX) => {
                       if (BiomeCyberiaMatrixCyberia.color[y + sumY]) {
                         BiomeCyberiaMatrixCyberia.color[y + sumY][x + sumX] = '#ffffff';
+                        BiomeCyberiaMatrixCyberia.solid[y + sumY][x + sumX] = 1;
                       }
                     });
                   });
 
                   BiomeCyberiaMatrixCyberia[`layer${1}`][y][x] = {
-                    src: 'assets/furnies/wood-table/08/0.png',
+                    src: `assets/furnies/wood-table${y === y1 + y2 && x === x1 ? '-front' : ''}/08/0.png`,
                     dim: cellLimitAreaFactor + 1,
                     // params: {
                     //   rotation: Math.PI / 2,
