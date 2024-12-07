@@ -36,6 +36,18 @@ const InstanceEngineCyberiaAdmin = {
           status,
         });
       });
+
+      const cyberiaEngineWorksContainer = ['jsoneditor', 'cyberia-instance-management-container'];
+      const hideWorksContainer = () =>
+        cyberiaEngineWorksContainer.map((selector) => s(`.${selector}`).classList.add('hide'));
+      s(`.cyberia-instance-btn-json`).onclick = () => {
+        hideWorksContainer();
+        s(`.jsoneditor`).classList.remove('hide');
+      };
+      s(`.cyberia-instance-btn-management`).onclick = () => {
+        hideWorksContainer();
+        s(`.cyberia-instance-management-container`).classList.remove('hide');
+      };
     });
     const dynamicColId = 'cyberia-instance-dynamic-col';
     return html`
@@ -63,6 +75,7 @@ const InstanceEngineCyberiaAdmin = {
         </div>
         <div class="in fll ${dynamicColId}-col-b">
           <div class="jsoneditor"></div>
+          <div class="in cyberia-instance-management-container hide">table</div>
         </div>
       </div>
     `;
