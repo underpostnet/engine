@@ -201,23 +201,7 @@ const MenuHealthcare = {
         html: async () =>
           await SignUp.Render({
             idModal: 'modal-sign-up',
-            bottomRender: async () => html` <div class="in section-mp">
-              ${await DropDown.Render({
-                label: html`${Translate.Render('select-role')}`,
-                type: 'checkbox',
-                data: ['broker', 'owner'].map((dKey) => {
-                  return {
-                    value: dKey,
-                    data: dKey,
-                    checked: true,
-                    display: html`${Translate.Render(dKey)}`,
-                    onClick: function () {
-                      logger.info('DropDown onClick', this.checked);
-                    },
-                  };
-                }),
-              })}
-            </div>`,
+            bottomRender: async () => html` <div class="in section-mp"></div>`,
           }),
         handleType: 'bar',
         maximize: true,

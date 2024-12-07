@@ -15,12 +15,13 @@ import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { HealthcareParams } from './components/healthcare/CommonHealthcare.js';
+import { CssHealthcareDark, CssHealthcareLight } from './components/healthcare/CssHealthcare.js';
 
 window.onload = () =>
   Worker.instance({
     router: RouterHealthcare,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssHealthcareLight, CssHealthcareDark]);
       await TranslateCore.Init();
       await Responsive.Init();
       await MenuHealthcare.Render();
