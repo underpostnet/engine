@@ -21,9 +21,9 @@ const Responsive = {
     ResponsiveDataAmplitude.height = ResponsiveDataAmplitude.height * dimAmplitude;
     return ResponsiveDataAmplitude;
   },
-  resizeCallback: function () {
+  resizeCallback: function (force) {
     const Data = getResponsiveData();
-    if (Data.minValue !== Responsive.Data.minValue || Data.maxValue !== Responsive.Data.maxValue) {
+    if (force === true || Data.minValue !== Responsive.Data.minValue || Data.maxValue !== Responsive.Data.maxValue) {
       Responsive.Data = Data;
       Responsive.triggerEvents();
     }
@@ -31,13 +31,13 @@ const Responsive = {
   resize: 0,
   Init: async function () {
     Responsive.resizeCallback();
-    window.onresize = () => {
+    window.onresize = (e, force) => {
       Responsive.resize++;
       const resize = Responsive.resize;
-      Responsive.resizeCallback();
+      Responsive.resizeCallback(force);
       setTimeout(() => {
         if (resize === Responsive.resize) {
-          Responsive.resizeCallback();
+          Responsive.resizeCallback(force);
           Responsive.resize = 0;
           for (const event of Object.keys(Responsive.DelayEvent)) Responsive.DelayEvent[event]();
         }
@@ -50,7 +50,7 @@ const Responsive = {
       const type = event.target.type; // landscape-primary | portrait-primary
       const angle = event.target.angle; // 90 degrees.
       logger.info(`ScreenOrientation change: ${type}, ${angle} degrees.`);
-      setTimeout(window.onresize);
+      setTimeout(() => window.onresize({}, true));
       Responsive.triggerEventsOrientation();
     });
     Responsive.matchMediaOrientationInstance = matchMedia('screen and (orientation:portrait)');
@@ -60,7 +60,7 @@ const Responsive = {
       // though beware square will be marked as landscape here,
       // if you want to handle this special case
       // create an other mediaquery (orientation:landscape)
-      setTimeout(window.onresize);
+      setTimeout(() => window.onresize({}, true));
       Responsive.triggerEventsOrientation();
     };
   },
