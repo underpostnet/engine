@@ -686,15 +686,15 @@ const getCronBackUpFolder = (host = '', path = '') => {
   return `${host}${path.replace(/\\/g, '/').replace(`/`, '-')}`;
 };
 
-const execDeploy = async (options = { deployId: 'default' }) => {
+const execDeploy = async (options = { deployId: 'default' }, currentAttempt = 1) => {
   const { deployId } = options;
   shellExec(Cmd.delete(deployId));
   shellExec(Cmd.conf(deployId));
   shellExec(Cmd.run(deployId));
+  const maxTime = 1000 * 60;
+  const minTime = 20 * 1000;
+  const intervalTime = 1000;
   return await new Promise(async (resolve) => {
-    const maxTime = 1000 * 60 * 5;
-    const minTime = 20 * 1000;
-    const intervalTime = 1000;
     let currentTime = 0;
     const attempt = () => {
       if (currentTime >= minTime && !fs.existsSync(`./tmp/await-deploy`)) {
@@ -704,12 +704,15 @@ const execDeploy = async (options = { deployId: 'default' }) => {
       cliSpinner(
         intervalTime,
         `[deploy.js] `,
-        ` Load instance | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
+        ` Load instance | attempt:${currentAttempt} | elapsed time ${currentTime / 1000}s / ${maxTime / 1000}s`,
         'yellow',
         'material',
       );
       currentTime += intervalTime;
-      if (currentTime >= maxTime) return resolve(false);
+      if (currentTime >= maxTime) {
+        clearInterval(processMonitor);
+        return resolve(false);
+      }
     };
     const processMonitor = setInterval(attempt, intervalTime);
   });
@@ -719,7 +722,16 @@ const deployRun = async (dataDeploy, reset) => {
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
   if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   await fixDependencies();
-  for (const deploy of dataDeploy) await execDeploy(deploy);
+  const maxAttempts = 3;
+  for (const deploy of dataDeploy) {
+    let currentAttempt = 1;
+    const attempt = async () => {
+      const success = await execDeploy(deploy, currentAttempt);
+      currentAttempt++;
+      if (!success && currentAttempt <= maxAttempts) await attempt();
+    };
+    await attempt();
+  }
   const { failed } = await deployTest(dataDeploy);
   if (failed.length > 0) {
     for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
