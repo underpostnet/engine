@@ -529,7 +529,7 @@ const TileCyberia = {
               label: html`<i class="fas fa-exchange-alt"></i> ${Translate.Render(`flip`)}`,
             })}
           </div>
-          <div class="in section-mp toggle-form-container toggle-form-container-coordinates hover">
+          <div class="in section-mp toggle-form-container hover">
             <div class="fl ">
               <div class="in fll" style="width: 70%">
                 <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('coordinates')}</div>
