@@ -45,7 +45,7 @@ const InstanceEngineCyberiaAdmin = {
         hideWorksContainer();
         s(`.jsoneditor`).classList.remove('hide');
       };
-      s(`.cyberia-instance-btn-management`).onclick = async () => {
+      EventsUI.onClick(`.cyberia-instance-btn-management`, async () => {
         hideWorksContainer();
         s(`.cyberia-instance-management-container`).classList.remove('hide');
 
@@ -67,11 +67,16 @@ const InstanceEngineCyberiaAdmin = {
             return true;
           }
         }
+        const gridId = `ag-grid-cyberia-instance`;
+        (async () => {
+          const { status, data } = await CyberiaInstanceService.get();
+          AgGrid.grids[gridId].setGridOption('rowData', data);
+        })();
         htmls(
           `.cyberia-instance-management-container`,
           html`
             ${await AgGrid.Render({
-              id: `ag-grid-cyberia-instance`,
+              id: gridId,
               darkTheme,
               gridOptions: {
                 // rowData: [],
@@ -84,7 +89,7 @@ const InstanceEngineCyberiaAdmin = {
             })}
           `,
         );
-      };
+      });
     });
     const dynamicColId = 'cyberia-instance-dynamic-col';
     return html`
