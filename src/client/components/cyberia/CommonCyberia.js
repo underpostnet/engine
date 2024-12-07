@@ -296,6 +296,7 @@ const DisplayComponent = {
 DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
 DisplayComponent.get['gp1'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp1' });
 DisplayComponent.get['marciano'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'marciano' });
+DisplayComponent.get['odisea'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'odisea' });
 
 const Stat = {
   get: {
@@ -1189,6 +1190,8 @@ const WorldCyberiaLimit = (options = { type: undefined }) => {
 
 const updateMovementDirection = ({ direction, element, suffix }) => {
   switch (direction) {
+    case '02':
+    case '12':
     case 'n':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
@@ -1196,6 +1199,8 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
           return component;
         });
       break;
+    case '08':
+    case '18':
     case 's':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
@@ -1203,6 +1208,8 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
           return component;
         });
       break;
+    case '06':
+    case '16':
     case 'e':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {
@@ -1224,6 +1231,8 @@ const updateMovementDirection = ({ direction, element, suffix }) => {
           return component;
         });
       break;
+    case '04':
+    case '14':
     case 'w':
       if (element.components.skin)
         element.components.skin = element.components.skin.map((component) => {

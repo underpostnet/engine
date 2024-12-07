@@ -90,10 +90,14 @@ const CyberiaWsBotManagement = {
           ? displayBotMetaData.displayData.find((c) => c.id === skinId)
           : undefined;
         if (displayData) {
-          x = displayData.x;
-          y = displayData.y;
+          x = displayData.x / biome.dimPaintByCell;
+          y = displayData.y / biome.dimPaintByCell;
           if (displayData.positionId) {
-            bot = updateMovementDirection(displayData.positionId, bot, displayData.positionId[0]);
+            bot = updateMovementDirection({
+              direction: displayData.positionId,
+              element: bot,
+              suffix: displayData.positionId[0],
+            });
           }
         } else {
           const positionData = getRandomPosition();
