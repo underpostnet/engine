@@ -11,23 +11,28 @@ import { createJSONEditor } from 'vanilla-jsoneditor';
 // https://www.npmjs.com/package/vanilla-jsoneditor
 
 const InstanceEngineCyberiaAdmin = {
+  jsonEditor: null,
   Render: async function (options = { idModal: '' }) {
     setTimeout(() => {
       let content = {
         text: undefined, // JSON.stringify(CyberiaInstancesStructs.default, null, 4)
         json: CyberiaInstancesStructs.default[0],
       };
-      const editor = createJSONEditor({
-        target: s('.jsoneditor'),
-        props: {
-          content,
-          onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
-            // content is an object { json: JSONData } | { text: string }
-            console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
-            content.json = JSON.parse(updatedContent.text);
+      const instanceJsonEditor = () => {
+        if (this.jsonEditor) this.jsonEditor.destroy();
+        this.jsonEditor = createJSONEditor({
+          target: s('.jsoneditor'),
+          props: {
+            content,
+            onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+              // content is an object { json: JSONData } | { text: string }
+              console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+              content.json = JSON.parse(updatedContent.text);
+            },
           },
-        },
-      });
+        });
+      };
+      instanceJsonEditor();
 
       EventsUI.onClick(`.cyberia-instance-btn-upload`, async () => {
         const { status, data } = await CyberiaInstanceService.post({ body: content.json });
@@ -49,13 +54,33 @@ const InstanceEngineCyberiaAdmin = {
         hideWorksContainer();
         s(`.cyberia-instance-management-container`).classList.remove('hide');
 
+        const getCyberiaInstanceRowId = (params) => `cy-in-${params.data._id}`;
+
         class LoadCyberiaInstanceRenderer {
           eGui;
 
           async init(params) {
             console.log('LoadCyberiaInstanceRenderer init', params);
+
+            const rowId = getCyberiaInstanceRowId(params);
+
+            setTimeout(() => {
+              if (s(`.btn-load-${rowId}`))
+                s(`.btn-load-${rowId}`).onclick = () => {
+                  content.json = params.data;
+                  instanceJsonEditor();
+                  s(`.cyberia-instance-btn-json`).click();
+                };
+            });
+
             this.eGui = document.createElement('div');
-            this.eGui.innerHTML = html` test `;
+            this.eGui.innerHTML = html`
+              ${await BtnIcon.Render({
+                class: `in ag-btn-renderer btn-load-${rowId}`,
+                label: html`<i class="fa-solid fa-bolt"></i><br />
+                  ${Translate.Render(`load`)}`,
+              })}
+            `;
           }
 
           getGui() {
