@@ -636,7 +636,7 @@ const deployTest = async (dataDeploy) => {
         if (singleReplica) continue;
         const urlTest = `https://${host}${path}`;
         try {
-          const result = await axios.get(urlTest);
+          const result = await axios.get(urlTest, { timeout: 10000 });
           const test = result.data.split('<title>');
           if (test[1])
             logger.info('Success deploy', {
@@ -718,9 +718,8 @@ const execDeploy = async (options = { deployId: 'default' }, currentAttempt = 1)
   });
 };
 
-const deployRun = async (dataDeploy, reset) => {
+const deployRun = async (dataDeploy, currentAttempt = 1) => {
   if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
-  if (reset) fs.writeFileSync(`./tmp/runtime-router.json`, '{}', 'utf8');
   await fixDependencies();
   const maxAttempts = 3;
   for (const deploy of dataDeploy) {
@@ -735,8 +734,10 @@ const deployRun = async (dataDeploy, reset) => {
   const { failed } = await deployTest(dataDeploy);
   if (failed.length > 0) {
     for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
-    await read({ prompt: 'Press enter to retry failed processes\n' });
-    await deployRun(failed);
+    if (currentAttempt === maxAttempts) return logger.error(`max deploy attempts exceeded`);
+    if (process.argv.includes('manual')) await read({ prompt: 'Press enter to retry failed processes\n' });
+    currentAttempt++;
+    await deployRun(failed, currentAttempt);
   } else logger.info(`Deploy process successfully`);
 };
 
