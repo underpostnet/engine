@@ -1,6 +1,7 @@
 import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
+import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { dynamicCol } from '../core/Css.js';
+import { darkTheme, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
@@ -44,9 +45,45 @@ const InstanceEngineCyberiaAdmin = {
         hideWorksContainer();
         s(`.jsoneditor`).classList.remove('hide');
       };
-      s(`.cyberia-instance-btn-management`).onclick = () => {
+      s(`.cyberia-instance-btn-management`).onclick = async () => {
         hideWorksContainer();
         s(`.cyberia-instance-management-container`).classList.remove('hide');
+
+        class LoadCyberiaInstanceRenderer {
+          eGui;
+
+          async init(params) {
+            console.log('LoadCyberiaInstanceRenderer init', params);
+            this.eGui = document.createElement('div');
+            this.eGui.innerHTML = html` test `;
+          }
+
+          getGui() {
+            return this.eGui;
+          }
+
+          refresh(params) {
+            console.log('LoadCyberiaInstanceRenderer refreshed', params);
+            return true;
+          }
+        }
+        htmls(
+          `.cyberia-instance-management-container`,
+          html`
+            ${await AgGrid.Render({
+              id: `ag-grid-cyberia-instance`,
+              darkTheme,
+              gridOptions: {
+                // rowData: [],
+                columnDefs: [
+                  { field: '_id', headerName: 'ID' },
+                  { field: 'name', headerName: 'Name' },
+                  { headerName: '', cellRenderer: LoadCyberiaInstanceRenderer },
+                ],
+              },
+            })}
+          `,
+        );
       };
     });
     const dynamicColId = 'cyberia-instance-dynamic-col';
