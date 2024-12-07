@@ -30,6 +30,7 @@ const CssHealthcareDark = {
             background-color: #5c0163;
           }
           .bar-default-modal,
+          .btn-eye-password,
           input {
             background: #501455;
           }
@@ -76,6 +77,7 @@ const CssHealthcareLight = {
             background-color: #ffb866;
           }
           .bar-default-modal,
+          .btn-eye-password,
           input {
             background: #fff0cc;
           }
