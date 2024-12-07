@@ -1,5 +1,6 @@
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
+import { CyberiaInstanceDto } from './cyberia-instance.model.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -12,6 +13,7 @@ const CyberiaInstanceService = {
   get: async (req, res, options) => {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
+    if (req.params.id === 'lite') return await CyberiaInstance.find().select(CyberiaInstanceDto.select.lite());
     if (req.params.id) return await CyberiaInstance.findById(req.params.id);
     return await CyberiaInstance.find();
   },

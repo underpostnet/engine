@@ -1,4 +1,5 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
+import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { CyberiaWorldService } from '../../services/cyberia-world/cyberia-world.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { AgGrid } from '../core/AgGrid.js';
@@ -286,29 +287,59 @@ const WorldCyberia = {
       html: resultBiomeCyberia.status,
       status: resultBiomeCyberia.status,
     });
+    const resultInstancesCyberia = await CyberiaInstanceService.get({ id: 'lite' });
+    NotificationManager.Push({
+      html: resultInstancesCyberia.status,
+      status: resultInstancesCyberia.status,
+    });
     let render = '';
 
     for (const index of range(0, 5)) {
       render += html`<div class="inl section-mp">
-        ${await DropDown.Render({
-          // value: ``,
-          id: `face-${index}`,
-          label: html`face ${index + 1}`,
-          resetOption: true,
-          resetOnClick: () => (this.WorldCyberiaScope.face[index] = null),
-          data: resultBiomeCyberia.data.map((biome) => {
-            return {
-              data: biome,
-              display: html`${biome.name} <span class="drop-down-option-info">[${biome.biome}]</span>`,
-              value: biome._id,
-              onClick: async () => {
-                this.WorldCyberiaScope.face[index] = biome;
-                s(`.btn-generate-world`).click();
-              },
-            };
-          }),
-        })}
-      </div>`;
+          ${await DropDown.Render({
+            // value: ``,
+            id: `face-${index}`,
+            label: html`face ${index + 1}`,
+            resetOption: true,
+            resetOnClick: () => (this.WorldCyberiaScope.face[index] = null),
+            data: resultBiomeCyberia.data.map((biome) => {
+              return {
+                data: biome,
+                display: html`${biome.name} <span class="drop-down-option-info">[${biome.biome}]</span>`,
+                value: biome._id,
+                onClick: async () => {
+                  this.WorldCyberiaScope.face[index] = biome;
+                  s(`.btn-generate-world`).click();
+                },
+              };
+            }),
+          })}
+        </div>
+        <div class="inl section-mp">
+          ${await DropDown.Render({
+            // value: ``,
+            id: `instance-${index}`,
+            label: html`instance ${index + 1}`,
+            resetOption: true,
+            // resetOnClick: () => (this.WorldCyberiaScope.face[index] = null),
+            data: resultInstancesCyberia.data.map((instance) => {
+              return {
+                data: instance,
+                display: html`${instance.name}`,
+                value: instance._id,
+                onClick: async () => {
+                  if (!this.WorldCyberiaScope.instance) this.WorldCyberiaScope.instance = [];
+                  const { status, data, message } = await CyberiaInstanceService.get({ id: instance._id });
+                  NotificationManager.Push({
+                    html: resultInstancesCyberia.status === 'error' ? message : status,
+                    status: resultInstancesCyberia.status,
+                  });
+                  this.WorldCyberiaScope.instance[index] = data;
+                },
+              };
+            }),
+          })}
+        </div>`;
     }
     setTimeout(() => {
       EventsUI.onClick(`.btn-generate-world`, async () => {

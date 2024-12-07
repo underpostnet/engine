@@ -34,8 +34,16 @@ const CyberiaInstanceSchema = new Schema({
   },
 });
 
+const CyberiaInstanceDto = {
+  select: {
+    lite: () => {
+      return { _id: 1, name: 1 };
+    },
+  },
+};
+
 const CyberiaInstanceModel = model('CyberiaInstance', CyberiaInstanceSchema);
 
 const ProviderSchema = CyberiaInstanceSchema;
 
-export { CyberiaInstanceSchema, CyberiaInstanceModel, ProviderSchema };
+export { CyberiaInstanceSchema, CyberiaInstanceModel, ProviderSchema, CyberiaInstanceDto };
