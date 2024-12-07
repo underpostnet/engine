@@ -296,7 +296,11 @@ const DisplayComponent = {
 DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
 DisplayComponent.get['gp1'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp1' });
 DisplayComponent.get['marciano'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'marciano' });
-DisplayComponent.get['odisea'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'odisea' });
+DisplayComponent.get['odisea'] = () => ({
+  ...DisplayComponent.get['anon'](),
+  displayId: 'odisea',
+  positions: PositionsComponent['frames1'](),
+});
 
 const Stat = {
   get: {
