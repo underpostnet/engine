@@ -2182,20 +2182,21 @@ const BiomeCyberiaEngine = {
         if (
           (x === 0 && y === 0) ||
           (x === rangeBiomeCyberia[rangeBiomeCyberia.length - 1] &&
-            y === rangeBiomeCyberia[rangeBiomeCyberia.length - 1])
-          //   ||
-          // (BiomeCyberiaMatrixCyberia.topLevelColor &&
-          //   BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
-          //   BiomeCyberiaMatrixCyberia.topLevelColor[y][x])
+            y === rangeBiomeCyberia[rangeBiomeCyberia.length - 1]) ||
+          (!['shop'].includes(BiomeCyberiaMatrixCyberia.biome) &&
+            BiomeCyberiaMatrixCyberia.topLevelColor &&
+            BiomeCyberiaMatrixCyberia.topLevelColor[y] &&
+            BiomeCyberiaMatrixCyberia.topLevelColor[y][x])
         ) {
           const cell = new Sprite(Texture.WHITE);
           cell.x = dim * x;
           cell.y = dim * y;
           cell.width = dim;
           cell.height = dim;
-          cell.tint = BiomeCyberiaMatrixCyberia.topLevelColor[y]?.[x]
-            ? BiomeCyberiaMatrixCyberia.topLevelColor[y][x]
-            : `#151515`;
+          cell.tint =
+            BiomeCyberiaMatrixCyberia.topLevelColor && BiomeCyberiaMatrixCyberia.topLevelColor[y]?.[x]
+              ? BiomeCyberiaMatrixCyberia.topLevelColor[y][x]
+              : `#151515`;
           this.PixiCyberiaBiomeCyberiaTopLevelColor.stage.addChild(cell);
         }
       }
