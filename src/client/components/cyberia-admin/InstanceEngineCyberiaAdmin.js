@@ -1,5 +1,9 @@
+import { CyberiaInstanceService } from '../../services/cyberia-instance/cyberia-instance.service.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { dynamicCol } from '../core/Css.js';
+import { EventsUI } from '../core/EventsUI.js';
+import { NotificationManager } from '../core/NotificationManager.js';
+import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
 import { CyberiaInstancesStructs } from '../cyberia/CommonCyberia.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
@@ -7,15 +11,10 @@ import { createJSONEditor } from 'vanilla-jsoneditor';
 
 const InstanceEngineCyberiaAdmin = {
   Render: async function (options = { idModal: '' }) {
-    const engineCyberiaInstanceMenu = {
-      'cyberia-instance-btn-json': {},
-      'cyberia-instance-btn-management': {},
-    };
-
     setTimeout(() => {
       let content = {
         text: undefined, // JSON.stringify(CyberiaInstancesStructs.default, null, 4)
-        json: CyberiaInstancesStructs.default,
+        json: CyberiaInstancesStructs.default[0],
       };
       const editor = createJSONEditor({
         target: s('.jsoneditor'),
@@ -24,9 +23,18 @@ const InstanceEngineCyberiaAdmin = {
           onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
             // content is an object { json: JSONData } | { text: string }
             console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
-            content = updatedContent;
+            content.json = JSON.parse(updatedContent.text);
           },
         },
+      });
+
+      EventsUI.onClick(`.cyberia-instance-btn-upload`, async () => {
+        const { status, data } = await CyberiaInstanceService.post({ body: content.json });
+
+        NotificationManager.Push({
+          html: Translate.Render(`${status}-upload-cyberia-instance`),
+          status,
+        });
       });
     });
     const dynamicColId = 'cyberia-instance-dynamic-col';
@@ -44,6 +52,12 @@ const InstanceEngineCyberiaAdmin = {
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom cyberia-instance-btn-management`,
               label: html`management`,
+            })}
+          </div>
+          <div class="in">
+            ${await BtnIcon.Render({
+              class: `inl section-mp btn-custom cyberia-instance-btn-upload`,
+              label: html`<i class="fa-solid fa-upload"></i> ${Translate.Render(`upload`)}`,
             })}
           </div>
         </div>

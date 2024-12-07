@@ -86,9 +86,20 @@ const CyberiaWsBotManagement = {
       }
 
       default: {
-        const positionData = getRandomPosition();
-        x = positionData.x;
-        y = positionData.y;
+        const displayData = displayBotMetaData.displayData
+          ? displayBotMetaData.displayData.find((c) => c.id === skinId)
+          : undefined;
+        if (displayData) {
+          x = displayData.x;
+          y = displayData.y;
+          if (displayData.positionId) {
+            bot = updateMovementDirection(displayData.positionId, bot, displayData.positionId[0]);
+          }
+        } else {
+          const positionData = getRandomPosition();
+          x = positionData.x;
+          y = positionData.y;
+        }
       }
     }
     bot.x = x;

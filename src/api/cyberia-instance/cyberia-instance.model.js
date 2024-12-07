@@ -16,6 +16,14 @@ const CyberiaInstanceSchema = new Schema({
           {
             id: { type: String },
             quantity: [{ type: Number }],
+            displayData: [
+              {
+                id: { type: String },
+                x: { type: Number },
+                y: { type: Number },
+                positionId: { type: String },
+              },
+            ],
             name: { type: String },
             title: { type: String },
             parentId: { type: String },
