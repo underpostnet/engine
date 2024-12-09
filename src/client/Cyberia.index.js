@@ -29,6 +29,7 @@ window.onload = () =>
       await Css.loadThemes([CssCyberiaDark]);
       await TranslateCore.Init();
       await TranslateCyberia.Init();
+      await MatrixCyberia.loadData();
       await MainUserCyberia.Render();
       await PixiCyberia.Init();
       await Responsive.Init();

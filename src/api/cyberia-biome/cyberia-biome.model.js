@@ -14,9 +14,9 @@ const CyberiaBiomeSchema = new Schema({
   topLevelColor: [[{ type: String }]],
   name: { type: String },
   biome: { type: String },
-  dim: { type: Number },
-  dimPaintByCell: { type: Number },
-  dimAmplitude: { type: Number },
+  dim: { type: Number, default: 16 * 2 },
+  dimPaintByCell: { type: Number, default: 3 },
+  dimAmplitude: { type: Number, default: 3 },
   resources: [
     {
       id: { type: String },

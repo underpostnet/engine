@@ -1,12 +1,18 @@
+import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { Responsive } from '../core/Responsive.js';
-import { s, append } from '../core/VanillaJs.js';
-import { BaseMatrixCyberia, CyberiaParams } from './CommonCyberia.js';
+import { s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
 const MatrixCyberia = {
-  Data: {
-    ...BaseMatrixCyberia(),
-    biomeDataId: '',
+  Data: {},
+  loadData: async function () {
+    const { data } = await CyberiaBiomeService.get({ id: 'matrix-params' });
+    MatrixCyberia.Data = {
+      dim: 16 * 2,
+      dimPaintByCell: 3,
+      dimAmplitude: 3, // 8,
+      ...data,
+    };
   },
   Render: async function () {
     let start;
@@ -19,14 +25,14 @@ const MatrixCyberia = {
       requestAnimationFrame(frame);
     };
     requestAnimationFrame(frame);
-    Responsive.orientationEvent['matrix-cyberia'] = this.UpdateAllCamera;
-    Responsive.orientationDelayEvent['matrix-cyberia'] = this.UpdateAllCamera;
+    Responsive.orientationEvent['matrix-cyberia'] = MatrixCyberia.UpdateAllCamera;
+    Responsive.orientationDelayEvent['matrix-cyberia'] = MatrixCyberia.UpdateAllCamera;
   },
   UpdateAllCamera: async function (options = { type: 'user', id: 'main' }) {
     const { type, id } = options;
-    this.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
-    this.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
-    this.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
+    MatrixCyberia.UpdateCamera('.pixi-canvas', ElementsCyberia.Data[type][id], true);
+    MatrixCyberia.UpdateCamera('.pixi-canvas-top-level', ElementsCyberia.Data[type][id], true);
+    MatrixCyberia.UpdateCamera('.PointAndClickMovementCyberia-container', ElementsCyberia.Data[type][id]);
   },
   UpdateAdjacentLimit: function (params) {
     const { leftDimValue, topDimValue, ResponsiveDataAmplitude } = params;

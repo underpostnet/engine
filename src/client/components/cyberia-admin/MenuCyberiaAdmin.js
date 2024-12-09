@@ -14,7 +14,7 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SignUp } from '../core/SignUp.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { BiomeCyberiaEngine } from '../cyberia/BiomeCyberia.js';
+import { BiomeCyberiaEngine } from './BiomeCyberiaAdmin.js';
 import { ElementsCyberiaAdmin } from './ElementsCyberiaAdmin.js';
 import { RouterCyberiaAdmin } from './RoutesCyberiaAdmin.js';
 import { ServerCyberiaAdmin } from './ServerCyberiaAdmin.js';

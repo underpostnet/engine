@@ -2,6 +2,7 @@ import { objectEquals } from '../../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../../server/logger.js';
 import { IoCreateChannel } from '../../IoInterface.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
+import { CyberiaWsInstanceScope } from '../cyberia.ws.server.js';
 import { CyberiaWsSkillManagement } from '../management/cyberia.ws.skill.js';
 import { CyberiaWsUserManagement } from '../management/cyberia.ws.user.js';
 
@@ -13,7 +14,12 @@ const CyberiaWsSkillController = {
   controller: function (socket, client, payload, wsManagementId) {
     switch (payload.status) {
       case 'create':
-        CyberiaWsSkillManagement.createSkill(wsManagementId, { id: socket.id, type: 'user' }, payload.skillKey);
+        CyberiaWsSkillManagement.createSkill(
+          wsManagementId,
+          { id: socket.id, type: 'user' },
+          payload.skillKey,
+          CyberiaWsInstanceScope[wsManagementId].biome.instance,
+        );
         break;
 
       default:

@@ -1,7 +1,6 @@
 import { getId, newInstance, objectEquals, random, timer } from '../../../client/components/core/CommonJs.js';
 import {
   BaseElement,
-  BaseMatrixCyberia,
   CyberiaParams,
   DisplayComponent,
   QuestComponent,
@@ -28,14 +27,22 @@ const logger = loggerFactory(import.meta);
 const CyberiaWsSkillManagement = {
   element: {},
   localElementScope: {},
-  matrixData: BaseMatrixCyberia(),
   instance: async function (wsManagementId = '') {
     this.element[wsManagementId] = {};
     this.localElementScope[wsManagementId] = {};
     /** @type {import('../../../api/cyberia-world/cyberia-world.model.js').CyberiaWorldModel} */
     const CyberiaWorld = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaWorld;
   },
-  createSkill: function (wsManagementId = '', parent = { id: '', type: '' }, skillKey = '') {
+  createSkill: function (
+    wsManagementId = '',
+    parent = { id: '', type: '' },
+    skillKey = '',
+    biome = {
+      dimPaintByCell: 3,
+      dim: 1,
+      dimAmplitude: 8,
+    },
+  ) {
     let parentElement;
     let direction;
     switch (parent.type) {
@@ -144,7 +151,7 @@ const CyberiaWsSkillManagement = {
                     isElementCollision({
                       A: this.element[wsManagementId][id],
                       B: CyberiaWsUserManagement.element[wsManagementId][clientId],
-                      dimPaintByCell: this.matrixData.dimPaintByCell,
+                      dimPaintByCell: biome.dimPaintByCell,
                     })
                   )
                     if (!(parent.type === 'user' && parent.id === clientId))
@@ -177,7 +184,7 @@ const CyberiaWsSkillManagement = {
                     isElementCollision({
                       A: this.element[wsManagementId][id],
                       B: CyberiaWsBotManagement.element[wsManagementId][botId],
-                      dimPaintByCell: this.matrixData.dimPaintByCell,
+                      dimPaintByCell: biome.dimPaintByCell,
                     })
                   ) {
                     let enabledFlow = true;

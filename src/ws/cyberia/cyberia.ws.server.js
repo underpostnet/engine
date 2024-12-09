@@ -31,6 +31,7 @@ const createIoServer = async (httpServer, options) => {
       instance: await CyberiaWorld.findOne({ name: path.slice(1) }),
       default: await CyberiaWorld.findOne({ name: process.env.CYBERIA_DEFAULT_WORLD_NAME }),
     },
+    biome: {},
     user: {},
   };
 
@@ -41,7 +42,7 @@ const createIoServer = async (httpServer, options) => {
     const CyberiaBiome = DataBaseProvider.instance[`${wsManagementId}`].mongoose.models.CyberiaBiome;
 
     const biome = await CyberiaBiome.findOne({ _id: biomeId });
-
+    CyberiaWsInstanceScope[wsManagementId].biome.instance = biome;
     const { x, y } = getRandomAvailablePositionCyberia({
       biomeData: biome._doc,
       element: BaseElement({

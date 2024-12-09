@@ -1,13 +1,5 @@
 import { newInstance, random, range, reduceMatrix, round10 } from '../core/CommonJs.js';
 
-const BaseMatrixCyberia = () => {
-  return {
-    dim: 16 * 2,
-    dimPaintByCell: 3,
-    dimAmplitude: 3, // 8,
-  };
-};
-
 const ModelElement = {
   world: (options) => {
     return {
@@ -1580,7 +1572,6 @@ export {
   WorldCyberiaType,
   CyberiaParams,
   updateMovementDirection,
-  BaseMatrixCyberia,
   getCollisionMatrixCyberia,
   CharacterCyberiaStatsType,
   PositionsComponent,

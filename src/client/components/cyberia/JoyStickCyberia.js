@@ -1,7 +1,7 @@
 import { newInstance } from '../core/CommonJs.js';
 import { JoyStick } from '../core/JoyStick.js';
 import { loggerFactory } from '../core/Logger.js';
-import { BiomeCyberiaEngine } from './BiomeCyberia.js';
+import { BiomeCyberiaManagement } from './BiomeCyberia.js';
 import { CyberiaParams } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -36,7 +36,7 @@ const JoyStickCyberia = {
               break;
           }
         });
-        if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })) return;
+        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })) return;
         ElementsCyberia.Data.user.main.x = x;
         ElementsCyberia.Data.user.main.y = y;
         PixiCyberia.updatePosition({ type: 'user', id: 'main' });

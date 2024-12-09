@@ -1,5 +1,5 @@
 import { Keyboard } from '../core/Keyboard.js';
-import { BiomeCyberiaEngine } from './BiomeCyberia.js';
+import { BiomeCyberiaManagement } from './BiomeCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
@@ -69,7 +69,7 @@ const MainUserCyberia = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = ElementsCyberia.Data[type][id].x - ElementsCyberia.Data[type][id].vel;
         const y = ElementsCyberia.Data[type][id].y;
-        if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x, y })) return;
+        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
         ElementsCyberia.Data[type][id].x = x;
         PixiCyberia.updatePosition({ type, id });
       },
@@ -77,7 +77,7 @@ const MainUserCyberia = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = ElementsCyberia.Data[type][id].x + ElementsCyberia.Data[type][id].vel;
         const y = ElementsCyberia.Data[type][id].y;
-        if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x, y })) return;
+        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
         ElementsCyberia.Data[type][id].x = x;
         PixiCyberia.updatePosition({ type, id });
       },
@@ -85,7 +85,7 @@ const MainUserCyberia = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = ElementsCyberia.Data[type][id].x;
         const y = ElementsCyberia.Data[type][id].y - ElementsCyberia.Data[type][id].vel;
-        if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x, y })) return;
+        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
         ElementsCyberia.Data[type][id].y = y;
         PixiCyberia.updatePosition({ type, id });
       },
@@ -93,7 +93,7 @@ const MainUserCyberia = {
         if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
         const x = ElementsCyberia.Data[type][id].x;
         const y = ElementsCyberia.Data[type][id].y + ElementsCyberia.Data[type][id].vel;
-        if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x, y })) return;
+        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
         ElementsCyberia.Data[type][id].y = y;
         PixiCyberia.updatePosition({ type, id });
       },

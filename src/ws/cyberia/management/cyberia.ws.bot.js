@@ -461,7 +461,7 @@ const CyberiaWsBotManagement = {
           this.localElementScope[wsManagementId][id].skill = {
             Callback: setInterval(() => {
               if (this.localElementScope[wsManagementId][id].target.Active)
-                CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' });
+                CyberiaWsSkillManagement.createSkill(wsManagementId, { id, type: 'bot' }, undefined, biome);
             }, skillDataStat.cooldown),
           };
         }

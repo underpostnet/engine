@@ -1,6 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { CyberiaBiomeDto } from './cyberia-biome.model.js';
+import { CyberiaWsInstanceScope } from '../../ws/cyberia/cyberia.ws.server.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -19,10 +20,18 @@ const CyberiaBiomeService = {
     }
   },
   get: async (req, res, options) => {
+    const wsManagementId = `${options.host}${options.path}`;
     /** @type {import('./cyberia-biome.model.js').CyberiaBiomeModel} */
-    const CyberiaBiome = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaBiome;
+    const CyberiaBiome = DataBaseProvider.instance[wsManagementId].mongoose.models.CyberiaBiome;
 
     switch (req.params.id) {
+      case 'matrix-params':
+        return {
+          dim: CyberiaWsInstanceScope[wsManagementId].biome.instance.dim,
+          dimPaintByCell: CyberiaWsInstanceScope[wsManagementId].biome.instance.dimPaintByCell,
+          dimAmplitude: CyberiaWsInstanceScope[wsManagementId].dimAmplitude,
+          name: CyberiaWsInstanceScope[wsManagementId].name,
+        };
       case 'all':
         return await CyberiaBiome.find();
 

@@ -16,7 +16,7 @@ import { Polyhedron } from '../core/Polyhedron.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, htmls, s } from '../core/VanillaJs.js';
-import { BiomeCyberiaEngine, BiomeCyberiaScope, BiomeCyberiaRender } from './BiomeCyberia.js';
+import { BiomeCyberiaScope, BiomeCyberiaManagement } from './BiomeCyberia.js';
 import { CyberiaParams, WorldCyberiaLimit, WorldCyberiaType } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
@@ -180,14 +180,14 @@ const WorldCyberiaManagement = {
       default:
         break;
     }
-    if (BiomeCyberiaEngine.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
+    if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
     console.warn('newBiomeCyberia', newBiomeCyberia);
     console.warn('initDirection', initDirection);
 
     ElementsCyberia.Data[type][id].x = newX;
     ElementsCyberia.Data[type][id].y = newY;
     ElementsCyberia.Data[type][id].model.world.face = newFace;
-    await BiomeCyberiaRender.load({
+    await BiomeCyberiaManagement.load({
       data: newBiomeCyberia,
     });
     this.LoadAdjacentFaces(type, id);
@@ -231,14 +231,14 @@ const WorldCyberiaManagement = {
     for (const _id of this.Data[type][id].model.world.face) {
       indexFace++;
       if (ElementsCyberia.Data.user.main.model.world.face === indexFace) {
-        await BiomeCyberiaRender.load({
-          data: await BiomeCyberiaRender.loadData({
+        await BiomeCyberiaManagement.load({
+          data: await BiomeCyberiaManagement.loadData({
             data: { _id },
           }),
         });
         LoadingAnimation.barLevel.append();
       } else
-        await BiomeCyberiaRender.loadData({
+        await BiomeCyberiaManagement.loadData({
           data: { _id },
         });
     }
