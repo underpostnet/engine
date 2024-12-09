@@ -385,17 +385,18 @@ export PATH=$PATH:/opt/lampp/bin`,
                 app.use(`${apiPath}/${api}`, router);
               })();
           }
+          const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
+          const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
           app.use(function (req, res, next) {
-            const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404.html`;
-            if (fs.existsSync(path404)) return res.status(404).sendFile(path404);
-            else res.status(404).send('Sorry cant find that!');
+            if (page404) return res.status(404).redirect(page404);
+            else return res.status(404).send('Sorry cant find that!');
           });
-
+          const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
+          const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
           app.use(function (err, req, res, next) {
             logger.error(err, err.stack);
-            const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500.html`;
-            if (fs.existsSync(path500)) return res.status(500).sendFile(path500);
-            res.status(500).send('Something broke!');
+            if (page500) return res.status(500).redirect(page500);
+            else return res.status(500).send('Something broke!');
           });
 
           // instance server

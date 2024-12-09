@@ -56,6 +56,9 @@ const DefaultConf = {
           'Panel',
           'PanelForm',
           'Scroll',
+          'Alert',
+          '404',
+          '500',
         ],
         default: [
           'MenuDefault',
@@ -124,6 +127,8 @@ const DefaultConf = {
           client: 'Default',
           ssr: 'Default',
         },
+        { client: 'Default', ssr: 'Default', path: '/404', title: '404 Not Found' },
+        { client: 'Default', ssr: 'Default', path: '/500', title: '500 Server Error' },
       ],
       dists: [
         {

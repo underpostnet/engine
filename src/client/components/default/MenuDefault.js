@@ -17,6 +17,8 @@ import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
 import { Recover } from '../core/Recover.js';
 import { DefaultManagement } from '../../services/default/default.management.js';
+import { Page500 } from '../core/500.js';
+import { Page404 } from '../core/404.js';
 
 const MenuDefault = {
   Data: {},
@@ -135,6 +137,28 @@ const MenuDefault = {
             tabHref: `${getProxyPath()}default-management`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-404 hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('404')}</span>`,
+            }),
+            attrs: `data-id="404"`,
+            tabHref: `${getProxyPath()}404`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('404')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-500 hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('500')}</span>`,
+            }),
+            attrs: `data-id="500"`,
+            tabHref: `${getProxyPath()}500`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('500')),
           })}
         </div>
       `,
@@ -374,6 +398,48 @@ const MenuDefault = {
           text: Translate.Render('default-management'),
         }),
         html: async () => await DefaultManagement.RenderTable(),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-404`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-404',
+        route: '404',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-triangle-exclamation"></i>`,
+          text: Translate.Render('404'),
+        }),
+        html: async () => await Page404.Render({ idModal: 'modal-404' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-500`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-500',
+        route: '500',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-circle-exclamation"></i>`,
+          text: Translate.Render('500'),
+        }),
+        html: async () => await Page500.Render({ idModal: 'modal-500' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',

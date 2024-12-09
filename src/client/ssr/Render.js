@@ -1,4 +1,4 @@
-Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, baseSsrLib }) => html`
+Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>
@@ -226,11 +226,6 @@ selection
         </style>
       </div>
       <div class="theme"></div>
-      ${baseSsrLib
-        ? html`<script>
-            ${baseSsrLib};
-          </script>`
-        : ''}
       ${ssrBodyComponents} ${buildId ? html`<script async type="module" src="./${buildId}.js"></script>` : ''}
     </body>
   </html>
