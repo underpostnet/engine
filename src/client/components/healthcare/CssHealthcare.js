@@ -1,9 +1,38 @@
 import { CalendarCore } from '../core/CalendarCore.js';
+import { boxShadow } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { getProxyPath } from '../core/VanillaJs.js';
 
 const CssCommonHealthcare = async () => {
   CalendarCore.RenderStyle();
-  return html`<style></style>`;
+  return html`<style>
+      @font-face {
+        font-family: 'cursive';
+        src: URL('${getProxyPath()}fonts/Cookie-Regular.ttf') format('truetype');
+      }
+      .home-body-btn {
+        margin: 10px;
+        height: 150px;
+        width: 150px;
+        font-size: 18px;
+      }
+      .home-menu-container {
+        margin: auto;
+        margin-top: 40px;
+        margin-bottom: 100px;
+      }
+      .home-menu-icon {
+        width: 80px;
+        height: 80px;
+      }
+      .home-h1-font-container {
+        margin-bottom: 30px;
+        font-size: 40px;
+        font-family: 'cursive';
+        text-align: center;
+      }
+    </style>
+    ${boxShadow({ selector: `.home-body-btn` })}`;
 };
 
 const CssHealthcareDark = {
@@ -47,6 +76,9 @@ const CssHealthcareDark = {
           }
           .main-body-top {
             background: rgb(12 12 12 / 50%) !important;
+          }
+          .home-body-btn {
+            background: #a80081;
           }
         </style>
       `
@@ -94,6 +126,9 @@ const CssHealthcareLight = {
           }
           .main-body-top {
             background: rgb(255 253 234 / 50%) !important;
+          }
+          .home-body-btn {
+            background: #ffce95;
           }
         </style>
       `

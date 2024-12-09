@@ -827,6 +827,7 @@ const Modal = {
                   heightTopBar: originHeightTopBar,
                   heightBottomBar: originHeightBottomBar,
                   barMode: options.barMode,
+                  observer: true,
                 });
                 const maxWidthInputSearchBox = 450;
                 const paddingInputSearchBox = 5;

@@ -16,6 +16,7 @@ import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { HealthcareParams } from './components/healthcare/CommonHealthcare.js';
 import { CssHealthcareDark, CssHealthcareLight } from './components/healthcare/CssHealthcare.js';
+import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
 
 window.onload = () =>
   Worker.instance({
@@ -23,6 +24,7 @@ window.onload = () =>
     render: async () => {
       await Css.loadThemes([CssHealthcareLight, CssHealthcareDark]);
       await TranslateCore.Init();
+      await TranslateHealthcare.Init();
       await Responsive.Init();
       await MenuHealthcare.Render();
       await SocketIo.Init({ channels: ElementsHealthcare.Data });

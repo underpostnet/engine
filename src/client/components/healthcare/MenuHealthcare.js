@@ -18,6 +18,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { PanelForm } from '../core/PanelForm.js';
+import { MenuHomeHealthcare } from './CommonHealthcare.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -135,7 +136,56 @@ const MenuHealthcare = {
       heightTopBar,
       heightBottomBar,
       htmlMainBody: async () => {
-        return '';
+        setTimeout(() => {
+          Modal.Data['main-body'].onObserverListener['observer'] = () => {
+            if (s(`.main-body`).offsetWidth < 170 * 4) {
+              htmls(
+                `.style-home-menu-container`,
+                html` <style>
+                  .home-menu-container {
+                    width: ${170 * 2}px;
+                  }
+                </style>`,
+              );
+
+              return;
+            }
+            htmls(
+              `.style-home-menu-container`,
+              html` <style>
+                .home-menu-container {
+                  width: ${170 * 4}px;
+                }
+              </style>`,
+            );
+          };
+        });
+        let render = '';
+        for (const routeId of Object.keys(MenuHomeHealthcare)) {
+          const { icon } = MenuHomeHealthcare[routeId];
+          render += html`${await BtnIcon.Render({
+            label: html`<div class="abs center" style="top: 30%">
+                <img class="inl home-menu-icon no-drag" src="${getProxyPath()}assets/home/${icon}" />
+              </div>
+              <div class="abs center" style="top: 75%">${Translate.Render(routeId)}</div>`,
+            class: 'in fll home-body-btn',
+          })}`;
+        }
+        return html`
+          <div class="style-home-menu-container">
+            <style>
+              .home-menu-container {
+                max-width: ${170 * 4}px;
+              }
+            </style>
+          </div>
+          <div class="fl home-menu-container">
+            <div class="in home-h1-font-container">
+              ${s(`html`).lang === 'es' ? '¿' : ''}${Translate.Render('home-getting')}
+            </div>
+            ${render}
+          </div>
+        `;
       },
     });
 

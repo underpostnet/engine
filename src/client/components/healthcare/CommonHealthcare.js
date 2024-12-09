@@ -185,6 +185,64 @@ const ModelElement = {
   },
 };
 
+const MenuHomeHealthcare = {
+  'nutrition-tips': {
+    displayName: {
+      es: 'Consejos de Nutrición',
+      en: 'Nutritional Tips',
+    },
+    icon: 'nutrition-tips.png',
+    route: '/nutrition-tips',
+  },
+
+  'register-food-intake': {
+    displayName: {
+      es: 'Registro de Ingesta de Alimentos',
+      en: 'Register Food Intake',
+    },
+    icon: 'food-intake.png',
+    route: '/register-food-intake',
+  },
+
+  'take-care-cardiovascular': {
+    displayName: {
+      es: 'Cuida tu salud cardiovascular',
+      en: 'Take Care of Your Cardiovascular health',
+    },
+    icon: 'take-care-cardiovascular.png',
+    route: '/take-care-cardiovascular',
+  },
+
+  'vitals-signs': {
+    displayName: {
+      es: 'Signos Vitales',
+      en: 'Vital Signs',
+    },
+    icon: 'vitals-signs.png',
+    route: '/vitals-signs',
+  },
+
+  // Nutritional tips
+  // Record food intake
+  // Take care of your cardiovascular health
+  // Vital signs
+
+  // Recipe book
+  // Record mood
+  // Chat with your nutritionist
+  // Forum / Community
+
+  // Tips nutricionales
+  // Registrar ingesta de alimentos
+  // Cuida tu salud cardiovascular
+  // Signos vitales
+
+  // Recetario
+  // Registrar estado de ánimo
+  // Chatea con tu nutricionista
+  // Foro / Comunidad
+};
+
 const BaseElement = () => {
   return {
     user: {
@@ -204,4 +262,4 @@ const HealthcareParams = {
   EVENT_CALLBACK_TIME: 45,
 };
 
-export { BaseElement, ModelElement, HealthcareParams, medicalSpecialties };
+export { BaseElement, ModelElement, HealthcareParams, medicalSpecialties, MenuHomeHealthcare };
