@@ -333,7 +333,7 @@ const BiomeCyberiaEngine = {
           font-size: 10px;
         }
         .biome-cell {
-          border: 1px solid gray;
+          /* border: 1px solid gray; */
           box-sizing: border-box;
           cursor: pointer;
         }
@@ -402,7 +402,7 @@ const BiomeCyberiaEngine = {
                                           };
                                         });
                                         return html`<div class="in fll biome-cell biome-cell-${x}-${y}">
-                                          <div class="abs center cyberia-instance-cords">${x}<br />${y}</div>
+                                          <!-- <div class="abs center cyberia-instance-cords">${x}<br />${y}</div> -->
                                         </div>`;
                                       })
                                       .join('')}
