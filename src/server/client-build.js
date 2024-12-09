@@ -131,16 +131,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
   const enableLiveRebuild =
     options && options.liveClientBuildPaths && options.liveClientBuildPaths.length > 0 ? true : false;
 
-  // common ssr components
-  let jsSsrCommonComponents = '';
-  {
-    const files = await fs.readdir(`./src/client/ssr/common`);
-    for (const relativePath of files)
-      jsSsrCommonComponents += await srcFormatted(
-        fs.readFileSync(`./src/client/ssr/common/${relativePath}`, 'utf8').split('export')[0],
-      );
-  }
-
   let currentPort = parseInt(process.env.PORT) + 1;
   for (const host of Object.keys(confServer)) {
     const paths = orderArrayFromAttrInt(Object.keys(confServer[host]), 'length', 'asc');
@@ -335,33 +325,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
             ? (jsSrc) => jsSrc.replaceAll(`const PROXY_PATH = '/';`, `const PROXY_PATH = '${path}/';`)
             : undefined,
         );
-
-        // ssr pages
-        for (const page of await fs.readdir('./src/client/ssr/pages')) {
-          await buildJsSrcPage(`./src/client/ssr/pages/${page}`, `${rootClientPath}/${page}`);
-
-          const htmlSrc = Render({
-            title: metadata?.title ? metadata.title : cap(client),
-            ssrPath: '/',
-            ssrHeadComponents: '',
-            ssrBodyComponents: '',
-            baseSsrLib: jsSsrCommonComponents + fs.readFileSync(`${rootClientPath}/${page}`, 'utf8'),
-          });
-
-          fs.writeFileSync(
-            `${rootClientPath}/${page.slice(0, -3)}.html`,
-            minifyBuild || process.env.NODE_ENV === 'production'
-              ? await minify(htmlSrc, {
-                  minifyCSS: true,
-                  minifyJS: true,
-                  collapseBooleanAttributes: true,
-                  collapseInlineTagWhitespace: true,
-                  collapseWhitespace: true,
-                })
-              : htmlSrc,
-            'utf8',
-          );
-        }
 
         if (
           !(
