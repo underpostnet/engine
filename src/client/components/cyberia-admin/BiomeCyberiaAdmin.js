@@ -239,7 +239,6 @@ const BiomeCyberiaEngine = {
               if (color) color = Object.values(color).map((row) => Object.values(row));
               if (topLevelColor) topLevelColor = Object.values(topLevelColor).map((row) => Object.values(row));
               solid = Object.values(solid).map((row) => Object.values(row));
-              const { dim, dimPaintByCell, dimAmplitude } = BiomeCyberiaScope.Keys[biome];
               const { status, data } = await CyberiaBiomeService.post({
                 body: {
                   fileId,
@@ -249,8 +248,8 @@ const BiomeCyberiaEngine = {
                   topLevelColor,
                   name: s(`.input-name-${biome}`).value,
                   biome,
-                  dim,
-                  dimPaintByCell,
+                  dim: s(`.biome-dim`).value,
+                  dimPaintByCell: s(`.biome-dimPaintByCell`).value,
                   dimAmplitude: s(`.biome-dimAmplitude`).value,
                   resources,
                   transports,
@@ -772,6 +771,9 @@ class LoadBiomeCyberiaRenderer {
           BiomeCyberiaEngine.CurrentKey = params.data.biome;
 
           await BiomeCyberiaEngine.renderPixiCyberiaBiomeCyberia(BiomeCyberiaScope.Data[rowId]);
+          BiomeCyberiaParamsScope.dim = BiomeCyberiaScope.Data[rowId].dim;
+          BiomeCyberiaParamsScope.dimPaintByCell = BiomeCyberiaScope.Data[rowId].dimPaintByCell;
+          BiomeCyberiaParamsScope.dimAmplitude = BiomeCyberiaScope.Data[rowId].dimAmplitude;
           s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
           s(`.biome-dim`).value = BiomeCyberiaScope.Data[rowId].dim;
           s(`.biome-dimPaintByCell`).value = BiomeCyberiaScope.Data[rowId].dimPaintByCell;
