@@ -426,6 +426,7 @@ const MenuDefault = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        observer: true,
       });
     });
 
@@ -447,6 +448,7 @@ const MenuDefault = {
         RouterInstance,
         heightTopBar,
         heightBottomBar,
+        observer: true,
       });
     });
   },
