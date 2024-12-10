@@ -194,6 +194,7 @@ const DefaultConf = {
         iconsBuild: true,
         liteBuild: false,
         docsBuild: false,
+        offlineBuild: true,
         ws: 'core',
         peer: true,
         proxy: [80, 443],

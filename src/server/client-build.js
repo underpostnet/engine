@@ -1,9 +1,15 @@
 'use strict';
 
 import fs from 'fs-extra';
-import { srcFormatted, componentFormatted, viewFormatted, ssrFactory } from './client-formatted.js';
+import { srcFormatted, componentFormatted, viewFormatted, ssrFactory, JSONweb } from './client-formatted.js';
 import { loggerFactory } from './logger.js';
-import { cap, newInstance, orderArrayFromAttrInt, titleFormatted } from '../client/components/core/CommonJs.js';
+import {
+  cap,
+  newInstance,
+  orderArrayFromAttrInt,
+  titleFormatted,
+  uniqueArray,
+} from '../client/components/core/CommonJs.js';
 import UglifyJS from 'uglify-js';
 import { minify } from 'html-minifier-terser';
 import dotenv from 'dotenv';
@@ -157,6 +163,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         apiBaseHost,
         ttiLoadTimeLimit,
         singleReplica,
+        offlineBuild,
       } = confServer[host][path];
       if (singleReplica) continue;
       if (!confClient[client]) confClient[client] = {};
@@ -305,7 +312,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         const buildJsSrcPage = async (jsSrcPath, jsPublicPath, filter) => {
           if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
             let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
-            if (jsSrc.split('/*imports*/')[1]) jsSrc = jsSrc.split('/*imports*/')[1];
             if (filter) jsSrc = await filter(jsSrc);
             fs.writeFileSync(
               jsPublicPath,
@@ -377,10 +383,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 confSSR[view.ssr].head.unshift('Production');
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                const SrrComponent = await ssrFactory(
-                  `./src/client/ssr/components/head/${ssrHeadComponent}.js`,
-                  jsSsrCommonComponents,
-                );
+                const SrrComponent = await ssrFactory(`./src/client/ssr/components/head/${ssrHeadComponent}.js`);
 
                 switch (ssrHeadComponent) {
                   case 'Pwa':
@@ -461,10 +464,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                const SrrComponent = await ssrFactory(
-                  `./src/client/ssr/components/body/${ssrBodyComponent}.js`,
-                  jsSsrCommonComponents,
-                );
+                const SrrComponent = await ssrFactory(`./src/client/ssr/components/body/${ssrBodyComponent}.js`);
                 switch (ssrBodyComponent) {
                   case 'UnderpostDefaultSplashScreen':
                   case 'CyberiaDefaultSplashScreen':
@@ -513,7 +513,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
-              baseSsrLib: jsSsrCommonComponents,
             });
 
             /** @type {import('sitemap').SitemapItem} */
@@ -728,6 +727,26 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
         logger.warn('write zip', `./build/${buildId}.zip`);
 
         zip.writeZip(`./build/${buildId}.zip`);
+      }
+      if (views && offlineBuild && fs.existsSync(`${rootClientPath}/sw.js`)) {
+        const PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
+
+        fs.writeFileSync(
+          `${rootClientPath}/sw.js`,
+          fs
+            .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
+            .replaceAll(
+              `const PRE_CACHED_RESOURCES = [];`,
+              `const PRE_CACHED_RESOURCES = ${JSONweb(
+                uniqueArray(
+                  views
+                    .map((view) => `${path === '/' ? '' : path}${view.path}`)
+                    .concat(PRE_CACHED_RESOURCES.map((p) => `/${p}`)),
+                ),
+              )};`,
+            ),
+          'utf8',
+        );
       }
     }
   }

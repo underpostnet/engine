@@ -87,6 +87,7 @@ try {
           '.github/workflows/deploy.ssh.yml',
           '.github/workflows/deploy.api-rest.yml',
           'bin/web3.js',
+          'bin/cyberia.js',
           'src/ipfs.js',
           'src/k8s.js',
         ]) {
