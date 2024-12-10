@@ -1,16 +1,50 @@
-import {
-  getLang,
-  s,
-  append,
-  s4,
-  range,
-  timer,
-  htmls,
-  newInstance,
-  fullScreenIn,
-  borderChar,
-} from '../../common/SsrCore.js';
-/*imports*/
+const range = (start, end) => {
+  return end < start
+    ? range(end, start).reverse()
+    : Array.apply(0, Array(end - start + 1)).map((element, index) => index + start);
+};
+
+const timer = (ms) => new Promise((res) => setTimeout(res, ms));
+
+const borderChar = (px, color, selectors) => {
+  if (selectors) {
+    return selectors
+      .map(
+        (selector) => html`
+          <style>
+            ${selector} {
+              text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color},
+                -${px}px -${px}px ${px}px ${color}, ${px}px ${px}px ${px}px ${color};
+            }
+          </style>
+        `,
+      )
+      .join('');
+  }
+  return html`
+    text-shadow: ${px}px -${px}px ${px}px ${color}, -${px}px ${px}px ${px}px ${color}, -${px}px -${px}px ${px}px
+    ${color}, ${px}px ${px}px ${px}px ${color};
+  `;
+};
+const fullScreenIn = () => {
+  const elem = document.documentElement;
+  if (elem.requestFullscreen) {
+    elem.requestFullscreen();
+  } else if (elem.mozRequestFullScreen) {
+    /* Firefox */
+    elem.mozRequestFullScreen();
+  } else if (elem.webkitRequestFullscreen) {
+    /* Chrome, Safari & Opera */
+    elem.webkitRequestFullscreen();
+  } else if (elem.msRequestFullscreen) {
+    /* IE/Edge */
+    elem = window.top.document.body; //To break out of frame in IE
+    elem.msRequestFullscreen();
+  }
+};
+const getLang = () => navigator.language || navigator.userLanguage;
+const s = (el) => document.querySelector(el);
+const htmls = (el, html) => (s(el).innerHTML = html);
 
 const framesLore = () => range(0, 8);
 
@@ -169,7 +203,7 @@ const storage = {
     .readFileSync('./src/client/public/cyberia/assets/ui-icons/fullscreen.png')
     .toString('base64')}`,
   ['cyberia-logo']: `data:image/png;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/util/cyberia-retro-banner.png')
+    .readFileSync('./src/client/public/cyberia/assets/util/cyberia-retro-banner-alpha.png')
     .toString('base64')}`,
 };
 
@@ -414,9 +448,15 @@ SrrComponent = ({ host, path }) => html`
     <img src="${storage['fullscreen']}" class="ssr-fullscreen-img" />
     <script>
       {
-        const LoreScreen = ${LoreScreen};
+        const range = ${range};
+        const timer = ${timer};
+        const borderChar = ${borderChar};
+        const fullScreenIn = ${fullScreenIn};
+        const getLang = ${getLang};
+        const s = ${s};
+        const htmls = ${htmls};
         const framesLore = ${framesLore};
-
+        const LoreScreen = ${LoreScreen};
         LoreScreen();
       }
     </script>
