@@ -13,6 +13,15 @@ const Worker = {
   devMode: () => location.origin.match('localhost') || location.origin.match('127.0.0.1'),
   instance: async function ({ router, render }) {
     logger.warn('Init');
+    window.ononline = async () => {
+      logger.warn('ononline');
+    };
+    window.onoffline = async () => {
+      logger.warn('onoffline');
+    };
+    setTimeout(() => {
+      if ('onLine' in navigator && navigator.onLine) window.ononline();
+    });
     navigator.serviceWorker.addEventListener('controllerchange', () => {
       logger.info('The controller of current browsing context has changed.');
     });
@@ -48,12 +57,9 @@ const Worker = {
       // channel.postMessage({ title: 'Hello from Client broadcast message' });
       // channel.close();
     });
+    this.RouterInstance = router();
     const isInstall = await this.status();
     if (!isInstall) await this.install();
-    else await this.update();
-    await this.updateOfflineSrc();
-    // else if (location.hostname === 'localhost') await this.update();
-    this.RouterInstance = router();
     await render();
     LoadRouter(this.RouterInstance);
     LoadingAnimation.removeSplashScreen();
@@ -211,13 +217,6 @@ const Worker = {
         });
       }
     });
-  },
-  updateOfflineSrc: async function () {
-    try {
-      await fetch(`${getProxyPath()}offline.html`);
-    } catch (error) {
-      logger.error('error');
-    }
   },
   // TODO: GPS management
   RenderSetting: async function () {
