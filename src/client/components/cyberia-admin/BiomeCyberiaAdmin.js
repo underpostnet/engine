@@ -14,7 +14,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { SeedCityCyberiaBiome } from '../cyberia-biome/SeedCityCyberiaBIome.js';
+import { SeedCityCyberiaBiome } from '../cyberia-biome/SeedCityCyberiaBiome.js';
 import { CityCyberiaBiome } from '../cyberia-biome/CityCyberiaBiome.js';
 import { ForestCyberiaBiome } from '../cyberia-biome/ForestCyberiaBiome.js';
 import { SpaceCyberiaBiome } from '../cyberia-biome/SpaceCyberiaBiome.js';

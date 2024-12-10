@@ -66,11 +66,7 @@ const Translate = {
 
 const TranslateCore = {
   Init: async function () {
-    s('html').lang = localStorage.getItem('lang')
-      ? localStorage.getItem('lang')
-      : getLang() && getLang().match('es')
-      ? 'es'
-      : 'en';
+    s('html').lang = getLang();
     Translate.Data = {
       ...Translate.Data,
       isEmpty: {

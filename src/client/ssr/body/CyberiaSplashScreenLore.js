@@ -42,7 +42,8 @@ const fullScreenIn = () => {
     elem.msRequestFullscreen();
   }
 };
-const getLang = () => navigator.language || navigator.userLanguage;
+const getLang = () =>
+  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang).slice(0, 2);
 const s = (el) => document.querySelector(el);
 const htmls = (el, html) => (s(el).innerHTML = html);
 
@@ -116,7 +117,7 @@ const LoreScreen = async () => {
     else if (currentFrame < 0) {
       currentFrame = framesLore().length - 1;
     }
-    htmls('.ssr-lore-container', translate[currentFrame][getLang().match('es') ? 'es' : 'en']);
+    htmls('.ssr-lore-container', translate[currentFrame][getLang()]);
     for (const _frame of framesLore()) {
       s(`.ssr-background-image-lore-${_frame}`).style.opacity = _frame === currentFrame ? 1 : 0;
     }

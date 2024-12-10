@@ -1,4 +1,4 @@
-Render = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
+SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>

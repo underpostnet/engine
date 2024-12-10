@@ -1,5 +1,4 @@
-import { srcFormatted } from '../server/client-formatted.js';
-import fs from 'fs-extra';
+import { ssrFactory } from '../server/client-formatted.js';
 
 const EmailRender = {
   style: {
@@ -58,8 +57,7 @@ const EmailRender = {
     const templates = {};
     for (const templateKey of Object.keys(options.templates)) {
       const ssrEmailComponent = options.templates[templateKey];
-      let SrrComponent;
-      eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/components/email/${ssrEmailComponent}.js`, 'utf8')));
+      const SrrComponent = await ssrFactory(`./src/client/ssr/email/${ssrEmailComponent}.js`);
       templates[templateKey] = SrrComponent(this, options);
     }
     return templates;

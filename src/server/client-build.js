@@ -305,8 +305,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
       const buildId = `${client}.index`;
       const siteMapLinks = [];
-      let Render = () => '';
-      eval(await srcFormatted(fs.readFileSync(`./src/client/ssr/Render.js`, 'utf8')));
 
       if (views) {
         const buildJsSrcPage = async (jsSrcPath, jsPublicPath, filter) => {
@@ -383,7 +381,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 confSSR[view.ssr].head.unshift('Production');
 
               for (const ssrHeadComponent of confSSR[view.ssr].head) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/components/head/${ssrHeadComponent}.js`);
+                const SrrComponent = await ssrFactory(`./src/client/ssr/head/${ssrHeadComponent}.js`);
 
                 switch (ssrHeadComponent) {
                   case 'Pwa':
@@ -464,7 +462,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               }
 
               for (const ssrBodyComponent of confSSR[view.ssr].body) {
-                const SrrComponent = await ssrFactory(`./src/client/ssr/components/body/${ssrBodyComponent}.js`);
+                const SrrComponent = await ssrFactory(`./src/client/ssr/body/${ssrBodyComponent}.js`);
                 switch (ssrBodyComponent) {
                   case 'UnderpostDefaultSplashScreen':
                   case 'CyberiaDefaultSplashScreen':
@@ -507,6 +505,8 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 }
               }
             }
+
+            const Render = await ssrFactory();
             const htmlSrc = Render({
               title,
               buildId,

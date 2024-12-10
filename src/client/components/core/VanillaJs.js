@@ -428,7 +428,8 @@ const isDevInstance = () => location.origin.match('localhost') && location.port;
 
 const getDataFromInputFile = async (file) => Array.from(new Uint8Array(await file.arrayBuffer()));
 
-const getLang = () => navigator.language || navigator.userLanguage;
+const getLang = () =>
+  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang).slice(0, 2);
 
 export {
   s,

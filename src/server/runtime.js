@@ -19,6 +19,7 @@ import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
 import { getDeployId } from './conf.js';
+import { ssrFactory } from './client-formatted.js';
 
 dotenv.config();
 
@@ -310,7 +311,7 @@ export PATH=$PATH:/opt/lampp/bin`,
           app.use(fileUpload());
 
           // json formatted response
-          app.set('json spaces', 2);
+          if (process.env.NODE_ENV === 'development') app.set('json spaces', 2);
 
           // lang handling middleware
           app.use(function (req, res, next) {
@@ -385,18 +386,41 @@ export PATH=$PATH:/opt/lampp/bin`,
                 app.use(`${apiPath}/${api}`, router);
               })();
           }
+
+          const Render = await ssrFactory();
+          const ssrPath = path === '/' ? path : `${path}/`;
+
+          const defaultHtmlSrc404 = Render({
+            title: '404 Not Found',
+            ssrPath,
+            ssrHeadComponents: '',
+            ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/404.js`))(),
+          });
           const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
           const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
           app.use(function (req, res, next) {
             if (page404) return res.status(404).redirect(page404);
-            else return res.status(404).send('Sorry cant find that!');
+            else {
+              res.set('Content-Type', 'text/html');
+              return res.status(404).send(defaultHtmlSrc404);
+            }
+          });
+
+          const defaultHtmlSrc500 = Render({
+            title: '500 Server Error',
+            ssrPath,
+            ssrHeadComponents: '',
+            ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/500.js`))(),
           });
           const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
           const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
           app.use(function (err, req, res, next) {
             logger.error(err, err.stack);
             if (page500) return res.status(500).redirect(page500);
-            else return res.status(500).send('Something broke!');
+            else {
+              res.set('Content-Type', 'text/html');
+              return res.status(500).send(defaultHtmlSrc500);
+            }
           });
 
           // instance server
