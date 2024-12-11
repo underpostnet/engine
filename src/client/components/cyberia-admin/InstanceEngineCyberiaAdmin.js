@@ -5,7 +5,7 @@ import { darkTheme, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { s } from '../core/VanillaJs.js';
+import { htmls, s } from '../core/VanillaJs.js';
 import { CyberiaInstancesStructs } from '../cyberia/CommonCyberia.js';
 import { createJSONEditor } from 'vanilla-jsoneditor';
 // https://www.npmjs.com/package/vanilla-jsoneditor
