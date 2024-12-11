@@ -307,28 +307,21 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
       const siteMapLinks = [];
 
       if (views) {
-        const buildJsSrcPage = async (jsSrcPath, jsPublicPath, filter) => {
-          if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
-            let jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
-            if (filter) jsSrc = await filter(jsSrc);
-            fs.writeFileSync(
-              jsPublicPath,
-              minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
-              'utf8',
-            );
-          }
-        };
+        const jsSrcPath = fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
+          ? `./src/client/sw/${publicClientId}.sw.js`
+          : `./src/client/sw/default.sw.js`;
 
-        // service woker
-        await buildJsSrcPage(
-          fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
-            ? `./src/client/sw/${publicClientId}.sw.js`
-            : `./src/client/sw/default.sw.js`,
-          `${rootClientPath}/sw.js`,
-          path !== '/'
-            ? (jsSrc) => jsSrc.replaceAll(`const PROXY_PATH = '/';`, `const PROXY_PATH = '${path}/';`)
-            : undefined,
-        );
+        const jsPublicPath = `${rootClientPath}/sw.js`;
+
+        if (!(enableLiveRebuild && !options.liveClientBuildPaths.find((p) => p.srcBuildPath === jsSrcPath))) {
+          const jsSrc = viewFormatted(await srcFormatted(fs.readFileSync(jsSrcPath, 'utf8')), dists, path, baseHost);
+
+          fs.writeFileSync(
+            jsPublicPath,
+            minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
+            'utf8',
+          );
+        }
 
         if (
           !(
@@ -730,25 +723,24 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
       }
       if (views && offlineBuild && fs.existsSync(`${rootClientPath}/sw.js`)) {
         const PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
+        const PRE_CACHED_JSON = `PRE_CACHED_RESOURCES = ${JSONweb(
+          uniqueArray(
+            views
+              .map((view) => `${path === '/' ? '' : path}${view.path}`)
+              .concat(
+                PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
+                  (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
+                ),
+              ),
+          ),
+        )}`;
 
         fs.writeFileSync(
           `${rootClientPath}/sw.js`,
           fs
             .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
-            .replaceAll(
-              `PRE_CACHED_RESOURCES = [];`,
-              `PRE_CACHED_RESOURCES = ${JSONweb(
-                uniqueArray(
-                  views
-                    .map((view) => `${path === '/' ? '' : path}${view.path}`)
-                    .concat(
-                      PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
-                        (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
-                      ),
-                    ),
-                ),
-              )};`,
-            ),
+            .replaceAll(`PRE_CACHED_RESOURCES = []`, PRE_CACHED_JSON)
+            .replaceAll(`PRE_CACHED_RESOURCES=[]`, PRE_CACHED_JSON),
           'utf8',
         );
       }
