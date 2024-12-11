@@ -741,7 +741,11 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
                 uniqueArray(
                   views
                     .map((view) => `${path === '/' ? '' : path}${view.path}`)
-                    .concat(PRE_CACHED_RESOURCES.map((p) => `/${p}`)),
+                    .concat(
+                      PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
+                        (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
+                      ),
+                    ),
                 ),
               )};`,
             ),

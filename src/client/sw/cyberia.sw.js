@@ -9,7 +9,14 @@ self.addEventListener('install', (event) => {
       // Open the app's cache.
       const cache = await caches.open(CACHE_NAME);
       // Cache all static resources.
-      await cache.addAll(PRE_CACHED_RESOURCES);
+      // await cache.addAll(PRE_CACHED_RESOURCES);
+      for (const cacheKey of PRE_CACHED_RESOURCES) {
+        try {
+          await cache.add(cacheKey);
+        } catch (error) {
+          console.error(error, cacheKey);
+        }
+      }
     })(),
   );
 });
