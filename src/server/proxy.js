@@ -1,7 +1,6 @@
 'use strict';
 
 import express from 'express';
-import fs from 'fs-extra';
 import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
@@ -10,7 +9,6 @@ import { listenPortController, network } from './network.js';
 import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
 import { buildProxyRouter, maintenanceMiddleware } from './conf.js';
-import { getRootDirectory } from './process.js';
 
 dotenv.config();
 

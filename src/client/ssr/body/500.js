@@ -46,17 +46,15 @@ const main = () => {
         }
       </style>
 
-      <div class="abs center">
-        <div class="abs center" style="top: 45%">
-          ${icon}
-          <br />
-          <br />
-          <span class="bold">500</span>
-          <br />
-          <br />${Translate.Render('page-broken')} <br />
-          <br />
-          <a href="${location.origin}">${Translate.Render('back')}</a>
-        </div>
+      <div class="abs center" style="top: 45%">
+        ${icon}
+        <br />
+        <br />
+        <span class="bold">500</span>
+        <br />
+        <br />${Translate.Render('page-broken')} <br />
+        <br />
+        <a href="${location.origin}">${Translate.Render('back')}</a>
       </div>`,
   );
 };
