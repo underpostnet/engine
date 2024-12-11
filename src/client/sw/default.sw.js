@@ -45,7 +45,7 @@ self.addEventListener('fetch', (event) => {
         if (preloadResponse) return preloadResponse;
         return await fetch(event.request);
       } catch (error) {
-        console.error('Fetch failed; returning offline page instead.', error);
+        console.error('Fetch failed; returning offline page instead.', event.request.url, error);
         // Fallback to the offline page.
 
         try {
@@ -57,7 +57,7 @@ self.addEventListener('fetch', (event) => {
           const preCachedResponse = await cache.match(path);
           return preCachedResponse;
         } catch (error) {
-          console.error('Error opening cache for offline page', path);
+          console.error('Error opening cache for offline page', event.request.url, error);
           const response = new Response(JSON.stringify({ status: 'error', message: error.message }));
           // response.status = 200;
           response.headers.set('Content-Type', 'application/json');
