@@ -607,14 +607,32 @@ const validateTemplatePath = (absolutePath = '') => {
     return false;
   }
   if (
-    absolutePath.match('src/client/ssr/components/body') &&
-    !confSsr.body.find((p) => absolutePath.match(`src/client/ssr/components/body/${p}.js`))
+    absolutePath.match('src/client/ssr/body') &&
+    !confSsr.body.find((p) => absolutePath.match(`src/client/ssr/body/${p}.js`))
   ) {
     return false;
   }
   if (
-    absolutePath.match('src/client/ssr/components/head') &&
-    !confSsr.head.find((p) => absolutePath.match(`src/client/ssr/components/head/${p}.js`))
+    absolutePath.match('src/client/ssr/head') &&
+    !confSsr.head.find((p) => absolutePath.match(`src/client/ssr/head/${p}.js`))
+  ) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/ssr/mailer') &&
+    !Object.keys(confSsr.mailer).find((p) => absolutePath.match(`src/client/ssr/mailer/${confSsr.mailer[p]}.js`))
+  ) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/ssr/offline') &&
+    !confSsr.offline.find((p) => absolutePath.match(`src/client/ssr/offline/${p.client}.js`))
+  ) {
+    return false;
+  }
+  if (
+    absolutePath.match('src/client/ssr/pages') &&
+    !confSsr.pages.find((p) => absolutePath.match(`src/client/ssr/pages/${p.client}.js`))
   ) {
     return false;
   }

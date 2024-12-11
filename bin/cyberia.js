@@ -8,7 +8,7 @@ import { shellExec } from '../src/server/process.js';
 import { PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { buildImgFromTile } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
-import toJsonSchema from 'to-json-schema';
+import ejs from 'easy-json-schema';
 
 dotenv.config();
 
@@ -221,7 +221,7 @@ switch (process.argv[2]) {
     const parts = [
       {
         text: `Generate json example instance for cyberpunk mmorpg quest. Please respond in the following JSON format:
-        ${JSON.stringify(toJsonSchema(QuestComponent.Data['floki-bone']()), null, 4)}
+        ${JSON.stringify(ejs(QuestComponent.Data['floki-bone']()), null, 4)}
     `,
       },
       // {

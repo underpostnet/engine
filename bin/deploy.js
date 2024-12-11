@@ -29,12 +29,12 @@ import {
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
-import toJsonSchema from 'to-json-schema';
 import simpleGit from 'simple-git';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
 import { JSONweb } from '../src/server/client-formatted.js';
+import ejs from 'easy-json-schema';
 
 const logger = loggerFactory(import.meta);
 
@@ -573,29 +573,33 @@ try {
     }
     case 'build-uml':
       {
-        const host = process.argv[3];
-        const path = process.argv[4];
-        const folder = `./public/${host}${path}/docs/plantuml`;
+        const folder = process.argv[3] ? process.argv[3] : `./src/client/public/default/plantuml`;
         const confData = Config.default;
 
         if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
 
         for (const typeConf of Object.keys(confData)) {
-          {
+          logger.info(`generate ${typeConf} instance`);
+          try {
             const svg = await plantuml(`
               @startjson
                 ${JSON.stringify(confData[typeConf])}
               @endjson
             `);
             fs.writeFileSync(`${folder}/${typeConf}-conf.svg`, svg);
+          } catch (error) {
+            logger.error(error, error.stack);
           }
-          {
+          logger.info(`generate ${typeConf} schema`);
+          try {
             const svg = await plantuml(`
             @startjson
-              ${JSON.stringify(toJsonSchema(confData[typeConf]))}
+              ${JSON.stringify(ejs(confData[typeConf]))}
             @endjson
           `);
             fs.writeFileSync(`${folder}/${typeConf}-schema.svg`, svg);
+          } catch (error) {
+            logger.error(error, error.stack);
           }
         }
       }
@@ -733,10 +737,8 @@ try {
         );
 
         fs.writeFileSync(
-          `./src/client/ssr/components/body/CacheControl.js`,
-          fs
-            .readFileSync(`./src/client/ssr/components/body/CacheControl.js`, 'utf8')
-            .replaceAll(`v${version}`, `v${newVersion}`),
+          `./src/client/ssr/body/CacheControl.js`,
+          fs.readFileSync(`./src/client/ssr/body/CacheControl.js`, 'utf8').replaceAll(`v${version}`, `v${newVersion}`),
           'utf8',
         );
 

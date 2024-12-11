@@ -181,6 +181,28 @@ const DefaultConf = {
     Default: {
       head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
       body: ['CacheControl', 'DefaultSplashScreen'],
+      mailer: {
+        userVerifyEmail: 'DefaultVerifyEmail',
+        userRecoverEmail: 'DefaultRecoverEmail',
+      },
+      offline: [
+        {
+          path: '/offline',
+          title: 'No Network Connection',
+          client: 'NoNetworkConnection',
+          head: [],
+          body: [],
+        },
+      ],
+      pages: [
+        {
+          path: '/test',
+          title: 'Test',
+          client: 'Test',
+          head: [],
+          body: [],
+        },
+      ],
     },
   },
   server: {
@@ -216,10 +238,6 @@ const DefaultConf = {
               user: 'noreply@default.net',
               pass: '',
             },
-          },
-          templates: {
-            userVerifyEmail: 'DefaultVerifyEmail',
-            userRecoverEmail: 'DefaultRecoverEmail',
           },
         },
       },

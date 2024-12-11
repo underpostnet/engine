@@ -57,7 +57,7 @@ const EmailRender = {
     const templates = {};
     for (const templateKey of Object.keys(options.templates)) {
       const ssrEmailComponent = options.templates[templateKey];
-      const SrrComponent = await ssrFactory(`./src/client/ssr/email/${ssrEmailComponent}.js`);
+      const SrrComponent = await ssrFactory(`./src/client/ssr/mailer/${ssrEmailComponent}.js`);
       templates[templateKey] = SrrComponent(this, options);
     }
     return templates;

@@ -25,7 +25,10 @@ const MailerProvider = {
       },
       host: '',
       path: '',
-      templates: ['SsrTemplate'],
+      templates: {
+        userVerifyEmail: 'DefaultVerifyEmail',
+        userRecoverEmail: 'DefaultRecoverEmail',
+      },
     },
   ) {
     try {
