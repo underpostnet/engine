@@ -736,8 +736,8 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
           fs
             .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
             .replaceAll(
-              `const PRE_CACHED_RESOURCES = [];`,
-              `const PRE_CACHED_RESOURCES = ${JSONweb(
+              `PRE_CACHED_RESOURCES = [];`,
+              `PRE_CACHED_RESOURCES = ${JSONweb(
                 uniqueArray(
                   views
                     .map((view) => `${path === '/' ? '' : path}${view.path}`)
