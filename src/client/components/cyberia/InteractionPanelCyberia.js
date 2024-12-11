@@ -144,7 +144,9 @@ const InteractionPanelCyberia = {
         htmls(
           `.map-face-symbol-text-${i}`,
           html`
-            ${WorldCyberiaManagement.Data['user']['main'].model.world.instance[i].type}<br />
+            ${WorldCyberiaManagement.Data['user']['main'].model.world.instance[
+              WorldCyberiaType[WorldCyberiaManagement.Data['user']['main'].model.world.type].worldFaces[i] - 1
+            ].type}<br />
             ${WorldCyberiaType[WorldCyberiaManagement.Data['user']['main'].model.world.type].worldFaces[i]}
           `,
         );

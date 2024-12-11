@@ -1,3 +1,4 @@
+import { borderChar } from '../core/Css.js';
 import { getProxyPath } from '../core/VanillaJs.js';
 
 const WikiCyberia = {
