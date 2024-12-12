@@ -9,13 +9,13 @@ import { SignUpItemledger } from './components/itemledger/SignUpItemledger.js';
 import { MenuItemledger } from './components/itemledger/MenuItemledger.js';
 import { RouterItemledger } from './components/itemledger/RoutesItemledger.js';
 import { TranslateItemledger } from './components/itemledger/TranslateItemledger.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { ItemledgerParams } from './components/itemledger/CommonItemledger.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoItemledger } from './components/itemledger/SocketIoItemledger.js';
 import { ElementsItemledger } from './components/itemledger/ElementsItemledger.js';
+import { Scroll } from './components/core/Scroll.js';
 
 const htmlMainBody = async () => {
   return html`<span style="color: black; padding: 5px">Hello World!!</span>`;
@@ -35,6 +35,7 @@ window.onload = () =>
       await LogInItemledger();
       await LogOutItemledger();
       await SignUpItemledger();
+      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: ItemledgerParams.EVENT_CALLBACK_TIME });
     },
   });

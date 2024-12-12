@@ -11,12 +11,12 @@ import { RouterNexodev } from './components/nexodev/RoutesNexodev.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { ElementsNexodev } from './components/nexodev/ElementsNexodev.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
 import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
+import { Scroll } from './components/core/Scroll.js';
 
 window.onload = () =>
   Worker.instance({
@@ -32,6 +32,7 @@ window.onload = () =>
       await LogInNexodev();
       await LogOutNexodev();
       await SignUpNexodev();
+      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: NexodevParams.EVENT_CALLBACK_TIME });
     },
   });

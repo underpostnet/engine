@@ -9,13 +9,13 @@ import { SignUpDefault } from './components/default/SignUpDefault.js';
 import { MenuDefault } from './components/default/MenuDefault.js';
 import { RouterDefault } from './components/default/RoutesDefault.js';
 import { TranslateDefault } from './components/default/TranslateDefault.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
 import { Worker } from './components/core/Worker.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { DefaultParams } from './components/default/CommonDefault.js';
 import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoDefault } from './components/default/SocketIoDefault.js';
 import { ElementsDefault } from './components/default/ElementsDefault.js';
+import { Scroll } from './components/core/Scroll.js';
 
 const htmlMainBody = async () => {
   return html`<span style="color: black; padding: 5px">Hello World!!</span>`;
@@ -35,6 +35,7 @@ window.onload = () =>
       await LogInDefault();
       await LogOutDefault();
       await SignUpDefault();
+      await Scroll.pullTopRefresh();
       await Keyboard.Init({ callBackTime: DefaultParams.EVENT_CALLBACK_TIME });
     },
   });
