@@ -45,7 +45,8 @@ const CssHealthcareDark = {
       (await CssCommonHealthcare()) +
       html`
         <style>
-          .modal {
+          .modal,
+          .input-extension {
             background: #38003c;
           }
           button:hover,
@@ -95,7 +96,8 @@ const CssHealthcareLight = {
       (await CssCommonHealthcare()) +
       html`
         <style>
-          .modal {
+          .modal,
+          .input-extension {
             background: #ffce95;
           }
           button:hover,
