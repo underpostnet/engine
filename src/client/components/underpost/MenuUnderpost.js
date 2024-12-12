@@ -156,6 +156,7 @@ const MenuUnderpost = {
         return '';
       },
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
       htmlMainBody: async () =>

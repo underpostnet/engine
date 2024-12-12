@@ -306,6 +306,7 @@ const MenuNexodev = {
       // titleClass: 'hide',
       // titleRender: () => '',
       mode: 'slide-menu-right',
+      RouterInstance,
       barMode,
       heightTopBar,
       heightBottomBar,

@@ -172,6 +172,7 @@ const MenuDefault = {
         return '';
       },
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
       htmlMainBody: options?.htmlMainBody ? options.htmlMainBody : undefined,

@@ -128,6 +128,7 @@ const MenuDogmadual = {
         return '';
       },
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
     });

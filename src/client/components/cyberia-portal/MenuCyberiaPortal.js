@@ -173,6 +173,7 @@ const MenuCyberiaPortal = {
       },
       // mode: 'slide-menu-right',
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
     });

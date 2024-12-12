@@ -210,6 +210,7 @@ const MenuCyberia = {
       title: NameApp,
       // titleClass: 'hide',
       mode: 'slide-menu',
+      RouterInstance,
       homeModals: [
         'map-interaction-panel',
         'element-interaction-panel',

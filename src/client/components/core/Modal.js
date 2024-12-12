@@ -1340,6 +1340,9 @@ const Modal = {
             backMenuButtonEvent();
           }
           s(`.btn-close-modal-menu`).click();
+          if (window.location.pathname !== (getProxyPath() === '/' ? getProxyPath() : `${getProxyPath()}/`))
+            setPath(getProxyPath());
+          setDocTitle({ ...options.RouterInstance, route: '' });
         };
         EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);
         EventsUI.onClick(`.btn-icon-menu-mode`, () => {

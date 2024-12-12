@@ -133,6 +133,7 @@ const MenuHealthcare = {
         return '';
       },
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
       htmlMainBody: async () => {

@@ -233,6 +233,7 @@ const MenuCyberiaAdmin = {
       title: NameApp,
       // titleClass: 'hide',
       mode: 'slide-menu',
+      RouterInstance,
       homeModals: [],
       onCollapseMenu,
       onExtendMenu,

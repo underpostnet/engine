@@ -141,6 +141,7 @@ const MenuCryptokoyn = {
         return '';
       },
       mode: 'slide-menu',
+      RouterInstance,
       heightTopBar,
       heightBottomBar,
     });
