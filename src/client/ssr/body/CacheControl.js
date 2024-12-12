@@ -109,6 +109,6 @@ SrrComponent = ({ ttiLoadTimeLimit }) => {
       const CacheControl = ${CacheControl};
       CacheControl({ ttiLoadTimeLimit: ${ttiLoadTimeLimit ? ttiLoadTimeLimit : 1000 * 70 * 1} });
     </script>
-    <div class="clean-cache-container">v2.7.92</div>
+    <div class="clean-cache-container">v2.7.93</div>
   `;
 };
