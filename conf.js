@@ -180,7 +180,7 @@ const DefaultConf = {
   ssr: {
     Default: {
       head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
-      body: ['CacheControl', 'DefaultSplashScreen'],
+      body: ['CacheControl', 'DefaultSplashScreen', '404', '500'],
       mailer: {
         userVerifyEmail: 'DefaultVerifyEmail',
         userRecoverEmail: 'DefaultRecoverEmail',
