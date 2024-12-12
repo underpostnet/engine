@@ -5,6 +5,7 @@ import { srcFormatted, componentFormatted, viewFormatted, ssrFactory, JSONweb } 
 import { loggerFactory } from './logger.js';
 import {
   cap,
+  getCapVariableName,
   newInstance,
   orderArrayFromAttrInt,
   titleFormatted,
@@ -305,6 +306,8 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
       const buildId = `${client}.index`;
       const siteMapLinks = [];
+      const ssrPath = path === '/' ? path : `${path}/`;
+      const Render = await ssrFactory();
 
       if (views) {
         const jsSrcPath = fs.existsSync(`./src/client/sw/${publicClientId}.sw.js`)
@@ -364,7 +367,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
             const canonicalURL = `https://${host}${path}${
               view.path === '/' ? (path === '/' ? '' : '/') : path === '/' ? `${view.path.slice(1)}/` : `${view.path}/`
             }`;
-            const ssrPath = path === '/' ? path : `${path}/`;
 
             let ssrHeadComponents = ``;
             let ssrBodyComponents = ``;
@@ -499,15 +501,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               }
             }
 
-            const Render = await ssrFactory();
-            const htmlSrc = Render({
-              title,
-              buildId,
-              ssrPath,
-              ssrHeadComponents,
-              ssrBodyComponents,
-            });
-
             /** @type {import('sitemap').SitemapItem} */
             const siteMapLink = {
               url: `${path === '/' ? '' : path}${view.path}`,
@@ -515,6 +508,14 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               priority: 0.8,
             };
             siteMapLinks.push(siteMapLink);
+
+            const htmlSrc = Render({
+              title,
+              buildId,
+              ssrPath,
+              ssrHeadComponents,
+              ssrBodyComponents,
+            });
 
             fs.writeFileSync(
               `${buildPath}index.html`,
@@ -721,28 +722,73 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
 
         zip.writeZip(`./build/${buildId}.zip`);
       }
-      if (views && offlineBuild && fs.existsSync(`${rootClientPath}/sw.js`)) {
-        const PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
-        const PRE_CACHED_JSON = `PRE_CACHED_RESOURCES = ${JSONweb(
-          uniqueArray(
-            views
-              .map((view) => `${path === '/' ? '' : path}${view.path}`)
-              .concat(
-                PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
-                  (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
-                ),
-              ),
-          ),
-        )}`;
+      if (client) {
+        let PRE_CACHED_RESOURCES = [];
 
-        fs.writeFileSync(
-          `${rootClientPath}/sw.js`,
-          fs
-            .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
-            .replaceAll(`PRE_CACHED_RESOURCES = []`, PRE_CACHED_JSON)
-            .replaceAll(`PRE_CACHED_RESOURCES=[]`, PRE_CACHED_JSON),
-          'utf8',
-        );
+        if (views && offlineBuild && fs.existsSync(`${rootClientPath}/sw.js`)) {
+          PRE_CACHED_RESOURCES = await fs.readdir(rootClientPath, { recursive: true });
+          PRE_CACHED_RESOURCES = views
+            .map((view) => `${path === '/' ? '' : path}${view.path}`)
+            .concat(
+              PRE_CACHED_RESOURCES.map((p) => `/${p}`).filter(
+                (p) => p[1] !== '.' && !fs.statSync(`${rootClientPath}${p}`).isDirectory(),
+              ),
+            );
+        }
+
+        for (const pageType of ['offline', 'pages']) {
+          if (confSSR[getCapVariableName(client)] && confSSR[getCapVariableName(client)][pageType]) {
+            for (const page of confSSR[getCapVariableName(client)][pageType]) {
+              const SsrComponent = await ssrFactory(`./src/client/ssr/${pageType}/${page.client}.js`);
+
+              const htmlSrc = Render({
+                title: page.title,
+                ssrPath,
+                ssrHeadComponents: '',
+                ssrBodyComponents: SsrComponent(),
+              });
+
+              const buildPath = `${rootClientPath}${page.path.slice(1)}`;
+
+              PRE_CACHED_RESOURCES.push(`${path === '/' ? '' : path}${page.path === '/' ? '' : page.path}/index.html`);
+
+              if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
+
+              const buildHtmlPath = `${buildPath}/index.html`;
+
+              logger.info('ssr page build', buildHtmlPath);
+
+              fs.writeFileSync(
+                buildHtmlPath,
+                minifyBuild || process.env.NODE_ENV === 'production'
+                  ? await minify(htmlSrc, {
+                      minifyCSS: true,
+                      minifyJS: true,
+                      collapseBooleanAttributes: true,
+                      collapseInlineTagWhitespace: true,
+                      collapseWhitespace: true,
+                    })
+                  : htmlSrc,
+                'utf8',
+              );
+            }
+          }
+        }
+
+        {
+          const PRE_CACHED_JSON = `PRE_CACHED_RESOURCES = ${JSONweb(uniqueArray(PRE_CACHED_RESOURCES))}`;
+          const PROXY_PATH = `PROXY_PATH = '${path}'`;
+          fs.writeFileSync(
+            `${rootClientPath}/sw.js`,
+            fs
+              .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
+              .replaceAll(`PRE_CACHED_RESOURCES = []`, PRE_CACHED_JSON)
+              .replaceAll(`PRE_CACHED_RESOURCES=[]`, PRE_CACHED_JSON)
+              .replaceAll(`PROXY_PATH = '/'`, PROXY_PATH)
+              .replaceAll(`PROXY_PATH='/'`, PROXY_PATH),
+            'utf8',
+          );
+        }
       }
     }
   }

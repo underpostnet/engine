@@ -12,6 +12,10 @@ const main = () => {
         en: 'No internet connection <br> verify your network',
         es: 'Sin conexión a internet <br> verifica tu red',
       },
+      ['back']: {
+        en: 'Back to <br>  homepage',
+        es: 'Volver a  <br> la pagina principal',
+      },
     },
     Render: function (id) {
       return this.Data[id][getLang()] ? this.Data[id][getLang()] : this.Data[id]['en'];

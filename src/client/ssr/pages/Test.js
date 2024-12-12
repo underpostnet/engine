@@ -7,13 +7,18 @@ const getLang = () =>
 
 const main = () => {
   const Translate = {
-    Data: {},
+    Data: {
+      ['back']: {
+        en: 'Back to <br>  homepage',
+        es: 'Volver a  <br> la pagina principal',
+      },
+    },
     Render: function (id) {
       return this.Data[id][getLang()] ? this.Data[id][getLang()] : this.Data[id]['en'];
     },
   };
   const icon = html`
-    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+    <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 32 32">
       <g fill="none">
         <g filter="url(#f2465id5)">
           <path fill="#A5D9FF" d="m21.066 4.43l6.992 6.992l-16.926 16.926a4.944 4.944 0 1 1-6.992-6.992z" />

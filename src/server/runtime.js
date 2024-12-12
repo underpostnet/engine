@@ -11,7 +11,7 @@ import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
 import { network, listenPortController, saveRuntimeRouter, logRuntimeRouter, listenServerFactory } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { newInstance } from '../client/components/core/CommonJs.js';
+import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
 import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
@@ -59,6 +59,7 @@ export PATH=$PATH:/opt/lampp/bin`,
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
+  const confSSR = JSON.parse(fs.readFileSync(`./conf/conf.ssr.json`, 'utf8'));
   const singleReplicaHosts = [];
   for (const host of Object.keys(confServer)) {
     if (singleReplicaHosts.length > 0 && !singleReplicaHosts.includes(host)) {
@@ -366,15 +367,17 @@ export PATH=$PATH:/opt/lampp/bin`,
 
           if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
 
-          if (mailer)
+          if (mailer) {
+            const mailerSsrConf = confSSR[getCapVariableName(client)];
             await MailerProvider.load({
               id: `${host}${path}`,
               meta: `mailer-${host}${path}`,
               host,
               path,
               ...mailer,
+              templates: mailerSsrConf ? mailerSsrConf.mailer : {},
             });
-
+          }
           if (apis) {
             const apiPath = `${path === '/' ? '' : path}/${process.env.BASE_API}`;
             for (const api of apis)
