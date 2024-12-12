@@ -3,7 +3,9 @@ const s = (el) => document.querySelector(el);
 const append = (el, html) => s(el).insertAdjacentHTML('beforeend', html);
 
 const getLang = () =>
-  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang).slice(0, 2);
+  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang)
+    .slice(0, 2)
+    .toLowerCase();
 
 const main = () => {
   const Translate = {

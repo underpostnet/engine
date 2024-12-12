@@ -43,7 +43,9 @@ const fullScreenIn = () => {
   }
 };
 const getLang = () =>
-  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang).slice(0, 2);
+  (localStorage.getItem('lang') || navigator.language || navigator.userLanguage || s('html').lang)
+    .slice(0, 2)
+    .toLowerCase();
 const s = (el) => document.querySelector(el);
 const htmls = (el, html) => (s(el).innerHTML = html);
 
