@@ -748,13 +748,15 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
                 ssrBodyComponents: SsrComponent(),
               });
 
-              const buildPath = `${rootClientPath}${page.path.slice(1)}`;
+              const buildPath = `${
+                rootClientPath[rootClientPath.length - 1] === '/' ? rootClientPath.slice(0, -1) : rootClientPath
+              }${page.path === '/' ? page.path : `${page.path}/`}`;
 
               PRE_CACHED_RESOURCES.push(`${path === '/' ? '' : path}${page.path === '/' ? '' : page.path}/index.html`);
 
               if (!fs.existsSync(buildPath)) fs.mkdirSync(buildPath, { recursive: true });
 
-              const buildHtmlPath = `${buildPath}/index.html`;
+              const buildHtmlPath = `${buildPath}index.html`;
 
               logger.info('ssr page build', buildHtmlPath);
 
