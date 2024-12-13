@@ -1,4 +1,5 @@
 import { borderChar } from './Css.js';
+import { Modal } from './Modal.js';
 import { append, s } from './VanillaJs.js';
 
 const Scroll = {
@@ -17,7 +18,7 @@ const Scroll = {
   scrollHandler: async function () {
     for (const selector in Scroll.data) await Scroll.data[selector].callback(Scroll.getScrollPosition(selector));
   },
-  addEvent: function (selector = '', callback = () => {}) {
+  addEvent: function (selector = '', callback = (position = 0) => {}) {
     Scroll.data[selector].callback = callback;
   },
   removeEvent: function (selector) {
@@ -68,6 +69,17 @@ const Scroll = {
     });
 
     document.addEventListener('touchmove', (e) => {
+      if (
+        !s(`.btn-bar-center-icon-close`).classList.contains('hide') &&
+        !s(`.btn-icon-menu-mode-left`).classList.contains('hide')
+      )
+        return;
+      const mainModalReload =
+        Object.keys(Modal.Data).find(
+          (_idModal) => s(`.${_idModal}`).style.zIndex === '4' && s(`.${_idModal}`).scrollTop === 0,
+        ) ||
+        (s(`.main-body`) && s(`.main-body`).scrollTop === 0);
+      if (!mainModalReload) return;
       const touchY = e.touches[0].clientY;
       const touchDiff = touchY - touchstartY;
 
