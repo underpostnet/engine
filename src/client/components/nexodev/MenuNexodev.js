@@ -30,6 +30,7 @@ import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { RouterEvents } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
+import { Scroll } from '../core/Scroll.js';
 
 const MenuNexodev = {
   Data: {},
@@ -667,15 +668,25 @@ const MenuNexodev = {
           icon: html` <i class="fas fa-calendar-alt"></i>`,
           text: Translate.Render('calendar'),
         }),
-        html: async () =>
-          await CalendarNexodev.Render({
+        html: async () => {
+          setTimeout(() => {
+            Scroll.addPreventTopRefresh({
+              selector: '.main-body-calendar-modal-calendar',
+              parent: '.modal-calendar',
+            });
+            Modal.Data['modal-calendar'].onCloseListener['scroll'] = () => {
+              Scroll.removePreventTopRefresh('.main-body-calendar-modal-calendar');
+            };
+          });
+          return await CalendarNexodev.Render({
             idModal: 'modal-calendar',
             Elements: ElementsNexodev,
             heightBottomBar,
             heightTopBar,
             route,
             parentIdModal: 'modal-calendar',
-          }),
+          });
+        },
         handleType: 'bar',
         maximize: true,
         mode: 'view',

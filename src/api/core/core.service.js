@@ -9,11 +9,9 @@ const CoreService = {
     /** @type {import('./core.model.js').CoreModel} */
     const Core = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Core;
     if (req.path.startsWith('/sh')) {
-      shellExec(req.body.sh, { stdout: true, async: true });
-      return {
-        status: 'success',
-        message: 'Command "' + req.body.sh + '" running',
-      };
+      if (req.body.print) return shellExec(req.body.sh, { stdout: true });
+      shellExec(req.body.sh, { async: true });
+      return 'Command "' + req.body.sh + '" running';
     }
     return await new Core(req.body).save();
   },

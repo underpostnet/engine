@@ -31,6 +31,13 @@ const Scroll = {
       behavior: options.behavior || 'smooth',
     });
   },
+  PreventTopRefresh: [],
+  addPreventTopRefresh: function (options = { selector: '', parent: '' }) {
+    this.PreventTopRefresh.push(options);
+  },
+  removePreventTopRefresh: function (selector) {
+    this.PreventTopRefresh = this.PreventTopRefresh.filter((obj) => obj.selector !== selector);
+  },
   pullTopRefresh: function () {
     append(
       'body',
@@ -70,8 +77,22 @@ const Scroll = {
 
     document.addEventListener('touchmove', (e) => {
       if (
+        this.PreventTopRefresh.length > 0 &&
+        this.PreventTopRefresh.find((obj) => s(obj.parent).style.zIndex === '4')
+      ) {
+        if (
+          !this.PreventTopRefresh.find(
+            (obj) => s(obj.parent).style.zIndex === '4' && s(obj.selector) && s(obj.selector).scrollTop === 0,
+          )
+        )
+          return;
+      }
+
+      if (
         !s(`.btn-bar-center-icon-close`).classList.contains('hide') &&
-        !s(`.btn-icon-menu-mode-left`).classList.contains('hide')
+        !s(
+          `.btn-icon-menu-mode-${Modal.Data['modal-menu'].options.mode !== 'slide-menu-right' ? 'left' : 'right'}`,
+        ).classList.contains('hide')
       )
         return;
       const mainModalReload =
