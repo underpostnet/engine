@@ -221,12 +221,12 @@ const MenuHomeHealthcare = {
     icon: 'assets/icons/16.png',
     route: '/vitals-signs',
   },
-  'chat-with-nutritionist': {
+  'size-baby': {
     displayName: {
-      es: 'Chatea con tu nutricionista',
-      en: 'Chat with your nutritionist',
+      es: 'Tamaño de tu bebé',
+      en: 'Size of your baby',
     },
-    icon: 'assets/icons/18.png',
+    icon: 'assets/icons/22.png',
     route: '/chat-with-nutritionist',
   },
   'recipe-book': {
@@ -252,6 +252,22 @@ const MenuHomeHealthcare = {
     },
     icon: 'assets/icons/19.png',
     route: '/forum',
+  },
+  'smart-recommender': {
+    displayName: {
+      es: 'Recomendador inteligente',
+      en: 'Smart Recommender',
+    },
+    icon: 'assets/icons/20.png',
+    route: '/smart-recommender',
+  },
+  'smart-chatbot': {
+    displayName: {
+      es: 'Chatbot Inteligente',
+      en: 'Smart Chatbot',
+    },
+    icon: 'assets/icons/21.png',
+    route: '/smart-chatbot',
   },
 };
 
@@ -280,6 +296,10 @@ const NutritionalTips = [
   {
     icon: 'assets/icons/16.png',
     displayName: { es: 'Tips para mejorar tu salud cardiovascular', en: 'Tips to improve your cardiovascular health' },
+  },
+  {
+    icon: 'assets/icons/22.png',
+    displayName: { es: 'Salud pregestacional', en: 'Pre-pregnancy health' },
   },
 ];
 const BaseElement = () => {
