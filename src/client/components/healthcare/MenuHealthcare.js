@@ -166,7 +166,7 @@ const MenuHealthcare = {
           const { icon } = MenuHomeHealthcare[routeId];
           render += html`${await BtnIcon.Render({
             label: html`<div class="abs center" style="top: 30%">
-                <img class="inl home-menu-icon no-drag" src="${getProxyPath()}assets/home/${icon}" />
+                <img class="inl home-menu-icon no-drag" src="${getProxyPath()}${icon}" />
               </div>
               <div class="abs center" style="top: 75%">${Translate.Render(routeId)}</div>`,
             class: 'in fll home-body-btn',

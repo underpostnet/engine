@@ -191,7 +191,7 @@ const MenuHomeHealthcare = {
       es: 'Consejos de Nutrición',
       en: 'Nutritional Tips',
     },
-    icon: 'nutrition-tips.png',
+    icon: 'assets/icons/12.png',
     route: '/nutrition-tips',
   },
 
@@ -200,7 +200,7 @@ const MenuHomeHealthcare = {
       es: 'Registro de Ingesta de Alimentos',
       en: 'Register Food Intake',
     },
-    icon: 'food-intake.png',
+    icon: 'assets/icons/13.png',
     route: '/register-food-intake',
   },
 
@@ -209,7 +209,7 @@ const MenuHomeHealthcare = {
       es: 'Cuida tu salud cardiovascular',
       en: 'Take Care of Your Cardiovascular health',
     },
-    icon: 'take-care-cardiovascular.png',
+    icon: 'assets/icons/14.png',
     route: '/take-care-cardiovascular',
   },
 
@@ -218,7 +218,7 @@ const MenuHomeHealthcare = {
       es: 'Signos Vitales',
       en: 'Vital Signs',
     },
-    icon: 'vitals-signs.png',
+    icon: 'assets/icons/16.png',
     route: '/vitals-signs',
   },
 
