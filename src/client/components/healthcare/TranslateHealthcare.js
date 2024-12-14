@@ -1,5 +1,5 @@
 import { Translate } from '../core/Translate.js';
-import { medicalSpecialties, MenuHomeHealthcare } from './CommonHealthcare.js';
+import { NutritionalTips, medicalSpecialties, MenuHomeHealthcare } from './CommonHealthcare.js';
 
 const TranslateHealthcare = {
   Init: async function () {
@@ -17,6 +17,10 @@ const TranslateHealthcare = {
 
     medicalSpecialties.map((o) => {
       Translate.Data[o.id] = o.displayName;
+    });
+
+    NutritionalTips.map((v, i) => {
+      Translate.Data[`nutrition-tips-${i}`] = v.displayName;
     });
   },
 };

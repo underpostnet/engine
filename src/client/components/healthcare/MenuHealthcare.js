@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance } from '../core/CommonJs.js';
+import { getId, newInstance, range } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -18,7 +18,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { MenuHomeHealthcare } from './CommonHealthcare.js';
+import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -407,7 +407,32 @@ const MenuHealthcare = {
           text: Translate.Render('nutrition-tips'),
         }),
         html: async () => {
-          return html`test`;
+          let render = '';
+
+          for (const indexTip of range(0, NutritionalTips.length - 1)) {
+            render += html`<div class="in nutrition-tips-panel-container">
+              <div class="in nutrition-tips-panel-sub-container">
+                <div class="fl">
+                  <div class="in fll" style="width: 30%;">
+                    <div class="in nutrition-tips-panel-cell">
+                      <div class="abs center">
+                        <img
+                          class="in nutrition-tips-panel-icon"
+                          src="${getProxyPath()}${NutritionalTips[indexTip].icon}"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                  <div class="in fll" style="width: 70%;">
+                    <div class="in nutrition-tips-panel-cell">
+                      <br />${Translate.Render(`nutrition-tips-${indexTip}`)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+          }
+          return html`${render}`;
         },
         handleType: 'bar',
         maximize: true,

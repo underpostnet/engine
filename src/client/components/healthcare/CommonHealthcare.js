@@ -243,6 +243,33 @@ const MenuHomeHealthcare = {
   // Foro / Comunidad
 };
 
+const NutritionalTips = [
+  { icon: 'assets/icons/1.png', displayName: { es: 'Revisar los últimos tips', en: 'Review latest tips' } },
+  {
+    icon: 'assets/icons/6.png',
+    displayName: { es: 'Tips para mejorar tu estado nutricional', en: 'Tips to improve your nutritional status' },
+  },
+
+  {
+    icon: 'assets/icons/5.png',
+    displayName: { es: 'Tips de actividad física y autocuidado', en: 'Physical activity and self-care tips' },
+  },
+  {
+    icon: 'assets/icons/2.png',
+    displayName: { es: 'Tips para mejorar tu sistema digestivo', en: 'Tips to improve your digestive system' },
+  },
+  {
+    icon: 'assets/icons/3.png',
+    displayName: {
+      es: 'Tips para mejorar tu concentración, cognición y estado del ánimo',
+      en: 'Tips for improving your concentration, cognition and mood',
+    },
+  },
+  {
+    icon: 'assets/icons/16.png',
+    displayName: { es: 'Tips para mejorar tu salud cardiovascular', en: 'Tips to improve your cardiovascular health' },
+  },
+];
 const BaseElement = () => {
   return {
     user: {
@@ -262,4 +289,4 @@ const HealthcareParams = {
   EVENT_CALLBACK_TIME: 45,
 };
 
-export { BaseElement, ModelElement, HealthcareParams, medicalSpecialties, MenuHomeHealthcare };
+export { BaseElement, ModelElement, HealthcareParams, medicalSpecialties, MenuHomeHealthcare, NutritionalTips };

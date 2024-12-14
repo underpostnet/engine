@@ -38,6 +38,23 @@ const CssCommonHealthcare = async () => {
       .menu-label-text-slide-menu-icon {
         top: -4px;
       }
+      .nutrition-tips-panel-sub-container {
+        margin: 10px;
+        padding: 0px;
+        border-radius: 14px;
+        overflow: hidden;
+        cursor: pointer;
+        transition: 0.3s;
+      }
+      .nutrition-tips-panel-cell {
+        height: 100px;
+        font-size: 20px;
+      }
+      .nutrition-tips-panel-icon {
+        width: 80px;
+        height: 80px;
+        margin: auto;
+      }
     </style>
     ${boxShadow({ selector: `.home-body-btn` })}`;
 };
@@ -87,6 +104,12 @@ const CssHealthcareDark = {
           }
           .home-body-btn {
             background: #a80081;
+          }
+          .nutrition-tips-panel-sub-container {
+            background-color: #501455;
+          }
+          .nutrition-tips-panel-sub-container:hover {
+            background-color: #731c7a;
           }
         </style>
       `
@@ -138,6 +161,12 @@ const CssHealthcareLight = {
           }
           .home-body-btn {
             background: #ffce95;
+          }
+          .nutrition-tips-panel-sub-container {
+            background-color: #fff0cc;
+          }
+          .nutrition-tips-panel-sub-container:hover {
+            background-color: #fef7e7;
           }
         </style>
       `
