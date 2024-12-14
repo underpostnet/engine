@@ -55,6 +55,10 @@ const CssCommonHealthcare = async () => {
         height: 80px;
         margin: auto;
       }
+      .healthcare-banner {
+        width: 300px;
+        margin: auto;
+      }
     </style>
     ${boxShadow({ selector: `.home-body-btn` })}`;
 };

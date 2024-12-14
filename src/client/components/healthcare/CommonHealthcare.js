@@ -221,26 +221,38 @@ const MenuHomeHealthcare = {
     icon: 'assets/icons/16.png',
     route: '/vitals-signs',
   },
-
-  // Nutritional tips
-  // Record food intake
-  // Take care of your cardiovascular health
-  // Vital signs
-
-  // Recipe book
-  // Record mood
-  // Chat with your nutritionist
-  // Forum / Community
-
-  // Tips nutricionales
-  // Registrar ingesta de alimentos
-  // Cuida tu salud cardiovascular
-  // Signos vitales
-
-  // Recetario
-  // Registrar estado de ánimo
-  // Chatea con tu nutricionista
-  // Foro / Comunidad
+  'chat-with-nutritionist': {
+    displayName: {
+      es: 'Chatea con tu nutricionista',
+      en: 'Chat with your nutritionist',
+    },
+    icon: 'assets/icons/18.png',
+    route: '/chat-with-nutritionist',
+  },
+  'recipe-book': {
+    displayName: {
+      es: 'Recetario',
+      en: 'Recipe Book',
+    },
+    icon: 'assets/icons/15.png',
+    route: '/recipe-book',
+  },
+  'record-mood': {
+    displayName: {
+      es: 'Registra tu estado de ánimo',
+      en: 'Record mood',
+    },
+    icon: 'assets/icons/17.png',
+    route: '/record-mood',
+  },
+  forum: {
+    displayName: {
+      es: 'Foro / Comunidad',
+      en: 'Forum / Community',
+    },
+    icon: 'assets/icons/19.png',
+    route: '/forum',
+  },
 };
 
 const NutritionalTips = [
