@@ -106,6 +106,10 @@ const TranslateCore = {
       en: 'Enter your WhatsApp number, including your country code.',
       es: 'Número de WhatsApp, recuerda colocar el código de tu país',
     };
+    Translate.Data['¿'] = {
+      en: '',
+      es: '¿',
+    };
     Translate.Data['color-copy'] = { es: 'color copiado en el portapapeles', en: 'color copied to clipboard' };
     Translate.Data['pallet-colors'] = { en: 'pallet colors', es: 'paleta de colores' };
     Translate.Data['fullscreen'] = { en: 'Fullscreen', es: 'Pantalla completa' };

@@ -179,6 +179,11 @@ const MenuHealthcare = {
           EventsUI.onClick(`.home-body-btn-${'nutrition-tips'}`, () => {
             s(`.main-btn-${'nutrition-tips'}`).click();
           });
+          ThemeEvents['banner'] = () => {
+            if (darkTheme) s(`.healthcare-banner`).classList.add('negative-color');
+            else s(`.healthcare-banner`).classList.remove('negative-color');
+          };
+          ThemeEvents['banner']();
         });
         let render = '';
         for (const routeId of Object.keys(MenuHomeHealthcare)) {
@@ -201,7 +206,9 @@ const MenuHealthcare = {
           </div>
           <div class="fl home-menu-container">
             <div class="in home-h1-font-container">
-              ${s(`html`).lang === 'es' ? '¿' : ''}${Translate.Render('home-getting')}
+              <img class="in healthcare-banner" src="${getProxyPath()}assets/icons/23.png" />
+              <br />
+              ${Translate.Render('¿')}${Translate.Render('home-getting')}
             </div>
             ${render}
           </div>
