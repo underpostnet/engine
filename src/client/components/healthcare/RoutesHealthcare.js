@@ -29,6 +29,11 @@ const RoutesHealthcare = () => {
       translateTitle: true,
     },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
+    '/nutrition-tips': {
+      title: 'nutrition-tips',
+      render: () => s(`.main-btn-nutrition-tips`).click(),
+      translateTitle: true,
+    },
   };
 };
 

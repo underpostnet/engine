@@ -31,6 +31,13 @@ const CssCommonHealthcare = async () => {
         font-family: 'cursive';
         text-align: center;
       }
+      .slide-menu-icon {
+        width: 25px;
+        height: 25px;
+      }
+      .menu-label-text-slide-menu-icon {
+        top: -4px;
+      }
     </style>
     ${boxShadow({ selector: `.home-body-btn` })}`;
 };

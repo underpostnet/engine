@@ -116,6 +116,22 @@ const MenuHealthcare = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-nutrition-tips hide',
+            label: renderMenuLabel({
+              icon: html`<img
+                class="slide-menu-icon"
+                src="${getProxyPath()}${MenuHomeHealthcare['nutrition-tips'].icon}"
+              />`,
+              text: html`<span class="inl menu-label-text menu-label-text-slide-menu-icon"
+                >${Translate.Render('nutrition-tips')}</span
+              >`,
+            }),
+            attrs: `data-id="nutrition-tips"`,
+            tabHref: `${getProxyPath()}nutrition-tips`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('nutrition-tips')),
+          })}
         </div>
       `,
       barConfig: newInstance(barConfig),
@@ -160,6 +176,9 @@ const MenuHealthcare = {
               </style>`,
             );
           };
+          EventsUI.onClick(`.home-body-btn-${'nutrition-tips'}`, () => {
+            s(`.main-btn-${'nutrition-tips'}`).click();
+          });
         });
         let render = '';
         for (const routeId of Object.keys(MenuHomeHealthcare)) {
@@ -169,7 +188,7 @@ const MenuHealthcare = {
                 <img class="inl home-menu-icon no-drag" src="${getProxyPath()}${icon}" />
               </div>
               <div class="abs center" style="top: 75%">${Translate.Render(routeId)}</div>`,
-            class: 'in fll home-body-btn',
+            class: `in fll home-body-btn home-body-btn-${routeId}`,
           })}`;
         }
         return html`
@@ -365,6 +384,31 @@ const MenuHealthcare = {
         }),
         html: async () =>
           await Recover.Render({ idModal: 'modal-recover', user: ElementsHealthcare.Data.user.main.model.user }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+    EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-nutrition-tips',
+        route: 'nutrition-tips',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img
+            class="slide-menu-icon"
+            src="${getProxyPath()}${MenuHomeHealthcare['nutrition-tips'].icon}"
+          />`,
+          text: Translate.Render('nutrition-tips'),
+        }),
+        html: async () => {
+          return html`test`;
+        },
         handleType: 'bar',
         maximize: true,
         mode: 'view',
