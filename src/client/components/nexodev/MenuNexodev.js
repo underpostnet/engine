@@ -670,12 +670,17 @@ const MenuNexodev = {
         }),
         html: async () => {
           setTimeout(() => {
-            Scroll.addPreventTopRefresh({
-              selector: '.main-body-calendar-modal-calendar',
-              parent: '.modal-calendar',
+            Scroll.addTopRefreshEvent({
+              id: 'modal-calendar',
+              callback: () => {
+                location.reload();
+              },
+              condition: () => {
+                return s('.main-body-calendar-modal-calendar').scrollTop === 0;
+              },
             });
-            Modal.Data['modal-calendar'].onCloseListener['scroll'] = () => {
-              Scroll.removePreventTopRefresh('.main-body-calendar-modal-calendar');
+            Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
+              Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
             };
           });
           return await CalendarNexodev.Render({

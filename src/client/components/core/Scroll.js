@@ -31,12 +31,12 @@ const Scroll = {
       behavior: options.behavior || 'smooth',
     });
   },
-  PreventTopRefresh: [],
-  addPreventTopRefresh: function (options = { selector: '', parent: '' }) {
-    this.PreventTopRefresh.push(options);
+  topRefreshEvents: {},
+  addTopRefreshEvent: function (options = { id: '', callback: () => {}, condition: () => {} }) {
+    this.topRefreshEvents[options.id] = options;
   },
-  removePreventTopRefresh: function (selector) {
-    this.PreventTopRefresh = this.PreventTopRefresh.filter((obj) => obj.selector !== selector);
+  removeTopRefreshEvent: function (id = '') {
+    delete this.topRefreshEvents[id];
   },
   pullTopRefresh: function () {
     append(
@@ -77,30 +77,14 @@ const Scroll = {
 
     document.addEventListener('touchmove', (e) => {
       if (
-        this.PreventTopRefresh.length > 0 &&
-        this.PreventTopRefresh.find((obj) => s(obj.parent).style.zIndex === '4')
-      ) {
-        if (
-          !this.PreventTopRefresh.find(
-            (obj) => s(obj.parent).style.zIndex === '4' && s(obj.selector) && s(obj.selector).scrollTop === 0,
-          )
-        )
-          return;
-      }
-
-      if (
-        !s(`.btn-bar-center-icon-close`).classList.contains('hide') &&
-        !s(
-          `.btn-icon-menu-mode-${Modal.Data['modal-menu'].options.mode !== 'slide-menu-right' ? 'left' : 'right'}`,
-        ).classList.contains('hide')
+        !Object.keys(Scroll.topRefreshEvents).find((event) => Scroll.topRefreshEvents[event].condition()) ||
+        (!s(`.btn-bar-center-icon-close`).classList.contains('hide') &&
+          !s(
+            `.btn-icon-menu-mode-${Modal.Data['modal-menu'].options.mode !== 'slide-menu-right' ? 'left' : 'right'}`,
+          ).classList.contains('hide'))
       )
         return;
-      const mainModalReload =
-        Object.keys(Modal.Data).find(
-          (_idModal) => s(`.${_idModal}`).style.zIndex === '4' && s(`.${_idModal}`).scrollTop === 0,
-        ) ||
-        (s(`.main-body`) && s(`.main-body`).scrollTop === 0);
-      if (!mainModalReload) return;
+
       const touchY = e.touches[0].clientY;
       const touchDiff = touchY - touchstartY;
 
@@ -120,10 +104,21 @@ const Scroll = {
       // console.warn('touchend');
       s(`.pull-refresh-icon-container`).style.top = '-60px';
       if (reload) {
-        location.reload();
-        // console.warn('reload');
+        for (const event of Object.keys(Scroll.topRefreshEvents))
+          if (Scroll.topRefreshEvents[event].condition()) Scroll.topRefreshEvents[event].callback();
       }
       reload = false;
+    });
+    Scroll.addTopRefreshEvent({
+      id: 'main-body',
+      callback: () => {
+        location.reload();
+      },
+      condition: () => {
+        return !Object.keys(Modal.Data).find(
+          (idModal) => s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '4' && Modal.Data[idModal].options.route,
+        );
+      },
     });
   },
 };
