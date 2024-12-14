@@ -116,7 +116,7 @@ const Scroll = {
       },
       condition: () => {
         return !Object.keys(Modal.Data).find(
-          (idModal) => s(`.${idModal}`) && s(`.${idModal}`).style.zIndex === '4' && Modal.Data[idModal].options.route,
+          (idModal) => !['modal-menu', 'main-body', 'bottom-bar', 'main-body-top'].includes(idModal),
         );
       },
     });
