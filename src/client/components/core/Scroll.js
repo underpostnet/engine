@@ -115,8 +115,12 @@ const Scroll = {
         location.reload();
       },
       condition: () => {
-        return !Object.keys(Modal.Data).find(
-          (idModal) => !['modal-menu', 'main-body', 'bottom-bar', 'main-body-top'].includes(idModal),
+        return (
+          s('.main-body') &&
+          s('.main-body').scrollTop === 0 &&
+          !Object.keys(Modal.Data).find(
+            (idModal) => !['modal-menu', 'main-body', 'bottom-bar', 'main-body-top'].includes(idModal),
+          )
         );
       },
     });
