@@ -97,7 +97,7 @@ const saveRuntimeRouter = async () => {
           port: networkRouter[_host][_path].port,
           apis: networkRouter[_host][_path].apis,
         };
-        const instance = await Instance.findOne({ deployId: body.deployId, port: body.port });
+        const instance = await Instance.findOne({ deployId: body.deployId, host: _host, path: _path });
         if (instance) {
           await Instance.findByIdAndUpdate(instance._id, body);
         } else {
