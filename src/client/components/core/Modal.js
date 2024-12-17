@@ -1535,7 +1535,7 @@ const Modal = {
         Responsive.Event['h-ui-hide-' + idModal] = () => {
           setTimeout(() => {
             if (!s(`.${idModal}`) || !s(`.main-body-btn-ui-close`)) return;
-            if (s(`.btn-restore-${idModal}`).style.display !== 'none') {
+            if (s(`.btn-restore-${idModal}`) && s(`.btn-restore-${idModal}`).style.display !== 'none') {
               s(`.${idModal}`).style.height = s(`.main-body-btn-ui-close`).classList.contains('hide')
                 ? `${window.innerHeight}px`
                 : `${
@@ -1543,10 +1543,10 @@ const Modal = {
                     (options.heightTopBar ? options.heightTopBar : heightDefaultTopBar) -
                     (options.heightBottomBar ? options.heightBottomBar : heightDefaultBottomBar)
                   }px`;
-              s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
-                ? `0px`
-                : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
             }
+            s(`.${idModal}`).style.top = s(`.main-body-btn-ui-close`).classList.contains('hide')
+              ? `0px`
+              : `${options.heightTopBar ? options.heightTopBar : heightDefaultTopBar}px`;
           });
         };
         Responsive.Event['h-ui-hide-' + idModal]();
