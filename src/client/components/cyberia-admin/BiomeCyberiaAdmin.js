@@ -25,6 +25,7 @@ import { GridBaseCyberiaBiome } from '../cyberia-biome/GridBaseCyberiaBiome.js';
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { loggerFactory } from '../core/Logger.js';
 import { FileService } from '../../services/file/file.service.js';
+import { createJSONEditor } from 'vanilla-jsoneditor';
 
 const logger = loggerFactory(import.meta);
 
@@ -315,8 +316,105 @@ const BiomeCyberiaEngine = {
       s(`.biome-dimPaintByCell`).oninput = updateDimPaintByCell;
       s(`.biome-dimPaintByCell`).onblur = updateDimPaintByCell;
       updateDim();
-      updateDimPaintByCell();
+      {
+        let content = {
+          json: [
+            {
+              path: '/world-name',
+              x: 0,
+              y: 0,
+              face: 1,
+              dim: 1,
+            },
+          ],
+        };
+        const instanceJsonEditor = () => {
+          if (this.jsonEditorTransports) this.jsonEditorTransports.destroy();
+          this.jsonEditorTransports = createJSONEditor({
+            target: s('.jsoneditor-biome-transports'),
+            props: {
+              content,
+              onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+                // content is an object { json: JSONData } | { text: string }
+                console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+                content.json = JSON.parse(updatedContent.text);
+              },
+            },
+          });
+        };
+        instanceJsonEditor();
+      }
+      {
+        let content = {
+          json: [
+            {
+              id: '',
+              x: 0,
+              y: 0,
+            },
+          ],
+        };
+        const instanceJsonEditor = () => {
+          if (this.jsonEditorResources) this.jsonEditorResources.destroy();
+          this.jsonEditorResources = createJSONEditor({
+            target: s('.jsoneditor-biome-resources'),
+            props: {
+              content,
+              onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+                // content is an object { json: JSONData } | { text: string }
+                console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+                content.json = JSON.parse(updatedContent.text);
+              },
+            },
+          });
+        };
+        instanceJsonEditor();
+      }
+
+      {
+        const containers = [
+          '.biome-grid-render-main-container',
+          '.biome-transports-container',
+          '.biome-resources-container',
+          '.ag-grid-biome-container',
+          '.biome-grid-render-main-options',
+        ];
+
+        const cleanContainers = (open) => {
+          for (const containerId of containers) {
+            s(containerId).classList[open ? 'remove' : 'add']('hide');
+          }
+        };
+
+        EventsUI.onClick(`.btn-biome-resources`, async () => {
+          cleanContainers();
+          s(`.btn-biome-open-editor`).classList.remove('hide');
+          s('.biome-resources-container').classList.remove('hide');
+        });
+        EventsUI.onClick(`.btn-biome-transports`, async () => {
+          cleanContainers();
+          s(`.btn-biome-open-editor`).classList.remove('hide');
+          s('.biome-transports-container').classList.remove('hide');
+        });
+        EventsUI.onClick(`.btn-biome-open-editor`, async () => {
+          s(`.btn-biome-open-editor`).classList.add('hide');
+          cleanContainers(true);
+          s('.biome-resources-container').classList.add('hide');
+          s('.biome-transports-container').classList.add('hide');
+        });
+      }
     });
+
+    const jsonIcon = html`<svg xmlns="http://www.w3.org/2000/svg" width="25" height="25" viewBox="0 0 24 24">
+      <path
+        fill="none"
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="1.5"
+        d="M9 16v-1m3 1v-1m3 1v-1M6.835 4q-.747.022-1.297.242a1.86 1.86 0 0 0-.857.66q-.285.438-.285 1.164V9.23q0 1.12-.594 1.802q-.593.66-1.802.88v.131q1.23.22 1.802.901q.594.66.594 1.78v3.231q0 .704.285 1.143q.286.461.835.66q.55.219 1.32.241M17.164 4q.747.022 1.297.242q.55.219.857.66q.285.438.285 1.164V9.23q0 1.12.594 1.802q.593.66 1.802.88v.131q-1.23.22-1.802.901q-.594.66-.594 1.78v3.231q0 .704-.285 1.143q-.286.461-.835.66q-.55.219-1.32.241"
+      />
+    </svg>`;
 
     return html`
       <style>
@@ -351,141 +449,170 @@ const BiomeCyberiaEngine = {
       ${dynamicCol({ containerSelector: options.idModal, id: 'biome' })}
       <div class="fl">
         <div class="in fll biome-col-a">
-          <div class="in section-mp">
-            <div class="in sub-title-modal">
-              <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}
-            </div>
-          </div>
-          ${configBiomeCyberiaFormRender}
-
-          <div class="in section-mp toggle-form-container hover">
-            <div class="fl ">
-              <div class="in fll" style="width: 70%">
-                <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('coordinates')}</div>
-              </div>
-              <div class="in fll" style="width: 30%">
-                ${await ToggleSwitch.Render({
-                  id: 'toggle-cyberia-instance-coordinates',
-                  checked: false,
-                  on: {
-                    unchecked: () => {
-                      htmls(
-                        `.style-cyberia-instance-cords`,
-                        html` <style>
-                          .cyberia-instance-cords {
-                            display: none;
-                          }
-                        </style>`,
-                      );
-                      htmls(`.biome-grid-container`, '');
-                    },
-                    checked: () => {
-                      htmls(
-                        `.biome-grid-container`,
-                        html`
-                          ${range(0, BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell - 1)
-                            .map(
-                              (y) =>
-                                html`
-                                  <div class="fl">
-                                    ${range(0, BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell - 1)
-                                      .map((x) => {
-                                        setTimeout(() => {
-                                          if (!s(`.biome-cell-${x}-${y}`)) return;
-
-                                          s(`.biome-cell-${x}-${y}`).onclick = async () => {
-                                            await copyData([x, y]);
-                                            NotificationManager.Push({
-                                              html: Translate.Render('success-copy-data'),
-                                              status: 'success',
-                                            });
-                                          };
-                                        });
-                                        return html`<div class="in fll biome-cell biome-cell-${x}-${y}">
-                                          <!-- <div class="abs center cyberia-instance-cords">${x}<br />${y}</div> -->
-                                        </div>`;
-                                      })
-                                      .join('')}
-                                  </div>
-                                `,
-                            )
-                            .join('')}
-                        `,
-                      );
-                      htmls(
-                        `.style-cyberia-instance-cords`,
-                        html`<style>
-                          .biome-cell {
-                            width: ${s(`.pixi-canvas-biome`).offsetWidth /
-                            (BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell)}px;
-                            height: ${s(`.pixi-canvas-biome`).offsetWidth /
-                            (BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell)}px;
-                          }
-                        </style>`,
-                      );
-                    },
-                  },
-                })}
+          <div class="in biome-grid-render-main-options">
+            <div class="in section-mp">
+              <div class="in sub-title-modal">
+                <i class="fa-solid fa-sliders"></i> ${Translate.Render('config-biome')}
               </div>
             </div>
-          </div>
+            ${configBiomeCyberiaFormRender}
 
-          ${await Input.Render({
-            id: `biome-dim`,
-            label: html`<i class="fa-solid fa-ruler"></i> dim`,
-            containerClass: 'in section-mp width-mini-box input-container',
-            type: 'number',
-            min: 0,
-            placeholder: true,
-            value: 16,
+            <div class="in section-mp toggle-form-container hover">
+              <div class="fl ">
+                <div class="in fll" style="width: 70%">
+                  <div class="in"><i class="fa-solid fa-expand"></i> ${Translate.Render('coordinates')}</div>
+                </div>
+                <div class="in fll" style="width: 30%">
+                  ${await ToggleSwitch.Render({
+                    id: 'toggle-cyberia-instance-coordinates',
+                    checked: false,
+                    on: {
+                      unchecked: () => {
+                        htmls(
+                          `.style-cyberia-instance-cords`,
+                          html` <style>
+                            .cyberia-instance-cords {
+                              display: none;
+                            }
+                          </style>`,
+                        );
+                        htmls(`.biome-grid-container`, '');
+                      },
+                      checked: () => {
+                        htmls(
+                          `.biome-grid-container`,
+                          html`
+                            ${range(0, BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell - 1)
+                              .map(
+                                (y) =>
+                                  html`
+                                    <div class="fl">
+                                      ${range(
+                                        0,
+                                        BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell - 1,
+                                      )
+                                        .map((x) => {
+                                          setTimeout(() => {
+                                            if (!s(`.biome-cell-${x}-${y}`)) return;
+
+                                            s(`.biome-cell-${x}-${y}`).onclick = async () => {
+                                              await copyData([x, y]);
+                                              NotificationManager.Push({
+                                                html: Translate.Render('success-copy-data'),
+                                                status: 'success',
+                                              });
+                                            };
+                                          });
+                                          return html`<div class="in fll biome-cell biome-cell-${x}-${y}">
+                                            <!-- <div class="abs center cyberia-instance-cords">${x}<br />${y}</div> -->
+                                          </div>`;
+                                        })
+                                        .join('')}
+                                    </div>
+                                  `,
+                              )
+                              .join('')}
+                          `,
+                        );
+                        htmls(
+                          `.style-cyberia-instance-cords`,
+                          html`<style>
+                            .biome-cell {
+                              width: ${s(`.pixi-canvas-biome`).offsetWidth /
+                              (BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell)}px;
+                              height: ${s(`.pixi-canvas-biome`).offsetWidth /
+                              (BiomeCyberiaParamsScope.dim * BiomeCyberiaParamsScope.dimPaintByCell)}px;
+                            }
+                          </style>`,
+                        );
+                      },
+                    },
+                  })}
+                </div>
+              </div>
+            </div>
+
+            ${await Input.Render({
+              id: `biome-dim`,
+              label: html`<i class="fa-solid fa-ruler"></i> dim`,
+              containerClass: 'in section-mp width-mini-box input-container',
+              type: 'number',
+              min: 0,
+              placeholder: true,
+              value: 16,
+            })}
+            ${await Input.Render({
+              id: `biome-dimPaintByCell`,
+              label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
+              containerClass: 'in section-mp width-mini-box input-container',
+              type: 'number',
+              min: 0,
+              placeholder: true,
+              value: 3,
+            })}
+            ${await Input.Render({
+              id: `biome-dimAmplitude`,
+              label: html`<i class="fa-solid fa-ruler"></i> dimAmplitude`,
+              containerClass: 'in section-mp width-mini-box input-container',
+              type: 'number',
+              min: 0,
+              placeholder: true,
+              value: 3,
+            })}
+          </div>
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-biome-open-editor hide`,
+            label: html`<i class="fa-solid fa-vector-square"></i> Biome Render Editor`,
           })}
-          ${await Input.Render({
-            id: `biome-dimPaintByCell`,
-            label: html`<i class="fa-solid fa-ruler"></i> dimPaintByCell`,
-            containerClass: 'in section-mp width-mini-box input-container',
-            type: 'number',
-            min: 0,
-            placeholder: true,
-            value: 3,
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-biome-resources`,
+            label: html`${jsonIcon} Resources Config`,
           })}
-          ${await Input.Render({
-            id: `biome-dimAmplitude`,
-            label: html`<i class="fa-solid fa-ruler"></i> dimAmplitude`,
-            containerClass: 'in section-mp width-mini-box input-container',
-            type: 'number',
-            min: 0,
-            placeholder: true,
-            value: 3,
+          ${await BtnIcon.Render({
+            class: `inl section-mp btn-custom btn-biome-transports`,
+            label: html`${jsonIcon} Transports Config`,
           })}
         </div>
         <div class="in fll biome-col-b">
-          <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
+          <div class="in biome-grid-render-main-container">
+            <div class="in section-mp">
+              <div class="in sub-title-modal"><i class="fa-solid fa-vector-square"></i> Render</div>
+            </div>
+            <div class="in section-mp">
+              <div class="in biome-pixi-container"></div>
+              <div class="abs biome-grid-container"></div>
+            </div>
+            <div class="in section-mp">
+              <div class="in biome-top-level-pixi-container"></div>
+            </div>
           </div>
-          <div class="in section-mp">
-            <div class="in biome-pixi-container"></div>
-            <div class="abs biome-grid-container"></div>
+          <div class="in biome-transports-container hide">
+            <div class="in section-mp"><div class="in sub-title-modal">${jsonIcon} Transports Config</div></div>
+            <div class="in section-mp"><div class="jsoneditor-biome-transports"></div></div>
           </div>
-          <div class="in section-mp">
-            <div class="in biome-top-level-pixi-container"></div>
+          <div class="in biome-resources-container hide">
+            <div class="in section-mp"><div class="in sub-title-modal">${jsonIcon} Resources Config</div></div>
+            <div class="in section-mp"><div class="jsoneditor-biome-resources"></div></div>
           </div>
-          <div class="in section-mp">
-            <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
-          </div>
-          <div class="in section-mp">
-            ${await AgGrid.Render({
-              id: `ag-grid-biome-files`,
-              darkTheme,
-              gridOptions: {
-                rowData: BiomeCyberiaScope.Grid,
-                columnDefs: [
-                  { field: '_id', headerName: 'ID' },
-                  { field: 'biome', headerName: 'BiomeCyberia' },
-                  { field: 'name', headerName: 'Name' },
-                  { headerName: '', cellRenderer: LoadBiomeCyberiaRenderer },
-                ],
-              },
-            })}
+          <div class="in ag-grid-biome-container">
+            <div class="in section-mp">
+              <div class="in sub-title-modal"><i class="far fa-list-alt"></i> ${Translate.Render('biomes')}</div>
+            </div>
+            <div class="in section-mp">
+              ${await AgGrid.Render({
+                id: `ag-grid-biome-files`,
+                darkTheme,
+                gridOptions: {
+                  rowData: BiomeCyberiaScope.Grid,
+                  columnDefs: [
+                    { field: '_id', headerName: 'ID' },
+                    { field: 'biome', headerName: 'BiomeCyberia' },
+                    { field: 'name', headerName: 'Name' },
+                    { headerName: '', cellRenderer: LoadBiomeCyberiaRenderer },
+                  ],
+                },
+              })}
+            </div>
           </div>
         </div>
       </div>
