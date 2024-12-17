@@ -64,8 +64,6 @@ try {
         //  ` --sync-mode=CHECKPOINT` +
         ` --rpc-http-cors-origins="all"`;
 
-      let currentPort;
-
       // --p2p-port=3030 --p2p-host --p2p-interface
       // --rpc-ws-port=8546
       // --metrics-port=9545  metrics-push-port=9001
