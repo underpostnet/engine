@@ -14,6 +14,7 @@ import { LogInCyberia } from './LogInCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
+import { MatrixCyberia } from './MatrixCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -158,6 +159,7 @@ const SocketIoCyberia = {
   },
   changeServer: async function (options = { server: '' }) {
     if (options && options.server) setPath('/' + options.server);
+    await MatrixCyberia.loadData();
     LoadingAnimation.barLevel.clear();
     await SocketIo.Init({ channels: ElementsCyberia.Data });
     return await this.Init();

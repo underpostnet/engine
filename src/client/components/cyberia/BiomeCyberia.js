@@ -88,6 +88,8 @@ const BiomeCyberiaManagement = {
       MatrixCyberia.Data.dimPaintByCell = BiomeCyberiaScope.Data[rowId].dimPaintByCell;
     if (BiomeCyberiaScope.Data[rowId].dimAmplitude)
       MatrixCyberia.Data.dimAmplitude = BiomeCyberiaScope.Data[rowId].dimAmplitude;
+    PixiCyberia.setResponsivePixiContainerEvent();
+    PixiCyberia.setMainUserMovementController();
     PixiCyberia.setFloor(BiomeCyberiaScope.Data[rowId].imageSrc);
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
     if (BiomeCyberiaScope.Data[rowId].transports)

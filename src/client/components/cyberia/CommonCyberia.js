@@ -1553,6 +1553,7 @@ const CyberiaServer = {
   instances: [
     { server: 'interior32', worldType: 'width' },
     { server: 'seed-city', worldType: 'width' },
+    { server: 'zax-shop-odisea-department', worldType: 'width' },
     // { server: 'lol' },
     // { server: 'dim32' },
     // { server: 'hhworld' },

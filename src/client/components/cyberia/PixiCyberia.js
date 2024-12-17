@@ -123,37 +123,6 @@ const PixiCyberia = {
       this.AppTopLevelColor.stage.addChild(componentInstance);
     })();
 
-    Responsive.Event['pixi-container'] = () => {
-      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
-        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
-      });
-      const ResponsiveData = Responsive.getResponsiveData();
-      s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
-      s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
-      s('.pixi-canvas-top-level').style.width = `${ResponsiveDataAmplitude.minValue}px`;
-      s('.pixi-canvas-top-level').style.height = `${ResponsiveDataAmplitude.minValue}px`;
-
-      for (const limitType of [
-        'top',
-        'bottom',
-        'left',
-        'right',
-        'top-left',
-        'top-right',
-        'bottom-left',
-        'bottom-right',
-      ]) {
-        s(`.adjacent-map-limit-${limitType}`).style.height = `${ResponsiveDataAmplitude.minValue}px`;
-        s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
-      }
-
-      s('.main-user-container').style.width = `${ResponsiveData.minValue}px`;
-      s('.main-user-container').style.height = `${ResponsiveData.minValue}px`;
-      // const ResponsiveData = Responsive.getResponsiveData();
-      // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
-      // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
-    };
-
     // biome containers
     this.Data.biome['seed-city'] = new Container();
     this.Data.biome['seed-city'].width = this.MetaData.dim;
@@ -196,61 +165,6 @@ const PixiCyberia = {
       this.Data[channelType].container.y = 0;
       this.App.stage.addChild(this.Data[channelType].container);
     }
-
-    {
-      const id = 'main';
-      const type = 'user';
-      const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
-      const timeInterval = CyberiaParams.EVENT_CALLBACK_TIME * 4;
-
-      let lastX;
-      let lastY;
-
-      setInterval(() => {
-        if (!this.Data[type] || !this.Data[type][id] || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id])
-          return;
-        if (lastX === undefined || lastY === undefined) {
-          lastX = newInstance(ElementsCyberia.Data[type][id].x);
-          lastY = newInstance(ElementsCyberia.Data[type][id].y);
-          return;
-        }
-        const x1 = lastX;
-        const y1 = lastY;
-        const x2 = ElementsCyberia.Data[type][id].x;
-        const y2 = ElementsCyberia.Data[type][id].y;
-        const frameFactor = 10;
-        let frames = round10(getDistance(x1, y1, x2, y2) * frameFactor);
-        if (frames === 0) frames = 1;
-        lastX = newInstance(ElementsCyberia.Data[type][id].x);
-        lastY = newInstance(ElementsCyberia.Data[type][id].y);
-        if (ElementsCyberia.LocalDataScope[type][id].isChangeFace) {
-          delete ElementsCyberia.LocalDataScope[type][id].isChangeFace;
-          const x = lastX;
-          const y = lastY;
-          this.Data[type][id].x = dim * x;
-          this.Data[type][id].y = dim * y;
-          return;
-        }
-        const path = insertTransitionCoordinates(
-          [
-            [x1, y1],
-            [x2, y2],
-          ],
-          frames,
-        );
-        for (const time of range(0, frames - 1)) {
-          setTimeout(() => {
-            if (this.Data[type] && this.Data[type][id]) {
-              const [x, y] = path[time];
-              this.Data[type][id].x = dim * x;
-              this.Data[type][id].y = dim * y;
-              // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
-              // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
-            }
-          }, time * (timeInterval / frames));
-        }
-      }, timeInterval);
-    }
     append(
       'body',
       html`<div class="hide">
@@ -260,6 +174,94 @@ const PixiCyberia = {
         })}
       </div>`,
     );
+  },
+  mainUserMovementControllerInterval: null,
+  setMainUserMovementController: function () {
+    const id = 'main';
+    const type = 'user';
+    const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    const timeInterval = CyberiaParams.EVENT_CALLBACK_TIME * 4;
+
+    let lastX;
+    let lastY;
+    if (this.mainUserMovementControllerInterval) clearInterval(this.mainUserMovementControllerInterval);
+    this.mainUserMovementControllerInterval = setInterval(() => {
+      if (!this.Data[type] || !this.Data[type][id] || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id])
+        return;
+      if (lastX === undefined || lastY === undefined) {
+        lastX = newInstance(ElementsCyberia.Data[type][id].x);
+        lastY = newInstance(ElementsCyberia.Data[type][id].y);
+        return;
+      }
+      const x1 = lastX;
+      const y1 = lastY;
+      const x2 = ElementsCyberia.Data[type][id].x;
+      const y2 = ElementsCyberia.Data[type][id].y;
+      const frameFactor = 10;
+      let frames = round10(getDistance(x1, y1, x2, y2) * frameFactor);
+      if (frames === 0) frames = 1;
+      lastX = newInstance(ElementsCyberia.Data[type][id].x);
+      lastY = newInstance(ElementsCyberia.Data[type][id].y);
+      if (ElementsCyberia.LocalDataScope[type][id].isChangeFace) {
+        delete ElementsCyberia.LocalDataScope[type][id].isChangeFace;
+        const x = lastX;
+        const y = lastY;
+        this.Data[type][id].x = dim * x;
+        this.Data[type][id].y = dim * y;
+        return;
+      }
+      const path = insertTransitionCoordinates(
+        [
+          [x1, y1],
+          [x2, y2],
+        ],
+        frames,
+      );
+      for (const time of range(0, frames - 1)) {
+        setTimeout(() => {
+          if (this.Data[type] && this.Data[type][id]) {
+            const [x, y] = path[time];
+            this.Data[type][id].x = dim * x;
+            this.Data[type][id].y = dim * y;
+            // this.Data[type][id].x = dim * ElementsCyberia.Data[type][id].x;
+            // this.Data[type][id].y = dim * ElementsCyberia.Data[type][id].y;
+          }
+        }, time * (timeInterval / frames));
+      }
+    }, timeInterval);
+  },
+  setResponsivePixiContainerEvent: function () {
+    Responsive.Event['pixi-container'] = () => {
+      const ResponsiveDataAmplitude = Responsive.getResponsiveDataAmplitude({
+        dimAmplitude: MatrixCyberia.Data.dimAmplitude,
+      });
+      const ResponsiveData = Responsive.getResponsiveData();
+      s('.pixi-canvas').style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas-top-level').style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      s('.pixi-canvas-top-level').style.height = `${ResponsiveDataAmplitude.minValue}px`;
+
+      for (const limitType of [
+        'top',
+        'bottom',
+        'left',
+        'right',
+        'top-left',
+        'top-right',
+        'bottom-left',
+        'bottom-right',
+      ]) {
+        s(`.adjacent-map-limit-${limitType}`).style.height = `${ResponsiveDataAmplitude.minValue}px`;
+        s(`.adjacent-map-limit-${limitType}`).style.width = `${ResponsiveDataAmplitude.minValue}px`;
+      }
+
+      s('.main-user-container').style.width = `${ResponsiveData.minValue}px`;
+      s('.main-user-container').style.height = `${ResponsiveData.minValue}px`;
+      // const ResponsiveData = Responsive.getResponsiveData();
+      // s('.pixi-container').style.height = `${ResponsiveData.height}px`;
+      // s('.pixi-container').style.width = `${ResponsiveData.width}px`;
+    };
+    setTimeout(Responsive.Event['pixi-container']);
   },
   currentBiomeCyberiaContainer: String,
   clearBiomeCyberiaContainers: function () {

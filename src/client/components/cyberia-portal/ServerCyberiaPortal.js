@@ -2,7 +2,7 @@ import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { darkTheme } from '../core/Css.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
+import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { CyberiaServer } from '../cyberia/CommonCyberia.js';
 import { MainUserCyberia } from '../cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from '../cyberia/SocketIoCyberia.js';
@@ -120,6 +120,7 @@ const ServerCyberiaPortal = {
   },
   internalChangeServer: async (options = { server: '' }) => {
     s(`.ssr-loading-bar`).style.display = 'flow-root';
+    htmls(`.ssr-play-btn-container`, '');
     await SocketIoCyberia.changeServer(options?.server ? options : undefined);
     await MainUserCyberia.finishSetup();
   },
