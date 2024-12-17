@@ -139,6 +139,17 @@ const MenuUnderpost = {
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-github',
+            label: renderMenuLabel({
+              icon: html`<i class="fab fa-github"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('github')}</span>`,
+            }),
+            attrs: `data-id="github"`,
+            tabHref: `https://github.com/underpostnet/`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('github')),
+          })}
         </div>
       `,
       barConfig: newInstance(barConfig),
@@ -392,6 +403,10 @@ const MenuUnderpost = {
         heightTopBar,
         heightBottomBar,
       });
+    });
+
+    EventsUI.onClick(`.main-btn-github`, async () => {
+      location.href = `https://github.com/underpostnet`;
     });
   },
 };
