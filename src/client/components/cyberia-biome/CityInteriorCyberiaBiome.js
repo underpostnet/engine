@@ -10,6 +10,7 @@ const CityInteriorCyberiaBiome = {
       {
         path: 'seed-city',
         dim: 1,
+        type: 'width',
       },
     ];
 

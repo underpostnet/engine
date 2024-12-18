@@ -1549,18 +1549,6 @@ const WorldCyberiaType = {
   },
 };
 
-const CyberiaServer = {
-  instances: [
-    { server: 'interior32', worldType: 'width' },
-    { server: 'seed-city', worldType: 'width' },
-    { server: 'zax-shop-odisea-department', worldType: 'width' },
-    // { server: 'lol' },
-    // { server: 'dim32' },
-    // { server: 'hhworld' },
-    // { server: 'test' },
-  ],
-};
-
 export {
   BaseElement,
   MatrixElement,
@@ -1582,7 +1570,6 @@ export {
   SkillCyberiaType,
   QuestComponent,
   BehaviorElement,
-  CyberiaServer,
   getK,
   DisplayComponent,
   CyberiaItemsType,

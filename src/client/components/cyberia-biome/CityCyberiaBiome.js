@@ -23,6 +23,7 @@ const CityCyberiaBiome = {
       {
         path: 'interior32',
         dim: 1,
+        type: 'width',
       },
     ];
 

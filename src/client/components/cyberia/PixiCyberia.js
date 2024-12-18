@@ -803,7 +803,7 @@ const PixiCyberia = {
                     `,
                   );
                   s(`.ssr-custom-display`).style.display = null;
-                  await SocketIoCyberia.changeServer({ server: transport.path });
+                  await SocketIoCyberia.changeServer({ name: transport.path });
                   await WorldCyberiaManagement.InstanceFace({
                     type,
                     id,

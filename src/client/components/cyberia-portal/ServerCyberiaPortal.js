@@ -1,15 +1,15 @@
+import { CyberiaWorldService } from '../../services/cyberia-world/cyberia-world.service.js';
 import { AgGrid } from '../core/AgGrid.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId } from '../core/CommonJs.js';
 import { darkTheme } from '../core/Css.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
-import { CyberiaServer } from '../cyberia/CommonCyberia.js';
 import { MainUserCyberia } from '../cyberia/MainUserCyberia.js';
 import { SocketIoCyberia } from '../cyberia/SocketIoCyberia.js';
 
 const ServerCyberiaPortal = {
   Tokens: {},
-  instances: CyberiaServer.instances,
   Render: async function (options = { idModal: '', events: {} }) {
     const id = options?.idModal ? options.idModal : getId(this.Tokens, 'server-cyberia-');
     this.Tokens[id] = {
@@ -17,17 +17,25 @@ const ServerCyberiaPortal = {
     };
     if (options && options.events)
       for (const keyEvent of Object.keys(options.events)) this.Tokens[id].events[keyEvent] = options.events[keyEvent];
-
+    const gridId = `server-grid-${id}`;
+    setTimeout(async () => {
+      const resultWorldCyberias = await CyberiaWorldService.get({ id: 'all' });
+      NotificationManager.Push({
+        html: resultWorldCyberias.status,
+        status: resultWorldCyberias.status,
+      });
+      AgGrid.grids[gridId].setGridOption('rowData', resultWorldCyberias.data);
+    });
     class LoadGridServerActionsRenderer {
       eGui;
 
       async init(params) {
         this.eGui = document.createElement('div');
-        const { server, status, port } = params.data;
+        const { name, status, port } = params.data;
 
         this.eGui.innerHTML = html` ${await BtnIcon.Render({
           label: html`<i class="fas fa-play-circle"></i>`,
-          class: `btn-server-${server}-${id}`,
+          class: `btn-server-${name}-${id}`,
         })}`;
       }
 
@@ -45,13 +53,13 @@ const ServerCyberiaPortal = {
 
       async init(params) {
         this.eGui = document.createElement('div');
-        const { server, status, port } = params.data;
+        const { name, status, port } = params.data;
 
         this.eGui.innerHTML = html`<img
             class="inl server-icon"
             src="${getProxyPath()}assets/ui-icons/world-default-forest-city.png"
           />
-          ${server}`;
+          ${name}`;
 
         setTimeout(() => {});
       }
@@ -70,7 +78,7 @@ const ServerCyberiaPortal = {
 
       async init(params) {
         this.eGui = document.createElement('div');
-        const { server, status, port } = params.data;
+        const { name, status, port } = params.data;
 
         this.eGui.innerHTML = html`online <span class="server-status-circle">●</span>`;
 
@@ -85,7 +93,6 @@ const ServerCyberiaPortal = {
         return true;
       }
     }
-    const gridId = `server-grid-${id}`;
     return html` ${await AgGrid.Render({
       id: gridId,
       darkTheme,
@@ -99,9 +106,9 @@ const ServerCyberiaPortal = {
           filter: true,
           autoHeight: true,
         },
-        rowData: this.instances,
+        // rowData: [],
         columnDefs: [
-          { field: 'server', flex: 2, headerName: 'server', cellRenderer: LoadGridServerNameRenderer },
+          { field: 'name', flex: 2, headerName: 'server', cellRenderer: LoadGridServerNameRenderer },
           { field: 'status', flex: 1, headerName: 'status', cellRenderer: LoadGridServerStatusRenderer },
           { headerName: 'play', width: 100, cellRenderer: LoadGridServerActionsRenderer },
         ],
@@ -111,17 +118,16 @@ const ServerCyberiaPortal = {
           console.log('selectedRows', { gridId, event, selectedRows });
           const keyEvents = Object.keys(ServerCyberiaPortal.Tokens[id].events);
           if (keyEvents.length > 0) {
-            for (const keyEvent of keyEvents)
-              await ServerCyberiaPortal.Tokens[id].events[keyEvent]({ server: selectedRows[0].server });
+            for (const keyEvent of keyEvents) await ServerCyberiaPortal.Tokens[id].events[keyEvent](selectedRows[0]);
           }
         },
       },
     })}`;
   },
-  internalChangeServer: async (options = { server: '' }) => {
+  internalChangeServer: async (options = { name: '' }) => {
     s(`.ssr-loading-bar`).style.display = 'flow-root';
     htmls(`.ssr-play-btn-container`, '');
-    await SocketIoCyberia.changeServer(options?.server ? options : undefined);
+    await SocketIoCyberia.changeServer(options?.name ? options : undefined);
     await MainUserCyberia.finishSetup();
   },
 };

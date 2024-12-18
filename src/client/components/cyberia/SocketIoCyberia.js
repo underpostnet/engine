@@ -157,8 +157,8 @@ const SocketIoCyberia = {
       };
     });
   },
-  changeServer: async function (options = { server: '' }) {
-    if (options && options.server) setPath('/' + options.server);
+  changeServer: async function (options = { name: '' }) {
+    if (options && options.name) setPath('/' + options.name);
     await MatrixCyberia.loadData();
     LoadingAnimation.barLevel.clear();
     await SocketIo.Init({ channels: ElementsCyberia.Data });

@@ -51,6 +51,8 @@ const CyberiaBiomeDto = {
         dim: 1,
         dimAmplitude: 1,
         dimPaintByCell: 1,
+        resources: 1,
+        transports: 1,
       };
     },
   },

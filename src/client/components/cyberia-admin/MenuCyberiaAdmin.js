@@ -565,9 +565,9 @@ const MenuCyberiaAdmin = {
           await ServerCyberiaAdmin.Render({
             idModal: 'modal-server',
             events: {
-              'change-server': async ({ server }) => {
+              'change-server': async ({ name }) => {
                 const { protocol, hostname } = window.location;
-                return (location.href = `${protocol}//${hostname}/${server}`);
+                return (location.href = `${protocol}//${hostname}/${name}`);
               },
             },
           }),

@@ -151,9 +151,9 @@ const MenuCyberiaPortal = {
         return await ServerCyberiaPortal.Render({
           idModal: 'modal-server-body',
           events: {
-            'change-server-body': async ({ server }) => {
+            'change-server-body': async ({ name }) => {
               const { protocol, hostname } = window.location;
-              return (location.href = `${protocol}//${hostname}/${server}`);
+              return (location.href = `${protocol}//${hostname}/${name}`);
             },
           },
         });
@@ -373,9 +373,9 @@ const MenuCyberiaPortal = {
           await ServerCyberiaPortal.Render({
             idModal: 'modal-server',
             events: {
-              'change-server': async ({ server }) => {
+              'change-server': async ({ name }) => {
                 const { protocol, hostname } = window.location;
-                return (location.href = `${protocol}//${hostname}/${server}`);
+                return (location.href = `${protocol}//${hostname}/${name}`);
               },
             },
           }),

@@ -11,6 +11,7 @@ const SpaceCyberiaBiome = {
       {
         path: 'seed-city',
         dim: 1,
+        type: 'width',
       },
     ];
 

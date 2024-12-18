@@ -1,7 +1,7 @@
 import { JSONmatrix, newInstance, random, randomHexColor, range, round10 } from '../core/CommonJs.js';
 import { Css, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { DropDown } from '../core/DropDown.js';
-import { CyberiaServer, WorldCyberiaType } from '../cyberia/CommonCyberia.js';
+import { WorldCyberiaType } from '../cyberia/CommonCyberia.js';
 import { Application, BaseTexture, Container, Sprite, Texture } from 'pixi.js';
 import { copyData, downloadFile, getProxyPath, htmls, s } from '../core/VanillaJs.js';
 import { Validator } from '../core/Validator.js';
@@ -49,8 +49,7 @@ const getCurrentTransportData = (id, transportsTargets) => {
   if (!transportDataScope[id]) transportDataScope[id] = { currentIndexPathTransport: 0, currentIndexPathFace: 0 };
 
   const target = transportsTargets[transportDataScope[id].currentIndexPathTransport];
-  const faces =
-    WorldCyberiaType[CyberiaServer.instances.find((instance) => instance.server === target.path).worldType].worldFaces;
+  const faces = WorldCyberiaType[target.type].worldFaces;
   const face = faces[transportDataScope[id].currentIndexPathFace];
   transportDataScope[id].currentIndexPathFace++;
   if (transportDataScope[id].currentIndexPathFace >= faces.length) {
@@ -160,6 +159,28 @@ const BiomeCyberiaEngine = {
       `;
     }
 
+    BiomeCyberiaEngine.transportsJsonEditorContent = {
+      json: [
+        {
+          path: 'world-name',
+          x: 0,
+          y: 0,
+          face: 1,
+          dim: 1,
+        },
+      ],
+    };
+
+    BiomeCyberiaEngine.resourcesJsonEditorContent = {
+      json: [
+        {
+          id: '',
+          x: 0,
+          y: 0,
+        },
+      ],
+    };
+
     setTimeout(async () => {
       this.PixiCyberiaBiomeCyberiaDim = 1600;
       this.PixiCyberiaBiomeCyberia = new Application({
@@ -252,8 +273,16 @@ const BiomeCyberiaEngine = {
                   dim: s(`.biome-dim`).value,
                   dimPaintByCell: s(`.biome-dimPaintByCell`).value,
                   dimAmplitude: s(`.biome-dimAmplitude`).value,
-                  resources,
-                  transports,
+                  resources:
+                    BiomeCyberiaEngine.resourcesJsonEditorContent.json &&
+                    BiomeCyberiaEngine.resourcesJsonEditorContent.json.length > 0
+                      ? BiomeCyberiaEngine.resourcesJsonEditorContent.json
+                      : resources,
+                  transports:
+                    BiomeCyberiaEngine.transportsJsonEditorContent.json &&
+                    BiomeCyberiaEngine.transportsJsonEditorContent.json.length > 0
+                      ? BiomeCyberiaEngine.transportsJsonEditorContent.json
+                      : transports,
                 },
               });
               NotificationManager.Push({
@@ -316,60 +345,36 @@ const BiomeCyberiaEngine = {
       s(`.biome-dimPaintByCell`).oninput = updateDimPaintByCell;
       s(`.biome-dimPaintByCell`).onblur = updateDimPaintByCell;
       updateDim();
-      {
-        let content = {
-          json: [
-            {
-              path: '/world-name',
-              x: 0,
-              y: 0,
-              face: 1,
-              dim: 1,
+      BiomeCyberiaEngine.instanceJsonTransportEditor = () => {
+        if (BiomeCyberiaEngine.jsonEditorTransports) BiomeCyberiaEngine.jsonEditorTransports.destroy();
+        BiomeCyberiaEngine.jsonEditorTransports = createJSONEditor({
+          target: s('.jsoneditor-biome-transports'),
+          props: {
+            content: BiomeCyberiaEngine.transportsJsonEditorContent,
+            onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+              // content is an object { json: JSONData } | { text: string }
+              console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+              BiomeCyberiaEngine.transportsJsonEditorContent.json = JSON.parse(updatedContent.text);
             },
-          ],
-        };
-        const instanceJsonEditor = () => {
-          if (this.jsonEditorTransports) this.jsonEditorTransports.destroy();
-          this.jsonEditorTransports = createJSONEditor({
-            target: s('.jsoneditor-biome-transports'),
-            props: {
-              content,
-              onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
-                // content is an object { json: JSONData } | { text: string }
-                console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
-                content.json = JSON.parse(updatedContent.text);
-              },
+          },
+        });
+      };
+      BiomeCyberiaEngine.instanceJsonTransportEditor();
+      BiomeCyberiaEngine.instanceJsonResourcesEditor = () => {
+        if (BiomeCyberiaEngine.jsonEditorResources) BiomeCyberiaEngine.jsonEditorResources.destroy();
+        BiomeCyberiaEngine.jsonEditorResources = createJSONEditor({
+          target: s('.jsoneditor-biome-resources'),
+          props: {
+            content: BiomeCyberiaEngine.resourcesJsonEditorContent,
+            onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+              // content is an object { json: JSONData } | { text: string }
+              console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+              BiomeCyberiaEngine.resourcesJsonEditorContent.json = JSON.parse(updatedContent.text);
             },
-          });
-        };
-        instanceJsonEditor();
-      }
-      {
-        let content = {
-          json: [
-            {
-              id: '',
-              x: 0,
-              y: 0,
-            },
-          ],
-        };
-        const instanceJsonEditor = () => {
-          if (this.jsonEditorResources) this.jsonEditorResources.destroy();
-          this.jsonEditorResources = createJSONEditor({
-            target: s('.jsoneditor-biome-resources'),
-            props: {
-              content,
-              onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
-                // content is an object { json: JSONData } | { text: string }
-                console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
-                content.json = JSON.parse(updatedContent.text);
-              },
-            },
-          });
-        };
-        instanceJsonEditor();
-      }
+          },
+        });
+      };
+      BiomeCyberiaEngine.instanceJsonResourcesEditor();
 
       {
         const containers = [
@@ -865,6 +870,10 @@ const BiomeCyberiaEngine = {
             }
           }
   },
+  resourcesJsonEditorContent: {},
+  instanceJsonTransportEditor: () => null,
+  transportsJsonEditorContent: {},
+  instanceJsonResourcesEditor: () => null,
 };
 
 const getBiomeId = (params) => `biome-${params.data._id}`;
@@ -907,6 +916,14 @@ class LoadBiomeCyberiaRenderer {
           s(`.biome-dimAmplitude`).value = BiomeCyberiaScope.Data[rowId].dimAmplitude;
           s(`.input-name-${params.data.biome}`).value = BiomeCyberiaScope.Data[rowId].name;
           s(`.dropdown-option-${params.data.biome}`).click();
+          BiomeCyberiaEngine.transportsJsonEditorContent = {
+            json: BiomeCyberiaScope.Keys[params.data.biome].transports,
+          };
+          BiomeCyberiaEngine.instanceJsonTransportEditor();
+          BiomeCyberiaEngine.resourcesJsonEditorContent = {
+            json: BiomeCyberiaScope.Keys[params.data.biome].resources,
+          };
+          BiomeCyberiaEngine.instanceJsonResourcesEditor();
         });
       if (s(`.btn-delete-biome-${rowId}`))
         EventsUI.onClick(`.btn-delete-biome-${rowId}`, async () => {
