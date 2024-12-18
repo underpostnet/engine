@@ -700,28 +700,7 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
 
         await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
       }
-      if (!enableLiveRebuild && process.argv.includes('zip')) {
-        logger.warn('build zip', rootClientPath);
 
-        if (!fs.existsSync('./build')) fs.mkdirSync('./build');
-
-        const zip = new AdmZip();
-        const files = await fs.readdir(rootClientPath, { recursive: true });
-
-        for (const relativePath of files) {
-          const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
-          if (!fs.lstatSync(filePath).isDirectory()) {
-            const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
-            zip.addLocalFile(filePath, folder);
-          }
-        }
-
-        const buildId = `${host}-${path.replaceAll('/', '')}`;
-
-        logger.warn('write zip', `./build/${buildId}.zip`);
-
-        zip.writeZip(`./build/${buildId}.zip`);
-      }
       if (client) {
         let PRE_CACHED_RESOURCES = [];
 
@@ -791,6 +770,28 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
             'utf8',
           );
         }
+      }
+      if (!enableLiveRebuild && process.argv.includes('zip')) {
+        logger.warn('build zip', rootClientPath);
+
+        if (!fs.existsSync('./build')) fs.mkdirSync('./build');
+
+        const zip = new AdmZip();
+        const files = await fs.readdir(rootClientPath, { recursive: true });
+
+        for (const relativePath of files) {
+          const filePath = dir.resolve(`${rootClientPath}/${relativePath}`);
+          if (!fs.lstatSync(filePath).isDirectory()) {
+            const folder = dir.relative(`public/${host}${path}`, dir.dirname(filePath));
+            zip.addLocalFile(filePath, folder);
+          }
+        }
+
+        const buildId = `${host}-${path.replaceAll('/', '')}`;
+
+        logger.warn('write zip', `./build/${buildId}.zip`);
+
+        zip.writeZip(`./build/${buildId}.zip`);
       }
     }
   }
