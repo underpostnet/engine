@@ -64,10 +64,16 @@ self.addEventListener('fetch', (event) => {
         } catch (error) {
           console.error('Error opening cache for pre cached page', event.request.url, error);
           try {
-            const cache = await caches.open(CACHE_NAME);
-            const preCachedResponse = await cache.match(`${PROXY_PATH === '/' ? '' : PROXY_PATH}/offline/index.html`);
-            if (!preCachedResponse) throw new Error(error.message);
-            return preCachedResponse;
+            if (event.request.method.toUpperCase() === 'GET') {
+              const cache = await caches.open(CACHE_NAME);
+              const preCachedResponse = await cache.match(`${PROXY_PATH === '/' ? '' : PROXY_PATH}/offline/index.html`);
+              if (!preCachedResponse) throw new Error(error.message);
+              return preCachedResponse;
+            }
+            const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
+            // response.status = 200;
+            response.headers.set('Content-Type', 'application/json');
+            return response;
           } catch (error) {
             console.error('Error opening cache for offline page', event.request.url, error);
             const response = new Response(JSON.stringify({ status: 'error', message: error.message }));
