@@ -163,8 +163,10 @@ const BiomeCyberiaEngine = {
       json: [
         {
           path: 'world-name',
-          x: 0,
-          y: 0,
+          x1: 0,
+          y1: 0,
+          x2: 0,
+          y2: 0,
           face: 1,
           dim: 1,
         },
@@ -566,15 +568,15 @@ const BiomeCyberiaEngine = {
             })}
           </div>
           ${await BtnIcon.Render({
-            class: `inl section-mp btn-custom btn-biome-open-editor hide`,
+            class: `in section-mp btn-custom btn-biome-open-editor hide`,
             label: html`<i class="fa-solid fa-vector-square"></i> Biome Render Editor`,
           })}
           ${await BtnIcon.Render({
-            class: `inl section-mp btn-custom btn-biome-resources`,
+            class: `in section-mp btn-custom btn-biome-resources`,
             label: html`${jsonIcon} Resources Config`,
           })}
           ${await BtnIcon.Render({
-            class: `inl section-mp btn-custom btn-biome-transports`,
+            class: `in section-mp btn-custom btn-biome-transports`,
             label: html`${jsonIcon} Transports Config`,
           })}
         </div>

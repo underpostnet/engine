@@ -774,8 +774,8 @@ const PixiCyberia = {
             if (
               isElementCollision({
                 A: {
-                  x: transport.x / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
-                  y: transport.y / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
+                  x: transport.x1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
+                  y: transport.y1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
                   dim: transport.dim / 2,
                 },
                 B: ElementsCyberia.Data[type][id],
@@ -1148,8 +1148,8 @@ const PixiCyberia = {
       const componentInstance = Sprite.from(new BaseTexture(`${getProxyPath()}assets/ui-icons/transport.png`));
       componentInstance.width = dim / 2;
       componentInstance.height = dim / 2;
-      componentInstance.x = dim * (transport.x / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
-      componentInstance.y = dim * (transport.y / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+      componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+      componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
       this.AppTopLevelColor.stage.addChild(componentInstance);
     }
   },

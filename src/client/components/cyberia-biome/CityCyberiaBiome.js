@@ -182,8 +182,8 @@ const CityCyberiaBiome = {
             if (!validDoor) return;
             colorCell = 'black';
             BiomeCyberiaMatrixCyberia.transports.push({
-              x: xDoor,
-              y: yDoor - dimDoor,
+              x1: xDoor,
+              y1: yDoor - dimDoor,
               ...getCurrentTransportData('city', transportsTargets),
             });
             range(0, dimDoor).map((deltaX) =>

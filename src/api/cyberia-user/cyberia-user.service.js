@@ -7,6 +7,7 @@ import {
 import dotenv from 'dotenv';
 import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 import { CyberiaWsUserManagement } from '../../ws/cyberia/management/cyberia.ws.user.js';
+import validator from 'validator';
 
 dotenv.config();
 
@@ -47,48 +48,77 @@ const CyberiaUserService = {
         const userCyberiaWorld = await CyberiaWorld.findOne({ _id: userCyberia.model.world._id.toString() });
 
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {
+          let x, y, face;
           // const redirectPort = getCyberiaPortByWorldPath(options, `/${userCyberiaWorld._doc.name}`);
-          if (req.auth.user.role !== 'admin' && req.auth.user.role !== 'moderator') {
-            const userCyberiaBiome = await CyberiaBiome.findOne({
-              _id: userCyberiaWorld.face[userCyberia.model.world.face - 1],
+          const userCyberiaBiome = await CyberiaBiome.findOne({
+            _id: userCyberiaWorld.face[userCyberia.model.world.face - 1],
+          });
+          const transportData =
+            userCyberiaBiome &&
+            userCyberiaBiome._doc.transports &&
+            userCyberiaBiome._doc.transports.find((t) => {
+              return (
+                t.path === options.cyberia.world.instance.name &&
+                isElementCollision({
+                  A: {
+                    dim: t.dim,
+                    x: t.x1 / userCyberiaBiome._doc.dimPaintByCell,
+                    y: t.y1 / userCyberiaBiome._doc.dimPaintByCell,
+                  },
+                  B: userCyberia._doc,
+                  dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
+                })
+              );
             });
-            const isRedirect =
-              !userCyberiaBiome ||
-              !userCyberiaBiome._doc.transports ||
-              !userCyberiaBiome._doc.transports.find((t) => {
-                return (
-                  t.path === options.cyberia.world.instance.name &&
-                  isElementCollision({
-                    A: {
-                      dim: t.dim / 2,
-                      x: t.x / userCyberiaBiome._doc.dimPaintByCell,
-                      y: t.y / userCyberiaBiome._doc.dimPaintByCell,
-                    },
-                    B: userCyberia._doc,
-                    dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
-                  })
-                );
-              });
-            if (isRedirect)
-              return {
-                redirect: `/${userCyberiaWorld._doc.name}`,
-              };
+          if (
+            transportData &&
+            validator.isNumeric(`${transportData._doc.x2}`) &&
+            validator.isNumeric(`${transportData._doc.y2}`)
+          ) {
+            x = transportData._doc.x2 / userCyberiaBiome._doc.dimPaintByCell;
+            y = transportData._doc.y2 / userCyberiaBiome._doc.dimPaintByCell;
+            face = transportData._doc.face;
           }
 
+          if (req.auth.user.role !== 'admin' && req.auth.user.role !== 'moderator' && !transportData)
+            return {
+              redirect: `/${userCyberiaWorld._doc.name}`,
+            };
+
+          // isNumeric(str [, options])	check if the string contains only numbers.
+          // options is an object which defaults to { no_symbols: false }
+          // it also has locale as an option. If no_symbols is true, the validator
+          // will reject numeric strings that feature a symbol (e.g. +, -, or .).
+
+          // locale determines the decimal separator and is one of ['ar', 'ar-AE',
+          //   'ar-BH', 'ar-DZ', 'ar-EG', 'ar-IQ', 'ar-JO', 'ar-KW', 'ar-LB', 'ar-LY',
+          //   'ar-MA', 'ar-QA', 'ar-QM', 'ar-SA', 'ar-SD', 'ar-SY', 'ar-TN', 'ar-YE',
+          //   'bg-BG', 'cs-CZ', 'da-DK', 'de-DE', 'en-AU', 'en-GB', 'en-HK', 'en-IN',
+          //   'en-NZ', 'en-US', 'en-ZA', 'en-ZM', 'es-ES', 'fr-FR', 'fr-CA', 'hu-HU',
+          //   'it-IT', 'nb-NO', 'nl-NL', 'nn-NO', 'pl-PL', 'pt-BR', 'pt-PT', 'ru-RU',
+          //   'sl-SI', 'sr-RS', 'sr-RS@latin', 'sv-SE', 'tr-TR', 'uk-UA'].
+
+          if (!validator.isNumeric(`${x}`) || !validator.isNumeric(`${y}`)) {
+            const randomPosition = getRandomAvailablePositionCyberia({
+              biomeData: options.cyberia.biome.instance[options.cyberia.world.instance.face[0].toString()],
+              element: userCyberia,
+            });
+            x = randomPosition.x;
+            y = randomPosition.y;
+          }
+          x = parseFloat(x);
+          y = parseFloat(y);
+
           userCyberia.model.world._id = options.cyberia.world.instance._id.toString();
-          userCyberia.model.world.face = 1;
-          const { x, y } = getRandomAvailablePositionCyberia({
-            biomeData: options.cyberia.biome.instance[options.cyberia.world.instance.face[0].toString()],
-            element: userCyberia,
-          });
+          userCyberia.model.world.face = face ? face : 1;
           userCyberia.x = x;
           userCyberia.y = y;
           const wsManagementId = `${options.host}${options.path}`;
           const socketId = CyberiaWsUserManagement.getCyberiaUserWsId(wsManagementId, userCyberia._id.toString());
           if (socketId) {
-            CyberiaWsUserManagement.element[wsManagementId][socketId].model = userCyberia._doc.model;
-            CyberiaWsUserManagement.element[wsManagementId][socketId].x = userCyberia._doc.x;
-            CyberiaWsUserManagement.element[wsManagementId][socketId].y = userCyberia._doc.y;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].model = userCyberia.model;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].x = x;
+            CyberiaWsUserManagement.element[wsManagementId][socketId].y = y;
           }
           await CyberiaUser.findByIdAndUpdate(
             userCyberia._id.toString(),

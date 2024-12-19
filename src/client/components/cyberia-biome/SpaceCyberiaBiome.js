@@ -38,8 +38,8 @@ const SpaceCyberiaBiome = {
 
         if (random(0, 700 * 4) <= 3)
           BiomeCyberiaMatrixCyberia.transports.push({
-            x,
-            y,
+            x1: x,
+            y1: y,
             ...getCurrentTransportData('space', transportsTargets),
           });
 

@@ -196,15 +196,15 @@ const CityInteriorCyberiaBiome = {
           !BiomeCyberiaMatrixCyberia.transports.find((to) => {
             for (const testY of range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1)) {
               for (const testX of range(0, BiomeCyberiaParamsScope.dimPaintByCell - 1)) {
-                if (to.x <= x && x <= to.x + testX && to.y <= y && y <= to.y + testY) return true;
+                if (to.x1 <= x && x <= to.x1 + testX && to.y1 <= y && y <= to.y1 + testY) return true;
               }
             }
             return false;
           })
         ) {
           BiomeCyberiaMatrixCyberia.transports.push({
-            x,
-            y,
+            x1: x,
+            y1: y,
             ...getCurrentTransportData('city-interior', transportsTargets),
           });
         }
