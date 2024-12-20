@@ -19,6 +19,14 @@ const logger = loggerFactory(import.meta);
 
 await logger.setUpInfo();
 
+// node bin/cyberia view-tile 673749f805105f93d69ed853
+// node bin/cyberia build-asset skin test 673749f805105f93d69ed853 67374a4405105f93d69ed859 67374a5c05105f93d69ed85f
+
+// node bin/cyberia build-asset skin gp0 6737b57da9a796baa8d4a50d 6737b59fa9a796baa8d4a513 6737b569a9a796baa8d4a507
+// node bin/cyberia build-asset skin gp1 6737b5c9a9a796baa8d4a519 6737b5f0a9a796baa8d4a51f 6737b612a9a796baa8d4a525
+
+// node bin/cyberia build-asset skin marciano 6737d7d34145a0e1dd4849ba 6737d80b4145a0e1dd4849c6 6737da8f4145a0e1dd4849ec
+
 const deployId = process.env.DEFAULT_DEPLOY_ID;
 const host = process.env.DEFAULT_DEPLOY_HOST;
 const path = process.env.DEFAULT_DEPLOY_PATH;

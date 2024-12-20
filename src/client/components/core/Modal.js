@@ -87,6 +87,8 @@ const Modal = {
       onObserverListener: {},
       onClickListener: {},
       onExpandUiListener: {},
+      onBarUiOpen: {},
+      onBarUiClose: {},
       query: options.query ? `${window.location.search}` : undefined,
     };
     if (options && 'mode' in options) {
@@ -286,6 +288,8 @@ const Modal = {
                   s(`.modal-menu`).style.top = '0px';
                   s(`.main-body-btn-container`).style.top = '50px';
                   s(`.main-body`).style.top = '0px';
+                  for (const event of Object.keys(Modal.Data[idModal].onBarUiClose))
+                    Modal.Data[idModal].onBarUiClose[event]();
                 } else {
                   s(`.main-body-btn-ui-close`).classList.remove('hide');
                   s(`.main-body-btn-ui-open`).classList.add('hide');
@@ -296,6 +300,8 @@ const Modal = {
                   s(`.slide-menu-top-bar`).classList.remove('hide');
                   s(`.bottom-bar`).classList.remove('hide');
                   s(`.main-body`).style.top = `${options.heightTopBar}px`;
+                  for (const event of Object.keys(Modal.Data[idModal].onBarUiOpen))
+                    Modal.Data[idModal].onBarUiOpen[event]();
                 }
                 Responsive.Event[`slide-menu-modal-menu`]();
                 Object.keys(this.Data).map((_idModal) => {

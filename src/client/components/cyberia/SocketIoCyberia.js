@@ -96,8 +96,10 @@ const SocketIoCyberia = {
                 ElementsCyberia.LocalDataScope[type][id].anonPersistence
               ) {
                 setTimeout(() => {
-                  ElementsCyberia.Data[type][id].x = ElementsCyberia.LocalDataScope[type][id].anonPersistence.x / 3;
-                  ElementsCyberia.Data[type][id].y = ElementsCyberia.LocalDataScope[type][id].anonPersistence.y / 3;
+                  ElementsCyberia.Data[type][id].x =
+                    ElementsCyberia.LocalDataScope[type][id].anonPersistence.x / MatrixCyberia.Data.dimPaintByCell;
+                  ElementsCyberia.Data[type][id].y =
+                    ElementsCyberia.LocalDataScope[type][id].anonPersistence.y / MatrixCyberia.Data.dimPaintByCell;
                   delete ElementsCyberia.LocalDataScope[type][id].anonPersistence;
                   PixiCyberia.updatePosition({ type, id });
                 });

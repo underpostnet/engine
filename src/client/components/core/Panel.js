@@ -372,13 +372,24 @@ const Panel = {
         } else {
           Responsive.Event[`${idPanel}-responsive`] = () => {
             if (s(`.${idPanel}-form-container`))
-              s(`.${idPanel}-form-container`).style.maxHeight = `${
-                window.innerHeight - heightTopBar - heightBottomBar
-              }px`;
+              s(`.${idPanel}-form-container`).style.maxHeight =
+                !s(`.underpost-panel-form-body`).classList.contains('hide') &&
+                !s(`.main-body-btn-ui-open`).classList.contains('hide')
+                  ? `${window.innerHeight}px`
+                  : `${window.innerHeight - heightTopBar - heightBottomBar}px`;
           };
           Responsive.Event[`${idPanel}-responsive`]();
         }
       };
+      if (options.route === 'home') {
+        Modal.Data['modal-menu'].onBarUiClose[`${idPanel}-responsive`] = () => {
+          resizeParentModal();
+        };
+
+        Modal.Data['modal-menu'].onBarUiOpen[`${idPanel}-responsive`] = () => {
+          resizeParentModal();
+        };
+      }
       setTimeout(resizeParentModal);
       if (options.route) {
         RouterEvents[options.parentIdModal] = ({ route }) => {

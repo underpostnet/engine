@@ -113,6 +113,7 @@ const PanelForm = {
         filesData: () => PanelForm.Data[idPanel].filesData,
         scrollClassContainer: options.scrollClassContainer ? options.scrollClassContainer : 'main-body',
         titleIcon,
+        route: options.route,
         formContainerClass: 'session-in-log-in',
         onClick: async function ({ payload }) {
           if (options.route) {
