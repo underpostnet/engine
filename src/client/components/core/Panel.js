@@ -373,7 +373,9 @@ const Panel = {
           Responsive.Event[`${idPanel}-responsive`] = () => {
             if (s(`.${idPanel}-form-container`))
               s(`.${idPanel}-form-container`).style.maxHeight =
-                !s(`.underpost-panel-form-body`).classList.contains('hide') &&
+                options.route === 'home' &&
+                s(`.${idPanel}-form-body`) &&
+                !s(`.${idPanel}-form-body`).classList.contains('hide') &&
                 !s(`.main-body-btn-ui-open`).classList.contains('hide')
                   ? `${window.innerHeight}px`
                   : `${window.innerHeight - heightTopBar - heightBottomBar}px`;
