@@ -88,6 +88,20 @@ const SocketIoCyberia = {
               this.disconnect({ type, id });
               break;
             case 'connection':
+              if (
+                type === 'user' &&
+                id === 'main' &&
+                ElementsCyberia.LocalDataScope[type] &&
+                ElementsCyberia.LocalDataScope[type][id] &&
+                ElementsCyberia.LocalDataScope[type][id].anonPersistence
+              ) {
+                setTimeout(() => {
+                  ElementsCyberia.Data[type][id].x = ElementsCyberia.LocalDataScope[type][id].anonPersistence.x / 3;
+                  ElementsCyberia.Data[type][id].y = ElementsCyberia.LocalDataScope[type][id].anonPersistence.y / 3;
+                  delete ElementsCyberia.LocalDataScope[type][id].anonPersistence;
+                  PixiCyberia.updatePosition({ type, id });
+                });
+              }
               ElementsCyberia.Init({ type, id, element });
               PixiCyberia.setComponents({ type, id });
               if (type === 'user' && id === 'main' && !ElementsCyberia.Data[type][id].model.user._id)

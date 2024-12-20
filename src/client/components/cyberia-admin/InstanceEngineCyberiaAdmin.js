@@ -35,8 +35,21 @@ const InstanceEngineCyberiaAdmin = {
       instanceJsonEditor();
 
       EventsUI.onClick(`.cyberia-instance-btn-upload`, async () => {
-        const { status, data } = await CyberiaInstanceService.post({ body: content.json });
-
+        let status, data;
+        if (content.json._id) {
+          const createResult = await CyberiaInstanceService.put({
+            id: content.json._id,
+            body: content.json,
+          });
+          data = createResult.data;
+          status = createResult.status;
+        } else {
+          const createResult = await CyberiaInstanceService.post({
+            body: content.json,
+          });
+          data = createResult.data;
+          status = createResult.status;
+        }
         NotificationManager.Push({
           html: Translate.Render(`${status}-upload-cyberia-instance`),
           status,

@@ -35,6 +35,8 @@ const SocketIo = {
       // forceNew: true,
       // reconnectionAttempts: 'Infinity',
       // timeout: 10000,
+      // withCredentials: true,
+      // autoConnect: 5000,
       transports: ['websocket', 'polling', 'flashsocket'],
     };
     // logger.error(`connect options:`, JSON.stringify(connectOptions, null, 4));

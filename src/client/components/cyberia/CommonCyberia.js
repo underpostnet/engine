@@ -1364,13 +1364,13 @@ const CyberiaInstancesStructs = {
             { id: 'kishins', quantity: [2, 5] },
           ],
         },
-        {
-          behavior: 'generic-people',
-          displayIds: [
-            { id: 'gp0', quantity: [1] },
-            { id: 'gp1', quantity: [1] },
-          ],
-        },
+        // {
+        //   behavior: 'generic-people',
+        //   displayIds: [
+        //     { id: 'gp0', quantity: [1] },
+        //     { id: 'gp1', quantity: [1] },
+        //   ],
+        // },
       ],
     },
     {

@@ -11,6 +11,7 @@ import {
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
+import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -94,6 +95,7 @@ const BiomeCyberiaManagement = {
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
     if (BiomeCyberiaScope.Data[rowId].transports)
       PixiCyberia.setTransportComponents(BiomeCyberiaScope.Data[rowId].transports);
+    PointAndClickMovementCyberia.callback();
   },
   isBiomeCyberiaCollision: function (options) {
     const { type, id, x, y } = options;

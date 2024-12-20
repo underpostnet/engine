@@ -28,6 +28,7 @@ import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
+import { Auth } from '../core/Auth.js';
 
 // https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
@@ -803,6 +804,13 @@ const PixiCyberia = {
                     `,
                   );
                   s(`.ssr-custom-display`).style.display = null;
+                  if (
+                    !Auth.getToken() &&
+                    validator.isNumeric(`${transport.x2}`) &&
+                    validator.isNumeric(`${transport.y2}`)
+                  ) {
+                    ElementsCyberia.LocalDataScope[type][id].anonPersistence = { x: transport.x2, y: transport.y2 };
+                  }
                   await SocketIoCyberia.changeServer({ name: transport.path });
                   await WorldCyberiaManagement.InstanceFace({
                     type,
