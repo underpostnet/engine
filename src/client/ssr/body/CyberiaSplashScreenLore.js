@@ -169,33 +169,33 @@ const LoreScreen = async () => {
 
 const storage = {
   // 'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
-  lore0: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore0.jpeg')
-    .toString('base64')}`,
-  lore1: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore1.jpeg')
-    .toString('base64')}`,
-  lore2: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore2.jpeg')
-    .toString('base64')}`,
-  lore3: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore3.jpeg')
-    .toString('base64')}`,
-  lore4: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore4.jpeg')
-    .toString('base64')}`,
-  lore5: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore5.jpeg')
-    .toString('base64')}`,
-  lore6: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore6.jpeg')
-    .toString('base64')}`,
-  lore7: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore7.jpeg')
-    .toString('base64')}`,
-  lore8: `data:image/jpeg;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/lore/lore8.jpeg')
-    .toString('base64')}`,
+  // lore0: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore0.jpeg')
+  //   .toString('base64')}`,
+  // lore1: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore1.jpeg')
+  //   .toString('base64')}`,
+  // lore2: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore2.jpeg')
+  //   .toString('base64')}`,
+  // lore3: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore3.jpeg')
+  //   .toString('base64')}`,
+  // lore4: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore4.jpeg')
+  //   .toString('base64')}`,
+  // lore5: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore5.jpeg')
+  //   .toString('base64')}`,
+  // lore6: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore6.jpeg')
+  //   .toString('base64')}`,
+  // lore7: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore7.jpeg')
+  //   .toString('base64')}`,
+  // lore8: `data:image/jpeg;base64,${fs
+  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore8.jpeg')
+  //   .toString('base64')}`,
   ['arrow-left']: `data:image/png;base64,${fs
     .readFileSync('./src/client/public/cyberia/assets/ui-icons/arrow-left.png')
     .toString('base64')}`,
@@ -337,7 +337,7 @@ SrrComponent = ({ host, path }) => html`
       ${framesLore()
           .map(
             (i) => `.ssr-background-image-lore-${i} {
-        background-image: url('${storage[`lore${i}`]}');
+        background-image: url('${path === '/' ? '' : path}/assets/lore/lore${i}.jpeg');
       }`,
           )
           .join('')}
