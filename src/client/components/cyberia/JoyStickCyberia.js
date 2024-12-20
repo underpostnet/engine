@@ -36,7 +36,11 @@ const JoyStickCyberia = {
               break;
           }
         });
-        if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })) return;
+        if (
+          PixiCyberia.transportBlock ||
+          BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })
+        )
+          return;
         ElementsCyberia.Data.user.main.x = x;
         ElementsCyberia.Data.user.main.y = y;
         PixiCyberia.updatePosition({ type: 'user', id: 'main' });

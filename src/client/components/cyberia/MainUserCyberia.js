@@ -66,7 +66,7 @@ const MainUserCyberia = {
 
     Keyboard.Event[idEvent] = {
       ArrowLeft: () => {
-        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
+        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet || PixiCyberia.transportBlock) return;
         const x = ElementsCyberia.Data[type][id].x - ElementsCyberia.Data[type][id].vel;
         const y = ElementsCyberia.Data[type][id].y;
         if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
@@ -74,7 +74,7 @@ const MainUserCyberia = {
         PixiCyberia.updatePosition({ type, id });
       },
       ArrowRight: () => {
-        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
+        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet || PixiCyberia.transportBlock) return;
         const x = ElementsCyberia.Data[type][id].x + ElementsCyberia.Data[type][id].vel;
         const y = ElementsCyberia.Data[type][id].y;
         if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
@@ -82,7 +82,7 @@ const MainUserCyberia = {
         PixiCyberia.updatePosition({ type, id });
       },
       ArrowUp: () => {
-        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
+        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet || PixiCyberia.transportBlock) return;
         const x = ElementsCyberia.Data[type][id].x;
         const y = ElementsCyberia.Data[type][id].y - ElementsCyberia.Data[type][id].vel;
         if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;
@@ -90,7 +90,7 @@ const MainUserCyberia = {
         PixiCyberia.updatePosition({ type, id });
       },
       ArrowDown: () => {
-        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet) return;
+        if (JoyStick.Tokens['cyberia-joystick'].joyDataSet || PixiCyberia.transportBlock) return;
         const x = ElementsCyberia.Data[type][id].x;
         const y = ElementsCyberia.Data[type][id].y + ElementsCyberia.Data[type][id].vel;
         if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x, y })) return;

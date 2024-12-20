@@ -744,6 +744,7 @@ const PixiCyberia = {
     const { type, id } = options;
 
     if (type === 'user' && id === 'main') {
+      if (PixiCyberia.transportBlock) return;
       if (ElementsCyberia.Data[type][id].x <= 0) {
         console.warn('limit map position', 'left');
         WorldCyberiaManagement.ChangeFace({ type, id, direction: 'left' });
@@ -765,7 +766,6 @@ const PixiCyberia = {
     if (type === 'user' && id === 'main') {
       (async () => {
         if (
-          !PixiCyberia.transportBlock &&
           BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId] &&
           BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports
         ) {
@@ -818,13 +818,15 @@ const PixiCyberia = {
                     newFace: transport.face,
                     initDirection: 'bottom',
                   });
-                  PixiCyberia.transportBlock = false;
                   LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore', () => {
                     s(`.ssr-loading-bar`).style.display = 'none';
                     s(`.ssr-custom-display`).style.display = 'none';
                     s(`.ssr-lore-display`).style.display = null;
                     s(`.ssr-play-btn-container`).style.display = null;
                     LoadingAnimation.barLevel.clear();
+                    setTimeout(() => {
+                      PixiCyberia.transportBlock = false;
+                    }, 1000);
                   });
                 }
               }, 1000);
