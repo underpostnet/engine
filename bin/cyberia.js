@@ -34,7 +34,12 @@ const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
 
-await DataBaseProvider.load({ apis: ['cyberia-tile'], host, path, db });
+await DataBaseProvider.load({
+  apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
+  host,
+  path,
+  db,
+});
 
 /** @type {import('../src/api/cyberia-tile/cyberia-tile.model.js').CyberiaTileModel} */
 const CyberiaTile = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaTile;
@@ -254,6 +259,37 @@ switch (process.argv[2]) {
         .replace(/```json/g, '')
         .replace(/```/g, ''),
     );
+
+    break;
+  }
+
+  case 'export-universe': {
+    const universeId = process.argv[3];
+    const collections = ['cyberiabiomes', 'cyberiaworlds', 'cyberiainstances'];
+    const outputPath = `./engine-private/cyberia-universes/${universeId}`;
+    // --host <hostname> --port <port> --username <username> --password <password>
+    if (!fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
+
+    for (const collection of collections) {
+      shellExec(`mongodump --db ${db.name} --collection ${collection} -o ${outputPath}`);
+    }
+
+    break;
+  }
+
+  case 'import-universe': {
+    const universeId = process.argv[3];
+    const collections = ['cyberiabiomes', 'cyberiaworlds', 'cyberiainstances'];
+    const outputPath = `./engine-private/cyberia-universes/${universeId}`;
+    // --host <hostname> --port <port> --username <username> --password <password>
+    if (!fs.existsSync(outputPath)) {
+      logger.error('Could not find output path', outputPath);
+      break;
+    }
+    shellExec(`mongorestore -d ${db.name} ${outputPath}/${db.name} --drop --preserveUUID`);
+    break;
+    for (const collection of collections) {
+    }
 
     break;
   }
