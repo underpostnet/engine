@@ -72,6 +72,10 @@ class LoadWorldCyberiaRenderer {
           WorldCyberia.adjacentFaceJsonEditor.content.json = params.data.adjacentFace;
           WorldCyberia.adjacentFaceJsonEditor.newInstance();
         }
+        if (params.data.quests) {
+          WorldCyberia.questsJsonEditor.content.json = params.data.quests;
+          WorldCyberia.questsJsonEditor.newInstance();
+        }
         // await WorldCyberia.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
@@ -398,6 +402,10 @@ const WorldCyberia = {
         body.adjacentFace = WorldCyberia.adjacentFaceJsonEditor.content.json.type
           ? WorldCyberia.adjacentFaceJsonEditor.content.json
           : undefined;
+        body.quests =
+          WorldCyberia.questsJsonEditor.content.json.length > 0
+            ? WorldCyberia.questsJsonEditor.content.json
+            : undefined;
         delete body._id;
         const { data, status } = await CyberiaWorldService.post({ body });
         NotificationManager.Push({
@@ -418,6 +426,7 @@ const WorldCyberia = {
         delete this.WorldCyberiaScope.instance;
       });
       WorldCyberia.adjacentFaceJsonEditor.newInstance();
+      WorldCyberia.questsJsonEditor.newInstance();
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: 'world' })}
@@ -495,6 +504,10 @@ const WorldCyberia = {
           <div class="in section-mp">
             <div class="in sub-title-modal">{ } Adjacent Face Config</div>
             <div class="in"><div class="jsoneditor-adjacentFace"></div></div>
+          </div>
+          <div class="in section-mp">
+            <div class="in sub-title-modal">{ } Quests Config</div>
+            <div class="in"><div class="jsoneditor-quests"></div></div>
           </div>
         </div>
       </div>
@@ -591,6 +604,30 @@ const WorldCyberia = {
             // content is an object { json: JSONData } | { text: string }
             console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
             WorldCyberia.adjacentFaceJsonEditor.content.json = JSON.parse(updatedContent.text);
+          },
+        },
+      });
+    },
+  },
+  questsJsonEditor: {
+    content: {
+      json: [
+        {
+          id: '',
+        },
+      ],
+    },
+    instance: null,
+    newInstance: () => {
+      if (WorldCyberia.questsJsonEditor.instance) WorldCyberia.questsJsonEditor.instance.destroy();
+      WorldCyberia.questsJsonEditor.instance = createJSONEditor({
+        target: s('.jsoneditor-quests'),
+        props: {
+          content: WorldCyberia.questsJsonEditor.content,
+          onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+            // content is an object { json: JSONData } | { text: string }
+            console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+            WorldCyberia.questsJsonEditor.content.json = JSON.parse(updatedContent.text);
           },
         },
       });
