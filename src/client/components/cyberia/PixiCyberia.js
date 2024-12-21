@@ -81,10 +81,18 @@ const PixiCyberia = {
             <div class="abs adjacent-map-background adjacent-map-background-right"></div>
           </div>
 
-          <div class="abs adjacent-map adjacent-map-limit-top-left"></div>
-          <div class="abs adjacent-map adjacent-map-limit-top-right"></div>
-          <div class="abs adjacent-map adjacent-map-limit-bottom-left"></div>
-          <div class="abs adjacent-map adjacent-map-limit-bottom-right"></div>
+          <div class="abs adjacent-map adjacent-map-limit-top-left">
+            <div class="abs adjacent-map-background adjacent-map-background-top-left"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-top-right">
+            <div class="abs adjacent-map-background adjacent-map-background-top-right"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom-left">
+            <div class="abs adjacent-map-background adjacent-map-background-bottom-left"></div>
+          </div>
+          <div class="abs adjacent-map adjacent-map-limit-bottom-right">
+            <div class="abs adjacent-map-background adjacent-map-background-bottom-right"></div>
+          </div>
         </div>
         <div class="fix pixi-container-top-level" style="opacity: 1"></div>
       `,

@@ -64,9 +64,10 @@ class LoadWorldCyberiaRenderer {
         s(`.world-name`).value = WorldCyberia.WorldCyberiaScope.name;
         if (s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`))
           s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`).click();
-
-        WorldCyberia.adjacentFaceJsonEditor.content.json = params.data.adjacentFace;
-        WorldCyberia.adjacentFaceJsonEditor.newInstance();
+        if (params.data.adjacentFace) {
+          WorldCyberia.adjacentFaceJsonEditor.content.json = params.data.adjacentFace;
+          WorldCyberia.adjacentFaceJsonEditor.newInstance();
+        }
         // await WorldCyberia.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
@@ -248,17 +249,39 @@ const WorldCyberiaManagement = {
 
     this.LoadAdjacentFaces(type, id);
     InteractionPanelCyberia.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
+    const adjacentWorldData = WorldCyberiaManagement.Data[type][id].model.world.adjacentFace;
+    if (adjacentWorldData && adjacentWorldData.type && adjacentWorldData.type !== 'default') {
+      switch (adjacentWorldData.type) {
+        case 'color':
+          {
+            s(`.adjacent-map-background-top`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-bottom`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-left`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-right`).style.background = adjacentWorldData.value;
 
-    if (this.Data[type][id].model.world.type === 'height') {
-      s(`.adjacent-map-background-top`).style.background = `rgba(0,0,0,0.5)`;
-      s(`.adjacent-map-background-bottom`).style.background = `rgba(0,0,0,0.5)`;
-      s(`.adjacent-map-background-left`).style.background = null;
-      s(`.adjacent-map-background-right`).style.background = null;
-    } else if (this.Data[type][id].model.world.type === 'width') {
-      s(`.adjacent-map-background-top`).style.background = null;
-      s(`.adjacent-map-background-bottom`).style.background = null;
-      s(`.adjacent-map-background-left`).style.background = `rgba(0,0,0,0.5)`;
-      s(`.adjacent-map-background-right`).style.background = `rgba(0,0,0,0.5)`;
+            s(`.adjacent-map-background-top-left`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-top-right`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-bottom-left`).style.background = adjacentWorldData.value;
+            s(`.adjacent-map-background-bottom-right`).style.background = adjacentWorldData.value;
+          }
+          break;
+      }
+    } else {
+      s(`.adjacent-map-background-top-left`).style.background = null;
+      s(`.adjacent-map-background-top-right`).style.background = null;
+      s(`.adjacent-map-background-bottom-left`).style.background = null;
+      s(`.adjacent-map-background-bottom-right`).style.background = null;
+      if (this.Data[type][id].model.world.type === 'height') {
+        s(`.adjacent-map-background-top`).style.background = `rgba(0,0,0,0.5)`;
+        s(`.adjacent-map-background-bottom`).style.background = `rgba(0,0,0,0.5)`;
+        s(`.adjacent-map-background-left`).style.background = null;
+        s(`.adjacent-map-background-right`).style.background = null;
+      } else if (this.Data[type][id].model.world.type === 'width') {
+        s(`.adjacent-map-background-top`).style.background = null;
+        s(`.adjacent-map-background-bottom`).style.background = null;
+        s(`.adjacent-map-background-left`).style.background = `rgba(0,0,0,0.5)`;
+        s(`.adjacent-map-background-right`).style.background = `rgba(0,0,0,0.5)`;
+      }
     }
   },
 };
@@ -368,11 +391,9 @@ const WorldCyberia = {
           return null;
         });
         body.name = s(`.world-name`).value;
-        body.adjacentFace =
-          WorldCyberia.adjacentFaceJsonEditor.content.json.type &&
-          WorldCyberia.adjacentFaceJsonEditor.content.json.type !== 'default'
-            ? WorldCyberia.adjacentFaceJsonEditor.content.json
-            : undefined;
+        body.adjacentFace = WorldCyberia.adjacentFaceJsonEditor.content.json.type
+          ? WorldCyberia.adjacentFaceJsonEditor.content.json
+          : undefined;
         delete body._id;
         const { data, status } = await CyberiaWorldService.post({ body });
         NotificationManager.Push({
