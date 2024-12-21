@@ -834,7 +834,7 @@ const PixiCyberia = {
                     LoadingAnimation.barLevel.clear();
                     setTimeout(() => {
                       PixiCyberia.transportBlock = false;
-                    }, 1000);
+                    }, 400);
                   });
                 }
               }, 1000);
