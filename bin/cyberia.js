@@ -5,7 +5,7 @@ import { newInstance, range, s4 } from '../src/client/components/core/CommonJs.j
 import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
-import { PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
+import { LoreCyberia, PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { buildImgFromTile } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import ejs from 'easy-json-schema';
@@ -230,12 +230,25 @@ switch (process.argv[2]) {
         threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
       },
     ];
+    const metanarrative = JSON.stringify(LoreCyberia);
+    const context = `The mission is called 'Odyssey Seller', and it is about the player 
+    finding the seller looking for a resource extraction item, since Odyssey Outfitting 
+    of the Atlas Confederation (it is a retailer of items for the extraction of planetary 
+    natural resources of all kinds, such as axes, pickaxes, ropes, safety equipment, etc.) 
+    then he is offered a product from the catalogue, all  he has to do is buy one or more 
+    items to complete the mission.`;
 
+    const prompt = `Please, for cyberpunk mmorpg quest, whose meta narrative is about: ${metanarrative}, 
+    generate json example instance , over this quest context: '${context}'. 
+    Please respond in the following JSON format example:
+        ${JSON.stringify(QuestComponent.Data['floki-bone'](), null, 4)}
+    `;
+    logger.info('config', {
+      prompt,
+    });
     const parts = [
       {
-        text: `Generate json example instance for cyberpunk mmorpg quest. Please respond in the following JSON format:
-        ${JSON.stringify(ejs(QuestComponent.Data['floki-bone']()), null, 4)}
-    `,
+        text: prompt,
       },
       // {
       //   inlineData: {
@@ -247,18 +260,22 @@ switch (process.argv[2]) {
 
     const result = await model.generateContent({
       contents: [{ role: 'user', parts }],
-      generationConfig,
+      // generationConfig,
       safetySettings,
     });
 
     const response = result.response;
 
-    console.log(
-      response
+    try {
+      const json = response
         .text()
         .replace(/```json/g, '')
-        .replace(/```/g, ''),
-    );
+        .replace(/```/g, '');
+      console.log(json);
+      fs.writeFileSync('./out.json', json, 'utf8');
+    } catch (error) {
+      logger.error(error);
+    }
 
     break;
   }
