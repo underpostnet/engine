@@ -23,6 +23,7 @@ import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
+import { createJSONEditor } from 'vanilla-jsoneditor';
 
 const logger = loggerFactory(import.meta);
 
@@ -64,6 +65,8 @@ class LoadWorldCyberiaRenderer {
         if (s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`))
           s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`).click();
 
+        WorldCyberia.adjacentFaceJsonEditor.content.json = params.data.adjacentFace;
+        WorldCyberia.adjacentFaceJsonEditor.newInstance();
         // await WorldCyberia.renderAllFace();
       });
       EventsUI.onClick(`.btn-delete-world-${rowId}`, async () => {
@@ -365,6 +368,11 @@ const WorldCyberia = {
           return null;
         });
         body.name = s(`.world-name`).value;
+        body.adjacentFace =
+          WorldCyberia.adjacentFaceJsonEditor.content.json.type &&
+          WorldCyberia.adjacentFaceJsonEditor.content.json.type !== 'default'
+            ? WorldCyberia.adjacentFaceJsonEditor.content.json
+            : undefined;
         delete body._id;
         const { data, status } = await CyberiaWorldService.post({ body });
         NotificationManager.Push({
@@ -380,6 +388,7 @@ const WorldCyberia = {
         for (const index of range(0, 5)) s(`.dropdown-option-face-${index}-reset`).click();
         s(`.btn-generate-world`).click();
       });
+      WorldCyberia.adjacentFaceJsonEditor.newInstance();
     });
     return html`
       ${dynamicCol({ containerSelector: options.idModal, id: 'world' })}
@@ -449,6 +458,10 @@ const WorldCyberia = {
                 },
               })}
             </div>
+          </div>
+          <div class="in section-mp">
+            <div class="in sub-title-modal">{ } Adjacent Face Config</div>
+            <div class="in"><div class="jsoneditor-adjacentFace"></div></div>
           </div>
         </div>
       </div>
@@ -525,6 +538,30 @@ const WorldCyberia = {
   },
   renderAllFace: async function () {
     for (const index of range(0, 5)) await this.renderFace(index);
+  },
+  adjacentFaceJsonEditor: {
+    content: {
+      json: {
+        type: 'default',
+        value: '',
+        fileId: '',
+      },
+    },
+    instance: null,
+    newInstance: () => {
+      if (WorldCyberia.adjacentFaceJsonEditor.instance) WorldCyberia.adjacentFaceJsonEditor.instance.destroy();
+      WorldCyberia.adjacentFaceJsonEditor.instance = createJSONEditor({
+        target: s('.jsoneditor-adjacentFace'),
+        props: {
+          content: WorldCyberia.adjacentFaceJsonEditor.content,
+          onChange: (updatedContent, previousContent, { contentErrors, patchResult }) => {
+            // content is an object { json: JSONData } | { text: string }
+            console.log('onChange', { updatedContent, previousContent, contentErrors, patchResult });
+            WorldCyberia.adjacentFaceJsonEditor.content.json = JSON.parse(updatedContent.text);
+          },
+        },
+      });
+    },
   },
 };
 

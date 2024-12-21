@@ -35,6 +35,14 @@ const CyberiaWorldSchema = new Schema({
   },
   type: { type: String, enum: ['width', 'height'], default: 'width' },
   name: { type: String },
+  adjacentFace: {
+    type: { type: String },
+    value: { type: String },
+    fileId: {
+      type: Schema.Types.ObjectId,
+      ref: 'File',
+    },
+  },
 });
 
 const CyberiaWorldModel = model('CyberiaWorld', CyberiaWorldSchema);
