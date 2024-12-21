@@ -269,10 +269,11 @@ switch (process.argv[2]) {
     const outputPath = `./engine-private/cyberia-universes/${universeId}`;
     // --host <hostname> --port <port> --username <username> --password <password>
     if (!fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
-
+    if (!fs.existsSync(outputPath + '-files')) fs.mkdirSync(outputPath + '-files', { recursive: true });
     for (const collection of collections) {
       shellExec(`mongodump --db ${db.name} --collection ${collection} -o ${outputPath}`);
     }
+    shellExec(`mongodump --db ${db.name} --collection ${'files'} -o ${outputPath}-files`);
 
     break;
   }
@@ -287,6 +288,7 @@ switch (process.argv[2]) {
       break;
     }
     shellExec(`mongorestore -d ${db.name} ${outputPath}/${db.name} --drop --preserveUUID`);
+    shellExec(`mongorestore -d ${db.name} ${outputPath}-files/${db.name}`);
     break;
     for (const collection of collections) {
     }
