@@ -785,7 +785,7 @@ const PixiCyberia = {
                 A: {
                   x: transport.x1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
                   y: transport.y1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
-                  dim: transport.dim / 2,
+                  dim: transport.dim,
                 },
                 B: ElementsCyberia.Data[type][id],
                 dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,

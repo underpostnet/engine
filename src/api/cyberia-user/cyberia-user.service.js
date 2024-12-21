@@ -39,13 +39,37 @@ const CyberiaUserService = {
 
     switch (req.params.id) {
       case 'auth': {
-        const userCyberia = await CyberiaUser.findOne({
+        let userCyberia = await CyberiaUser.findOne({
           'model.user._id': req.auth.user._id,
         });
 
         if (!userCyberia) throw new Error('cyberia User not found');
 
-        const userCyberiaWorld = await CyberiaWorld.findOne({ _id: userCyberia.model.world._id.toString() });
+        let userCyberiaWorld = await CyberiaWorld.findOne({ _id: userCyberia.model.world._id.toString() });
+
+        if (!userCyberiaWorld) {
+          userCyberiaWorld = options.cyberia.world.instance;
+          const randomPosition = getRandomAvailablePositionCyberia({
+            biomeData: options.cyberia.biome.instance[options.cyberia.world.instance.face[0].toString()],
+            element: userCyberia,
+          });
+          const x = randomPosition.x;
+          const y = randomPosition.y;
+          userCyberia.model.world._id = options.cyberia.world.instance._id.toString();
+          userCyberia.model.world.face = 1;
+          userCyberia.x = x;
+          userCyberia.y = y;
+          await CyberiaUser.findByIdAndUpdate(
+            userCyberia._id.toString(),
+            { x, y, model: userCyberia.model },
+            {
+              runValidators: true,
+            },
+          );
+          userCyberia = await CyberiaUser.findOne({
+            'model.user._id': req.auth.user._id,
+          });
+        }
 
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {
           let x, y, face;

@@ -60,6 +60,10 @@ class LoadWorldCyberiaRenderer {
           if (WorldCyberia.WorldCyberiaScope.face[index])
             s(`.dropdown-option-face-${index}-${WorldCyberia.WorldCyberiaScope.face[index]._id}`).click();
           else s(`.dropdown-option-face-${index}-reset`).click();
+
+          if (WorldCyberia.WorldCyberiaScope.instance && WorldCyberia.WorldCyberiaScope.instance[index])
+            s(`.dropdown-option-instance-${index}-${WorldCyberia.WorldCyberiaScope.instance[index]._id}`).click();
+          else s(`.dropdown-option-instance-${index}-reset`).click();
         }
         s(`.world-name`).value = WorldCyberia.WorldCyberiaScope.name;
         if (s(`.dropdown-option-${WorldCyberia.WorldCyberiaScope.type}`))
@@ -409,6 +413,10 @@ const WorldCyberia = {
         for (const index of range(0, 5)) s(`.dropdown-option-face-${index}-reset`).click();
         s(`.btn-generate-world`).click();
       });
+      EventsUI.onClick(`.btn-reset-instances`, async () => {
+        for (const index of range(0, 5)) s(`.dropdown-option-instance-${index}-reset`).click();
+        delete this.WorldCyberiaScope.instance;
+      });
       WorldCyberia.adjacentFaceJsonEditor.newInstance();
     });
     return html`
@@ -449,6 +457,10 @@ const WorldCyberia = {
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-reset-world`,
                 label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render(`clear`)}`,
+              })}
+              ${await BtnIcon.Render({
+                class: `inl section-mp btn-custom btn-reset-instances`,
+                label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render(`clear`)} instances`,
               })}
               ${await BtnIcon.Render({
                 class: `inl section-mp btn-custom btn-upload-world`,
