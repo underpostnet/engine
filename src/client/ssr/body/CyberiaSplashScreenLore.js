@@ -167,49 +167,6 @@ const LoreScreen = async () => {
   };
 };
 
-const storage = {
-  // 'space-background': fs.readFileSync('./src/client/public/cyberia/space-background', 'utf8'),
-  // lore0: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore0.jpeg')
-  //   .toString('base64')}`,
-  // lore1: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore1.jpeg')
-  //   .toString('base64')}`,
-  // lore2: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore2.jpeg')
-  //   .toString('base64')}`,
-  // lore3: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore3.jpeg')
-  //   .toString('base64')}`,
-  // lore4: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore4.jpeg')
-  //   .toString('base64')}`,
-  // lore5: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore5.jpeg')
-  //   .toString('base64')}`,
-  // lore6: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore6.jpeg')
-  //   .toString('base64')}`,
-  // lore7: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore7.jpeg')
-  //   .toString('base64')}`,
-  // lore8: `data:image/jpeg;base64,${fs
-  //   .readFileSync('./src/client/public/cyberia/assets/lore/lore8.jpeg')
-  //   .toString('base64')}`,
-  ['arrow-left']: `data:image/png;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/ui-icons/arrow-left.png')
-    .toString('base64')}`,
-  ['arrow-right']: `data:image/png;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/ui-icons/arrow-right.png')
-    .toString('base64')}`,
-  ['fullscreen']: `data:image/png;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/ui-icons/fullscreen.png')
-    .toString('base64')}`,
-  ['cyberia-logo']: `data:image/png;base64,${fs
-    .readFileSync('./src/client/public/cyberia/assets/util/cyberia-retro-banner-alpha.png')
-    .toString('base64')}`,
-};
-
 SrrComponent = ({ host, path }) => html`
   <div class="ssr-background-cyberia-lore" style="opacity: 1">
     <style>
@@ -428,10 +385,10 @@ SrrComponent = ({ host, path }) => html`
         <div class="ssr-lore-info-read"><span class="ssr-lore-info-read-current">1</span> / ${framesLore().length}</div>
         <!--style="display:none"-->
         <div class="ssr-lore-arrow-container ssr-lore-arrow-left">
-          <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-left']}" />
+          <img class="ssr-lore-arrow ssr-center" src="${path === '/' ? '' : path}/assets/ui-icons/arrow-left.png" />
         </div>
         <div class="ssr-lore-arrow-container ssr-lore-arrow-right">
-          <img class="ssr-lore-arrow ssr-center" src="${storage['arrow-right']}" />
+          <img class="ssr-lore-arrow ssr-center" src="${path === '/' ? '' : path}/assets/ui-icons/arrow-right.png" />
         </div>
       </div>
     </div>
@@ -447,8 +404,8 @@ SrrComponent = ({ host, path }) => html`
         ...${`${host}${path}`.slice(-30)}
       </div>
     </div>
-    <img src="${storage['cyberia-logo']}" class="ssr-image-logo-cyberia" />
-    <img src="${storage['fullscreen']}" class="ssr-fullscreen-img" />
+    <img src="${path === '/' ? '' : path}/assets/util/cyberia-retro-banner-alpha.png" class="ssr-image-logo-cyberia" />
+    <img src="${path === '/' ? '' : path}/assets/ui-icons/fullscreen.png" class="ssr-fullscreen-img" />
     <script>
       {
         const range = ${range};
