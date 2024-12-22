@@ -201,6 +201,7 @@ const QuestManagementCyberia = {
                         if (handBlock[typeTarget][elementTargetId]) return;
 
                         if (enabledShopPanel) {
+                          // TODO: cyberia-shop-bag
                           await this.RenderModal({ questData, interactionPanelQuestId });
                           return;
                         }
@@ -633,6 +634,7 @@ const QuestManagementCyberia = {
   },
   onChangeCurrentQuestAvailable: {},
   triggerQuestAvailableRender: async function ({ type, id }) {
+    // TODO: cyberia-shop-bag - enabled this ui feature
     logger.warn('triggerQuestAvailableRender');
     // re render available quests
     const quests = WorldCyberiaManagement.Data[type][id].model.world.quests;
@@ -655,6 +657,9 @@ const QuestManagementCyberia = {
       ...QuestComponent.Data[questData.id](),
       ...questData,
     };
+
+    // TODO: cyberia-shop-bag
+    // await BagCyberia.Render({ id: 'cyberia-shop-bag', idModal: 'modal-bag' })
 
     const idPanel = this.getIdPanelByQuestId({ questData });
     if (idPanel) await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
