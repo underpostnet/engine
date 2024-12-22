@@ -388,7 +388,11 @@ const MainUserCyberia = {
         `,
       );
       s(`.main-play-btn`).onclick = () => {
-        LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore');
+        LoadingAnimation.removeSplashScreen('.ssr-background-cyberia-lore', () => {
+          SocketIo.Emit('user', {
+            status: 'transportBlock',
+          });
+        });
       };
     }, 2000);
   },

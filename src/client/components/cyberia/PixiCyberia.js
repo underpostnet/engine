@@ -834,7 +834,10 @@ const PixiCyberia = {
                     LoadingAnimation.barLevel.clear();
                     setTimeout(() => {
                       PixiCyberia.transportBlock = false;
-                    }, 400);
+                      SocketIo.Emit(type, {
+                        status: 'transportBlock',
+                      });
+                    }, 1000);
                   });
                 }
               }, 1000);

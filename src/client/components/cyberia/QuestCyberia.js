@@ -119,6 +119,8 @@ const QuestManagementCyberia = {
               : undefined;
 
             const enabledQuestPanel = currentItemData && currentItemData.current < currentItemData.quantity;
+            const enabledShopPanel =
+              questData && QuestComponent.componentsScope[displayId].questKeyContext === 'seller';
 
             if (
               ((questData &&
@@ -197,6 +199,11 @@ const QuestManagementCyberia = {
                     if (s(`.action-panel-hand-${idPanel}`))
                       s(`.action-panel-hand-${idPanel}`).onclick = async () => {
                         if (handBlock[typeTarget][elementTargetId]) return;
+
+                        if (enabledShopPanel) {
+                          await this.RenderModal({ questData, interactionPanelQuestId });
+                          return;
+                        }
                         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
                           (q) => q.id === questData.id,
                         );
@@ -486,7 +493,7 @@ const QuestManagementCyberia = {
                       };
                   }
 
-                  const actionButtonEnabled = questData && enabledQuestPanel;
+                  const actionButtonEnabled = questData && (enabledQuestPanel || enabledShopPanel);
 
                   {
                     const idKeyboardEvent = 'quest-key-event-hand' + idPanel;
@@ -563,7 +570,9 @@ const QuestManagementCyberia = {
                                 `
                               : html`<img
                                   class="abs center action-panel-img-icon"
-                                  src="${getProxyPath()}assets/ui-icons/hand.png"
+                                  src="${getProxyPath()}${questData.actionIcon
+                                    ? questData.actionIcon
+                                    : 'assets/ui-icons/hand.png'}"
                                 />`}
                             <div class="abs quest-keyboard-bubble-info">A</div>`,
                         })}

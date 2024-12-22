@@ -137,6 +137,10 @@ const CyberiaWsUserController = {
           }
         }
         break;
+      case 'transportBlock': {
+        CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].transportBlock = false;
+        break;
+      }
       case 'register-cyberia-user':
         {
           /** @type {import('../../../api/cyberia-user/cyberia-user.model.js').CyberiaUserModel} */
@@ -324,6 +328,7 @@ const CyberiaWsUserController = {
 
     CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id] = {
       direction: 's',
+      transportBlock: true,
     };
     CyberiaWsEmit(channel, socket, {
       status: 'connection',

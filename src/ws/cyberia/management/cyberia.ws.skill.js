@@ -141,6 +141,8 @@ const CyberiaWsSkillManagement = {
               switch (parent.type) {
                 case 'user':
                 case 'bot':
+                  if (CyberiaWsUserManagement.localElementScope[wsManagementId][clientId].transportBlock) break;
+
                   if (
                     (parent.type === 'bot' ||
                       (parent.type === 'user' &&

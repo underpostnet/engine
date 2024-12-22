@@ -459,6 +459,7 @@ const QuestComponent = {
         maxStep: 1,
         currentStep: 0,
         displaySearchObjects: [],
+        actionIcon: 'assets/ui-icons/ok.png',
         reward: [],
         provide: {
           displayIds: [
@@ -478,12 +479,12 @@ const QuestComponent = {
           es: 'Odisea Outfitting',
         },
         shortDescription: {
-          en: 'Find the Odyssey Outfitting seller and purchase a resource extraction tool.',
-          es: 'Encuentra al vendedor de Odyssey Outfitting y compra una herramienta de extracción de recursos.',
+          en: 'Odisea Outfitting',
+          es: 'Odisea Outfitting',
         },
         description: {
-          en: "Odyssey Outfitting, a retailer for the Atlas Confederation, needs your help.  They're looking for new customers to try out their latest resource extraction tools. Find their local seller and make a purchase.",
-          es: 'Odyssey Outfitting, un minorista de la Confederación Atlas, necesita tu ayuda. Están buscando nuevos clientes para probar sus últimas herramientas de extracción de recursos. Encuentra a su vendedor local y realiza una compra.',
+          en: 'Odyssey Outfitting, a retailer for the Atlas Confederation. Review our latest resource extraction planetary tools.',
+          es: 'Odyssey Outfitting, un minorista de la Confederación Atlas. Revisa nuestras últimas herramientas de extracción de recursos planetarios.',
         },
         descriptionBubble: true,
         successDescription: {
@@ -917,7 +918,7 @@ const QuestComponent = {
       questKeyContext: 'displaySearchObjects',
     },
     odisea: {
-      questKeyContext: 'provide',
+      questKeyContext: 'seller',
       defaultDialog: {
         es: `Hola que tal !, te interesa comprar una herramienta de extracción de recursos planetarios?`,
         en: `Hi, how are you? Are you interested in purchasing a planetary resource extraction tool?`,
