@@ -323,7 +323,7 @@ switch (process.argv[2]) {
     // /root/.cargo/bin/cargo
     // cargo install vtracer
 
-    const path = `./src/client/public/cyberia/assets/lore`;
+    const path = `./src/client/public/cyberia/assets/lore`; // lore
     const files = await fs.readdir(path);
     for (const file of files) {
       const fullPath = `${path}/${file}`;
@@ -331,8 +331,8 @@ switch (process.argv[2]) {
 
       const savePath = `${path}/vectorized`;
       if (!fs.existsSync(savePath)) fs.mkdirSync(savePath, { recursive: true });
-
-      const color = await getHexMatrix({ imageFilePath: fullPath, pixelate: 2 }, 100, 1);
+      const color = await getHexMatrix({ imageFilePath: fullPath, pixelate: 1 }, 170, 1); // lore
+      // const color = await getHexMatrix({ imageFilePath: fullPath, pixelate: 2 }, 100, 1);
 
       const newFile = `${file.split('.')[0]}.jpg`;
 
@@ -349,7 +349,8 @@ switch (process.argv[2]) {
 
         default:
           await buildImgFromTile({
-            cellPixelDim: 20,
+            cellPixelDim: 10, // lore
+            // cellPixelDim: 20,
             imagePath: `${savePath}/${newFile}`, // .png
             tile: { color },
             // opacityFilter: (x, y, _color) => (_color === color[0][0] ? 0 : 255),
