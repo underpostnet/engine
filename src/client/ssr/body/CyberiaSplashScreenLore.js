@@ -294,7 +294,7 @@ SrrComponent = ({ host, path }) => html`
       ${framesLore()
           .map(
             (i) => `.ssr-background-image-lore-${i} {
-        background-image: url('${path === '/' ? '' : path}/assets/lore/lore${i}.jpeg');
+        background-image: url('${path === '/' ? '' : path}/assets/lore/vectorized/lore${i}.svg');
       }`,
           )
           .join('')}

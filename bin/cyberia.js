@@ -349,7 +349,7 @@ switch (process.argv[2]) {
 
         default:
           await buildImgFromTile({
-            cellPixelDim: 10, // lore
+            cellPixelDim: 4, // lore
             // cellPixelDim: 20,
             imagePath: `${savePath}/${newFile}`, // .png
             tile: { color },
