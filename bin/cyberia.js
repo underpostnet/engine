@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
 import { LoreCyberia, PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
-import { buildImgFromTile } from '../src/api/cyberia-tile/cyberia-tile.service.js';
+import { buildImgFromTile, getHexMatrix } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import ejs from 'easy-json-schema';
 
@@ -311,6 +311,27 @@ switch (process.argv[2]) {
     }
 
     break;
+  }
+
+  case 'vector-img': {
+    const originPath = `./src/client/public/cyberia/assets/lore/lore0.jpeg`;
+
+    const color = await getHexMatrix({ imageFilePath: originPath, pixelate: 2 }, 100, 1);
+
+    await buildImgFromTile({
+      cellPixelDim: 20,
+      imagePath: `./out.jpg`, // .png
+      tile: { color },
+      // opacityFilter: (x, y, _color) => (_color === color[0][0] ? 0 : 255),
+    });
+
+    // https://github.com/visioncortex/vtracer
+    // curl https://sh.rustup.rs -sSf | sh
+    // /root/.cargo/bin/cargo
+    // cargo install vtracer
+
+    shellExec(`vtracer --input /dd/engine/out.jpg --output ./out.svg`);
+    shellExec(`vtracer --input ${originPath} --output ./out-origin.svg`);
   }
 
   default:

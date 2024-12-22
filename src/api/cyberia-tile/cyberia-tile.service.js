@@ -40,7 +40,7 @@ const hexa2Rgba = (hexCode, opacity = 1) => {
   return [r, g, b, opacity];
 };
 
-const getHexMatrix = ({ imageFilePath }) =>
+const getHexMatrixSeedCity = ({ imageFilePath }) =>
   new Promise((resolve) => {
     let hexMatrix = [];
     Jimp.read(imageFilePath)
@@ -109,20 +109,70 @@ const getHexMatrix = ({ imageFilePath }) =>
       });
   });
 
+const getHexMatrix = (
+  options = { imageFilePath: '', resizeSquare: false, pixelDimImg: 0, pixelate: 0 },
+  dim = 16,
+  dimPaintByCell = 3,
+) =>
+  new Promise((resolve) => {
+    const { imageFilePath, resizeSquare, pixelDimImg, pixelate } = options;
+    let hexMatrix = [];
+    Jimp.read(imageFilePath)
+      .then(async (image) => {
+        // console.log(imageFilePath, image);
+        // bitmap: {
+        //   width: 575,
+        //   height: 574,
+        // }
+
+        // 16 * 36 = 576
+        // 576 / (16 * 3) = 12
+        // const cellPixelDim = parseInt(image.bitmap.width / (16 * 3));
+
+        const pixelDim = pixelDimImg ? pixelDimImg : image.bitmap.height;
+        const cellPixelDim = ceil10(pixelDim / (dim * dimPaintByCell));
+
+        console.log({ pixelDim, cellPixelDim });
+        if (resizeSquare) image = image.resize(pixelDim, pixelDim);
+        if (pixelate) image = image.pixelate(pixelate);
+        // image.posterize(20);
+
+        for (const y of range(0, image.bitmap.height - 1)) {
+          let row;
+          for (const x of range(0, image.bitmap.width - 1)) {
+            if (y !== 0 && x !== 0 && x % cellPixelDim === 0 && y % cellPixelDim === 0) {
+              if (!row) row = [];
+              const rgba = Jimp.intToRGBA(image.getPixelColor(x, y));
+              // { r: 146, g: 146, b: 146, a: 255 }
+              row.push(rgba2Hexa(rgba));
+            }
+          }
+          if (row) hexMatrix.push(row);
+        }
+        // hexMatrix.push(new Array(hexMatrix[0].length).fill().map(() => `#282828`));
+
+        resolve(hexMatrix);
+      })
+      .catch((error) => {
+        logger.error(error, { message: error.message, error: error.stack });
+        resolve();
+      });
+  });
+
 const buildImgFromTile = async (
-  options = { tile: {}, imagePath: '', cellPixelDim: 20, opacityFilter: (x, y, color) => 255 },
+  options = { tile: { color: [['#ffffff']] }, imagePath: '', cellPixelDim: 20, opacityFilter: (x, y, color) => 255 },
 ) => {
   const { tile, imagePath, cellPixelDim, opacityFilter } = options;
-  let image = await sharp({
+  const sharpOptions = {
     create: {
       width: cellPixelDim * tile.color.length,
       height: cellPixelDim * tile.color.length,
       channels: 4,
       background: { r: 255, g: 255, b: 255, alpha: 1 }, // white
     },
-  })
-    .png()
-    .toBuffer();
+  };
+  console.log('sharpOptions', sharpOptions);
+  let image = await sharp(sharpOptions).png().toBuffer();
 
   fs.writeFileSync(imagePath, image);
 
@@ -166,7 +216,7 @@ const CyberiaTileService = {
 
         // logger.info('imageFilePath', { imageFilePath });
 
-        const hexMatrix = await getHexMatrix({ imageFilePath });
+        const hexMatrix = await getHexMatrixSeedCity({ imageFilePath });
 
         fs.remove(imageFilePath);
 
@@ -217,4 +267,4 @@ const CyberiaTileService = {
   },
 };
 
-export { CyberiaTileService, rgba2Hexa, hexa2Rgba, buildImgFromTile };
+export { CyberiaTileService, rgba2Hexa, hexa2Rgba, buildImgFromTile, getHexMatrix };
