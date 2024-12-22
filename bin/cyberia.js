@@ -312,26 +312,52 @@ switch (process.argv[2]) {
 
     break;
   }
-
-  case 'vector-img': {
-    const originPath = `./src/client/public/cyberia/assets/lore/lore0.jpeg`;
-
-    const color = await getHexMatrix({ imageFilePath: originPath, pixelate: 2 }, 100, 1);
-
-    await buildImgFromTile({
-      cellPixelDim: 20,
-      imagePath: `./out.jpg`, // .png
-      tile: { color },
-      // opacityFilter: (x, y, _color) => (_color === color[0][0] ? 0 : 255),
-    });
-
+  case 'vector-full': {
+    shellExec(`node bin/cyberia vector-jpg ; node bin/cyberia vector-svg`);
+    break;
+  }
+  case 'vector-svg':
+  case 'vector-jpg': {
     // https://github.com/visioncortex/vtracer
     // curl https://sh.rustup.rs -sSf | sh
     // /root/.cargo/bin/cargo
     // cargo install vtracer
 
-    shellExec(`vtracer --input /dd/engine/out.jpg --output ./out.svg`);
-    shellExec(`vtracer --input ${originPath} --output ./out-origin.svg`);
+    const path = `./src/client/public/cyberia/assets/lore`;
+    const files = await fs.readdir(path);
+    for (const file of files) {
+      const fullPath = `${path}/${file}`;
+      if (fs.statSync(fullPath).isDirectory()) continue;
+
+      const savePath = `${path}/vectorized`;
+      if (!fs.existsSync(savePath)) fs.mkdirSync(savePath, { recursive: true });
+
+      const color = await getHexMatrix({ imageFilePath: fullPath, pixelate: 2 }, 100, 1);
+
+      const newFile = `${file.split('.')[0]}.jpg`;
+
+      const newSvgFile = `${file.split('.')[0]}.svg`;
+
+      switch (process.argv[2]) {
+        case 'vector-svg':
+          shellExec(
+            `vtracer --input /dd/engine${savePath.slice(1)}/${newFile} --output /dd/engine${savePath.slice(
+              1,
+            )}/${newSvgFile}`,
+          );
+          break;
+
+        default:
+          await buildImgFromTile({
+            cellPixelDim: 20,
+            imagePath: `${savePath}/${newFile}`, // .png
+            tile: { color },
+            // opacityFilter: (x, y, _color) => (_color === color[0][0] ? 0 : 255),
+          });
+
+          break;
+      }
+    }
   }
 
   default:
