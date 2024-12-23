@@ -98,6 +98,7 @@
         "html-minifier-terser": "^7.2.0",
         "http-proxy-middleware": "^2.0.6",
         "ignore-walk": "^6.0.4",
+        "iovalkey": "^0.2.1",
         "is-admin": "^4.0.0",
         "is-ip": "^5.0.1",
         "jimp": "^0.22.12",
@@ -138,11 +139,11 @@
     },
     "devDependencies": {
         "clean-jsdoc-theme": "^4.3.0",
+        "easy-json-schema": "^0.0.2-beta",
         "hardhat": "^2.22.13",
         "mocha": "^10.4.0",
         "plantuml": "^0.0.2",
-        "swagger-autogen": "^2.23.7",
-        "easy-json-schema": "^0.0.2-beta"
+        "swagger-autogen": "^2.23.7"
     },
     "publishConfig": {
         "provenance": true,
