@@ -998,6 +998,16 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       break;
     }
 
+    case 'valkey': {
+      if (!process.argv.includes('server')) {
+        shellExec(`cd /dd && git clone https://github.com/valkey-io/valkey.git`);
+        shellExec(`cd /dd/valkey && make`);
+      }
+      shellExec(`cd /dd/valkey && ./src/valkey-server`);
+
+      break;
+    }
+
     default:
       break;
   }
