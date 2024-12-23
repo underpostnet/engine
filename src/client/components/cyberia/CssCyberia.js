@@ -369,6 +369,12 @@ const CssCyberiaDark = {
             width: 100%;
             height: 100%;
           }
+          .adjacent-map-limit-to-level-img {
+            top: 0%;
+            left: 0%;
+            width: 100%;
+            height: 100%;
+          }
           .drop-down-option-info {
             color: #ffcc00;
             font-size: 15px;

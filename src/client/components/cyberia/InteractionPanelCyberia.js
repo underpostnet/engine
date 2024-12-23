@@ -124,6 +124,7 @@ const InteractionPanelCyberia = {
               (v, i) =>
                 html` <div class="in fll map-face-slot-container map-face-slot-container-${v}">
                   <img class="abs center map-face-slot-img map-face-slot-img-${v}" />
+                  <img class="abs center map-face-slot-img map-face-slot-img-toplevel-${v}" />
                   <div class="abs center map-face-slot-dash map-face-slot-dash-${v}"></div>
                   <div class="abs center map-face-slot map-face-slot-${v}">
                     <div class="abs center map-face-symbol-text map-face-symbol-text-${v}"></div>
@@ -163,6 +164,10 @@ const InteractionPanelCyberia = {
           BiomeCyberiaScope.Data[
             `biome-${WorldCyberiaManagement.Data['user']['main'].model.world.face[indexFace - 1]}`
           ].imageSrc;
+        s(`.map-face-slot-img-toplevel-${index}`).src =
+          BiomeCyberiaScope.Data[
+            `biome-${WorldCyberiaManagement.Data['user']['main'].model.world.face[indexFace - 1]}`
+          ].imageTopLevelColorSrc;
         if (indexFace === face) s(`.map-face-slot-dash-${index}`).classList.remove('hide');
         else s(`.map-face-slot-dash-${index}`).classList.add('hide');
       }
@@ -513,6 +518,10 @@ const InteractionPanelCyberia = {
                   box-sizing: border-box;
                 }
                 .map-face-slot-img {
+                  width: 100%;
+                  height: auto;
+                }
+                .map-face-slot-img-toplevel {
                   width: 100%;
                   height: auto;
                 }

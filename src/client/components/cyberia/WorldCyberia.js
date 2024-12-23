@@ -105,14 +105,19 @@ class LoadWorldCyberiaRenderer {
 
 const WorldCyberiaManagement = {
   Data: {},
-  LoadSingleFace: function (selector, src) {
+  LoadSingleFace: function (selector, src, topLevelSrc) {
     for (const element of s(selector).children) {
       if (!element.classList.contains('adjacent-map-background')) element.style.display = 'none';
     }
     const adjacentMapDisplay = Array.from(s(selector).children).find((e) => e.src === src);
+    const adjacentTopMapDisplay = Array.from(s(selector).children).find((e) => e.src === topLevelSrc);
     adjacentMapDisplay
-      ? (adjacentMapDisplay.style.display = 'block')
-      : append(selector, html`<img class="in adjacent-map-limit-img" src="${src}" />`);
+      ? ((adjacentMapDisplay.style.display = 'block'), (adjacentTopMapDisplay.style.display = 'block'))
+      : append(
+          selector,
+          html`<img class="in adjacent-map-limit-img" src="${src}" />
+            <img class="abs adjacent-map-limit-to-level-img" src="${topLevelSrc}" />`,
+        );
   },
   LoadAdjacentFaces: function (type, id) {
     for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
@@ -125,17 +130,34 @@ const WorldCyberiaManagement = {
             ][limitType][0] - 1
           ]
         ) {
-          for (const srcType of ['imageSrc']) {
-            // 'imageTopLevelColorSrc'
-            this.LoadSingleFace(`.adjacent-map-limit-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
-            if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
-              this.LoadSingleFace(`.adjacent-map-limit-top-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
-              this.LoadSingleFace(`.adjacent-map-limit-bottom-${limitType}`, BiomeCyberiaScope.Data[biomeKey][srcType]);
-            }
-            if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
-              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-right`, BiomeCyberiaScope.Data[biomeKey][srcType]);
-              this.LoadSingleFace(`.adjacent-map-limit-${limitType}-left`, BiomeCyberiaScope.Data[biomeKey][srcType]);
-            }
+          this.LoadSingleFace(
+            `.adjacent-map-limit-${limitType}`,
+            BiomeCyberiaScope.Data[biomeKey].imageSrc,
+            BiomeCyberiaScope.Data[biomeKey].imageTopLevelColorSrc,
+          );
+          if (this.Data[type][id].model.world.type === 'height' && (limitType === 'right' || limitType === 'left')) {
+            this.LoadSingleFace(
+              `.adjacent-map-limit-top-${limitType}`,
+              BiomeCyberiaScope.Data[biomeKey].imageSrc,
+              BiomeCyberiaScope.Data[biomeKey].imageTopLevelColorSrc,
+            );
+            this.LoadSingleFace(
+              `.adjacent-map-limit-bottom-${limitType}`,
+              BiomeCyberiaScope.Data[biomeKey].imageSrc,
+              BiomeCyberiaScope.Data[biomeKey].imageTopLevelColorSrc,
+            );
+          }
+          if (this.Data[type][id].model.world.type === 'width' && (limitType === 'top' || limitType === 'bottom')) {
+            this.LoadSingleFace(
+              `.adjacent-map-limit-${limitType}-right`,
+              BiomeCyberiaScope.Data[biomeKey].imageSrc,
+              BiomeCyberiaScope.Data[biomeKey].imageTopLevelColorSrc,
+            );
+            this.LoadSingleFace(
+              `.adjacent-map-limit-${limitType}-left`,
+              BiomeCyberiaScope.Data[biomeKey].imageSrc,
+              BiomeCyberiaScope.Data[biomeKey].imageTopLevelColorSrc,
+            );
           }
         }
       }
