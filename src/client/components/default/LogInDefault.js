@@ -34,7 +34,13 @@ const LogInDefault = async function () {
       });
     } else localStorage.removeItem('jwt');
   } else {
-    // Anon
+    // Anon valkey Sign up session
+
+    const {
+      data: { user, token },
+      status,
+    } = await UserService.post({ id: 'guest' });
+    // localStorage.setItem('jwt', token);
   }
 };
 

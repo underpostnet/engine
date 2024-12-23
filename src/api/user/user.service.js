@@ -6,23 +6,15 @@ import { CoreWsEmit } from '../../ws/core/core.ws.emit.js';
 import { CoreWsMailerChannel } from '../../ws/core/channels/core.ws.mailer.js';
 import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
-import { s4 } from '../../client/components/core/CommonJs.js';
 import { FileFactory } from '../file/file.service.js';
-import fs from 'fs-extra';
-import { svg, png, png3x } from 'font-awesome-assets';
 import { UserDto } from './user.model.js';
-import Jimp from 'jimp';
+import { selectDtoFactory, valkeyClientFactory } from '../../server/valkey.js';
+import { getDefaultProfileImageId } from '../../server/client-icons.js';
+import { v4 as uuidv4 } from 'uuid';
+
+const valkey = await valkeyClientFactory();
 
 const logger = loggerFactory(import.meta);
-
-const getDefaultProfileImageId = async (File) => {
-  const faId = 'user';
-  const tmpFilePath = `./tmp/${faId}-${s4() + s4()}.svg`;
-  fs.writeFileSync(tmpFilePath, svg(faId, '#f5f5f5d1'), 'utf8');
-  const file = await new File(FileFactory.svg(fs.readFileSync(tmpFilePath), `${faId}.svg`)).save();
-  fs.removeSync(tmpFilePath);
-  return file._id;
-};
 
 const UserService = {
   post: async (req, res, options) => {
@@ -234,6 +226,24 @@ const UserService = {
             throw new Error(`invalid email or password, remaining attempts: ${5 - user.failedLoginAttempts}`);
           }
         } else throw new Error('invalid email or password');
+
+      case 'guest': {
+        const _id = uuidv4();
+        const user = {
+          _id,
+          username: `Guest${_id.slice(-5)}`,
+          email: `guest${_id.slice(-5)}@example.com`,
+          password: hashPassword(process.env.JWT_SECRET),
+          role: 'guest',
+        };
+
+        valkey.set(_id, JSON.stringify(user));
+
+        return {
+          token: hashJWT({ user: UserDto.auth.payload(user) }),
+          user: selectDtoFactory(user, UserDto.select.get()),
+        };
+      }
 
       default: {
         const validatePassword = validatePasswordMiddleware(req.body.password);
