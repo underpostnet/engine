@@ -39,8 +39,13 @@ const updateValkeyObject = async (key = '', payload = {}, valkey = valkeyClientF
   return await valkey.set(key, JSON.stringify({ ...object, ...payload }));
 };
 
-const valkeyObjectFactory = async (module = '', options = { host: '', object: {} }) => {
-  const object = options.object || { _id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+const valkeyObjectFactory = async (module = '', options = { host: 'localhost', object: {} }) => {
+  const idoDate = new Date().toISOString();
+  const { object } = options;
+  const _id = new mongoose.Types.ObjectId();
+  object._id = _id;
+  object.createdAt = idoDate;
+  object.updatedAt = idoDate;
   switch (module) {
     case 'user': {
       const role = 'guest';
