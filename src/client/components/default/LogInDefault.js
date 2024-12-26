@@ -22,6 +22,15 @@ const LogInDefault = async function () {
     if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
   };
+
+  if (!localStorage.getItem('jwt')) {
+    const {
+      data: { user, token },
+      status,
+    } = await UserService.post({ id: 'guest' });
+    localStorage.setItem('jwt', token);
+  }
+
   const token = localStorage.getItem('jwt');
   if (token) {
     Auth.setToken(token);
@@ -33,14 +42,6 @@ const LogInDefault = async function () {
         user,
       });
     } else localStorage.removeItem('jwt');
-  } else {
-    // Anon valkey Sign up session
-
-    const {
-      data: { user, token },
-      status,
-    } = await UserService.post({ id: 'guest' });
-    // localStorage.setItem('jwt', token);
   }
 };
 

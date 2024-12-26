@@ -29,8 +29,8 @@ const JoyStick = {
             opacity: 0.8;
           }
           .dynamic-joystick-container-${id}:hover .joy-img-background-${id} {
-            width: 97%;
-            height: 97%;
+            width: 50%;
+            height: 50%;
             opacity: 1;
           }
         </style>
