@@ -33,20 +33,53 @@ const setValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFact
   return await valkey.set(key, JSON.stringify(payload));
 };
 
-const valkeyObjectFactory = async (module = '', options) => {
-  let _id = new mongoose.Types.ObjectId();
+const updateValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFactory()) => {
+  const object = await getValkeyObject(key, valkey);
+  object.updatedAt = new Date().toISOString();
+  return await valkey.set(key, JSON.stringify({ ...object, ...payload }));
+};
+
+const valkeyObjectFactory = async (module = '', options = { host: '', object: {} }) => {
+  const object = options.object || { _id, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
   switch (module) {
     case 'user': {
-      _id = `guest${_id}`;
+      const role = 'guest';
+      object._id = `${role}${_id}`;
       return {
-        _id,
-        username: _id,
+        ...object,
+        username: `${role}${_id.slice(-5)}`,
         email: `${_id}@${options.host}`,
         password: hashPassword(process.env.JWT_SECRET),
-        role: 'guest',
+        role,
+        failedLoginAttempts: 0,
+        phoneNumbers: [],
+        publicKey: [],
+        profileImageId: null,
+        emailConfirmed: false,
+        recoverTimeOut: null,
+        lastLoginDate: null,
       };
     }
+    default:
+      return object;
   }
 };
 
-export { valkeyClientFactory, selectDtoFactory, getValkeyObject, setValkeyObject, valkeyObjectFactory };
+const ValkeyAPI = {
+  valkeyClientFactory,
+  selectDtoFactory,
+  getValkeyObject,
+  setValkeyObject,
+  valkeyObjectFactory,
+  updateValkeyObject,
+};
+
+export {
+  valkeyClientFactory,
+  selectDtoFactory,
+  getValkeyObject,
+  setValkeyObject,
+  valkeyObjectFactory,
+  updateValkeyObject,
+  ValkeyAPI,
+};
