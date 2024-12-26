@@ -8,11 +8,10 @@ import validator from 'validator';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { FileFactory } from '../file/file.service.js';
 import { UserDto } from './user.model.js';
-import { selectDtoFactory, valkeyClientFactory } from '../../server/valkey.js';
+import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
 import { getDefaultProfileImageId } from '../../server/client-icons.js';
-import { v4 as uuidv4 } from 'uuid';
 
-const valkey = await valkeyClientFactory();
+const valkey = await ValkeyAPI.valkeyClientFactory();
 
 const logger = loggerFactory(import.meta);
 
@@ -228,17 +227,8 @@ const UserService = {
         } else throw new Error('invalid email or password');
 
       case 'guest': {
-        const _id = uuidv4();
-        const user = {
-          _id,
-          username: `Guest${_id.slice(-5)}`,
-          email: `guest${_id.slice(-5)}@example.com`,
-          password: hashPassword(process.env.JWT_SECRET),
-          role: 'guest',
-        };
-
-        valkey.set(_id, JSON.stringify(user));
-
+        const user = await ValkeyAPI.valkeyObjectFactory('user', options);
+        await ValkeyAPI.setValkeyObject(user.email, user, valkey);
         return {
           token: hashJWT({ user: UserDto.auth.payload(user) }),
           user: selectDtoFactory(user, UserDto.select.get()),
@@ -337,13 +327,15 @@ const UserService = {
         return await User.find().select(UserDto.select.getAll());
 
       case 'auth': {
-        const user = await User.findOne({
-          _id: req.auth.user._id,
-        });
+        const user = (await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))
+          ? await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey)
+          : await User.findOne({
+              _id: req.auth.user._id,
+            });
 
         const file = await File.findOne({ _id: user.profileImageId });
 
-        if (!file) {
+        if (!file && !(await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))) {
           await User.findByIdAndUpdate(
             user._id,
             { profileImageId: await getDefaultProfileImageId(File) },
@@ -352,10 +344,11 @@ const UserService = {
             },
           );
         }
-
-        return await User.findOne({
-          _id: req.auth.user._id,
-        }).select(UserDto.select.get());
+        return (await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))
+          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey), UserDto.select.get())
+          : await User.findOne({
+              _id: req.auth.user._id,
+            }).select(UserDto.select.get());
       }
 
       default: {
