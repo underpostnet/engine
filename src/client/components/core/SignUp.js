@@ -1,8 +1,8 @@
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
-import { LogIn } from './LogIn.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
 import { Validator } from './Validator.js';
@@ -52,10 +52,7 @@ const SignUp = {
               : Translate.Render(`no-valid-register`),
           status: result.status,
         });
-        if (result.status === 'success') {
-          await this.Trigger(result.data);
-          await LogIn.Trigger(result.data);
-        }
+        if (result.status === 'success') await Auth.signUpToken(result);
       });
       s(`.btn-sign-up-i-have-account`).onclick = () => {
         s(`.main-btn-log-in`).click();

@@ -1,3 +1,4 @@
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { LogIn } from './LogIn.js';
 import { Translate } from './Translate.js';
@@ -37,9 +38,9 @@ const LogOut = {
   },
   Render: async function () {
     setTimeout(() => {
-      s('.btn-log-out').onclick = (e) => {
+      s('.btn-log-out').onclick = async (e) => {
         e.preventDefault();
-        LogOut.Trigger();
+        await Auth.sessionOut();
       };
     });
     // Translate.Render('confirm-logout')

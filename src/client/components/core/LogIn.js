@@ -1,6 +1,7 @@
 import { CoreService } from '../../services/core/core.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { EventsUI } from './EventsUI.js';
 import { Input } from './Input.js';
@@ -102,7 +103,7 @@ const LogIn = {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post({ id: 'auth', body });
-        if (result.status === 'success') this.Trigger(result.data);
+        if (result.status === 'success') await Auth.sessionIn(result);
         if (result.status === 'error' && result.message.match('attempts')) {
           htmls(`.login-attempt-warn-value`, result.message.split(':')[1]);
           s(`.login-attempt-warn-container`).classList.remove('hide');
