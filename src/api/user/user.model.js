@@ -58,7 +58,7 @@ const UserDto = {
     },
   },
   auth: {
-    payload: (user) => ({ _id: user._id.toString(), role: user.role }),
+    payload: (user) => ({ _id: user._id.toString(), role: user.role, email: user.email }),
   },
 };
 

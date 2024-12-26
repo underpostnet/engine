@@ -41,8 +41,9 @@ const updateValkeyObject = async (key = '', payload = {}, valkey = valkeyClientF
 
 const valkeyObjectFactory = async (module = '', options = { host: 'localhost', object: {} }) => {
   const idoDate = new Date().toISOString();
+  options.object = options.object || {};
   const { object } = options;
-  const _id = new mongoose.Types.ObjectId();
+  const _id = new mongoose.Types.ObjectId().toString();
   object._id = _id;
   object.createdAt = idoDate;
   object.updatedAt = idoDate;
@@ -66,7 +67,7 @@ const valkeyObjectFactory = async (module = '', options = { host: 'localhost', o
       };
     }
     default:
-      return object;
+      throw new Error(`module schema not found: ${module}`);
   }
 };
 
