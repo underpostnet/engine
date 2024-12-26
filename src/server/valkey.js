@@ -26,7 +26,12 @@ const valkeyClientFactory = async () => {
 };
 
 const getValkeyObject = async (key = '', valkey = valkeyClientFactory()) => {
-  return (await valkey.get(key)) ?? JSON.parse(await valkey.get(key));
+  const object = await valkey.get(key);
+  try {
+    return JSON.parse(object);
+  } catch (error) {
+    return object;
+  }
 };
 
 const setValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFactory()) => {
