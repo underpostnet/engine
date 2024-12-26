@@ -1002,6 +1002,7 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       if (!process.argv.includes('server')) {
         shellExec(`cd /dd && git clone https://github.com/valkey-io/valkey.git`);
         shellExec(`cd /dd/valkey && make`);
+        shellExec(`apt install valkey-tools`); // valkey-cli
       }
       shellExec(`cd /dd/valkey && ./src/valkey-server`);
 

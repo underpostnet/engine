@@ -1,4 +1,6 @@
 import Valkey from 'iovalkey';
+import mongoose from 'mongoose';
+import { hashPassword } from './auth.js';
 
 const selectDtoFactory = (payload, select) => {
   const result = {};
@@ -23,4 +25,28 @@ const valkeyClientFactory = async () => {
   return valkey;
 };
 
-export { valkeyClientFactory, selectDtoFactory };
+const getValkeyObject = async (key = '', valkey = valkeyClientFactory()) => {
+  return (await valkey.get(key)) ?? JSON.parse(await valkey.get(key));
+};
+
+const setValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFactory()) => {
+  return await valkey.set(key, JSON.stringify(payload));
+};
+
+const valkeyObjectFactory = async (module = '', options) => {
+  let _id = new mongoose.Types.ObjectId();
+  switch (module) {
+    case 'user': {
+      _id = `guest${_id}`;
+      return {
+        _id,
+        username: _id,
+        email: `${_id}@${options.host}`,
+        password: hashPassword(process.env.JWT_SECRET),
+        role: 'guest',
+      };
+    }
+  }
+};
+
+export { valkeyClientFactory, selectDtoFactory, getValkeyObject, setValkeyObject, valkeyObjectFactory };
