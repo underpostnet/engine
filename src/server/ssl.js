@@ -50,8 +50,8 @@ const buildSSL = async (host) => {
 
           fs.writeFileSync(`./engine-private/ssl/${host}/_ca_bundle.crt`, ca, 'utf8');
           fs.writeFileSync(`./engine-private/ssl/${host}/_ca_full_bundle.crt`, caFull, 'utf8');
-
-          fs.removeSync(`${sslPath}/${folderHost}`);
+          // TODO: no repeat folderHost match
+          // fs.removeSync(`${sslPath}/${folderHost}`);
           return true;
         }
       }
