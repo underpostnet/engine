@@ -1,23 +1,17 @@
-import { Auth } from '../core/Auth.js';
-import { newInstance } from '../core/CommonJs.js';
 import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
-import { getProxyPath, s } from '../core/VanillaJs.js';
-import { Webhook } from '../core/Webhook.js';
-import { BaseElement } from './CommonCyberia.js';
+import { s } from '../core/VanillaJs.js';
 import { WebhookCyberia } from './WebhookCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
-import { MainUserCyberia } from './MainUserCyberia.js';
-import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { ServerCyberiaPortal } from '../cyberia-portal/ServerCyberiaPortal.js';
 
 const LogOutCyberia = function () {
-  LogOut.Event['LogOutCyberia'] = async () => {
+  LogOut.Event['LogOutCyberia'] = async (result = { user: { _id: '' } }) => {
+    ElementsCyberia.Data.user.main.model.user = result.user;
     const type = 'user';
     const id = 'main';
 
-    localStorage.removeItem('jwt');
     s(`.main-btn-log-out`).style.display = 'none';
     s(`.main-btn-account`).style.display = 'none';
     s(`.main-btn-log-in`).style.display = null;
@@ -28,9 +22,6 @@ const LogOutCyberia = function () {
     s(`.main-btn-admin`).classList.add('hide');
 
     WebhookCyberia.unregister();
-    ElementsCyberia.Data.user.main = {};
-    Auth.deleteToken();
-
     // const oldElement = newInstance(ElementsCyberia.Data[type][id]);
     // ElementsCyberia.Data[type][id] = BaseElement()[type][id];
     // await MainUserCyberia.Update({ oldElement });

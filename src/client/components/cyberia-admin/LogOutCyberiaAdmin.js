@@ -1,14 +1,12 @@
-import { Auth } from '../core/Auth.js';
 import { LogOut } from '../core/LogOut.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { Translate } from '../core/Translate.js';
 import { s } from '../core/VanillaJs.js';
-import { Webhook } from '../core/Webhook.js';
 import { ElementsCyberiaAdmin } from './ElementsCyberiaAdmin.js';
 
 const LogOutCyberiaAdmin = async function () {
-  LogOut.Event['LogOutCyberiaAdmin'] = async () => {
-    localStorage.removeItem('jwt');
+  LogOut.Event['LogOutCyberiaAdmin'] = async (result = { user: { _id: '' } }) => {
+    ElementsCyberiaAdmin.Data.user.main.model.user = result.user;
     s(`.main-btn-log-out`).style.display = 'none';
     s(`.main-btn-account`).style.display = 'none';
     s(`.main-btn-log-in`).style.display = null;
@@ -27,8 +25,6 @@ const LogOutCyberiaAdmin = async function () {
     s(`.main-btn-cloud`).classList.add('hide');
     s(`.main-btn-server`).classList.add('hide');
     s(`.main-btn-cyberia-instance-engine`).classList.add('hide');
-    ElementsCyberiaAdmin.Data.user.main.model.user = { _id: '' };
-    Auth.deleteToken();
 
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),

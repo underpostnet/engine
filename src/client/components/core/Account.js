@@ -1,4 +1,5 @@
 import { UserService } from '../../services/user/user.service.js';
+import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
 import { newInstance, s4 } from './CommonJs.js';
 import { renderStatus, renderWave } from './Css.js';
@@ -172,8 +173,8 @@ const Account = {
         s(`.btn-account-delete-confirm`).classList.remove('hide');
         s(`.btn-account-delete`).classList.add('hide');
         if (result.status === 'success') {
-          LogOut.Trigger();
           s(`.main-btn-home`).click();
+          await Auth.sessionOut();
         }
       });
     });

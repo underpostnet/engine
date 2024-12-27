@@ -1,4 +1,3 @@
-import { UserService } from '../../services/user/user.service.js';
 import { Auth } from '../core/Auth.js';
 import { LogIn } from '../core/LogIn.js';
 import { s } from '../core/VanillaJs.js';
@@ -9,10 +8,6 @@ const LogInUnderpost = async function () {
   LogIn.Event['LogInUnderpost'] = async (options) => {
     const { token, user } = options;
 
-    if (token) {
-      localStorage.setItem('jwt', token);
-      Auth.setToken(token);
-    }
     ElementsUnderpost.Data.user.main.model.user = user;
 
     s(`.main-btn-log-in`).style.display = 'none';
@@ -24,20 +19,8 @@ const LogInUnderpost = async function () {
     if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
     PanelForm.Data['underpost-panel'].updatePanel();
   };
-  const token = localStorage.getItem('jwt');
-  if (token) {
-    Auth.setToken(token);
-    const result = await UserService.get({ id: 'auth' });
-    if (result.status === 'success' && result.data) {
-      const user = result.data;
-      await LogIn.Trigger({
-        token,
-        user,
-      });
-    } else localStorage.removeItem('jwt');
-  } else {
-    // Anon
-  }
+  const { user } = await Auth.sessionIn();
+  ElementsUnderpost.Data.user.main.model.user = user;
 };
 
 export { LogInUnderpost };

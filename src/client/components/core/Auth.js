@@ -39,6 +39,7 @@ const Auth = {
       },
     },
   ) {
+    localStorage.setItem('jwt', result.data.token);
     await SignUp.Trigger(result.data);
     await LogIn.Trigger(result.data);
   },
