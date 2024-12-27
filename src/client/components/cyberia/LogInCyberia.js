@@ -45,7 +45,6 @@ const LogInCyberia = async function () {
     }
     if (resultUserCyberia.data.redirect) {
       const redirect = `${location.protocol}//${location.hostname}${resultUserCyberia.data.redirect}`;
-      // if (location.port && localStorage.getItem('jwt')) localStorage.removeItem('jwt');
       // return (location.href = redirect);
       setPath(resultUserCyberia.data.redirect);
       return await ServerCyberiaPortal.internalChangeServer();
