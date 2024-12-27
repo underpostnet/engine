@@ -23,6 +23,7 @@ import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { Recover } from '../core/Recover.js';
 import { MapCyberia } from './MapCyberia.js';
 import { WikiCyberia } from './WikiCyberia.js';
+import { Auth } from '../core/Auth.js';
 
 const MenuCyberia = {
   Data: {},
@@ -392,8 +393,8 @@ const MenuCyberia = {
             user: ElementsCyberia.Data.user.main.model.user,
             bottomRender: async () => {
               setTimeout(() => {
-                s(`.btn-account-log-out`).onclick = () => {
-                  LogOut.Trigger();
+                s(`.btn-account-log-out`).onclick = async () => {
+                  await Auth.sessionOut();
                 };
               });
               return html` <div class="in">
