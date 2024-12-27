@@ -35,6 +35,7 @@ import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
 import { JSONweb } from '../src/server/client-formatted.js';
 import ejs from 'easy-json-schema';
+import { Xampp } from '../src/runtime/xampp/Xampp.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -282,6 +283,28 @@ try {
         }
       }
       break;
+
+    case 'xampp': {
+      const directory = 'c:/xampp/htdocs';
+      const host = 'localhost';
+      const port = 80;
+      Xampp.removeRouter();
+      Xampp.appendRouter(`  Listen ${port} 
+               <VirtualHost *:${port}>
+                DocumentRoot "${directory}"
+                ServerName ${host}:${port}
+      
+                <Directory "${directory}">
+                  Options Indexes FollowSymLinks MultiViews
+                  AllowOverride All
+                  Require all granted
+                </Directory>
+      
+              </VirtualHost>
+              `);
+      if (Xampp.enabled() && Xampp.router) Xampp.initService({ daemon: true });
+      break;
+    }
 
     case 'adminer': {
       const directory = '/dd/engine/public/adminer';
