@@ -88,11 +88,18 @@ const Validator = {
 
     return async () => {
       let errorMessage = '';
+      const errorKeys = [];
+      const successKeys = [];
       for (const validatorKey of Object.keys(validatorFunction)) {
         const result = await validatorFunction[validatorKey]();
-        if (result && result.errorMessage) errorMessage += result.errorMessage;
+        if (result && result.errorMessage) {
+          errorMessage += result.errorMessage;
+          errorKeys.push(validatorKey);
+        } else {
+          successKeys.push(validatorKey);
+        }
       }
-      return { errorMessage };
+      return { errorMessage, errorKeys, successKeys };
     };
   },
 };

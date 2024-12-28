@@ -62,12 +62,12 @@ const Account = {
         let lastUser;
         const submit = async () => {
           lastUser = newInstance(user);
-          const { errorMessage } = await validators();
-          if (errorMessage) return;
+          const { successKeys } = await validators();
+          if (successKeys.length === 0) return;
           const body = {};
           for (const inputData of formData) {
             if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
-            if ('model' in inputData) {
+            if ('model' in inputData && successKeys.includes(inputData.id)) {
               body[inputData.model] = s(`.${inputData.id}`).value;
               user[inputData.model] = s(`.${inputData.id}`).value;
             }
