@@ -1,6 +1,13 @@
 import Valkey from 'iovalkey';
 import mongoose from 'mongoose';
 import { hashPassword } from './auth.js';
+import { loggerFactory } from './logger.js';
+
+const logger = loggerFactory(import.meta);
+
+let valkeyEnabled = true;
+
+const isValkeyEnable = () => valkeyEnabled;
 
 const selectDtoFactory = (payload, select) => {
   const result = {};
@@ -11,7 +18,17 @@ const selectDtoFactory = (payload, select) => {
 };
 
 const valkeyClientFactory = async () => {
-  const valkey = new Valkey(); // Connect to 127.0.0.1:6379
+  const valkey = new Valkey({
+    retryStrategy: (attempt) => {
+      if (attempt === 1) {
+        valkey.disconnect();
+        valkeyEnabled = false;
+        logger.error('Valkey service not enabled', { valkeyEnabled });
+        return;
+      }
+      return 1000; // 1 second interval attempt
+    },
+  }); // Connect to 127.0.0.1:6379
   // new Valkey(6380); // 127.0.0.1:6380
   // new Valkey(6379, '192.168.1.1'); // 192.168.1.1:6379
   // new Valkey('/tmp/redis.sock');
@@ -25,7 +42,7 @@ const valkeyClientFactory = async () => {
   return valkey;
 };
 
-const getValkeyObject = async (key = '', valkey = valkeyClientFactory()) => {
+const getValkeyObject = async (key = '') => {
   const object = await valkey.get(key);
   try {
     return JSON.parse(object);
@@ -34,11 +51,11 @@ const getValkeyObject = async (key = '', valkey = valkeyClientFactory()) => {
   }
 };
 
-const setValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFactory()) => {
+const setValkeyObject = async (key = '', payload = {}) => {
   return await valkey.set(key, JSON.stringify(payload));
 };
 
-const updateValkeyObject = async (key = '', payload = {}, valkey = valkeyClientFactory()) => {
+const updateValkeyObject = async (key = '', payload = {}) => {
   const object = await getValkeyObject(key, valkey);
   object.updatedAt = new Date().toISOString();
   return await valkey.set(key, JSON.stringify({ ...object, ...payload }));
@@ -85,6 +102,8 @@ const ValkeyAPI = {
   updateValkeyObject,
 };
 
+const valkey = await ValkeyAPI.valkeyClientFactory();
+
 export {
   valkeyClientFactory,
   selectDtoFactory,
@@ -92,5 +111,6 @@ export {
   setValkeyObject,
   valkeyObjectFactory,
   updateValkeyObject,
+  isValkeyEnable,
   ValkeyAPI,
 };
