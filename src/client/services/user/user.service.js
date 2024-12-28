@@ -8,6 +8,14 @@ logger.info('Load service');
 
 const endpoint = 'user';
 
+const UserMock = {
+  default: {
+    username: 'guest',
+    email: `guest@${location.hostname}`,
+    role: 'guest',
+  },
+};
+
 const UserService = {
   post: (options = { id: '', body: {} }) =>
     new Promise((resolve, reject) =>
@@ -86,4 +94,4 @@ const UserService = {
     ),
 };
 
-export { UserService };
+export { UserService, UserMock };

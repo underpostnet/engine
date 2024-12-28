@@ -1,4 +1,4 @@
-import { UserService } from '../../services/user/user.service.js';
+import { UserMock, UserService } from '../../services/user/user.service.js';
 import { Account } from './Account.js';
 import { LogIn } from './LogIn.js';
 import { LogOut } from './LogOut.js';
@@ -64,6 +64,7 @@ const Auth = {
       const { status, data } = result;
       if (status === 'success') {
         localStorage.setItem('jwt', token);
+        if (!data || !data.user) data.user = UserMock.default;
         await LogIn.Trigger({ user: data.user });
         await Account.updateForm(data.user);
         return { user: data.user };
@@ -82,7 +83,8 @@ const Auth = {
     }
 
     this.setGuestToken(guestToken);
-    const { data } = await UserService.get({ id: 'auth' });
+    let { data } = await UserService.get({ id: 'auth' });
+    if (!data) data = UserMock.default;
     await Account.updateForm(data);
     return { user: data };
   },

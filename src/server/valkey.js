@@ -7,6 +7,8 @@ const logger = loggerFactory(import.meta);
 
 let valkeyEnabled = true;
 
+const disableValkeyErrorMessage = 'valkey is not enabled';
+
 const isValkeyEnable = () => valkeyEnabled;
 
 const selectDtoFactory = (payload, select) => {
@@ -43,6 +45,7 @@ const valkeyClientFactory = async () => {
 };
 
 const getValkeyObject = async (key = '') => {
+  if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const object = await valkey.get(key);
   try {
     return JSON.parse(object);
@@ -52,16 +55,19 @@ const getValkeyObject = async (key = '') => {
 };
 
 const setValkeyObject = async (key = '', payload = {}) => {
+  if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   return await valkey.set(key, JSON.stringify(payload));
 };
 
 const updateValkeyObject = async (key = '', payload = {}) => {
+  if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const object = await getValkeyObject(key, valkey);
   object.updatedAt = new Date().toISOString();
   return await valkey.set(key, JSON.stringify({ ...object, ...payload }));
 };
 
 const valkeyObjectFactory = async (module = '', options = { host: 'localhost', object: {} }) => {
+  if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const idoDate = new Date().toISOString();
   options.object = options.object || {};
   const { object } = options;
