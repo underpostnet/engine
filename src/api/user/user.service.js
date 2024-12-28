@@ -11,8 +11,6 @@ import { UserDto } from './user.model.js';
 import { selectDtoFactory, ValkeyAPI } from '../../server/valkey.js';
 import { getDefaultProfileImageId } from '../../server/client-icons.js';
 
-const valkey = await ValkeyAPI.valkeyClientFactory();
-
 const logger = loggerFactory(import.meta);
 
 const UserService = {
@@ -228,7 +226,7 @@ const UserService = {
 
       case 'guest': {
         const user = await ValkeyAPI.valkeyObjectFactory('user', options);
-        await ValkeyAPI.setValkeyObject(user.email, user, valkey);
+        await ValkeyAPI.setValkeyObject(user.email, user);
         return {
           token: hashJWT({ user: UserDto.auth.payload(user) }),
           user: selectDtoFactory(user, UserDto.select.get()),
@@ -327,15 +325,15 @@ const UserService = {
         return await User.find().select(UserDto.select.getAll());
 
       case 'auth': {
-        const user = (await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))
-          ? await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey)
+        const user = (await ValkeyAPI.getValkeyObject(req.auth.user.email))
+          ? await ValkeyAPI.getValkeyObject(req.auth.user.email)
           : await User.findOne({
               _id: req.auth.user._id,
             });
 
         const file = await File.findOne({ _id: user.profileImageId });
 
-        if (!file && !(await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))) {
+        if (!file && !(await ValkeyAPI.getValkeyObject(req.auth.user.email))) {
           await User.findByIdAndUpdate(
             user._id,
             { profileImageId: await getDefaultProfileImageId(File) },
@@ -344,8 +342,8 @@ const UserService = {
             },
           );
         }
-        return (await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey))
-          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(req.auth.user.email, valkey), UserDto.select.get())
+        return (await ValkeyAPI.getValkeyObject(req.auth.user.email))
+          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(req.auth.user.email), UserDto.select.get())
           : await User.findOne({
               _id: req.auth.user._id,
             }).select(UserDto.select.get());
