@@ -1,4 +1,5 @@
 import { UserService } from '../../services/user/user.service.js';
+import { Account } from './Account.js';
 import { LogIn } from './LogIn.js';
 import { LogOut } from './LogOut.js';
 import { SignUp } from './SignUp.js';
@@ -36,12 +37,13 @@ const Auth = {
     result = {
       data: {
         token: '',
+        user: null,
       },
     },
   ) {
     localStorage.setItem('jwt', result.data.token);
+    await Auth.sessionIn();
     await SignUp.Trigger(result.data);
-    await LogIn.Trigger(result.data);
   },
   sessionIn: async function (userServicePayload) {
     const token = userServicePayload?.data?.token ? userServicePayload.data.token : localStorage.getItem('jwt');
@@ -63,6 +65,7 @@ const Auth = {
       if (status === 'success') {
         localStorage.setItem('jwt', token);
         await LogIn.Trigger({ user: data.user });
+        await Account.updateForm(data.user);
         return { user: data.user };
       }
     }
@@ -80,6 +83,7 @@ const Auth = {
 
     this.setGuestToken(guestToken);
     const { data } = await UserService.get({ id: 'auth' });
+    await Account.updateForm(data);
     return { user: data };
   },
   sessionOut: async function () {

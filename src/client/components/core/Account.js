@@ -6,7 +6,6 @@ import { renderStatus, renderWave } from './Css.js';
 import { EventsUI } from './EventsUI.js';
 import { fileFormDataFactory, Input } from './Input.js';
 import { LogIn } from './LogIn.js';
-import { LogOut } from './LogOut.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
 import { Translate } from './Translate.js';
@@ -22,19 +21,19 @@ const Account = {
     const waveAnimationId = 'account-wave';
     const profileFileAccept = ['image/png', 'image/jpeg'];
     setTimeout(async () => {
-      if (LogIn.Scope.user.main.model.user.profileImage) {
-        append(
-          `.wave-animation-container-${waveAnimationId}`,
-          html` <div class="abs center account-profile-image-container">
-              <img
-                class="abs center account-profile-image"
-                style="opacity: 1"
-                src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"
-              />
-            </div>
-            <div class="abs center account-profile-image-loading" style="color: white"></div>`,
-        );
-      }
+      append(
+        `.wave-animation-container-${waveAnimationId}`,
+        html` <div class="abs center account-profile-image-container">
+            <img
+              class="abs center account-profile-image"
+              style="opacity: 1"
+              ${LogIn.Scope.user.main.model.user.profileImage
+                ? `src="${LogIn.Scope.user.main.model.user.profileImage.imageSrc}"`
+                : ''}
+            />
+          </div>
+          <div class="abs center account-profile-image-loading" style="color: white"></div>`,
+      );
 
       const formData = [
         {
@@ -50,133 +49,141 @@ const Account = {
           rules: [{ type: 'isStrongPassword' }],
         },
       ];
-      const validators = await Validator.instance(formData);
 
-      for (const inputData of formData) {
-        s(`.${inputData.id}`).value =
-          !user[inputData.model] && inputData.defaultValue ? inputData.defaultValue : user[inputData.model];
-      }
-      let lastUser;
-      const submit = async () => {
-        lastUser = newInstance(user);
-        const { errorMessage } = await validators();
-        if (errorMessage) return;
-        const body = {};
+      this.formData = formData;
+
+      this.instanceModalUiEvents = async ({ user }) => {
+        const validators = await Validator.instance(formData);
+
         for (const inputData of formData) {
-          if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
-          if ('model' in inputData) {
-            body[inputData.model] = s(`.${inputData.id}`).value;
-            user[inputData.model] = s(`.${inputData.id}`).value;
-          }
+          s(`.${inputData.id}`).value =
+            !user[inputData.model] && inputData.defaultValue ? inputData.defaultValue : user[inputData.model];
         }
-        const result = await UserService.put({ id: user._id, body });
-        NotificationManager.Push({
-          html:
-            result.status === 'error' && result.message
-              ? result.message
-              : Translate.Render(`${result.status}-update-user`),
-          status: result.status,
-        });
-        if (result.status === 'success') {
-          user = result.data;
-          this.triggerUpdateEvent({ user });
-          if (lastUser.emailConfirmed !== user.emailConfirmed) {
-            this.renderVerifyEmailStatus(user);
-          }
+        let lastUser;
+        const submit = async () => {
           lastUser = newInstance(user);
-        }
-      };
-      EventsUI.onClick(`.btn-account`, async (e) => {
-        e.preventDefault();
-        await submit();
-      });
-      EventsUI.onClick(`.btn-account-update-username`, async (e) => {
-        e.preventDefault();
-        await submit();
-      });
-
-      if (s(`.btn-confirm-email`))
-        EventsUI.onClick(`.btn-confirm-email`, async (e) => {
-          e.preventDefault();
-          const result = await UserService.post({
-            id: 'mailer/verify-email',
-            body: { email: s(`.account-email`).value },
-          });
+          const { errorMessage } = await validators();
+          if (errorMessage) return;
+          const body = {};
+          for (const inputData of formData) {
+            if (!s(`.${inputData.id}`).value || s(`.${inputData.id}`).value === 'undefined') continue;
+            if ('model' in inputData) {
+              body[inputData.model] = s(`.${inputData.id}`).value;
+              user[inputData.model] = s(`.${inputData.id}`).value;
+            }
+          }
+          const result = await UserService.put({ id: user._id, body });
           NotificationManager.Push({
-            html: result.status === 'error' ? result.message : Translate.Render(`email send`),
+            html:
+              result.status === 'error' && result.message
+                ? result.message
+                : Translate.Render(`${result.status}-update-user`),
             status: result.status,
           });
-        });
-      this.renderVerifyEmailStatus(user);
-
-      s(`.${waveAnimationId}`).style.cursor = 'pointer';
-      s(`.${waveAnimationId}`).onclick = async (e) => {
-        e.preventDefault();
-        s(`.account-profile-image-input`).click();
-      };
-      EventsUI.onChange(
-        `.account-profile-image-input`,
-        async (e) => {
-          e.preventDefault();
-          s(`.account-profile-image`).style.opacity = 0;
-          const formFile = fileFormDataFactory(e, profileFileAccept);
-
-          const { status, data } = await UserService.put({
-            id: `profile-image/${user._id}`,
-            body: formFile,
-            headerId: 'file',
-          });
-
-          if (status === 'success') {
-            user.profileImageId = data.profileImageId;
-            delete LogIn.Scope.user.main.model.user.profileImage;
-            await LogIn.Trigger({ user });
-            s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-          } else {
-            NotificationManager.Push({
-              html: Translate.Render('file-upload-failed'),
-              status: 'error',
-            });
+          if (result.status === 'success') {
+            user = result.data;
+            this.triggerUpdateEvent({ user });
+            if (lastUser.emailConfirmed !== user.emailConfirmed) {
+              this.renderVerifyEmailStatus(user);
+            }
+            lastUser = newInstance(user);
           }
+        };
+        EventsUI.onClick(`.btn-account`, async (e) => {
+          e.preventDefault();
+          await submit();
+        });
+        EventsUI.onClick(`.btn-account-update-username`, async (e) => {
+          e.preventDefault();
+          await submit();
+        });
 
-          s(`.account-profile-image`).style.opacity = 1;
-        },
-        { loadingContainer: `.account-profile-image-loading` },
-      );
-      s(`.btn-account-change-password`).onclick = (e) => {
-        e.preventDefault();
-        // s(`.btn-close-modal-account`).click();
-        s(`.main-btn-recover`).click();
-      };
-      s(`.btn-account-delete-confirm`).onclick = async (e) => {
-        e.preventDefault();
-        const confirmResult = await Modal.RenderConfirm({
-          html: async () => {
-            return html`
-              <div class="in section-mp" style="text-align: center">${Translate.Render('confirm-delete-account')}</div>
-            `;
+        if (s(`.btn-confirm-email`))
+          EventsUI.onClick(`.btn-confirm-email`, async (e) => {
+            e.preventDefault();
+            const result = await UserService.post({
+              id: 'mailer/verify-email',
+              body: { email: s(`.account-email`).value },
+            });
+            NotificationManager.Push({
+              html: result.status === 'error' ? result.message : Translate.Render(`email send`),
+              status: result.status,
+            });
+          });
+        this.renderVerifyEmailStatus(user);
+
+        s(`.${waveAnimationId}`).style.cursor = 'pointer';
+        s(`.${waveAnimationId}`).onclick = async (e) => {
+          e.preventDefault();
+          s(`.account-profile-image-input`).click();
+        };
+        EventsUI.onChange(
+          `.account-profile-image-input`,
+          async (e) => {
+            e.preventDefault();
+            s(`.account-profile-image`).style.opacity = 0;
+            const formFile = fileFormDataFactory(e, profileFileAccept);
+
+            const { status, data } = await UserService.put({
+              id: `profile-image/${user._id}`,
+              body: formFile,
+              headerId: 'file',
+            });
+
+            if (status === 'success') {
+              user.profileImageId = data.profileImageId;
+              delete LogIn.Scope.user.main.model.user.profileImage;
+              await LogIn.Trigger({ user });
+              s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+            } else {
+              NotificationManager.Push({
+                html: Translate.Render('file-upload-failed'),
+                status: 'error',
+              });
+            }
+
+            s(`.account-profile-image`).style.opacity = 1;
           },
-          id: 'delete-account-modal',
+          { loadingContainer: `.account-profile-image-loading` },
+        );
+        s(`.btn-account-change-password`).onclick = (e) => {
+          e.preventDefault();
+          // s(`.btn-close-modal-account`).click();
+          s(`.main-btn-recover`).click();
+        };
+        s(`.btn-account-delete-confirm`).onclick = async (e) => {
+          e.preventDefault();
+          const confirmResult = await Modal.RenderConfirm({
+            html: async () => {
+              return html`
+                <div class="in section-mp" style="text-align: center">
+                  ${Translate.Render('confirm-delete-account')}
+                </div>
+              `;
+            },
+            id: 'delete-account-modal',
+          });
+          if (confirmResult.status === 'cancelled') return;
+          s(`.btn-account-delete-confirm`).classList.add('hide');
+          s(`.btn-account-delete`).classList.remove('hide');
+          s(`.btn-account-delete`).click();
+        };
+        EventsUI.onClick(`.btn-account-delete`, async (e) => {
+          e.preventDefault();
+          const result = await UserService.delete({ id: user._id });
+          NotificationManager.Push({
+            html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
+            status: result.status,
+          });
+          s(`.btn-account-delete-confirm`).classList.remove('hide');
+          s(`.btn-account-delete`).classList.add('hide');
+          if (result.status === 'success') {
+            s(`.main-btn-home`).click();
+            await Auth.sessionOut();
+          }
         });
-        if (confirmResult.status === 'cancelled') return;
-        s(`.btn-account-delete-confirm`).classList.add('hide');
-        s(`.btn-account-delete`).classList.remove('hide');
-        s(`.btn-account-delete`).click();
       };
-      EventsUI.onClick(`.btn-account-delete`, async (e) => {
-        e.preventDefault();
-        const result = await UserService.delete({ id: user._id });
-        NotificationManager.Push({
-          html: result.status === 'error' ? result.message : Translate.Render(`success-delete-account`),
-          status: result.status,
-        });
-        s(`.btn-account-delete-confirm`).classList.remove('hide');
-        s(`.btn-account-delete`).classList.add('hide');
-        if (result.status === 'success') {
-          s(`.main-btn-home`).click();
-          await Auth.sessionOut();
-        }
-      });
+      await this.instanceModalUiEvents({ user });
     });
     return html`
       <input type="file" accept="${profileFileAccept.join(', ')}" class="account-profile-image-input hide" />
@@ -285,6 +292,16 @@ const Account = {
       );
       if (user.emailConfirmed === true) s(`.account-email`).setAttribute('disabled', '');
     }
+  },
+  instanceModalUiEvents: async (user) => null,
+  updateForm: async function (user) {
+    if (!s(`.modal-account`)) return;
+    await this.instanceModalUiEvents({ user });
+    s(`.account-profile-image`).style.opacity = 0;
+    for (const inputData of this.formData)
+      if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = user[inputData.model];
+    s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+    s(`.account-profile-image`).style.opacity = 1;
   },
 };
 
