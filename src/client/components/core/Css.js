@@ -344,7 +344,7 @@ const renderBubbleDialog = async function (
   }
   if (options.trianglePositionCss) cssTrianglePosition = options.trianglePositionCss;
   return html` <div
-    class="${options?.classSelectors ? options.classSelectors : 'inl'} bubble-dialog bubble-dialog-${id}"
+    class="${options?.classSelectors ? options.classSelectors : 'in'} bubble-dialog bubble-dialog-${id}"
     ${options.bubbleCss ? `style='${options.bubbleCss}'` : ''}
   >
     <style class="style-bubble-dialog-triangle-${id}">

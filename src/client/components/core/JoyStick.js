@@ -24,13 +24,13 @@ const JoyStick = {
             z-index: 3;
           }
           .joy-img-background-${id} {
-            width: 93%;
-            height: 93%;
+            width: 50%;
+            height: 50%;
             opacity: 0.8;
           }
           .dynamic-joystick-container-${id}:hover .joy-img-background-${id} {
-            width: 50%;
-            height: 50%;
+            width: 54%;
+            height: 54%;
             opacity: 1;
           }
         </style>

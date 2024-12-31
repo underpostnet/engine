@@ -33,8 +33,6 @@ import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
-// https://github.com/underpostnet/cyberia/blob/master/modules/main/mod_quest/quest.js
-
 const QuestManagementCyberia = {
   IntervalQuestDetector: null,
   questClosePanels: [],
