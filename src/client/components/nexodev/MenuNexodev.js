@@ -28,7 +28,7 @@ import { DefaultManagement } from '../../services/default/default.management.js'
 import { InstanceManagement } from '../../services/instance/instance.management.js';
 import { UserManagement } from '../../services/user/user.management.js';
 import { PanelForm } from '../core/PanelForm.js';
-import { RouterEvents } from '../core/Router.js';
+import { RouterEvents, setDocTitle } from '../core/Router.js';
 import { CronManagement } from '../../services/cron/cron.management.js';
 import { Scroll } from '../core/Scroll.js';
 
@@ -830,7 +830,8 @@ const MenuNexodev = {
 
     EventsUI.onClick(`.main-btn-docs`, async () => {
       setTimeout(async () => {
-        if (!location.pathname.startsWith(`${getProxyPath()}docs`)) setPath(`${getProxyPath()}docs`);
+        setPath(`${getProxyPath()}docs`);
+        setDocTitle({ ...RouterInstance, route: 'docs' });
         if (s(`.btn-icon-menu-mode-right`).classList.contains('hide')) s(`.btn-icon-menu-mode`).click();
         s(`.btn-icon-menu-back`).classList.remove('hide');
         htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-book"></i> ${Translate.Render('docs')}`);

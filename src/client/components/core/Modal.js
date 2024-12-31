@@ -1327,7 +1327,6 @@ const Modal = {
       case 'slide-menu-right':
       case 'slide-menu-left':
         const backMenuButtonEvent = async () => {
-          if (location.pathname !== getProxyPath()) setPath(getProxyPath());
           if (s(`.menu-btn-container-children`)) htmls(`.menu-btn-container-children`, '');
           // htmls(`.nav-title-display-${'modal-menu'}`, html`<i class="fas fa-home"></i> ${Translate.Render('home')}`);
           htmls(`.nav-title-display-${'modal-menu'}`, html``);
@@ -1346,8 +1345,7 @@ const Modal = {
             backMenuButtonEvent();
           }
           s(`.btn-close-modal-menu`).click();
-          if (window.location.pathname !== (getProxyPath() === '/' ? getProxyPath() : `${getProxyPath()}/`))
-            setPath(getProxyPath());
+          setPath(getProxyPath());
           setDocTitle({ ...options.RouterInstance, route: '' });
         };
         EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);

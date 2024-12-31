@@ -148,7 +148,10 @@ const pasteData = () => new Promise((resolve) => navigator.clipboard.readText().
  * history.
  * @memberof VanillaJS
  */
-const setPath = (path = '/', stateStorage = {}, title = '') => history.pushState(stateStorage, title, path);
+const setPath = (path = '/', stateStorage = {}, title = '') => {
+  if (window.location.pathname === path || window.location.pathname === `${path}/`) return;
+  return history.pushState(stateStorage, title, path);
+};
 
 /**
  * The function `getQueryParams` extracts query parameters from the current URL and returns them as an
