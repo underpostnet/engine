@@ -70,13 +70,13 @@ const Auth = {
                 },
               };
             })();
-        const { status, data } = result;
+        const { status, data, message } = result;
         if (status === 'success') {
           localStorage.setItem('jwt', token);
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
           return { user: data.user };
-        }
+        } else throw new Error(message);
       }
 
       // anon guest session
@@ -91,7 +91,8 @@ const Auth = {
       }
 
       this.setGuestToken(guestToken);
-      let { data } = await UserService.get({ id: 'auth' });
+      let { data, status, message } = await UserService.get({ id: 'auth' });
+      if (status === 'error') throw new Error(message);
       await Account.updateForm(data);
       return { user: data };
     } catch (error) {
