@@ -935,6 +935,7 @@ const maintenanceMiddleware = (req, res, port, proxyRouter) => {
 
 const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
   shellExec(`pm2 kill`);
+  shellExec(`node bin/deploy valkey-service`);
   const proxyDeployId = fs.readFileSync(`./engine-private/deploy/${deployGroupId}.proxy`, 'utf8').trim();
   shellExec(`node bin/deploy conf ${proxyDeployId} production`);
   shellExec(`node bin/deploy run ${proxyDeployId} maintenance`);

@@ -103,7 +103,13 @@ const LogIn = {
           if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
         }
         const result = await UserService.post({ id: 'auth', body });
-        if (result.status === 'success') await Auth.sessionIn(result);
+        if (result.status === 'success') {
+          await Auth.sessionIn(result);
+          setTimeout(() => {
+            if (s(`.modal-log-in`)) s(`.btn-close-modal-log-in`).click();
+            if (s(`.modal-sign-up`)) s(`.btn-close-modal-sign-up`).click();
+          });
+        }
         if (result.status === 'error' && result.message.match('attempts')) {
           htmls(`.login-attempt-warn-value`, result.message.split(':')[1]);
           s(`.login-attempt-warn-container`).classList.remove('hide');
