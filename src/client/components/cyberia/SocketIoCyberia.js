@@ -15,6 +15,7 @@ import { PixiCyberia } from './PixiCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
+import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -85,6 +86,10 @@ const SocketIoCyberia = {
               }
               break;
             case 'disconnect':
+              {
+                const idPanel = `action-panel-${type}-${id}`;
+                if (s(`.${idPanel}`)) InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+              }
               this.disconnect({ type, id });
               break;
             case 'connection':
