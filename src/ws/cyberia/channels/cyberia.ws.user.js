@@ -45,6 +45,16 @@ const CyberiaWsUserController = {
         propagate();
         break;
       case 'register-user':
+        for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
+          if (
+            socket.id !== elementId &&
+            CyberiaWsUserManagement.element[wsManagementId][elementId].model.user._id &&
+            CyberiaWsUserManagement.element[wsManagementId][elementId].model.user._id === user._id
+          ) {
+            // duplicate user
+            CyberiaWsUserChannel.client[elementId].disconnect();
+          }
+        }
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.username = user.username;
         break;

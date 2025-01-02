@@ -753,11 +753,11 @@ const PixiCyberia = {
 
     if (type === 'user' && id === 'main') {
       if (PixiCyberia.transportBlock) return;
-      if (ElementsCyberia.Data[type][id].x <= 0) {
+      if (ElementsCyberia.Data[type][id].x <= ElementsCyberia.Data[type][id].dim) {
         console.warn('limit map position', 'left');
         WorldCyberiaManagement.ChangeFace({ type, id, direction: 'left' });
       }
-      if (ElementsCyberia.Data[type][id].y <= 0) {
+      if (ElementsCyberia.Data[type][id].y <= ElementsCyberia.Data[type][id].dim) {
         console.warn('limit map position', 'top');
         WorldCyberiaManagement.ChangeFace({ type, id, direction: 'top' });
       }
@@ -780,17 +780,16 @@ const PixiCyberia = {
           const lastX = ElementsCyberia.Data[type][id].x;
           const lastY = ElementsCyberia.Data[type][id].y;
           for (const transport of BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports) {
-            const amplifyRadiosCollisionFactor = transport.dim * 2;
             if (
               isElementCollision({
                 A: {
                   x:
                     transport.x1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell -
-                    amplifyRadiosCollisionFactor / 2,
+                    CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION / 2,
                   y:
                     transport.y1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell -
-                    amplifyRadiosCollisionFactor / 2,
-                  dim: transport.dim + amplifyRadiosCollisionFactor,
+                    CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION / 2,
+                  dim: transport.dim + CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION,
                 },
                 B: ElementsCyberia.Data[type][id],
                 dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,
@@ -817,13 +816,6 @@ const PixiCyberia = {
                     `,
                   );
                   s(`.ssr-custom-display`).style.display = null;
-                  if (
-                    !Auth.getToken() &&
-                    validator.isNumeric(`${transport.x2}`) &&
-                    validator.isNumeric(`${transport.y2}`)
-                  ) {
-                    ElementsCyberia.LocalDataScope[type][id].anonPersistence = { x: transport.x2, y: transport.y2 };
-                  }
                   await SocketIoCyberia.changeServer({ name: transport.path });
                   await WorldCyberiaManagement.InstanceFace({
                     type,
@@ -844,7 +836,7 @@ const PixiCyberia = {
                       });
                     }, 1000);
                   });
-                }
+                } else PixiCyberia.transportBlock = false;
               }, 1000);
               break;
             }

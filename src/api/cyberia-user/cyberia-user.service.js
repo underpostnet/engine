@@ -1,6 +1,7 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import {
+  CyberiaParams,
   getRandomAvailablePositionCyberia,
   isElementCollision,
 } from '../../client/components/cyberia/CommonCyberia.js';
@@ -85,9 +86,11 @@ const CyberiaUserService = {
                 t.path === options.cyberia.world.instance.name &&
                 isElementCollision({
                   A: {
-                    dim: t.dim,
-                    x: t.x1 / userCyberiaBiome._doc.dimPaintByCell,
-                    y: t.y1 / userCyberiaBiome._doc.dimPaintByCell,
+                    dim: t.dim + CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION,
+                    x:
+                      t.x1 / userCyberiaBiome._doc.dimPaintByCell - CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION / 2,
+                    y:
+                      t.y1 / userCyberiaBiome._doc.dimPaintByCell - CyberiaParams.DIM_AMPLITUDE_TRANSPORT_COLLISION / 2,
                   },
                   B: userCyberia._doc,
                   dimPaintByCell: userCyberiaBiome._doc.dimPaintByCell,
@@ -108,19 +111,6 @@ const CyberiaUserService = {
             return {
               redirect: `/${userCyberiaWorld._doc.name}`,
             };
-
-          // isNumeric(str [, options])	check if the string contains only numbers.
-          // options is an object which defaults to { no_symbols: false }
-          // it also has locale as an option. If no_symbols is true, the validator
-          // will reject numeric strings that feature a symbol (e.g. +, -, or .).
-
-          // locale determines the decimal separator and is one of ['ar', 'ar-AE',
-          //   'ar-BH', 'ar-DZ', 'ar-EG', 'ar-IQ', 'ar-JO', 'ar-KW', 'ar-LB', 'ar-LY',
-          //   'ar-MA', 'ar-QA', 'ar-QM', 'ar-SA', 'ar-SD', 'ar-SY', 'ar-TN', 'ar-YE',
-          //   'bg-BG', 'cs-CZ', 'da-DK', 'de-DE', 'en-AU', 'en-GB', 'en-HK', 'en-IN',
-          //   'en-NZ', 'en-US', 'en-ZA', 'en-ZM', 'es-ES', 'fr-FR', 'fr-CA', 'hu-HU',
-          //   'it-IT', 'nb-NO', 'nl-NL', 'nn-NO', 'pl-PL', 'pt-BR', 'pt-PT', 'ru-RU',
-          //   'sl-SI', 'sr-RS', 'sr-RS@latin', 'sv-SE', 'tr-TR', 'uk-UA'].
 
           if (!validator.isNumeric(`${x}`) || !validator.isNumeric(`${y}`)) {
             const randomPosition = getRandomAvailablePositionCyberia({

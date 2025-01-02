@@ -1583,6 +1583,7 @@ const getK = (value) => {
 const CyberiaParams = {
   EVENT_CALLBACK_TIME: 45,
   MOVEMENT_TRANSITION_FACTOR: 4,
+  DIM_AMPLITUDE_TRANSPORT_COLLISION: 2,
   CYBERIA_WORLD_ID: '',
 };
 
