@@ -335,6 +335,7 @@ const PixiCyberia = {
     }
   },
   setZIndex: function ({ type, id, dim }) {
+    if (!this.Data[type][id]) return;
     this.Data[type][id].zIndex = newInstance(
       dim * ElementsCyberia.Data[type][id].y + dim * ElementsCyberia.Data[type][id].dim,
     );
