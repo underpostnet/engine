@@ -141,7 +141,7 @@ const buildIcons = async ({
     for (const file of response.files)
       fs.writeFileSync(`./src/client/public/${publicClientId}/${file.name}`, file.contents, 'utf8');
 
-    const ssrPath = `./src/client/ssr/components/head/Pwa${getCapVariableName(publicClientId)}.js`;
+    const ssrPath = `./src/client/ssr/head/Pwa${getCapVariableName(publicClientId)}.js`;
     if (!fs.existsSync(ssrPath))
       fs.writeFileSync(ssrPath, 'SrrComponent = () => html`' + response.html.join(`\n`) + '`;', 'utf8');
   } catch (error) {
