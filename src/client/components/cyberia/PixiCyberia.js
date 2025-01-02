@@ -780,12 +780,17 @@ const PixiCyberia = {
           const lastX = ElementsCyberia.Data[type][id].x;
           const lastY = ElementsCyberia.Data[type][id].y;
           for (const transport of BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports) {
+            const amplifyRadiosCollisionFactor = transport.dim * 2;
             if (
               isElementCollision({
                 A: {
-                  x: transport.x1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
-                  y: transport.y1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell,
-                  dim: transport.dim,
+                  x:
+                    transport.x1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell -
+                    amplifyRadiosCollisionFactor / 2,
+                  y:
+                    transport.y1 / BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].dimPaintByCell -
+                    amplifyRadiosCollisionFactor / 2,
+                  dim: transport.dim + amplifyRadiosCollisionFactor,
                 },
                 B: ElementsCyberia.Data[type][id],
                 dimPaintByCell: MatrixCyberia.Data.dimPaintByCell,

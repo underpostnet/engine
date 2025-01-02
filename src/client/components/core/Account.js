@@ -300,8 +300,10 @@ const Account = {
     s(`.account-profile-image`).style.opacity = 0;
     for (const inputData of this.formData)
       if (s(`.${inputData.id}`)) s(`.${inputData.id}`).value = user[inputData.model];
-    s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
-    s(`.account-profile-image`).style.opacity = 1;
+    if (LogIn.Scope.user.main.model.user.profileImage) {
+      s(`.account-profile-image`).src = LogIn.Scope.user.main.model.user.profileImage.imageSrc;
+      s(`.account-profile-image`).style.opacity = 1;
+    }
   },
 };
 
