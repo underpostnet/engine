@@ -46,8 +46,8 @@ const Auth = {
   ) {
     try {
       localStorage.setItem('jwt', result.data.token);
-      await Auth.sessionIn();
       await SignUp.Trigger(result.data);
+      await Auth.sessionIn();
     } catch (error) {
       logger.error(error);
       localStorage.removeItem('jwt');

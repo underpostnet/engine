@@ -52,7 +52,10 @@ const SignUp = {
               : Translate.Render(`no-valid-register`),
           status: result.status,
         });
-        if (result.status === 'success') await Auth.signUpToken(result);
+        if (result.status === 'success') {
+          await Auth.signUpToken(result);
+          s(`.btn-close-${options.idModal}`).click();
+        }
       });
       s(`.btn-sign-up-i-have-account`).onclick = () => {
         s(`.main-btn-log-in`).click();
