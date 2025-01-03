@@ -31,9 +31,9 @@ const RoutesBymyelectrics = () => {
     },
     '/docs': { title: 'docs', render: () => s(`.main-btn-docs`).click(), translateTitle: true },
     '/recover': { title: 'recover', render: () => s(`.main-btn-recover`).click(), translateTitle: true },
-    '/bymyelectrics-management': {
-      title: 'bymyelectrics-management',
-      render: () => s(`.main-btn-bymyelectrics-management`).click(),
+    '/default-management': {
+      title: 'default-management',
+      render: () => s(`.main-btn-default-management`).click(),
       translateTitle: true,
     },
     '/404': { title: '404 Not Found', render: () => s(`.main-btn-404`).click() },

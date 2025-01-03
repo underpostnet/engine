@@ -1,7 +1,7 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
 import { getId, newInstance } from '../core/CommonJs.js';
-import { Css, Themes } from '../core/Css.js';
+import { Css, darkTheme, ThemeEvents, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
 import { LogOut } from '../core/LogOut.js';
@@ -16,7 +16,7 @@ import { SettingsBymyelectrics } from './SettingsBymyelectrics.js';
 import { Badge } from '../core/Badge.js';
 import { Docs } from '../core/Docs.js';
 import { Recover } from '../core/Recover.js';
-import { BymyelectricsManagement } from '../../services/bymyelectrics/bymyelectrics.management.js';
+import { DefaultManagement } from '../../services/default/default.management.js';
 import { Page500 } from '../core/500.js';
 import { Page404 } from '../core/404.js';
 
@@ -128,15 +128,15 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-bymyelectrics-management',
+            class: 'in wfa main-btn-menu main-btn-default-management',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('bymyelectrics-management')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
             }),
-            attrs: `data-id="bymyelectrics-management"`,
-            tabHref: `${getProxyPath()}bymyelectrics-management`,
+            attrs: `data-id="default-management"`,
+            tabHref: `${getProxyPath()}default-management`,
             handleContainerClass: 'handle-btn-container',
-            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('bymyelectrics-management')),
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('default-management')),
           })}
           ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-404 hide',
@@ -166,9 +166,14 @@ const MenuBymyelectrics = {
       title: NameApp,
       // titleClass: 'hide',
       titleRender: () => {
-        setTimeout(() => {
-          htmls(`.action-btn-app-icon-render`, html`APP`);
-        });
+        ThemeEvents['titleRender'] = () => {
+          const srcLogo = `${getProxyPath()}android-chrome-192x192-removebg-preview.png`;
+          htmls(
+            '.action-btn-app-icon-render',
+            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+          );
+        };
+        setTimeout(ThemeEvents['titleRender']);
         return '';
       },
       mode: 'slide-menu',
@@ -388,17 +393,17 @@ const MenuBymyelectrics = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-bymyelectrics-management`, async () => {
+    EventsUI.onClick(`.main-btn-default-management`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
-        id: 'modal-bymyelectrics-management',
-        route: 'bymyelectrics-management',
+        id: 'modal-default-management',
+        route: 'default-management',
         barConfig,
         title: renderViewTitle({
           icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
-          text: Translate.Render('bymyelectrics-management'),
+          text: Translate.Render('default-management'),
         }),
-        html: async () => await BymyelectricsManagement.RenderTable(),
+        html: async () => await DefaultManagement.RenderTable(),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
