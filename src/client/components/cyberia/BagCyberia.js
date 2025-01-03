@@ -22,9 +22,10 @@ const ItemModal = {
     options = {
       idModal: '',
       item: { type: '', id: '' },
+      bagId: '',
     },
   ) {
-    const { idModal, item } = options;
+    const { idModal, item, bagId } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -54,12 +55,12 @@ const ItemModal = {
         })} `,
       );
       EventsUI.onClick(`.btn-equip-${item.type}-${idModal}`, () => {
-        const payload = { type: 'user', id: 'main' };
+        const payload = BagCyberia.Tokens[bagId].owner;
         payload[item.type] = item;
         this.Equip[item.type](payload);
       });
       EventsUI.onClick(`.btn-unequip-${item.type}-${idModal}`, () => {
-        const payload = { type: 'user', id: 'main' };
+        const payload = BagCyberia.Tokens[bagId].owner;
         payload[item.type] = item;
         this.Unequip[item.type](payload);
       });
@@ -337,11 +338,15 @@ const SlotEvents = {};
 
 const Slot = {
   resource: {
-    render: function ({ slotId, displayId, disabledCount, bagId }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.resource.tree.find((s) => s.id === displayId).quantity;
-      const componentData = ElementsCyberia.Data.user.main.components.resource.find((s) => s.displayId === displayId);
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].resource.tree.find((s) => s.id === displayId).quantity;
+      const componentData = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].components.resource.find((s) => s.displayId === displayId);
       htmls(
         `.${slotId}`,
         html`
@@ -360,11 +365,13 @@ const Slot = {
       );
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia, displayId }) {
-      const setQuestItem = ElementsCyberia.Data.user.main.resource.tree.map((r) => r.id);
+      const setQuestItem = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].resource.tree.map((r) => r.id);
       for (const id of setQuestItem) {
         if (displayId && displayId !== id) continue;
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId: id, bagId });
+        this.render({ bagId, slotId, displayId: id });
         indexBagCyberia++;
       }
       return indexBagCyberia;
@@ -378,17 +385,20 @@ const Slot = {
           displayId,
         });
       }
-      const count = ElementsCyberia.Data.user.main.resource.tree.find((s) => s.id === displayId).quantity;
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].resource.tree.find((s) => s.id === displayId).quantity;
       htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(count));
     },
   },
   questItem: {
-    render: function ({ slotId, displayId, disabledCount, bagId }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       let count = 0;
 
-      if (!disabledCount) count = QuestManagementCyberia.countQuestItems({ type: 'user', id: 'main', displayId });
+      if (!disabledCount)
+        count = QuestManagementCyberia.countQuestItems({ ...BagCyberia.Tokens[bagId].owner, displayId });
 
       if (count === 0) return;
 
@@ -408,18 +418,20 @@ const Slot = {
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
       const setQuestItem = uniqueArray(
-        ElementsCyberia.Data.user.main.model.quests
-          .map((q) =>
-            q.displaySearchObjects
-              .filter((s) => QuestComponent.componentsScope[s.id].questKeyContext === 'displaySearchObjects')
-              .map((s) => s.id),
-          )
-          .flat(),
+        ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].model.quests
+          ? ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].model.quests
+              .map((q) =>
+                q.displaySearchObjects
+                  .filter((s) => QuestComponent.componentsScope[s.id].questKeyContext === 'displaySearchObjects')
+                  .map((s) => s.id),
+              )
+              .flat()
+          : [],
       );
 
       for (const displayId of setQuestItem) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId, bagId });
+        this.render({ bagId, slotId, displayId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
@@ -436,7 +448,11 @@ const Slot = {
         html` <div class="abs bag-slot-count">
             <div class="abs center">
               x<span class="bag-slot-value-${bagId}-${indexBagCyberia}"
-                >${getK(quantity !== undefined ? quantity : ElementsCyberia.Data.user.main.coin)}</span
+                >${getK(
+                  quantity !== undefined
+                    ? quantity
+                    : ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].coin,
+                )}</span
               >
             </div>
           </div>
@@ -444,7 +460,7 @@ const Slot = {
           <div class="in bag-slot-type-text">currency</div>
           <div class="in bag-slot-name-text">coin</div>`,
       );
-      if (!ElementsCyberia.Data['user']['main'].coin) {
+      if (!ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].coin) {
         const bagId = 'cyberia-bag';
         if (s(`.${bagId}-${indexBagCyberia}`)) s(`.${bagId}-${indexBagCyberia}`).classList.add('hide');
       }
@@ -464,11 +480,15 @@ const Slot = {
     },
   },
   skin: {
-    render: function ({ slotId, displayId, disabledCount }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.skin.tree.filter((s) => s.id === displayId).length;
-      const componentData = ElementsCyberia.Data.user.main.components.skin.find((s) => s.displayId === displayId);
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].skin.tree.filter((s) => s.id === displayId).length;
+      const componentData = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].components.skin.find((s) => s.displayId === displayId);
       htmls(
         `.${slotId}`,
         html`
@@ -496,6 +516,7 @@ const Slot = {
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({
+            bagId,
             idModal: `modal-skin-${slotId}`,
             item: { type: 'skin', id: displayId },
           })}`,
@@ -507,19 +528,25 @@ const Slot = {
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
-      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.components.skin.map((s) => s.displayId))) {
+      for (const displayId of uniqueArray(
+        ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+          BagCyberia.Tokens[bagId].owner.id
+        ].components.skin.map((s) => s.displayId),
+      )) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ displayId, slotId });
+        this.render({ bagId, displayId, slotId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
     },
   },
   weapon: {
-    render: function ({ slotId, displayId, disabledCount }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.weapon.tree.filter((i) => i.id === displayId).length;
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].weapon.tree.filter((i) => i.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -543,6 +570,7 @@ const Slot = {
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({
+            bagId,
             idModal: `modal-weapon-${slotId}`,
             item: { type: 'weapon', id: displayId },
           })}`,
@@ -554,19 +582,25 @@ const Slot = {
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
-      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.weapon.tree.map((i) => i.id))) {
+      for (const displayId of uniqueArray(
+        ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].weapon.tree.map(
+          (i) => i.id,
+        ),
+      )) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId });
+        this.render({ bagId, slotId, displayId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
     },
   },
   breastplate: {
-    render: function ({ slotId, displayId, disabledCount }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.breastplate.tree.filter((i) => i.id === displayId).length;
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].breastplate.tree.filter((i) => i.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -590,6 +624,7 @@ const Slot = {
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({
+            bagId,
             idModal: `modal-breastplate-${slotId}`,
             item: { type: 'breastplate', id: displayId },
           })}`,
@@ -601,19 +636,25 @@ const Slot = {
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
-      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.breastplate.tree.map((i) => i.id))) {
+      for (const displayId of uniqueArray(
+        ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+          BagCyberia.Tokens[bagId].owner.id
+        ].breastplate.tree.map((i) => i.id),
+      )) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId });
+        this.render({ bagId, slotId, displayId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
     },
   },
   skill: {
-    render: function ({ slotId, displayId, disabledCount }) {
+    render: function ({ bagId, slotId, displayId, disabledCount }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data.user.main.skill.tree.filter((s) => s.id === displayId).length;
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].skill.tree.filter((s) => s.id === displayId).length;
       htmls(
         `.${slotId}`,
         html`
@@ -640,6 +681,7 @@ const Slot = {
             text: html`${displayId}`,
           }),
           html: html`${await ItemModal.Render({
+            bagId,
             idModal: `modal-skill-${slotId}`,
             item: { type: 'skill', id: displayId },
           })}`,
@@ -651,9 +693,13 @@ const Slot = {
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
-      for (const displayId of uniqueArray(ElementsCyberia.Data.user.main.skill.tree.map((s) => s.id))) {
+      for (const displayId of uniqueArray(
+        ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].skill.tree.map(
+          (s) => s.id,
+        ),
+      )) {
         const slotId = `${bagId}-${indexBagCyberia}`;
-        this.render({ slotId, displayId });
+        this.render({ bagId, slotId, displayId });
         indexBagCyberia++;
       }
       return indexBagCyberia;
@@ -703,127 +749,128 @@ const BagCyberia = {
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
     const totalSlots = 20;
-    this.Tokens[bagId] = { ...options, bagId, totalSlots };
+    this.Tokens[bagId] = { bagId, totalSlots, owner: { type: 'user', id: 'main' }, ...options };
     setTimeout(async () => {
-      this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
-        animation: 150,
-        group: `bag-sortable`,
-        forceFallback: true,
-        fallbackOnBody: true,
-        store: {
-          /**
-           * Get the order of elements. Called once during initialization.
-           * @param   {Sortable}  sortable
-           * @returns {Array}
-           */
-          get: function (sortable) {
-            const order = localStorage.getItem(sortable.options.group.name);
-            return order ? order.split('|') : [];
+      if (!options.disableSortable)
+        this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
+          animation: 150,
+          group: `bag-sortable`,
+          forceFallback: true,
+          fallbackOnBody: true,
+          store: {
+            /**
+             * Get the order of elements. Called once during initialization.
+             * @param   {Sortable}  sortable
+             * @returns {Array}
+             */
+            get: function (sortable) {
+              const order = localStorage.getItem(sortable.options.group.name);
+              return order ? order.split('|') : [];
+            },
+
+            /**
+             * Save the order of elements. Called onEnd (when the item is dropped).
+             * @param {Sortable}  sortable
+             */
+            set: function (sortable) {
+              const order = sortable.toArray();
+              localStorage.setItem(sortable.options.group.name, order.join('|'));
+            },
           },
+          // chosenClass: 'css-class',
+          // ghostClass: 'css-class',
+          // Element dragging ended
+          onEnd: function (/**Event*/ evt) {
+            try {
+              // console.log('Sortable onEnd', evt);
+              // console.log('evt.oldIndex', evt.oldIndex);
+              // console.log('evt.newIndex', evt.newIndex);
 
-          /**
-           * Save the order of elements. Called onEnd (when the item is dropped).
-           * @param {Sortable}  sortable
-           */
-          set: function (sortable) {
-            const order = sortable.toArray();
-            localStorage.setItem(sortable.options.group.name, order.join('|'));
+              const toElementsCyberia = {
+                srcElement: evt.originalEvent.srcElement,
+                target: evt.originalEvent.target,
+                toElement: evt.originalEvent.toElement,
+              };
+
+              const { item } = evt; // parentElement parentNode children(array)
+
+              const dataBagCyberiaFrom = {
+                type: Array.from(item.children)[2].innerHTML,
+                id: Array.from(item.children)[3].innerHTML,
+              };
+              const dataBagCyberiaTo = {};
+
+              let dataClassBagCyberiaFrom = [];
+              let dataClassBagCyberiaTo = [];
+
+              for (const toElementKey of Object.keys(toElementsCyberia)) {
+                try {
+                  dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                    Array.from(toElementsCyberia[toElementKey].parentNode.classList),
+                  );
+                } catch (error) {
+                  logger.warn(error);
+                }
+                try {
+                  dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                    Array.from(toElementsCyberia[toElementKey].parentElement.classList),
+                  );
+                } catch (error) {
+                  logger.warn(error);
+                }
+                try {
+                  dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                    Array.from(toElementsCyberia[toElementKey].parentNode.parentNode.classList),
+                  );
+                } catch (error) {
+                  logger.warn(error);
+                }
+                try {
+                  dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
+                    Array.from(toElementsCyberia[toElementKey].parentElement.parentElement.classList),
+                  );
+                } catch (error) {
+                  logger.warn(error);
+                }
+              }
+
+              dataClassBagCyberiaTo = uniqueArray(dataClassBagCyberiaTo);
+
+              logger.info('Sortable BagCyberia From:', { dataClassBagCyberiaFrom, dataBagCyberiaFrom });
+              logger.info('Sortable BagCyberia To:', { dataClassBagCyberiaTo, dataBagCyberiaTo });
+              if (dataBagCyberiaFrom.type.split('<br>')[1])
+                dataBagCyberiaFrom.type = dataBagCyberiaFrom.type.split('<br>')[1];
+
+              if (
+                Object.values(dataClassBagCyberiaTo).find(
+                  (c) => c.startsWith(`character-`) || c.startsWith('main-skill-slot'),
+                ) &&
+                ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagCyberiaFrom.type)
+              ) {
+                const payLoadEquip = options.owner;
+                payLoadEquip[dataBagCyberiaFrom.type] = { id: dataBagCyberiaFrom.id };
+                ItemModal.Equip[dataBagCyberiaFrom.type](payLoadEquip);
+                return;
+              }
+
+              const slotId = Array.from(evt.item.classList).pop();
+              // console.log('slotId', slotId);
+              if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
+
+              // var itemEl = evt.item; // dragged HTMLElement
+              // evt.to; // target list
+              // evt.from; // previous list
+              // evt.oldIndex; // element's old index within old parent
+              // evt.newIndex; // element's new index within new parent
+              // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
+              // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
+              // evt.clone; // the clone element
+              // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
+            } catch (error) {
+              logger.error(error, error.stack);
+            }
           },
-        },
-        // chosenClass: 'css-class',
-        // ghostClass: 'css-class',
-        // Element dragging ended
-        onEnd: function (/**Event*/ evt) {
-          try {
-            // console.log('Sortable onEnd', evt);
-            // console.log('evt.oldIndex', evt.oldIndex);
-            // console.log('evt.newIndex', evt.newIndex);
-
-            const toElementsCyberia = {
-              srcElement: evt.originalEvent.srcElement,
-              target: evt.originalEvent.target,
-              toElement: evt.originalEvent.toElement,
-            };
-
-            const { item } = evt; // parentElement parentNode children(array)
-
-            const dataBagCyberiaFrom = {
-              type: Array.from(item.children)[2].innerHTML,
-              id: Array.from(item.children)[3].innerHTML,
-            };
-            const dataBagCyberiaTo = {};
-
-            let dataClassBagCyberiaFrom = [];
-            let dataClassBagCyberiaTo = [];
-
-            for (const toElementKey of Object.keys(toElementsCyberia)) {
-              try {
-                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
-                  Array.from(toElementsCyberia[toElementKey].parentNode.classList),
-                );
-              } catch (error) {
-                logger.warn(error);
-              }
-              try {
-                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
-                  Array.from(toElementsCyberia[toElementKey].parentElement.classList),
-                );
-              } catch (error) {
-                logger.warn(error);
-              }
-              try {
-                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
-                  Array.from(toElementsCyberia[toElementKey].parentNode.parentNode.classList),
-                );
-              } catch (error) {
-                logger.warn(error);
-              }
-              try {
-                dataClassBagCyberiaTo = dataClassBagCyberiaTo.concat(
-                  Array.from(toElementsCyberia[toElementKey].parentElement.parentElement.classList),
-                );
-              } catch (error) {
-                logger.warn(error);
-              }
-            }
-
-            dataClassBagCyberiaTo = uniqueArray(dataClassBagCyberiaTo);
-
-            logger.info('Sortable BagCyberia From:', { dataClassBagCyberiaFrom, dataBagCyberiaFrom });
-            logger.info('Sortable BagCyberia To:', { dataClassBagCyberiaTo, dataBagCyberiaTo });
-            if (dataBagCyberiaFrom.type.split('<br>')[1])
-              dataBagCyberiaFrom.type = dataBagCyberiaFrom.type.split('<br>')[1];
-
-            if (
-              Object.values(dataClassBagCyberiaTo).find(
-                (c) => c.startsWith(`character-`) || c.startsWith('main-skill-slot'),
-              ) &&
-              ['skin', 'weapon', 'breastplate', 'skill'].includes(dataBagCyberiaFrom.type)
-            ) {
-              const payLoadEquip = { type: 'user', id: 'main' };
-              payLoadEquip[dataBagCyberiaFrom.type] = { id: dataBagCyberiaFrom.id };
-              ItemModal.Equip[dataBagCyberiaFrom.type](payLoadEquip);
-              return;
-            }
-
-            const slotId = Array.from(evt.item.classList).pop();
-            // console.log('slotId', slotId);
-            if (evt.oldIndex === evt.newIndex) SlotEvents[slotId].onClick();
-
-            // var itemEl = evt.item; // dragged HTMLElement
-            // evt.to; // target list
-            // evt.from; // previous list
-            // evt.oldIndex; // element's old index within old parent
-            // evt.newIndex; // element's new index within new parent
-            // evt.oldDraggableIndex; // element's old index within old parent, only counting draggable elements
-            // evt.newDraggableIndex; // element's new index within new parent, only counting draggable elements
-            // evt.clone; // the clone element
-            // evt.pullMode; // when item is in another sortable: `"clone"` if cloning, `true` if moving
-          } catch (error) {
-            logger.error(error, error.stack);
-          }
-        },
-      });
+        });
 
       let indexBagCyberia = 0;
       indexBagCyberia = await Slot.coin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
@@ -854,7 +901,7 @@ const BagCyberia = {
   updateAll: async function (options = { bagId: '', type: '', id: '' }) {
     const { bagId, type, id } = options;
     if (this.Tokens[bagId] && s(`.${this.Tokens[bagId].idModal}`)) {
-      this.Tokens[bagId].sortable.destroy();
+      if (this.Tokens[bagId].sortable) this.Tokens[bagId].sortable.destroy();
       Modal.writeHTML({
         idModal: this.Tokens[bagId].idModal,
         html: await this.Render(this.Tokens[bagId]),
