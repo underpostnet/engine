@@ -167,10 +167,10 @@ const MenuBymyelectrics = {
       // titleClass: 'hide',
       titleRender: () => {
         ThemeEvents['titleRender'] = () => {
-          const srcLogo = `${getProxyPath()}android-chrome-192x192-removebg-preview.png`;
+          const srcLogo = `${getProxyPath()}android-chrome-192x192.png`;
           htmls(
             '.action-btn-app-icon-render',
-            html`<img class="inl top-bar-app-icon ${darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
+            html`<img class="inl top-bar-app-icon ${!darkTheme ? '' : 'negative-color'}" src="${srcLogo}" />`,
           );
         };
         setTimeout(ThemeEvents['titleRender']);
