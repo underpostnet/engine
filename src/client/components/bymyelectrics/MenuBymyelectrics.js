@@ -128,7 +128,7 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('recover')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-default-management',
+            class: 'in wfa main-btn-menu main-btn-default-management hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('default-management')}</span>`,
@@ -159,6 +159,17 @@ const MenuBymyelectrics = {
             tabHref: `${getProxyPath()}500`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('500')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-dossier',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-regular fa-file-lines"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('dossier')}</span>`,
+            }),
+            attrs: `data-id="dossier"`,
+            tabHref: `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('dossier')),
           })}
         </div>
       `,
@@ -456,6 +467,9 @@ const MenuBymyelectrics = {
         heightBottomBar,
         observer: true,
       });
+    });
+    EventsUI.onClick(`.main-btn-dossier`, async () => {
+      location.href = `${getProxyPath()}docs/Dossier-By-My-Electrics-2025.pdf`;
     });
   },
 };

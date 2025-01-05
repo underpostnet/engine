@@ -1,8 +1,8 @@
 'use strict';
 
-import { Css } from './components/core/Css.js';
+import { Css, dynamicCol } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
-import { TranslateCore } from './components/core/Translate.js';
+import { Translate, TranslateCore } from './components/core/Translate.js';
 import { LogInBymyelectrics } from './components/bymyelectrics/LogInBymyelectrics.js';
 import { LogOutBymyelectrics } from './components/bymyelectrics/LogOutBymyelectrics.js';
 import { SignUpBymyelectrics } from './components/bymyelectrics/SignUpBymyelectrics.js';
@@ -16,16 +16,54 @@ import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
 import { ElementsBymyelectrics } from './components/bymyelectrics/ElementsBymyelectrics.js';
 import { Scroll } from './components/core/Scroll.js';
+import { getProxyPath } from './components/core/VanillaJs.js';
+import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
 
 const htmlMainBody = async () => {
-  return html``;
+  const id0DynamicCol = `dynamicCol-0`;
+  return html`
+    <style>
+      .landing-logo-0 {
+        width: 100%;
+        margin: auto;
+        max-width: 400px;
+      }
+      .clients-img {
+        width: 100%;
+        max-width: 700px;
+        margin: auto;
+      }
+      .sub-title {
+        font-size: 25px;
+        text-align: center;
+      }
+    </style>
+    ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
+    <div class="in section-mp landing-container">
+      <div class="fl ${id0DynamicCol}">
+        <div class="in fll ${id0DynamicCol}-col-a" style="50%">
+          <img class="in landing-logo-0" src="${getProxyPath()}assets/social.png" />
+        </div>
+        <div class="in fll ${id0DynamicCol}-col-b" style="50%">
+          <br /><br />
+          <div class="in section-mp">${Translate.Render('description-0')}</div>
+          <div class="in section-mp">${Translate.Render('description-1')}</div>
+        </div>
+      </div>
+      <br />
+      <div class="in sub-title">${Translate.Render('our-clients')}</div>
+      <br />
+      <img class="in clients-img" src="${getProxyPath()}assets/clients.png" />
+      <br />
+    </div>
+  `;
 };
 
 window.onload = () =>
   Worker.instance({
     router: RouterBymyelectrics,
     render: async () => {
-      await Css.loadThemes();
+      await Css.loadThemes([CssBymyelectricsLight, CssBymyelectricsDark]);
       await TranslateCore.Init();
       await TranslateBymyelectrics.Init();
       await Responsive.Init();
