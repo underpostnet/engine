@@ -49,10 +49,10 @@ const htmlMainBody = async () => {
     ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
     <div class="in section-mp landing-container">
       <div class="fl ${id0DynamicCol}">
-        <div class="in fll ${id0DynamicCol}-col-a" style="50%">
+        <div class="in fll ${id0DynamicCol}-col-a">
           <img class="in landing-logo-0" src="${getProxyPath()}assets/social.png" />
         </div>
-        <div class="in fll ${id0DynamicCol}-col-b" style="50%">
+        <div class="in fll ${id0DynamicCol}-col-b">
           <br /><br />
           <div class="in section-mp">${Translate.Render('description-0')}</div>
           <div class="in section-mp">${Translate.Render('description-1')}</div>
