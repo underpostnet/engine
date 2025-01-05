@@ -523,9 +523,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 ? await minify(htmlSrc, {
                     minifyCSS: true,
                     minifyJS: true,
-                    collapseBooleanAttributes: true,
-                    collapseInlineTagWhitespace: true,
-                    collapseWhitespace: true,
+                    // collapseBooleanAttributes: true,
+                    // collapseInlineTagWhitespace: true,
+                    // collapseWhitespace: true,
                   })
                 : htmlSrc,
               'utf8',
