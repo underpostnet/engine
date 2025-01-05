@@ -1,15 +1,15 @@
 {
-  "name": "Item Ledger",
-  "short_name": "Item Ledger",
-  "description": null,
+  "name": "Bymyelectrics - Streamline Industrial Electrical Services with a Powerful ERP",
+  "short_name": "Bymyelectrics - Streamline Industrial Electrical Services with a Powerful ERP",
+  "description": "Boost efficiency and profitability with a dedicated ERP for industrial electrical services. Manage projects, inventory, maintenance, and more from a single platform.",
   "dir": "auto",
   "lang": "en-US",
   "display": "standalone",
   "orientation": "any",
   "scope": "/",
   "start_url": "/?homescreen=1",
-  "background_color": "#fff",
-  "theme_color": "#fff",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     {
       "src": "/android-chrome-36x36.png",
