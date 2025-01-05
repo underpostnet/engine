@@ -20,7 +20,7 @@ import { Modal, renderViewTitle } from '../core/Modal.js';
 import { SocketIo } from '../core/SocketIo.js';
 import { Translate } from '../core/Translate.js';
 import { append, getLang, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
-import { Slot } from './BagCyberia.js';
+import { BagCyberia, Slot } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
@@ -193,12 +193,14 @@ const QuestManagementCyberia = {
                           s(`.${idPanel}`).style.top = `${currentTopAnimation}px`;
                         }
                       };
-                      if (s(`.typeWriter-render-shortDescription-${questData.id}`))
+                      if (s(`.typeWriter-render-shortDescription-${questData.id}`)) {
+                        htmls(`.typeWriter-render-shortDescription-${questData.id}`, '');
                         renderBubbleLinesSectionString({
                           containerSelector: `.${idPanel}`,
                           translateData: Translate.Data[`${questData.id}-shortDescription`],
                           containerLine: `typeWriter-render-shortDescription-${questData.id}`,
                         });
+                      }
                       // typeWriter({
                       //   id: `${questData.id}-shortDescription-typeWriter`,
                       //   html: questData
@@ -206,12 +208,14 @@ const QuestManagementCyberia = {
                       //     : html`Hi! Hi! Hi! Hi! Hi!`,
                       //   container: `typeWriter-render-shortDescription-${questData.id}`,
                       // });
-                      if (s(`.typeWriter-render-defaultDialog-${displayId}`))
+                      if (s(`.typeWriter-render-defaultDialog-${displayId}`)) {
+                        htmls(`.typeWriter-render-defaultDialog-${displayId}`, '');
                         renderBubbleLinesSectionString({
                           containerSelector: `.${idPanel}`,
                           translateData: Translate.Data[`quest-${displayId}-defaultDialog`],
                           containerLine: `typeWriter-render-defaultDialog-${displayId}`,
                         });
+                      }
                       // typeWriter({
                       //   id: `quest-${displayId}-defaultDialog-typeWriter`,
                       //   html: questData
@@ -496,13 +500,12 @@ const QuestManagementCyberia = {
                         await this.RenderModal({ questData, interactionPanelQuestId });
                     }
                   });
-
                   const okButtonDisabled =
                     !questData ||
                     ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ||
                     QuestComponent.componentsScope[displayId].questKeyContext !== 'provide';
-                  {
-                    const idKeyboardEvent = 'quest-key-event-ok' + idPanel;
+                  const idKeyboardEvent = 'quest-key-event-ok' + idPanel;
+                  const instanceKeyBoardEventOk = () => {
                     if (okButtonDisabled) delete Keyboard.Event[idKeyboardEvent];
                     else
                       Keyboard.Event[idKeyboardEvent] = {
@@ -515,7 +518,8 @@ const QuestManagementCyberia = {
                             ? s(`.action-panel-ok-${idPanel}`).click()
                             : null,
                       };
-                  }
+                  };
+                  instanceKeyBoardEventOk();
 
                   const dudeButtonEnabled =
                     questData && QuestComponent.componentsScope[displayId].questKeyContext === 'provide';
@@ -569,6 +573,7 @@ const QuestManagementCyberia = {
                       f: MainUserCyberia.focusTarget,
                       F: MainUserCyberia.focusTarget,
                     };
+                    instanceKeyBoardEventOk();
                   };
                   {
                     Keyboard.Event['focus'] = {
@@ -711,9 +716,6 @@ const QuestManagementCyberia = {
       ...QuestComponent.Data[questData.id](),
       ...questData,
     };
-
-    // TODO: cyberia-shop-bag
-    // await BagCyberia.Render({ id: 'cyberia-shop-bag', idModal: 'modal-bag' })
 
     const idPanel = this.getIdPanelByQuestId({ questData });
     if (idPanel) await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
@@ -899,7 +901,15 @@ const QuestManagementCyberia = {
     };
     const CyberiaQuestSections = {
       sellerStorage: async () => {
-        return html`seller`;
+        return html`${await BagCyberia.Render({
+          disableSortable: true,
+          id: 'cyberia-seller-bag',
+          idModal: 'modal-seller',
+          owner: {
+            type: elementType,
+            id: elementId,
+          },
+        })}`;
       },
       progress: async () => {
         setTimeout(() => {
@@ -1034,6 +1044,7 @@ const QuestManagementCyberia = {
                 const bagId = questData.id + '-reward-slot';
                 const { quantity } = r;
                 setTimeout(() => {
+                  BagCyberia.Tokens[bagId] = { owner: { id: 'main', type: 'user' } };
                   Slot[type].renderBagCyberiaSlots({ bagId, indexBagCyberia: index, quantity });
                 });
                 return html`<div class="inl bag-slot ${bagId}-${index}"></div>`;

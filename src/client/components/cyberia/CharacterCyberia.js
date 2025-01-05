@@ -198,6 +198,7 @@ const CharacterCyberia = {
     const component = ElementsCyberia.Data[type][id].components[componentType].find((e) => e.current);
     if (component)
       Slot[componentType].render({
+        bagId: 'cyberia-bag',
         slotId: `character-slot-${componentType}`,
         displayId: component.displayId,
         disabledCount: true,
@@ -211,6 +212,7 @@ const CharacterCyberia = {
     const componentType = `${skillKey}-skill`;
     if (ElementsCyberia.Data[type][id].skill.keys[skillKey]) {
       Slot.skill.render({
+        bagId: 'cyberia-bag',
         slotId: `character-slot-${componentType}`,
         displayId: ElementsCyberia.Data[type][id].skill.keys[skillKey],
         disabledCount: true,

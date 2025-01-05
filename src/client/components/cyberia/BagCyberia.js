@@ -743,13 +743,14 @@ const Slot = {
     },
   },
 };
-
+const defaultOwner = { type: 'user', id: 'main' };
 const BagCyberia = {
-  Tokens: {},
+  Tokens: { 'cyberia-bag': { owner: defaultOwner } },
   Render: async function (options) {
     const bagId = options && 'id' in options ? options.id : getId(this.Tokens, 'slot-');
     const totalSlots = 20;
-    this.Tokens[bagId] = { bagId, totalSlots, owner: { type: 'user', id: 'main' }, ...options };
+    if (!options.owner) options.owner = defaultOwner;
+    this.Tokens[bagId] = { bagId, totalSlots, ...options };
     setTimeout(async () => {
       if (!options.disableSortable)
         this.Tokens[bagId].sortable = new Sortable(s(`.${bagId}`), {
