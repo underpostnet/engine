@@ -37,6 +37,14 @@ const htmlMainBody = async () => {
         font-size: 25px;
         text-align: center;
       }
+      footer {
+        background: #2f5596;
+        color: white;
+        padding: 0 50px 0 50px;
+      }
+      a {
+        color: white;
+      }
     </style>
     ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
     <div class="in section-mp landing-container">
@@ -55,7 +63,22 @@ const htmlMainBody = async () => {
       <br />
       <img class="in clients-img" src="${getProxyPath()}assets/clients.png" />
       <br />
+      <br />
+      <br />
     </div>
+    <footer class="in">
+      <br />
+      <br />
+      <strong> Engineering By My Electrics ltda.</strong>
+      <br /><br />
+      Las Carmelitas 91, Las Condes.
+      <br /><br />
+      <a href="https://wa.me/56945637339">+569 4563 7339</a><br /><br />
+      <a href="https://wa.me/56984967570">+569 8496 7570</a>
+      <br />
+      <br />
+      <br />
+    </footer>
   `;
 };
 
