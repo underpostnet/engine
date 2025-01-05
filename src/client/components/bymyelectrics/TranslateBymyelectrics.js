@@ -22,8 +22,7 @@ const TranslateBymyelectrics = {
       en: html`Its objective is to be recognized as the standard of excellence in the development of electrical
       engineering, leading innovation and sustainability in the sector at a global level. to achieve this, it provides
       electrical engineering solutions of exceptional quality, driven by innovation and sustainability, to meet the
-      needs of customers and contribute to technological advancement and sustainable development of society. Translated
-      with DeepL.com (free version)`,
+      needs of customers and contribute to technological advancement and sustainable development of society.`,
       es: html`Su objetivo es ser reconocida como el estándar de excelencia en el desarrollo de ingeniería eléctrica,
       liderando la innovación y la sostenibilidad en el sector a nivel global. Para lograrlo proporcionar soluciones de
       ingeniería eléctrica de calidad excepcional, impulsadas por la innovación y la sostenibilidad, para satisfacer las
