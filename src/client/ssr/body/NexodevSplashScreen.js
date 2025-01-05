@@ -1,7 +1,7 @@
-SrrComponent = ({ base64BackgroundImage }) => html`
+SrrComponent = ({ backgroundImage }) => html`
   <style>
     .ssr-background-image {
-      background-image: url('${base64BackgroundImage}');
+      background-image: url('${backgroundImage}');
     }
     .ssr-top-bar {
       background: #ffffff;

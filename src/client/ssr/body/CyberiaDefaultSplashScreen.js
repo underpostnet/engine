@@ -1,8 +1,8 @@
-SrrComponent = ({ base64BackgroundImage, metadata }) => html`
-  ${base64BackgroundImage
+SrrComponent = ({ backgroundImage, metadata }) => html`
+  ${backgroundImage
     ? html`<style>
         .ssr-background-image {
-          background-image: url('${base64BackgroundImage}');
+          background-image: url('${backgroundImage}');
         }
       </style>`
     : metadata?.themeColor

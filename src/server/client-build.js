@@ -465,10 +465,11 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                   case 'DefaultSplashScreen':
                     if (backgroundImage) {
                       ssrHeadComponents += SrrComponent({
-                        base64BackgroundImage: `data:image/${backgroundImage.split('.').pop()};base64,${fs
-                          .readFileSync(backgroundImage)
-                          .toString('base64')}`,
+                        backgroundImage: (path === '/' ? path : `${path}/`) + backgroundImage,
                       });
+                      // `data:image/${backgroundImage.split('.').pop()};base64,${fs
+                      //     .readFileSync()
+                      //     .toString('base64')}`,
                       break;
                     } else {
                       ssrHeadComponents += SrrComponent({ metadata });
@@ -480,7 +481,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                         bgColor: metadata?.themeColor ? metadata.themeColor : '#ececec',
                       });
                       ssrHeadComponents += SrrComponent({
-                        base64BackgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
+                        backgroundImage: `data:image/png;base64,${bufferBackgroundImage.toString('base64')}`,
                       });
                     }
 
@@ -523,9 +524,9 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                 ? await minify(htmlSrc, {
                     minifyCSS: true,
                     minifyJS: true,
-                    // collapseBooleanAttributes: true,
-                    // collapseInlineTagWhitespace: true,
-                    // collapseWhitespace: true,
+                    collapseBooleanAttributes: true,
+                    collapseInlineTagWhitespace: true,
+                    collapseWhitespace: true,
                   })
                 : htmlSrc,
               'utf8',
