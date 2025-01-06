@@ -800,7 +800,7 @@ const QuestManagementCyberia = {
 
     const questContext = QuestComponent.componentsScope[mainDisplayId];
 
-    console.error({ mainDisplayId, questData, questContext });
+    // console.warn({ mainDisplayId, questData, questContext });
 
     const idSalt = s4() + s4();
     let currentSectionIndex = 0;

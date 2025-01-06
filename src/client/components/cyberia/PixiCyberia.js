@@ -13,7 +13,18 @@ import { Responsive } from '../core/Responsive.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
-import { AnimatedSprite, Application, BaseTexture, Container, Sprite, Text, TextStyle, Texture, Ticker } from 'pixi.js';
+import {
+  AnimatedSprite,
+  Application,
+  BaseTexture,
+  Container,
+  Sprite,
+  Text,
+  TextStyle,
+  Texture,
+  Ticker,
+  Graphics,
+} from 'pixi.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 import { SocketIo } from '../core/SocketIo.js';
 import {
@@ -1164,12 +1175,49 @@ const PixiCyberia = {
   setTransportComponents: async function (transports = []) {
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
     for (const transport of transports) {
-      const componentInstance = Sprite.from(new BaseTexture(`${getProxyPath()}assets/ui-icons/transport.png`));
-      componentInstance.width = dim / 2;
-      componentInstance.height = dim / 2;
-      componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
-      componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
-      this.AppTopLevelColor.stage.addChild(componentInstance);
+      {
+        // https://pixijs.com/8.x/examples/graphics/dynamic
+
+        // const componentInstance = new Sprite(Texture.WHITE);
+        const componentInstance = new Graphics();
+
+        // componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) - dim;
+        // componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) - dim;
+        componentInstance.x = dim * 4;
+        componentInstance.y = dim * 4;
+
+        // componentInstance.width = dim * 4;
+        // componentInstance.height = dim * 4;
+        // componentInstance.tint = '#000000';
+
+        let count = 0;
+
+        this.AppTopLevelColor.ticker.add(() => {
+          count += 0.1;
+
+          componentInstance.clear();
+          componentInstance.lineStyle(10, 0xff0000, 1);
+          componentInstance.beginFill(0xffff00, 0.5);
+
+          componentInstance.moveTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
+          componentInstance.lineTo(120 + Math.cos(count) * 20, -100 + Math.sin(count) * 20);
+          componentInstance.lineTo(120 + Math.sin(count) * 20, 100 + Math.cos(count) * 20);
+          componentInstance.lineTo(-120 + Math.cos(count) * 20, 100 + Math.sin(count) * 20);
+          componentInstance.lineTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
+          componentInstance.closePath();
+
+          componentInstance.rotation = count * 0.1;
+        });
+        this.AppTopLevelColor.stage.addChild(componentInstance);
+      }
+      {
+        const componentInstance = Sprite.from(new BaseTexture(`${getProxyPath()}assets/ui-icons/transport.png`));
+        componentInstance.width = dim / 2;
+        componentInstance.height = dim / 2;
+        componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+        componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
+        this.AppTopLevelColor.stage.addChild(componentInstance);
+      }
     }
   },
 };
