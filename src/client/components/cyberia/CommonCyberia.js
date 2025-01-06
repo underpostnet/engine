@@ -930,6 +930,9 @@ const QuestComponent = {
         weapon: [
           {
             id: 'hatchet',
+            price: {
+              coin: 50,
+            },
           },
         ],
       },

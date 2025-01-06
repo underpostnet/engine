@@ -23,6 +23,8 @@ const ItemModal = {
       idModal: '',
       item: { type: '', id: '' },
       bagId: '',
+      itemData: {},
+      context: '',
     },
   ) {
     const { idModal, item, bagId } = options;
@@ -31,39 +33,52 @@ const ItemModal = {
 
     setTimeout(async () => {
       htmls(`.${id0}-render-col-a`, this.RenderStat(Stat.get[item.id](), { 'item type': item.type }));
-      htmls(
-        `.${id0}-render-col-b`,
-        html`${await BtnIcon.Render({
-          label: renderViewTitle({
-            'ui-icon': `equip.png`,
-            text: html`${Translate.Render('equip')}`,
-            dim: 30,
-            top: 4,
-          }),
-          type: 'button',
-          class: `btn-equip-${item.type}-${idModal} inl wfa`,
-        })}
-        ${await BtnIcon.Render({
-          label: renderViewTitle({
-            'ui-icon': `unequip.png`,
-            text: html`${Translate.Render('unequip')}`,
-            dim: 30,
-            top: 4,
-          }),
-          type: 'button',
-          class: `btn-unequip-${item.type}-${idModal} inl wfa`,
-        })} `,
-      );
-      EventsUI.onClick(`.btn-equip-${item.type}-${idModal}`, () => {
-        const payload = BagCyberia.Tokens[bagId].owner;
-        payload[item.type] = item;
-        this.Equip[item.type](payload);
-      });
-      EventsUI.onClick(`.btn-unequip-${item.type}-${idModal}`, () => {
-        const payload = BagCyberia.Tokens[bagId].owner;
-        payload[item.type] = item;
-        this.Unequip[item.type](payload);
-      });
+      switch (options.context) {
+        case 'seller':
+          {
+            htmls(`.${id0}-render-col-b`, 'lele');
+          }
+          break;
+
+        default:
+          {
+            htmls(
+              `.${id0}-render-col-b`,
+              html`${await BtnIcon.Render({
+                label: renderViewTitle({
+                  'ui-icon': `equip.png`,
+                  text: html`${Translate.Render('equip')}`,
+                  dim: 30,
+                  top: 4,
+                }),
+                type: 'button',
+                class: `btn-equip-${item.type}-${idModal} inl wfa`,
+              })}
+              ${await BtnIcon.Render({
+                label: renderViewTitle({
+                  'ui-icon': `unequip.png`,
+                  text: html`${Translate.Render('unequip')}`,
+                  dim: 30,
+                  top: 4,
+                }),
+                type: 'button',
+                class: `btn-unequip-${item.type}-${idModal} inl wfa`,
+              })} `,
+            );
+            EventsUI.onClick(`.btn-equip-${item.type}-${idModal}`, () => {
+              const payload = BagCyberia.Tokens[bagId].owner;
+              payload[item.type] = item;
+              this.Equip[item.type](payload);
+            });
+            EventsUI.onClick(`.btn-unequip-${item.type}-${idModal}`, () => {
+              const payload = BagCyberia.Tokens[bagId].owner;
+              payload[item.type] = item;
+              this.Unequip[item.type](payload);
+            });
+          }
+          break;
+      }
+
       htmls(
         `.${id1}-render-col-a`,
         html`
@@ -541,7 +556,7 @@ const Slot = {
     },
   },
   weapon: {
-    render: function ({ bagId, slotId, displayId, disabledCount }) {
+    render: function ({ bagId, slotId, displayId, disabledCount, itemData, context }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
@@ -554,6 +569,15 @@ const Slot = {
             <div class="abs center ${disabledCount ? 'hide' : ''}">
               x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
+            ${itemData && itemData.price && itemData.price.coin
+              ? html`
+                  <div class="abs center" style="width: 100px">
+                    x
+                    <span class="bag-slot-value-${slotId}">${getK(itemData.price.coin)}</span
+                    ><img class="inl coin-slot-icon-img" src="${getProxyPath()}assets/coin/animation.gif" />
+                  </div>
+                `
+              : ''}
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/weapon/${displayId}/animation.gif" />
           <div class="in bag-slot-type-text">weapon</div>
@@ -573,6 +597,8 @@ const Slot = {
             bagId,
             idModal: `modal-weapon-${slotId}`,
             item: { type: 'weapon', id: displayId },
+            itemData,
+            context,
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',

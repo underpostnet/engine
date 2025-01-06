@@ -186,6 +186,11 @@ const CssCommonCyberia = async () => {
       .main-body-btn:hover {
         font-size: 21px;
       }
+      .coin-slot-icon-img {
+        width: 20px;
+        height: 20px;
+        top: 4px;
+      }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
     ${borderChar(1, 'yellow', ['.main-body-btn-container'])}

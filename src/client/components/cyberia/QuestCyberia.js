@@ -912,6 +912,8 @@ const QuestManagementCyberia = {
                 slotId: `${bagId}-${indexBag}`,
                 displayId: itemData.id,
                 disabledCount: true,
+                itemData,
+                context: 'seller',
               });
             }
           }
