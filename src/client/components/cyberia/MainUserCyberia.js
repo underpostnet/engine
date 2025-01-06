@@ -259,6 +259,7 @@ const MainUserCyberia = {
     CharacterCyberia.renderCharacterCyberiaStat();
     PixiCyberia.updateLife({ type, id });
     PixiCyberia.setUsername({ type, id });
+    await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
     await InteractionPanelCyberia.PanelRender.element({ type, id });
     await InteractionPanelCyberia.PanelRender.AllQuest({ type, id });
     PixiCyberia.topLevelCallBack({ type, id });

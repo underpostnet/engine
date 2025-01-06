@@ -45,6 +45,10 @@ const InteractionPanelCyberia = {
   },
   PanelRender: {
     actionPanelTokens: {},
+    removeAllActionPanel: async function () {
+      for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens))
+        await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+    },
     removeActionPanel: async function (idPanel) {
       if (s(`.${idPanel}`)) s(`.${idPanel}`).remove();
       // delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];

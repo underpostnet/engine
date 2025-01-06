@@ -217,10 +217,7 @@ const WorldCyberiaManagement = {
     if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
     console.warn('newBiomeCyberia', newBiomeCyberia);
     console.warn('initDirection', initDirection);
-    {
-      for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens))
-        await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
-    }
+    await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
     ElementsCyberia.Data[type][id].x = newX;
     ElementsCyberia.Data[type][id].y = newY;
     ElementsCyberia.Data[type][id].model.world.face = newFace;
