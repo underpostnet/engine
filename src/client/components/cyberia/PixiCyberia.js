@@ -1223,14 +1223,14 @@ const PixiCyberia = {
               id,
               newFace,
               initDirection,
-              x,
-              y,
+              x: x / MatrixCyberia.Data.dimPaintByCell,
+              y: y / MatrixCyberia.Data.dimPaintByCell,
             });
             if (collision) continue;
 
             const transportComponent = await this.transportCircleGFxFactory({
-              x: x + MatrixCyberia.Data.dimPaintByCell,
-              y: y,
+              x,
+              y,
               dim,
             });
             componentInstance = transportComponent.componentInstance;
@@ -1245,14 +1245,14 @@ const PixiCyberia = {
               id,
               newFace,
               initDirection,
-              x,
-              y,
+              x: x / MatrixCyberia.Data.dimPaintByCell,
+              y: y / MatrixCyberia.Data.dimPaintByCell,
             });
             if (collision) continue;
 
             const transportComponent = await this.transportCircleGFxFactory({
-              x: x - MatrixCyberia.Data.dimPaintByCell,
-              y: y,
+              x,
+              y,
               dim,
             });
             componentInstance = transportComponent.componentInstance;
