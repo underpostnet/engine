@@ -1,4 +1,4 @@
-import { s, append, getProxyPath, htmls } from '../core/VanillaJs.js';
+import { s, append, getProxyPath, htmls, getCurrentTrace } from '../core/VanillaJs.js';
 import {
   getDistance,
   getId,
@@ -40,6 +40,7 @@ import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Auth } from '../core/Auth.js';
+import { getNumberByHex } from '../core/ColorPalette.js';
 
 // https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
@@ -1172,43 +1173,91 @@ const PixiCyberia = {
     }
     return { componentInstance, indexLayer };
   },
+  transportTickers: [],
+  transports: [],
+  removeTransports: async function () {
+    let _i = -1;
+    for (const transport of PixiCyberia.transports) {
+      _i++;
+      if (PixiCyberia.transportTickers[_i]) PixiCyberia.transportTickers[_i].destroy();
+      for (const component of transport) {
+        if (component && component.destroy) component.destroy();
+      }
+    }
+    this.transportTickers = [];
+    this.transports = [];
+  },
   setTransportComponents: async function (transports = []) {
+    // console.warn('transports', transports);
+    await this.removeTransports();
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    let indexTransport = -1;
     for (const transport of transports) {
+      indexTransport++;
+
+      this.transports[indexTransport] = [];
       {
         // https://pixijs.com/8.x/examples/graphics/dynamic
+
+        // getCurrentTrace()
 
         // const componentInstance = new Sprite(Texture.WHITE);
         const componentInstance = new Graphics();
 
-        // componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) - dim;
-        // componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) - dim;
-        componentInstance.x = dim * 4;
-        componentInstance.y = dim * 4;
+        componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell);
+        componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell);
+        // componentInstance.x = dim * 4;
+        // componentInstance.y = dim * 4;
 
         // componentInstance.width = dim * 4;
         // componentInstance.height = dim * 4;
         // componentInstance.tint = '#000000';
 
-        let count = 0;
+        //  {
+        //   let count = 0;
+        //   count += 0.1;
 
-        this.AppTopLevelColor.ticker.add(() => {
-          count += 0.1;
+        //   componentInstance.clear();
+        //   componentInstance.lineStyle(10, 0xff0000, 1);
+        //   componentInstance.beginFill(0xffff00, 0.5);
 
-          componentInstance.clear();
-          componentInstance.lineStyle(10, 0xff0000, 1);
-          componentInstance.beginFill(0xffff00, 0.5);
+        //   componentInstance.moveTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
+        //   componentInstance.lineTo(120 + Math.cos(count) * 20, -100 + Math.sin(count) * 20);
+        //   componentInstance.lineTo(120 + Math.sin(count) * 20, 100 + Math.cos(count) * 20);
+        //   componentInstance.lineTo(-120 + Math.cos(count) * 20, 100 + Math.sin(count) * 20);
+        //   componentInstance.lineTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
+        //   componentInstance.closePath();
 
-          componentInstance.moveTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
-          componentInstance.lineTo(120 + Math.cos(count) * 20, -100 + Math.sin(count) * 20);
-          componentInstance.lineTo(120 + Math.sin(count) * 20, 100 + Math.cos(count) * 20);
-          componentInstance.lineTo(-120 + Math.cos(count) * 20, 100 + Math.sin(count) * 20);
-          componentInstance.lineTo(-120 + Math.sin(count) * 20, -100 + Math.cos(count) * 20);
-          componentInstance.closePath();
+        //   componentInstance.rotation = count * 0.1;
+        //  }
 
-          componentInstance.rotation = count * 0.1;
+        // this.AppTopLevelColor.stage.on('pointerdown', () => {});
+
+        const alphas = [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15];
+        let deltaMsSum = 0;
+        let alphasIndex = 0;
+
+        const alphaTicker = (deltaMs) => {
+          deltaMsSum += deltaMs;
+          if (deltaMsSum >= 10) {
+            deltaMsSum = 0;
+            componentInstance.clear();
+            // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
+            componentInstance.beginFill(getNumberByHex(`#ffffff`), alphas[alphasIndex]);
+            componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
+            componentInstance.endFill();
+            alphasIndex++;
+            if (alphasIndex === alphas.length) alphasIndex = 0;
+          }
+        };
+
+        this.transportTickers.push({
+          destroy: () => PixiCyberia.App.ticker.remove(alphaTicker),
         });
-        this.AppTopLevelColor.stage.addChild(componentInstance);
+        PixiCyberia.App.ticker.add(alphaTicker);
+
+        this.transports[indexTransport].push(componentInstance);
+        this.App.stage.addChild(componentInstance);
       }
       {
         const componentInstance = Sprite.from(new BaseTexture(`${getProxyPath()}assets/ui-icons/transport.png`));
@@ -1216,7 +1265,8 @@ const PixiCyberia = {
         componentInstance.height = dim / 2;
         componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
         componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
-        this.AppTopLevelColor.stage.addChild(componentInstance);
+        this.transports[indexTransport].push(componentInstance);
+        this.App.stage.addChild(componentInstance);
       }
     }
   },
