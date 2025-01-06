@@ -177,7 +177,9 @@ const WorldCyberiaManagement = {
 
     if (!this.Data[type][id].blockChangeFace) {
       this.Data[type][id].blockChangeFace = true;
-      setTimeout(() => (this.Data[type][id].blockChangeFace = false), 400);
+      setTimeout(async () => {
+        this.Data[type][id].blockChangeFace = false;
+      }, 400);
 
       const [newFace, initDirection] = WorldCyberiaLimit({ type: this.Data[type][id].model.world.type })[
         ElementsCyberia.Data[type][id].model.world.face
@@ -186,9 +188,7 @@ const WorldCyberiaManagement = {
       await this.InstanceFace({ type, id, newFace, initDirection });
     }
   },
-  InstanceFace: async function (options = { type: 'user', id: 'main', newFace: 0, initDirection: '' }) {
-    console.warn('InstanceFace', options);
-    const { type, id, newFace, initDirection } = options;
+  isAdjacentCollision: async function ({ type, id, newFace, initDirection, x, y }) {
     let newBiomeCyberia;
     for (const biomeKey of Object.keys(BiomeCyberiaScope.Data)) {
       if (BiomeCyberiaScope.Data[biomeKey]._id === this.Data[type][id].model.world.face[newFace - 1]) {
@@ -196,8 +196,8 @@ const WorldCyberiaManagement = {
         break;
       }
     }
-    let newX = newInstance(ElementsCyberia.Data[type][id].x);
-    let newY = newInstance(ElementsCyberia.Data[type][id].y);
+    let newX = x ?? newInstance(ElementsCyberia.Data[type][id].x);
+    let newY = y ?? newInstance(ElementsCyberia.Data[type][id].y);
     switch (initDirection) {
       case 'left':
         newX = 0.5;
@@ -214,7 +214,18 @@ const WorldCyberiaManagement = {
       default:
         break;
     }
-    if (BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia })) return;
+    return {
+      newX,
+      newY,
+      newBiomeCyberia,
+      collision: BiomeCyberiaManagement.isBiomeCyberiaCollision({ type, id, x: newX, y: newY, biome: newBiomeCyberia }),
+    };
+  },
+  InstanceFace: async function (options = { type: 'user', id: 'main', newFace: 0, initDirection: '' }) {
+    console.warn('InstanceFace', options);
+    const { type, id, newFace, initDirection } = options;
+    const { collision, newBiomeCyberia, newX, newY } = await this.isAdjacentCollision(options);
+    if (collision) return;
     console.warn('newBiomeCyberia', newBiomeCyberia);
     console.warn('initDirection', initDirection);
     await InteractionPanelCyberia.PanelRender.removeAllActionPanel();

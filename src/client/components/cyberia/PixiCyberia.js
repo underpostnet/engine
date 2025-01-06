@@ -34,6 +34,7 @@ import {
   DisplayComponent,
   SkillCyberiaData,
   isElementCollision,
+  WorldCyberiaLimit,
 } from './CommonCyberia.js';
 import { BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
@@ -1175,6 +1176,7 @@ const PixiCyberia = {
   },
   transportTickers: [],
   transports: [],
+  transportsAdjacent: [],
   removeTransports: async function () {
     let _i = -1;
     for (const transport of PixiCyberia.transports) {
@@ -1186,11 +1188,91 @@ const PixiCyberia = {
     }
     this.transportTickers = [];
     this.transports = [];
+    for (const transport of PixiCyberia.transportsAdjacent) {
+      transport.destroy();
+      transport.componentInstance.destroy();
+    }
+    PixiCyberia.transportsAdjacent = [];
   },
   setTransportComponents: async function (transports = []) {
     // console.warn('transports', transports);
-    await this.removeTransports();
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+
+    const type = 'user';
+    const id = 'main';
+
+    await this.removeTransports();
+
+    {
+      for (let y of Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid)) {
+        y = parseInt(y);
+        for (let x of Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid[y])) {
+          if (BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid[y][x] === 1) continue;
+          x = parseInt(x);
+          let componentInstance, alphaTicker;
+          if (
+            x === Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid).length - 1 &&
+            y % MatrixCyberia.Data.dimPaintByCell === 0
+          ) {
+            const [newFace, initDirection] = WorldCyberiaLimit({
+              type: WorldCyberiaManagement.Data[type][id].model.world.type,
+            })[ElementsCyberia.Data[type][id].model.world.face]['left'];
+
+            const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+              type,
+              id,
+              newFace,
+              initDirection,
+              x,
+              y,
+            });
+            if (collision) continue;
+
+            const transportComponent = await this.transportCircleGFxFactory({
+              x: x + MatrixCyberia.Data.dimPaintByCell,
+              y: y,
+              dim,
+            });
+            componentInstance = transportComponent.componentInstance;
+            alphaTicker = transportComponent.alphaTicker;
+          } else if (x === 0 && y % MatrixCyberia.Data.dimPaintByCell === 0) {
+            const [newFace, initDirection] = WorldCyberiaLimit({
+              type: WorldCyberiaManagement.Data[type][id].model.world.type,
+            })[ElementsCyberia.Data[type][id].model.world.face]['right'];
+
+            const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+              type,
+              id,
+              newFace,
+              initDirection,
+              x,
+              y,
+            });
+            if (collision) continue;
+
+            const transportComponent = await this.transportCircleGFxFactory({
+              x: x - MatrixCyberia.Data.dimPaintByCell,
+              y: y,
+              dim,
+            });
+            componentInstance = transportComponent.componentInstance;
+            alphaTicker = transportComponent.alphaTicker;
+          }
+
+          if (componentInstance && alphaTicker) {
+            this.transportsAdjacent.push({
+              destroy: () => PixiCyberia.App.ticker.remove(alphaTicker),
+              componentInstance,
+            });
+
+            PixiCyberia.App.ticker.add(alphaTicker);
+
+            this.App.stage.addChild(componentInstance);
+          }
+        }
+      }
+    }
+
     let indexTransport = -1;
     for (const transport of transports) {
       indexTransport++;
@@ -1202,10 +1284,12 @@ const PixiCyberia = {
         // getCurrentTrace()
 
         // const componentInstance = new Sprite(Texture.WHITE);
-        const componentInstance = new Graphics();
+        const { componentInstance, alphaTicker } = await this.transportCircleGFxFactory({
+          x: transport.x1,
+          y: transport.y1,
+          dim,
+        });
 
-        componentInstance.x = dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell);
-        componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell);
         // componentInstance.x = dim * 4;
         // componentInstance.y = dim * 4;
 
@@ -1233,24 +1317,6 @@ const PixiCyberia = {
 
         // this.AppTopLevelColor.stage.on('pointerdown', () => {});
 
-        const alphas = [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15];
-        let deltaMsSum = 0;
-        let alphasIndex = 0;
-
-        const alphaTicker = (deltaMs) => {
-          deltaMsSum += deltaMs;
-          if (deltaMsSum >= 10) {
-            deltaMsSum = 0;
-            componentInstance.clear();
-            // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
-            componentInstance.beginFill(getNumberByHex(`#ffffff`), alphas[alphasIndex]);
-            componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
-            componentInstance.endFill();
-            alphasIndex++;
-            if (alphasIndex === alphas.length) alphasIndex = 0;
-          }
-        };
-
         this.transportTickers.push({
           destroy: () => PixiCyberia.App.ticker.remove(alphaTicker),
         });
@@ -1269,6 +1335,30 @@ const PixiCyberia = {
         this.App.stage.addChild(componentInstance);
       }
     }
+  },
+  transportCircleGFxFactory: async function ({ x, y, dim }) {
+    const componentInstance = new Graphics();
+
+    componentInstance.x = dim * (x / MatrixCyberia.Data.dimPaintByCell);
+    componentInstance.y = dim * (y / MatrixCyberia.Data.dimPaintByCell);
+    const alphas = [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15];
+    let deltaMsSum = 0;
+    let alphasIndex = 0;
+
+    const alphaTicker = (deltaMs) => {
+      deltaMsSum += deltaMs;
+      if (deltaMsSum >= 10) {
+        deltaMsSum = 0;
+        componentInstance.clear();
+        // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
+        componentInstance.beginFill(getNumberByHex(`#ffffff`), alphas[alphasIndex]);
+        componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
+        componentInstance.endFill();
+        alphasIndex++;
+        if (alphasIndex === alphas.length) alphasIndex = 0;
+      }
+    };
+    return { componentInstance, alphaTicker };
   },
 };
 
