@@ -901,14 +901,30 @@ const QuestManagementCyberia = {
     };
     const CyberiaQuestSections = {
       sellerStorage: async () => {
+        const bagId = 'cyberia-seller-bag';
+        let indexBag = -1;
+        setTimeout(() => {
+          for (const componentType of Object.keys(QuestComponent.componentsScope[mainDisplayId].shopStorage)) {
+            for (const itemData of QuestComponent.componentsScope[mainDisplayId].shopStorage[componentType]) {
+              indexBag++;
+              Slot[componentType].render({
+                bagId,
+                slotId: `${bagId}-${indexBag}`,
+                displayId: itemData.id,
+                disabledCount: true,
+              });
+            }
+          }
+        });
         return html`${await BagCyberia.Render({
           disableSortable: true,
-          id: 'cyberia-seller-bag',
+          id: bagId,
           idModal: 'modal-seller',
           owner: {
             type: elementType,
             id: elementId,
           },
+          empty: true,
         })}`;
       },
       progress: async () => {

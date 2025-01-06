@@ -873,17 +873,40 @@ const BagCyberia = {
           },
         });
 
-      let indexBagCyberia = 0;
-      indexBagCyberia = await Slot.coin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      // indexBagCyberia = await Slot.xp.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.skin.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      // indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.questItem.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      indexBagCyberia = await Slot.resource.renderBagCyberiaSlots({ bagId, indexBagCyberia });
-      this.indexBagCyberia = indexBagCyberia;
+      this.Tokens[bagId].indexBagCyberia = 0;
+
+      if (!options.empty) {
+        this.Tokens[bagId].indexBagCyberia = await Slot.coin.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        // this.Tokens[bagId].indexBagCyberia = await Slot.xp.renderBagCyberiaSlots({ bagId, indexBagCyberia: this.Tokens[bagId].indexBagCyberia });
+        this.Tokens[bagId].indexBagCyberia = await Slot.skin.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        this.Tokens[bagId].indexBagCyberia = await Slot.skill.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        this.Tokens[bagId].indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        this.Tokens[bagId].indexBagCyberia = await Slot.breastplate.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        // this.Tokens[bagId].indexBagCyberia = await Slot.wallet.renderBagCyberiaSlots({ bagId, indexBagCyberia: this.Tokens[bagId].indexBagCyberia });
+        this.Tokens[bagId].indexBagCyberia = await Slot.questItem.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+        this.Tokens[bagId].indexBagCyberia = await Slot.resource.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: this.Tokens[bagId].indexBagCyberia,
+        });
+      }
     });
     return html`
       <div class="fl ${bagId}">

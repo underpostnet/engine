@@ -926,6 +926,13 @@ const QuestComponent = {
         es: `Hola que tal? te interesa comprar una herramienta de extracción de recursos planetarios?`,
         en: `Hi, how are you? Are you interested in purchasing a planetary resource extraction tool?`,
       },
+      shopStorage: {
+        weapon: [
+          {
+            id: 'hatchet',
+          },
+        ],
+      },
     },
     'bone-brown': {
       questKeyContext: 'displaySearchObjects',
