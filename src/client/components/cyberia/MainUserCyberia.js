@@ -38,11 +38,11 @@ const MainUserCyberia = {
   Render: async function () {
     append(
       'body',
-      html` <div class="fix center main-user-container">
+      html` <div class="fix center main-user-container hide">
         <canvas class="abs main-user-pixi-container"></canvas>
       </div>`,
     );
-
+    return;
     this.PixiCyberiaMainUserCyberia = new Application({
       view: s(`.main-user-pixi-container`),
       width: PixiCyberia.MetaData.dim,
@@ -363,6 +363,7 @@ const MainUserCyberia = {
   },
   finishSetup: () => {
     setTimeout(async () => {
+      s(`.main-body`).classList.add('hide');
       s(`.ssr-loading-bar`).style.display = 'none';
       // htmls('.ssr-loading-info', html`<span style="margin-left: 2px">${Translate.Render('charge-complete')}</span>`);
       htmls('.ssr-loading-info', html``);
