@@ -175,18 +175,23 @@ const WorldCyberiaManagement = {
     if (this.Data[type][id].model.world.type === 'height' && (direction === 'right' || direction === 'left')) return;
     if (this.Data[type][id].model.world.type === 'width' && (direction === 'top' || direction === 'bottom')) return;
 
-    if (!this.Data[type][id].blockChangeFace) {
-      this.Data[type][id].blockChangeFace = true;
+    const initX = ElementsCyberia.Data[type][id].x;
+    const initY = ElementsCyberia.Data[type][id].y;
+
+    if (!ElementsCyberia.LocalDataScope[type][id].isChangeFace)
       setTimeout(async () => {
-        this.Data[type][id].blockChangeFace = false;
-      }, 400);
+        if (
+          !ElementsCyberia.LocalDataScope[type][id].isChangeFace &&
+          initX === ElementsCyberia.Data[type][id].x &&
+          initY === ElementsCyberia.Data[type][id].y
+        ) {
+          const [newFace, initDirection] = WorldCyberiaLimit({ type: this.Data[type][id].model.world.type })[
+            ElementsCyberia.Data[type][id].model.world.face
+          ][direction];
 
-      const [newFace, initDirection] = WorldCyberiaLimit({ type: this.Data[type][id].model.world.type })[
-        ElementsCyberia.Data[type][id].model.world.face
-      ][direction];
-
-      await this.InstanceFace({ type, id, newFace, initDirection });
-    }
+          await this.InstanceFace({ type, id, newFace, initDirection });
+        }
+      }, 750);
   },
   isAdjacentCollision: async function ({ type, id, newFace, initDirection, x, y }) {
     let newBiomeCyberia;
