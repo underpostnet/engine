@@ -396,7 +396,7 @@ const Slot = {
       if (!s(`.bag-slot-value-${bagId}-${displayId}`)) {
         BagCyberia.indexBagCyberia = await Slot.resource.renderBagCyberiaSlots({
           bagId,
-          indexBagCyberia: BagCyberia.indexBagCyberia,
+          indexBagCyberia: BagCyberia.Tokens[bagId].indexBagCyberia,
           displayId,
         });
       }
