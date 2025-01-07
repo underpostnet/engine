@@ -1210,53 +1210,115 @@ const PixiCyberia = {
           if (BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid[y][x] === 1) continue;
           x = parseInt(x);
           let componentInstance, alphaTicker;
-          if (
-            x === Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid).length - 1 &&
-            y % MatrixCyberia.Data.dimPaintByCell === 0
-          ) {
-            const [newFace, initDirection] = WorldCyberiaLimit({
-              type: WorldCyberiaManagement.Data[type][id].model.world.type,
-            })[ElementsCyberia.Data[type][id].model.world.face]['left'];
 
-            const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
-              type,
-              id,
-              newFace,
-              initDirection,
-              x: x / MatrixCyberia.Data.dimPaintByCell,
-              y: y / MatrixCyberia.Data.dimPaintByCell,
-            });
-            if (collision) continue;
+          switch (WorldCyberiaManagement.Data[type][id].model.world.type) {
+            case 'width':
+              {
+                if (
+                  x === Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid).length - 1 &&
+                  y % MatrixCyberia.Data.dimPaintByCell === 0
+                ) {
+                  const [newFace, initDirection] = WorldCyberiaLimit({
+                    type: WorldCyberiaManagement.Data[type][id].model.world.type,
+                  })[ElementsCyberia.Data[type][id].model.world.face]['left'];
 
-            const transportComponent = await this.transportCircleGFxFactory({
-              x,
-              y,
-              dim,
-            });
-            componentInstance = transportComponent.componentInstance;
-            alphaTicker = transportComponent.alphaTicker;
-          } else if (x === 0 && y % MatrixCyberia.Data.dimPaintByCell === 0) {
-            const [newFace, initDirection] = WorldCyberiaLimit({
-              type: WorldCyberiaManagement.Data[type][id].model.world.type,
-            })[ElementsCyberia.Data[type][id].model.world.face]['right'];
+                  const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+                    type,
+                    id,
+                    newFace,
+                    initDirection,
+                    x: x / MatrixCyberia.Data.dimPaintByCell,
+                    y: y / MatrixCyberia.Data.dimPaintByCell,
+                  });
+                  if (collision) continue;
 
-            const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
-              type,
-              id,
-              newFace,
-              initDirection,
-              x: x / MatrixCyberia.Data.dimPaintByCell,
-              y: y / MatrixCyberia.Data.dimPaintByCell,
-            });
-            if (collision) continue;
+                  const transportComponent = await this.transportCircleGFxFactory({
+                    x,
+                    y,
+                    dim,
+                  });
+                  componentInstance = transportComponent.componentInstance;
+                  alphaTicker = transportComponent.alphaTicker;
+                } else if (x === 0 && y % MatrixCyberia.Data.dimPaintByCell === 0) {
+                  const [newFace, initDirection] = WorldCyberiaLimit({
+                    type: WorldCyberiaManagement.Data[type][id].model.world.type,
+                  })[ElementsCyberia.Data[type][id].model.world.face]['right'];
 
-            const transportComponent = await this.transportCircleGFxFactory({
-              x,
-              y,
-              dim,
-            });
-            componentInstance = transportComponent.componentInstance;
-            alphaTicker = transportComponent.alphaTicker;
+                  const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+                    type,
+                    id,
+                    newFace,
+                    initDirection,
+                    x: x / MatrixCyberia.Data.dimPaintByCell,
+                    y: y / MatrixCyberia.Data.dimPaintByCell,
+                  });
+                  if (collision) continue;
+
+                  const transportComponent = await this.transportCircleGFxFactory({
+                    x,
+                    y,
+                    dim,
+                  });
+                  componentInstance = transportComponent.componentInstance;
+                  alphaTicker = transportComponent.alphaTicker;
+                }
+              }
+              break;
+            case 'height':
+              {
+                if (
+                  y === Object.keys(BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].solid).length - 1 &&
+                  x % MatrixCyberia.Data.dimPaintByCell === 0
+                ) {
+                  const [newFace, initDirection] = WorldCyberiaLimit({
+                    type: WorldCyberiaManagement.Data[type][id].model.world.type,
+                  })[ElementsCyberia.Data[type][id].model.world.face]['bottom'];
+
+                  const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+                    type,
+                    id,
+                    newFace,
+                    initDirection,
+                    x: x / MatrixCyberia.Data.dimPaintByCell,
+                    y: y / MatrixCyberia.Data.dimPaintByCell,
+                  });
+                  if (collision) continue;
+
+                  const transportComponent = await this.transportCircleGFxFactory({
+                    x,
+                    y,
+                    dim,
+                  });
+                  componentInstance = transportComponent.componentInstance;
+                  alphaTicker = transportComponent.alphaTicker;
+                } else if (y === 0 && x % MatrixCyberia.Data.dimPaintByCell === 0) {
+                  const [newFace, initDirection] = WorldCyberiaLimit({
+                    type: WorldCyberiaManagement.Data[type][id].model.world.type,
+                  })[ElementsCyberia.Data[type][id].model.world.face]['top'];
+
+                  const { collision, newBiomeCyberia, newX, newY } = await WorldCyberiaManagement.isAdjacentCollision({
+                    type,
+                    id,
+                    newFace,
+                    initDirection,
+                    x: x / MatrixCyberia.Data.dimPaintByCell,
+                    y: y / MatrixCyberia.Data.dimPaintByCell,
+                  });
+                  if (collision) continue;
+
+                  const transportComponent = await this.transportCircleGFxFactory({
+                    x,
+                    y,
+                    dim,
+                  });
+                  componentInstance = transportComponent.componentInstance;
+                  alphaTicker = transportComponent.alphaTicker;
+                }
+              }
+              break;
+
+            default:
+              break;
           }
 
           if (componentInstance && alphaTicker) {
