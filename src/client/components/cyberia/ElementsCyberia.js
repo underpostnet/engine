@@ -54,7 +54,11 @@ const ElementsCyberia = {
         if (this.Data[type][id].model.user.role === 'admin') return htmlDisplay(this.formatDisplayText('admin'));
         if (this.Data[type][id].model.user.role === 'moderator')
           return htmlDisplay(this.formatDisplayText('moderator'));
-        if (this.Data[type][id].model.user.username) return htmlDisplay(this.formatDisplayText('newbie'));
+        if (
+          this.Data[type][id].model.user.username &&
+          !this.Data[type][id].model.user.username.toLowerCase().match('guest')
+        )
+          return htmlDisplay(this.formatDisplayText('newbie'));
         else return htmlDisplay(this.formatDisplayText('anon newbie'));
       case 'item-quest':
       case 'decor':
@@ -75,7 +79,8 @@ const ElementsCyberia = {
       case 'user':
         return htmlDisplay(
           this.formatDisplayText(
-            this.Data[type][id].model.user.username
+            this.Data[type][id].model.user.username &&
+              !this.Data[type][id].model.user.username.toLowerCase().match('guest')
               ? this.Data[type][id].model.user.username
               : id === 'main'
               ? SocketIo.socket.id.slice(0, 7)

@@ -57,6 +57,7 @@ const CyberiaWsUserController = {
         }
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user._id = user._id;
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.username = user.username;
+        CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user.role = user.role;
         break;
       case 'unregister-user':
         CyberiaWsUserManagement.element[wsManagementId][socket.id].model.user = { _id: '' };

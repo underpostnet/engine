@@ -1336,12 +1336,12 @@ const PixiCyberia = {
       }
     }
   },
+  transportCircleGFxAlphaValues: [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15],
   transportCircleGFxFactory: async function ({ x, y, dim }) {
     const componentInstance = new Graphics();
 
     componentInstance.x = dim * (x / MatrixCyberia.Data.dimPaintByCell);
     componentInstance.y = dim * (y / MatrixCyberia.Data.dimPaintByCell);
-    const alphas = [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15];
     let deltaMsSum = 0;
     let alphasIndex = 0;
 
@@ -1351,11 +1351,11 @@ const PixiCyberia = {
         deltaMsSum = 0;
         componentInstance.clear();
         // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
-        componentInstance.beginFill(getNumberByHex(`#ffffff`), alphas[alphasIndex]);
+        componentInstance.beginFill(getNumberByHex(`#ffffff`), this.transportCircleGFxAlphaValues[alphasIndex]);
         componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
         componentInstance.endFill();
         alphasIndex++;
-        if (alphasIndex === alphas.length) alphasIndex = 0;
+        if (alphasIndex === this.transportCircleGFxAlphaValues.length) alphasIndex = 0;
       }
     };
     return { componentInstance, alphaTicker };
