@@ -622,7 +622,7 @@ const QuestManagementCyberia = {
                                 `
                               : html`<img
                                   class="abs center action-panel-img-icon"
-                                  src="${getProxyPath()}${questData.actionIcon
+                                  src="${getProxyPath()}${questData && questData.actionIcon
                                     ? questData.actionIcon
                                     : 'assets/ui-icons/hand.png'}"
                                 />`}
@@ -1199,6 +1199,7 @@ const QuestManagementCyberia = {
           id: `abandon-anon/${questData.id}`,
           body: { socketId: SocketIo.socket.id },
         });
+        await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
       }
       s(`.btn-close-${idModal}`).click();
     });
@@ -1292,6 +1293,7 @@ const QuestManagementCyberia = {
       id: interactionPanelQuestId,
       questData,
     });
+    await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
   },
   getIdPanelByQuestId: function ({ questData }) {
     for (const elementTargetId of Object.keys(ElementsCyberia.LocalDataScope['bot'])) {
