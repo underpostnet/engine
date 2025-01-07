@@ -1411,11 +1411,15 @@ const PixiCyberia = {
       deltaMsSum += deltaMs;
       if (deltaMsSum >= 10) {
         deltaMsSum = 0;
-        componentInstance.clear();
-        // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
-        componentInstance.beginFill(getNumberByHex(`#ffffff`), this.transportCircleGFxAlphaValues[alphasIndex]);
-        componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
-        componentInstance.endFill();
+        try {
+          componentInstance.clear();
+          // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
+          componentInstance.beginFill(getNumberByHex(`#ffffff`), this.transportCircleGFxAlphaValues[alphasIndex]);
+          componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
+          componentInstance.endFill();
+        } catch (error) {
+          console.error(error);
+        }
         alphasIndex++;
         if (alphasIndex === this.transportCircleGFxAlphaValues.length) alphasIndex = 0;
       }
