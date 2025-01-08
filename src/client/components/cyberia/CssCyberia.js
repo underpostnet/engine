@@ -193,7 +193,7 @@ const CssCommonCyberia = async () => {
       }
       .map-name-icon-container {
         color: black;
-        font-size: 15px;
+        font-size: 12px;
         bottom: 3px;
         left: 3px;
         height: 15px;
@@ -202,7 +202,7 @@ const CssCommonCyberia = async () => {
         color: #ffcc00;
       }
       .map-name-icon-container:hover {
-        font-size: 15.5px;
+        font-size: 12.5px;
       }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
