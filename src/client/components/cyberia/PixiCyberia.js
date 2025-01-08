@@ -1491,9 +1491,11 @@ const PixiCyberia = {
           componentInstance.x =
             dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) +
             dim / 4 -
-            (textValue.length - lengthBaseChars > 0 ? (fontSize * (textValue.length - lengthBaseChars)) / 2 : 0);
+            (textValue.length - lengthBaseChars > 0 ? (fontSize * (textValue.length - lengthBaseChars)) / 2 + 3 : 0);
 
-          componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4 - fontSize * 2;
+          componentInstance.y =
+            dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4 + dim / 2 + fontSize / 2;
+
           componentInstance.width = dim / 2;
           componentInstance.height = dim / 2;
           this.App.stage.addChild(componentInstance);
