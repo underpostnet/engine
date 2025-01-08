@@ -191,6 +191,14 @@ const CssCommonCyberia = async () => {
         height: 20px;
         top: 4px;
       }
+      .map-name-icon-container {
+        color: black;
+        font-size: 14px;
+        text-align: center;
+        top: 105px;
+        position: relative;
+        cursor: pointer;
+      }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
     ${borderChar(1, 'yellow', ['.main-body-btn-container'])}

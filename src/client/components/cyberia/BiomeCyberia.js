@@ -2,6 +2,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { FileService } from '../../services/file/file.service.js';
 
 import { loggerFactory } from '../core/Logger.js';
+import { htmls, s } from '../core/VanillaJs.js';
 
 import {
   getCollisionMatrixCyberia,
@@ -12,6 +13,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
 import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
+import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -95,6 +97,25 @@ const BiomeCyberiaManagement = {
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
     await PixiCyberia.setMapComponents();
     PointAndClickMovementCyberia.callback();
+    {
+      const type = 'user';
+      const id = 'main';
+      htmls(
+        `.main-body-btn-container-custom`,
+        html`<div class="map-name-icon-container">
+          ${WorldCyberiaManagement.Data[type][id].model.world.name.replaceAll('-', '<br>')}<br />
+
+          ${BiomeCyberiaScope.Data[rowId].name.replaceAll('-', '<br>')}
+          <br />
+          ${WorldCyberiaManagement.Data[type][id].model.world.instance[
+            ElementsCyberia.Data[type][id].model.world.face - 1
+          ].type}
+        </div>`,
+      );
+      s(`.map-name-icon-container`).onclick = () => {
+        s(`.cy-int-btn-map`).click();
+      };
+    }
   },
   isBiomeCyberiaCollision: function (options) {
     const { type, id, x, y } = options;

@@ -265,6 +265,7 @@ const Modal = {
                         <i class="fas fa-caret-up main-body-btn-ui-close"></i>
                       </div>
                     </div>
+                    <div class="main-body-btn-container-custom"></div>
                   </div>
                 `,
               );

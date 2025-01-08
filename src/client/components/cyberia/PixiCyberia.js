@@ -566,6 +566,8 @@ const PixiCyberia = {
                 );
                 this.Data[type][id].components[componentType].container.addChild(componentInstance);
                 setTimeout(() => {
+                  if (this.Data[type][id])
+                    this.Data[type][id].components[componentType].container.removeChild(componentInstance);
                   componentInstance.destroy();
                 }, 450);
               }
@@ -620,6 +622,8 @@ const PixiCyberia = {
                 );
                 this.Data[type][id].components[componentType].container.addChild(componentInstance);
                 setTimeout(() => {
+                  if (this.Data[type][id])
+                    this.Data[type][id].components[componentType].container.removeChild(componentInstance);
                   componentInstance.destroy();
                 }, 450);
               }
@@ -1077,6 +1081,7 @@ const PixiCyberia = {
       if (repeat === 3) {
         container.stop();
         container.destroy();
+        this.AppTopLevelColor.stage.removeChild(container);
         delete this.markers[id];
       }
     };
@@ -1250,15 +1255,22 @@ const PixiCyberia = {
     let _i = -1;
     for (const transport of PixiCyberia.transports) {
       _i++;
-      if (PixiCyberia.transportTickers[_i]) PixiCyberia.transportTickers[_i].destroy();
+      if (PixiCyberia.transportTickers[_i]) {
+        this.App.stage.removeChild(PixiCyberia.transportTickers[_i].componentInstance);
+        PixiCyberia.transportTickers[_i].destroy();
+      }
       for (const component of transport) {
-        if (component && component.destroy) component.destroy();
+        if (component && component.destroy) {
+          this.App.stage.removeChild(component);
+          component.destroy();
+        }
       }
     }
     this.transportTickers = [];
     this.transports = [];
     for (const transport of PixiCyberia.transportsAdjacent) {
       transport.destroy();
+      this.App.stage.removeChild(transport.componentInstance);
       transport.componentInstance.destroy();
     }
     PixiCyberia.transportsAdjacent = [];
@@ -1453,6 +1465,7 @@ const PixiCyberia = {
 
         this.transportTickers.push({
           destroy: () => PixiCyberia.App.ticker.remove(alphaTicker),
+          componentInstance,
         });
         PixiCyberia.App.ticker.add(alphaTicker);
 
@@ -1467,6 +1480,40 @@ const PixiCyberia = {
         componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4;
         this.transports[indexTransport].push(componentInstance);
         this.App.stage.addChild(componentInstance);
+      }
+      {
+        const fontSize = 100 * (1 / MatrixCyberia.Data.dimAmplitude);
+        const lengthBaseChars = 7;
+        const textValue = `${transport.path}`;
+        let container;
+        {
+          const componentInstance = new Container();
+          componentInstance.x =
+            dim * (transport.x1 / MatrixCyberia.Data.dimPaintByCell) +
+            dim / 4 -
+            (textValue.length - lengthBaseChars > 0 ? (fontSize * (textValue.length - lengthBaseChars)) / 2 : 0);
+
+          componentInstance.y = dim * (transport.y1 / MatrixCyberia.Data.dimPaintByCell) + dim / 4 - fontSize * 2;
+          componentInstance.width = dim / 2;
+          componentInstance.height = dim / 2;
+          this.App.stage.addChild(componentInstance);
+          this.transports[indexTransport].push(componentInstance);
+          container = componentInstance;
+        }
+        const componentInstance = new Text(
+          textValue,
+          new TextStyle({
+            fill: '#ffff00',
+            fontFamily: 'retro-font', // Impact
+            fontSize,
+            dropShadow: true,
+            dropShadowAngle: 1,
+            dropShadowBlur: 3,
+            dropShadowColor: '#121212',
+            dropShadowDistance: 1,
+          }),
+        );
+        container.addChild(componentInstance);
       }
     }
   },
