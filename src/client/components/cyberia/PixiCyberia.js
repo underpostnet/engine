@@ -4,6 +4,7 @@ import {
   getId,
   insertTransitionCoordinates,
   newInstance,
+  random,
   range,
   round10,
   timer,
@@ -420,6 +421,7 @@ const PixiCyberia = {
     this.Data[type][id].addChild(this.Data[type][id].components.layer0.container);
 
     this.Data[type][id].intervals = {};
+    this.Data[type][id].pixiTickers = {};
     let index;
     this.Data['elements'].container.addChild(this.Data[type][id]);
     for (const componentType of Object.keys(ElementsCyberia.Data[type][id].components)) {
@@ -791,6 +793,30 @@ const PixiCyberia = {
       }
     }
     this.updateLifeBarWidth({ type, id, dim });
+
+    switch (ElementsCyberia.Data[type][id].behavior) {
+      case 'quest-passive':
+        (async () => {
+          const { componentInstance, alphaTicker } = await PixiCyberia.gfxFactory({
+            x: ElementsCyberia.Data[type][id].x * MatrixCyberia.Data.dimPaintByCell,
+            y: ElementsCyberia.Data[type][id].y * MatrixCyberia.Data.dimPaintByCell,
+            dim: ElementsCyberia.Data[type][id].dim * (PixiCyberia.MetaData.dim / MatrixCyberia.Data.dim),
+            gfxId: ElementsCyberia.Data[type][id].behavior,
+          });
+
+          this.Data[type][id].pixiTickers['quest-passive'] = {
+            destroy: () => PixiCyberia.App.ticker.remove(alphaTicker),
+            componentInstance,
+          };
+          PixiCyberia.App.ticker.add(alphaTicker);
+
+          PixiCyberia.App.stage.addChild(componentInstance);
+        })();
+        break;
+
+      default:
+        break;
+    }
   },
   updateLife: function (options) {
     const { type, id } = options;
@@ -977,6 +1003,10 @@ const PixiCyberia = {
           }
         }
       }
+    }
+    for (const ticker of Object.keys(this.Data[type][id].pixiTickers)) {
+      this.Data[type][id].pixiTickers[ticker].componentInstance.destroy();
+      this.Data[type][id].pixiTickers[ticker].destroy();
     }
     this.Data[type][id].destroy();
     delete this.Data[type][id];
@@ -1233,13 +1263,12 @@ const PixiCyberia = {
     }
     PixiCyberia.transportsAdjacent = [];
   },
-  setTransportComponents: async function (transports = []) {
-    // console.warn('transports', transports);
+  setMapComponents: async function () {
     const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
 
     const type = 'user';
     const id = 'main';
-
+    const gfxId = 'adjacent-transport';
     await this.removeTransports();
 
     {
@@ -1271,10 +1300,11 @@ const PixiCyberia = {
                   });
                   if (collision) continue;
 
-                  const transportComponent = await this.transportCircleGFxFactory({
-                    x,
+                  const transportComponent = await this.gfxFactory({
+                    x: x + 1,
                     y,
                     dim,
+                    gfxId,
                   });
                   componentInstance = transportComponent.componentInstance;
                   alphaTicker = transportComponent.alphaTicker;
@@ -1293,10 +1323,11 @@ const PixiCyberia = {
                   });
                   if (collision) continue;
 
-                  const transportComponent = await this.transportCircleGFxFactory({
-                    x,
+                  const transportComponent = await this.gfxFactory({
+                    x: x - 2.5,
                     y,
                     dim,
+                    gfxId,
                   });
                   componentInstance = transportComponent.componentInstance;
                   alphaTicker = transportComponent.alphaTicker;
@@ -1323,10 +1354,11 @@ const PixiCyberia = {
                   });
                   if (collision) continue;
 
-                  const transportComponent = await this.transportCircleGFxFactory({
+                  const transportComponent = await this.gfxFactory({
                     x,
-                    y,
+                    y: y + 1,
                     dim,
+                    gfxId,
                   });
                   componentInstance = transportComponent.componentInstance;
                   alphaTicker = transportComponent.alphaTicker;
@@ -1345,10 +1377,11 @@ const PixiCyberia = {
                   });
                   if (collision) continue;
 
-                  const transportComponent = await this.transportCircleGFxFactory({
+                  const transportComponent = await this.gfxFactory({
                     x,
-                    y,
+                    y: y - 2.5,
                     dim,
+                    gfxId,
                   });
                   componentInstance = transportComponent.componentInstance;
                   alphaTicker = transportComponent.alphaTicker;
@@ -1375,7 +1408,7 @@ const PixiCyberia = {
     }
 
     let indexTransport = -1;
-    for (const transport of transports) {
+    for (const transport of BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId].transports) {
       indexTransport++;
 
       this.transports[indexTransport] = [];
@@ -1385,7 +1418,7 @@ const PixiCyberia = {
         // getCurrentTrace()
 
         // const componentInstance = new Sprite(Texture.WHITE);
-        const { componentInstance, alphaTicker } = await this.transportCircleGFxFactory({
+        const { componentInstance, alphaTicker } = await this.gfxFactory({
           x: transport.x1,
           y: transport.y1,
           dim,
@@ -1437,14 +1470,14 @@ const PixiCyberia = {
       }
     }
   },
-  transportCircleGFxAlphaValues: [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15],
-  transportCircleGFxFactory: async function ({ x, y, dim }) {
+  defaultAlphaValues: [0.1, 0.15, 0.2, 0.25, 0.3, 0.25, 0.2, 0.15],
+  gfxFactory: async function ({ x, y, dim, gfxId }) {
     const componentInstance = new Graphics();
-
-    componentInstance.x = dim * (x / MatrixCyberia.Data.dimPaintByCell);
-    componentInstance.y = dim * (y / MatrixCyberia.Data.dimPaintByCell);
+    const dimPaintByCell = PixiCyberia.MetaData.dim / MatrixCyberia.Data.dim;
+    componentInstance.x = dimPaintByCell * (x / MatrixCyberia.Data.dimPaintByCell);
+    componentInstance.y = dimPaintByCell * (y / MatrixCyberia.Data.dimPaintByCell);
     let deltaMsSum = 0;
-    let alphasIndex = 0;
+    let alphasIndex = random(0, this.defaultAlphaValues.length - 1);
 
     const alphaTicker = (deltaMs) => {
       deltaMsSum += deltaMs;
@@ -1452,15 +1485,41 @@ const PixiCyberia = {
         deltaMsSum = 0;
         try {
           componentInstance.clear();
-          // componentInstance.lineStyle(0, getNumberByHex(`#ffffff`));
-          componentInstance.beginFill(getNumberByHex(`#ffffff`), this.transportCircleGFxAlphaValues[alphasIndex]);
-          componentInstance.drawCircle(1 * (dim / 2), 1 * (dim / 2), dim * 2);
+          switch (gfxId) {
+            case 'quest-passive':
+              {
+                const radius = dimPaintByCell * 2;
+                componentInstance.lineStyle(
+                  radius,
+                  getNumberByHex(`#ffffff`),
+                  this.defaultAlphaValues[alphasIndex] - 0.09,
+                );
+                componentInstance.drawCircle(dim / 2, dim / 2, radius);
+              }
+              break;
+
+            case 'adjacent-transport':
+              {
+                const radius = dimPaintByCell * 2;
+                componentInstance.beginFill(getNumberByHex(`#151515`), this.defaultAlphaValues[alphasIndex]);
+                componentInstance.drawCircle(dim / 2, dim / 2, radius);
+              }
+              break;
+            default:
+              {
+                const radius = dimPaintByCell * 2;
+                componentInstance.beginFill(getNumberByHex(`#ffffff`), this.defaultAlphaValues[alphasIndex]);
+                componentInstance.drawCircle(dim / 2, dim / 2, radius);
+              }
+              break;
+          }
+
           componentInstance.endFill();
         } catch (error) {
           console.error(error);
         }
         alphasIndex++;
-        if (alphasIndex === this.transportCircleGFxAlphaValues.length) alphasIndex = 0;
+        if (alphasIndex === this.defaultAlphaValues.length) alphasIndex = 0;
       }
     };
     return { componentInstance, alphaTicker };

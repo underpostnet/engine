@@ -567,7 +567,7 @@ const QuestManagementCyberia = {
                     keyBoardFocusBlock = true;
                     setTimeout(() => (keyBoardFocusBlock = false), 500);
                     if (s(`.action-panel-close-${idPanel}`)) s(`.action-panel-close-${idPanel}`).click();
-                    if (s(`.button-quest-modal-forward-${questData.id}`))
+                    if (questData && s(`.button-quest-modal-forward-${questData.id}`))
                       s(`.button-quest-modal-forward-${questData.id}`).click();
                     Keyboard.Event['focus'] = {
                       f: MainUserCyberia.focusTarget,

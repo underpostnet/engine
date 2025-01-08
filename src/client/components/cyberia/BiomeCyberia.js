@@ -93,8 +93,7 @@ const BiomeCyberiaManagement = {
     PixiCyberia.setMainUserMovementController();
     PixiCyberia.setFloor(BiomeCyberiaScope.Data[rowId].imageSrc);
     PixiCyberia.setFloorTopLevelColor(BiomeCyberiaScope.Data[rowId].imageTopLevelColorSrc);
-    if (BiomeCyberiaScope.Data[rowId].transports)
-      PixiCyberia.setTransportComponents(BiomeCyberiaScope.Data[rowId].transports);
+    await PixiCyberia.setMapComponents();
     PointAndClickMovementCyberia.callback();
   },
   isBiomeCyberiaCollision: function (options) {
