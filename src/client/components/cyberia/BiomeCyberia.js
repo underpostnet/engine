@@ -101,16 +101,14 @@ const BiomeCyberiaManagement = {
       const type = 'user';
       const id = 'main';
       htmls(
-        `.main-body-btn-container-custom`,
-        html`<div class="map-name-icon-container">
-          ${WorldCyberiaManagement.Data[type][id].model.world.name.replaceAll('-', '<br>')}<br />
-
-          ${BiomeCyberiaScope.Data[rowId].name.replaceAll('-', '<br>')}
-          <br />
+        `.map-name-icon-container`,
+        html`
+          ${WorldCyberiaManagement.Data[type][id].model.world.name} ${BiomeCyberiaScope.Data[rowId].name}
           ${WorldCyberiaManagement.Data[type][id].model.world.instance[
             ElementsCyberia.Data[type][id].model.world.face - 1
           ].type}
-        </div>`,
+          - F${ElementsCyberia.Data[type][id].model.world.face}
+        `,
       );
       s(`.map-name-icon-container`).onclick = () => {
         s(`.cy-int-btn-map`).click();

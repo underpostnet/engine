@@ -1,6 +1,6 @@
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { Responsive } from '../core/Responsive.js';
-import { s } from '../core/VanillaJs.js';
+import { append, s } from '../core/VanillaJs.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
 const MatrixCyberia = {
@@ -13,6 +13,7 @@ const MatrixCyberia = {
       dimAmplitude: 3, // 8,
       ...data,
     };
+    append('body', html`<div class="abs map-name-icon-container"></div>`);
   },
   Render: async function () {
     let start;

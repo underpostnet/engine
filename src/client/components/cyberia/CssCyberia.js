@@ -193,16 +193,21 @@ const CssCommonCyberia = async () => {
       }
       .map-name-icon-container {
         color: black;
-        font-size: 14px;
-        text-align: center;
-        top: 105px;
-        position: relative;
+        font-size: 15px;
+        bottom: 3px;
+        left: 3px;
+        height: 15px;
         cursor: pointer;
+        z-index: 9;
+        color: #ffcc00;
+      }
+      .map-name-icon-container:hover {
+        font-size: 15.5px;
       }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
     ${borderChar(1, 'yellow', ['.main-body-btn-container'])}
-    ${borderChar(1, 'black', ['.cyberia-splash-screen-logo-span'])}
+    ${borderChar(1, 'black', ['.cyberia-splash-screen-logo-span', '.map-name-icon-container'])}
     <div class="ag-grid-style"></div>`;
 };
 
