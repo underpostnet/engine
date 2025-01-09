@@ -40,6 +40,8 @@ const ItemModal = {
             const elementOwnerType = 'user';
             const elementOwnerId = 'main';
             const sellFactor = 0.5;
+            const itemStat = Stat.get[itemData.id]();
+            const { basePrice } = itemStat;
             let countCurrentItem = 0;
             switch (item.type) {
               case 'weapon':
@@ -63,7 +65,7 @@ const ItemModal = {
                       <div class="in fll">${Translate.Render('buy')}</div>
                       <div class="in flr">
                         ${ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin} /
-                        <span class="total-price-buy-${item.type}-${idModal}">${itemData.price.coin}</span>
+                        <span class="total-price-buy-${item.type}-${idModal}">${basePrice}</span>
                         <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
                       </div>
                     `,
@@ -89,10 +91,8 @@ const ItemModal = {
                     label: html`
                       <div class="in fll">${Translate.Render('sell')}</div>
                       <div class="in flr">
-                        <span class="total-price-sell-${item.type}-${idModal}"
-                          >${itemData.price.coin * sellFactor}</span
-                        >
-                        / ${itemData.price.coin * countCurrentItem * sellFactor}
+                        <span class="total-price-sell-${item.type}-${idModal}">${basePrice * sellFactor}</span>
+                        / ${basePrice * countCurrentItem * sellFactor}
                         <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
                       </div>
                     `,
@@ -116,13 +116,13 @@ const ItemModal = {
             const onChangeQuantityBuyItemInput = () => {
               htmls(
                 `.total-price-buy-${item.type}-${idModal}`,
-                s(`.buy-btn-quantity-input-${item.type}-${idModal}`).value * itemData.price.coin,
+                s(`.buy-btn-quantity-input-${item.type}-${idModal}`).value * basePrice,
               );
             };
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantityBuyItemInput;
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).oninput = onChangeQuantityBuyItemInput;
             EventsUI.onClick(`.btn-buy-${item.type}-${idModal}`, () => {
-              if (ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin < itemData.price.coin) {
+              if (ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin < basePrice) {
                 NotificationManager.Push({
                   html: Translate.Render('insufficient-cash'),
                   status: 'error',
@@ -134,7 +134,7 @@ const ItemModal = {
             const onChangeQuantitySellItemInput = () => {
               htmls(
                 `.total-price-sell-${item.type}-${idModal}`,
-                s(`.sell-btn-quantity-input-${item.type}-${idModal}`).value * itemData.price.coin * sellFactor,
+                s(`.sell-btn-quantity-input-${item.type}-${idModal}`).value * basePrice * sellFactor,
               );
             };
             s(`.sell-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantitySellItemInput;
@@ -665,6 +665,13 @@ const Slot = {
       const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
         BagCyberia.Tokens[bagId].owner.id
       ].weapon.tree.filter((i) => i.id === displayId).length;
+
+      let basePrice;
+      if (itemData) {
+        const itemStat = Stat.get[itemData.id]();
+        basePrice = itemStat.basePrice;
+      }
+
       htmls(
         `.${slotId}`,
         html`
@@ -672,11 +679,11 @@ const Slot = {
             <div class="abs center ${disabledCount ? 'hide' : ''}">
               x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
             </div>
-            ${itemData && itemData.price && itemData.price.coin
+            ${basePrice
               ? html`
                   <div class="abs center" style="width: 100px">
                     x
-                    <span class="bag-slot-value-${slotId}">${getK(itemData.price.coin)}</span
+                    <span class="bag-slot-value-${slotId}">${getK(basePrice)}</span
                     ><img class="inl coin-slot-icon-img" src="${getProxyPath()}assets/coin/animation.gif" />
                   </div>
                 `

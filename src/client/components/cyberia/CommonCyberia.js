@@ -375,6 +375,7 @@ const Stat = {
         cooldown: 500,
         timeLife: 300,
         vel: 0.3,
+        basePrice: 50,
       };
     },
     bone: () => {
@@ -930,9 +931,6 @@ const QuestComponent = {
         weapon: [
           {
             id: 'hatchet',
-            price: {
-              coin: 50,
-            },
           },
         ],
       },
