@@ -14,6 +14,7 @@ import { loggerFactory } from '../core/Logger.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -27,7 +28,7 @@ const ItemModal = {
       context: '',
     },
   ) {
-    const { idModal, item, bagId } = options;
+    const { idModal, item, bagId, itemData } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -36,7 +37,77 @@ const ItemModal = {
       switch (options.context) {
         case 'seller':
           {
-            htmls(`.${id0}-render-col-b`, 'lele');
+            const sellFactor = 0.5;
+            htmls(
+              `.${id0}-render-col-b`,
+              html`<div class="section-mp item-modal-container">
+                  ${await BtnIcon.Render({
+                    label: html`
+                      <div class="in fll">${Translate.Render('buy')}</div>
+                      <div class="in flr">
+                        ${ElementsCyberia.Data['user']['main'].coin} /
+                        <span class="total-price-buy-${item.type}-${idModal}">${itemData.price.coin}</span>
+                        <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
+                      </div>
+                    `,
+                    type: 'button',
+                    class: `btn-buy-${item.type}-${idModal} inl wfa`,
+                  })}
+                  <div class="fl">
+                    <div class="in flr">
+                      x<input type="number" value="1" min="0" class="buy-btn-quantity-input-${item.type}-${idModal}" />
+                    </div>
+                  </div>
+                </div>
+
+                <div class="section-mp item-modal-container">
+                  ${await BtnIcon.Render({
+                    label: html`
+                      <div class="in fll">${Translate.Render('sell')}</div>
+                      <div class="in flr">
+                        <span class="total-price-sell-${item.type}-${idModal}"
+                          >${itemData.price.coin * sellFactor}</span
+                        >
+                        <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
+                      </div>
+                    `,
+                    type: 'button',
+                    class: `btn-sell-${item.type}-${idModal} inl wfa`,
+                  })}
+                  <div class="fl">
+                    <div class="in flr">
+                      x<input type="number" value="1" min="0" class="sell-btn-quantity-input-${item.type}-${idModal}" />
+                    </div>
+                  </div>
+                </div> `,
+            );
+            const onChangeQuantityBuyItemInput = () => {
+              htmls(
+                `.total-price-buy-${item.type}-${idModal}`,
+                s(`.buy-btn-quantity-input-${item.type}-${idModal}`).value * itemData.price.coin,
+              );
+            };
+            s(`.buy-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantityBuyItemInput;
+            s(`.buy-btn-quantity-input-${item.type}-${idModal}`).oninput = onChangeQuantityBuyItemInput;
+            EventsUI.onClick(`.btn-buy-${item.type}-${idModal}`, () => {
+              if (ElementsCyberia.Data['user']['main'].coin < itemData.price.coin) {
+                NotificationManager.Push({
+                  html: Translate.Render('insufficient-cash'),
+                  status: 'error',
+                });
+                return;
+              }
+            });
+
+            const onChangeQuantitySellItemInput = () => {
+              htmls(
+                `.total-price-sell-${item.type}-${idModal}`,
+                s(`.sell-btn-quantity-input-${item.type}-${idModal}`).value * itemData.price.coin * sellFactor,
+              );
+            };
+            s(`.sell-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantitySellItemInput;
+            s(`.sell-btn-quantity-input-${item.type}-${idModal}`).oninput = onChangeQuantitySellItemInput;
+            EventsUI.onClick(`.btn-sell-${item.type}-${idModal}`, () => {});
           }
           break;
 

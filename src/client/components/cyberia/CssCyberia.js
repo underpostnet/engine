@@ -204,6 +204,14 @@ const CssCommonCyberia = async () => {
       .map-name-icon-container:hover {
         font-size: 12.5px;
       }
+      .icon-img-btn-item-modal {
+        width: 20px;
+        height: 20px;
+        top: 4px;
+      }
+      .item-modal-container {
+        max-width: 400px;
+      }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
     ${borderChar(1, 'yellow', ['.main-body-btn-container'])}
@@ -499,6 +507,7 @@ const CssCyberiaDark = {
           }
 
           .character-container,
+          .item-modal-container,
           .quest-modal-container {
             border: 2px solid #313131;
           }

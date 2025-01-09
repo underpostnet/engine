@@ -74,6 +74,11 @@ const TranslateCyberia = {
           Translate.Data[`quest-${key}-defaultDialog`] = QuestComponent.componentsScope[key].defaultDialog;
       }
     }
+
+    Translate.Data['insufficient-cash'] = {
+      en: 'Insufficient coin cash balance',
+      es: 'Saldo de monedas insuficiente',
+    };
   },
 };
 

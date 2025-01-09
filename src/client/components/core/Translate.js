@@ -460,6 +460,12 @@ const TranslateCore = {
       es: 'Carga completada',
     };
     Translate.Data['play'] = { es: 'Jugar', en: 'Play' };
+    Translate.Data['pause'] = { es: 'Pausar', en: 'Pause' };
+    Translate.Data['stop'] = { es: 'Parar', en: 'Stop' };
+    Translate.Data['previous'] = { es: 'Anterior', en: 'Previous' };
+    Translate.Data['next'] = { es: 'Siguiente', en: 'Next' };
+    Translate.Data['buy'] = { es: 'comprarn', en: 'Buy' };
+    Translate.Data['sell'] = { es: 'Vender', en: 'sell' };
   },
 };
 
