@@ -19,7 +19,8 @@ const CyberiaItemSchema = new Schema({
       heal: { type: Number },
       lifeRegeneration: { type: Number },
       lifeRegenerationVel: { type: Number },
-      cooldown: { type: Number },
+      cooldown: { type: Number }, // ms
+      cooldownIncubation: { type: Number }, // ms
       basePrice: { type: Number },
       behavior: { type: String, enum: Object.keys(BehaviorElement) },
       timestamp: { type: Number, required: true },
