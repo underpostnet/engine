@@ -37,7 +37,24 @@ const ItemModal = {
       switch (options.context) {
         case 'seller':
           {
+            const elementOwnerType = 'user';
+            const elementOwnerId = 'main';
             const sellFactor = 0.5;
+            let countCurrentItem = 0;
+            switch (item.type) {
+              case 'weapon':
+                {
+                  countCurrentItem = ElementsCyberia.Data[elementOwnerType][elementOwnerId].weapon.tree.filter(
+                    (i) => i.id === item.id,
+                  ).length;
+                }
+
+                break;
+
+              default:
+                break;
+            }
+
             htmls(
               `.${id0}-render-col-b`,
               html`<div class="section-mp item-modal-container">
@@ -45,7 +62,7 @@ const ItemModal = {
                     label: html`
                       <div class="in fll">${Translate.Render('buy')}</div>
                       <div class="in flr">
-                        ${ElementsCyberia.Data['user']['main'].coin} /
+                        ${ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin} /
                         <span class="total-price-buy-${item.type}-${idModal}">${itemData.price.coin}</span>
                         <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
                       </div>
@@ -55,7 +72,14 @@ const ItemModal = {
                   })}
                   <div class="fl">
                     <div class="in flr">
-                      x<input type="number" value="1" min="0" class="buy-btn-quantity-input-${item.type}-${idModal}" />
+                      x<input
+                        type="number"
+                        value="1"
+                        min="0"
+                        max="10"
+                        class="item-modal-quantity-input buy-btn-quantity-input-${item.type}-${idModal}"
+                      />
+                      / 10
                     </div>
                   </div>
                 </div>
@@ -68,6 +92,7 @@ const ItemModal = {
                         <span class="total-price-sell-${item.type}-${idModal}"
                           >${itemData.price.coin * sellFactor}</span
                         >
+                        / ${itemData.price.coin * countCurrentItem * sellFactor}
                         <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
                       </div>
                     `,
@@ -76,7 +101,14 @@ const ItemModal = {
                   })}
                   <div class="fl">
                     <div class="in flr">
-                      x<input type="number" value="1" min="0" class="sell-btn-quantity-input-${item.type}-${idModal}" />
+                      x<input
+                        type="number"
+                        value="1"
+                        min="0"
+                        max="${countCurrentItem}"
+                        class="item-modal-quantity-input sell-btn-quantity-input-${item.type}-${idModal}"
+                      />
+                      / ${countCurrentItem}
                     </div>
                   </div>
                 </div> `,
@@ -90,7 +122,7 @@ const ItemModal = {
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantityBuyItemInput;
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).oninput = onChangeQuantityBuyItemInput;
             EventsUI.onClick(`.btn-buy-${item.type}-${idModal}`, () => {
-              if (ElementsCyberia.Data['user']['main'].coin < itemData.price.coin) {
+              if (ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin < itemData.price.coin) {
                 NotificationManager.Push({
                   html: Translate.Render('insufficient-cash'),
                   status: 'error',

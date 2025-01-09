@@ -212,6 +212,9 @@ const CssCommonCyberia = async () => {
       .item-modal-container {
         max-width: 400px;
       }
+      .item-modal-quantity-input {
+        width: 200px;
+      }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}
     ${borderChar(1, 'yellow', ['.main-body-btn-container'])}
