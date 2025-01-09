@@ -456,6 +456,15 @@ DisplayComponent.get['odisea'] = () => ({
 });
 Stat.get['odisea'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 
+const CyberiaShopStorage = {
+  weapon: [
+    {
+      id: 'hatchet',
+      sellers: [{ id: 'odisea' }],
+    },
+  ],
+};
+
 const QuestComponent = {
   Data: {
     'odisea-seller': () => {
@@ -926,13 +935,6 @@ const QuestComponent = {
       defaultDialog: {
         es: `Hola que tal? te interesa comprar una herramienta de extracción de recursos planetarios?`,
         en: `Hi, how are you? Are you interested in purchasing a planetary resource extraction tool?`,
-      },
-      shopStorage: {
-        weapon: [
-          {
-            id: 'hatchet',
-          },
-        ],
       },
     },
     'bone-brown': {
@@ -1707,4 +1709,5 @@ export {
   ResourcesComponentTypeCyberia,
   CyberiaInstancesStructs,
   LoreCyberia,
+  CyberiaShopStorage,
 };

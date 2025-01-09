@@ -15,6 +15,7 @@ import { CharacterCyberia } from './CharacterCyberia.js';
 import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { CyberiaItemService } from '../../services/cyberia-item/cyberia-item.service.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -26,9 +27,10 @@ const ItemModal = {
       bagId: '',
       itemData: {},
       context: '',
+      storageBotId: '',
     },
   ) {
-    const { idModal, item, bagId, itemData } = options;
+    const { idModal, item, bagId, itemData, storageBotId } = options;
     const id0 = `${idModal}-section-0`;
     const id1 = `${idModal}-section-1`;
 
@@ -121,7 +123,7 @@ const ItemModal = {
             };
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).onblur = onChangeQuantityBuyItemInput;
             s(`.buy-btn-quantity-input-${item.type}-${idModal}`).oninput = onChangeQuantityBuyItemInput;
-            EventsUI.onClick(`.btn-buy-${item.type}-${idModal}`, () => {
+            EventsUI.onClick(`.btn-buy-${item.type}-${idModal}`, async () => {
               if (ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin < basePrice) {
                 NotificationManager.Push({
                   html: Translate.Render('insufficient-cash'),
@@ -129,6 +131,7 @@ const ItemModal = {
                 });
                 return;
               }
+              const result = await CyberiaItemService.post({ id: `buy/${storageBotId}/${item.type}/${item.id}` });
             });
 
             const onChangeQuantitySellItemInput = () => {
@@ -659,7 +662,7 @@ const Slot = {
     },
   },
   weapon: {
-    render: function ({ bagId, slotId, displayId, disabledCount, itemData, context }) {
+    render: function ({ bagId, slotId, displayId, disabledCount, itemData, context, storageBotId }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
       const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
@@ -709,6 +712,7 @@ const Slot = {
             item: { type: 'weapon', id: displayId },
             itemData,
             context,
+            storageBotId,
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',

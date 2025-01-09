@@ -7,14 +7,19 @@ const logger = loggerFactory(import.meta);
 
 const CyberiaItemRouter = (options) => {
   const router = express.Router();
-  router.post(`/:id`, async (req, res) => await CyberiaItemController.post(req, res, options));
-  router.post(`/`, async (req, res) => await CyberiaItemController.post(req, res, options));
-  router.get(`/:id`, async (req, res) => await CyberiaItemController.get(req, res, options));
-  router.get(`/`, async (req, res) => await CyberiaItemController.get(req, res, options));
-  router.put(`/:id`, async (req, res) => await CyberiaItemController.put(req, res, options));
-  router.put(`/`, async (req, res) => await CyberiaItemController.put(req, res, options));
-  router.delete(`/:id`, async (req, res) => await CyberiaItemController.delete(req, res, options));
-  router.delete(`/`, async (req, res) => await CyberiaItemController.delete(req, res, options));
+  router.post(
+    `/buy/:providerId/:itemType/:id`,
+    authMiddleware,
+    async (req, res) => await CyberiaItemController.post(req, res, options),
+  );
+  router.post(`/:id`, authMiddleware, async (req, res) => await CyberiaItemController.post(req, res, options));
+  router.post(`/`, authMiddleware, async (req, res) => await CyberiaItemController.post(req, res, options));
+  router.get(`/:id`, authMiddleware, async (req, res) => await CyberiaItemController.get(req, res, options));
+  router.get(`/`, authMiddleware, async (req, res) => await CyberiaItemController.get(req, res, options));
+  router.put(`/:id`, authMiddleware, async (req, res) => await CyberiaItemController.put(req, res, options));
+  router.put(`/`, authMiddleware, async (req, res) => await CyberiaItemController.put(req, res, options));
+  router.delete(`/:id`, authMiddleware, async (req, res) => await CyberiaItemController.delete(req, res, options));
+  router.delete(`/`, authMiddleware, async (req, res) => await CyberiaItemController.delete(req, res, options));
   return router;
 };
 

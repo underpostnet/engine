@@ -22,7 +22,7 @@ import { Translate } from '../core/Translate.js';
 import { append, getLang, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
 import { BagCyberia, Slot } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
-import { QuestComponent, isElementCollision } from './CommonCyberia.js';
+import { CyberiaShopStorage, QuestComponent, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
@@ -246,7 +246,7 @@ const QuestManagementCyberia = {
 
                         if (enabledShopPanel) {
                           // TODO: cyberia-shop-bag
-                          await this.RenderModal({ questData, interactionPanelQuestId });
+                          await this.RenderModal({ questData, interactionPanelQuestId, elementTargetId });
                           return;
                         }
                         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
@@ -711,7 +711,7 @@ const QuestManagementCyberia = {
       }
     }
   },
-  RenderModal: async function ({ questData, interactionPanelQuestId, completeStep, completeQuest }) {
+  RenderModal: async function ({ questData, interactionPanelQuestId, completeStep, completeQuest, elementTargetId }) {
     questData = {
       ...QuestComponent.Data[questData.id](),
       ...questData,
@@ -904,8 +904,11 @@ const QuestManagementCyberia = {
         const bagId = 'cyberia-seller-bag';
         let indexBag = -1;
         setTimeout(() => {
-          for (const componentType of Object.keys(QuestComponent.componentsScope[mainDisplayId].shopStorage)) {
-            for (const itemData of QuestComponent.componentsScope[mainDisplayId].shopStorage[componentType]) {
+          for (const componentType of Object.keys(CyberiaShopStorage)) {
+            const itemShopData = CyberiaShopStorage[componentType].filter((s) =>
+              s.sellers.find((s0) => s0.id === mainDisplayId),
+            );
+            for (const itemData of itemShopData) {
               indexBag++;
               Slot[componentType].render({
                 bagId,
@@ -914,6 +917,7 @@ const QuestManagementCyberia = {
                 disabledCount: true,
                 itemData,
                 context: 'seller',
+                storageBotId: elementTargetId,
               });
             }
           }
