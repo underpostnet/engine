@@ -60,8 +60,11 @@ class LoadWorldCyberiaRenderer {
           if (WorldCyberia.WorldCyberiaScope.face[index])
             s(`.dropdown-option-face-${index}-${WorldCyberia.WorldCyberiaScope.face[index]._id}`).click();
           else s(`.dropdown-option-face-${index}-reset`).click();
-
-          if (WorldCyberia.WorldCyberiaScope.instance && WorldCyberia.WorldCyberiaScope.instance[index])
+          if (
+            WorldCyberia.WorldCyberiaScope.instance &&
+            WorldCyberia.WorldCyberiaScope.instance[index] &&
+            s(`.dropdown-option-instance-${index}-${WorldCyberia.WorldCyberiaScope.instance[index]._id}`)
+          )
             s(`.dropdown-option-instance-${index}-${WorldCyberia.WorldCyberiaScope.instance[index]._id}`).click();
           else s(`.dropdown-option-instance-${index}-reset`).click();
         }
