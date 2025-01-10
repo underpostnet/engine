@@ -1613,63 +1613,26 @@ const WorldCyberiaType = {
 
 const LoreCyberia = {
   meta: [
-    {
-      en: `Year 2120. Earth, once a vibrant blue sphere, now hangs by a thread. A single cataclysmic event
+    `Year 2120. Earth, once a vibrant blue sphere, now hangs by a thread. A single cataclysmic event
       irrevocably altered the course of humanity.`,
-      es: `Año 2120. La Tierra, otrora una vibrante esfera azul, ahora pende de un hilo. Un único evento
-      cataclísmico alteró irrevocablemente el curso de la humanidad.`,
-    },
-    {
-      en: `In 2045, a devastating nuclear disaster rocked the People's Republic of the Orient, triggering a chain
+    `In 2045, a devastating nuclear disaster rocked the People's Republic of the Orient, triggering a chain
       reaction of genetic mutations.`,
-      es: `En 2045, un devastador desastre nuclear sacudió la República Popular de Oriente, desencadenando una
-      reacción en cadena de mutaciones genéticas.`,
-    },
-    {
-      en: `Later, a leak of clandestine biological experiments gave rise to a plague that transformed much of
+    `Later, a leak of clandestine biological experiments gave rise to a plague that transformed much of
       terrestrial life into hostile creatures.`,
-      es: `Tiempo después, una fuga de experimentos biológicos clandestinos dio origen a una plaga que transformó
-      gran parte de la vida terrestre en criaturas hostiles.`,
-    },
-    {
-      en: `With a third of the planet uninhabitable, humanity was forced to seek a new home beyond the stars. Thus,
+    `With a third of the planet uninhabitable, humanity was forced to seek a new home beyond the stars. Thus,
         the so-calledColonists embarked on this mission.`,
-      es: `Con un tercio del planeta inhabitable, la humanidad se vio forzada a buscar un nuevo hogar más allá de
-        las estrellas. Así fue como los denominadosColonos emprendieron esta
-        misión.`,
-    },
-    {
-      en: `However, in the exclusion zones, humans who survived the radiation mutations or genetic experiments were
+    `However, in the exclusion zones, humans who survived the radiation mutations or genetic experiments were
         rejected by the colonists. Thus, theseMutagens swore vengeance on
         their former humanity.`,
-      es: `Sin embargo, en las zonas de exclusión, humanos sobrevivientes a las mutaciones de radiación o
-        experimentos genéticos, fueron rechazados por los colonos. Así, estos
-       Mutagénicos juraron venganza sobre su ex-humanidad.`,
-    },
-    {
-      en: `Artificial intelligences, through nanotechnology and integrated transistors, created fully
+    `Artificial intelligences, through nanotechnology and integrated transistors, created fully
        Synthetic humanoids. Some were created to serve the colonists, others,
         however, desire something more.`,
-      es: `Inteligencias artificiales a través de la nanotecnología y transistores integrados crearon humanoides
-        completamenteSintéticos. Algunos fueron creados para servir a los
-        colonos, otros, sin embargo, desean algo más.`,
-    },
-    {
-      en: `The proliferation of hyperrealities, digital worlds so realistic they were indistinguishable from the
+    `The proliferation of hyperrealities, digital worlds so realistic they were indistinguishable from the
       real world, allowed neohumans to escape the isolation of a hostile universe, but at the same time they were under
       the watchful eye of the space cyber powers.`,
-      es: `La proliferación de las hiperrealidades, mundos digitales tan realistas que eran indistinguibles de la
-      realidad, permitió a los neohumanos escapar del aislamiento de un universo hostil, pero al mismo tiempo estar bajo
-      el asecho de las cyber potencias espaciales.`,
-    },
-    {
-      en: `Today, humanity lives in ring-shaped space stations, asteroids, and extrasolar planets.`,
-      es: `Hoy, la humanidad vive en estaciones espaciales en forma de anillo, asteroides y planetas extrasolares.`,
-    },
-    {
-      en: `Welcome to Cyberia. Explore, find your path, and carve out your space in the new neo-humanity.`,
-      es: `Bienvenido a Cyberia. Explora, encuentra tu camino y hazte un espacio en la nueva neo-humanidad.`,
-    },
+    `Today, humanity lives in ring-shaped space stations, asteroids, and extrasolar planets.`,
+    `Welcome to Cyberia. Explore, find your path, and carve out your space in the new neo-humanity.`,
+    ,
   ],
   factions: {
     'zenith-empire': `Militaristic and expansionist. They believe in the superiority of their

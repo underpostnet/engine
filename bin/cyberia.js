@@ -239,7 +239,8 @@ switch (process.argv[2]) {
       .replaceAll('}', '')
       .replaceAll('"', '')}.'`;
 
-    const keyPrompt = 'b';
+    const keyPrompt = 'c';
+    const mdPath = './engine-private/cyberia-universes/odisea/prompt-md-outputs/';
 
     const prompt = {
       a: () => {
@@ -261,6 +262,14 @@ switch (process.argv[2]) {
         a (retail sale of  tools for extraction planetary resources of atlas confederation), create 
         at least 3 characters that will be seen throughout the saga as the playing gets 
         into complexing with plotwits.`;
+      },
+      c: () => {
+        const context = `and the current saga is about: ${fs.readFileSync(
+          `${mdPath}cyberia-lore-odyssey-saga.md`,
+          'utf8',
+        )}, Generate first quest saga json example instance, following this JSON format example:
+        ${JSON.stringify(QuestComponent.Data['floki-bone'](), null, 4)}`;
+        return `${metanarrative}, ${context}`;
       },
       _: () => {
         const context = ``;
@@ -293,6 +302,7 @@ switch (process.argv[2]) {
 
     try {
       switch (keyPrompt) {
+        case 'c':
         case 'a': {
           const json = response
             .text()
@@ -303,7 +313,7 @@ switch (process.argv[2]) {
         }
 
         case 'b': {
-          fs.writeFileSync('./out.md', response.text(), 'utf8');
+          fs.writeFileSync('./engine-private/cyberia-universes/prompt-md-outputs/out.md', response.text(), 'utf8');
           break;
         }
         default:
