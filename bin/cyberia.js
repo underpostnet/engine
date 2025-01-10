@@ -256,8 +256,11 @@ switch (process.argv[2]) {
     `;
       },
       b: () => {
-        const context = ``;
-        return `${metanarrative}, `;
+        return `${metanarrative}, write the narrative of a saga, which deals with a camouflaged 
+        intrusion of the impeior zenith on the atlas cofederation through 'odisea outfitinng retail' 
+        a (retail sale of  tools for extraction planetary resources of atlas confederation), create 
+        at least 3 characters that will be seen throughout the saga as the playing gets 
+        into complexing with plotwits.`;
       },
       _: () => {
         const context = ``;
@@ -289,12 +292,23 @@ switch (process.argv[2]) {
     const response = result.response;
 
     try {
-      const json = response
-        .text()
-        .replace(/```json/g, '')
-        .replace(/```/g, '');
-      console.log(json);
-      fs.writeFileSync('./out.json', json, 'utf8');
+      switch (keyPrompt) {
+        case 'a': {
+          const json = response
+            .text()
+            .replace(/```json/g, '')
+            .replace(/```/g, '');
+          fs.writeFileSync('./out.json', json, 'utf8');
+          break;
+        }
+
+        case 'b': {
+          fs.writeFileSync('./out.md', response.text(), 'utf8');
+          break;
+        }
+        default:
+          break;
+      }
     } catch (error) {
       logger.error(error);
     }
