@@ -48,7 +48,7 @@ const MenuUnderpost = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('blog')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-lab-gallery',
+            class: 'in wfa main-btn-menu main-btn-lab-gallery hide',
             label: renderMenuLabel({
               icon: html`<i class="fa-solid fa-photo-film"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('lab-gallery')}</span>`,

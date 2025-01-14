@@ -33,7 +33,7 @@ const DocumentService = {
 
       const queryPayload = {
         userId: {
-          $in: publisherUsers.map((p) => p._id).concat(user ? [user._id] : []),
+          $in: publisherUsers.map((p) => p._id).concat(user?.role && user.role !== 'guest' ? [user._id] : []),
         },
         tags: {
           // $in: uniqueArray(['public'].concat(req.query['tags'].split(','))),
@@ -58,7 +58,7 @@ const DocumentService = {
         .limit(limit)
         .skip(skip)
         .populate(DocumentDto.populate.file())
-        .populate(DocumentDto.populate.user());
+        .populate(user.role !== 'guest' ? DocumentDto.populate.user() : null);
     }
 
     switch (req.params.id) {
