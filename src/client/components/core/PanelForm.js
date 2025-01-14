@@ -456,7 +456,13 @@ const PanelForm = {
       });
 
     // if (options.route === 'home') setTimeout(this.Data[idPanel].updatePanel);
-    if (!Auth.getToken()) setTimeout(this.Data[idPanel].updatePanel);
+    setTimeout(() => {
+      if (
+        options.route !== 'home' &&
+        (!PanelForm.Data[idPanel].originData || PanelForm.Data[idPanel].originData.length === 0)
+      )
+        this.Data[idPanel].updatePanel();
+    });
 
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());

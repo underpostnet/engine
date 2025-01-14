@@ -77,6 +77,7 @@ const Panel = {
       const { id } = obj;
 
       setTimeout(async () => {
+        if (!s(`.${idPanel}`)) return;
         LoadingAnimation.spinner.play(`.${idPanel}-img-spinner-${id}`, 'dual-ring');
         if (options && options.callBackPanelRender)
           await options.callBackPanelRender({
