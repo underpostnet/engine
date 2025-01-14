@@ -464,8 +464,16 @@ const TranslateCore = {
     Translate.Data['stop'] = { es: 'Parar', en: 'Stop' };
     Translate.Data['previous'] = { es: 'Anterior', en: 'Previous' };
     Translate.Data['next'] = { es: 'Siguiente', en: 'Next' };
-    Translate.Data['buy'] = { es: 'comprarn', en: 'Buy' };
+    Translate.Data['buy'] = { es: 'comprar', en: 'Buy' };
     Translate.Data['sell'] = { es: 'Vender', en: 'sell' };
+
+    Translate.Data['monday'] = { es: 'Lunes', en: 'Monday' };
+    Translate.Data['tuesday'] = { es: 'Martes', en: 'Tuesday' };
+    Translate.Data['wednesday'] = { es: 'Miércoles', en: 'Wednesday' };
+    Translate.Data['thursday'] = { es: 'Jueves', en: 'Thursday' };
+    Translate.Data['friday'] = { es: 'Viernes', en: 'Friday' };
+    Translate.Data['saturday'] = { es: 'Sábado', en: 'Saturday' };
+    Translate.Data['sunday'] = { es: 'Domingo', en: 'Sunday' };
   },
 };
 
