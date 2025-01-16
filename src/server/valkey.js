@@ -53,6 +53,7 @@ const getValkeyObject = async (key = '') => {
   try {
     return JSON.parse(object);
   } catch (error) {
+    logger.error(error);
     return object;
   }
 };
