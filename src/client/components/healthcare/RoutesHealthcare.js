@@ -34,6 +34,7 @@ const RoutesHealthcare = () => {
       render: () => s(`.main-btn-nutrition-tips`).click(),
       translateTitle: true,
     },
+    '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(), translateTitle: true },
   };
 };
 

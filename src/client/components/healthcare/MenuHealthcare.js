@@ -19,6 +19,8 @@ import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
 import { PanelForm } from '../core/PanelForm.js';
 import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
+import { CalendarCore } from '../core/CalendarCore.js';
+import { Scroll } from '../core/Scroll.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -131,6 +133,17 @@ const MenuHealthcare = {
             tabHref: `${getProxyPath()}nutrition-tips`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('nutrition-tips')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-calendar',
+            label: renderMenuLabel({
+              icon: html`<i class="fas fa-calendar-alt"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
+            }),
+            attrs: `data-id="calendar"`,
+            tabHref: `${getProxyPath()}calendar`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
           })}
         </div>
       `,
@@ -400,6 +413,53 @@ const MenuHealthcare = {
         heightBottomBar,
       });
     });
+
+    EventsUI.onClick(`.main-btn-calendar`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      const route = 'calendar';
+      await Modal.Render({
+        id: 'modal-calendar',
+        route,
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-calendar-alt"></i>`,
+          text: Translate.Render('calendar'),
+        }),
+        html: async () => {
+          setTimeout(() => {
+            Scroll.addTopRefreshEvent({
+              id: 'modal-calendar',
+              callback: () => {
+                location.reload();
+              },
+              condition: () => {
+                return s('.main-body-calendar-modal-calendar').scrollTop === 0;
+              },
+            });
+            Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
+              Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
+            };
+          });
+          return await CalendarCore.Render({
+            idModal: 'modal-calendar',
+            Elements: ElementsHealthcare,
+            heightBottomBar,
+            heightTopBar,
+            route,
+            parentIdModal: 'modal-calendar',
+          });
+        },
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        observer: true,
+      });
+    });
+
     EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       await Modal.Render({
