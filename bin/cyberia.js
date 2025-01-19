@@ -6,7 +6,7 @@ import dotenv from 'dotenv';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { shellExec } from '../src/server/process.js';
 import { LoreCyberia, PositionsComponent, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
-import { buildImgFromTile, getHexMatrix } from '../src/api/cyberia-tile/cyberia-tile.service.js';
+import { buildImgFromTile, getHexMatrix, setTransparency } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import ejs from 'easy-json-schema';
 import Jimp from 'jimp';
@@ -443,13 +443,12 @@ switch (process.argv[2]) {
   case 'build-ai-skin': {
     const displayId = 'green';
     const frameColor = 'rgba(255, 255, 255)';
-    const positions = ['02', '08'];
-    for (const position of positions) {
-      await new Promise((resolve) => {
-        Jimp.read(`./src/client/public/cyberia/assets/skin/${displayId}/${position}.png`).then(async (image) => {
+    const buildFrame = async (pos) => {
+      return await new Promise((resolve) => {
+        Jimp.read(`./src/client/public/cyberia/assets/skin/${displayId}/0${pos}.png`).then(async (image) => {
           const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
-          if (fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/${position}`))
-            fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/${position}`, { recursive: true });
+          if (!fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/0${pos}`))
+            fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/0${pos}`, { recursive: true });
 
           const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
 
@@ -461,36 +460,38 @@ switch (process.argv[2]) {
 
           frame.resize(500, 500);
 
-          const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/${position}/0.png`;
+          const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/0${pos}/0.png`;
 
-          const targetColor = { r: 0, g: 0, b: 0, a: 255 }; // black
-          const replaceColor = { r: 0, g: 0, b: 0, a: 0 }; // transparent
-          const colorDistance = (c1, c2) =>
-            Math.sqrt(
-              Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2) + Math.pow(c1.a - c2.a, 2),
-            ); // Distance between two colors
-          const threshold = 32;
-          frame.scan(0, 0, frame.bitmap.width, frame.bitmap.height, (x, y, idx) => {
-            const thisColor = {
-              r: frame.bitmap.data[idx + 0],
-              g: frame.bitmap.data[idx + 1],
-              b: frame.bitmap.data[idx + 2],
-              a: frame.bitmap.data[idx + 3],
-            };
-            if (colorDistance(targetColor, thisColor) <= threshold) {
-              frame.bitmap.data[idx + 0] = replaceColor.r;
-              frame.bitmap.data[idx + 1] = replaceColor.g;
-              frame.bitmap.data[idx + 2] = replaceColor.b;
-              frame.bitmap.data[idx + 3] = replaceColor.a;
-            }
-          });
+          await setTransparency(frame);
 
           frame.write(outPath);
+
+          if (!fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/1${pos}`))
+            fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/1${pos}`, { recursive: true });
+
+          for (const _pos of range(0, 1)) {
+            const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
+
+            frame.composite(
+              image,
+              (frame.bitmap.width - image.bitmap.width) / 2,
+              (frame.bitmap.height - image.bitmap.height) / (_pos === 0 ? 2.3 : 1.7),
+            );
+
+            frame.resize(500, 500);
+
+            const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/1${pos}/${_pos}.png`;
+
+            await setTransparency(frame);
+
+            frame.write(outPath);
+          }
 
           return resolve();
         });
       });
-    }
+    };
+    for (const position of [2, 8, 6, 4]) await buildFrame(position);
 
     break;
   }

@@ -199,6 +199,32 @@ const buildImgFromTile = async (
   await image.write(imagePath);
 };
 
+const setTransparency = async function (
+  frame,
+  targetColor = { r: 0, g: 0, b: 0, a: 255 } /** black */,
+  replaceColor = { r: 0, g: 0, b: 0, a: 0 } /** transparent */,
+) {
+  const colorDistance = (c1, c2) =>
+    Math.sqrt(
+      Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2) + Math.pow(c1.a - c2.a, 2),
+    ); // Distance between two colors
+  const threshold = 32;
+  frame.scan(0, 0, frame.bitmap.width, frame.bitmap.height, (x, y, idx) => {
+    const thisColor = {
+      r: frame.bitmap.data[idx + 0],
+      g: frame.bitmap.data[idx + 1],
+      b: frame.bitmap.data[idx + 2],
+      a: frame.bitmap.data[idx + 3],
+    };
+    if (colorDistance(targetColor, thisColor) <= threshold) {
+      frame.bitmap.data[idx + 0] = replaceColor.r;
+      frame.bitmap.data[idx + 1] = replaceColor.g;
+      frame.bitmap.data[idx + 2] = replaceColor.b;
+      frame.bitmap.data[idx + 3] = replaceColor.a;
+    }
+  });
+};
+
 const CyberiaTileService = {
   post: async (req, res, options) => {
     /** @type {import('./cyberia-tile.model.js').CyberiaTileModel} */
@@ -267,4 +293,4 @@ const CyberiaTileService = {
   },
 };
 
-export { CyberiaTileService, rgba2Hexa, hexa2Rgba, buildImgFromTile, getHexMatrix };
+export { CyberiaTileService, rgba2Hexa, hexa2Rgba, buildImgFromTile, getHexMatrix, setTransparency };
