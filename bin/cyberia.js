@@ -455,6 +455,8 @@ switch (process.argv[2]) {
           (frame.bitmap.height - image.bitmap.height) / 2,
         );
 
+        frame.resize(500, 500);
+
         frame.write(`./test.png`);
         return resolve();
       });
