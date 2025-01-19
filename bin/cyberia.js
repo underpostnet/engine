@@ -33,6 +33,7 @@ const path = process.env.DEFAULT_DEPLOY_PATH;
 const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
+const platformSuffix = process.platform === 'linux' ? '' : 'C:';
 
 await DataBaseProvider.load({
   apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
@@ -405,6 +406,21 @@ switch (process.argv[2]) {
           break;
       }
     }
+  }
+
+  case 'gen-ai-asset': {
+    const resourceFolder = process.argv[3] || 'sprites';
+    const resourceFile = process.argv[4] || 'Gemini_Generated_Image_ytdwclytdwclytdw.jpeg';
+    const resourceFormat = resourceFile.split('.').pop();
+    shellExec(
+      `conda activate cuda_env && python ${platformSuffix}/dd/lab/src/pil-rembg.py` +
+        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`,
+      ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+        '.' + resourceFormat,
+        '',
+      ),
+    );
+    break;
   }
 
   default:
