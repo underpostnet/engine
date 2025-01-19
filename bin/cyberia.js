@@ -9,6 +9,7 @@ import { LoreCyberia, PositionsComponent, QuestComponent } from '../src/client/c
 import { buildImgFromTile, getHexMatrix } from '../src/api/cyberia-tile/cyberia-tile.service.js';
 import { GoogleGenerativeAI, HarmBlockThreshold, HarmCategory } from '@google/generative-ai';
 import ejs from 'easy-json-schema';
+import Jimp from 'jimp';
 
 dotenv.config();
 
@@ -436,6 +437,28 @@ switch (process.argv[2]) {
           '',
         ),
     );
+    break;
+  }
+
+  case 'build-ai-skin': {
+    const displayId = 'green';
+    const frameColor = 'rgba(255, 255, 255)';
+    await new Promise((resolve) => {
+      Jimp.read(`./src/client/public/cyberia/assets/skin/${displayId}/08.png`).then(async (image) => {
+        const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
+
+        const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
+
+        frame.composite(
+          image,
+          (frame.bitmap.width - image.bitmap.width) / 2,
+          (frame.bitmap.height - image.bitmap.height) / 2,
+        );
+
+        frame.write(`./test.png`);
+        return resolve();
+      });
+    });
     break;
   }
 
