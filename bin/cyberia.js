@@ -443,24 +443,55 @@ switch (process.argv[2]) {
   case 'build-ai-skin': {
     const displayId = 'green';
     const frameColor = 'rgba(255, 255, 255)';
-    await new Promise((resolve) => {
-      Jimp.read(`./src/client/public/cyberia/assets/skin/${displayId}/08.png`).then(async (image) => {
-        const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
+    const positions = ['02', '08'];
+    for (const position of positions) {
+      await new Promise((resolve) => {
+        Jimp.read(`./src/client/public/cyberia/assets/skin/${displayId}/${position}.png`).then(async (image) => {
+          const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
+          if (fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/${position}`))
+            fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/${position}`, { recursive: true });
 
-        const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
+          const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
 
-        frame.composite(
-          image,
-          (frame.bitmap.width - image.bitmap.width) / 2,
-          (frame.bitmap.height - image.bitmap.height) / 2,
-        );
+          frame.composite(
+            image,
+            (frame.bitmap.width - image.bitmap.width) / 2,
+            (frame.bitmap.height - image.bitmap.height) / 2,
+          );
 
-        frame.resize(500, 500);
+          frame.resize(500, 500);
 
-        frame.write(`./test.png`);
-        return resolve();
+          const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/${position}/0.png`;
+
+          const targetColor = { r: 0, g: 0, b: 0, a: 255 }; // black
+          const replaceColor = { r: 0, g: 0, b: 0, a: 0 }; // transparent
+          const colorDistance = (c1, c2) =>
+            Math.sqrt(
+              Math.pow(c1.r - c2.r, 2) + Math.pow(c1.g - c2.g, 2) + Math.pow(c1.b - c2.b, 2) + Math.pow(c1.a - c2.a, 2),
+            ); // Distance between two colors
+          const threshold = 32;
+          frame.scan(0, 0, frame.bitmap.width, frame.bitmap.height, (x, y, idx) => {
+            const thisColor = {
+              r: frame.bitmap.data[idx + 0],
+              g: frame.bitmap.data[idx + 1],
+              b: frame.bitmap.data[idx + 2],
+              a: frame.bitmap.data[idx + 3],
+            };
+            if (colorDistance(targetColor, thisColor) <= threshold) {
+              frame.bitmap.data[idx + 0] = replaceColor.r;
+              frame.bitmap.data[idx + 1] = replaceColor.g;
+              frame.bitmap.data[idx + 2] = replaceColor.b;
+              frame.bitmap.data[idx + 3] = replaceColor.a;
+            }
+          });
+
+          frame.write(outPath);
+
+          return resolve();
+        });
       });
-    });
+    }
+
     break;
   }
 
