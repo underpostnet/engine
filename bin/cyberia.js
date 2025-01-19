@@ -412,13 +412,29 @@ switch (process.argv[2]) {
     const resourceFolder = process.argv[3] || 'sprites';
     const resourceFile = process.argv[4] || 'Gemini_Generated_Image_ytdwclytdwclytdw.jpeg';
     const resourceFormat = resourceFile.split('.').pop();
+    shellExec(`python --version`);
     shellExec(
-      `conda activate cuda_env && python ${platformSuffix}/dd/lab/src/pil-rembg.py` +
-        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`,
-      ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
-        '.' + resourceFormat,
-        '',
-      ),
+      // `python ${platformSuffix}/dd/lab/src/pil-rembg.py` +
+      // `rembg i` +
+      `backgroundremover` +
+        ` -i ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}` +
+        ` -o ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+          '.' + resourceFormat,
+          // '',
+          '-alpha.' + resourceFormat,
+        ),
+    );
+    shellExec(
+      `python ${platformSuffix}/dd/lab/src/cv2-sprite-sheet-0.py` +
+        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+          '.' + resourceFormat,
+          // '',
+          '-alpha.' + resourceFormat,
+        ) +
+        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+          '.' + resourceFormat,
+          '',
+        ),
     );
     break;
   }
