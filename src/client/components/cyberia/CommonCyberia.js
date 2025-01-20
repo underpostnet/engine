@@ -455,6 +455,9 @@ Stat.get['green'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 DisplayComponent.get['kael-cipher'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'kael-cipher' });
 Stat.get['kael-cipher'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
 
+DisplayComponent.get['anya-echo'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'anya-echo' });
+Stat.get['anya-echo'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+
 /*replace-display-instance*/
 
 DisplayComponent.get['odisea'] = () => ({
