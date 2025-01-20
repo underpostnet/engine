@@ -459,7 +459,7 @@ switch (process.argv[2]) {
   }
 
   case 'build-ai-skin': {
-    const displayId = 'green';
+    const displayId = process.argv[3] || 'green';
     const frameColor = 'rgba(255, 255, 255)';
     const buildFrame = async (pos) => {
       return await new Promise((resolve) => {

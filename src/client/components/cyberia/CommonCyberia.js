@@ -449,12 +449,13 @@ Stat.get['gp1'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 DisplayComponent.get['marciano'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'marciano' });
 Stat.get['marciano'] = () => ({ ...Stat.get['anon'](), vel: 0.25 });
 
-
 DisplayComponent.get['green'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'green' });
 Stat.get['green'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 
+DisplayComponent.get['kael-cipher'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'kael-cipher' });
+Stat.get['kael-cipher'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+
 /*replace-display-instance*/
-        
 
 DisplayComponent.get['odisea'] = () => ({
   ...DisplayComponent.get['anon'](),
