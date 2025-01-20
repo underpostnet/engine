@@ -84,6 +84,15 @@ const InstanceEngineCyberiaAdmin = {
                   instanceJsonEditor();
                   s(`.cyberia-instance-btn-json`).click();
                 };
+              if (s(`.btn-delete-${rowId}`))
+                s(`.btn-delete-${rowId}`).onclick = async () => {
+                  const result = await CyberiaInstanceService.delete({ id: params.data._id });
+                  NotificationManager.Push({
+                    html: result.status,
+                    status: result.status,
+                  });
+                  await InstanceEngineCyberiaAdmin.list();
+                };
             });
 
             this.eGui = document.createElement('div');
@@ -92,6 +101,11 @@ const InstanceEngineCyberiaAdmin = {
                 class: `in ag-btn-renderer btn-load-${rowId}`,
                 label: html`<i class="fa-solid fa-bolt"></i><br />
                   ${Translate.Render(`load`)}`,
+              })}
+              ${await BtnIcon.Render({
+                class: `in ag-btn-renderer btn-delete-${rowId}`,
+                label: html`<i class="fa-solid fa-circle-xmark"></i> <br />
+                  ${Translate.Render(`delete`)}`,
               })}
             `;
           }
@@ -106,10 +120,11 @@ const InstanceEngineCyberiaAdmin = {
           }
         }
         const gridId = `ag-grid-cyberia-instance`;
-        (async () => {
+        this.list = async () => {
           const { status, data } = await CyberiaInstanceService.get();
           AgGrid.grids[gridId].setGridOption('rowData', data);
-        })();
+        };
+        InstanceEngineCyberiaAdmin.list();
         htmls(
           `.cyberia-instance-management-container`,
           html`
