@@ -41,6 +41,7 @@ const payloadFactory = (body) => {
 logger.info('Load service');
 
 const endpoint = 'core';
+const _VERSION = window._VERSION;
 
 const CoreService = {
   getRaw: (options = { url: '' }) =>
@@ -158,6 +159,7 @@ const CoreService = {
 const ApiBase = getApiBaseUrl;
 
 export {
+  _VERSION,
   CoreService,
   headersFactory,
   payloadFactory,

@@ -6,6 +6,7 @@ import fs from 'fs-extra';
 import { Command } from 'commander';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { loggerFactory, underpostASCI } from '../src/server/logger.js';
+import Underpost from '../src/index.js';
 
 dotenv.config();
 
@@ -19,9 +20,7 @@ const globalBinFolder = `${shellExec(`npm root -g`, {
 
 const program = new Command();
 
-const version = '2.8.0';
-
-program.name('underpost').description(`underpost.net ci/cd cli ${version}`).version(version);
+program.name('underpost').description(`underpost.net ci/cd cli ${Underpost.version}`).version(Underpost.version);
 
 program
   .command('new <app-name>')
@@ -30,7 +29,7 @@ program
     console.log(
       underpostASCI() +
         `
-    v${version} https://www.nexodev.org/docs
+    ${Underpost.version} https://www.nexodev.org/docs
     `,
     );
     await logger.setUpInfo();
@@ -65,7 +64,7 @@ program
     console.log(
       underpostASCI() +
         `
-    v${version} https://www.nexodev.org/docs
+    ${Underpost.version} https://www.nexodev.org/docs
     `,
     );
     shellCd(`${globalBinFolder}`);

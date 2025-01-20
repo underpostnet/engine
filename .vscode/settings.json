@@ -78,7 +78,7 @@
   "[xml]": {
     "editor.defaultFormatter": "redhat.vscode-xml"
   },
-  "docwriter.style": "JSDoc",
+  "docwriter.style": "Auto-detect",
   "docwriter.progress.trackFunctions": false,
   "docwriter.progress.trackMethods": false,
   "files.exclude": {

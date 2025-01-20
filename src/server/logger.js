@@ -86,6 +86,7 @@ const format = (meta) =>
  * @memberof Logger
  */
 const setUpInfo = async (logger = new winston.Logger()) => {
+  logger.info('npm_package_version', process.env.npm_package_version);
   logger.info('argv', process.argv);
   logger.info('platform', process.platform);
   logger.info('env', process.env.NODE_ENV);
@@ -179,12 +180,13 @@ const loggerMiddleware = (meta = { url: '' }) => {
 };
 
 const underpostASCI = () => `
-▗▖ ▗▖▗▖  ▗▖▗▄▄▄  ▗▄▄▄▖▗▄▄▖ ▄▄▄▄   ▄▄▄   ▄▄▄  ■  
-▐▌ ▐▌▐▛▚▖▐▌▐▌  █ ▐▌   ▐▌ ▐▌█   █ █   █ ▀▄▄▗▄▟▙▄▖
-▐▌ ▐▌▐▌ ▝▜▌▐▌  █ ▐▛▀▀▘▐▛▀▚▖█▄▄▄▀ ▀▄▄▄▀ ▄▄▄▀ ▐▌  
-▝▚▄▞▘▐▌  ▐▌▐▙▄▄▀ ▐▙▄▄▖▐▌ ▐▌█                ▐▌  
-                           ▀                ▐▌  
-                                                
+
+██╗░░░██╗███╗░░██╗██████╗░███████╗██████╗░██████╗░░█████╗░░██████╗████████╗
+██║░░░██║████╗░██║██╔══██╗██╔════╝██╔══██╗██╔══██╗██╔══██╗██╔════╝╚══██╔══╝
+██║░░░██║██╔██╗██║██║░░██║█████╗░░██████╔╝██████╔╝██║░░██║╚█████╗░░░░██║░░░
+██║░░░██║██║╚████║██║░░██║██╔══╝░░██╔══██╗██╔═══╝░██║░░██║░╚═══██╗░░░██║░░░
+╚██████╔╝██║░╚███║██████╔╝███████╗██║░░██║██║░░░░░╚█████╔╝██████╔╝░░░██║░░░
+░╚═════╝░╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░░╚════╝░╚═════╝░░░░╚═╝░░░
                                                 `;
 
 export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCI };

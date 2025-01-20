@@ -14,6 +14,14 @@ const logger = loggerFactory(import.meta);
  * @memberof Underpost
  */
 class Underpost {
+  /**
+   * Underpost engine version
+   * @static
+   * @type {String}
+   * @memberof Underpost
+   */
+  static version = 'v2.8.1';
+
   constructor() {}
 
   /**

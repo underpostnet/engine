@@ -1,3 +1,4 @@
+import { _VERSION, CoreService } from '../../services/core/core.service.js';
 import { Badge } from './Badge.js';
 import { BtnIcon } from './BtnIcon.js';
 import { rgbToHex } from './CommonJs.js';
@@ -79,7 +80,7 @@ const Docs = {
       icon: html`<i class="fa-brands fa-osi"></i>`,
       text: 'Source Docs',
       url: function () {
-        return `${getProxyPath()}docs/engine/2.8.0`;
+        return `${getProxyPath()}docs/engine/v${_VERSION}`;
       },
     },
     {
