@@ -201,7 +201,7 @@ switch (process.argv[2]) {
     break;
   }
 
-  case 'create-quest': {
+  case 'lore': {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     const GEMINI_MODEL_NAME = 'gemini-1.5-pro';
 
@@ -233,48 +233,41 @@ switch (process.argv[2]) {
         threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
       },
     ];
-    const metanarrative = `For a cyberpunk mmorpg, whose narrative context is about: '${JSON.stringify(
-      LoreCyberia,
-      null,
-      4,
-    )
+    const metanarrative = `For a roguelike mmorpg with this metanarrative lore: '${JSON.stringify(LoreCyberia, null, 4)
       .replaceAll('{', '')
       .replaceAll('}', '')
       .replaceAll('"', '')}.'`;
 
-    const keyPrompt = 'c';
-    const mdPath = './engine-private/cyberia-universes/odisea/prompt-md-outputs/';
+    const keyPrompt = process.argv[3];
+    const pathMdSaga = process.argv[4] || './saga.md';
+    const keyQuest = process.argv[5] || 'floki-bone';
 
     const prompt = {
-      a: () => {
-        const context = `The mission is called 'Odyssey Seller', and it is about the player 
-        finding the seller looking for a resource extraction item, since Odyssey Outfitting 
-        of the Atlas Confederation (it is a retailer of items for the extraction of planetary 
-        natural resources of all kinds, such as axes, pickaxes, ropes, safety equipment, etc.) 
-        then he is offered a product from the catalogue, all  he has to do is buy one or more 
-        items to complete the mission.`;
-
-        return `${metanarrative}, and this micro context '${context}', 
-        Generate quest json example instance, following this JSON format example:
-        ${JSON.stringify(QuestComponent.Data['floki-bone'](), null, 4)}
-    `;
-      },
-      b: () => {
-        return `${metanarrative}, write the narrative of a saga, which deals with a camouflaged 
-        intrusion of the impeior zenith on the atlas cofederation through 'odisea outfitinng retail' 
-        a (retail sale of  tools for extraction planetary resources of atlas confederation), create 
-        at least 3 characters that will be seen throughout the saga as the playing gets 
-        into complexing with plotwits.`;
-      },
-      c: () => {
+      quest: () => {
         const context = `and the current saga is about: ${fs.readFileSync(
-          `${mdPath}cyberia-lore-odyssey-saga.md`,
+          pathMdSaga,
           'utf8',
         )}, Generate first quest saga json example instance, following this JSON format example:
-        ${JSON.stringify(QuestComponent.Data['floki-bone'](), null, 4)}`;
+        ${JSON.stringify(QuestComponent.Data[keyQuest](), null, 4)}`;
         return `${metanarrative}, ${context}`;
       },
-      _: () => {
+      saga: () => {
+        const context = `
+      Generate description of new saga saga, with characters names, personalities, with their aesthetics and context regarding the metanarrative,
+      and add choose central conflict: Family, Friendships, Social, Political, Personal,
+      and add choose narrative structure: Linear, Non-linear, Circular, Episodic,
+      and add choose tone: Tragedy, Comedy, Drama, Satire.`;
+        return `${metanarrative}, ${context}`;
+      },
+      _0: () => {
+        const context = ``;
+        return `${metanarrative}, `;
+      },
+      _1: () => {
+        const context = ``;
+        return `${metanarrative}, `;
+      },
+      _2: () => {
         const context = ``;
         return `${metanarrative}, `;
       },
@@ -305,21 +298,17 @@ switch (process.argv[2]) {
 
     try {
       switch (keyPrompt) {
-        case 'c':
-        case 'a': {
+        case 'quest': {
           const json = response
             .text()
             .replace(/```json/g, '')
             .replace(/```/g, '');
-          fs.writeFileSync('./out.json', json, 'utf8');
+          fs.writeFileSync(`./${keyPrompt}.json`, json, 'utf8');
           break;
         }
 
-        case 'b': {
-          fs.writeFileSync('./engine-private/cyberia-universes/prompt-md-outputs/out.md', response.text(), 'utf8');
-          break;
-        }
         default:
+          fs.writeFileSync(`./${keyPrompt}.md`, response.text(), 'utf8');
           break;
       }
     } catch (error) {
