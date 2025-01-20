@@ -201,6 +201,24 @@ switch (process.argv[2]) {
     break;
   }
 
+  case 'req-ai-skin': {
+    // web app: https://deepai.org/machine-learning-model/text2img
+    const prompt = process.argv[3] || 'random rpg character';
+    const resp = await fetch('https://api.deepai.org/api/text2img', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'api-key': process.env.DEEP_AI_API_KEY,
+      },
+      body: JSON.stringify({
+        text: prompt,
+      }),
+    });
+    const data = await resp.json();
+    console.log({ data });
+    break;
+  }
+
   case 'lore': {
     const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
     const GEMINI_MODEL_NAME = 'gemini-1.5-pro';
@@ -239,7 +257,7 @@ switch (process.argv[2]) {
       .replaceAll('"', '')}.'`;
 
     const keyPrompt = process.argv[3];
-    const pathMdSaga = process.argv[4] || './saga.md';
+    const pathMdSaga = process.argv[4] || './src/client/public/cyberia/assets/ai-resources/lore/obsidian-shard/saga.md';
     const keyQuest = process.argv[5] || 'floki-bone';
 
     const prompt = {
