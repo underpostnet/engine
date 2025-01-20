@@ -473,7 +473,7 @@ const buildProxyRouter = () => {
         title: 'Site in maintenance',
         ssrPath: '/',
         ssrHeadComponents: '',
-        ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/Maintenance.js`))(),
+        ssrBodyComponents: (await ssrFactory(`./src/client/ssr/offline/Maintenance.js`))(),
       });
     })();
 

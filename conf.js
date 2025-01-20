@@ -193,6 +193,13 @@ const DefaultConf = {
           head: [],
           body: [],
         },
+        {
+          path: '/maintenance',
+          title: 'Server Maintenance',
+          client: 'Maintenance',
+          head: [],
+          body: [],
+        },
       ],
       pages: [
         {

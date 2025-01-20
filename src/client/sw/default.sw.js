@@ -62,15 +62,35 @@ self.addEventListener('fetch', (event) => {
           if (!preCachedResponse) throw new Error(error.message);
           return preCachedResponse;
         } catch (error) {
-          console.error('Error opening cache for pre cached page', event.request.url, error);
+          console.error('Error opening cache for pre cached page', {
+            url: event.request.url,
+            error,
+            onLine: navigator.onLine,
+          });
           try {
+            if (!navigator.onLine) {
+              if (event.request.method.toUpperCase() === 'GET') {
+                const cache = await caches.open(CACHE_NAME);
+                const preCachedResponse = await cache.match(
+                  `${PROXY_PATH === '/' ? '' : PROXY_PATH}/offline/index.html`,
+                );
+                if (!preCachedResponse) throw new Error(error.message);
+                return preCachedResponse;
+              }
+              const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
+              // response.status = 200;
+              response.headers.set('Content-Type', 'application/json');
+              return response;
+            }
             if (event.request.method.toUpperCase() === 'GET') {
               const cache = await caches.open(CACHE_NAME);
-              const preCachedResponse = await cache.match(`${PROXY_PATH === '/' ? '' : PROXY_PATH}/offline/index.html`);
+              const preCachedResponse = await cache.match(
+                `${PROXY_PATH === '/' ? '' : PROXY_PATH}/maintenance/index.html`,
+              );
               if (!preCachedResponse) throw new Error(error.message);
               return preCachedResponse;
             }
-            const response = new Response(JSON.stringify({ status: 'error', message: 'offline test response' }));
+            const response = new Response(JSON.stringify({ status: 'error', message: 'server in maintenance' }));
             // response.status = 200;
             response.headers.set('Content-Type', 'application/json');
             return response;
