@@ -248,7 +248,17 @@ switch (process.argv[2]) {
           pathMdSaga,
           'utf8',
         )}, Generate first quest saga json example instance, following this JSON format example:
-        ${JSON.stringify(QuestComponent.Data[keyQuest](), null, 4)}`;
+        ${JSON.stringify(
+          {
+            ...QuestComponent.Data[keyQuest](),
+            defaultDialog: {
+              en: '<insert-default-dialog-here>',
+              es: '<insertar-default-dialogo-aqui>',
+            },
+          },
+          null,
+          4,
+        )}`;
         return `${metanarrative}, ${context}`;
       },
       saga: () => {
