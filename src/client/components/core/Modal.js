@@ -65,12 +65,6 @@ const Modal = {
       options.heightTopBar = options.heightTopBar + options.heightBottomBar;
       options.heightBottomBar = 0;
     }
-    const setCenterRestore = () => {
-      const ResponsiveData = Responsive.getResponsiveData();
-      top = `${ResponsiveData.height / 2 - height / 2}px`;
-      left = `${ResponsiveData.width / 2 - width / 2}px`;
-    };
-    setCenterRestore();
     let transition = `opacity 0.3s, box-shadow 0.3s, bottom 0.3s`;
     const originSlideMenuWidth = 320;
     const collapseSlideMenuWidth = 50;
@@ -91,6 +85,12 @@ const Modal = {
       onBarUiClose: {},
       query: options.query ? `${window.location.search}` : undefined,
     };
+    const setCenterRestore = () => {
+      const ResponsiveData = Responsive.getResponsiveData();
+      top = `${ResponsiveData.height / 2 - height / 2}px`;
+      left = `${ResponsiveData.width / 2 - width / 2}px`;
+    };
+    if (idModal !== 'main-body') setCenterRestore();
     if (options && 'mode' in options) {
       this.Data[idModal][options.mode] = {};
       switch (options.mode) {
