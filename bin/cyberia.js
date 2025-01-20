@@ -35,6 +35,7 @@ const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
 const platformSuffix = process.platform === 'linux' ? '' : 'C:';
+const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
 
 await DataBaseProvider.load({
   apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
@@ -492,6 +493,20 @@ switch (process.argv[2]) {
       });
     };
     for (const position of [2, 8, 6, 4]) await buildFrame(position);
+
+    fs.writeFileSync(
+      commonCyberiaPath,
+      fs.readFileSync(commonCyberiaPath, 'utf8').replace(
+        `/*replace-display-instance*/`,
+        `
+DisplayComponent.get['${displayId}'] = () => ({ ...DisplayComponent.get['anon'](), displayId: '${displayId}' });
+Stat.get['${displayId}'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+
+/*replace-display-instance*/
+        `,
+      ),
+      'utf8',
+    );
 
     break;
   }
