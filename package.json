@@ -106,6 +106,7 @@
         "joystick-controller": "^1.0.15",
         "json-colorizer": "^2.2.2",
         "jsonwebtoken": "^9.0.2",
+        "keyword-extractor": "^0.0.28",
         "kill-port-process": "^3.2.0",
         "log-update": "^6.0.0",
         "mariadb": "^3.2.2",

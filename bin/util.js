@@ -13,6 +13,7 @@ import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
 import { buildTextImg, faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
+import keyword_extractor from 'keyword-extractor';
 
 const httpsAgent = new https.Agent({
   rejectUnauthorized: false,
@@ -203,7 +204,24 @@ try {
       shellExec(`git checkout jsdoc.json`);
       break;
     }
+    case 'get-keys': {
+      const sentence = fs.existsSync('./_')
+        ? fs.readFileSync('./_', 'utf8')
+        : process.argv[3]
+        ? process.argv[3]
+        : 'President Obama woke up Monday facing a Congressional defeat that many in both parties believed could hobble his presidency.';
 
+      //  Extract the keywords
+      const extraction_result = keyword_extractor.extract(sentence, {
+        language: 'english',
+        remove_digits: true,
+        // return_changed_case: true,
+        // remove_duplicates: false,
+      });
+
+      console.log(extraction_result.join(', '));
+      break;
+    }
     default:
       break;
   }
