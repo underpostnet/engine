@@ -76,7 +76,7 @@ const Auth = {
           await LogIn.Trigger({ user: data.user });
           await Account.updateForm(data.user);
           return { user: data.user };
-        } else throw new Error(message);
+        }
       }
 
       // anon guest session
