@@ -752,22 +752,8 @@ try {
           );
 
         fs.writeFileSync(
-          `./src/client/components/core/Docs.js`,
-          fs
-            .readFileSync(`./src/client/components/core/Docs.js`, 'utf8')
-            .replaceAll(`/engine/${version}`, `/engine/${newVersion}`),
-          'utf8',
-        );
-
-        fs.writeFileSync(
-          `./src/client/ssr/body/CacheControl.js`,
-          fs.readFileSync(`./src/client/ssr/body/CacheControl.js`, 'utf8').replaceAll(`v${version}`, `v${newVersion}`),
-          'utf8',
-        );
-
-        fs.writeFileSync(
-          `./bin/index.js`,
-          fs.readFileSync(`./bin/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
+          `./src/index.js`,
+          fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
           'utf8',
         );
 
