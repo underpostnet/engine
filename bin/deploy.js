@@ -1009,11 +1009,26 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
 
     case 'valkey': {
       if (!process.argv.includes('server')) {
-        shellExec(`cd /dd && git clone https://github.com/valkey-io/valkey.git`);
-        shellExec(`cd /dd/valkey && make`);
-        shellExec(`apt install valkey-tools`); // valkey-cli
+        if (process.argv.includes('rocky')) {
+          // shellExec(`yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm`);
+          // shellExec(`sudo percona-release enable valkey experimental`);
+          shellExec(`sudo dnf install valkey`);
+          shellExec(`chown -R valkey:valkey /etc/valkey`);
+          shellExec(`chown -R valkey:valkey /var/lib/valkey`);
+          shellExec(`chown -R valkey:valkey /var/log/valkey`);
+          shellExec(`sudo systemctl enable valkey.service`);
+          shellExec(`sudo systemctl start valkey`);
+          shellExec(`valkey-cli ping`);
+        } else {
+          shellExec(`cd /dd && git clone https://github.com/valkey-io/valkey.git`);
+          shellExec(`cd /dd/valkey && make`);
+          shellExec(`apt install valkey-tools`); // valkey-cli
+        }
       }
-      shellExec(`cd /dd/valkey && ./src/valkey-server`);
+      if (process.argv.includes('rocky')) {
+        shellExec(`sudo systemctl stop valkey`);
+        shellExec(`sudo systemctl start valkey`);
+      } else shellExec(`cd /dd/valkey && ./src/valkey-server`);
 
       break;
     }
