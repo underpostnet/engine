@@ -87,4 +87,4 @@ VOLUME [ "/code/app/logs" ]
 EXPOSE 22 80 443 3306 27017
 EXPOSE 3000-3020
 
-CMD [ "node", "startup" ]
+CMD [ "node", "startup.js" ]
