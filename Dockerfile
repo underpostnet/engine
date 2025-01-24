@@ -44,24 +44,6 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
     npm --version
 
 
-# install lampp
-RUN curl -Lo xampp-linux-installer.run https://sourceforge.net/projects/xampp/files/XAMPP%20Linux/7.4.30/xampp-linux-x64-7.4.30-1-installer.run?from_af=true && \
-    chmod +x xampp-linux-installer.run && \
-    bash -c './xampp-linux-installer.run' && \
-    ln -sf /opt/lampp/lampp /usr/bin/lampp && \
-    # Enable XAMPP web interface(remove security checks)
-    sed -i.bak s'/Require local/Require all granted/g' /opt/lampp/etc/extra/httpd-xampp.conf && \
-    # Enable error display in php
-    sed -i.bak s'/display_errors=Off/display_errors=On/g' /opt/lampp/etc/php.ini && \
-    # Enable includes of several configuration files
-    mkdir /opt/lampp/apache2/conf.d && \
-    echo "IncludeOptional /opt/lampp/apache2/conf.d/*.conf" >> /opt/lampp/etc/httpd.conf && \
-    # Create a /www folder and a symbolic link to it in /opt/lampp/htdocs. It'll be accessible via http://localhost:[port]/www/
-    # This is convenient because it doesn't interfere with xampp, phpmyadmin or other tools in /opt/lampp/htdocs
-    # /opt/lampp/etc/httpd.conf
-    mkdir /www && \
-    ln -s /www /opt/lampp/htdocs
-
 
 # Install mongodb necessary libs
 RUN apt-get update && apt-get install -y apt-utils wget gnupg gnupg2 curl
@@ -80,6 +62,8 @@ RUN sed -i "s,\\(^[[:blank:]]*bindIp:\\) .*,\\1 0.0.0.0," /etc/mongod.conf
 
 # Install underpost cli
 RUN npm install -g underpost
+RUN npm install shelljs
+COPY startup.cjs /code/startup.cjs
 
 
 VOLUME [ "/code/app/logs" ]
@@ -88,4 +72,4 @@ VOLUME [ "/code/app/logs" ]
 EXPOSE 22
 EXPOSE 4000-4004
 
-CMD [ "node", "./startup.js" ]
+CMD [ "node", "./startup.cjs" ]
