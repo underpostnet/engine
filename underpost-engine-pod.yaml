@@ -1,0 +1,48 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  annotations:
+    engine.version: 2.8.1
+    kompose.cmd: kompose convert
+    kompose.version: 1.35.0 (9532ceef3)
+  labels:
+    io.kompose.service: underpost-engine
+  name: underpost-engine
+spec:
+  containers:
+    - image: docker.io/library/underpost-engine:v2.8.1
+      imagePullPolicy: Never
+      name: underpost-engine
+      ports:
+        - containerPort: 22
+          protocol: TCP
+        - containerPort: 22
+          protocol: UDP
+        - containerPort: 3000
+          protocol: TCP
+        - containerPort: 3000
+          protocol: UDP
+        - containerPort: 3001
+          protocol: TCP
+        - containerPort: 3001
+          protocol: UDP
+        - containerPort: 3002
+          protocol: TCP
+        - containerPort: 3002
+          protocol: UDP
+        - containerPort: 3003
+          protocol: TCP
+        - containerPort: 3003
+          protocol: UDP
+        - containerPort: 3004
+          protocol: TCP
+        - containerPort: 3004
+          protocol: UDP
+      resources:
+        limits:
+          cpu: '2'
+          memory: '419430300'
+        requests:
+          cpu: 250m
+          memory: '20971520'
+  restartPolicy: OnFailure
