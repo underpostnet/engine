@@ -2,7 +2,7 @@ ARG BASE_DEBIAN=buster
 
 FROM debian:${BASE_DEBIAN}
 
-ENV DEBIAN_FRONTEND noninteractive
+ENV DEBIAN_FRONTEND=noninteractive
 
 WORKDIR /code
 
@@ -84,7 +84,8 @@ RUN npm install -g underpost
 
 VOLUME [ "/code/app/logs" ]
 
-EXPOSE 22 80 443 3306 27017
-EXPOSE 3000-3020
+# EXPOSE 22 80 443 3306 27017
+EXPOSE 22
+EXPOSE 4000-4004
 
-CMD [ "node", "startup.js" ]
+CMD [ "node", "./startup.js" ]
