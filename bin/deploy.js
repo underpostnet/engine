@@ -879,7 +879,11 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     }
     case 'ssh-import-client-keys': {
       const host = process.argv[3];
-      shellExec(`node bin/deploy set-ssh-keys ./engine-private/deploy/ssh_host_rsa_key${host ? ` ${host}` : ``} clean`);
+      shellExec(
+        `node bin/deploy set-ssh-keys ./engine-private/deploy/ssh_host_rsa_key ${host ? ` ${host}` : ``} ${
+          process.argv.includes('clean') ? 'clean' : ''
+        }`,
+      );
       break;
     }
     case 'ssh-keys': {
@@ -944,14 +948,24 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     }
 
     case 'ssh': {
-      if (!process.argv.includes('server')) {
-        shellExec(`sudo apt update`);
-        shellExec(`sudo apt install openssh-server -y`);
-        shellExec(`sudo apt install ssh-askpass`);
+      if (process.argv.includes('rocky')) {
+        shellExec(`sudo systemctl enable sshd`);
+
+        shellExec(`sudo systemctl start sshd`);
+
+        shellExec(`sudo systemctl status sshd`);
+
+        shellExec(`sudo ss -lt`);
+      } else {
+        if (!process.argv.includes('server')) {
+          shellExec(`sudo apt update`);
+          shellExec(`sudo apt install openssh-server -y`);
+          shellExec(`sudo apt install ssh-askpass`);
+        }
+        shellExec(`sudo systemctl enable ssh`);
+        shellExec(`sudo systemctl restart ssh`);
+        shellExec(`sudo systemctl status ssh`);
       }
-      shellExec(`sudo systemctl enable ssh`);
-      shellExec(`sudo systemctl restart ssh`);
-      shellExec(`sudo systemctl status ssh`);
       // sudo service ssh restart
       shellExec(`ip a`);
 
