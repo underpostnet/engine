@@ -24,7 +24,7 @@ try {
   for (const host of hosts.split(',')) {
     if (host in confServer) {
       const directory = confServer[host]['/']?.['directory'] ? confServer[host]['/']['directory'] : undefined;
-      cmd = `certbot certonly --webroot --webroot-path ${
+      cmd = `sudo certbot certonly --webroot --webroot-path ${
         directory ? directory : `${getRootDirectory()}/public/${host}`
       } -d ${host}`;
       // directory ? directory : `${getRootDirectory()}/public/${host}`
