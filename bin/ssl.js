@@ -38,16 +38,24 @@ try {
       // certbot delete --cert-name <domain>
 
       logger.info(`Run the following command`, cmd);
-      await ncp.copy(cmd);
-      await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+      try {
+        await ncp.copy(cmd);
+        await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
+      } catch (error) {
+        logger.error(error);
+      }
       // Certificate
-      await buildSSL(host);
+      if (process.argv.includes('build')) await buildSSL(host);
       logger.info('Certificate saved', host);
     } else throw new Error(`host not found: ${host}`);
   }
   // check /etc/letsencrypt/renewal/ for renewal conf
-  cmd = `certbot renew --dry-run`;
-  await ncp.copy(cmd);
+  cmd = `sudo certbot renew --dry-run`;
+  try {
+    await ncp.copy(cmd);
+  } catch (error) {
+    logger.error(error);
+  }
   logger.info(`run the following command for renewal. Command copy to clipboard`, cmd);
   logger.info(`success install SLL`, hosts);
 } catch (error) {
