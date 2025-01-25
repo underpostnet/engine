@@ -229,8 +229,12 @@ const DefaultConf = {
         proxy: [80, 443],
         db: {
           provider: 'mongoose',
-          host: 'mongodb://mongodb-service:27017',
+          // mongodb://<username>:<password>@<pod-0-name>.<headless-service-name>.<namespace>.svc.cluster.local:27017
+          // ,<pod-1-name>.<headless-service-name>.<namespace>.svc.cluster.local:27017/<database-name>?replicaSet=rs0;
+          // <k8s-pod-name>.<k8s-internal-service-name>.<k8s-namespace>.<cluster-name>
+          // host: 'mongodb://mongodb-0.mongodb-service.default.svc.cluster.local:27017?replicaSet=rs0',
           // host: 'mongodb://127.0.0.1:27017',
+          host: 'mongodb://mongodb-0.mongodb-service:27017', // ?replicaSet=rs0
           name: 'default',
         },
         mailer: {
