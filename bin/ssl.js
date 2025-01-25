@@ -45,7 +45,7 @@ try {
       logger.info('Certificate saved', host);
     } else throw new Error(`host not found: ${host}`);
   }
-
+  // check /etc/letsencrypt/renewal/ for renewal conf
   cmd = `certbot renew --dry-run`;
   await ncp.copy(cmd);
   logger.info(`run the following command for renewal. Command copy to clipboard`, cmd);
