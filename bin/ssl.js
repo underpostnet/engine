@@ -26,7 +26,7 @@ try {
       const directory = confServer[host]['/']?.['directory'] ? confServer[host]['/']['directory'] : undefined;
       cmd = `sudo certbot certonly --webroot --webroot-path ${
         directory ? directory : `${getRootDirectory()}/public/${host}`
-      } -d ${host}`;
+      } --cert-name ${host} -d ${host}`;
       // directory ? directory : `${getRootDirectory()}/public/${host}`
       // directory ? directory : `${getRootDirectory()}/public/www.${host.split('.').slice(-2).join('.')}`
 
