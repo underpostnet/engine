@@ -229,7 +229,8 @@ const DefaultConf = {
         proxy: [80, 443],
         db: {
           provider: 'mongoose',
-          host: 'mongodb://127.0.0.1:27017',
+          host: 'mongodb://mongodb-service:27017',
+          // host: 'mongodb://127.0.0.1:27017',
           name: 'default',
         },
         mailer: {

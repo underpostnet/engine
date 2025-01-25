@@ -41,8 +41,8 @@ program
     fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${globalBinFolder}/.dockerignore`, 'utf8'), 'utf8');
     shellCd(`${destFolder}`);
     shellExec(`git init && git add . && git commit -m "Base template implementation"`);
+    shellExec(`npm install`);
     if (process.argv.includes('dev')) {
-      shellExec(`npm run install-template`);
       switch (process.platform) {
         case 'linux':
           try {
@@ -55,6 +55,7 @@ program
         default:
           break;
       }
+      shellExec(`npm run build`);
       shellExec(`npm run dev`);
     } else {
       shellExec(`npm start`);
