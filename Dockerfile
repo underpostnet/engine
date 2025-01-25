@@ -48,13 +48,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 COPY . .
 
 RUN npm install
+RUN npm run build
 
 VOLUME [ "/code/logs" ]
 EXPOSE 22
 
-EXPOSE 3000-3004
+EXPOSE 4000-4004
+CMD [ "npm", "run", "dev", "l" ]
 
-CMD [ "npm", "start" ]
+
+# EXPOSE 3000-3004
+# CMD [ "npm", "start" ]
 
 # package
 
