@@ -21,6 +21,8 @@ const selectDtoFactory = (payload, select) => {
 
 const valkeyClientFactory = async () => {
   const valkey = new Valkey({
+    port: 6379,
+    host: 'service-valkey.default.svc.cluster.local',
     retryStrategy: (attempt) => {
       if (attempt === 1) {
         valkey.disconnect();
