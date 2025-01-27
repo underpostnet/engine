@@ -9,7 +9,6 @@ import colors from 'colors';
 import { loggerFactory } from './logger.js';
 import { shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
-import ncp from 'copy-paste';
 import read from 'read';
 import splitFile from 'split-file';
 import axios from 'axios';

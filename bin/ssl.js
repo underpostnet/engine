@@ -1,9 +1,7 @@
 import fs from 'fs';
 import read from 'read';
-import ncp from 'copy-paste';
 import dotenv from 'dotenv';
-
-import { getRootDirectory, shellExec } from '../src/server/process.js';
+import { getRootDirectory, pbcopy, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import { Cmd, loadConf } from '../src/server/conf.js';
 import { buildSSL } from '../src/server/ssl.js';
@@ -39,7 +37,7 @@ try {
 
       logger.info(`Run the following command`, cmd);
       try {
-        await ncp.copy(cmd);
+        await pbcopy(cmd);
         await read({ prompt: 'Command copy to clipboard, press enter to continue.\n' });
       } catch (error) {
         logger.error(error);
@@ -54,7 +52,7 @@ try {
   // /etc/letsencrypt/live
   cmd = `sudo certbot renew --dry-run`;
   try {
-    await ncp.copy(cmd);
+    await pbcopy(cmd);
   } catch (error) {
     logger.error(error);
   }

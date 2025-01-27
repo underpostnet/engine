@@ -3,7 +3,6 @@
 import shell from 'shelljs';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
-
 import { loggerFactory } from './logger.js';
 
 dotenv.config();
@@ -63,4 +62,23 @@ const shellCd = (cd, options = { disableLog: false }) => {
   return shell.cd(cd);
 };
 
-export { ProcessController, getRootDirectory, shellExec, shellCd };
+function pbcopy(data) {
+  switch (process.platform) {
+    case 'linux':
+      {
+        // sudo dnf install xclip
+        // sudo apt update
+        // sudo apt install xclip
+        // paste: xclip -o
+        // copy:
+        shellExec(`echo "${data}" | xclip -sel clip`);
+      }
+
+      break;
+
+    default:
+      break;
+  }
+}
+
+export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy };
