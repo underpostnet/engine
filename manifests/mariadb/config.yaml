@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mariadb-config
+data:
+  my.cnf: | # bind-address=0.0.0.0
+    [mysqld]
+    default_storage_engine=InnoDB
+    innodb_file_per_table=1
+    max_connections=1000
