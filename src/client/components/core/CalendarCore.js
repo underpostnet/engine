@@ -74,25 +74,9 @@ const CalendarCore = {
           return o;
         });
         setTimeout(() => {
-          // const rruleOptions = {
-          //   freq: rrule.RRule.WEEKLY,
-          //   //interval: 5,
-          //   byweekday: [rrule.RRule.MO, rrule.RRule.FR], //[ 'mo', 'fr' ],
-          //   dtstart: new Date(Date.UTC(2019, 9, 1, 10, 30)), //'2019-02-01T10:30:00',
-          //   until: '2019-12-01',
-          // };
-          // const rruleSet = new rrule.RRuleSet();
-
-          // rruleSet.rrule(new rrule.RRule());
-          // Repeat every day except on Nov 22, 2019
-          // rruleSet.exdate(new Date(Date.UTC(2019, 10, 22, 10, 30)));
-
           renderCalendar(
             resultData.map((o) => {
               o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
-              o.rrule = {
-                exdate: new Date().toISOString(),
-              };
               return o;
             }),
           );
@@ -123,6 +107,13 @@ const CalendarCore = {
       });
 
       this.Data[options.idModal].calendar.render();
+
+      setTimeout(() => {
+        console.error(
+          '[data-date]',
+          Array.from(sa('[data-date]')).map((e) => e.getAttribute('data-date')),
+        );
+      });
     };
     setTimeout(() => {
       renderCalendar();
