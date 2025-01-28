@@ -1,6 +1,7 @@
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
 import { darkTheme } from './Css.js';
+import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
 import { RichText } from './RichText.js';
 import { ToggleSwitch } from './ToggleSwitch.js';
@@ -147,6 +148,10 @@ const Input = {
             htmls(`.file-name-render-${inputData.id}`, `${s(`.${inputData.id}`).fileNameInputExtDefaultContent}`);
           continue;
           break;
+        case 'dropdown-checkbox': {
+          s(`.dropdown-option-${inputData.id}-reset`).click();
+          break;
+        }
         case 'md':
           RichText.Tokens[inputData.id].easyMDE.value('');
           continue;
@@ -198,7 +203,7 @@ const Input = {
             break;
 
           case 'dropdown-checkbox': {
-            for (const opt of originObj[inputData.model]) s(`.dropdown-option-${opt}`).click();
+            for (const opt of originObj[inputData.model]) s(`.dropdown-option-${inputData.id}-${opt}`).click();
             break;
           }
           case 'checkbox':
