@@ -35,6 +35,11 @@ const RoutesHealthcare = () => {
       translateTitle: true,
     },
     '/calendar': { title: 'calendar', render: () => s(`.main-btn-calendar`).click(), translateTitle: true },
+    '/healthcare-appointment': {
+      title: 'healthcare-appointment',
+      render: () => s(`.main-btn-healthcare-appointment`).click(),
+      translateTitle: true,
+    },
   };
 };
 

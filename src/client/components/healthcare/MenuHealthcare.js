@@ -21,6 +21,7 @@ import { PanelForm } from '../core/PanelForm.js';
 import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
 import { CalendarCore } from '../core/CalendarCore.js';
 import { Scroll } from '../core/Scroll.js';
+import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -144,6 +145,17 @@ const MenuHealthcare = {
             tabHref: `${getProxyPath()}calendar`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
+            label: renderMenuLabel({
+              icon: html` <i class="fas fa-medkit"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
+            }),
+            attrs: `data-id="healthcare-appointment"`,
+            tabHref: `${getProxyPath()}healthcare-appointment`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
           })}
         </div>
       `,
@@ -457,6 +469,28 @@ const MenuHealthcare = {
         heightTopBar,
         heightBottomBar,
         observer: true,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-healthcare-appointment`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-healthcare-appointment',
+        route: 'healthcare-appointment',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-medkit"></i>`,
+          text: Translate.Render('healthcare-appointment'),
+        }),
+        html: async () => await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        // barMode,
       });
     });
 
