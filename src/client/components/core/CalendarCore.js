@@ -77,6 +77,27 @@ const CalendarCore = {
           renderCalendar(
             resultData.map((o) => {
               o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
+
+              // const rruleOptions = {
+              //   freq: rrule.RRule.WEEKLY,
+              //   //interval: 5,
+              //   // byweekday: [rrule.RRule.MO, rrule.RRule.FR], //[ 'mo', 'fr' ],
+              //   // dtstart: new Date(Date.UTC(2019, 9, 1, 10, 30)), //'2019-02-01T10:30:00',
+              //   // until: '2019-12-01',
+              // };
+              const rruleSet = new rrule.RRuleSet();
+
+              rruleSet.rrule(new rrule.RRule());
+              // // Repeat every day except on Nov 22, 2019
+              rruleSet.exdate(new Date(Date.UTC(2025, 1, 4)));
+              // o.rrule = {
+              //   freq: rrule.RRule.WEEKLY,
+              //   // interval: 5,
+              //   // byweekday: [rrule.RRule.MO, rrule.RRule.FR],
+              //   // dtstart: new Date().toISOString().split('T')[0],
+              // };
+              // o.exdate = [new Date().toISOString().split('T')[0], '2025-02-04']; // FullCalendar.RRule.default
+              // o.rrule = rruleSet.toString();
               return o;
             }),
           );
@@ -88,7 +109,13 @@ const CalendarCore = {
       console.error('renderCalendar', events);
       const calendarEl = s(`.calendar-${idPanel}`);
       this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
-        plugins: [FullCalendar.DayGrid.default, FullCalendar.TimeGrid.default, FullCalendar.List.default],
+        plugins: [
+          FullCalendar.DayGrid.default,
+          FullCalendar.TimeGrid.default,
+          FullCalendar.List.default,
+          // https://fullcalendar.io/docs/rrule-plugin
+          FullCalendar.RRule.default,
+        ],
         // initialView: 'dayGridWeek',
         timeZone: getTimeZone(),
         dateClick: function (arg) {
