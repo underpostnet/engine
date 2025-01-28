@@ -16,7 +16,11 @@ const DropDown = {
       onClick: () => {
         console.log('DropDown onClick', this.value);
         if (options && options.resetOnClick) options.resetOnClick();
-        this.Tokens[id].value = undefined;
+        if (options && options.type === 'checkbox')
+          for (const opt of DropDown.Tokens[id].value) {
+            s(`.dropdown-option-${id}-${opt}`).click();
+          }
+        else this.Tokens[id].value = undefined;
       },
     });
 
