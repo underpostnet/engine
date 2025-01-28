@@ -239,6 +239,7 @@ const Panel = {
             label: html`${Translate.Render(modelData.model)}`,
             type: 'checkbox',
             value: modelData.dropdown.options[0],
+            resetOption: true,
             containerClass: `${idPanel}-dropdown-checkbox`,
             data: modelData.dropdown.options.map((dKey) => {
               return {
