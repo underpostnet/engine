@@ -474,6 +474,11 @@ const TranslateCore = {
     Translate.Data['friday'] = { es: 'Viernes', en: 'Friday' };
     Translate.Data['saturday'] = { es: 'Sábado', en: 'Saturday' };
     Translate.Data['sunday'] = { es: 'Domingo', en: 'Sunday' };
+
+    Translate.Data['description'] = { es: 'Descripción', en: 'Description' };
+    Translate.Data['daysOfWeek'] = { es: 'Días de la semana', en: 'Days of the week' };
+    Translate.Data['startTime'] = { es: 'Hora de inicio', en: 'Start time' };
+    Translate.Data['endTime'] = { es: 'Hora de finalizacion', en: 'End time' };
   },
 };
 

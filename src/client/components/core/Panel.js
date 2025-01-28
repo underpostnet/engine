@@ -186,11 +186,20 @@ const Panel = {
                     });
                     return html``;
                   }
+                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'list'))
+                    return html`<div class="in ${idPanel}-row">
+                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                        ${keyIcon} ${Translate.Render(infoKey)}:</span
+                      >
+                      <span class="${idPanel}-row-value"
+                        >${valueIcon} ${obj[infoKey].map((k) => Translate.Render(k)).join(', ')}</span
+                      >
+                    </div> `;
 
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
                     return html`<div class="in ${idPanel}-row">
                       <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                        ${keyIcon} ${infoKey}:</span
+                        ${keyIcon} ${Translate.Render(infoKey)}:</span
                       >
                       <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
                     </div> `;
@@ -198,7 +207,7 @@ const Panel = {
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
                     return html`<div class="in ${idPanel}-row">
                       <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                        ${keyIcon} ${infoKey}:</span
+                        ${keyIcon} ${Translate.Render(infoKey)}:</span
                       >
                       <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
                     </div> `;

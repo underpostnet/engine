@@ -196,6 +196,11 @@ const Input = {
             RichText.Tokens[inputData.id].easyMDE.value(fileObj[inputData.model].mdPlain);
             continue;
             break;
+
+          case 'dropdown-checkbox': {
+            for (const opt of originObj[inputData.model]) s(`.dropdown-option-${opt}`).click();
+            break;
+          }
           case 'checkbox':
           case 'checkbox-on-off':
             if (

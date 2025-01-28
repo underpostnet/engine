@@ -53,7 +53,7 @@ const CalendarCore = {
 
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
-        id: `${getQueryParams().cid ? getQueryParams().cid : 'creatorUser'}`,
+        id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
       });
       NotificationManager.Push({
         html: result.status === 'success' ? Translate.Render('success-get-events-scheduler') : result.message,
@@ -71,10 +71,18 @@ const CalendarCore = {
           this.Data[options.idModal].filesData.push({});
           return o;
         });
+        setTimeout(() => {
+          renderCalendar(
+            resultData.map((o) => {
+              o.daysOfWeek = o.daysOfWeek.map((v, i) => '' + i);
+              return o;
+            }),
+          );
+        });
       }
     };
 
-    const renderCalendar = () => {
+    const renderCalendar = (events) => {
       const calendarEl = s(`.calendar-${idPanel}`);
       this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [FullCalendar.DayGrid.default, FullCalendar.TimeGrid.default, FullCalendar.List.default],
@@ -83,7 +91,7 @@ const CalendarCore = {
         dateClick: function (arg) {
           console.error('calendar dateClick', arg.date.toString());
         },
-        events: [{ title: 'Meeting', start: new Date() }],
+        events: events ?? [{ title: 'Meeting', start: new Date() }],
         initialView: 'dayGridMonth',
         headerToolbar: {
           left: 'prev,next today',
@@ -150,6 +158,7 @@ const CalendarCore = {
         model: 'description',
         inputType: 'text',
         rules: [{ type: 'isEmpty' }],
+        panel: { type: 'info-row' },
       },
       // {
       //   id: 'allDay',
@@ -165,12 +174,13 @@ const CalendarCore = {
         dropdown: {
           options: ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'],
         },
+        panel: { type: 'list' },
       },
       {
         id: 'startTime',
         model: 'startTime',
         inputType: 'time',
-        panel: { type: 'subtitle' },
+        panel: { type: 'info-row' },
       },
       {
         id: 'endTime',
@@ -357,8 +367,9 @@ const CalendarCore = {
       lasUserId = newInstance(options.Elements.Data.user.main.model.user._id);
       lastCid = cid;
       if (s(`.main-body-calendar-${options.idModal}`)) {
-        if (Auth.getToken()) await getPanelData();
-        else getSrrData();
+        // if (Auth.getToken())
+        // else getSrrData();
+        await getPanelData();
         htmls(`.main-body-calendar-${options.idModal}`, await panelRender());
       }
     };
