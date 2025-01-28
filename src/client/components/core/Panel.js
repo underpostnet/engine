@@ -224,6 +224,27 @@ const Panel = {
     for (const modelData of formData) {
       if (modelData.disableRender) continue;
       switch (modelData.inputType) {
+        case 'dropdown-checkbox': {
+          renderForm += html`${await DropDown.Render({
+            id: `${modelData.id}`,
+            label: html`${Translate.Render(modelData.model)}`,
+            type: 'checkbox',
+            value: modelData.dropdown.options[0],
+            containerClass: `${idPanel}-dropdown-checkbox`,
+            data: modelData.dropdown.options.map((dKey) => {
+              return {
+                value: dKey,
+                data: dKey,
+                checked: false,
+                display: html`${Translate.Render(dKey)}`,
+                onClick: function () {
+                  logger.info('DropDown onClick', this.checked);
+                },
+              };
+            }),
+          })}`;
+          break;
+        }
         case 'dropdown':
           renderForm += html` <div class="in section-mp">
             ${await DropDown.Render({
