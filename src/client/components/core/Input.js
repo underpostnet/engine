@@ -203,6 +203,7 @@ const Input = {
             break;
 
           case 'dropdown-checkbox': {
+            s(`.dropdown-option-${inputData.id}-reset`).click();
             for (const opt of originObj[inputData.model]) s(`.dropdown-option-${inputData.id}-${opt}`).click();
             break;
           }
