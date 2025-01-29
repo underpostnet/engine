@@ -77,7 +77,9 @@ const CalendarCore = {
           renderCalendar(
             resultData.map((o) => {
               // FREQ=WEEKLY;
-              o.rrule = `RRULE:BYDAY=${o.daysOfWeek.map((d) => `${d[0]}${d[1]}`.toUpperCase()).join(',')}`;
+              if (o.daysOfWeek && o.daysOfWeek.length > 0) {
+                o.rrule = `RRULE:BYDAY=${o.daysOfWeek.map((d) => `${d[0]}${d[1]}`.toUpperCase()).join(',')}`;
+              }
               o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
               // o.exdate = ['2024-04-02'];
               console.error(o);
@@ -296,6 +298,9 @@ const CalendarCore = {
           ],
           on: {
             add: async function ({ data, editId }) {
+              if (data.daysOfWeek && data.daysOfWeek.length > 0 && daysOfWeekOptions[data.daysOfWeek[0]]) {
+                data.daysOfWeek = data.daysOfWeek.map((d) => daysOfWeekOptions[d]);
+              }
               const {
                 status,
                 message,
