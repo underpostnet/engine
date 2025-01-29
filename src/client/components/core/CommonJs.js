@@ -519,7 +519,7 @@ function getDirname(path) {
 }
 
 const isValidDate = (day, month, year) => {
-  if (!month && !year) return !(new Date(arg) == 'Invalid Date');
+  if (!month && !year) return !(new Date(day) == 'Invalid Date');
   // new Date('2025-12-28')
   // Sat Dec 27 2025 19:00:00 GMT-0500 (Eastern Standard Time)
   // new Date('2025/12/28')

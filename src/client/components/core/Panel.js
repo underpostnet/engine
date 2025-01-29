@@ -184,31 +184,50 @@ const Panel = {
                     });
                     return html``;
                   }
-                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'list'))
-                    return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                        ${keyIcon} ${Translate.Render(infoKey)}:</span
-                      >
-                      <span class="${idPanel}-row-value"
-                        >${valueIcon} ${obj[infoKey].map((k) => Translate.Render(k)).join(', ')}</span
-                      >
-                    </div> `;
+                  {
+                    const formDataObj = formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'list');
+                    if (obj[infoKey] && obj[infoKey].length > 0 && formDataObj)
+                      return html`<div class="in ${idPanel}-row">
+                        <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                          ${keyIcon} ${Translate.Render(infoKey)}:</span
+                        >
+                        <span class="${idPanel}-row-value"
+                          >${valueIcon} ${obj[infoKey].map((k) => Translate.Render(k)).join(', ')}</span
+                        >
+                      </div> `;
+                  }
 
-                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin'))
-                    return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                        ${keyIcon} ${Translate.Render(infoKey)}:</span
-                      >
-                      <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
-                    </div> `;
+                  {
+                    const formDataObj = formData.find(
+                      (f) => f.model === infoKey && f.panel && f.panel.type === 'info-row-pin',
+                    );
+                    if (obj[infoKey] && formDataObj)
+                      return html`<div class="in ${idPanel}-row">
+                        <span class="${idPanel}-row-pin-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                          ${keyIcon}
+                          ${formDataObj.translateCode
+                            ? Translate.Render(formDataObj.translateCode)
+                            : Translate.Render(infoKey)}:</span
+                        >
+                        <span class="${idPanel}-row-pin-value">${valueIcon} ${obj[infoKey]}</span>
+                      </div> `;
+                  }
 
-                  if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'info-row'))
-                    return html`<div class="in ${idPanel}-row">
-                      <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
-                        ${keyIcon} ${Translate.Render(infoKey)}:</span
-                      >
-                      <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
-                    </div> `;
+                  {
+                    const formDataObj = formData.find(
+                      (f) => f.model === infoKey && f.panel && f.panel.type === 'info-row',
+                    );
+                    if (obj[infoKey] && formDataObj)
+                      return html`<div class="in ${idPanel}-row">
+                        <span class="${idPanel}-row-key capitalize ${formObjData.label?.disabled ? 'hide' : ''}">
+                          ${keyIcon}
+                          ${formDataObj.translateCode
+                            ? Translate.Render(formDataObj.translateCode)
+                            : Translate.Render(infoKey)}:</span
+                        >
+                        <span class="${idPanel}-row-value"> ${valueIcon} ${obj[infoKey]}</span>
+                      </div> `;
+                  }
 
                   return html``;
                 })
@@ -463,6 +482,7 @@ const Panel = {
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;
+        if (s(`.${scrollClassContainer}`)) s(`.${scrollClassContainer}`).style.overflow = 'auto';
       });
       s(`.btn-${idPanel}-clean`).onclick = () => {
         Input.cleanValues(formData);
@@ -495,6 +515,7 @@ const Panel = {
 
         openPanelForm();
       };
+      if (s(`.${scrollClassContainer}`)) s(`.${scrollClassContainer}`).style.overflow = 'auto';
     });
 
     if (data.length > 0) for (const obj of data) render += await renderPanel(obj);

@@ -1,7 +1,7 @@
 import { EventSchedulerService } from '../../services/event-scheduler/event-scheduler.service.js';
 import { Auth } from './Auth.js';
 import { BtnIcon } from './BtnIcon.js';
-import { newInstance, range, s4 } from './CommonJs.js';
+import { isValidDate, newInstance, range, s4 } from './CommonJs.js';
 import { renderCssAttr } from './Css.js';
 import { Modal } from './Modal.js';
 import { NotificationManager } from './NotificationManager.js';
@@ -42,17 +42,6 @@ const CalendarCore = {
     };
     getSrrData();
 
-    const dateFormat = (date) =>
-      html`<span
-        style="${renderCssAttr({
-          style: {
-            'font-size': '14px',
-            color: '#888',
-          },
-        })}"
-        >${new Date(date).toLocaleString().replaceAll(',', '')}</span
-      >`;
-
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
         id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
@@ -68,8 +57,7 @@ const CalendarCore = {
         this.Data[options.idModal].data = resultData.map((o) => {
           if (o.creatorUserId && options.Elements.Data.user.main.model.user._id === o.creatorUserId) o.tools = true;
           o.id = o._id;
-          o.start = dateFormat(o.start);
-          o.end = dateFormat(o.end);
+
           this.Data[options.idModal].filesData.push({});
           return o;
         });
@@ -77,11 +65,16 @@ const CalendarCore = {
           renderCalendar(
             resultData.map((o) => {
               // FREQ=WEEKLY;
-              if (o.daysOfWeek && o.daysOfWeek.length > 0) {
-                o.rrule = `RRULE:BYDAY=${o.daysOfWeek.map((d) => `${d[0]}${d[1]}`.toUpperCase()).join(',')}`;
-              }
-              o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
+              // if (o.daysOfWeek && o.daysOfWeek.length > 0) {
+              //   o.rrule = `RRULE:BYDAY=${o.daysOfWeek.map((d) => `${d[0]}${d[1]}`.toUpperCase()).join(',')}`;
+              // }
+              // o.rrule = 'FREQ=WEEKLY;BYDAY=SU;BYHOUR=10,11;COUNT=10';
+              if (o.daysOfWeek && o.daysOfWeek.length > 0)
+                o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
+              else delete o.daysOfWeek;
               // o.exdate = ['2024-04-02'];
+              // delete o.end;
+              // delete o.start;
               console.error(o);
 
               return o;
@@ -185,13 +178,20 @@ const CalendarCore = {
         rules: [{ type: 'isEmpty' }],
         panel: { type: 'info-row' },
       },
-      // {
-      //   id: 'allDay',
-      //   model: 'allDay',
-      //   inputType: 'checkbox-on-off',
-      //   rules: [],
-      //   panel: { type: 'info-row', icon: html`<i class="fa-solid fa-infinity"></i>` },
-      // },
+      {
+        id: 'start',
+        model: 'start',
+        inputType: 'datetime-local',
+        translateCode: 'startTime',
+        panel: { type: 'info-row' },
+      },
+      {
+        id: 'end',
+        model: 'end',
+        inputType: 'datetime-local',
+        translateCode: 'endTime',
+        panel: { type: 'info-row' },
+      },
       {
         id: 'daysOfWeek',
         model: 'daysOfWeek',
@@ -319,8 +319,6 @@ const CalendarCore = {
               });
 
               if (status === 'success') {
-                data.start = dateFormat(data.start);
-                data.end = dateFormat(data.end);
                 data.tools = true;
                 data._id = documentData._id;
 

@@ -1,5 +1,6 @@
 import { AgGrid } from './AgGrid.js';
 import { BtnIcon } from './BtnIcon.js';
+import { isValidDate } from './CommonJs.js';
 import { darkTheme } from './Css.js';
 import { DropDown } from './DropDown.js';
 import { loggerFactory } from './Logger.js';
@@ -218,9 +219,11 @@ const Input = {
             break;
           case 'datetime-local':
             {
-              const date = new Date(originObj[inputData.model]);
-              date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
-              s(`.${inputData.id}`).value = date.toISOString().slice(0, 16);
+              if (isValidDate(originObj[inputData.model])) {
+                const date = new Date(originObj[inputData.model]);
+                date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+                s(`.${inputData.id}`).value = date.toISOString().slice(0, 16);
+              } else s(`.${inputData.id}`).value = null;
             }
             continue;
             break;
