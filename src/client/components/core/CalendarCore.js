@@ -262,8 +262,7 @@ const CalendarCore = {
             if (options.route) {
               setQueryPath({ path: options.route, queryPath: payload._id });
               if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
-              if (CalendarCore.Data[options.idModal].updatePanel)
-                await CalendarCore.Data[options.idModal].updatePanel();
+              await CalendarCore.Data[options.idModal].updatePanel();
             }
           },
           titleIcon,
@@ -338,8 +337,7 @@ const CalendarCore = {
 
                 setQueryPath({ path: options.route, queryPath: documentData._id });
                 if (options.parentIdModal) Modal.Data[options.parentIdModal].query = `${window.location.search}`;
-                if (CalendarCore.Data[options.idModal].updatePanel)
-                  await CalendarCore.Data[options.idModal].updatePanel();
+                await CalendarCore.Data[options.idModal].updatePanel();
               }
               return { data, status, message };
             },
@@ -366,11 +364,8 @@ const CalendarCore = {
                   status,
                 });
 
-                if (getQueryParams().cid === data.id) {
-                  setQueryPath({ path: options.route, queryPath: '' });
-                  if (CalendarCore.Data[options.idModal].updatePanel)
-                    await CalendarCore.Data[options.idModal].updatePanel();
-                }
+                setQueryPath({ path: options.route, queryPath: '' });
+                await CalendarCore.Data[options.idModal].updatePanel();
 
                 return { status };
               }
