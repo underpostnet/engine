@@ -446,7 +446,7 @@ const PanelForm = {
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          await this.Data[idPanel].updatePanel();
+          if (!PanelForm.Data[idPanel].sessionIn) await this.Data[idPanel].updatePanel();
         },
       });
 

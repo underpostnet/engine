@@ -14,8 +14,9 @@ const LogInUnderpost = async function () {
     s(`.main-btn-sign-up`).style.display = 'none';
     s(`.main-btn-log-out`).style.display = null;
     s(`.main-btn-account`).style.display = null;
-
-    PanelForm.Data['underpost-panel'].updatePanel();
+    PanelForm.Data['underpost-panel'].sessionIn = true;
+    await PanelForm.Data['underpost-panel'].updatePanel();
+    delete PanelForm.Data['underpost-panel'].sessionIn;
   };
   const { user } = await Auth.sessionIn();
   ElementsUnderpost.Data.user.main.model.user = user;
