@@ -76,28 +76,12 @@ const CalendarCore = {
         setTimeout(() => {
           renderCalendar(
             resultData.map((o) => {
+              // FREQ=WEEKLY;
+              o.rrule = `RRULE:BYDAY=${o.daysOfWeek.map((d) => `${d[0]}${d[1]}`.toUpperCase()).join(',')}`;
               o.daysOfWeek = o.daysOfWeek.map((v, i) => daysOfWeekOptions.indexOf(v));
+              // o.exdate = ['2024-04-02'];
+              console.error(o);
 
-              // const rruleOptions = {
-              //   freq: rrule.RRule.WEEKLY,
-              //   //interval: 5,
-              //   // byweekday: [rrule.RRule.MO, rrule.RRule.FR], //[ 'mo', 'fr' ],
-              //   // dtstart: new Date(Date.UTC(2019, 9, 1, 10, 30)), //'2019-02-01T10:30:00',
-              //   // until: '2019-12-01',
-              // };
-              const rruleSet = new rrule.RRuleSet();
-
-              rruleSet.rrule(new rrule.RRule());
-              // // Repeat every day except on Nov 22, 2019
-              rruleSet.exdate(new Date(Date.UTC(2025, 1, 4)));
-              // o.rrule = {
-              //   freq: rrule.RRule.WEEKLY,
-              //   // interval: 5,
-              //   // byweekday: [rrule.RRule.MO, rrule.RRule.FR],
-              //   // dtstart: new Date().toISOString().split('T')[0],
-              // };
-              // o.exdate = [new Date().toISOString().split('T')[0], '2025-02-04']; // FullCalendar.RRule.default
-              // o.rrule = rruleSet.toString();
               return o;
             }),
           );
