@@ -518,25 +518,13 @@ function getDirname(path) {
   return parts.join('/'); // Adjust separator if needed for Windows ('\')
 }
 
-const isDayValid = (day) => {
-  const date = new Date();
-  date.setDate(day);
-  return date.getDate() === day;
-};
-
-const isMonthValid = (month) => {
-  const date = new Date();
-  date.setMonth(month - 1);
-  return date.getMonth() === month - 1;
-};
-
 const isValidDate = (day, month, year) => {
-  if (!isDayValid(day) || !isMonthValid(month)) {
-    return false;
-  }
-
-  const date = new Date(year, month - 1, day);
-  return !isNaN(date.getTime());
+  if (!month && !year) return !(new Date(arg) == 'Invalid Date');
+  // new Date('2025-12-28')
+  // Sat Dec 27 2025 19:00:00 GMT-0500 (Eastern Standard Time)
+  // new Date('2025/12/28')
+  // Sun Dec 28 2025 00:00:00 GMT-0500 (Eastern Standard Time)
+  return !(new Date(`${year}/${month}/${day}`) == 'Invalid Date');
 };
 
 const isValidFormat = (value, format) => {
@@ -727,8 +715,6 @@ export {
   getSubpaths,
   formatBytes,
   getDirname,
-  isDayValid,
-  isMonthValid,
   isValidDate,
   isValidFormat,
   getTimezoneOffset,
