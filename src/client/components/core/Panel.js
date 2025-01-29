@@ -51,8 +51,6 @@ const Panel = {
       <i style="font-size: 25px" class="fa-solid fa-cloud"></i>
     </div>`;
 
-    let editId;
-
     const openPanelForm = () => {
       s(`.${idPanel}-form-body`).classList.remove('hide');
       s(`.btn-${idPanel}-add`).classList.add('hide');
@@ -98,8 +96,8 @@ const Panel = {
         });
         EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
           logger.warn('edit', obj);
-          if (obj._id) editId = obj._id;
-          else if (obj.id) editId = obj.id;
+          if (obj._id) Panel.Tokens[idPanel].editId = obj._id;
+          else if (obj.id) Panel.Tokens[idPanel].editId = obj.id;
 
           s(`.btn-${idPanel}-label-edit`).classList.remove('hide');
           s(`.btn-${idPanel}-label-add`).classList.add('hide');
@@ -449,12 +447,13 @@ const Panel = {
         obj.id = `${data.length}`;
         let documents;
         if (options && options.on && options.on.add) {
-          const { status, data } = await options.on.add({ data: obj, editId });
+          const { status, data } = await options.on.add({ data: obj, editId: Panel.Tokens[idPanel].editId });
           if (status === 'error') return;
           documents = data;
         }
         s(`.btn-${idPanel}-clean`).click();
-        if (editId && s(`.${idPanel}-${editId}`)) s(`.${idPanel}-${editId}`).remove();
+        if (Panel.Tokens[idPanel].editId && s(`.${idPanel}-${Panel.Tokens[idPanel].editId}`))
+          s(`.${idPanel}-${Panel.Tokens[idPanel].editId}`).remove();
         if (Array.isArray(documents)) {
           htmls(`.${idPanel}-render`, '');
           for (const doc of documents) {
@@ -489,7 +488,7 @@ const Panel = {
       s(`.btn-${idPanel}-add`).onclick = (e) => {
         e.preventDefault();
         // s(`.btn-${idPanel}-clean`).click();
-        editId = undefined;
+        Panel.Tokens[idPanel].editId = undefined;
         s(`.btn-${idPanel}-label-add`).classList.remove('hide');
         s(`.btn-${idPanel}-label-edit`).classList.add('hide');
         s(`.${scrollClassContainer}`).scrollTop = 0;

@@ -62,7 +62,7 @@ const CalendarCore = {
         status: result.status,
       });
       if (result.status === 'success') {
-        const resultData = Array.isArray(result.data) ? result.data : [result.data];
+        const resultData = Array.isArray(result.data) ? result.data : result.data ? [result.data] : [];
         this.Data[options.idModal].filesData = [];
         this.Data[options.idModal].originData = newInstance(resultData);
         this.Data[options.idModal].data = resultData.map((o) => {
@@ -90,7 +90,6 @@ const CalendarCore = {
     };
 
     const renderCalendar = (events) => {
-      console.error('renderCalendar', events);
       const calendarEl = s(`.calendar-${idPanel}`);
       this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [
@@ -119,12 +118,12 @@ const CalendarCore = {
 
       this.Data[options.idModal].calendar.render();
 
-      setTimeout(() => {
-        console.error(
-          '[data-date]',
-          Array.from(sa('[data-date]')).map((e) => e.getAttribute('data-date')),
-        );
-      });
+      // setTimeout(() => {
+      //   console.error(
+      //     '[data-date]',
+      //     Array.from(sa('[data-date]')).map((e) => e.getAttribute('data-date')),
+      //   );
+      // });
     };
     setTimeout(() => {
       renderCalendar();
@@ -382,14 +381,9 @@ const CalendarCore = {
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
 
-    let lastCid;
-    let lasUserId;
     this.Data[options.idModal].updatePanel = async () => {
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
-      if (lastCid === cid && lasUserId === options.Elements.Data.user.main.model.user._id) return;
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
-      lasUserId = newInstance(options.Elements.Data.user.main.model.user._id);
-      lastCid = cid;
       if (s(`.main-body-calendar-${options.idModal}`)) {
         // if (Auth.getToken())
         // else getSrrData();
