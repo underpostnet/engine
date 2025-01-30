@@ -403,6 +403,11 @@ const Modal = {
                     })}
                   </div>
                 </div>
+                ${options?.slideMenuTopBarFix
+                  ? html`<div class="abs modal slide-menu-top-bar-fix" style="height: ${options.heightTopBar}px">
+                      ${await options.slideMenuTopBarFix()}
+                    </div>`
+                  : ''}
               </div>`,
             );
             EventsUI.onClick(`.action-btn-profile-log-in`, () => {
