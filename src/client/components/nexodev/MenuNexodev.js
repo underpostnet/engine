@@ -20,7 +20,6 @@ import { Content } from '../core/Content.js';
 import { FileExplorer } from '../core/FileExplorer.js';
 import { Chat } from '../core/Chat.js';
 import { SettingsNexodev } from './SettingsNexodev.js';
-import { AppointmentFormHealthcare } from '../healthcare/AppointmentFormHealthCare.js';
 import { Wallet } from '../core/Wallet.js';
 import { Badge } from '../core/Badge.js';
 import { Recover } from '../core/Recover.js';
@@ -214,17 +213,6 @@ const MenuNexodev = {
               tabHref: `${getProxyPath()}account`,
               handleContainerClass: 'handle-btn-container',
               tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account', 'right')),
-            })}
-            ${await BtnIcon.Render({
-              class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
-              label: renderMenuLabel({
-                icon: html` <i class="fas fa-medkit"></i>`,
-                text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
-              }),
-              attrs: `data-id="healthcare-appointment"`,
-              tabHref: `${getProxyPath()}healthcare-appointment`,
-              handleContainerClass: 'handle-btn-container',
-              tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
             })}
             ${await BtnIcon.Render({
               class: 'in wfa main-btn-menu main-btn-wallet',
@@ -795,28 +783,6 @@ const MenuNexodev = {
           text: Translate.Render('settings'),
         }),
         html: async () => await SettingsNexodev.Render({ idModal: 'modal-settings' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-        barMode,
-      });
-    });
-
-    EventsUI.onClick(`.main-btn-healthcare-appointment`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-healthcare-appointment',
-        route: 'healthcare-appointment',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-medkit"></i>`,
-          text: Translate.Render('healthcare-appointment'),
-        }),
-        html: async () => await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }),
         handleType: 'bar',
         maximize: true,
         mode: 'view',
