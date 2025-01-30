@@ -16,30 +16,42 @@ const Translate = {
     Object.keys(this.Token).map((translateHash) => {
       if (translateHash in this.Token && lang in this.Token[translateHash]) {
         if (!('placeholder' in this.Token[translateHash]) && s(`.${translateHash}`))
-          htmls(`.${translateHash}`, textFormatted(this.Token[translateHash][lang]));
+          htmls(
+            `.${translateHash}`,
+            this.Token[translateHash].options.disableTextFormat
+              ? this.Token[translateHash][lang]
+              : textFormatted(this.Token[translateHash][lang]),
+          );
         else if ('placeholder' in this.Token[translateHash] && s(this.Token[translateHash].placeholder))
-          s(this.Token[translateHash].placeholder).placeholder = textFormatted(this.Token[translateHash][lang]);
+          s(this.Token[translateHash].placeholder).placeholder = this.Token[translateHash].options.disableTextFormat
+            ? this.Token[translateHash][lang]
+            : textFormatted(this.Token[translateHash][lang]);
       }
     });
     for (const keyEvent of Object.keys(this.Event)) this.Event[keyEvent]();
   },
-  Render: function (keyLang, placeholder) {
+  Render: function (keyLang, placeholder, options = { disableTextFormat: false }) {
     if (!(keyLang in this.Data)) {
       // TODO: add translate package or library for this case
       logger.warn('translate key lang does not exist: ', keyLang);
-      return textFormatted(keyLang);
+      return options.disableTextFormat ? keyLang : textFormatted(keyLang);
     }
     if (placeholder) this.Data[keyLang].placeholder = placeholder;
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
     this.Token[translateHash] = newInstance(keyLang);
     if ('placeholder' in keyLang) {
-      if (s('html').lang in keyLang) return textFormatted(keyLang[s('html').lang]);
-      return textFormatted(keyLang['en']);
+      if (s('html').lang in keyLang)
+        return options.disableTextFormat ? keyLang[s('html').lang] : textFormatted(keyLang[s('html').lang]);
+      return options.disableTextFormat ? keyLang['en'] : textFormatted(keyLang['en']);
     }
     if (s('html').lang in keyLang)
-      return html`<span class="${translateHash}">${textFormatted(keyLang[s('html').lang])}</span>`;
-    return html`<span class="${translateHash}">${textFormatted(keyLang['en'])}</span>`;
+      return html`<span class="${translateHash}"
+        >${options.disableTextFormat ? keyLang[s('html').lang] : textFormatted(keyLang[s('html').lang])}</span
+      >`;
+    return html`<span class="${translateHash}"
+      >${options.disableTextFormat ? keyLang['en'] : textFormatted(keyLang['en'])}</span
+    >`;
   },
   renderLang: function (language) {
     localStorage.setItem('lang', language);
