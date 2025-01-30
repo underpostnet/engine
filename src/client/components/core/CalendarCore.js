@@ -17,7 +17,7 @@ const daysOfWeekOptions = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday
 
 const eventDateFactory = (event) =>
   newInstance({
-    event: event.extendedProps,
+    event: { ...event.extendedProps, title: event._def.title },
     start: event.start,
     end: event.end,
   });

@@ -141,7 +141,8 @@ const MenuHealthcare = {
             class: 'in wfa main-btn-menu main-btn-calendar',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
-              text: html`<span class="menu-label-text">${Translate.Render('calendar')}</span>`,
+              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>
+                <!-- ${Translate.Render('calendar')} --->`,
             }),
             attrs: `data-id="calendar"`,
             tabHref: `${getProxyPath()}calendar`,
@@ -149,7 +150,7 @@ const MenuHealthcare = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('calendar')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-healthcare-appointment',
+            class: 'in wfa main-btn-menu main-btn-healthcare-appointment hide',
             label: renderMenuLabel({
               icon: html` <i class="fas fa-medkit"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment')}</span>`,
@@ -428,6 +429,30 @@ const MenuHealthcare = {
       });
     });
 
+    const appoimentFormRender = async (eventData) => {
+      console.error('appoimentFormRender', eventData);
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-healthcare-appointment',
+        route: 'healthcare-appointment',
+        barConfig,
+        title: renderViewTitle({
+          icon: html` <i class="fas fa-medkit"></i>`,
+          text: `${eventData ? `${eventData.event.title} ` : ''}${Translate.Render('healthcare-appointment')}`,
+        }),
+        html: async () =>
+          await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }, eventData),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+        // barMode,
+      });
+    };
+
     EventsUI.onClick(`.main-btn-calendar`, async () => {
       const { barConfig } = await Themes[Css.currentTheme]();
       const route = 'calendar';
@@ -437,7 +462,7 @@ const MenuHealthcare = {
         barConfig,
         title: renderViewTitle({
           icon: html` <i class="fas fa-calendar-alt"></i>`,
-          text: Translate.Render('calendar'),
+          text: html`${Translate.Render('healthcare-appointment')}`, // Translate.Render('calendar'),
         }),
         html: async () => {
           setTimeout(() => {
@@ -462,6 +487,8 @@ const MenuHealthcare = {
             route,
             parentIdModal: 'modal-calendar',
             eventClick: async function (dateData, args) {
+              await appoimentFormRender(dateData);
+              return;
               const { data, status, message } = await HealthcareAppointmentService.post({
                 body: {
                   date: dateData.start,
@@ -498,26 +525,8 @@ const MenuHealthcare = {
       });
     });
 
-    EventsUI.onClick(`.main-btn-healthcare-appointment`, async () => {
-      const { barConfig } = await Themes[Css.currentTheme]();
-      await Modal.Render({
-        id: 'modal-healthcare-appointment',
-        route: 'healthcare-appointment',
-        barConfig,
-        title: renderViewTitle({
-          icon: html` <i class="fas fa-medkit"></i>`,
-          text: Translate.Render('healthcare-appointment'),
-        }),
-        html: async () => await AppointmentFormHealthcare.Render({ idModal: 'modal-healthcare-appointment' }),
-        handleType: 'bar',
-        maximize: true,
-        mode: 'view',
-        slideMenu: 'modal-menu',
-        RouterInstance,
-        heightTopBar,
-        heightBottomBar,
-        // barMode,
-      });
+    EventsUI.onClick(`.main-btn-healthcare-appointment`, () => {
+      appoimentFormRender();
     });
 
     EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {
