@@ -25,11 +25,6 @@ const RoutesNexodev = () => {
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },
     '/wallet': { title: 'wallet', render: () => s(`.main-btn-wallet`).click(), translateTitle: true },
-    '/healthcare-appointment': {
-      title: 'healthcare-appointment',
-      render: () => s(`.main-btn-healthcare-appointment`).click(),
-      translateTitle: true,
-    },
     '/log-out': {
       title: 'log-out',
       render: () => s(`.main-btn-log-out`).click(),
