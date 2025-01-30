@@ -70,7 +70,7 @@ const validateSecureContext = (host) => {
 const buildSecureContext = (host) => {
   return {
     key: fs.readFileSync(`./engine-private/ssl/${host}/key.key`, 'utf8'),
-    cert: fs.readFileSync(`./engine-private/ssl/${host}/crt.crt`, 'utf8'),
+    cert: fs.readFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, 'utf8'),
     ca: fs.readFileSync(`./engine-private/ssl/${host}/ca_bundle.crt`, 'utf8'),
   };
 };
