@@ -36,6 +36,7 @@ const Translate = {
       logger.warn('translate key lang does not exist: ', keyLang);
       return options.disableTextFormat ? keyLang : textFormatted(keyLang);
     }
+    this.Data[keyLang].options = options;
     if (placeholder) this.Data[keyLang].placeholder = placeholder;
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
