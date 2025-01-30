@@ -112,9 +112,10 @@ const CalendarCore = {
           center: 'title',
           right: 'dayGridMonth,timeGridWeek,listWeek',
         },
-        eventClick: function (args) {
+        eventClick: async function (args) {
           const dateData = eventDateFactory(args.event);
           console.error('eventClick', JSON.stringify(dateData, null, 4));
+          if (options.eventClick) await options.eventClick(dateData, args);
         },
         eventClassNames: function (args) {
           if (!args.event.extendedProps._id) return args.event.remove();

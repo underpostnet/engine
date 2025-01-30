@@ -237,7 +237,7 @@ const UserService = {
         const validatePassword = validatePasswordMiddleware(req.body.password);
         if (validatePassword.status === 'error') throw new Error(validatePassword.message);
         req.body.password = await hashPassword(req.body.password);
-        req.body.role = 'user';
+        req.body.role = req.body.role === 'guest' ? 'guest' : 'user';
         req.body.profileImageId = await getDefaultProfileImageId(File);
         const { _id } = await new User(req.body).save();
         if (_id) {

@@ -479,6 +479,10 @@ const TranslateCore = {
     Translate.Data['daysOfWeek'] = { es: 'Días de la semana', en: 'Days of the week' };
     Translate.Data['startTime'] = { es: 'Hora de inicio', en: 'Start time' };
     Translate.Data['endTime'] = { es: 'Hora de finalizacion', en: 'End time' };
+    Translate.Data['appointment-scheduled'] = {
+      en: 'Your appointment has been scheduled',
+      es: 'Tu cita ha sido programada',
+    };
   },
 };
 

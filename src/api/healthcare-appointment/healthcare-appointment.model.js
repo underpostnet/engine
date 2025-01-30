@@ -5,6 +5,7 @@ import { medicalSpecialties } from '../../client/components/healthcare/CommonHea
 
 const HealthcareAppointmentSchema = new Schema({
   eventSchedulerId: { type: Schema.Types.ObjectId, ref: 'EventScheduler' },
+  date: { type: Date },
   patient: {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
   },

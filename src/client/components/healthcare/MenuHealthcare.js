@@ -22,6 +22,8 @@ import { MenuHomeHealthcare, NutritionalTips } from './CommonHealthcare.js';
 import { CalendarCore } from '../core/CalendarCore.js';
 import { Scroll } from '../core/Scroll.js';
 import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
+import { HealthcareAppointmentService } from '../../services/healthcare-appointment/healthcare-appointment.service.js';
+import { NotificationManager } from '../core/NotificationManager.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -459,6 +461,30 @@ const MenuHealthcare = {
             heightTopBar,
             route,
             parentIdModal: 'modal-calendar',
+            eventClick: async function (dateData, args) {
+              const { data, status, message } = await HealthcareAppointmentService.post({
+                body: {
+                  date: dateData.start,
+                  eventSchedulerId: dateData.event._id,
+                  patient: {
+                    email: 'test@test.com',
+                    username: 'Test User',
+                    phoneNumbers: [{ type: 'private', number: '1234567890' }],
+                    userId: ElementsHealthcare.Data.user.main.model.user._id,
+                  },
+                  professional: {
+                    specialty: ['nutrition'],
+                  },
+                },
+              });
+              NotificationManager.Push({
+                html: status === 'success' ? Translate.Render('appointment-scheduled') : message,
+                status,
+              });
+              if (status === 'success') {
+                args.event.remove();
+              }
+            },
           });
         },
         handleType: 'bar',
