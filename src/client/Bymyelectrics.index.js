@@ -1,6 +1,6 @@
 'use strict';
 
-import { Css, dynamicCol } from './components/core/Css.js';
+import { borderChar, Css, dynamicCol } from './components/core/Css.js';
 import { Responsive } from './components/core/Responsive.js';
 import { Translate, TranslateCore } from './components/core/Translate.js';
 import { LogInBymyelectrics } from './components/bymyelectrics/LogInBymyelectrics.js';
@@ -16,11 +16,16 @@ import { SocketIo } from './components/core/SocketIo.js';
 import { SocketIoBymyelectrics } from './components/bymyelectrics/SocketIoBymyelectrics.js';
 import { ElementsBymyelectrics } from './components/bymyelectrics/ElementsBymyelectrics.js';
 import { Scroll } from './components/core/Scroll.js';
-import { getProxyPath } from './components/core/VanillaJs.js';
+import { getProxyPath, s } from './components/core/VanillaJs.js';
 import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyelectrics/CssBymyelectrics.js';
 
 const htmlMainBody = async () => {
   const id0DynamicCol = `dynamicCol-0`;
+  setTimeout(() => {
+    Responsive.Event[`landing`] = () => {
+      s(`.home-first-screen`).style.height = ` ${window.innerHeight - 100}px`;
+    };
+  });
   return html`
     <style>
       .landing-logo-0 {
@@ -41,11 +46,30 @@ const htmlMainBody = async () => {
         background: #2f5596;
         color: white;
         padding: 0 50px 0 50px;
+        font-size: 16px;
       }
       a {
         color: white;
       }
+
+      .proyectistas-p {
+        color: white;
+        font-size: 40px;
+      }
+      .home-first-screen {
+        transition: 0.3s;
+        background-image: url('${getProxyPath()}assets/proyectistas.png');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+      }
     </style>
+    ${borderChar(2, 'black', ['.home-first-screen'])}
+    <div class="in home-first-screen" style="height: ${window.innerHeight - 100}px">
+      <div class="abs center proyectistas-p">
+        ${Translate.Render('electrical-designers', undefined, { disableTextFormat: true })}
+      </div>
+    </div>
     ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
     <div class="in section-mp landing-container">
       <div class="fl ${id0DynamicCol}">
@@ -73,8 +97,17 @@ const htmlMainBody = async () => {
       <br /><br />
       Las Carmelitas 91, Las Condes.
       <br /><br />
-      <a href="https://wa.me/56945637339">+569 4563 7339</a><br /><br />
-      <a href="https://wa.me/56984967570">+569 8496 7570</a>
+
+      <b>Maximiliano Bernal</b>
+      <br />
+      <i class="fas fa-envelope"></i> <a href="mailto:mbernal@bymyelectrics.com">mbernal@bymyelectrics.com</a>
+      <br />
+      <i class="fas fa-phone-alt"></i> <a href="https://wa.me/56945637339">+569 4563 7339</a><br /><br />
+      <b>Bruno Verdugo</b>
+      <br />
+      <i class="fas fa-envelope"></i> <a href="mailto:bverdugo@bymyelectrics.com">bverdugo@bymyelectrics.com</a>
+      <br />
+      <i class="fas fa-phone-alt"></i> <a href="https://wa.me/56984967570">+569 8496 7570</a>
       <br />
       <br />
       <br />

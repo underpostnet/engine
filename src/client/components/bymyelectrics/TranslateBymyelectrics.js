@@ -32,6 +32,10 @@ const TranslateBymyelectrics = {
       es: 'Nuestros clientes',
       en: 'Our clients',
     };
+    Translate.Data['electrical-designers'] = {
+      es: 'Proyectistas Electricos',
+      en: 'Electrical Designers',
+    };
   },
 };
 

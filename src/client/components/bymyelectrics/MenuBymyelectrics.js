@@ -49,7 +49,7 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('home')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-log-in',
+            class: 'in wfa main-btn-menu main-btn-log-in hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sign-in-alt"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('log-in')}</span>`,
@@ -60,7 +60,7 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('log-in')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-sign-up',
+            class: 'in wfa main-btn-menu main-btn-sign-up hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-user-plus"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('sign-up')}</span>`,
@@ -95,7 +95,7 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-settings',
+            class: 'in wfa main-btn-menu main-btn-settings hide',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
@@ -174,6 +174,20 @@ const MenuBymyelectrics = {
         </div>
       `,
       barConfig: newInstance(barConfig),
+      slideMenuTopBarFix: async () => {
+        return html` <style>
+            .bme-bar-logo {
+              height: 150px;
+              padding-left: 20px;
+              top: -25px;
+            }
+            .slide-menu-top-bar-fix {
+              overflow: hidden;
+            }
+          </style>
+
+          <div class="fl"><img class="in fll bme-bar-logo" src="${getProxyPath()}assets/social.png" /></div>`;
+      },
       title: NameApp,
       // titleClass: 'hide',
       titleRender: () => {
