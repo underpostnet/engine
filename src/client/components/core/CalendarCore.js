@@ -108,16 +108,19 @@ const CalendarCore = {
         eventClick: function (...args) {
           console.error('eventClick', args, args[0].event.extendedProps);
         },
+        eventClassNames: function (args) {
+          if (!args.event.extendedProps._id) return args.event.remove();
+          const dateData = newInstance({
+            event: args.event.extendedProps,
+            start: args.event.start,
+            end: args.event.end,
+          });
+
+          // console.error(JSON.stringify(dateData, null, 4));
+        },
       });
 
       this.Data[options.idModal].calendar.render();
-
-      // setTimeout(() => {
-      //   console.error(
-      //     '[data-date]',
-      //     Array.from(sa('[data-date]')).map((e) => e.getAttribute('data-date')),
-      //   );
-      // });
     };
     setTimeout(() => {
       renderCalendar();
