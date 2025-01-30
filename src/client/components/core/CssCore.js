@@ -117,6 +117,12 @@ const CssCommonCore = async () => {
         animation: ripple 600ms linear;
         background-color: rgba(137, 137, 137, 0.503);
       }
+      .slide-menu-top-bar-fix {
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 1;
+      }
       @keyframes ripple {
         to {
           transform: scale(4);
