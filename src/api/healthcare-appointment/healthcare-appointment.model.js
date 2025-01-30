@@ -22,8 +22,16 @@ const HealthcareAppointmentSchema = new Schema({
   },
 });
 
+const HealthcareAppointmentDto = {
+  select: {
+    'appointment-dates': () => {
+      return { date: 1, _id: 1 };
+    },
+  },
+};
+
 const HealthcareAppointmentModel = model('HealthcareAppointment', HealthcareAppointmentSchema);
 
 const ProviderSchema = HealthcareAppointmentSchema;
 
-export { HealthcareAppointmentSchema, HealthcareAppointmentModel, ProviderSchema };
+export { HealthcareAppointmentSchema, HealthcareAppointmentModel, ProviderSchema, HealthcareAppointmentDto };

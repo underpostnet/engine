@@ -25,13 +25,15 @@ const eventDateFactory = (event) =>
 const CalendarCore = {
   RenderStyle: async function () {},
   Data: {},
-  Render: async function (options = { idModal: '', Elements: {}, heightTopBar: 50, heightBottomBar: 50 }) {
+  Render: async function (
+    options = { idModal: '', Elements: {}, heightTopBar: 50, heightBottomBar: 50, hiddenDates: [] },
+  ) {
     this.Data[options.idModal] = {
       data: [],
       originData: [],
       filesData: [],
       calendar: {},
-      hiddenDates: [],
+      hiddenDates: options.hiddenDates ? options.hiddenDates : [],
     };
 
     const { heightTopBar, heightBottomBar } = options;

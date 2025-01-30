@@ -2,6 +2,7 @@ import { generateRandomPasswordSelection, strToDateUTC } from '../../client/comp
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { UserService } from '../user/user.service.js';
+import { HealthcareAppointmentDto } from './healthcare-appointment.model.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -51,6 +52,10 @@ const HealthcareAppointmentService = {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
+
+    if (req.params.id === 'appointment-dates') {
+      return await HealthcareAppointment.find().select(HealthcareAppointmentDto.select['appointment-dates']());
+    }
     return await HealthcareAppointment.findById(req.params.id);
   },
   put: async (req, res, options) => {
