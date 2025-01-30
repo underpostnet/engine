@@ -479,16 +479,16 @@ const MenuHealthcare = {
               Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
             };
           });
+          const idModal = 'modal-calendar';
           return await CalendarCore.Render({
-            idModal: 'modal-calendar',
+            idModal,
             Elements: ElementsHealthcare,
             heightBottomBar,
             heightTopBar,
             route,
             parentIdModal: 'modal-calendar',
             eventClick: async function (dateData, args) {
-              await appoimentFormRender(dateData);
-              return;
+              // await appoimentFormRender(dateData);
               const { data, status, message } = await HealthcareAppointmentService.post({
                 body: {
                   date: dateData.start,
@@ -509,7 +509,8 @@ const MenuHealthcare = {
                 status,
               });
               if (status === 'success') {
-                args.event.remove();
+                CalendarCore.Data[idModal].hiddenDates.push(dateData.start);
+                args.el.remove();
               }
             },
           });

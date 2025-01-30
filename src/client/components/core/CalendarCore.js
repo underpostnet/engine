@@ -31,6 +31,7 @@ const CalendarCore = {
       originData: [],
       filesData: [],
       calendar: {},
+      hiddenDates: [],
     };
 
     const { heightTopBar, heightBottomBar } = options;
@@ -114,14 +115,16 @@ const CalendarCore = {
         },
         eventClick: async function (args) {
           const dateData = eventDateFactory(args.event);
-          console.error('eventClick', JSON.stringify(dateData, null, 4));
+          // element -> args.el
+          // remove all events associated ->  args.event.remove();
+          // console.error('eventClick', JSON.stringify(dateData, null, 4));
           if (options.eventClick) await options.eventClick(dateData, args);
         },
         eventClassNames: function (args) {
+          // console.error('eventClassNames', JSON.stringify(dateData, null, 4));
           if (!args.event.extendedProps._id) return args.event.remove();
           const dateData = eventDateFactory(args.event);
-
-          console.error('eventClassNames', JSON.stringify(dateData, null, 4));
+          if (CalendarCore.Data[options.idModal].hiddenDates.includes(dateData.start)) return ['hide'];
         },
       });
 

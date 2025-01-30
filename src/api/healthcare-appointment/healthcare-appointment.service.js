@@ -23,9 +23,9 @@ const HealthcareAppointmentService = {
     const professional = await User.findById(event._doc.creatorUserId);
     if (!professional) throw new Error(`Could not find professional`);
 
-    let patient;
+    let patient = await User.findOne({ email: req.body.patient.email });
 
-    if (req.body.patient.userId.match('guest')) {
+    if (!patient) {
       const { token, user } = await UserService.post(
         {
           params: {
@@ -39,8 +39,6 @@ const HealthcareAppointmentService = {
         options,
       );
       patient = user;
-    } else {
-      patient = await User.findById(req.body.patient.userId);
     }
 
     req.body.patient.userId = patient._id;
