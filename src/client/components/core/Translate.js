@@ -18,12 +18,12 @@ const Translate = {
         if (!('placeholder' in this.Token[translateHash]) && s(`.${translateHash}`))
           htmls(
             `.${translateHash}`,
-            this.Token[translateHash].options.disableTextFormat
+            this.Token[translateHash].options?.disableTextFormat
               ? this.Token[translateHash][lang]
               : textFormatted(this.Token[translateHash][lang]),
           );
         else if ('placeholder' in this.Token[translateHash] && s(this.Token[translateHash].placeholder))
-          s(this.Token[translateHash].placeholder).placeholder = this.Token[translateHash].options.disableTextFormat
+          s(this.Token[translateHash].placeholder).placeholder = this.Token[translateHash].options?.disableTextFormat
             ? this.Token[translateHash][lang]
             : textFormatted(this.Token[translateHash][lang]);
       }
