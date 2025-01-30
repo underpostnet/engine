@@ -15,6 +15,13 @@ import { append, getQueryParams, getTimeZone, htmls, s, sa } from './VanillaJs.j
 
 const daysOfWeekOptions = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
+const eventDateFactory = (event) =>
+  newInstance({
+    event: event.extendedProps,
+    start: event.start,
+    end: event.end,
+  });
+
 const CalendarCore = {
   RenderStyle: async function () {},
   Data: {},
@@ -105,18 +112,15 @@ const CalendarCore = {
           center: 'title',
           right: 'dayGridMonth,timeGridWeek,listWeek',
         },
-        eventClick: function (...args) {
-          console.error('eventClick', args, args[0].event.extendedProps);
+        eventClick: function (args) {
+          const dateData = eventDateFactory(args.event);
+          console.error('eventClick', JSON.stringify(dateData, null, 4));
         },
         eventClassNames: function (args) {
           if (!args.event.extendedProps._id) return args.event.remove();
-          const dateData = newInstance({
-            event: args.event.extendedProps,
-            start: args.event.start,
-            end: args.event.end,
-          });
+          const dateData = eventDateFactory(args.event);
 
-          // console.error(JSON.stringify(dateData, null, 4));
+          console.error('eventClassNames', JSON.stringify(dateData, null, 4));
         },
       });
 
