@@ -13,7 +13,6 @@ import { ElementsNexodev } from './components/nexodev/ElementsNexodev.js';
 import { SocketIoNexodev } from './components/nexodev/SocketIoNexodev.js';
 import { Worker } from './components/core/Worker.js';
 import { CssNexodevDark, CssNexodevLight } from './components/nexodev/CssNexodev.js';
-import { TranslateHealthcare } from './components/healthcare/TranslateHealthcare.js';
 import { Keyboard } from './components/core/Keyboard.js';
 import { NexodevParams } from './components/nexodev/CommonNexodev.js';
 import { Scroll } from './components/core/Scroll.js';
@@ -24,7 +23,6 @@ window.onload = () =>
     render: async () => {
       await Css.loadThemes([CssNexodevLight, CssNexodevDark]);
       await TranslateCore.Init();
-      await TranslateHealthcare.Init();
       await Responsive.Init();
       await MenuNexodev.Render();
       await SocketIo.Init({ channels: ElementsNexodev.Data });
