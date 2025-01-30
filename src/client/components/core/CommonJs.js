@@ -527,6 +527,18 @@ const isValidDate = (day, month, year) => {
   return !(new Date(`${year}/${month}/${day}`) == 'Invalid Date');
 };
 
+// console.log(req.body.timeZoneClient, Intl.DateTimeFormat().resolvedOptions().timeZone);
+// DateTime.fromISO("2017-05-15T09:10:23", { zone: "Europe/Paris" });
+const strToDateUTC = (date = '2025-01-30T14:32') => {
+  const year = parseInt(date.split('-')[0]);
+  const month = parseInt(date.split('-')[1]);
+  const day = parseInt(date.split('-')[2].split('T')[0]);
+  const hour = parseInt(date.split('T')[1].split(':')[0]);
+  const minute = parseInt(date.split('T')[1].split(':')[1]);
+  date = new Date(Date.UTC(year, month - 1, day, hour, minute, 0, 0));
+  return date;
+};
+
 const isValidFormat = (value, format) => {
   try {
     switch (format) {
@@ -717,6 +729,7 @@ export {
   getDirname,
   isValidDate,
   isValidFormat,
+  strToDateUTC,
   getTimezoneOffset,
   cleanString,
   splitEveryXChar,

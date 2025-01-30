@@ -221,7 +221,7 @@ const Input = {
             {
               if (isValidDate(originObj[inputData.model])) {
                 const date = new Date(originObj[inputData.model]);
-                date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
+                // date.setMinutes(date.getMinutes() - date.getTimezoneOffset());
                 s(`.${inputData.id}`).value = date.toISOString().slice(0, 16);
               } else s(`.${inputData.id}`).value = null;
             }

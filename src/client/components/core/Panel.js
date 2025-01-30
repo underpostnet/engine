@@ -1,4 +1,4 @@
-import { getId } from './CommonJs.js';
+import { getId, isValidDate, newInstance } from './CommonJs.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Validator } from '../core/Validator.js';
 import { Input } from '../core/Input.js';
@@ -70,7 +70,7 @@ const Panel = {
     };
 
     const renderPanel = async (payload) => {
-      const obj = payload;
+      const obj = newInstance(payload);
       if ('_id' in obj) obj.id = obj._id;
       const { id } = obj;
 
@@ -169,6 +169,10 @@ const Panel = {
                   const valueIcon = formObjData?.panel?.icon?.value ? formObjData.panel.icon.value : '';
                   const keyIcon = formObjData?.panel?.icon?.key ? formObjData.panel.icon.key : '';
 
+                  if (formObjData && ['datetime-local'].includes(formObjData.inputType) && isValidDate(obj[infoKey])) {
+                    obj[infoKey] = `${obj[infoKey]}`.replace('T', ' ').replace('.000Z', '');
+                  }
+
                   if (formData.find((f) => f.model === infoKey && f.panel && f.panel.type === 'tags')) {
                     setTimeout(async () => {
                       let tagRender = html``;
@@ -251,25 +255,27 @@ const Panel = {
       if (modelData.disableRender) continue;
       switch (modelData.inputType) {
         case 'dropdown-checkbox': {
-          renderForm += html`${await DropDown.Render({
-            id: `${modelData.id}`,
-            label: html`${Translate.Render(modelData.model)}`,
-            type: 'checkbox',
-            value: modelData.dropdown.options[0],
-            resetOption: true,
-            containerClass: `${idPanel}-dropdown-checkbox`,
-            data: modelData.dropdown.options.map((dKey) => {
-              return {
-                value: dKey,
-                data: dKey,
-                checked: false,
-                display: html`${Translate.Render(dKey)}`,
-                onClick: function () {
-                  logger.info('DropDown onClick', this.checked);
-                },
-              };
-            }),
-          })}`;
+          renderForm += html`<div class="in section-mp">
+            ${await DropDown.Render({
+              id: `${modelData.id}`,
+              label: html`${Translate.Render(modelData.model)}`,
+              type: 'checkbox',
+              value: modelData.dropdown.options[0],
+              resetOption: true,
+              containerClass: `${idPanel}-dropdown-checkbox`,
+              data: modelData.dropdown.options.map((dKey) => {
+                return {
+                  value: dKey,
+                  data: dKey,
+                  checked: false,
+                  display: html`${Translate.Render(dKey)}`,
+                  onClick: function () {
+                    logger.info('DropDown onClick', this.checked);
+                  },
+                };
+              }),
+            })}
+          </div>`;
           break;
         }
         case 'dropdown':
@@ -478,7 +484,7 @@ const Panel = {
           for (const doc of documents) {
             append(`.${idPanel}-render`, await renderPanel(doc));
           }
-        } else htmls(`.${idPanel}-render`, await renderPanel(obj));
+        } else htmls(`.${idPanel}-render`, await renderPanel({ ...obj, ...documents }));
         Input.cleanValues(formData);
         s(`.btn-${idPanel}-close`).click();
         s(`.${scrollClassContainer}`).scrollTop = 0;

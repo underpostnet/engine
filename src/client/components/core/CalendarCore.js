@@ -75,7 +75,6 @@ const CalendarCore = {
               // o.exdate = ['2024-04-02'];
               // delete o.end;
               // delete o.start;
-              console.error(o);
 
               return o;
             }),
@@ -301,12 +300,16 @@ const CalendarCore = {
               if (data.daysOfWeek && data.daysOfWeek.length > 0 && daysOfWeekOptions[data.daysOfWeek[0]]) {
                 data.daysOfWeek = data.daysOfWeek.map((d) => daysOfWeekOptions[d]);
               }
+              data.timeZoneClient = getTimeZone();
               const {
                 status,
                 message,
                 data: documentData,
               } = editId
-                ? await EventSchedulerService.put({ id: editId, body: { ...data, _id: undefined } })
+                ? await EventSchedulerService.put({
+                    id: editId,
+                    body: { ...data, _id: undefined },
+                  })
                 : await EventSchedulerService.post({ body: data });
               NotificationManager.Push({
                 html:
@@ -319,8 +322,9 @@ const CalendarCore = {
               });
 
               if (status === 'success') {
-                data.tools = true;
-                data._id = documentData._id;
+                documentData.tools = true;
+                // data._id = documentData._id;
+                data = documentData;
 
                 let originObj, indexOriginObj;
                 let filesData = {};

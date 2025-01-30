@@ -17,6 +17,7 @@ const EventSchedulerSchema = new Schema(
     endTime: { type: String },
     groupId: { type: String },
     color: { type: String },
+    timeZoneClient: { type: String },
   },
   {
     timestamps: true,
