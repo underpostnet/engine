@@ -25,7 +25,7 @@ const HealthcareAppointmentSchema = new Schema({
 const HealthcareAppointmentDto = {
   select: {
     'appointment-dates': () => {
-      return { date: 1, _id: 1 };
+      return { date: 1, _id: 1, eventSchedulerId: 1 };
     },
   },
 };

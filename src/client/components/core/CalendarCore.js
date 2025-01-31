@@ -126,7 +126,12 @@ const CalendarCore = {
           // console.error('eventClassNames', JSON.stringify(dateData, null, 4));
           if (!args.event.extendedProps._id) return args.event.remove();
           const dateData = eventDateFactory(args.event);
-          if (CalendarCore.Data[options.idModal].hiddenDates.includes(dateData.start)) return ['hide'];
+          if (
+            CalendarCore.Data[options.idModal].hiddenDates.find(
+              (d) => d.eventSchedulerId === dateData.event._id && d.date === dateData.start,
+            )
+          )
+            return ['hide'];
         },
       });
 

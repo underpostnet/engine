@@ -503,7 +503,7 @@ const MenuHealthcare = {
             heightBottomBar,
             heightTopBar,
             route,
-            hiddenDates: hiddenDates.map((d) => d.date),
+            hiddenDates,
             parentIdModal: 'modal-calendar',
             eventClick: async function (dateData, args) {
               const { status } = await appoimentFormRender(dateData);
