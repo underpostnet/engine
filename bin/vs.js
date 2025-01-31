@@ -6,13 +6,14 @@ switch (process.argv[2]) {
     {
       const extensions = JSON.parse(fs.readFileSync(`./.vscode/extensions.json`, 'utf8'));
       extensions.recommendations.map((extension) => {
-        if (extension) shellExec(`code --install-extension ${extension}`);
+        if (extension)
+          shellExec(`sudo code --user-data-dir="/root/.vscode-root" --no-sandbox --install-extension ${extension}`);
       });
     }
     break;
   case 'export':
     {
-      shellExec(`code --list-extensions > vs-extensions.txt`);
+      shellExec(`sudo code --user-data-dir="/root/.vscode-root" --no-sandbox --list-extensions > vs-extensions.txt`);
       fs.writeFileSync(
         `./.vscode/extensions.json`,
         JSON.stringify(
