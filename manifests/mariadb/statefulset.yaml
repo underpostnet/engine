@@ -39,12 +39,12 @@ spec:
           volumeMounts:
             - mountPath: /var/lib/mysql
               name: mariadb-storage
-            - mountPath: /etc/mysql/conf.d
-              name: config-volume
-      volumes:
-        - name: config-volume
-          configMap:
-            name: mariadb-config
+      #       - mountPath: /etc/mysql/conf.d
+      #         name: config-volume
+      # volumes:
+      #   - name: config-volume
+      #     configMap:
+      #       name: mariadb-config
   volumeClaimTemplates:
     - metadata:
         name: mariadb-storage
