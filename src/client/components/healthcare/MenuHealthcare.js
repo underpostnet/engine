@@ -430,10 +430,10 @@ const MenuHealthcare = {
     });
 
     const appoimentFormRender = async (eventData) => {
-      console.error('appoimentFormRender', eventData);
       const { barConfig } = await Themes[Css.currentTheme]();
+      const idModal = `modal-healthcare-appointment${eventData ? `-${new Date(eventData.start).getTime()}` : ''}`;
       await Modal.Render({
-        id: 'modal-healthcare-appointment',
+        id: idModal,
         route: 'healthcare-appointment',
         barConfig,
         title: renderViewTitle({
@@ -450,6 +450,22 @@ const MenuHealthcare = {
         heightTopBar,
         heightBottomBar,
         // barMode,
+      });
+      if (!eventData) return { status: 'error' };
+      const cleanEvent = () => {
+        delete AppointmentFormHealthcare.Event[idModal];
+        delete Modal.Data[idModal].onCloseListener[idModal];
+      };
+      return await new Promise((resolve) => {
+        AppointmentFormHealthcare.Event[idModal] = async ({ status, data, message }) => {
+          cleanEvent();
+          await Modal.removeModal(idModal);
+          return resolve({ status });
+        };
+        Modal.Data[idModal].onCloseListener[idModal] = () => {
+          cleanEvent();
+          return resolve({ status: 'error' });
+        };
       });
     };
 
@@ -490,26 +506,7 @@ const MenuHealthcare = {
             hiddenDates: hiddenDates.map((d) => d.date),
             parentIdModal: 'modal-calendar',
             eventClick: async function (dateData, args) {
-              // await appoimentFormRender(dateData);
-              const { data, status, message } = await HealthcareAppointmentService.post({
-                body: {
-                  date: dateData.start,
-                  eventSchedulerId: dateData.event._id,
-                  patient: {
-                    email: 'test@test.com',
-                    username: 'Test User',
-                    phoneNumbers: [{ type: 'private', number: '1234567890' }],
-                    userId: ElementsHealthcare.Data.user.main.model.user._id,
-                  },
-                  professional: {
-                    specialty: ['nutrition'],
-                  },
-                },
-              });
-              NotificationManager.Push({
-                html: status === 'success' ? Translate.Render('appointment-scheduled') : message,
-                status,
-              });
+              const { status } = await appoimentFormRender(dateData);
               if (status === 'success') {
                 CalendarCore.Data[idModal].hiddenDates.push(dateData.start);
                 args.el.remove();

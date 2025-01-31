@@ -8,6 +8,7 @@ import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
 import { Validator } from '../core/Validator.js';
 import { s } from '../core/VanillaJs.js';
+import { ElementsHealthcare } from './ElementsHealthcare.js';
 
 // https://ewr50l16.forms.app/consulta-nutricional-ayleenbertini
 
@@ -23,12 +24,12 @@ const AppointmentFormHealthcare = {
     setTimeout(async () => {
       const formData = [
         {
-          model: 'patient',
+          model: 'username',
           id: `healthcare-appointment-patient`,
           rules: [{ type: 'isEmpty' }, { type: 'isLength', options: { min: 2, max: 20 } }],
         },
         {
-          model: 'whatsappNumber',
+          model: 'phoneNumbers',
           id: `healthcare-appointment-whatsappNumber`,
           rules: [{ type: 'isEmpty' }, { type: 'isMobilePhone' }],
         },
@@ -40,18 +41,53 @@ const AppointmentFormHealthcare = {
         e.preventDefault();
         const { errorMessage } = await validators();
         if (errorMessage) return;
-        const body = {};
+        const patient = {};
         for (const inputData of formData) {
-          if ('model' in inputData) body[inputData.model] = s(`.${inputData.id}`).value;
+          if ('model' in inputData) {
+            switch (inputData.model) {
+              case 'phoneNumbers':
+                {
+                  patient[inputData.model] = [
+                    {
+                      type: 'private',
+                      number: s(`.${inputData.id}`).value,
+                    },
+                  ];
+                }
+                break;
+
+              default:
+                {
+                  patient[inputData.model] = s(`.${inputData.id}`).value;
+                }
+                break;
+            }
+          }
         }
-        const result = await HealthcareAppointmentService.post({ body });
-        NotificationManager.Push({
-          html: typeof result.data === 'string' ? result.data : Translate.Render(`${result.status}-upload-appointment`),
-          status: result.status,
+
+        const { data, status, message } = await HealthcareAppointmentService.post({
+          body: {
+            date: eventData.start,
+            eventSchedulerId: eventData.event._id,
+            patient: Object.keys(patient)
+              ? { ...patient, userId: ElementsHealthcare.Data.user.main.model.user._id }
+              : {
+                  email: 'test@test.com',
+                  username: 'Test User',
+                  phoneNumbers: [{ type: 'private', number: '1234567890' }],
+                  userId: ElementsHealthcare.Data.user.main.model.user._id,
+                },
+            professional: {
+              specialty: ['nutrition'],
+            },
+          },
         });
-        if (result.status === 'success') {
-          await this.Trigger(result.data);
-        }
+        NotificationManager.Push({
+          html: status === 'success' ? Translate.Render('appointment-scheduled') : message,
+          status,
+        });
+        await this.Trigger({ data, status, message });
+        // Translate.Render(`${result.status}-upload-appointment`),
       });
 
       s(`.toggle-form-container-healthcare-telemedicine`).onclick = () =>
