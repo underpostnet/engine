@@ -454,11 +454,12 @@ const MenuHealthcare = {
     };
 
     EventsUI.onClick(`.main-btn-calendar`, async () => {
+      const idModal = 'modal-calendar';
       const { barConfig } = await Themes[Css.currentTheme]();
       const route = 'calendar';
       const { data: hiddenDates } = await HealthcareAppointmentService.get({ id: 'appointment-dates' });
       await Modal.Render({
-        id: 'modal-calendar',
+        id: idModal,
         route,
         barConfig,
         title: renderViewTitle({
@@ -480,7 +481,6 @@ const MenuHealthcare = {
               Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
             };
           });
-          const idModal = 'sub-modal-calendar';
           return await CalendarCore.Render({
             idModal,
             Elements: ElementsHealthcare,
