@@ -20,8 +20,8 @@ spec:
             - mongod
             - '--replSet'
             - rs0
-            - '--config'
-            - '/config/mongod.conf'
+            # - '--config'
+            # - '/config/mongod.conf'
             - '--bind_ip_all'
             # - bash
             # - -c
@@ -55,8 +55,8 @@ spec:
             - name: keyfile
               mountPath: /etc/mongodb-keyfile
               readOnly: true
-            - name: mongodb-config
-              mountPath: /config
+            # - name: mongodb-config
+            #   mountPath: /config
           env:
             - name: MONGO_INITDB_ROOT_USERNAME
               valueFrom:
@@ -80,9 +80,9 @@ spec:
           secret:
             secretName: mongodb-keyfile
             defaultMode: 0400
-        - name: mongodb-config
-          configMap:
-            name: mongodb-config
+        # - name: mongodb-config
+        #   configMap:
+        #     name: mongodb-config
   volumeClaimTemplates:
     - metadata:
         name: mongodb-storage
