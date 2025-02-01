@@ -23,30 +23,6 @@ spec:
             # - '--config'
             # - '/config/mongod.conf'
             - '--bind_ip_all'
-            # - bash
-            # - -c
-            # - >
-            #   chmod 600 /etc/mongodb-keyfile &&
-            #   echo "Starting MongoDB..." &&
-            #   mongod --config /config/mongod.conf --replSet rs0 --bind_ip_all --dbpath /data/db &&
-            #   echo "Started MongoDB..." &&
-            #   sleep 5 &&
-            #   RS_STATUS=$(mongosh --quiet --eval "rs.status().ok");
-            #   if [[ $RS_STATUS == 1 ]]; then
-            #     echo "MongoDB is already initialized.";
-            #   else
-            #     echo "Initializing MongoDB...";
-            #     mongosh --eval "rs.initiate({ _id: 'rs0', members: [{ _id: 0, host: 'mongodb-0.mongodb-service:27017', priority: 1 }, { _id: 1, host: 'mongodb-1.mongodb-service:27017', priority: 1 }]})";
-            #     echo "MongoDB initialized.";
-            #   fi &&
-            #   USER_EXISTS=$(mongosh --eval "db.getSiblingDB('admin').getUser('${MONGO_INITDB_ROOT_USERNAME}')" --quiet) &&
-            #   if [[ $USER_EXISTS != "null" ]]; then
-            #     mongosh --eval "db.getSiblingDB('admin').dropUser('${MONGO_INITDB_ROOT_USERNAME}')";
-            #   fi &&
-            #   echo "Creating user..." &&
-            #   mongosh --eval "db.getSiblingDB('admin').createUser({user: '${MONGO_INITDB_ROOT_USERNAME}', pwd: '${MONGO_INITDB_ROOT_PASSWORD}', roles: [{role: 'root', db: 'admin'}]})" &&
-            #   echo "Shutting down..." &&
-            #   mongod --shutdown
           ports:
             - containerPort: 27017
           volumeMounts:
