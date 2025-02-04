@@ -4,6 +4,7 @@ import shell from 'shelljs';
 import dotenv from 'dotenv';
 import fs from 'fs-extra';
 import { loggerFactory } from './logger.js';
+import clipboard from 'clipboardy';
 
 dotenv.config();
 
@@ -71,7 +72,7 @@ function pbcopy(data) {
         // sudo apt install xclip
         // paste: xclip -o
         // copy:
-        shellExec(`echo "${data}" | xclip -sel clip`);
+        // shellExec(`echo "${data}" | xclip -sel clip`, { async: true });
       }
 
       break;
@@ -79,6 +80,10 @@ function pbcopy(data) {
     default:
       break;
   }
+
+  clipboard.writeSync(data || '🦄');
+
+  logger.info(`copied to clipboard:`, clipboard.readSync());
 }
 
 export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy };
