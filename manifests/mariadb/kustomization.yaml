@@ -1,0 +1,9 @@
+---
+# kubectl apply -k mariadb/.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - pv.yaml
+  - pvc.yaml
+  - statefulset.yaml
+  - service.yaml

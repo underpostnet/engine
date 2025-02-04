@@ -20,20 +20,20 @@ spec:
             - name: MYSQL_ROOT_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: mariadb-secret
+                  name: mysql-pass
                   key: password
-            - name: MYSQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: mariadb-secret
-                  key: password
-            - name: MYSQL_USER
-              valueFrom:
-                secretKeyRef:
-                  name: mariadb-secret
-                  key: username
-            - name: MYSQL_DATABASE
-              value: default
+            # - name: MYSQL_PASSWORD
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: mariadb-secret
+            #       key: password
+            # - name: MYSQL_USER
+            #   valueFrom:
+            #     secretKeyRef:
+            #       name: mariadb-secret
+            #       key: username
+            # - name: MYSQL_DATABASE
+            #   value: default
           ports:
             - containerPort: 3306
           volumeMounts:
