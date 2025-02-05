@@ -15,7 +15,7 @@ spec:
     spec:
       containers:
         - name: mongodb
-          image: mongo:latest
+          image: docker.io/library/mongo:latest
           command:
             - mongod
             - '--replSet'
@@ -46,10 +46,10 @@ spec:
             - name: keyfile
               mountPath: /etc/mongodb-keyfile
               readOnly: true
-            - name: mongodb-configuration-file
-              mountPath: /etc/mongod.conf
-              subPath: mongod.conf
-              readOnly: true
+            # - name: mongodb-configuration-file
+            #   mountPath: /etc/mongod.conf
+            #   subPath: mongod.conf
+            #   readOnly: true
             # - name: mongodb-config
             #   mountPath: /config
           env:
@@ -75,9 +75,9 @@ spec:
           secret:
             secretName: mongodb-keyfile
             defaultMode: 0400
-        - name: mongodb-configuration-file
-          configMap:
-            name: mongodb-config-file
+        # - name: mongodb-configuration-file
+        #   configMap:
+        #     name: mongodb-config-file
         # - name: mongodb-config
         #   configMap:
         #     name: mongodb-config

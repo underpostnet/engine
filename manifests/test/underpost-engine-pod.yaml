@@ -10,7 +10,7 @@ metadata:
   name: underpost-engine
 spec:
   containers:
-    - image: docker.io/library/underpost-engine:v2.8.1
+    - image: localhost/underpost-engine:v2.8.1
       imagePullPolicy: Never
       name: underpost-engine
       ports:
@@ -18,25 +18,85 @@ spec:
           protocol: TCP
         - containerPort: 22
           protocol: UDP
-        - containerPort: 4000
+        - containerPort: 4013
           protocol: TCP
-        - containerPort: 4000
+        - containerPort: 4013
           protocol: UDP
-        - containerPort: 4001
+        - containerPort: 4014
           protocol: TCP
-        - containerPort: 4001
+        - containerPort: 4014
           protocol: UDP
-        - containerPort: 4002
+        - containerPort: 4015
           protocol: TCP
-        - containerPort: 4002
+        - containerPort: 4015
           protocol: UDP
-        - containerPort: 4003
+        - containerPort: 4016
           protocol: TCP
-        - containerPort: 4003
+        - containerPort: 4016
           protocol: UDP
-        - containerPort: 4004
+        - containerPort: 4017
           protocol: TCP
-        - containerPort: 4004
+        - containerPort: 4017
+          protocol: UDP
+        - containerPort: 4018
+          protocol: TCP
+        - containerPort: 4018
+          protocol: UDP
+        - containerPort: 4019
+          protocol: TCP
+        - containerPort: 4019
+          protocol: UDP
+        - containerPort: 4020
+          protocol: TCP
+        - containerPort: 4020
+          protocol: UDP
+        - containerPort: 4021
+          protocol: TCP
+        - containerPort: 4021
+          protocol: UDP
+        - containerPort: 4022
+          protocol: TCP
+        - containerPort: 4022
+          protocol: UDP
+        - containerPort: 4023
+          protocol: TCP
+        - containerPort: 4023
+          protocol: UDP
+        - containerPort: 4024
+          protocol: TCP
+        - containerPort: 4024
+          protocol: UDP
+        - containerPort: 4025
+          protocol: TCP
+        - containerPort: 4025
+          protocol: UDP
+        - containerPort: 4026
+          protocol: TCP
+        - containerPort: 4026
+          protocol: UDP
+        - containerPort: 4027
+          protocol: TCP
+        - containerPort: 4027
+          protocol: UDP
+        - containerPort: 4028
+          protocol: TCP
+        - containerPort: 4028
+          protocol: UDP
+        - containerPort: 4029
+          protocol: TCP
+        - containerPort: 4029
+          protocol: UDP
+        - containerPort: 4030
+          protocol: TCP
+        - containerPort: 4030
+          protocol: UDP
+        - containerPort: 4031
+          protocol: TCP
+        - containerPort: 4031
+          protocol: UDP
+        - containerPort: 4032
+          protocol: TCP
+        - containerPort: 4032
           protocol: UDP
       resources:
         limits:

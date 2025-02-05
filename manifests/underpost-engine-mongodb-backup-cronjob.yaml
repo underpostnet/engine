@@ -10,7 +10,7 @@ spec:
         spec:
           containers:
             - name: mongodump
-              image: mongo:latest
+              image: docker.io/library/mongo:latest
               command:
                 - sh
                 - -c
