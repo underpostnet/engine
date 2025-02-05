@@ -791,7 +791,8 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     case 'restore-macro-db':
       {
         const deployGroupId = process.argv[3];
-        await restoreMacroDb(deployGroupId);
+        const deployId = process.argv[4];
+        await restoreMacroDb(deployGroupId, deployId);
       }
 
       break;

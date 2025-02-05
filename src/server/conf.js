@@ -769,9 +769,10 @@ const deployRun = async (dataDeploy, currentAttempt = 1) => {
   } else logger.info(`Deploy process successfully`);
 };
 
-const restoreMacroDb = async (deployGroupId = '') => {
+const restoreMacroDb = async (deployGroupId = '', deployId = null) => {
   const dataDeploy = await getDataDeploy({ deployGroupId, buildSingleReplica: false });
   for (const deployGroup of dataDeploy) {
+    if (deployId && deployGroup.deployId !== deployId) continue;
     if (!deployGroup.replicaHost) {
       const deployServerConfPath = `./engine-private/conf/${deployGroup.deployId}/conf.server.json`;
       const serverConf = JSON.parse(fs.readFileSync(deployServerConfPath, 'utf8'));
