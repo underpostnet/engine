@@ -10,6 +10,7 @@
 /.env
 /prometheus_data
 /grafana_data
+*.tar
 .cache
 .nyc_output
 _
