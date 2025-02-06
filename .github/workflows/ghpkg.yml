@@ -108,7 +108,7 @@ jobs:
           git status
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
           git add .       
-          git commit -m "Update github repo package"
+          git commit -m "ci(package-pwa-microservices-template-ghpkg): ⚙️ Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
 
 # git push -u origin https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
