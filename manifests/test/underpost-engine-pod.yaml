@@ -10,7 +10,7 @@ metadata:
   name: underpost-engine
 spec:
   containers:
-    - image: localhost/underpost-engine:v2.8.1
+    - image: localhost/underpost-engine:v2.8.31
       imagePullPolicy: Never
       name: underpost-engine
       ports:
