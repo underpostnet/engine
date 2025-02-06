@@ -42,24 +42,8 @@ program
     shellCd(`${destFolder}`);
     shellExec(`git init && git add . && git commit -m "Base template implementation"`);
     shellExec(`npm install`);
-    if (process.argv.includes('dev')) {
-      switch (process.platform) {
-        case 'linux':
-          try {
-            await MongooseDB.server();
-          } catch (error) {
-            logger.error(error, 'failed to start mongodb server');
-          }
-          break;
-
-        default:
-          break;
-      }
-      shellExec(`npm run build`);
-      shellExec(`npm run dev`);
-    } else {
-      shellExec(`npm start`);
-    }
+    shellExec(`npm run build`);
+    shellExec(`npm run dev`);
   });
 
 program

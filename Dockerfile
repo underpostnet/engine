@@ -45,15 +45,15 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && \
 
 # local test
 
-COPY . .
+# COPY . .
 
-RUN npm install
+# RUN npm install
 
-VOLUME [ "/code/logs" ]
-EXPOSE 22
+# VOLUME [ "/code/logs" ]
+# EXPOSE 22
 
-EXPOSE 4000-4004
-CMD [ "npm", "run", "dev" ]
+# EXPOSE 4000-4004
+# CMD [ "npm", "run", "dev" ]
 
 
 # EXPOSE 3000-3004
@@ -61,16 +61,16 @@ CMD [ "npm", "run", "dev" ]
 
 # package
 
-# # Install underpost cli
-# RUN npm install -g underpost
-# RUN npm install shelljs
-# COPY startup.cjs /code/startup.cjs
+# Install underpost cli
 
+RUN npm install -g underpost
+RUN npm install shelljs
+COPY startup.cjs /code/startup.cjs
 
-# VOLUME [ "/code/app/logs" ]
+VOLUME [ "/code/app/logs" ]
 
-# EXPOSE 22 80 443 3306 27017
+EXPOSE 22 80 443 3306 27017
 # EXPOSE 22
-# EXPOSE 4000-4004
+EXPOSE 4000-4004
 
-# CMD [ "node", "./startup.cjs" ]
+CMD [ "node", "./startup.cjs" ]

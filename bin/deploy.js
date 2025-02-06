@@ -454,14 +454,16 @@ try {
       }
       break;
 
-    case 'update-package':
+    case 'update-dependencies':
       const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
       const originPackage = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
       for (const relativePath of files) {
         const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
         if (filePah.split('/').pop() === 'package.json') {
-          originPackage.scripts.start = JSON.parse(fs.readFileSync(filePah), 'utf8').scripts.start;
-          fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
+          const deployPackage = JSON.parse(fs.readFileSync(filePah), 'utf8');
+          deployPackage.dependencies = originPackage.dependencies;
+          deployPackage.devDependencies = originPackage.devDependencies;
+          fs.writeFileSync(filePah, JSON.stringify(deployPackage, null, 4), 'utf8');
         }
       }
       break;
@@ -752,12 +754,20 @@ try {
           );
 
         fs.writeFileSync(
+          `./manifests/test/underpost-engine-pod.yaml`,
+          fs
+            .readFileSync(`./manifests/test/underpost-engine-pod.yaml`, 'utf8')
+            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
+          'utf8',
+        );
+
+        fs.writeFileSync(
           `./src/index.js`,
           fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
           'utf8',
         );
 
-        shellExec(`node bin/deploy update-package`);
+        shellExec(`node bin/deploy update-dependencies`);
         shellExec(`auto-changelog`);
       }
       break;

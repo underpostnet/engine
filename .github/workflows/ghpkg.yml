@@ -10,7 +10,7 @@ permissions:
   id-token: write
 jobs:
   pwa-microservices-template:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, '[ci][package][pwa-microservices-template]')
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template)')
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     permissions:
@@ -46,11 +46,11 @@ jobs:
           cd ../pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
           git add .       
-          git commit -m "Update github repo package"
+          git commit -m "ci(package-pwa-microservices-template-ghpkg): ⚙️ Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
 
   pwa-microservices-template-ghpk:
-    if: github.repository == 'underpostnet/pwa-microservices-template'
+    if: github.repository == 'underpostnet/pwa-microservices-template' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     permissions:

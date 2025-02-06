@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { cap, getCapVariableName, getDirname } from '../src/client/components/core/CommonJs.js';
+import { cap, getCapVariableName, getDirname, newInstance } from '../src/client/components/core/CommonJs.js';
 import { shellCd, shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
@@ -78,7 +78,7 @@ try {
         fs.copySync(`./src/client/public/default`, `../pwa-microservices-template/src/client/public/default`);
 
         shellCd('../pwa-microservices-template');
-        for (const deletePath of ['CHANGELOG.md', 'README.md', 'package-lock.json', 'package.json']) {
+        for (const deletePath of ['README.md', 'package-lock.json', 'package.json']) {
           shellExec(`git checkout ${deletePath}`);
         }
         for (const deletePath of [
@@ -93,6 +93,34 @@ try {
         ]) {
           fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
+        shellCd('../engine');
+        const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
+        const templatePackageJson = JSON.parse(fs.readFileSync('../pwa-microservices-template/package.json', 'utf8'));
+        templatePackageJson.dependencies = originPackageJson.dependencies;
+        templatePackageJson.devDependencies = originPackageJson.devDependencies;
+        templatePackageJson.version = originPackageJson.version;
+        fs.writeFileSync(
+          '../pwa-microservices-template/package.json',
+          JSON.stringify(templatePackageJson, null, 4),
+          'utf8',
+        );
+
+        const originPackageLockJson = JSON.parse(fs.readFileSync('./package-lock.json', 'utf8'));
+        const templatePackageLockJson = JSON.parse(
+          fs.readFileSync('../pwa-microservices-template/package-lock.json', 'utf8'),
+        );
+        const originBasePackageLock = newInstance(templatePackageLockJson.packages['']);
+        templatePackageLockJson.version = originPackageLockJson.version;
+        templatePackageLockJson.packages = originPackageLockJson.packages;
+        templatePackageLockJson.packages[''].name = originBasePackageLock.name;
+        templatePackageLockJson.packages[''].version = originPackageLockJson.version;
+        templatePackageLockJson.packages[''].hasInstallScript = originBasePackageLock.hasInstallScript;
+        templatePackageLockJson.packages[''].license = originBasePackageLock.license;
+        fs.writeFileSync(
+          '../pwa-microservices-template/package-lock.json',
+          JSON.stringify(templatePackageLockJson, null, 4),
+          'utf8',
+        );
       }
 
       break;
