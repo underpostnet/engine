@@ -1,0 +1,52 @@
+name: Engine Core Repo Builder
+on:
+  push:
+    branches: ['master']
+  pull_request:
+    branches: ['master']
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  pwa-microservices-template:
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-core-repo-build)')
+    name: Update github repo package Jobs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install dependencies
+        run: |
+          npm install
+
+      - name: Set git credentials
+        run: |
+          git config --global credential.helper ""
+          git config credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'fcoverdugoa@underpost.net'
+          git config --global credential.interactive always
+          git config user.name 'underpostnet'
+          git config user.email 'fcoverdugoa@underpost.net'
+          git config credential.interactive always
+
+      - name: Build repository
+        run: |
+          cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
+          git clone https://github.com/underpostnet/engine-core.git
+          cd engine
+          node bin/build dd-core
+          cd ../pwa-microservices-template
+          rm -rf ./.git
+          cp -a  ../engine-core/.git ./.git
+          git add .       
+          git commit -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
+          git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-core.git
