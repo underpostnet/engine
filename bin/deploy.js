@@ -4,7 +4,7 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import plantuml from 'plantuml';
 
-import { shellCd, shellExec } from '../src/server/process.js';
+import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 import {
   Config,
@@ -526,6 +526,7 @@ try {
       break;
 
     case 'sync-env-port':
+      // TODO: pod.yaml containers ports
       const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], disableSyncEnvPort: true });
       const dataEnv = [
         { env: 'production', port: 3000 },
@@ -733,6 +734,17 @@ try {
               originPackage.version = newVersion;
               fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
             }
+            if (filePah.split('/').pop() === 'pod.yaml') {
+              // TODO: pod.yaml containers ports
+              fs.writeFileSync(
+                filePah,
+                fs
+                  .readFileSync(filePah, 'utf8')
+                  .replaceAll(`v${version}`, `v${newVersion}`)
+                  .replaceAll(`engine.version: ${version}`, `engine.version: ${newVersion}`),
+                'utf8',
+              );
+            }
           }
         }
 
@@ -752,14 +764,6 @@ try {
               .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
             'utf8',
           );
-
-        fs.writeFileSync(
-          `./manifests/test/underpost-engine-pod.yaml`,
-          fs
-            .readFileSync(`./manifests/test/underpost-engine-pod.yaml`, 'utf8')
-            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
-          'utf8',
-        );
 
         fs.writeFileSync(
           `./src/index.js`,

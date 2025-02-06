@@ -83,7 +83,7 @@ function pbcopy(data) {
 
   clipboard.writeSync(data || '🦄');
 
-  logger.info(`copied to clipboard:`, clipboard.readSync());
+  logger.info(`copied to clipboard`, clipboard.readSync());
 }
 
 export { ProcessController, getRootDirectory, shellExec, shellCd, pbcopy };

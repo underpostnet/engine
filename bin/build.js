@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 import { getCapVariableName } from '../src/server/conf.js';
 import { loggerFactory } from '../src/server/logger.js';
-import { shellExec } from '../src/server/process.js';
+import { shellCd, shellExec } from '../src/server/process.js';
 import dotenv from 'dotenv';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
@@ -153,6 +153,16 @@ const BuilderConf = {
         logger.info(`Build`, originPath);
         fs.copyFileSync(originPath, `${basePath}/src/client/ssr/head/${capName}Scripts.js`);
       }
+    }
+  }
+
+  for (const file of ['pod.yaml', 'startup.js', 'Dockerfile']) {
+    const originPath = `./engine-private/conf/${confName}/build/${
+      process.argv.includes('development') ? 'development' : 'production'
+    }/${file}`;
+    if (fs.existsSync(originPath)) {
+      logger.info(`Build`, originPath);
+      fs.copyFileSync(originPath, `${basePath}/${file}`);
     }
   }
 })();
