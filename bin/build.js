@@ -15,8 +15,10 @@ switch (process.argv[2]) {
   case 'dd-core':
     {
       const basePath = '../pwa-microservices-template';
-      fs.mkdirSync(`${basePath}/engine-private/conf`, { recursive: true });
-      fs.copySync(`./engine-private/conf/dd-core`, `${basePath}/engine-private/conf/dd-core`);
+      if (process.argv.includes('private')) {
+        fs.mkdirSync(`${basePath}/engine-private/conf`, { recursive: true });
+        fs.copySync(`./engine-private/conf/dd-core`, `${basePath}/engine-private/conf/dd-core`);
+      }
 
       (() => {
         const apis = [
