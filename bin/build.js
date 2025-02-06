@@ -1,6 +1,11 @@
 import fs from 'fs-extra';
 import { getCapVariableName } from '../src/server/conf.js';
 import { loggerFactory } from '../src/server/logger.js';
+import { shellExec } from '../src/server/process.js';
+import dotenv from 'dotenv';
+
+const baseConfPath = './engine-private/conf/dd-cron/.env.production';
+if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath });
 
 const logger = loggerFactory(import.meta);
 
@@ -14,8 +19,30 @@ const logger = loggerFactory(import.meta);
 switch (process.argv[2]) {
   case 'dd-core':
     {
+      if (process.argv.includes('conf')) {
+        const repoName = 'engine-core-private';
+        const gitUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${repoName}.git`;
+        if (!fs.existsSync(`../${repoName}`)) {
+          shellExec(`cd .. && git clone ${gitUrl}`, { silent: true });
+        } else {
+          shellExec(`cd ../${repoName} && git pull`);
+        }
+        const toPath = `../${repoName}/conf/dd-core`;
+        fs.removeSync(toPath);
+        fs.mkdirSync(toPath, { recursive: true });
+        fs.copySync(`./engine-private/conf/dd-core`, toPath);
+        shellExec(
+          `cd ../${repoName}` +
+            ` && git add .` +
+            ` && git commit -m "ci(engine-core-conf): ⚙️ Update dd-core conf"` +
+            ` && git push`,
+        );
+        break;
+      }
+
       const basePath = '../pwa-microservices-template';
-      if (process.argv.includes('private')) {
+
+      if (process.argv.includes('template-test')) {
         fs.mkdirSync(`${basePath}/engine-private/conf`, { recursive: true });
         fs.copySync(`./engine-private/conf/dd-core`, `${basePath}/engine-private/conf/dd-core`);
       }
