@@ -3,6 +3,7 @@ import { BtnIcon } from '../core/BtnIcon.js';
 import { dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Input } from '../core/Input.js';
+import { Modal } from '../core/Modal.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { ToggleSwitch } from '../core/ToggleSwitch.js';
 import { Translate } from '../core/Translate.js';
@@ -77,7 +78,7 @@ const AppointmentFormHealthcare = {
             patient: Object.keys(patient)
               ? {
                   ...patient,
-                  companyType: mode === 'private-healthcare-company' ? 'private' : 'public',
+                  companyType: mode === 'healthcare-company-private' ? 'private' : 'public',
                   userId: ElementsHealthcare.Data.user.main.model.user._id,
                 }
               : {
@@ -95,7 +96,24 @@ const AppointmentFormHealthcare = {
           html: status === 'success' ? Translate.Render('appointment-scheduled') : message,
           status,
         });
-        await this.Trigger({ data, status, message });
+
+        if (status === 'success') {
+          await this.Trigger({ data, status, message });
+          const confirmResult = await Modal.RenderConfirm({
+            icon: html`<i class="fas fa-check" style="color: green"></i>`,
+            disableBtnCancel: true,
+            html: async () => {
+              return html`
+                <div class="in section-mp" style="text-align: center; font-size: 20px">
+                  ${Translate.Render('success-healthcare-appointment')}
+                </div>
+              `;
+            },
+            id: 'success-healthcare-appointment',
+          });
+          if (confirmResult.status === 'cancelled') return;
+        }
+
         // Translate.Render(`${result.status}-upload-appointment`),
       });
 
