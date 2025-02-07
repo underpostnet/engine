@@ -11,19 +11,20 @@ const Translate = {
   Data: {},
   Token: {},
   Event: {},
+  Options: {},
   Parse: function (lang) {
     s('html').lang = lang;
     Object.keys(this.Token).map((translateHash) => {
       if (translateHash in this.Token && lang in this.Token[translateHash]) {
-        if (!('placeholder' in this.Token[translateHash]) && s(`.${translateHash}`))
+        if (!('placeholder' in this.Options[translateHash]) && s(`.${translateHash}`))
           htmls(
             `.${translateHash}`,
-            this.Token[translateHash].options?.disableTextFormat
+            this.Options[translateHash]?.disableTextFormat
               ? this.Token[translateHash][lang]
               : textFormatted(this.Token[translateHash][lang]),
           );
         else if ('placeholder' in this.Token[translateHash] && s(this.Token[translateHash].placeholder))
-          s(this.Token[translateHash].placeholder).placeholder = this.Token[translateHash].options?.disableTextFormat
+          s(this.Token[translateHash].placeholder).placeholder = this.Options[translateHash]?.disableTextFormat
             ? this.Token[translateHash][lang]
             : textFormatted(this.Token[translateHash][lang]);
       }
@@ -36,10 +37,10 @@ const Translate = {
       logger.warn('translate key lang does not exist: ', keyLang);
       return options.disableTextFormat ? keyLang : textFormatted(keyLang);
     }
-    this.Data[keyLang].options = options;
     if (placeholder) this.Data[keyLang].placeholder = placeholder;
     keyLang = this.Data[keyLang];
     const translateHash = getId(this.Token, 'trans');
+    this.Options[translateHash] = options;
     this.Token[translateHash] = newInstance(keyLang);
     if ('placeholder' in keyLang) {
       if (s('html').lang in keyLang)

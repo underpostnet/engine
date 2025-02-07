@@ -542,12 +542,12 @@ const Modal = {
                         if (routerId) {
                           if (
                             s(`.main-btn-${routerId}`) &&
-                            (routerId.toLocaleLowerCase().match(s(`.${id}`).value.toLocaleLowerCase()) ||
+                            (routerId.toLowerCase().match(s(`.${id}`).value.toLowerCase()) ||
                               (Translate.Data[routerId] &&
                                 Object.keys(Translate.Data[routerId]).filter((keyLang) =>
                                   Translate.Data[routerId][keyLang]
-                                    .toLocaleLowerCase()
-                                    .match(s(`.${id}`).value.toLocaleLowerCase()),
+                                    .toLowerCase()
+                                    .match(s(`.${id}`).value.toLowerCase()),
                                 ).length > 0))
                           ) {
                             const fontAwesomeIcon = getAllChildNodes(s(`.main-btn-${routerId}`)).find((e) => {
