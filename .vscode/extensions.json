@@ -3,6 +3,11 @@
         "antiantisepticeye.vscode-color-picker",
         "bashmish.es6-string-css",
         "esbenp.prettier-vscode",
+        "ms-python.black-formatter",
+        "ms-python.debugpy",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "streetsidesoftware.code-spell-checker",
         "tabnine.tabnine-vscode",
         "tobermory.es6-string-html"
     ]

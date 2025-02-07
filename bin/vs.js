@@ -1,7 +1,19 @@
 import fs from 'fs-extra';
 import { shellExec } from '../src/server/process.js';
+import { loggerFactory } from '../src/server/logger.js';
+
+const logger = loggerFactory(import.meta);
 
 switch (process.argv[2]) {
+  case 'info': {
+    logger.info('Formatted', 'Ctrl shift I');
+    logger.info('Command', 'Ctrl shift P');
+    logger.info('Search', 'Ctrl shift F');
+    logger.info('Debug', 'Ctrl shift D');
+    logger.warn('Terminal shortcut configure with command pallette', 'Ctl shift T');
+
+    break;
+  }
   case 'import':
     {
       const extensions = JSON.parse(fs.readFileSync(`./.vscode/extensions.json`, 'utf8'));
