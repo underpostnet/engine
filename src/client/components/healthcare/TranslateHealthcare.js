@@ -13,6 +13,11 @@ const TranslateHealthcare = {
     Translate.Data['healthcare-company'] = { en: 'Healthcare Insurance', es: 'Prevision' };
     Translate.Data['healthcare-company-private'] = { en: 'Private Healthcare Insurance', es: 'Particular' };
     Translate.Data['healthcare-company-public'] = { en: 'Public Healthcare Insurance', es: 'Fonasa' };
+    Translate.Data['success-healthcare-appointment'] = {
+      es: 'Gracias tu hora ha sido agendada, prontamente la Nutricionista se contactará con usted para confirmar la cita',
+      en: 'Thank you for your appointment, soon the Nutritionist will contact you to confirm the appointment',
+    };
+
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;
     });

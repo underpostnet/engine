@@ -526,6 +526,9 @@ const MenuHealthcare = {
               setTimeout(() => {
                 s(`.btn-calendar-panel-modal-calendar-custom0`).click();
               }, 500);
+              setTimeout(() => {
+                s(`.btn-calendar-panel-modal-calendar-custom0`).click();
+              }, 1500);
             });
           });
           return await CalendarCore.Render({
