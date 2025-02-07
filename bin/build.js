@@ -155,14 +155,4 @@ const BuilderConf = {
       }
     }
   }
-
-  for (const file of ['pod.yaml', 'startup.js', 'Dockerfile']) {
-    const originPath = `./engine-private/conf/${confName}/build/${
-      process.argv.includes('development') ? 'development' : 'production'
-    }/${file}`;
-    if (fs.existsSync(originPath)) {
-      logger.info(`Build`, originPath);
-      fs.copyFileSync(originPath, `${basePath}/${file}`);
-    }
-  }
 })();
