@@ -548,7 +548,8 @@ const MenuHealthcare = {
     });
 
     EventsUI.onClick(`.main-btn-healthcare-appointment`, () => {
-      appoimentFormRender();
+      s(`.main-btn-calendar`).click();
+      // appoimentFormRender();
     });
 
     EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {

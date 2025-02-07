@@ -10,9 +10,9 @@ const TranslateHealthcare = {
     Translate.Data['in-person'] = { en: 'in-person', es: 'presencial' };
     Translate.Data['telemedicine'] = { en: 'telemedicine', es: 'telemedicina' };
     Translate.Data['home-getting'] = { en: 'What do you want to do?', es: 'Qué quieres hacer?' };
-    Translate.Data['forecast'] = { en: 'Forecast', es: 'Prevision' };
-    Translate.Data['forecast-private'] = { en: 'Forecast private', es: 'Particular' };
-    Translate.Data['forecast-public'] = { en: 'Forecast public', es: 'Fonasa' };
+    Translate.Data['healthcare-company'] = { en: 'Healthcare Insurance', es: 'Prevision' };
+    Translate.Data['healthcare-company-private'] = { en: 'Private Healthcare Insurance', es: 'Particular' };
+    Translate.Data['healthcare-company-public'] = { en: 'Public Healthcare Insurance', es: 'Fonasa' };
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;
     });

@@ -18,7 +18,7 @@ const AppointmentFormHealthcare = {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
   },
   Render: async function (options = { bottomRender: async () => '' }, eventData) {
-    let mode = 'forecast-public';
+    let mode = 'healthcare-company-public';
     const id0DynamicCol = `dynamicCol-0`;
 
     setTimeout(async () => {
@@ -75,7 +75,11 @@ const AppointmentFormHealthcare = {
             date: eventData.start,
             eventSchedulerId: eventData.event._id,
             patient: Object.keys(patient)
-              ? { ...patient, userId: ElementsHealthcare.Data.user.main.model.user._id }
+              ? {
+                  ...patient,
+                  companyType: mode === 'private-healthcare-company' ? 'private' : 'public',
+                  userId: ElementsHealthcare.Data.user.main.model.user._id,
+                }
               : {
                   email: 'test@test.com',
                   username: 'Test User',
@@ -95,14 +99,16 @@ const AppointmentFormHealthcare = {
         // Translate.Render(`${result.status}-upload-appointment`),
       });
 
-      s(`.toggle-form-container-healthcare-forecast-private`).onclick = () => {
-        ToggleSwitch.Tokens[`healthcare-forecast-private-toggle`].click();
-        ToggleSwitch.Tokens[`healthcare-forecast-public-toggle`].click();
+      s(`.toggle-form-container-healthcare-healthcare-company-private`).onclick = () => {
+        ToggleSwitch.Tokens[`healthcare-healthcare-company-private-toggle`].click();
+        ToggleSwitch.Tokens[`healthcare-healthcare-company-public-toggle`].click();
+        mode = 'healthcare-company-private';
       };
 
-      s(`.toggle-form-container-healthcare-forecast-public`).onclick = () => {
-        ToggleSwitch.Tokens[`healthcare-forecast-private-toggle`].click();
-        ToggleSwitch.Tokens[`healthcare-forecast-public-toggle`].click();
+      s(`.toggle-form-container-healthcare-healthcare-company-public`).onclick = () => {
+        ToggleSwitch.Tokens[`healthcare-healthcare-company-private-toggle`].click();
+        ToggleSwitch.Tokens[`healthcare-healthcare-company-public-toggle`].click();
+        mode = 'healthcare-company-public';
       };
     });
     return html`
@@ -149,17 +155,19 @@ const AppointmentFormHealthcare = {
             </div>
 
             <div class="in section-mp toggle-form-container hover">
-              <div class="in input-label"><i class="fas fa-caret-right"></i> ${Translate.Render('forecast')}</div>
+              <div class="in input-label">
+                <i class="fas fa-caret-right"></i> ${Translate.Render('healthcare-company')}
+              </div>
 
-              <div class="fl section-mp toggle-form-container-healthcare-forecast-public">
+              <div class="fl section-mp toggle-form-container-healthcare-healthcare-company-public">
                 <div class="in fll" style="width: 70%">
-                  <div class="in">${Translate.Render('forecast-public')}</div>
+                  <div class="in">${Translate.Render('healthcare-company-public')}</div>
                 </div>
                 <div class="in fll" style="width: 30%">
                   ${await ToggleSwitch.Render({
-                    id: 'healthcare-forecast-public-toggle',
+                    id: 'healthcare-healthcare-company-public-toggle',
                     containerClass: 'inl',
-                    checked: mode === 'forecast-public',
+                    checked: mode === 'healthcare-company-public',
                     disabledOnClick: true,
                     displayMode: 'checkbox',
                     on: {
@@ -170,15 +178,15 @@ const AppointmentFormHealthcare = {
                 </div>
               </div>
 
-              <div class="fl section-mp toggle-form-container-healthcare-forecast-private">
+              <div class="fl section-mp toggle-form-container-healthcare-healthcare-company-private">
                 <div class="in fll" style="width: 70%">
-                  <div class="in">${Translate.Render('forecast-private')}</div>
+                  <div class="in">${Translate.Render('healthcare-company-private')}</div>
                 </div>
                 <div class="in fll" style="width: 30%">
                   ${await ToggleSwitch.Render({
-                    id: 'healthcare-forecast-private-toggle',
+                    id: 'healthcare-healthcare-company-private-toggle',
                     containerClass: 'inl',
-                    checked: mode === 'forecast-private',
+                    checked: mode === 'healthcare-company-private',
                     disabledOnClick: true,
                     displayMode: 'checkbox',
                     on: {
