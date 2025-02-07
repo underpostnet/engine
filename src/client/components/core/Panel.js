@@ -654,7 +654,9 @@ const Panel = {
         >
           <div class="in ${idPanel}-form-header">
             ${await BtnIcon.Render({
-              class: `section-mp btn-custom btn-${idPanel}-add`,
+              class: `section-mp btn-custom btn-${idPanel}-add ${
+                options?.role?.add ? (!options.role.add() ? 'hide' : '') : ''
+              }`,
               label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,
               type: 'button',
             })}

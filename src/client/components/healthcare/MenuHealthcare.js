@@ -1,6 +1,6 @@
 import { Account } from '../core/Account.js';
 import { BtnIcon } from '../core/BtnIcon.js';
-import { getId, newInstance, range } from '../core/CommonJs.js';
+import { commonModeratorGuard, getId, newInstance, range } from '../core/CommonJs.js';
 import { Css, ThemeEvents, Themes, darkTheme, dynamicCol } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { LogIn } from '../core/LogIn.js';
@@ -495,7 +495,19 @@ const MenuHealthcare = {
             });
             Modal.Data['modal-calendar'].onCloseListener['TopRefreshEvent'] = () => {
               Scroll.removeTopRefreshEvent('.main-body-calendar-modal-calendar');
+              delete LogIn.Event['model-appointment-calendar'];
+              delete LogOut.Event['model-appointment-calendar'];
             };
+            const authSwitch = () => {
+              if (!s(`.btn-calendar-panel-${idModal}-add`)) return;
+              if (commonModeratorGuard(ElementsHealthcare.Data.user.main.model.user.role))
+                s(`.btn-calendar-panel-${idModal}-add`).classList.remove('hide');
+              else {
+                s(`.btn-calendar-panel-${idModal}-add`).classList.add('hide');
+              }
+            };
+            LogIn.Event['model-appointment-calendar'] = authSwitch;
+            LogOut.Event['model-appointment-calendar'] = authSwitch;
           });
           return await CalendarCore.Render({
             idModal,
@@ -505,6 +517,9 @@ const MenuHealthcare = {
             route,
             hiddenDates,
             parentIdModal: 'modal-calendar',
+            role: {
+              add: () => commonModeratorGuard(ElementsHealthcare.Data.user.main.model.user.role),
+            },
             eventClick: async function (dateData, args) {
               const { status } = await appoimentFormRender(dateData);
               if (status === 'success') {

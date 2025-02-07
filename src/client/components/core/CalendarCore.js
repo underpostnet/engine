@@ -275,6 +275,7 @@ const CalendarCore = {
           data: this.Data[options.idModal].data,
           formContainerClass: '',
           scrollClassContainer: `main-body-calendar-${options.idModal}`,
+          role: options.role,
           originData: () => this.Data[options.idModal].originData,
           filesData: () => this.Data[options.idModal].filesData,
           onClick: async function ({ payload }) {
