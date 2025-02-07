@@ -24,6 +24,7 @@ import { Scroll } from '../core/Scroll.js';
 import { AppointmentFormHealthcare } from './AppointmentFormHealthCare.js';
 import { HealthcareAppointmentService } from '../../services/healthcare-appointment/healthcare-appointment.service.js';
 import { NotificationManager } from '../core/NotificationManager.js';
+import { HealthcareAppointmentManagement } from '../../services/healthcare-appointment/healthcare-appointment.management.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -159,6 +160,17 @@ const MenuHealthcare = {
             tabHref: `${getProxyPath()}healthcare-appointment`,
             handleContainerClass: 'handle-btn-container',
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment', 'right')),
+          })}
+          ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-healthcare-appointment-management hide',
+            label: renderMenuLabel({
+              icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+              text: html`<span class="menu-label-text">${Translate.Render('healthcare-appointment-management')}</span>`,
+            }),
+            attrs: `data-id="healthcare-appointment-management"`,
+            tabHref: `${getProxyPath()}healthcare-appointment-management`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('healthcare-appointment-management')),
           })}
         </div>
       `,
@@ -550,6 +562,27 @@ const MenuHealthcare = {
     EventsUI.onClick(`.main-btn-healthcare-appointment`, () => {
       s(`.main-btn-calendar`).click();
       // appoimentFormRender();
+    });
+
+    EventsUI.onClick(`.main-btn-healthcare-appointment-management`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-healthcare-appointment-management',
+        route: 'healthcare-appointment-management',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<i class="fa-solid fa-rectangle-list"></i>`,
+          text: Translate.Render('healthcare-appointment-management'),
+        }),
+        html: async () => await HealthcareAppointmentManagement.RenderTable({ Elements: ElementsHealthcare }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
     });
 
     EventsUI.onClick(`.main-btn-nutrition-tips`, async () => {

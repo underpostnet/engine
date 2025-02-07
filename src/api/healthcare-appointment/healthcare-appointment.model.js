@@ -9,6 +9,7 @@ const HealthcareAppointmentSchema = new Schema({
   patient: {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },
     companyType: { type: String, enum: ['private', 'public'] },
+    identityDocument: { type: String },
   },
   professional: {
     userId: { type: Schema.Types.ObjectId, ref: 'User' },

@@ -499,7 +499,7 @@ const TranslateCore = {
     };
     Translate.Data['info'] = { es: 'Información', en: 'Info' };
     Translate.Data['complete-name'] = { es: 'Nombre completo', en: 'Complete name' };
-    Translate.Data['dni'] = { es: 'Rut', en: 'dni' };
+    Translate.Data['identityDocument'] = { es: 'Rut', en: 'Identity document' };
     Translate.Data['day'] = { es: 'Día', en: 'Day' };
     Translate.Data['month'] = { es: 'Mes', en: 'Month' };
     Translate.Data['year'] = { es: 'Año', en: 'Year' };

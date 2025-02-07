@@ -24,8 +24,8 @@ const AppointmentFormHealthcare = {
     setTimeout(async () => {
       const formData = [
         {
-          model: 'dni',
-          id: `healthcare-appointment-dni`,
+          model: 'identityDocument',
+          id: `healthcare-appointment-identityDocument`,
           rules: [{ type: 'isEmpty' }],
         },
         {
@@ -118,9 +118,9 @@ const AppointmentFormHealthcare = {
           <div class="in fll ${id0DynamicCol}-col-a">
             <div class="in">
               ${await Input.Render({
-                id: `healthcare-appointment-dni`,
+                id: `healthcare-appointment-identityDocument`,
                 type: 'text',
-                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('dni')}`,
+                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('identityDocument')}`,
                 containerClass: 'inl section-mp width-mini-box input-container',
                 placeholder: true,
               })}

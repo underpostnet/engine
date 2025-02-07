@@ -53,9 +53,10 @@ const HealthcareAppointmentService = {
     const HealthcareAppointment =
       DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.HealthcareAppointment;
 
-    if (req.params.id === 'appointment-dates') {
+    if (req.path.startsWith('/appointment-dates')) {
       return await HealthcareAppointment.find().select(HealthcareAppointmentDto.select['appointment-dates']());
     }
+    return await HealthcareAppointment.find();
     return await HealthcareAppointment.findById(req.params.id);
   },
   put: async (req, res, options) => {

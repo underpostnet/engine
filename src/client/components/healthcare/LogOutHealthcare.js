@@ -17,6 +17,8 @@ const LogOutHealthcare = async function () {
     if (s(`.modal-log-out`)) s(`.btn-close-modal-log-out`).click();
     if (s(`.modal-account`)) s(`.btn-close-modal-account`).click();
 
+    s(`.main-btn-healthcare-appointment-management`).classList.add('hide');
+
     NotificationManager.Push({
       html: Translate.Render(`success-logout`),
       status: 'success',
