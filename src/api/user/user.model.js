@@ -41,6 +41,12 @@ const UserSchema = new Schema(
       ],
       default: [],
     },
+    associatedCompanies: [
+      {
+        company: { type: Schema.Types.ObjectId, ref: 'Company', required: true },
+        context: [{ type: String, enum: ['client', 'supplier', 'employee', 'owner'] }],
+      },
+    ],
   },
   {
     timestamps: true,
