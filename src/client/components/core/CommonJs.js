@@ -795,6 +795,11 @@ const generateRandomPasswordSelection = (length) => {
 // 0b = Binary
 // 0o = Octal
 
+const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
+
+const commonAdminGuard = (role) => userRoleEnum.indexOf(role) === userRoleEnum.indexOf('admin');
+const commonModeratorGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('moderator');
+
 export {
   s4,
   range,
@@ -848,4 +853,7 @@ export {
   hexToNumber,
   numberToHex,
   generateRandomPasswordSelection,
+  userRoleEnum,
+  commonAdminGuard,
+  commonModeratorGuard,
 };

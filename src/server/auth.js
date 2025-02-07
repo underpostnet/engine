@@ -9,7 +9,7 @@ import jwt from 'jsonwebtoken';
 import { loggerFactory } from './logger.js';
 import crypto from 'crypto';
 import { userRoleEnum } from '../api/user/user.model.js';
-import { validatePassword } from '../client/components/core/CommonJs.js';
+import { commonAdminGuard, commonModeratorGuard, validatePassword } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -162,7 +162,7 @@ const authMiddleware = (req, res, next) => {
  */
 const adminGuard = (req, res, next) => {
   try {
-    if (!(userRoleEnum.indexOf(req.auth.user.role) === userRoleEnum.indexOf('admin')))
+    if (!commonAdminGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
     return next();
   } catch (error) {
@@ -194,7 +194,7 @@ const adminGuard = (req, res, next) => {
  */
 const moderatorGuard = (req, res, next) => {
   try {
-    if (!(userRoleEnum.indexOf(req.auth.user.role) <= userRoleEnum.indexOf('moderator')))
+    if (!commonModeratorGuard(req.auth.user.role))
       return res.status(403).json({ status: 'error', message: 'Insufficient permission' });
     return next();
   } catch (error) {

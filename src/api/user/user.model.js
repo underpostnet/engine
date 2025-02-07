@@ -1,9 +1,8 @@
 import { Schema, model } from 'mongoose';
 import validator from 'validator';
+import { userRoleEnum } from '../../client/components/core/CommonJs.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
-
-const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
 
 const UserSchema = new Schema(
   {
