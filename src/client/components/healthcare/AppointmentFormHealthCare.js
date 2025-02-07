@@ -26,7 +26,7 @@ const AppointmentFormHealthcare = {
         {
           model: 'identityDocument',
           id: `healthcare-appointment-identityDocument`,
-          rules: [{ type: 'isEmpty' }],
+          rules: [{ type: 'isEmpty' }, { type: 'isChileanIdentityDocument' }],
         },
         {
           model: 'username',

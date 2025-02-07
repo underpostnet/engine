@@ -1,4 +1,4 @@
-import { validatePassword } from './CommonJs.js';
+import { isChileanIdentityDocument, validatePassword } from './CommonJs.js';
 import { renderStatus } from './Css.js';
 import { loggerFactory } from './Logger.js';
 import { textFormatted, Translate } from './Translate.js';
@@ -58,6 +58,14 @@ const Validator = {
                 if (!validator.isLength(s(`.${validatorData.id}`).value, rule.options))
                   errorMessage += this.renderErrorMessage(rule);
                 break;
+
+              case 'isChileanIdentityDocument': {
+                if (!isChileanIdentityDocument(s(`.${validatorData.id}`).value)) {
+                  errorMessage += this.renderErrorMessage(undefined, Translate.Render('invalid-identity-document'));
+                }
+
+                break;
+              }
               default:
                 if (
                   validator[rule.type] &&

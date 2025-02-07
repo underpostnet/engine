@@ -128,6 +128,7 @@ const CalendarCore = {
           if (!args.event.extendedProps._id) return args.event.remove();
           const dateData = eventDateFactory(args.event);
           if (
+            new Date(dateData.start).getTime() <= new Date().getTime() ||
             CalendarCore.Data[options.idModal].hiddenDates.find(
               (d) => d.eventSchedulerId === dateData.event._id && d.date === dateData.start,
             )

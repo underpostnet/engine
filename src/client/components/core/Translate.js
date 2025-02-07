@@ -504,6 +504,10 @@ const TranslateCore = {
     Translate.Data['month'] = { es: 'Mes', en: 'Month' };
     Translate.Data['year'] = { es: 'Año', en: 'Year' };
     Translate.Data['phone'] = { es: 'Teléfono', en: 'Phone' };
+    Translate.Data['invalid-identity-document'] = {
+      en: 'Invalid identity document',
+      es: 'Documento de identidad inválido',
+    };
   },
 };
 
