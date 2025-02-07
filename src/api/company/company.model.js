@@ -5,8 +5,8 @@ import { Schema, model, Types } from 'mongoose';
 const CompanySchema = new Schema({
   id: { type: String },
   name: { type: String, required: true },
-  industry: { type: String, enum: ['tech', 'finance', 'healthcare'] },
-  type: { type: String, enum: ['public', 'private', 'limited'] },
+  industry: [{ type: String, enum: ['tech', 'finance', 'healthcare', 'insurance'] }],
+  type: { type: String, enum: ['public', 'private', 'mixed'] },
   founded: { type: Date },
   description: { type: String },
   logo: { type: Schema.Types.ObjectId, ref: 'File' },
