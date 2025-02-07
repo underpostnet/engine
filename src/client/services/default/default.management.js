@@ -1,6 +1,6 @@
 import { AgGrid } from '../../components/core/AgGrid.js';
 import { BtnIcon } from '../../components/core/BtnIcon.js';
-import { getId, timer } from '../../components/core/CommonJs.js';
+import { getId, getValueFromJoinString, timer } from '../../components/core/CommonJs.js';
 import { darkTheme } from '../../components/core/Css.js';
 import { EventsUI } from '../../components/core/EventsUI.js';
 import { loggerFactory } from '../../components/core/Logger.js';
@@ -88,7 +88,9 @@ const DefaultManagement = {
                       ${Translate.Render('confirm-delete-item')}
                       ${Object.keys(params.data).length > 0
                         ? html`<br />
-                            "${params.data[Object.keys(params.data)[0]]}"`
+                            "${options.defaultColKeyFocus
+                              ? getValueFromJoinString(params.data, options.defaultColKeyFocus)
+                              : params.data[Object.keys(params.data)[0]]}"`
                         : ''}
                     </div>
                   `;

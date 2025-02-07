@@ -30,6 +30,19 @@ const HealthcareAppointmentDto = {
       return { date: 1, _id: 1, eventSchedulerId: 1 };
     },
   },
+  populate: {
+    getUser: () => {
+      return {
+        path: 'patient.userId',
+        select: 'username email phoneNumbers',
+      };
+    },
+    getEventScheduler: () => {
+      return {
+        path: 'eventSchedulerId',
+      };
+    },
+  },
 };
 
 const HealthcareAppointmentModel = model('HealthcareAppointment', HealthcareAppointmentSchema);

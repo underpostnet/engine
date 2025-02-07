@@ -56,7 +56,10 @@ const HealthcareAppointmentService = {
     if (req.path.startsWith('/appointment-dates')) {
       return await HealthcareAppointment.find().select(HealthcareAppointmentDto.select['appointment-dates']());
     }
-    return await HealthcareAppointment.find();
+    return await HealthcareAppointment.find()
+      // .select(.select.get())
+      .populate(HealthcareAppointmentDto.populate.getUser())
+      .populate(HealthcareAppointmentDto.populate.getEventScheduler());
     return await HealthcareAppointment.findById(req.params.id);
   },
   put: async (req, res, options) => {
