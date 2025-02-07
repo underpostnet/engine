@@ -497,6 +497,13 @@ const TranslateCore = {
       en: 'Your appointment has been scheduled',
       es: 'Tu cita ha sido programada',
     };
+    Translate.Data['info'] = { es: 'Información', en: 'Info' };
+    Translate.Data['complete-name'] = { es: 'Nombre completo', en: 'Complete name' };
+    Translate.Data['dni'] = { es: 'Rut', en: 'dni' };
+    Translate.Data['day'] = { es: 'Día', en: 'Day' };
+    Translate.Data['month'] = { es: 'Mes', en: 'Month' };
+    Translate.Data['year'] = { es: 'Año', en: 'Year' };
+    Translate.Data['phone'] = { es: 'Teléfono', en: 'Phone' };
   },
 };
 

@@ -18,11 +18,16 @@ const AppointmentFormHealthcare = {
     for (const eventKey of Object.keys(this.Event)) await this.Event[eventKey](options);
   },
   Render: async function (options = { bottomRender: async () => '' }, eventData) {
-    let mode = 'telemedicine';
+    let mode = 'forecast-public';
     const id0DynamicCol = `dynamicCol-0`;
 
     setTimeout(async () => {
       const formData = [
+        {
+          model: 'dni',
+          id: `healthcare-appointment-dni`,
+          rules: [{ type: 'isEmpty' }],
+        },
         {
           model: 'username',
           id: `healthcare-appointment-patient`,
@@ -90,21 +95,35 @@ const AppointmentFormHealthcare = {
         // Translate.Render(`${result.status}-upload-appointment`),
       });
 
-      s(`.toggle-form-container-healthcare-telemedicine`).onclick = () =>
-        ToggleSwitch.Tokens[`healthcare-telemedicine-toggle`].click();
-      s(`.toggle-form-container-healthcare-in-person`).onclick = () =>
-        ToggleSwitch.Tokens[`healthcare-in-person-toggle`].click();
+      s(`.toggle-form-container-healthcare-forecast-private`).onclick = () => {
+        ToggleSwitch.Tokens[`healthcare-forecast-private-toggle`].click();
+        ToggleSwitch.Tokens[`healthcare-forecast-public-toggle`].click();
+      };
+
+      s(`.toggle-form-container-healthcare-forecast-public`).onclick = () => {
+        ToggleSwitch.Tokens[`healthcare-forecast-private-toggle`].click();
+        ToggleSwitch.Tokens[`healthcare-forecast-public-toggle`].click();
+      };
     });
     return html`
       ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol })}
-      <div class="fl ${id0DynamicCol}">
-        <div class="in fll ${id0DynamicCol}-col-a">
-          <form class="in">
+      <form class="in">
+        <div class="fl ${id0DynamicCol}">
+          <div class="in fll ${id0DynamicCol}-col-a">
+            <div class="in">
+              ${await Input.Render({
+                id: `healthcare-appointment-dni`,
+                type: 'text',
+                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('dni')}`,
+                containerClass: 'inl section-mp width-mini-box input-container',
+                placeholder: true,
+              })}
+            </div>
             <div class="in">
               ${await Input.Render({
                 id: `healthcare-appointment-patient`,
                 type: 'text',
-                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('patient')}`,
+                label: html`<i class="fa-solid fa-pen-to-square"></i> ${Translate.Render('complete-name')}`,
                 containerClass: 'inl section-mp width-mini-box input-container',
                 placeholder: true,
               })}
@@ -130,17 +149,17 @@ const AppointmentFormHealthcare = {
             </div>
 
             <div class="in section-mp toggle-form-container hover">
-              <div class="in input-label"><i class="fas fa-caret-right"></i> ${Translate.Render('mode')}</div>
+              <div class="in input-label"><i class="fas fa-caret-right"></i> ${Translate.Render('forecast')}</div>
 
-              <div class="fl section-mp toggle-form-container-healthcare-telemedicine">
+              <div class="fl section-mp toggle-form-container-healthcare-forecast-public">
                 <div class="in fll" style="width: 70%">
-                  <div class="in">${Translate.Render('telemedicine')}</div>
+                  <div class="in">${Translate.Render('forecast-public')}</div>
                 </div>
                 <div class="in fll" style="width: 30%">
                   ${await ToggleSwitch.Render({
-                    id: 'healthcare-telemedicine-toggle',
+                    id: 'healthcare-forecast-public-toggle',
                     containerClass: 'inl',
-                    checked: mode === 'telemedicine',
+                    checked: mode === 'forecast-public',
                     disabledOnClick: true,
                     displayMode: 'checkbox',
                     on: {
@@ -151,15 +170,15 @@ const AppointmentFormHealthcare = {
                 </div>
               </div>
 
-              <div class="fl section-mp toggle-form-container-healthcare-in-person">
+              <div class="fl section-mp toggle-form-container-healthcare-forecast-private">
                 <div class="in fll" style="width: 70%">
-                  <div class="in">${Translate.Render('in-person')}</div>
+                  <div class="in">${Translate.Render('forecast-private')}</div>
                 </div>
                 <div class="in fll" style="width: 30%">
                   ${await ToggleSwitch.Render({
-                    id: 'healthcare-in-person-toggle',
+                    id: 'healthcare-forecast-private-toggle',
                     containerClass: 'inl',
-                    checked: mode === 'in-person',
+                    checked: mode === 'forecast-private',
                     disabledOnClick: true,
                     displayMode: 'checkbox',
                     on: {
@@ -172,19 +191,35 @@ const AppointmentFormHealthcare = {
             </div>
 
             ${options?.bottomRender ? await options.bottomRender() : ``}
-            <div class="in">
-              ${await BtnIcon.Render({
-                class: 'section-mp form-button btn-healthcare-appointment',
-                label: Translate.Render('healthcare-appointment'),
-                type: 'submit',
-              })}
-            </div>
-          </form>
+          </div>
+          <div class="in fll ${id0DynamicCol}-col-b">
+            ${eventData
+              ? html` <div class="in section-mp toggle-form-container hover">
+                    <div class="in input-label"><i class="far fa-calendar"></i> ${Translate.Render('day')}</div>
+                    <div class="in healthcare-calendar-info-value">${eventData.start.split('T')[0]}</div>
+                    <div class="in input-label"><i class="far fa-clock"></i> ${Translate.Render('startTime')}</div>
+                    <div class="in healthcare-calendar-info-value">
+                      ${eventData.start.slice(0, -8).split('T')[1]} Hrs.
+                    </div>
+                    <div class="in input-label"><i class="far fa-clock"></i> ${Translate.Render('endTime')}</div>
+                    <div class="in healthcare-calendar-info-value">
+                      ${eventData.end.slice(0, -8).split('T')[1]} Hrs.
+                    </div>
+                    <div class="in input-label"><i class="fas fa-info-circle"></i> ${Translate.Render('info')}</div>
+                    <div class="in">${eventData.event.description}</div>
+                  </div>
+                  <pre class="in hide">${JSON.stringify(eventData, null, 4)}</pre>`
+              : ''}
+          </div>
         </div>
-        <div class="in fll ${id0DynamicCol}-col-b">
-          ${eventData ? html`<pre>${JSON.stringify(eventData, null, 4)}</pre>` : ''}
+        <div class="in">
+          ${await BtnIcon.Render({
+            class: 'section-mp form-button btn-healthcare-appointment',
+            label: Translate.Render('healthcare-appointment'),
+            type: 'submit',
+          })}
         </div>
-      </div>
+      </form>
     `;
   },
 };

@@ -1,5 +1,5 @@
 import { CalendarCore } from '../core/CalendarCore.js';
-import { boxShadow } from '../core/Css.js';
+import { borderChar, boxShadow } from '../core/Css.js';
 import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { getProxyPath } from '../core/VanillaJs.js';
 
@@ -59,8 +59,12 @@ const CssCommonHealthcare = async () => {
         width: 300px;
         margin: auto;
       }
+      .healthcare-calendar-info-value {
+        font-weight: bold;
+        padding-left: 20px;
+      }
     </style>
-    ${boxShadow({ selector: `.home-body-btn` })}`;
+    ${borderChar(1, 'black', [])} ${boxShadow({ selector: `.home-body-btn` })}`;
 };
 
 const CssHealthcareDark = {

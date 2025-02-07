@@ -508,6 +508,13 @@ const MenuHealthcare = {
             };
             LogIn.Event['model-appointment-calendar'] = authSwitch;
             LogOut.Event['model-appointment-calendar'] = authSwitch;
+            setTimeout(() => {
+              if (s(`.main-body-btn-ui-open`).classList.contains('hide')) s(`.main-body-btn-ui`).click();
+
+              setTimeout(() => {
+                s(`.btn-calendar-panel-modal-calendar-custom0`).click();
+              }, 500);
+            });
           });
           return await CalendarCore.Render({
             idModal,

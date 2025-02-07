@@ -96,6 +96,7 @@ const CalendarCore = {
     const renderCalendar = (events) => {
       const calendarEl = s(`.calendar-${idPanel}`);
       this.Data[options.idModal].calendar = new FullCalendar.Calendar(calendarEl, {
+        allDaySlot: false,
         plugins: [
           FullCalendar.DayGrid.default,
           FullCalendar.TimeGrid.default,
