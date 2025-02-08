@@ -1,5 +1,6 @@
 import { generateRandomPasswordSelection, strToDateUTC } from '../../client/components/core/CommonJs.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
+import { MailerProvider } from '../../mailer/MailerProvider.js';
 import { loggerFactory } from '../../server/logger.js';
 import { UserService } from '../user/user.service.js';
 import { HealthcareAppointmentDto } from './healthcare-appointment.model.js';
@@ -25,7 +26,7 @@ const HealthcareAppointmentService = {
     if (!professional) throw new Error(`Could not find professional`);
 
     let patient = await User.findOne({ email: req.body.patient.email });
-
+    if (!patient) patient = await User.findOne({ username: req.body.patient.username });
     if (!patient) {
       const { token, user } = await UserService.post(
         {
@@ -46,7 +47,46 @@ const HealthcareAppointmentService = {
     req.body.professional.userId = professional._doc._id;
     req.body.date = strToDateUTC(req.body.date);
 
-    return await new HealthcareAppointment(req.body).save();
+    const result = await new HealthcareAppointment(req.body).save();
+
+    (async () => {
+      const id = `${options.host}${options.path}`;
+      const translate = {
+        H1: { es: 'Cita agendada', en: 'Appointment scheduled' },
+        P1: {
+          es: `Te hemos agendado una cita en la fecha: ${result._doc.date.toISOString().split('T')[0]} y ${
+            result._doc.date.toISOString().slice(0, -8).split('T')[1]
+          } Hrs indicadas. La nutricionista se pondrá en contacto contigo para confirmar la cita.`,
+          en: `We have scheduled an appointment on the specified date ${
+            result._doc.date.toISOString().split('T')[0]
+          } and ${
+            result._doc.date.toISOString().slice(0, -8).split('T')[1]
+          } Hrs. time. The nutritionist will contact you to confirm the appointment.`,
+        },
+      };
+      const sendResult = await MailerProvider.send({
+        id,
+        sendOptions: {
+          to: req.body.patient.email, // list of receivers
+          subject: translate.H1[req.lang], // Subject line
+          text: translate.H1[req.lang], // plain text body
+          html: MailerProvider.instance[id].templates.userVerifyEmail
+            .replace('img', `img style='display: none'`)
+            .replace('{{H1}}', translate.H1[req.lang])
+            .replace('{{P1}}', translate.P1[req.lang])
+            .replace(`{{COMPANY}}`, options.host), // html body
+          attachments: [
+            // {
+            //   filename: 'logo.png',
+            //   path: `./logo.png`,
+            //   cid: 'logo', // <img src='cid:logo'>
+            // },
+          ],
+        },
+      });
+    })();
+
+    return result;
   },
   get: async (req, res, options) => {
     /** @type {import('./healthcare-appointment.model.js').HealthcareAppointmentModel} */
