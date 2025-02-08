@@ -69,9 +69,6 @@
     "xfwd",
     "youtu"
   ],
-  "[dockerfile]": {
-    "editor.defaultFormatter": "ms-azuretools.vscode-docker"
-  },
   "[php]": {
     "editor.defaultFormatter": "bmewburn.vscode-intelephense-client"
   },
@@ -107,5 +104,8 @@
   },
   "[solidity]": {
     "editor.defaultFormatter": "JuanBlanco.solidity"
+  },
+  "[dockerfile]": {
+    "editor.defaultFormatter": "foxundermoon.shell-format"
   }
 }

@@ -4,6 +4,7 @@
         "bashmish.es6-string-css",
         "eamodio.gitlens",
         "esbenp.prettier-vscode",
+        "foxundermoon.shell-format",
         "ms-python.black-formatter",
         "ms-python.debugpy",
         "ms-python.python",
