@@ -227,10 +227,12 @@ try {
       pbcopy(
         range(parseInt(process.argv[3]), parseInt(process.argv[4]))
           .map(
-            (port) => `    - protocol: TCP
+            (port) => `    - name: 'tcp-${port}'
+      protocol: TCP
       port: ${port}
       targetPort: ${port}
-    - protocol: UDP
+    - name: 'udp-${port}'
+      protocol: UDP
       port: ${port}
       targetPort: ${port}
 `,
