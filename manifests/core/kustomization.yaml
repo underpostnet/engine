@@ -6,6 +6,6 @@ resources:
   - underpost-engine-pv-pvc.yaml
   - underpost-engine-headless-service.yaml
   - underpost-engine-statefulset.yaml
-  - underpost-engine-backup-pv-pvc
+  - underpost-engine-backup-pv-pvc.yaml
   - underpost-engine-mongodb-backup-cronjob.yaml
   - underpost-engine-backup-access.yaml
