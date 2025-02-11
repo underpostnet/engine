@@ -526,7 +526,6 @@ try {
       break;
 
     case 'sync-env-port':
-      // TODO: pod.yaml containers ports
       const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], disableSyncEnvPort: true });
       const dataEnv = [
         { env: 'production', port: 3000 },
@@ -734,8 +733,7 @@ try {
               originPackage.version = newVersion;
               fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
             }
-            if (filePah.split('/').pop() === 'pod.yaml') {
-              // TODO: pod.yaml containers ports
+            if (filePah.split('/').pop() === 'deployment.yaml') {
               fs.writeFileSync(
                 filePah,
                 fs

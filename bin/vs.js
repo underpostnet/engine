@@ -10,6 +10,7 @@ switch (process.argv[2]) {
     logger.info('Command', 'Ctrl shift P');
     logger.info('Search', 'Ctrl shift F');
     logger.info('Debug', 'Ctrl shift D');
+    logger.info('Preview', 'Ctrl shift V');
     logger.warn('Terminal shortcut configure with command pallette', 'Ctl shift T');
 
     break;
