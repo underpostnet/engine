@@ -7,7 +7,7 @@ import axios from 'axios';
 import https from 'https';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { shellCd, shellExec } from '../src/server/process.js';
+import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
 import { range, s4 } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
 import { Config } from '../src/server/conf.js';
@@ -221,6 +221,22 @@ try {
 
       console.log(extraction_result.join(', '));
       break;
+    }
+
+    case 'build-ports': {
+      pbcopy(
+        range(parseInt(process.argv[3]), parseInt(process.argv[4]))
+          .map(
+            (port) => `    - protocol: TCP
+      port: ${port}
+      targetPort: ${port}
+    - protocol: UDP
+      port: ${port}
+      targetPort: ${port}
+`,
+          )
+          .join('\n'),
+      );
     }
     default:
       break;
