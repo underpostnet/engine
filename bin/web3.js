@@ -17,7 +17,7 @@ try {
   switch (operator) {
     case 'build-nodes': {
       const network = process.argv[3];
-      const keysFolder = `/dd/engine/engine-private/eth-networks/${network}`;
+      const keysFolder = `/home/dd/engine/engine-private/eth-networks/${network}`;
       if (fs.existsSync(keysFolder)) {
         fs.removeSync(keysFolder);
         fs.removeSync(`./hardhat/artifacts`);
@@ -25,8 +25,8 @@ try {
       }
       fs.mkdirSync(keysFolder, { recursive: true });
       shellExec(
-        'export PATH=$PATH:/dd/besu-24.9.1/bin && besu' +
-          ` operator generate-blockchain-config --config-file=/dd/engine/hardhat/networks/${network}.network.json --to=${keysFolder} --private-key-file-name=key`,
+        'export PATH=$PATH:/home/dd/besu-24.9.1/bin && besu' +
+          ` operator generate-blockchain-config --config-file=/home/dd/engine/hardhat/networks/${network}.network.json --to=${keysFolder} --private-key-file-name=key`,
       );
 
       const folderKeys = await fs.readdir(`${keysFolder}/keys`);
@@ -54,10 +54,10 @@ try {
       const besuApis = 'ADMIN,ETH,NET,WEB3,CLIQUE,IBFT,QBFT,PERM,DEBUG,MINER,EEA,TXPOOL,PRIV,PLUGINS';
 
       const cmd =
-        'export PATH=$PATH:/dd/besu-24.9.1/bin && besu' +
+        'export PATH=$PATH:/home/dd/besu-24.9.1/bin && besu' +
         ` --rpc-http-enabled --rpc-http-api=${besuApis}` +
         ` --rpc-ws-enabled --rpc-ws-api=${besuApis}` +
-        ` --genesis-file=/dd/engine/engine-private/eth-networks/${network}/genesis.json` +
+        ` --genesis-file=/home/dd/engine/engine-private/eth-networks/${network}/genesis.json` +
         ` --host-allowlist="*"` +
         ` --max-peers=25` +
         // ` --Xp2p-peer-lower-bound=1` +
@@ -71,14 +71,17 @@ try {
       {
         let currentPort;
 
-        // const keysFolder = `/dd/engine/engine-private/eth-networks/${network}`;
+        // const keysFolder = `/home/dd/engine/engine-private/eth-networks/${network}`;
         // const folderKeys = await fs.readdir(`${keysFolder}/keys`);
 
         for (const node of range(0, 3)) {
           !currentPort ? (currentPort = 8545) : (currentPort += 10);
 
           enodes += `${enodes === '--bootnodes=' ? '' : ','}enode://${fs
-            .readFileSync(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}/data/key.pub`, 'utf8')
+            .readFileSync(
+              `/home/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}/data/key.pub`,
+              'utf8',
+            )
             .slice(2)}@127.0.0.1:${currentPort + 2}`;
 
           // If the TCP listening and UDP discovery ports differ, the UDP port is specified as query parameter discport.
@@ -90,7 +93,7 @@ try {
         for (const node of range(0, 3)) {
           !currentPort ? (currentPort = 8545) : (currentPort += 10);
           if (process.argv[4] && `${process.argv[4]}` !== `${node}`) continue;
-          shellCd(`/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}`);
+          shellCd(`/home/dd/engine/engine-private/eth-networks/${network}/nodes/node-${node}`);
 
           shellExec(
             `${cmd} --data-path=data` +
@@ -98,8 +101,8 @@ try {
               ` --rpc-ws-port=${currentPort + 1}` +
               ` --p2p-port=${currentPort + 2}` +
               ` ${enodes}`,
-            // `${cmd} --data-path=/dd/engine/hardhat/data/${network}-${node}` +
-            //   ` --node-private-key-file=/dd/engine/hardhat/server/${network}/key${node}`,
+            // `${cmd} --data-path=/home/dd/engine/hardhat/data/${network}-${node}` +
+            //   ` --node-private-key-file=/home/dd/engine/hardhat/server/${network}/key${node}`,
             { async: true },
           );
         }

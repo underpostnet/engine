@@ -307,7 +307,7 @@ try {
     }
 
     case 'adminer': {
-      const directory = '/dd/engine/public/adminer';
+      const directory = '/home/dd/engine/public/adminer';
       // const host = '127.0.0.1';
       const host = 'localhost';
       const port = 80;
@@ -337,7 +337,7 @@ try {
 
     case 'pma':
       {
-        const directory = '/dd/engine/public/phpmyadmin';
+        const directory = '/home/dd/engine/public/phpmyadmin';
         // const host = '127.0.0.1';
         const host = 'localhost';
         const port = 80;
@@ -839,10 +839,10 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
             shellExec(`bin/besu --help`);
 
             // Set env path
-            // export PATH=$PATH:/dd/besu-24.9.1/bin
+            // export PATH=$PATH:/home/dd/besu-24.9.1/bin
 
             // Open src
-            // shellExec(`sudo code /dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
+            // shellExec(`sudo code /home/dd/besu-24.9.1 --user-data-dir="/root/.vscode-root" --no-sandbox`);
           }
 
           break;
@@ -1047,15 +1047,15 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
           shellExec(`sudo systemctl start valkey`);
           shellExec(`valkey-cli ping`);
         } else {
-          shellExec(`cd /dd && git clone https://github.com/valkey-io/valkey.git`);
-          shellExec(`cd /dd/valkey && make`);
+          shellExec(`cd /home/dd && git clone https://github.com/valkey-io/valkey.git`);
+          shellExec(`cd /home/dd/valkey && make`);
           shellExec(`apt install valkey-tools`); // valkey-cli
         }
       }
       if (process.argv.includes('rocky')) {
         shellExec(`sudo systemctl stop valkey`);
         shellExec(`sudo systemctl start valkey`);
-      } else shellExec(`cd /dd/valkey && ./src/valkey-server`);
+      } else shellExec(`cd /home/dd/valkey && ./src/valkey-server`);
 
       break;
     }

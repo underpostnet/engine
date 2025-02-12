@@ -407,7 +407,7 @@ switch (process.argv[2]) {
       switch (process.argv[2]) {
         case 'vector-svg':
           shellExec(
-            `vtracer --input /dd/engine${savePath.slice(1)}/${newFile} --output /dd/engine${savePath.slice(
+            `vtracer --input /home/dd/engine${savePath.slice(1)}/${newFile} --output /home/dd/engine${savePath.slice(
               1,
             )}/${newSvgFile}`,
           );
@@ -433,24 +433,24 @@ switch (process.argv[2]) {
     const resourceFormat = resourceFile.split('.').pop();
     shellExec(`python --version`);
     shellExec(
-      // `python ${platformSuffix}/dd/lab/src/pil-rembg.py` +
+      // `python ${platformSuffix}/home/dd/lab/src/pil-rembg.py` +
       // `rembg i` +
       `backgroundremover` +
-        ` -i ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}` +
-        ` -o ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+        ` -i ${platformSuffix}/home/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}` +
+        ` -o ${platformSuffix}/home/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
           '.' + resourceFormat,
           // '',
           '-alpha.' + resourceFormat,
         ),
     );
     shellExec(
-      `python ${platformSuffix}/dd/lab/src/cv2-sprite-sheet-0.py` +
-        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+      `python ${platformSuffix}/home/dd/lab/src/cv2-sprite-sheet-0.py` +
+        ` ${platformSuffix}/home/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
           '.' + resourceFormat,
           // '',
           '-alpha.' + resourceFormat,
         ) +
-        ` ${platformSuffix}/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
+        ` ${platformSuffix}/home/dd/engine/src/client/public/cyberia/assets/ai-resources/${resourceFolder}/${resourceFile}`.replace(
           '.' + resourceFormat,
           '',
         ),
@@ -478,7 +478,7 @@ switch (process.argv[2]) {
 
           frame.resize(500, 500);
 
-          const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/0${pos}/0.png`;
+          const outPath = `/home/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/0${pos}/0.png`;
 
           await setTransparency(frame);
 
@@ -498,7 +498,7 @@ switch (process.argv[2]) {
 
             frame.resize(500, 500);
 
-            const outPath = `/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/1${pos}/${_pos}.png`;
+            const outPath = `/home/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/1${pos}/${_pos}.png`;
 
             await setTransparency(frame);
 
