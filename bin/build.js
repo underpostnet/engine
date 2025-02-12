@@ -118,6 +118,10 @@ const BuilderConf = {
       'chart',
     ],
   },
+  'dd-lampp': {
+    apis: [],
+    clients: [],
+  },
 };
 (() => {
   for (const api of BuilderConf[confName].apis) {
