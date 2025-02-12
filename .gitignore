@@ -11,7 +11,7 @@
 /prometheus_data
 /deployments
 /grafana_data
-*.tar
+/images
 .cache
 .nyc_output
 _
