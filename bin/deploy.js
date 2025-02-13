@@ -860,23 +860,43 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
     }
 
     case 'update-default-conf': {
-      const host = process.argv[3] ? process.argv[3] : 'underpostnet.github.io';
-      const path = process.argv[4] ? process.argv[4] : '/pwa-microservices-template-ghpkg';
-      DefaultConf.server = {
-        [host]: { [path]: DefaultConf.server['default.net']['/'] },
-      };
-      DefaultConf.server[host][path].apiBaseProxyPath = '/';
-      DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
-      fs.writeFileSync(
-        './conf.js',
-        `
-        const DefaultConf = ${JSONweb(DefaultConf)};
-        
-        export { DefaultConf }
+      const defaultServer = DefaultConf.server['default.net']['/'];
+      let confName = process.argv[3];
+      if (confName === 'ghpkg') {
+        confName = undefined;
+        const host = 'underpostnet.github.io';
+        const path = '/pwa-microservices-template-ghpkg';
+        DefaultConf.server = {
+          [host]: { [path]: defaultServer },
+        };
+        DefaultConf.server[host][path].apiBaseProxyPath = '/';
+        DefaultConf.server[host][path].apiBaseHost = 'www.nexodev.org';
+      } else if (confName) {
+        DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
+        DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
+        DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.ssr.json`, 'utf8'));
+        DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.cron.json`, 'utf8'));
 
-        `,
-        'utf8',
-      );
+        for (const host of Object.keys(DefaultConf.server)) {
+          for (const path of Object.keys(DefaultConf.server[host])) {
+            DefaultConf.server[host][path].db = defaultServer.db;
+            DefaultConf.server[host][path].mailer = defaultServer.mailer;
+
+            delete DefaultConf.server[host][path]._wp_client;
+            delete DefaultConf.server[host][path]._wp_git;
+            delete DefaultConf.server[host][path]._wp_directory;
+            delete DefaultConf.server[host][path].wp;
+            delete DefaultConf.server[host][path].git;
+            delete DefaultConf.server[host][path].directory;
+          }
+        }
+      }
+      const sepRender = '/**/';
+      const confRawPaths = fs.readFileSync('./conf.js', 'utf8').split(sepRender);
+      confRawPaths[1] = `${JSON.stringify(DefaultConf)};`;
+      const targetConfPath = `./conf${confName ? `.${confName}` : ''}.js`;
+      fs.writeFileSync(targetConfPath, confRawPaths.join(sepRender), 'utf8');
+      shellExec(`prettier --write ${targetConfPath}`);
 
       break;
     }

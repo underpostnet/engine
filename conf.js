@@ -2,7 +2,7 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const DefaultConf = {
+const DefaultConf = /**/ {
   client: {
     default: {
       metadata: {
@@ -79,58 +79,16 @@ const DefaultConf = {
         ],
       },
       views: [
-        {
-          path: '/',
-          title: 'Home',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/home',
-          title: 'Home',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/settings',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/log-in',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/sign-up',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/log-out',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/account',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/docs',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/recover',
-          client: 'Default',
-          ssr: 'Default',
-        },
-        {
-          path: '/default-management',
-          client: 'Default',
-          ssr: 'Default',
-        },
+        { path: '/', title: 'Home', client: 'Default', ssr: 'Default' },
+        { path: '/home', title: 'Home', client: 'Default', ssr: 'Default' },
+        { path: '/settings', client: 'Default', ssr: 'Default' },
+        { path: '/log-in', client: 'Default', ssr: 'Default' },
+        { path: '/sign-up', client: 'Default', ssr: 'Default' },
+        { path: '/log-out', client: 'Default', ssr: 'Default' },
+        { path: '/account', client: 'Default', ssr: 'Default' },
+        { path: '/docs', client: 'Default', ssr: 'Default' },
+        { path: '/recover', client: 'Default', ssr: 'Default' },
+        { path: '/default-management', client: 'Default', ssr: 'Default' },
         { client: 'Default', ssr: 'Default', path: '/404', title: '404 Not Found' },
         { client: 'Default', ssr: 'Default', path: '/500', title: '500 Server Error' },
       ],
@@ -141,24 +99,15 @@ const DefaultConf = {
           import_name: '@neodrag/vanilla',
           import_name_build: '/dist/@neodrag-vanilla/index.js',
         },
-        {
-          folder: './node_modules/@fortawesome/fontawesome-free',
-          public_folder: '/dist/fontawesome',
-        },
+        { folder: './node_modules/@fortawesome/fontawesome-free', public_folder: '/dist/fontawesome' },
         {
           folder: './node_modules/sortablejs/modular',
           public_folder: '/dist/sortablejs',
           import_name: 'sortablejs',
           import_name_build: '/dist/sortablejs/sortable.complete.esm.js',
         },
-        {
-          folder: './node_modules/validator',
-          public_folder: '/dist/validator',
-        },
-        {
-          folder: './node_modules/@loadingio/css-spinner/entries',
-          public_folder: '/dist/loadingio',
-        },
+        { folder: './node_modules/validator', public_folder: '/dist/validator' },
+        { folder: './node_modules/@loadingio/css-spinner/entries', public_folder: '/dist/loadingio' },
         {
           import_name: 'ag-grid-community',
           import_name_build: '/dist/ag-grid-community/ag-grid-community.auto.complete.esm.min.js',
@@ -173,10 +122,7 @@ const DefaultConf = {
           import_name: 'socket.io/client-dist/socket.io.esm.min.js',
           import_name_build: '/dist/socket.io/socket.io.esm.min.js',
         },
-        {
-          folder: './node_modules/peerjs/dist',
-          public_folder: '/dist/peerjs',
-        },
+        { folder: './node_modules/peerjs/dist', public_folder: '/dist/peerjs' },
       ],
       services: ['default', 'core', 'user', 'test', 'file'],
     },
@@ -185,35 +131,12 @@ const DefaultConf = {
     Default: {
       head: ['Seo', 'Pwa', 'Css', 'DefaultScripts', 'Production'],
       body: ['CacheControl', 'DefaultSplashScreen', '404', '500'],
-      mailer: {
-        userVerifyEmail: 'DefaultVerifyEmail',
-        userRecoverEmail: 'DefaultRecoverEmail',
-      },
+      mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
-        {
-          path: '/offline',
-          title: 'No Network Connection',
-          client: 'NoNetworkConnection',
-          head: [],
-          body: [],
-        },
-        {
-          path: '/maintenance',
-          title: 'Server Maintenance',
-          client: 'Maintenance',
-          head: [],
-          body: [],
-        },
+        { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },
+        { path: '/maintenance', title: 'Server Maintenance', client: 'Maintenance', head: [], body: [] },
       ],
-      pages: [
-        {
-          path: '/test',
-          title: 'Test',
-          client: 'Test',
-          head: [],
-          body: [],
-        },
-      ],
+      pages: [{ path: '/test', title: 'Test', client: 'Test', head: [], body: [] }],
     },
   },
   server: {
@@ -231,29 +154,14 @@ const DefaultConf = {
         ws: 'core',
         peer: true,
         proxy: [80, 443],
-        db: {
-          provider: 'mongoose',
-          // mongodb://<username>:<password>@<pod-0-name>.<headless-service-name>.<namespace>.svc.cluster.local:27017
-          // ,<pod-1-name>.<headless-service-name>.<namespace>.svc.cluster.local:27017/<database-name>?replicaSet=rs0;
-          // <k8s-pod-name>.<k8s-internal-service-name>.<k8s-namespace>.<cluster-name>
-          // host: 'mongodb://mongodb-0.mongodb-service.default.svc.cluster.local:27017?replicaSet=rs0',
-          host: 'mongodb://127.0.0.1:27017',
-          // host: `mongodb://${process.env.MONGO_INITDB_ROOT_USERNAME}:${process.env.MONGO_INITDB_ROOT_PASSWORD}@mongodb-0.mongodb-service:27017`, // ?replicaSet=rs0
-          name: 'default',
-        },
+        db: { provider: 'mongoose', host: 'mongodb://127.0.0.1:27017', name: 'default' },
         mailer: {
-          sender: {
-            email: 'noreply@default.net',
-            name: 'Default',
-          },
+          sender: { email: 'noreply@default.net', name: 'Default' },
           transport: {
             host: 'smtp.default.com',
             port: 465,
             secure: true,
-            auth: {
-              user: 'noreply@default.net',
-              pass: '',
-            },
+            auth: { user: 'noreply@default.net', pass: '' },
           },
         },
       },
@@ -271,35 +179,11 @@ const DefaultConf = {
     },
   },
   cron: {
-    ipDaemon: {
-      ip: null,
-    },
-    records: {
-      A: [
-        {
-          host: 'example.com',
-          dns: 'dondominio',
-          api_key: '???',
-          user: '???',
-        },
-      ],
-    },
-    backups: [
-      {
-        deployGroupId: 'default-group',
-      },
-    ],
-    jobs: {
-      dns: {
-        expression: '* * * * *',
-        enabled: true,
-      },
-      backups: {
-        expression: '0 1 * * *',
-        enabled: true,
-      },
-    },
+    ipDaemon: { ip: null },
+    records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    backups: [{ deployGroupId: 'default-group' }],
+    jobs: { dns: { expression: '* * * * *', enabled: true }, backups: { expression: '0 1 * * *', enabled: true } },
   },
-};
+}; /**/
 
 export { DefaultConf };

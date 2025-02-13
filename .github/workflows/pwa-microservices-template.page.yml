@@ -39,7 +39,7 @@ jobs:
       - name: Build the site
         run: |
           npm install
-          node bin/deploy update-default-conf
+          node bin/deploy update-default-conf ghpkg
           npm run build-production github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
 
       - name: Setup Pages

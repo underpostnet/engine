@@ -587,6 +587,7 @@ const validateTemplatePath = (absolutePath = '') => {
   if (absolutePath.match('src/api') && !confServer.apis.find((p) => absolutePath.match(`src/api/${p}/`))) {
     return false;
   }
+  if (absolutePath.match('conf.dd-') && absolutePath.match('.js')) return false;
   if (
     absolutePath.match('src/client/services/') &&
     !clients.find((p) => absolutePath.match(`src/client/services/${p}/`))
@@ -890,6 +891,16 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
   return cmd;
 };
 
+const getPathsSSR = (conf) => {
+  const paths = ['src/client/ssr/Render.js'];
+  for (const o of conf.head) paths.push(`src/client/ssr/head/${o}.js`);
+  for (const o of conf.body) paths.push(`src/client/ssr/body/${o}.js`);
+  for (const o of Object.keys(conf.mailer)) paths.push(`src/client/ssr/mailer/${conf.mailer[o]}.js`);
+  for (const o of conf.offline) paths.push(`src/client/ssr/mailer/${o.client}.js`);
+  for (const o of conf.pages) paths.push(`src/client/ssr/pages/${o.client}.js`);
+  return paths;
+};
+
 const Cmd = {
   delete: (deployId) => `pm2 delete ${deployId}`,
   run: (deployId) => `node bin/deploy run ${deployId}`,
@@ -972,4 +983,5 @@ export {
   getDeployId,
   maintenanceMiddleware,
   setUpProxyMaintenanceServer,
+  getPathsSSR,
 };
