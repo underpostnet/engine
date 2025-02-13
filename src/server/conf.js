@@ -1,6 +1,13 @@
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import { capFirst, getCapVariableName, newInstance, range, timer } from '../client/components/core/CommonJs.js';
+import {
+  capFirst,
+  getCapVariableName,
+  newInstance,
+  orderArrayFromAttrInt,
+  range,
+  timer,
+} from '../client/components/core/CommonJs.js';
 import * as dir from 'path';
 import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
@@ -477,6 +484,44 @@ const buildProxyRouter = () => {
     })();
 
   return proxyRouter;
+};
+
+const buildKindPorts = (from, to) =>
+  range(parseInt(from), parseInt(to))
+    .map(
+      (port) => `    - name: 'tcp-${port}'
+protocol: TCP
+port: ${port}
+targetPort: ${port}
+- name: 'udp-${port}'
+protocol: UDP
+port: ${port}
+targetPort: ${port}
+`,
+    )
+    .join('\n');
+
+const buildPortProxyRouter = (port, proxyRouter) => {
+  const hosts = proxyRouter[port];
+  const router = {};
+  // build router
+  Object.keys(hosts).map((hostKey) => {
+    let { host, path, target, proxy, peer } = hosts[hostKey];
+    if (process.env.NODE_ENV === 'development') host = `localhost`;
+
+    if (!proxy.includes(port)) return;
+    const absoluteHost = [80, 443].includes(port)
+      ? `${host}${path === '/' ? '' : path}`
+      : `${host}:${port}${path === '/' ? '' : path}`;
+
+    if (!(absoluteHost in router)) router[absoluteHost] = target;
+  }); // order router
+
+  if (Object.keys(router).length === 0) return router;
+
+  for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
+    router[absoluteHostKey] = router[absoluteHostKey];
+  return router;
 };
 
 const cliBar = async (time = 5000) => {
@@ -984,4 +1029,6 @@ export {
   maintenanceMiddleware,
   setUpProxyMaintenanceServer,
   getPathsSSR,
+  buildKindPorts,
+  buildPortProxyRouter,
 };

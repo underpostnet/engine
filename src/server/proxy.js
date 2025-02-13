@@ -6,9 +6,8 @@ import dotenv from 'dotenv';
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { listenPortController, network } from './network.js';
-import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
-import { buildProxyRouter, maintenanceMiddleware } from './conf.js';
+import { buildPortProxyRouter, buildProxyRouter, maintenanceMiddleware } from './conf.js';
 
 dotenv.config();
 
@@ -57,27 +56,7 @@ const buildProxy = async () => {
         // '^/target-path': '/',
       },
     };
-    if (!process.argv.includes('maintenance')) {
-      // build router
-      Object.keys(hosts).map((hostKey) => {
-        let { host, path, target, proxy, peer } = hosts[hostKey];
-        if (process.env.NODE_ENV === 'development') host = `localhost`;
-
-        if (!proxy.includes(port)) return;
-        const absoluteHost = [80, 443].includes(port)
-          ? `${host}${path === '/' ? '' : path}`
-          : `${host}:${port}${path === '/' ? '' : path}`;
-
-        if (!(absoluteHost in options.router)) options.router[absoluteHost] = target;
-      });
-      if (Object.keys(options.router).length === 0) continue;
-
-      // order router
-      const router = {};
-      for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(options.router), 'length'))
-        router[absoluteHostKey] = options.router[absoluteHostKey];
-      options.router = router;
-    }
+    if (!process.argv.includes('maintenance')) options.router = buildPortProxyRouter(port, proxyRouter);
 
     const filter = false
       ? (pathname, req) => {

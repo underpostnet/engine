@@ -10,7 +10,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
 import { range, s4 } from '../src/client/components/core/CommonJs.js';
 import { network } from '../src/server/network.js';
-import { Config } from '../src/server/conf.js';
+import { buildKindPorts } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
 import { buildTextImg, faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
 import keyword_extractor from 'keyword-extractor';
@@ -224,21 +224,7 @@ try {
     }
 
     case 'build-ports': {
-      pbcopy(
-        range(parseInt(process.argv[3]), parseInt(process.argv[4]))
-          .map(
-            (port) => `    - name: 'tcp-${port}'
-      protocol: TCP
-      port: ${port}
-      targetPort: ${port}
-    - name: 'udp-${port}'
-      protocol: UDP
-      port: ${port}
-      targetPort: ${port}
-`,
-          )
-          .join('\n'),
-      );
+      pbcopy(buildKindPorts(process.argv[3], process.argv[4]));
     }
     default:
       break;
