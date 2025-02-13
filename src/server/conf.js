@@ -490,13 +490,13 @@ const buildKindPorts = (from, to) =>
   range(parseInt(from), parseInt(to))
     .map(
       (port) => `    - name: 'tcp-${port}'
-protocol: TCP
-port: ${port}
-targetPort: ${port}
-- name: 'udp-${port}'
-protocol: UDP
-port: ${port}
-targetPort: ${port}
+      protocol: TCP
+      port: ${port}
+      targetPort: ${port}
+    - name: 'udp-${port}'
+      protocol: UDP
+      port: ${port}
+      targetPort: ${port}
 `,
     )
     .join('\n');
