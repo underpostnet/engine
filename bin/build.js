@@ -58,7 +58,7 @@ if (process.argv.includes('proxy')) {
   const fromPort = ports[0];
   const toPort = ports[ports.length - 1];
 
-  logger.info('port range', { fromPort, toPort });
+  logger.info('port range', { fromPort, toPort, router });
 
   const deploymentYamlFilePath = `./engine-private/conf/${confName}/build/${env}/deployment.yaml`;
 
@@ -73,6 +73,32 @@ if (process.argv.includes('proxy')) {
     deploymentYamlParts.join(`ports:
 `),
   );
+
+  let proxyYaml = '';
+
+  for (const host of Object.keys(confServer)) {
+    const pathPortConditions = [];
+    for (const path of Object.keys(confServer[host])) {
+      const { peer } = confServer[host][path];
+      const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
+      // logger.info('', { host, port, path });
+      pathPortConditions.push({
+        port,
+        path,
+      });
+
+      if (peer) {
+        //  logger.info('', { host, port: port + 1, path: '/peer' });
+        pathPortConditions.push({
+          port: port + 1,
+          path: '/peer',
+        });
+      }
+    }
+    logger.info('', { host, pathPortConditions });
+  }
+
+  fs.writeFileSync(`./engine-private/deploy/proxy.${env}.yaml`, proxyYaml, 'utf8');
 
   process.exit(0);
 }
