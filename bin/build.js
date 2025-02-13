@@ -91,7 +91,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 {
   for (const host of Object.keys(DefaultConf.server)) {
     for (const path of Object.keys(DefaultConf.server[host])) {
-      const apis = DefaultConf.server[host][path].apis;
+      const { apis, ws } = DefaultConf.server[host][path];
       if (apis)
         for (const api of apis) {
           {
@@ -105,6 +105,10 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
             fs.copySync(originPath, `${basePath}/src/client/services/${api}`);
           }
         }
+
+      if (ws && ws !== 'core' && ws !== 'default') {
+        fs.copySync(`./src/ws/${ws}`, `${basePath}/src/ws/${ws}`);
+      }
     }
   }
 }
