@@ -118,11 +118,27 @@ const BuilderConf = {
       'chart',
     ],
   },
+  'dd-cyberia': {
+    apis: [],
+    clients: ['cyberia', 'cyberia-admin', 'cyberia-portal'],
+  },
   'dd-lampp': {
     apis: [],
     clients: [],
   },
 };
+
+BuilderConf['dd-cyberia'].apis = BuilderConf['dd-core'].apis.concat([
+  'cyberia-user',
+  'cyberia-biome',
+  'cyberia-tile',
+  'cyberia-world',
+  'cyberia-quest',
+  'cyberia-bot',
+  'cyberia-item',
+  'cyberia-instance',
+]);
+
 (() => {
   for (const api of BuilderConf[confName].apis) {
     {
