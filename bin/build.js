@@ -95,10 +95,30 @@ if (process.argv.includes('proxy')) {
         });
       }
     }
-    logger.info('', { host, pathPortConditions });
+    // logger.info('', { host, pathPortConditions });
+    proxyYaml += `
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: ${host}
+spec:
+  virtualhost:
+    fqdn: ${host}
+  routes:`;
+    for (const conditionObj of pathPortConditions) {
+      const { path, port } = conditionObj;
+      proxyYaml += `
+    - conditions:
+        - prefix: ${path}
+      enableWebsockets: true
+      services:
+        - name: ${confName}-${env}-service
+          port: ${port}`;
+    }
   }
-
-  fs.writeFileSync(`./engine-private/deploy/proxy.${env}.yaml`, proxyYaml, 'utf8');
+  const yamlPath = `./engine-private/conf/${confName}/build/${env}/proxy.yaml`;
+  fs.writeFileSync(yamlPath, proxyYaml, 'utf8');
 
   process.exit(0);
 }
