@@ -24,13 +24,14 @@ import { ssrFactory } from './client-formatted.js';
 
 // axios.defaults.baseURL = BASE_URL;
 
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
+// const httpsAgent = new https.Agent({
+//   rejectUnauthorized: false,
+// });
 
-axios.defaults.httpsAgent = httpsAgent;
+// axios.defaults.httpsAgent = httpsAgent;
 
 colors.enable();
+
 dotenv.config();
 
 const logger = loggerFactory(import.meta);

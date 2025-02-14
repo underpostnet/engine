@@ -104,7 +104,13 @@ metadata:
   name: ${host}
 spec:
   virtualhost:
-    fqdn: ${host}
+    fqdn: ${host}${
+      env === 'development'
+        ? ''
+        : `
+    tls:
+      secretName: ${host}`
+    }
   routes:`;
     for (const conditionObj of pathPortConditions) {
       const { path, port } = conditionObj;
