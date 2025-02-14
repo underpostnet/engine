@@ -837,13 +837,10 @@ const restoreMacroDb = async (deployGroupId = '', deployId = null) => {
   }
 };
 
-const mergeBackUp = async (baseBackJsonPath, outputFilePath) => {
-  const names = JSON.parse(fs.readFileSync(baseBackJsonPath, 'utf8')).map((p) =>
-    p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'),
-  );
+const mergeFile = async (parts = [], outputFilePath) => {
   await new Promise((resolve) => {
     splitFile
-      .mergeFiles(names, outputFilePath)
+      .mergeFiles(parts, outputFilePath)
       .then(() => {
         resolve();
       })
@@ -895,11 +892,13 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
       {
         if (process.argv.includes('cron')) {
           cmd = `mysql -u ${user} -p${password} ${name} < ${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`;
-          if (fs.existsSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`))
-            await mergeBackUp(
-              `${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`,
-              `${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`,
-            );
+          if (fs.existsSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`)) {
+            const names = JSON.parse(
+              fs.readFileSync(`${baseBackUpPath}/${currentBackupTimestamp}/${name}-parths.json`, 'utf8'),
+            ).map((p) => p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'));
+
+            await mergeFile(names, `${baseBackUpPath}/${currentBackupTimestamp}/${name}.sql`);
+          }
         } else {
           cmd = `mysql -u ${user} -p${password} ${name} < ${
             backupPath ? backupPath : `./engine-private/sql-backups/${name}.sql`
@@ -910,15 +909,23 @@ const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deplo
                 backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
               }/${name}-parths.json`,
             )
-          )
-            await mergeBackUp(
-              `${
-                backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
-              }/${name}-parths.json`,
+          ) {
+            const names = JSON.parse(
+              fs.readFileSync(
+                `${
+                  backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
+                }/${name}-parths.json`,
+                'utf8',
+              ),
+            ).map((p) => p.replaceAll(`\\`, '/').replaceAll('C:/', '/').replaceAll('c:/', '/'));
+
+            await mergeFile(
+              names,
               `${
                 backupPath ? backupPath.split('/').slice(0, -1).join('/') : `./engine-private/sql-backups`
               }/${name}.sql`,
             );
+          }
         }
       }
       break;
@@ -1049,7 +1056,7 @@ export {
   deployRun,
   getCronBackUpFolder,
   getRestoreCronCmd,
-  mergeBackUp,
+  mergeFile,
   fixDependencies,
   getDeployId,
   maintenanceMiddleware,
