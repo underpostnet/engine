@@ -1002,24 +1002,27 @@ const splitFileFactory = async (name, _path) => {
   const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
   const fileSizeInBytes = stats.size;
   if (fileSizeInBytes > maxSizeInBytes) {
-    await new Promise((resolve) => {
+    logger.info('splitFileFactory input', { name, from: _path });
+    return await new Promise((resolve) => {
       splitFile
         .splitFileBySize(_path, maxSizeInBytes) // 50 mb
         .then((names) => {
+          logger.info('splitFileFactory output', { parts: names });
           fs.writeFileSync(
             `${_path.split('/').slice(0, -1).join('/')}/${name}-parths.json`,
             JSON.stringify(names, null, 4),
             'utf8',
           );
-          resolve();
+          fs.removeSync(_path);
+          return resolve(true);
         })
         .catch((err) => {
           console.log('Error: ', err);
-          resolve();
+          return resolve(false);
         });
     });
-    fs.removeSync(_path);
   }
+  return false;
 };
 
 const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
