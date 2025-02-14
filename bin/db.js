@@ -4,10 +4,9 @@ import { loggerFactory } from '../src/server/logger.js';
 import { MariaDB } from '../src/db/mariadb/MariaDB.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
-import { getCapVariableName, getRestoreCronCmd, loadConf } from '../src/server/conf.js';
+import { getCapVariableName, getRestoreCronCmd, loadConf, splitFileFactory } from '../src/server/conf.js';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { hashPassword } from '../src/server/auth.js';
-import splitFile from 'split-file';
 
 const logger = loggerFactory(import.meta);
 
@@ -101,28 +100,7 @@ try {
 
             cmd = `mysqldump -u ${user} -p${password} ${name} > ${cmdBackupPath}`;
             shellExec(cmd);
-            const stats = fs.statSync(cmdBackupPath);
-            const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
-            const fileSizeInBytes = stats.size;
-            if (fileSizeInBytes > maxSizeInBytes) {
-              await new Promise((resolve) => {
-                splitFile
-                  .splitFileBySize(cmdBackupPath, maxSizeInBytes) // 50 mb
-                  .then((names) => {
-                    fs.writeFileSync(
-                      `${cmdBackupPath.split('/').slice(0, -1).join('/')}/${name}-parths.json`,
-                      JSON.stringify(names, null, 4),
-                      'utf8',
-                    );
-                    resolve();
-                  })
-                  .catch((err) => {
-                    console.log('Error: ', err);
-                    resolve();
-                  });
-              });
-              fs.removeSync(cmdBackupPath);
-            }
+            await splitFileFactory(name, cmdBackupPath);
           }
           break;
         case 'import':

@@ -990,6 +990,31 @@ const maintenanceMiddleware = (req, res, port, proxyRouter) => {
   }
 };
 
+const splitFileFactory = async (name, _path) => {
+  const stats = fs.statSync(_path);
+  const maxSizeInBytes = 1024 * 1024 * 50; // 50 mb
+  const fileSizeInBytes = stats.size;
+  if (fileSizeInBytes > maxSizeInBytes) {
+    await new Promise((resolve) => {
+      splitFile
+        .splitFileBySize(_path, maxSizeInBytes) // 50 mb
+        .then((names) => {
+          fs.writeFileSync(
+            `${_path.split('/').slice(0, -1).join('/')}/${name}-parths.json`,
+            JSON.stringify(names, null, 4),
+            'utf8',
+          );
+          resolve();
+        })
+        .catch((err) => {
+          console.log('Error: ', err);
+          resolve();
+        });
+    });
+    fs.removeSync(_path);
+  }
+};
+
 const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
   shellExec(`pm2 kill`);
   shellExec(`node bin/deploy valkey-service`);
@@ -1032,4 +1057,5 @@ export {
   getPathsSSR,
   buildKindPorts,
   buildPortProxyRouter,
+  splitFileFactory,
 };
