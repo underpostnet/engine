@@ -75,8 +75,25 @@ if (process.argv.includes('proxy')) {
   );
 
   let proxyYaml = '';
+  let secretYaml = '';
 
   for (const host of Object.keys(confServer)) {
+    if (env === 'production')
+      secretYaml += `
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: ${host}
+spec:
+  commonName: ${host}
+  dnsNames:
+  - ${host}
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+  secretName: ${host}`;
+
     const pathPortConditions = [];
     for (const path of Object.keys(confServer[host])) {
       const { peer } = confServer[host][path];
@@ -125,6 +142,10 @@ spec:
   }
   const yamlPath = `./engine-private/conf/${confName}/build/${env}/proxy.yaml`;
   fs.writeFileSync(yamlPath, proxyYaml, 'utf8');
+  if (env === 'production') {
+    const yamlPath = `./engine-private/conf/${confName}/build/${env}/secret.yaml`;
+    fs.writeFileSync(yamlPath, secretYaml, 'utf8');
+  }
 
   process.exit(0);
 }

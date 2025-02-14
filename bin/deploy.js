@@ -796,8 +796,8 @@ ${uniqueArray(logs.all.map((log) => `- ${log.author_name} ([${log.author_email}]
       // message: 'update',
       // refs: '',
       // body: '',
-      // author_name: 'fcoverdugo',
-      // author_email: 'fcoverdugoa@underpost.net'
+      // author_name: 'development',
+      // author_email: 'development@underpost.net'
     }
 
     case 'restore-macro-db':
