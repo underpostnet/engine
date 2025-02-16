@@ -21,7 +21,6 @@ switch (process.argv[2]) {
     logger.info('Close current vs windows', 'Ctrl Shift W');
     logger.info('Preview md', 'Ctrl shift V');
     logger.warn('Terminal shortcut configure with command pallette', 'Ctl shift T');
-
     break;
   }
   case 'import':
