@@ -189,4 +189,12 @@ const underpostASCI = () => `
 ░╚═════╝░╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░░╚════╝░╚═════╝░░░░╚═╝░░░
                                                 `;
 
-export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCI };
+const actionInitLog = (version = '0.0.0') =>
+  console.log(
+    underpostASCI() +
+      `
+${version} https://www.nexodev.org/docs
+`,
+  );
+
+export { loggerFactory, loggerMiddleware, setUpInfo, underpostASCI, actionInitLog };

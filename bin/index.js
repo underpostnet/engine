@@ -5,7 +5,7 @@ import { shellCd, shellExec } from '../src/server/process.js';
 import fs from 'fs-extra';
 import { Command } from 'commander';
 import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
-import { loggerFactory, underpostASCI } from '../src/server/logger.js';
+import { actionInitLog, loggerFactory } from '../src/server/logger.js';
 import Underpost from '../src/index.js';
 
 dotenv.config();
@@ -26,12 +26,7 @@ program
   .command('new <app-name>')
   .description('Create a new project')
   .action(async (appName) => {
-    console.log(
-      underpostASCI() +
-        `
-    ${Underpost.version} https://www.nexodev.org/docs
-    `,
-    );
+    actionInitLog(Underpost.version);
     await logger.setUpInfo();
     const destFolder = `${process.cwd()}/${appName}`;
     logger.info('Note: This process may take several minutes to complete');
@@ -50,12 +45,7 @@ program
   .command('test')
   .description('Run tests')
   .action(() => {
-    console.log(
-      underpostASCI() +
-        `
-    ${Underpost.version} https://www.nexodev.org/docs
-    `,
-    );
+    actionInitLog(Underpost.version);
     shellCd(`${globalBinFolder}`);
     shellExec(`npm run test`);
   });
