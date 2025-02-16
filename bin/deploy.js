@@ -139,8 +139,7 @@ try {
       }
       break;
     case 'conf': {
-      loadConf(process.argv[3]);
-      if (process.argv[4]) fs.writeFileSync(`.env`, fs.readFileSync(`.env.${process.argv[4]}`, 'utf8'), 'utf8');
+      loadConf(process.argv[3], process.argv[4]);
       break;
     }
     case 'run':

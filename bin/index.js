@@ -42,6 +42,16 @@ program
   });
 
 program
+  .command('clone <uri>')
+  .description('Clone github repository, if your GITHUB_TOKEN environment exists, it will be used')
+  .action(Underpost.project.clone);
+
+program
+  .command('env <deploy-id> [env]')
+  .description('Set environment variables files and conf related to <deploy-id>')
+  .action(Underpost.project.useEnv);
+
+program
   .command('test')
   .description('Run tests')
   .action(() => {

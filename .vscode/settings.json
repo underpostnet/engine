@@ -111,5 +111,7 @@
   },
   "[ignore]": {
     "editor.defaultFormatter": "foxundermoon.shell-format"
-  }
+  },
+  "docwriter.progress.trackTypes": true,
+  "docwriter.hotkey.mac": "⌘ + ."
 }

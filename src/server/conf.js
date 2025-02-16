@@ -92,7 +92,7 @@ const Config = {
   },
 };
 
-const loadConf = (deployId) => {
+const loadConf = (deployId, envInput) => {
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
@@ -118,9 +118,10 @@ const loadConf = (deployId) => {
   fs.writeFileSync(`./.env.production`, fs.readFileSync(`${folder}/.env.production`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.development`, fs.readFileSync(`${folder}/.env.development`, 'utf8'), 'utf8');
   fs.writeFileSync(`./.env.test`, fs.readFileSync(`${folder}/.env.test`, 'utf8'), 'utf8');
-  if (process.env.NODE_ENV) {
-    fs.writeFileSync(`./.env`, fs.readFileSync(`${folder}/.env.${process.env.NODE_ENV}`, 'utf8'), 'utf8');
-    const env = dotenv.parse(fs.readFileSync(`${folder}/.env.${process.env.NODE_ENV}`, 'utf8'));
+  const NODE_ENV = envInput || process.env.NODE_ENV;
+  if (NODE_ENV) {
+    fs.writeFileSync(`./.env`, fs.readFileSync(`${folder}/.env.${NODE_ENV}`, 'utf8'), 'utf8');
+    const env = dotenv.parse(fs.readFileSync(`${folder}/.env.${NODE_ENV}`, 'utf8'));
     process.env = {
       ...process.env,
       ...env,
@@ -1033,6 +1034,24 @@ const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
   shellExec(`node bin/deploy run ${proxyDeployId} maintenance`);
 };
 
+const repoClone = (gitUri = 'underpostnet/pwa-microservices-template') => {
+  const repoName = gitUri.split('/').pop();
+  if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
+  shellExec(
+    `git clone https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''}github.com/${gitUri}.git`,
+  );
+  if (process.env.GITHUB_TOKEN) {
+    shellExec(
+      `git clone https://${
+        process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+      }github.com/${gitUri}-private.git`,
+    );
+    fs.moveSync(`./${repoName}-private`, `./${repoName}/engine-private`, {
+      overwrite: true,
+    });
+  }
+};
+
 export {
   Cmd,
   Config,
@@ -1068,4 +1087,5 @@ export {
   buildKindPorts,
   buildPortProxyRouter,
   splitFileFactory,
+  repoClone,
 };

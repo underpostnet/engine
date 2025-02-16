@@ -91,8 +91,6 @@ try {
           '.github/workflows/engine.cyberia.ci.yml',
           'bin/web3.js',
           'bin/cyberia.js',
-          'src/ipfs.js',
-          'src/k8s.js',
         ]) {
           fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
