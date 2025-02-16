@@ -10,7 +10,16 @@ switch (process.argv[2]) {
     logger.info('Command', 'Ctrl shift P');
     logger.info('Search', 'Ctrl shift F');
     logger.info('Debug', 'Ctrl shift D');
-    logger.info('Preview', 'Ctrl shift V');
+    logger.info('New File', 'Ctrl N');
+    logger.info('Change tab', 'Ctrl Tab');
+    logger.info('Fold All', 'Ctrl K + Ctrl 0');
+    logger.info('Unfold All', 'Ctrl K + Ctrl J');
+    logger.info('Close All tabs', 'Ctrl K + W');
+    logger.info('Go to line number', 'Ctrl G');
+    logger.info('Change current project folder', 'Ctrl K + Ctrl O');
+    logger.info('Open new vs windows', 'Ctrl Shift N');
+    logger.info('Close current vs windows', 'Ctrl Shift W');
+    logger.info('Preview md', 'Ctrl shift V');
     logger.warn('Terminal shortcut configure with command pallette', 'Ctl shift T');
 
     break;
@@ -45,5 +54,6 @@ switch (process.argv[2]) {
     }
     break;
   default:
+    shellExec(`sudo code ${process.argv[2]} --user-data-dir="/root/.vscode-root" --no-sandbox`);
     break;
 }
