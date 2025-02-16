@@ -12,6 +12,7 @@
 /deployments
 /grafana_data
 /images
+/src/client/public/doc/.gitignore/engine
 .cache
 .nyc_output
 _
