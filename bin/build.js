@@ -267,5 +267,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   }
 
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
-  fs.copyFileSync(`./.gitattributes`, `${basePath}/.gitattributes`);
+  fs.copyFileSync(
+    `./.github/workflows/engine.${confName.split('dd-')[1]}.ci.js`,
+    `${basePath}/.github/workflows/engine.${confName.split('dd-')[1]}.ci.js`,
+  );
 }

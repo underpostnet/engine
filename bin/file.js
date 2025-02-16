@@ -86,6 +86,9 @@ try {
           '.github/workflows/docker-image.yml',
           '.github/workflows/deploy.ssh.yml',
           '.github/workflows/deploy.api-rest.yml',
+          '.github/workflows/engine.lampp.ci.yml',
+          '.github/workflows/engine.core.ci.yml',
+          '.github/workflows/engine.cyberia.ci.yml',
           'bin/web3.js',
           'bin/cyberia.js',
           'src/ipfs.js',
@@ -121,6 +124,7 @@ try {
           JSON.stringify(templatePackageLockJson, null, 4),
           'utf8',
         );
+        fs.copyFileSync(`./.gitattributes`, `../pwa-microservices-template/.gitattributes`);
       }
 
       break;

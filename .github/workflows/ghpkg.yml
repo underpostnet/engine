@@ -19,6 +19,10 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v3
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -45,6 +49,9 @@ jobs:
           npm run update-template
           cd ../pwa-microservices-template
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
+          git lfs install
+          git lfs track
+          git lfs ls-files
           git add .       
           git commit -m "ci(package-pwa-microservices-template-ghpkg): ⚙️ Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
@@ -59,6 +66,10 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@v3
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -107,6 +118,9 @@ jobs:
           pwd
           git status
           git remote set-url origin git@github.com:underpostnet/pwa-microservices-template-ghpkg.git
+          git lfs install
+          git lfs track
+          git lfs ls-files
           git add .       
           git commit -m "ci(package-pwa-microservices-template-ghpkg): ⚙️ Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git

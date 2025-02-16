@@ -32,6 +32,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Checkout LFS objects
+        run: git lfs checkout
       - uses: actions/setup-node@v4
         with:
           node-version: '22.x'
@@ -39,6 +43,10 @@ jobs:
       - name: Build the site
         run: |
           npm install
+          git lfs install
+          git lfs track
+          git lfs ls-files
+          git lfs pull
           node bin/deploy update-default-conf ghpkg
           npm run build-production github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
 
