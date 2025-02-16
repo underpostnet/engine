@@ -1,9 +1,3 @@
-{
-  "version": "1.0",
-  "api_version": 1,
-  "layout": {
-    "logo": "/yandex-browser-50x50.png",
-    "color": "#ffffff",
-    "show_title": true
-  }
-}
+version https://git-lfs.github.com/spec/v1
+oid sha256:4893fc5c71c8ff947115a5912cb5f0fa18b92ed48c71fd539abb889b2805e457
+size 149
