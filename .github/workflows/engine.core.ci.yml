@@ -42,12 +42,12 @@ jobs:
       - name: Build repository
         run: |
           cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
-          git clone https://github.com/underpostnet/engine-core.git
+          git clone --bare https://github.com/underpostnet/engine-core.git
           cd engine
           node bin/build dd-core
           cd ../pwa-microservices-template
           rm -rf ./.git
-          cp -a  ../engine-core/.git ./.git
+          mv ../engine-core.git ./.git
           git add .       
           git commit -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-core.git

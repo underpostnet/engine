@@ -42,12 +42,12 @@ jobs:
       - name: Build repository
         run: |
           cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
-          git clone https://github.com/underpostnet/engine-lampp.git
+          git clone --bare https://github.com/underpostnet/engine-lampp.git
           cd engine
           node bin/build dd-lampp
           cd ../pwa-microservices-template
           rm -rf ./.git
-          cp -a  ../engine-lampp/.git ./.git
+          mv ../engine-lampp.git ./.git
           git add .       
           git commit -m "ci(engine-lampp-repo-build): ⚙️ Update engine lampp repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-lampp.git

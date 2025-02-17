@@ -42,12 +42,12 @@ jobs:
       - name: Build repository
         run: |
           cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
-          git clone https://github.com/underpostnet/engine-cyberia.git
+          git clone --bare https://github.com/underpostnet/engine-cyberia.git
           cd engine
           node bin/build dd-cyberia
           cd ../pwa-microservices-template
           rm -rf ./.git
-          cp -a  ../engine-cyberia/.git ./.git
+          mv ../engine-cyberia.git ./.git
           git add .       
           git commit -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-cyberia.git
