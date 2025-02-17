@@ -21,6 +21,7 @@ class Project {
     options = {
       copy: false,
       info: false,
+      empty: false,
     },
   ) {
     return repoCommit(repoPath, commitType, subModule, message, options);

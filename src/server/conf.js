@@ -1137,6 +1137,7 @@ const repoCommit = (
   options = {
     copy: false,
     info: false,
+    empty: false,
   },
 ) => {
   if (options.info) return logger.info('', commitData);
@@ -1144,7 +1145,7 @@ const repoCommit = (
     commitData[commitType].emoji
   } ${message ? message : commitData[commitType].description}`;
   if (options.copy) return pbcopy(_message);
-  shellExec(`cd ${repoPath} && git commit -m "${_message}"`);
+  shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
 };
 
 const repoPush = (repoPath = './', gitUri = 'underpostnet/pwa-microservices-template') => {

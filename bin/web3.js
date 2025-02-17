@@ -15,6 +15,19 @@ const operator = process.argv[2];
 
 try {
   switch (operator) {
+    case 'install': {
+      const dependencies = {
+        '@nomiclabs/hardhat-ethers': '^2.2.3',
+        '@nomiclabs/hardhat-etherscan': '^3.1.8',
+        '@nomiclabs/hardhat-waffle': '^2.0.6',
+        '@openzeppelin/contracts': '^5.0.2',
+        web3: '^4.13.0',
+      };
+      const devDependencies = {
+        hardhat: '^2.22.13',
+      };
+      break;
+    }
     case 'build-nodes': {
       const network = process.argv[3];
       const keysFolder = `/home/dd/engine/engine-private/eth-networks/${network}`;

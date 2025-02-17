@@ -54,9 +54,10 @@ program
 program
   .option('--copy')
   .option('--info')
+  .option('--empty')
   .command('cmt <path> [commit-type] [sub-module] [message]')
   .description(
-    'Commit github repository, if your GITHUB_TOKEN environment exists, it will be used, use --copy will copy to clipboard message, use --info will see info commit types',
+    'Commit github repository, if your GITHUB_TOKEN environment exists, it will be used, use --copy will copy to clipboard message, use --info will see info commit types, use --empty will allow empty files',
   )
   .action((...args) => ((args[4] = options), Underpost.project.commit(...args)));
 
