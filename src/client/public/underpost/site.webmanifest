@@ -1,3 +1,54 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:44f0df00af9d47c1dcbb889a3772ee347e9fa0b3882018b04fae997e9109d053
-size 1259
+{
+  "name": "underpost.net",
+  "short_name": "underpost.net",
+  "icons": [
+    {
+      "src": "/assets/splash/android-chrome-36x36.png",
+      "sizes": "36x36",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-48x48.png",
+      "sizes": "48x48",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-72x72.png",
+      "sizes": "72x72",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-96x96.png",
+      "sizes": "96x96",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-144x144.png",
+      "sizes": "144x144",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-256x256.png",
+      "sizes": "256x256",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-384x384.png",
+      "sizes": "384x384",
+      "type": "image/png"
+    },
+    {
+      "src": "/assets/splash/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "theme_color": "#b81414",
+  "background_color": "#b81414",
+  "start_url": "/",
+  "display": "standalone",
+  "description": "underpost.net",
+  "scope": "/",
+  "orientation": "any"
+}

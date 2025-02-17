@@ -1,3 +1,12 @@
-version https://git-lfs.github.com/spec/v1
-oid sha256:ed7a4b73f96b6d495b0325e6503cacc81e752a909f4fea60abd79c346ff2eb36
-size 469
+<?xml version="1.0" encoding="utf-8"?>
+<browserconfig>
+    <msapplication>
+        <tile>
+            <square70x70logo src="/assets/splash/mstile-70x70.png" />
+            <square150x150logo src="/assets/splash/mstile-150x150.png" />
+            <square310x310logo src="/assets/splash/mstile-310x310.png" />
+            <wide310x150logo src="/assets/splash/mstile-310x150.png" />
+            <TileColor></TileColor>
+        </tile>
+    </msapplication>
+</browserconfig>
