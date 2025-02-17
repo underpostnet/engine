@@ -122,7 +122,6 @@ try {
           JSON.stringify(templatePackageLockJson, null, 4),
           'utf8',
         );
-        fs.copyFileSync(`./.gitattributes`, `../pwa-microservices-template/.gitattributes`);
       }
 
       break;
