@@ -47,6 +47,25 @@ program
   .action(Underpost.project.clone);
 
 program
+  .command('pull <path> <uri>')
+  .description('Pull github repository, if your GITHUB_TOKEN environment exists, it will be used')
+  .action(Underpost.project.pull);
+
+program
+  .option('--copy')
+  .option('--info')
+  .command('cmt <path> [commit-type] [sub-module] [message]')
+  .description(
+    'Commit github repository, if your GITHUB_TOKEN environment exists, it will be used, use --copy will copy to clipboard message, use --info will see info commit types',
+  )
+  .action((...args) => ((args[4] = options), Underpost.project.commit(...args)));
+
+program
+  .command('push <path> <uri>')
+  .description('Push github repository, if your GITHUB_TOKEN environment exists, it will be used')
+  .action(Underpost.project.push);
+
+program
   .command('env <deploy-id> [env]')
   .description('Set environment variables files and conf related to <deploy-id>')
   .action(Underpost.project.useEnv);
@@ -66,5 +85,7 @@ program
   .action(() => {
     program.outputHelp();
   });
+
+const options = program.opts();
 
 program.parse();

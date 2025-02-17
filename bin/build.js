@@ -6,7 +6,7 @@ import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
 import { buildProxyRouter, buildPortProxyRouter, Config, getPathsSSR, buildKindPorts } from '../src/server/conf.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
-if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath });
+if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
 
 const logger = loggerFactory(import.meta);
 
