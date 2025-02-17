@@ -48,6 +48,7 @@ jobs:
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-lampp.git ./.git
+          git init
           git add .       
           git commit -m "ci(engine-lampp-repo-build): ⚙️ Update engine lampp repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-lampp.git

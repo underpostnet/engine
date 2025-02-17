@@ -48,6 +48,7 @@ jobs:
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-cyberia.git ./.git
+          git init
           git add .       
           git commit -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-cyberia.git

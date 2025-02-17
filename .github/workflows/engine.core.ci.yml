@@ -48,6 +48,7 @@ jobs:
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-core.git ./.git
+          git init
           git add .       
           git commit -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-core.git
