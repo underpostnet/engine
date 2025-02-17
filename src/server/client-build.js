@@ -545,17 +545,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
         let siteMapSrc = await new Promise((resolve) =>
           streamToPromise(Readable.from(siteMapLinks).pipe(siteMapStream)).then((data) => resolve(data.toString())),
         );
-        switch (publicClientId) {
-          case 'underpost':
-            siteMapSrc = siteMapSrc.replaceAll(
-              `</urlset>`,
-              `${fs.readFileSync(`./src/client/public/underpost/sitemap-template.txt`, 'utf8')} </urlset>`,
-            );
-            break;
 
-          default:
-            break;
-        }
         // Return a promise that resolves with your XML string
         fs.writeFileSync(`${rootClientPath}/sitemap.xml`, siteMapSrc, 'utf8');
         if (xslUrl)
