@@ -68,8 +68,8 @@ program
 
 program
   .command('root')
-  .description('Set environment variables files and conf related to <deploy-id>')
-  .action(getNpmRootPath);
+  .description('Get npm root path')
+  .action(() => console.log(getNpmRootPath()));
 
 program.command('test').description('Run tests').action(Underpost.runTest);
 
