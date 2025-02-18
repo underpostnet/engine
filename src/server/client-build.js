@@ -191,8 +191,7 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
 
       if (redirect || disabledRebuild) continue;
 
-      if (fullBuildEnabled) {
-        //  !(confServer[host]['/'] && confServer[host]['/'].liteBuild)
+      if (fullBuildEnabled)
         await fullBuild({
           path,
           logger,
@@ -205,14 +204,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
           iconsBuild,
           metadata,
         });
-        if (apis && false)
-          for (const apiBuildScript of apis) {
-            const scriptPath = `src/api/${apiBuildScript}/${apiBuildScript}.build.js`;
-            if (fs.existsSync(`./${scriptPath}`)) {
-              shellExec(`node ${scriptPath}`);
-            }
-          }
-      }
 
       if (components)
         for (const module of Object.keys(components)) {
