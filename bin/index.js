@@ -15,6 +15,8 @@ const logger = loggerFactory(import.meta);
 
 const program = new Command();
 
+program.name('underpost').description(`underpost ci/cd cli ${Underpost.version}`).version(Underpost.version);
+
 program.command('new <app-name>').description('Create a new project').action(Underpost.repo.new);
 
 program

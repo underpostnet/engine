@@ -17,6 +17,13 @@ import UnderpostTest from './cli/test.js';
  */
 class Underpost {
   /**
+   * Underpost engine version
+   * @static
+   * @type {String}
+   * @memberof Underpost
+   */
+  static version = 'v2.8.44';
+  /**
    * Repository cli API
    * @static
    * @type {UnderpostRepository}
