@@ -16,8 +16,7 @@ core server
 
 <div align="center">
 
-<a target="_top" href='https://www.npmjs.com/package/npm/v/10.2.3'><img alt='npm' src='https://img.shields.io/badge/npm v11.1.0
--100000?style=flat&logo=npm&logoColor=white&labelColor=CB3837&color=727273'/></a> <a target="_top" href='https://nodejs.org/download/release/v22.9.0/'><img alt='nodedotjs' src='https://img.shields.io/badge/node v23.8.0-100000?style=flat&logo=nodedotjs&logoColor=white&labelColor=5FA04E&color=727273'/></a> <a target="_top" href='https://pgp.mongodb.com/'><img alt='mongodb' src='https://img.shields.io/badge/mongodb_server v7.0-100000?style=flat&logo=mongodb&logoColor=white&labelColor=47A248&color=727273'/></a>
+<a target="_top" href='https://www.npmjs.com/package/npm/v/11.1.0'><img alt='npm' src='https://img.shields.io/badge/npm v11.1.0-100000?style=flat&logo=npm&logoColor=white&labelColor=CB3837&color=727273'/></a> <a target="_top" href='https://nodejs.org/download/release/v22.9.0/'><img alt='nodedotjs' src='https://img.shields.io/badge/node v23.8.0-100000?style=flat&logo=nodedotjs&logoColor=white&labelColor=5FA04E&color=727273'/></a> <a target="_top" href='https://pgp.mongodb.com/'><img alt='mongodb' src='https://img.shields.io/badge/mongodb_server v7.0-100000?style=flat&logo=mongodb&logoColor=white&labelColor=47A248&color=727273'/></a>
 
 </div>
 
