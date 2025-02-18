@@ -51,7 +51,7 @@ program
 
 program
   .command('config <operator> [key] [value]')
-  .description(`Manage configuration, operators available: set,delete,get,list,clean`)
+  .description(`Manage configuration, operators available: ${Object.keys(Underpost.env)}`)
   .action((...args) => Underpost.env[args[0]](args[1], args[2]));
 
 program

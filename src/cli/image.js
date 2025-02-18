@@ -1,4 +1,6 @@
 class UnderpostImage {
-  static build() {}
+  static API = {
+    build() {},
+  };
 }
 export default UnderpostImage;

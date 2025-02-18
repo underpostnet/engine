@@ -1,5 +1,7 @@
 class UnderpostCluster {
-  static init() {}
-  static reset() {}
+  static API = {
+    init() {},
+    reset() {},
+  };
 }
 export default UnderpostCluster;

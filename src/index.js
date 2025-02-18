@@ -26,38 +26,38 @@ class Underpost {
   /**
    * Repository cli API
    * @static
-   * @type {UnderpostRepository}
+   * @type {UnderpostRepository.API}
    * @memberof Underpost
    */
-  static repo = UnderpostRepository;
+  static repo = UnderpostRepository.API;
   /**
    * Root Env cli API
    * @static
-   * @type {UnderpostRootEnv}
+   * @type {UnderpostRootEnv.API}
    * @memberof Underpost
    */
-  static env = UnderpostRootEnv;
+  static env = UnderpostRootEnv.API;
   /**
    * Test cli API
    * @static
-   * @type {UnderpostTest}
+   * @type {UnderpostTest.API}
    * @memberof Underpost
    */
-  static test = UnderpostTest;
+  static test = UnderpostTest.API;
   /**
    * Cluster cli API
    * @static
-   * @type {UnderpostCluster}
+   * @type {UnderpostCluster.API}
    * @memberof Underpost
    */
-  static cluster = UnderpostCluster;
+  static cluster = UnderpostCluster.API;
   /**
    * Image cli API
    * @static
-   * @type {UnderpostImage}
+   * @type {UnderpostImage.API}
    * @memberof Underpost
    */
-  static image = UnderpostImage;
+  static image = UnderpostImage.API;
 }
 
 const up = Underpost;
