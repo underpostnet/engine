@@ -92,7 +92,7 @@ const buildRuntime = async () => {
           : redirect
         : undefined;
 
-      if (redirect) logger.info('redirect', new URL(redirect));
+      // if (redirect) logger.info('redirect', new URL(redirect));
 
       switch (runtime) {
         case 'lampp':

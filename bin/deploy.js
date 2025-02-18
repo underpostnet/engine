@@ -26,6 +26,7 @@ import {
   restoreMacroDb,
   fixDependencies,
   setUpProxyMaintenanceServer,
+  writeEnv,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -546,13 +547,7 @@ try {
             ? envInstanceObj.port
             : envInstanceObj.port + port - singleReplicaHosts.length - (replicaHost ? 1 : 0);
 
-          fs.writeFileSync(
-            envPath,
-            Object.keys(envObj)
-              .map((key) => `${key}=${envObj[key]}`)
-              .join(`\n`),
-            'utf8',
-          );
+          writeEnv(envPath, envObj);
         }
         const serverConf = loadReplicas(
           JSON.parse(fs.readFileSync(`${baseConfPath}/${deployId}/conf.server.json`, 'utf8')),
