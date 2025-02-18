@@ -22,12 +22,11 @@ const basePath = '../pwa-microservices-template';
 const repoName = `engine-${confName.split('dd-')[1]}`;
 const privateRepoName = `${repoName}-private`;
 const privateRepoNameBackUp = `${repoName}-cron-backups`;
-const gitUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoName}.git`;
-const gitBackUpUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoNameBackUp}.git`;
+const gitPrivateUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoName}.git`;
+const gitPrivateBackUpUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoNameBackUp}.git`;
 
 logger.info('', {
   confName,
-  // gitUrl,
   repoName,
   privateRepoName,
   privateRepoNameBackUp,
@@ -153,7 +152,7 @@ spec:
 }
 if (process.argv.includes('conf')) {
   if (!fs.existsSync(`../${privateRepoName}`)) {
-    shellExec(`cd .. && git clone ${gitUrl}`, { silent: true });
+    shellExec(`cd .. && git clone ${gitPrivateUrl}`, { silent: true });
   } else {
     shellExec(`cd ../${privateRepoName} && git pull`);
   }
@@ -172,7 +171,7 @@ if (process.argv.includes('conf')) {
 
 if (process.argv.includes('cron-backups')) {
   if (!fs.existsSync(`../${privateRepoNameBackUp}`)) {
-    shellExec(`cd .. && git clone ${gitBackUpUrl}`, { silent: true });
+    shellExec(`cd .. && git clone ${gitPrivateBackUpUrl}`, { silent: true });
   } else {
     shellExec(`cd ../${privateRepoNameBackUp} && git pull`);
   }
