@@ -106,10 +106,10 @@ SrrComponent = ({ ttiLoadTimeLimit }) => {
     </style>
     ${borderChar(1, 'black', ['.clean-cache-container'])}
     <script>
-      window._VERSION = '${process.env.npm_package_version}';
+      window._VERSION = '${npm_package_version}';
       const CacheControl = ${CacheControl};
       CacheControl({ ttiLoadTimeLimit: ${ttiLoadTimeLimit ? ttiLoadTimeLimit : 1000 * 70 * 1} });
     </script>
-    <div class="clean-cache-container">${process.env.npm_package_version}</div>
+    <div class="clean-cache-container">${npm_package_version}</div>
   `;
 };

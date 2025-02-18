@@ -1,6 +1,7 @@
 'use strict';
 
 import fs from 'fs-extra';
+import vm from 'node:vm';
 
 const srcFormatted = (src) =>
   src
@@ -48,9 +49,10 @@ const viewFormatted = (src, dists, proxyPath, baseHost = '') => {
 };
 
 const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
-  let SrrComponent = () => {};
-  eval(await srcFormatted(fs.readFileSync(componentPath, 'utf8')));
-  return SrrComponent;
+  const context = { SrrComponent: () => {}, npm_package_version: process.env.npm_package_version };
+  vm.createContext(context);
+  vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
+  return context.SrrComponent;
 };
 
 export { srcFormatted, JSONweb, componentFormatted, viewFormatted, ssrFactory };
