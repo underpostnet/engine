@@ -21,7 +21,7 @@ class Underpost {
    * @type {String}
    * @memberof Underpost
    */
-  static version = 'v2.8.43';
+  static version = 'v2.8.44';
 
   constructor() {}
 
