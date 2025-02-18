@@ -19,16 +19,18 @@ const logger = loggerFactory(import.meta);
 
 const confName = process.argv[2];
 const basePath = '../pwa-microservices-template';
-const repoName = `engine-${confName.split('dd-')[1]}-private`;
-const repoNameBackUp = `engine-${confName.split('dd-')[1]}-cron-backups`;
-const gitUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${repoName}.git`;
-const gitBackUpUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${repoNameBackUp}.git`;
+const repoName = `engine-${confName.split('dd-')[1]}`;
+const privateRepoName = `${repoName}-private`;
+const privateRepoNameBackUp = `${repoName}-cron-backups`;
+const gitUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoName}.git`;
+const gitBackUpUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoNameBackUp}.git`;
 
 logger.info('', {
   confName,
   // gitUrl,
   repoName,
-  repoNameBackUp,
+  privateRepoName,
+  privateRepoNameBackUp,
   basePath,
 });
 
@@ -150,17 +152,17 @@ spec:
   process.exit(0);
 }
 if (process.argv.includes('conf')) {
-  if (!fs.existsSync(`../${repoName}`)) {
+  if (!fs.existsSync(`../${privateRepoName}`)) {
     shellExec(`cd .. && git clone ${gitUrl}`, { silent: true });
   } else {
-    shellExec(`cd ../${repoName} && git pull`);
+    shellExec(`cd ../${privateRepoName} && git pull`);
   }
-  const toPath = `../${repoName}/conf/${confName}`;
+  const toPath = `../${privateRepoName}/conf/${confName}`;
   fs.removeSync(toPath);
   fs.mkdirSync(toPath, { recursive: true });
   fs.copySync(`./engine-private/conf/${confName}`, toPath);
   shellExec(
-    `cd ../${repoName}` +
+    `cd ../${privateRepoName}` +
       ` && git add .` +
       ` && git commit -m "ci(engine-core-conf): ⚙️ Update ${confName} conf"` +
       ` && git push`,
@@ -169,16 +171,16 @@ if (process.argv.includes('conf')) {
 }
 
 if (process.argv.includes('cron-backups')) {
-  if (!fs.existsSync(`../${repoNameBackUp}`)) {
+  if (!fs.existsSync(`../${privateRepoNameBackUp}`)) {
     shellExec(`cd .. && git clone ${gitBackUpUrl}`, { silent: true });
   } else {
-    shellExec(`cd ../${repoNameBackUp} && git pull`);
+    shellExec(`cd ../${privateRepoNameBackUp} && git pull`);
   }
   const serverConf = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
   for (const host of Object.keys(serverConf)) {
     for (let path of Object.keys(serverConf[host])) {
       path = path.replaceAll('/', '-');
-      const toPath = `../${repoNameBackUp}/${host}${path}`;
+      const toPath = `../${privateRepoNameBackUp}/${host}${path}`;
       const fromPath = `./engine-private/cron-backups/${host}${path}`;
       if (fs.existsSync(fromPath)) {
         if (fs.existsSync(toPath)) fs.removeSync(toPath);
@@ -188,7 +190,7 @@ if (process.argv.includes('cron-backups')) {
     }
   }
   shellExec(
-    `cd ../${repoNameBackUp}` +
+    `cd ../${privateRepoNameBackUp}` +
       ` && git add .` +
       ` && git commit -m "ci(engine-core-cron-backups): ⚙️ Update ${confName} cron backups"` +
       ` && git push`,
@@ -274,5 +276,9 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 
   const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
   packageJson.name = repoName;
-  fs.writeFileSync(`${basePath}/package.json`, JSON.stringify(packageJson, null, 4), 'utf8');
+  fs.writeFileSync(
+    `${basePath}/package.json`,
+    JSON.stringify(packageJson, null, 4).replaceAll('pwa-microservices-template', repoName),
+    'utf8',
+  );
 }
