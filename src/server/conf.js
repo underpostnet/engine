@@ -127,7 +127,11 @@ const loadConf = (deployId, envInput) => {
       ...env,
     };
   }
-  fs.writeFileSync(`./package.json`, fs.readFileSync(`${folder}/package.json`, 'utf8'), 'utf8');
+  const originPackageJson = JSON.parse(fs.readFileSync(`./package.json`, 'utf8'));
+  const packageJson = JSON.parse(fs.readFileSync(`${folder}/package.json`, 'utf8'));
+  originPackageJson.scripts.start = packageJson.scripts.start;
+  packageJson.scripts = originPackageJson.scripts;
+  fs.writeFileSync(`./package.json`, JSON.stringify(packageJson, null, 4), 'utf8');
   return { folder, deployId };
 };
 
@@ -1164,6 +1168,8 @@ const repoPush = (repoPath = './', gitUri = 'underpostnet/pwa-microservices-temp
 const getNpmRootPath = () =>
   shellExec(`npm root -g`, {
     stdout: true,
+    disableLog: true,
+    silent: true,
   }).trim();
 
 const newProject = (repositoryName, version) => {
@@ -1195,6 +1201,55 @@ const newProject = (repositoryName, version) => {
 const runTest = (version) => {
   actionInitLog(version);
   shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
+};
+
+const writeEnv = (envPath, envObj) =>
+  fs.writeFileSync(
+    envPath,
+    Object.keys(envObj)
+      .map((key) => `${key}=${envObj[key]}`)
+      .join(`\n`),
+    'utf8',
+  );
+
+const UnderpostRootEnv = {
+  set: (key, value) => {
+    const exeRootPath = `${getNpmRootPath()}/underpost`;
+    const envPath = `${exeRootPath}/.env`;
+    let env = {};
+    if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+    env[key] = value;
+    writeEnv(envPath, env);
+  },
+  delete: (key, value) => {
+    const exeRootPath = `${getNpmRootPath()}/underpost`;
+    const envPath = `${exeRootPath}/.env`;
+    let env = {};
+    if (fs.existsSync(envPath)) env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+    delete env[key];
+    writeEnv(envPath, env);
+  },
+  get: (key) => {
+    const exeRootPath = `${getNpmRootPath()}/underpost`;
+    const envPath = `${exeRootPath}/.env`;
+    if (!fs.existsSync(envPath)) return logger.error(`Unable to find underpost root environment`);
+    const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+    logger.info('underpost root', { [key]: env[key] });
+    return env[key];
+  },
+  list: () => {
+    const exeRootPath = `${getNpmRootPath()}/underpost`;
+    const envPath = `${exeRootPath}/.env`;
+    if (!fs.existsSync(envPath)) return logger.error(`Unable to find underpost root environment`);
+    const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
+    logger.info('underpost root', env);
+    return env;
+  },
+  clean: () => {
+    const exeRootPath = `${getNpmRootPath()}/underpost`;
+    const envPath = `${exeRootPath}/.env`;
+    fs.removeSync(envPath);
+  },
 };
 
 export {
@@ -1239,4 +1294,6 @@ export {
   newProject,
   runTest,
   getNpmRootPath,
+  writeEnv,
+  UnderpostRootEnv,
 };

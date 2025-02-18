@@ -15,7 +15,7 @@ import { getCapVariableName, newInstance } from '../client/components/core/Commo
 import { Xampp } from '../runtime/xampp/Xampp.js';
 import { MailerProvider } from '../mailer/MailerProvider.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import { createProxyMiddleware } from 'http-proxy-middleware';
+// import { createProxyMiddleware } from 'http-proxy-middleware';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
 import { getDeployId } from './conf.js';
@@ -31,20 +31,6 @@ const buildRuntime = async () => {
   const collectDefaultMetrics = promClient.collectDefaultMetrics;
   collectDefaultMetrics();
 
-  if (fs.existsSync(`/root/.bashrc`) && !fs.readFileSync(`/root/.bashrc`, 'utf8').match(`underpost-engine`)) {
-    fs.writeFileSync(
-      `/root/.bashrc`,
-      `${fs.readFileSync(`/root/.bashrc`, 'utf8')}
-` +
-        `export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm underpost-engine bash_completion
-
-export PATH=$PATH:/opt/lampp/bin`,
-      'utf8',
-    );
-  }
-
   const promCounterOption = {
     name: `${deployId.replaceAll('-', '_')}_http_requests_total`,
     help: 'Total number of HTTP requests',
@@ -54,7 +40,6 @@ export PATH=$PATH:/opt/lampp/bin`,
   // logger.info('promCounterOption', promCounterOption);
 
   const requestCounter = new promClient.Counter(promCounterOption);
-
   const ipInstance = ''; // await ip.public.ipv4();
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
@@ -101,12 +86,13 @@ export PATH=$PATH:/opt/lampp/bin`,
         apis,
       };
 
-      let redirectUrl;
-      let redirectTarget;
-      if (redirect) {
-        redirectUrl = new URL(redirect);
-        redirectTarget = redirect[redirect.length - 1] === '/' ? redirect.slice(0, -1) : redirect;
-      }
+      const redirectTarget = redirect
+        ? redirect[redirect.length - 1] === '/'
+          ? redirect.slice(0, -1)
+          : redirect
+        : undefined;
+
+      if (redirect) logger.info('redirect', new URL(redirect));
 
       switch (runtime) {
         case 'lampp':

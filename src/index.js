@@ -6,7 +6,6 @@
 
 import { runTest } from './server/conf.js';
 import { loggerFactory, setUpInfo } from './server/logger.js';
-import Project from './server/project.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -22,8 +21,7 @@ class Underpost {
    * @type {String}
    * @memberof Underpost
    */
-  static version = 'v2.8.42';
-  static project = Project;
+  static version = 'v2.8.43';
 
   constructor() {}
 
