@@ -4,6 +4,7 @@
  * @namespace Underpost
  */
 
+import { runTest } from './server/conf.js';
 import { loggerFactory, setUpInfo } from './server/logger.js';
 import Project from './server/project.js';
 
@@ -41,6 +42,10 @@ class Underpost {
    */
   static async setUpInfo() {
     return await setUpInfo(logger);
+  }
+
+  static runTest() {
+    return runTest(Underpost.version);
   }
 }
 

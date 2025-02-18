@@ -190,7 +190,7 @@ const actionInitLog = (version = '0.0.0') =>
   console.log(
     underpostASCI() +
       `
-${version} https://www.nexodev.org/docs
+    ${version} https://www.nexodev.org/docs
 `,
   );
 

@@ -49,14 +49,7 @@ program
   .description('Set environment variables files and conf related to <deploy-id>')
   .action(Underpost.project.useEnv);
 
-program
-  .command('test')
-  .description('Run tests')
-  .action(() => {
-    actionInitLog(Underpost.version);
-    shellCd(`${process.argv[0]}`);
-    shellExec(`npm run test`);
-  });
+program.command('test').description('Run tests').action(Underpost.runTest);
 
 program
   .command('help')

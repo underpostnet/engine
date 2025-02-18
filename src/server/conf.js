@@ -1161,13 +1161,16 @@ const repoPush = (repoPath = './', gitUri = 'underpostnet/pwa-microservices-temp
   );
 };
 
+const getNpmRootPath = () =>
+  shellExec(`npm root -g`, {
+    stdout: true,
+  }).trim();
+
 const newProject = (repositoryName, version) => {
   return new Promise(async (resolve, reject) => {
     try {
-      const exeRootPath = `${shellExec(`npm root -g`, {
-        stdout: true,
-      }).trim()}/underpost`;
-      // const exeRootPath = '/home/dd/pwa-microservices-template'; // process.argv[0];
+      const exeRootPath = `${getNpmRootPath()}/underpost`;
+      // const exeRootPath = '/home/dd/pwa-microservices-template';
       actionInitLog(version);
       await logger.setUpInfo();
       const destFolder = `${process.cwd()}/${repositoryName}`;
@@ -1187,6 +1190,11 @@ const newProject = (repositoryName, version) => {
       return reject(error.message);
     }
   });
+};
+
+const runTest = (version) => {
+  actionInitLog(version);
+  shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
 };
 
 export {
@@ -1229,4 +1237,6 @@ export {
   repoCommit,
   repoPush,
   newProject,
+  runTest,
+  getNpmRootPath,
 };

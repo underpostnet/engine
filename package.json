@@ -6,6 +6,7 @@
   "description": "underpost engine server",
   "scripts": {
     "start": "env-cmd -f .env.production node --max-old-space-size=8192 src/server",
+    "test": "env-cmd -f .env.test c8 mocha",
     "dev": "env-cmd -f .env.development nodemon src/server",
     "dev-api": "env-cmd -f .env.development nodemon --watch src --ignore src/client src/api",
     "dev-client": "env-cmd -f .env.development node src/client.dev",
