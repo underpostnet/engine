@@ -84,7 +84,6 @@ const format = (meta) =>
  * @memberof Logger
  */
 const setUpInfo = async (logger = new winston.Logger()) => {
-  logger.info('npm_package_version', process.env.npm_package_version);
   logger.info('argv', process.argv);
   logger.info('platform', process.platform);
   logger.info('env', process.env.NODE_ENV);
@@ -186,11 +185,11 @@ const underpostASCI = () => `
 ░╚═════╝░╚═╝░░╚══╝╚═════╝░╚══════╝╚═╝░░╚═╝╚═╝░░░░░░╚════╝░╚═════╝░░░░╚═╝░░░
                                                 `;
 
-const actionInitLog = (version = '0.0.0') =>
+const actionInitLog = () =>
   console.log(
     underpostASCI() +
       `
-    ${version} https://www.nexodev.org/docs
+    https://www.nexodev.org/docs
 `,
   );
 

@@ -811,6 +811,77 @@ const generateRandomPasswordSelection = (length) => {
 // 0b = Binary
 // 0o = Octal
 
+const commitData = {
+  feat: {
+    description: 'A new feature',
+    title: 'Features',
+    emoji: '✨',
+  },
+  fix: {
+    description: 'A bug fix',
+    title: 'Bug Fixes',
+    emoji: '🐛',
+  },
+  docs: {
+    description: 'Documentation only changes',
+    title: 'Documentation',
+    emoji: '📚',
+  },
+  style: {
+    description:
+      'Changes that do not affect the meaning of the code (white-space, formatting, missing semi-colons, etc)',
+    title: 'Styles',
+    emoji: '💎',
+  },
+  refactor: {
+    description: 'A code change that neither fixes a bug nor adds a feature',
+    title: 'Code Refactoring',
+    emoji: '📦',
+  },
+  perf: {
+    description: 'A code change that improves performance',
+    title: 'Performance Improvements',
+    emoji: '⚡️',
+  },
+  cd: {
+    description:
+      'Changes to our Continuous Delivery configuration files and scripts (example scopes: Jenkins, Spinnaker, ArgoCD)',
+    title: 'Continuous Delivery',
+    emoji: '🚀',
+  },
+  test: {
+    description: 'Adding missing tests or correcting existing tests',
+    title: 'Tests',
+    emoji: '🚨',
+  },
+  build: {
+    description: 'Changes that affect the build system or external dependencies (example scopes: gulp, broccoli, npm)',
+    title: 'Builds',
+    emoji: '🛠',
+  },
+  ci: {
+    description:
+      'Changes to our CI configuration files and scripts (example scopes: Travis, Circle, BrowserStack, SauceLabs)',
+    title: 'Continuous Integrations',
+    emoji: '⚙️',
+  },
+  chore: {
+    description: "Other changes that don't modify src or test files",
+    title: 'Chores',
+    emoji: '♻️',
+  },
+  revert: {
+    description: 'Reverts a previous commit',
+    title: 'Reverts',
+    emoji: '🗑',
+  },
+  backup: {
+    description: 'Changes related to backups, including creation, restoration, and maintenance.',
+    title: 'Backups',
+    emoji: '💾',
+  },
+};
+
 const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
 
 const commonAdminGuard = (role) => userRoleEnum.indexOf(role) === userRoleEnum.indexOf('admin');
@@ -869,8 +940,9 @@ export {
   hexToNumber,
   numberToHex,
   generateRandomPasswordSelection,
-  userRoleEnum,
   commonAdminGuard,
   commonModeratorGuard,
   isChileanIdentityDocument,
+  userRoleEnum,
+  commitData,
 };

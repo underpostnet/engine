@@ -4,10 +4,11 @@
  * @namespace Underpost
  */
 
-import { runTest } from './server/conf.js';
-import { loggerFactory, setUpInfo } from './server/logger.js';
-
-const logger = loggerFactory(import.meta);
+import UnderpostCluster from './cli/cluster.js';
+import UnderpostRootEnv from './cli/env.js';
+import UnderpostImage from './cli/image.js';
+import UnderpostRepository from './cli/repository.js';
+import UnderpostTest from './cli/test.js';
 
 /**
  * Underpost main module methods
@@ -16,35 +17,40 @@ const logger = loggerFactory(import.meta);
  */
 class Underpost {
   /**
-   * Underpost engine version
+   * Repository cli API
    * @static
-   * @type {String}
+   * @type {UnderpostRepository}
    * @memberof Underpost
    */
-  static version = 'v2.8.44';
-
-  constructor() {}
-
+  static repo = UnderpostRepository;
   /**
-   * Logs information about the current process environment to the console.
-   *
-   * This function is used to log details about
-   * the execution context, such as command-line arguments,
-   * environment variables, the process's administrative privileges,
-   * and the maximum available heap space size.
-   *
+   * Root Env cli API
    * @static
-   * @method setUpInfo
-   * @returns {Promise<void>}
+   * @type {UnderpostRootEnv}
    * @memberof Underpost
    */
-  static async setUpInfo() {
-    return await setUpInfo(logger);
-  }
-
-  static runTest() {
-    return runTest(Underpost.version);
-  }
+  static env = UnderpostRootEnv;
+  /**
+   * Test cli API
+   * @static
+   * @type {UnderpostTest}
+   * @memberof Underpost
+   */
+  static test = UnderpostTest;
+  /**
+   * Cluster cli API
+   * @static
+   * @type {UnderpostCluster}
+   * @memberof Underpost
+   */
+  static cluster = UnderpostCluster;
+  /**
+   * Image cli API
+   * @static
+   * @type {UnderpostImage}
+   * @memberof Underpost
+   */
+  static image = UnderpostImage;
 }
 
 const up = Underpost;
