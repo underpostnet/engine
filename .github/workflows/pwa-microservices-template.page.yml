@@ -44,7 +44,7 @@ jobs:
         run: |
           npm install
           node bin/deploy update-default-conf ghpkg
-          npm run build-production github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
+          env-cmd -f .env.production node bin/deploy build-full-client github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
       # git lfs install
       # git lfs track
       # git lfs ls-files
