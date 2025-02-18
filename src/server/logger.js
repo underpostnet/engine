@@ -12,7 +12,6 @@ import morgan from 'morgan';
 import colorize from 'json-colorizer';
 import colors from 'colors';
 import v8 from 'v8';
-import isAdmin from 'is-admin';
 import { clearTerminalStringColor, formatBytes } from '../client/components/core/CommonJs.js';
 
 colors.enable();
@@ -79,8 +78,7 @@ const format = (meta) =>
  *
  * This function is used to log details about
  * the execution context, such as command-line arguments,
- * environment variables, the process's administrative privileges,
- * and the maximum available heap space size.
+ * environment variables, and the maximum available heap space size.
  *
  * @param {winston.Logger} logger - A pre-configured Winston logger object.
  * @memberof Logger
@@ -90,7 +88,6 @@ const setUpInfo = async (logger = new winston.Logger()) => {
   logger.info('argv', process.argv);
   logger.info('platform', process.platform);
   logger.info('env', process.env.NODE_ENV);
-  logger.info('admin', await isAdmin());
   logger.info('--max-old-space-size', {
     total_available_size: formatBytes(v8.getHeapStatistics().total_available_size),
   });

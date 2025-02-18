@@ -1,10 +1,7 @@
-import detect from 'detect-port';
 import fs from 'fs-extra';
 
 import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
-import { killPortProcess } from 'kill-port-process';
 import { loggerFactory } from './logger.js';
-import { orderArrayFromAttrInt } from '../client/components/core/CommonJs.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { getDeployId } from './conf.js';
 
@@ -14,38 +11,6 @@ import { getDeployId } from './conf.js';
 // dotenv.config();
 
 const logger = loggerFactory(import.meta);
-
-const network = {
-  port: {
-    status: async (ports) => {
-      const status = [];
-      for (const port of ports) {
-        status.push({
-          port,
-          open: await new Promise((resolve) =>
-            detect(port)
-              .then((_port) => {
-                if (port == _port)
-                  // `port: ${port} was not occupied`
-                  return resolve(false);
-
-                // `port: ${port} was occupied, try port: ${_port}`
-                return resolve(true);
-              })
-              .catch((error) => resolve(`${error.message}`)),
-          ),
-        });
-      }
-      return status;
-    },
-    kill: async (ports) => await killPortProcess(ports),
-    portClean: async function (port) {
-      const [portStatus] = await this.status([port]);
-      // logger.info('port status', portStatus);
-      if (portStatus.open) await this.kill([port]);
-    },
-  },
-};
 
 const ip = {
   public: {
@@ -202,7 +167,6 @@ const listenPortController = async (server, port, metadata) =>
 
 export {
   ip,
-  network,
   listenPortController,
   networkRouter,
   netWorkCron,

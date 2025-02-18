@@ -9,7 +9,7 @@ import compression from 'compression';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { network, listenPortController, saveRuntimeRouter, logRuntimeRouter, listenServerFactory } from './network.js';
+import { listenPortController, saveRuntimeRouter, logRuntimeRouter, listenServerFactory } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -295,7 +295,7 @@ export PATH=$PATH:/opt/lampp/bin`,
             logger.info('Build static server runtime', `${host}${path}`);
             currentPort += 2;
             const staticPort = newInstance(currentPort);
-            await network.port.portClean(staticPort);
+
             await listenPortController(app, staticPort, runningData);
             currentPort++;
             continue;
@@ -346,7 +346,7 @@ export PATH=$PATH:/opt/lampp/bin`,
             //     changeOrigin: true,
             //   }),
             // );
-            await network.port.portClean(port);
+
             await listenPortController(app, port, runningData);
             break;
           }
@@ -460,7 +460,7 @@ export PATH=$PATH:/opt/lampp/bin`,
               host,
               path,
             });
-            await network.port.portClean(peerPort);
+
             await listenPortController(peerServer, peerPort, {
               runtime: 'nodejs',
               client: null,
@@ -470,7 +470,6 @@ export PATH=$PATH:/opt/lampp/bin`,
             });
           }
 
-          await network.port.portClean(port);
           await listenPortController(server, port, runningData);
 
           break;
@@ -481,8 +480,8 @@ export PATH=$PATH:/opt/lampp/bin`,
     }
   }
 
-  if (Xampp.enabled() && Xampp.router) await Xampp.initService({ daemon: true });
-  if (Lampp.enabled() && Lampp.router) await Lampp.initService({ daemon: true });
+  if (Xampp.enabled() && Xampp.router) Xampp.initService();
+  if (Lampp.enabled() && Lampp.router) Lampp.initService();
 
   saveRuntimeRouter();
   logRuntimeRouter();

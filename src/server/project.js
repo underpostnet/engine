@@ -1,6 +1,10 @@
-import { loadConf, repoClone, repoCommit, repoPull, repoPush } from './conf.js';
+import { loadConf, newProject, repoClone, repoCommit, repoPull, repoPush } from './conf.js';
 
 class Project {
+  constructor(repositoryName, version) {
+    return newProject(repositoryName, version);
+  }
+
   static clone(gitUri = 'underpostnet/pwa-microservices-template') {
     return repoClone(gitUri);
   }

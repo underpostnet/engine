@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import merge from 'deepmerge';
 import si from 'systeminformation';
 import * as dir from 'path';
 import { svg } from 'font-awesome-assets';
@@ -7,12 +6,10 @@ import axios from 'axios';
 import https from 'https';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { pbcopy, shellCd, shellExec } from '../src/server/process.js';
-import { range, s4 } from '../src/client/components/core/CommonJs.js';
-import { network } from '../src/server/network.js';
+import { pbcopy, shellExec } from '../src/server/process.js';
 import { buildKindPorts } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
-import { buildTextImg, faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
+import { faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
 import keyword_extractor from 'keyword-extractor';
 
 const httpsAgent = new https.Agent({
@@ -29,35 +26,10 @@ const operator = process.argv[2];
 try {
   // let cmd;
   switch (operator) {
-    case 'cls':
-      fs.removeSync('./public');
-      fs.removeSync('./logs');
-      fs.removeSync('./conf');
-      //   fs.removeSync('./engine-private');
-      //   fs.removeSync('./node_modules');
-      break;
     case 'log':
-      (() => {
-        const logPath = `./logs/${process.argv[3]}/${process.argv[4]}.log`;
-        logger.info('Read', logPath);
-        console.log(fs.readFileSync(logPath, 'utf8'));
-      })();
+      console.log(fs.readFileSync(process.argv[3], 'utf8'));
       break;
-    case 'kill-ports':
-      if (!process.argv[3]) process.argv[3] = '22,80,443,3000-3020';
-      for (const port of process.argv[3].split(',')) {
-        const rangePort = port.split('-');
-        if (rangePort[1])
-          for (const port of range(parseInt(rangePort[0]), parseInt(rangePort[1]))) {
-            logger.info('clean port', port);
-            await network.port.portClean(port);
-          }
-        else {
-          logger.info('clean port', parseInt(port));
-          await network.port.portClean(port);
-        }
-      }
-      break;
+
     case 'system-info':
       await (async () => {
         for (const infoKey of Object.keys(si)) {
@@ -73,56 +45,6 @@ try {
           }
         }
       })();
-      break;
-    case 'export-git-changes':
-      {
-        const baseFrom = process.argv[3];
-        const baseTo = process.argv[4];
-        // if (fs.existsSync(baseTo)) fs.removeSync(baseTo);
-        shellCd(baseFrom);
-        {
-          try {
-            let output = shellExec('git status', { silent: true, stdout: true });
-            console.log('output:', output);
-            output = output
-              .split(`to discard changes in working directory)`)[1]
-              .split(`Untracked files:`)[0]
-              .split('modified:')
-              .map((c) => c.trim().replaceAll(`\n`, ''));
-            output[output.length - 1] = output[output.length - 1].split('no changes added to commit')[0];
-            output.shift();
-            for (const fromPath of output) {
-              const from = `${baseFrom}/${fromPath}`;
-              const to = `${baseTo}/${fromPath}`;
-              logger.info('Copy path', { from, to });
-              fs.copySync(from, to);
-            }
-          } catch (error) {
-            logger.error(error);
-          }
-        }
-        {
-          try {
-            let output = shellExec('git status', { silent: true, stdout: true });
-            console.log('output:', output);
-            output = output
-              .split(`to include in what will be committed)`)[1]
-              .split(`no changes added to commit`)[0]
-              .split(`\n`)
-              .map((l) => l.trim())
-              .filter((l) => l);
-
-            for (const fromPath of output) {
-              const from = `${baseFrom}/${fromPath}`;
-              const to = `${baseTo}/${fromPath}`;
-              logger.info('Copy path', { from, to });
-              fs.copySync(from, to);
-            }
-          } catch (error) {
-            logger.error(error);
-          }
-        }
-      }
       break;
     case 'delete-empty-folder':
       function cleanEmptyFoldersRecursively(folder) {
@@ -189,12 +111,6 @@ try {
     case 'b64-image':
       fs.writeFileSync('b64-image', `data:image/jpg;base64,${fs.readFileSync(process.argv[3]).toString('base64')}`);
       break;
-
-    case 'get-ip': {
-      const response = await axios.get(process.argv[3]);
-      logger.info(process.argv[3] + ' IP', response.request.socket.remoteAddress);
-      break;
-    }
 
     case 'clean-env': {
       shellExec(`git checkout package.json`);

@@ -2,10 +2,9 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import https from 'https';
-
+import validator from 'validator';
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
-import { isIPv4 } from 'is-ip';
 import { shellExec } from './process.js';
 
 const httpsAgent = new https.Agent({
@@ -48,7 +47,7 @@ const Dns = {
       } catch (error) {
         logger.error(error, { testIp, stack: error.stack });
       }
-      if (testIp && typeof testIp === 'string' && isIPv4(testIp) && Dns.ip !== testIp) {
+      if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && Dns.ip !== testIp) {
         logger.info(`New ip`, testIp);
         for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {

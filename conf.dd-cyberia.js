@@ -157,12 +157,6 @@ const DefaultConf = /**/ {
           styles: './node_modules/ag-grid-community/styles',
           public_styles_folder: '/styles/ag-grid-community',
         },
-        {
-          folder: './node_modules/eventemitter3/dist',
-          public_folder: '/dist/eventemitter3',
-          import_name: 'eventemitter3',
-          import_name_build: '/dist/eventemitter3/eventemitter3.esm.min.js',
-        },
         { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {
           folder: './node_modules/marked/lib',
@@ -353,12 +347,6 @@ const DefaultConf = /**/ {
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
           public_styles_folder: '/styles/ag-grid-community',
-        },
-        {
-          folder: './node_modules/eventemitter3/dist',
-          public_folder: '/dist/eventemitter3',
-          import_name: 'eventemitter3',
-          import_name_build: '/dist/eventemitter3/eventemitter3.esm.min.js',
         },
         { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {
@@ -566,12 +554,6 @@ const DefaultConf = /**/ {
           public_folder: '/dist/ag-grid-community',
           styles: './node_modules/ag-grid-community/styles',
           public_styles_folder: '/styles/ag-grid-community',
-        },
-        {
-          folder: './node_modules/eventemitter3/dist',
-          public_folder: '/dist/eventemitter3',
-          import_name: 'eventemitter3',
-          import_name_build: '/dist/eventemitter3/eventemitter3.esm.min.js',
         },
         { folder: './node_modules/easymde/dist', public_folder: '/dist/easymde' },
         {

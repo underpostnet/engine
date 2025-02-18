@@ -5,7 +5,7 @@ import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { listenPortController, network } from './network.js';
+import { listenPortController } from './network.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
 import { buildPortProxyRouter, buildProxyRouter, maintenanceMiddleware } from './conf.js';
 
@@ -15,7 +15,7 @@ const logger = loggerFactory(import.meta);
 
 const buildProxy = async () => {
   // default target
-  await network.port.portClean(process.env.PORT);
+
   express().listen(process.env.PORT);
 
   const proxyRouter = buildProxyRouter();
@@ -65,7 +65,6 @@ const buildProxy = async () => {
         }
       : proxyPath;
     app.use(proxyPath, createProxyMiddleware(filter, options));
-    await network.port.portClean(port);
 
     switch (process.env.NODE_ENV) {
       case 'production':

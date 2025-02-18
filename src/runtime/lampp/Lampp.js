@@ -1,5 +1,4 @@
 import fs from 'fs-extra';
-import { network } from '../../server/network.js';
 import { shellCd, shellExec } from '../../server/process.js';
 import { timer } from '../../client/components/core/CommonJs.js';
 import { loggerFactory } from '../../server/logger.js';
@@ -39,20 +38,9 @@ const Lampp = {
       );
 
     shellExec(cmd);
-    await network.port.portClean(3306);
-    for (const port of this.ports) await network.port.portClean(port);
     cmd = `sudo /opt/lampp/lampp start`;
     if (this.router) fs.writeFileSync(`./tmp/lampp-router.conf`, this.router, 'utf-8');
-    shellExec(cmd, { async: true });
-    if (options && options.daemon) this.daemon();
-  },
-  daemon: async function () {
-    await timer(1000 * 60 * 2); // 2 minutes
-    for (const port of this.ports) {
-      const [portStatus] = await network.port.status([port]);
-      if (!portStatus.open) return await this.initService();
-    }
-    this.daemon();
+    shellExec(cmd);
   },
   enabled: () => fs.existsSync(`/opt/lampp/apache2/conf/httpd.conf`),
   appendRouter: function (render) {

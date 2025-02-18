@@ -271,4 +271,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     `./.github/workflows/engine.${confName.split('dd-')[1]}.ci.yml`,
     `${basePath}/.github/workflows/engine.${confName.split('dd-')[1]}.ci.yml`,
   );
+
+  const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
+  packageJson.name = repoName;
+  fs.writeFileSync(`${basePath}/package.json`, JSON.stringify(packageJson, null, 4), 'utf8');
 }

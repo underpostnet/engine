@@ -13,7 +13,7 @@ import cliProgress from 'cli-progress';
 import cliSpinners from 'cli-spinners';
 import logUpdate from 'log-update';
 import colors from 'colors';
-import { loggerFactory } from './logger.js';
+import { actionInitLog, loggerFactory } from './logger.js';
 import { pbcopy, shellExec } from './process.js';
 import { DefaultConf } from '../../conf.js';
 import read from 'read';
@@ -969,6 +969,7 @@ const Cmd = {
 };
 
 const fixDependencies = async () => {
+  return;
   // sed -i "$line_number s,.*,$new_text," "$file"
   // sed -i "$line_number c \\$new_text" "$file"
   const dep = fs.readFileSync(`./node_modules/peer/dist/module.mjs`, 'utf8');
@@ -1160,6 +1161,34 @@ const repoPush = (repoPath = './', gitUri = 'underpostnet/pwa-microservices-temp
   );
 };
 
+const newProject = (repositoryName, version) => {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const exeRootPath = `${shellExec(`npm root -g`, {
+        stdout: true,
+      }).trim()}/underpost`;
+      // const exeRootPath = '/home/dd/pwa-microservices-template'; // process.argv[0];
+      actionInitLog(version);
+      await logger.setUpInfo();
+      const destFolder = `${process.cwd()}/${repositoryName}`;
+      logger.info('Note: This process may take several minutes to complete');
+      logger.info('build app', { destFolder });
+      fs.mkdirSync(destFolder, { recursive: true });
+      fs.copySync(exeRootPath, destFolder);
+      if (fs.existsSync(`${destFolder}/node_modules`)) fs.removeSync(`${destFolder}/node_modules`);
+      fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${exeRootPath}/.dockerignore`, 'utf8'), 'utf8');
+      shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
+      shellExec(`cd ${destFolder} && npm install`);
+      shellExec(`cd ${destFolder} && npm run build`);
+      shellExec(`cd ${destFolder} && npm run dev`);
+      return resolve();
+    } catch (error) {
+      logger.error(error, error.stack);
+      return reject(error.message);
+    }
+  });
+};
+
 export {
   Cmd,
   Config,
@@ -1199,4 +1228,5 @@ export {
   repoPull,
   repoCommit,
   repoPush,
+  newProject,
 };
