@@ -100,7 +100,7 @@ const Input = {
       </div>
     </div>`;
   },
-  parseJsonEval: (selector) => {
+  parseJson: (selector) => {
     try {
       return JSON.parse(s(selector).value);
     } catch (error) {

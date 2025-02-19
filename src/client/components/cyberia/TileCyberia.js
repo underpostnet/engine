@@ -75,7 +75,7 @@ const TileCyberia = {
             if (!dataSolid[y + sumY]) dataSolid[y + sumY] = [];
             dataColor[y + sumY][x + sumX] = s(`.tile-color`).value;
             pixiPaint(x + sumX, y + sumY);
-            dataSolid[y + sumY][x + sumX] = solidMode ? Input.parseJsonEval('.tile-solid') : 0;
+            dataSolid[y + sumY][x + sumX] = solidMode ? Input.parseJson('.tile-solid') : 0;
           }
         }
       renderDataSolid();
