@@ -76,6 +76,15 @@ program
   .description('Get npm root path')
   .action(() => console.log(getNpmRootPath()));
 
+program
+  .command('cluster')
+  .option('--reset', `Delete all clusters and prune all data and caches`)
+  .action((...args) => {
+    if (args[0].reset) return Underpost.cluster.reset();
+    return Underpost.cluster.init();
+  })
+  .description('Manage cluster, for default initialization base kind cluster');
+
 program.command('test').description('Run tests').action(Underpost.test.run);
 
 program.parse();
