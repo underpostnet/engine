@@ -16,6 +16,9 @@ class UnderpostRepository {
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       shellExec(
         `git clone https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''}github.com/${gitUri}.git`,
+        {
+          disableLog: true,
+        },
       );
       if (process.env.GITHUB_TOKEN) {
         shellExec(

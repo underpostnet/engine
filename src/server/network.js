@@ -40,7 +40,7 @@ const saveRuntimeRouter = async () => {
     const path = process.env.DEFAULT_DEPLOY_PATH;
     const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
     if (!deployId || !host || !path) {
-      logger.warn('default deploy instance not found');
+      // logger.warn('default deploy instance not found');
       return;
     }
     const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
