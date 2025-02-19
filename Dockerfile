@@ -37,12 +37,6 @@ RUN apt-get install -y nodejs build-essential
 RUN node --version
 RUN npm --version
 
-# local test
-
-# COPY . .
-
-# RUN npm install
-
 RUN npm install -g underpost
 
 VOLUME [ "/code/app/logs" ]
