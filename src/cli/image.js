@@ -1,6 +1,20 @@
 class UnderpostImage {
   static API = {
-    build() {},
+    container: {
+      build(deployId) {
+        switch (deployId) {
+          case 'dd-lampp':
+            {
+            }
+            break;
+
+          default:
+            {
+            }
+            break;
+        }
+      },
+    },
   };
 }
 export default UnderpostImage;

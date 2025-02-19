@@ -8,6 +8,7 @@ import UnderpostCluster from './cli/cluster.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostRepository from './cli/repository.js';
+import UnderpostSecret from './cli/secrets.js';
 import UnderpostTest from './cli/test.js';
 
 /**
@@ -58,6 +59,13 @@ class Underpost {
    * @memberof Underpost
    */
   static image = UnderpostImage.API;
+  /**
+   * Secrets cli API
+   * @static
+   * @type {UnderpostSecret.API}
+   * @memberof Underpost
+   */
+  static secret = UnderpostSecret.API;
 }
 
 const up = Underpost;
