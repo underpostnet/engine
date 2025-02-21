@@ -85,6 +85,21 @@ program
   })
   .description('Manage cluster, for default initialization base kind cluster');
 
+program
+  .command('secret')
+  .argument('<platform>', `Options: ${Object.keys(Underpost.secret)}`)
+  .option('--init', 'Init secrets platform environment')
+  .option('--create-from-file <path-env-file>', 'Create secret from env file')
+  .option('--list', 'Lists secrets')
+  // .option('--delete [secret-key]', 'Delete key secret, if not set, are default delete all')
+  // .option('--create [secret-key] [secret-value]', 'Create secret key, with secret value')
+  .description(`Manage secrets`)
+  .action((...args) => {
+    if (args[1].createFromFile) return Underpost.secret[args[0]].createFromEnvFile(args[1].createFromFile);
+    if (args[1].list) return Underpost.secret[args[0]].list();
+    if (args[1].init) return Underpost.secret[args[0]].init();
+  });
+
 program.command('test').description('Run tests').action(Underpost.test.run);
 
 program.parse();
