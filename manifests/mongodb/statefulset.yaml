@@ -16,28 +16,62 @@ spec:
       containers:
         - name: mongodb
           image: docker.io/library/mongo:latest
-          command:
-            - mongod
-            - '--replSet'
-            - 'rs0'
-            # - '--config'
-            # - '-f'
-            # - '/etc/mongod.conf'
-            # - '--auth'
-            # - '--clusterAuthMode'
-            # - 'keyFile'
-            # - '--keyFile'
-            # - '/etc/mongodb-keyfile'
-            # - '--interleave'
-            # - 'all'
-            # - '--wiredTigerCacheSizeGB'
-            # - '0.25'
-            # - '--setParameter'
-            # - 'authenticationMechanisms=SCRAM-SHA-1'
-            # - '--fork'
-            - '--logpath'
-            - '/var/log/mongodb/mongod.log'
-            - '--bind_ip_all'
+          # command:
+          #   - mongod
+          #   - '--replSet'
+          #   - 'rs0'
+          # - '--config'
+          # - '-f'
+          # - '/etc/mongod.conf'
+          # - '--auth'
+          # - '--clusterAuthMode'
+          # - 'keyFile'
+          # - '--keyFile'
+          # - '/etc/mongodb-keyfile'
+          # - '--interleave'
+          # - 'all'
+          # - '--wiredTigerCacheSizeGB'
+          # - '0.25'
+          # - '--setParameter'
+          # - 'authenticationMechanisms=SCRAM-SHA-1'
+          # - '--fork'
+          # - '--logpath'
+          # - '/var/log/mongodb/mongod.log'
+          # - '--bind_ip_all'
+          command: ['sh', '-c']
+          args:
+            - |
+              mongod --replSet rs0 --bind_ip_all &
+              sleep 1000
+              if mongosh --host mongodb-0.mongodb-service:27017 --eval "rs.status()" | grep -q "not yet initialized"; then
+                mongosh --host mongodb-0.mongodb-service:27017 <<EOF
+                use admin;
+                rs.initiate({
+                  _id: "rs0",
+                  members: [
+                    { _id: 0, host: "mongodb-0.mongodb-service:27017", priority: 1 },
+                    { _id: 1, host: "mongodb-1.mongodb-service:27017", priority: 1 }
+                  ]
+                });
+                db.getSiblingDB("admin").createUser({
+                  user: process.env.MONGO_INITDB_ROOT_USERNAME, 
+                  pwd: process.env.MONGO_INITDB_ROOT_PASSWORD, 
+                  roles: [{ role: "userAdminAnyDatabase", db: "admin" }]
+                });
+                use default;
+                db.createUser(
+                  {
+                    user: process.env.MONGO_INITDB_ROOT_USERNAME, 
+                    pwd: process.env.MONGO_INITDB_ROOT_PASSWORD, 
+                    roles: [
+                      { role: "read", db: "test" },
+                      { role: "readWrite", db: "default" }
+                    ]
+                  }
+                );
+                EOF
+              fi
+              wait
           ports:
             - containerPort: 27017
           volumeMounts:

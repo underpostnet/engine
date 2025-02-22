@@ -84,7 +84,9 @@ program
   .option('--mongodb', 'Init with mongodb statefulset')
   .option('--valkey', 'Init with valkey service')
   .option('--contour', 'Init with project contour base HTTPProxy and envoy')
+  .option('--info', 'Get all kinds objects deployed')
   .option('--full', 'Init with all statefulsets and services available')
+  .option('--ns-use <ns-name>', 'Switches current context to namespace')
   .action((...args) => {
     if (args[0].reset) return Underpost.cluster.reset();
     return Underpost.cluster.init(args[0]);

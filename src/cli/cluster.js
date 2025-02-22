@@ -5,7 +5,35 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostCluster {
   static API = {
-    init(options = { valkey: false, mariadb: false, valkey: false, full: false }) {
+    init(options = { valkey: false, mariadb: false, valkey: false, full: false, info: false, nsUse: '' }) {
+      if (options.nsUse) {
+        shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
+        return;
+      }
+      if (options.info) {
+        shellExec(`kubectl config get-contexts`); // config env persisente for manage multiple clusters
+        shellExec(`kubectl config get-clusters`);
+        shellExec(`kubectl get nodes -o wide`); // set of nodes of a cluster
+        shellExec(`kubectl config view | grep namespace`);
+        shellExec(`kubectl get ns -o wide`); // A namespace can have pods of different nodes
+        shellExec(`kubectl get pvc --all-namespaces -o wide`); // PersistentVolumeClaim -> request storage service
+        shellExec(`kubectl get pv --all-namespaces -o wide`); // PersistentVolume -> real storage
+        shellExec(`kubectl get cronjob --all-namespaces -o wide`);
+        shellExec(`kubectl get svc --all-namespaces -o wide`); // proxy dns gate way -> deployments, statefulsets, pods
+        shellExec(`kubectl get statefulsets --all-namespaces -o wide`); // set pods with data/volume persistence
+        shellExec(`kubectl get deployments --all-namespaces -o wide`); // set pods
+        shellExec(`kubectl get configmap --all-namespaces -o wide`);
+        shellExec(`kubectl get pods --all-namespaces -o wide`);
+        shellExec(
+          `kubectl get pod --all-namespaces -o="custom-columns=NAME:.metadata.name,INIT-CONTAINERS:.spec.initContainers[*].name,CONTAINERS:.spec.containers[*].name"`,
+        );
+        shellExec(
+          `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
+        );
+        console.log();
+        shellExec(`kubectl get secrets --all-namespaces -o wide`);
+        return;
+      }
       const testClusterInit = shellExec(`kubectl get pods --all-namespaces -o wide`, {
         disableLogging: true,
         silent: true,
@@ -21,8 +49,10 @@ class UnderpostCluster {
         shellExec(`cd ./manifests && kind create cluster --config kind-config.yaml`);
       } else logger.warn('Cluster already initialized');
 
-      if (options.full || options.valkey) shellExec(`kubectl apply -k ./manifests/valkey`);
-
+      if (options.full || options.valkey) {
+        shellExec(`kubectl delete statefulset service-valkey`);
+        shellExec(`kubectl apply -k ./manifests/valkey`);
+      }
       if (options.full || options.mariadb) {
         shellExec(
           `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password`,
@@ -30,6 +60,7 @@ class UnderpostCluster {
         shellExec(
           `sudo kubectl create secret generic github-secret --from-literal=GITHUB_TOKEN=${process.env.GITHUB_TOKEN}`,
         );
+        shellExec(`kubectl delete statefulset mariadb-statefulset`);
         shellExec(`kubectl apply -k ./manifests/mariadb`);
       }
       if (options.full || options.mongodb) {
@@ -39,6 +70,7 @@ class UnderpostCluster {
         shellExec(
           `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password`,
         );
+        shellExec(`kubectl delete statefulset mongodb`);
         shellExec(`kubectl apply -k ./manifests/mongodb`);
       }
 

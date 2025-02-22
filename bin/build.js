@@ -35,6 +35,13 @@ logger.info('', {
 
 if (process.argv.includes('info')) process.exit(0);
 
+if (process.argv.includes('clean-template')) {
+  fs.copySync(`${basePath}/images`, `./images`);
+  shellExec(`cd ${basePath} && git checkout .`);
+  shellExec(`cd ${basePath} && git clean -f -d`);
+  process.exit(0);
+}
+
 if (process.argv.includes('proxy')) {
   const env = process.argv.includes('development') ? 'development' : 'production';
   process.env.NODE_ENV = env;
