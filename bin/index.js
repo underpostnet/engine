@@ -100,6 +100,21 @@ program
     if (args[1].init) return Underpost.secret[args[0]].init();
   });
 
+program
+  .command('dockerfile-node-script')
+  .argument('<deploy-id>', 'Deploy configuration id')
+  .argument('[env]', 'Optional environment, for default is development')
+  .description('Dockerfile custom node build script')
+  .action(Underpost.image.dockerfile.script);
+
+program
+  .command('dockerfile-image-build')
+  .argument('<deploy-id>', 'Deploy configuration id')
+  .argument('[env]', 'Optional environment, for default is development')
+  .argument('[path]', 'Absolute or relative directory, for default is current')
+  .description('Build image from Dockerfile')
+  .action(Underpost.image.dockerfile.build);
+
 program.command('test').description('Run tests').action(Underpost.test.run);
 
 program.parse();

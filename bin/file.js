@@ -25,16 +25,8 @@ let name = getCapVariableName(file.split('.')[0]);
 logger.info('File metadata', { path, file, ext, name });
 
 try {
-  // throw '';
-  // let cmd;
   let content = '';
   switch (type) {
-    case 'create-js-module':
-      // node bin/file './src/client/components/core/progress bar.js'
-      content = `const ${name} = {}; export { ${name} }`;
-      setTimeout(() => shellExec(`prettier --write ${buildPath}`));
-      break;
-
     case 'update-template':
     case 'copy-src':
       console.log({ rawPath, toPath });

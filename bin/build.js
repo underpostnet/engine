@@ -280,4 +280,6 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     JSON.stringify(packageJson, null, 4).replaceAll('pwa-microservices-template', repoName),
     'utf8',
   );
+
+  fs.copyFileSync(`./engine-private/conf/${confName}/build/development/Dockerfile`, `${basePath}/Dockerfile`);
 }
