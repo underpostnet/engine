@@ -287,5 +287,20 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
 
   // remove engine-private of .dockerignore for local testing
 
-  fs.copyFileSync(`./engine-private/conf/${confName}/build/${env}/Dockerfile`, `${basePath}/Dockerfile`);
+  {
+    fs.removeSync(`${basePath}/manifests/deployment`);
+
+    if (!fs.existsSync(`./manifests/deployment/${confName}-${env}`))
+      fs.mkdirSync(`./manifests/deployment/${confName}-${env}`);
+
+    for (const file of ['Dockerfile', 'proxy.yaml', 'deployment.yaml', 'secret.yaml']) {
+      if (fs.existsSync(`./engine-private/conf/${confName}/build/${env}/${file}`)) {
+        fs.copyFileSync(`./engine-private/conf/${confName}/build/${env}/${file}`, `${basePath}/${file}`);
+        fs.copyFileSync(
+          `./engine-private/conf/${confName}/build/${env}/${file}`,
+          `./manifests/deployment/${confName}-${env}/${file}`,
+        );
+      }
+    }
+  }
 }
