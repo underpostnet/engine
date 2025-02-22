@@ -31,7 +31,13 @@ class UnderpostCluster {
           `kubectl get pods --all-namespaces -o=jsonpath='{range .items[*]}{"\\n"}{.metadata.name}{":\\t"}{range .spec.containers[*]}{.image}{", "}{end}{end}'`,
         );
         console.log();
+        logger.info('contour -------------------------------------------------');
+        for (const _k of ['Cluster', 'HTTPProxy', 'ClusterIssuer', 'Certificate']) {
+          shellExec(`kubectl get ${_k} --all-namespaces -o wide`);
+        }
+        logger.info('----------------------------------------------------------------');
         shellExec(`kubectl get secrets --all-namespaces -o wide`);
+        shellExec(`docker secret ls`);
         return;
       }
       const testClusterInit = shellExec(`kubectl get pods --all-namespaces -o wide`, {

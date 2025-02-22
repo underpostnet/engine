@@ -69,10 +69,9 @@ try {
         fs.copySync(`./.github`, `../pwa-microservices-template/.github`);
         fs.copySync(`./src/client/public/default`, `../pwa-microservices-template/src/client/public/default`);
 
-        shellCd('../pwa-microservices-template');
-        for (const deletePath of ['README.md', 'package-lock.json', 'package.json']) {
-          shellExec(`git checkout ${deletePath}`);
-        }
+        for (const checkoutPath of ['README.md', 'package-lock.json', 'package.json'])
+          shellExec(`cd ../pwa-microservices-template && git checkout ${checkoutPath}`);
+
         for (const deletePath of [
           '.github/workflows/coverall.yml',
           '.github/workflows/docker-image.yml',
@@ -86,12 +85,23 @@ try {
         ]) {
           fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
-        shellCd('../engine');
         const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
         const templatePackageJson = JSON.parse(fs.readFileSync('../pwa-microservices-template/package.json', 'utf8'));
+
+        const name = templatePackageJson.name;
+        const description = templatePackageJson.description;
+        const dev = templatePackageJson.scripts.dev;
+        const build = templatePackageJson.scripts.build;
+
         templatePackageJson.dependencies = originPackageJson.dependencies;
         templatePackageJson.devDependencies = originPackageJson.devDependencies;
         templatePackageJson.version = originPackageJson.version;
+        templatePackageJson.scripts = originPackageJson.scripts;
+        templatePackageJson.name = name;
+        templatePackageJson.description = description;
+        templatePackageJson.scripts.dev = dev;
+        templatePackageJson.scripts.build = build;
+        delete templatePackageJson.scripts['update-template'];
         fs.writeFileSync(
           '../pwa-microservices-template/package.json',
           JSON.stringify(templatePackageJson, null, 4),
