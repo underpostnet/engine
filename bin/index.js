@@ -79,9 +79,14 @@ program
 program
   .command('cluster')
   .option('--reset', `Delete all clusters and prune all data and caches`)
+  .option('--mariadb', 'Init with mariadb statefulset')
+  .option('--mongodb', 'Init with mongodb statefulset')
+  .option('--valkey', 'Init with valkey service')
+  .option('--contour', 'Init with project contour base HTTPProxy and envoy')
+  .option('--full', 'Init with all statefulsets and services available')
   .action((...args) => {
     if (args[0].reset) return Underpost.cluster.reset();
-    return Underpost.cluster.init();
+    return Underpost.cluster.init(args[0]);
   })
   .description('Manage cluster, for default initialization base kind cluster');
 
