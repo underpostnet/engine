@@ -115,6 +115,11 @@ program
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 
+program
+  .command('dockerfile-pull-base-images')
+  .description('Pull underpost dockerfile images requirements')
+  .action(Underpost.image.dockerfile.pullBaseImages);
+
 program.command('test').description('Run tests').action(Underpost.test.run);
 
 program.parse();

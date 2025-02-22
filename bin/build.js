@@ -281,5 +281,11 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     'utf8',
   );
 
-  fs.copyFileSync(`./engine-private/conf/${confName}/build/development/Dockerfile`, `${basePath}/Dockerfile`);
+  fs.copySync(`./src/cli`, `${basePath}/src/cli`);
+
+  const env = process.argv.includes('development') ? 'development' : 'production';
+
+  // remove engine-private of .dockerignore for local testing
+
+  fs.copyFileSync(`./engine-private/conf/${confName}/build/${env}/Dockerfile`, `${basePath}/Dockerfile`);
 }

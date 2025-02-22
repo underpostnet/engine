@@ -5,9 +5,18 @@ import { shellExec } from '../server/process.js';
 class UnderpostImage {
   static API = {
     dockerfile: {
+      pullBaseImages() {
+        shellExec(`sudo podman pull docker.io/library/debian:buster`);
+      },
       build(deployId = 'default', env = 'development', path = '.') {
-        const imgName = `${deployId}-${env}:v${Underpost.version}`;
+        const imgName = `${deployId}-${env}:${Underpost.version}`;
+        const podManImg = `localhost/${imgName}`;
+        const imagesStoragePath = `./images`;
+        const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
+        if (!fs.existsSync(imagesStoragePath)) fs.mkdirSync(imagesStoragePath, { recursive: true });
         shellExec(`cd ${path}` + ` && sudo podman build -f ./Dockerfile -t ${imgName} --pull=never`);
+        shellExec(`podman save -o ${tarFile} ${podManImg}`);
+        shellExec(`sudo kind load image-archive ${tarFile}`);
       },
       script(deployId = 'default', env = 'development') {
         switch (deployId) {
