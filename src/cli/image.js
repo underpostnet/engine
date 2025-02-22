@@ -13,7 +13,6 @@ class UnderpostImage {
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `./images`;
         const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
-        if (!fs.existsSync(imagesStoragePath)) fs.mkdirSync(imagesStoragePath, { recursive: true });
         shellExec(`cd ${path} && sudo podman build -f ./Dockerfile -t ${imgName} --pull=never`);
         shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
