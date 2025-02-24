@@ -8,13 +8,15 @@ class UnderpostImage {
       pullBaseImages() {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
       },
-      build(deployId = 'default', env = 'development', path = '.') {
+      build(deployId = 'default', env = 'development', path = '.', imageArchive = false) {
         const imgName = `${deployId}-${env}:${Underpost.version}`;
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `./images`;
         const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
-        shellExec(`cd ${path} && sudo podman build -f ./Dockerfile -t ${imgName} --pull=never`);
-        shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
+        if (!imageArchive) {
+          shellExec(`cd ${path} && sudo podman build -f ./Dockerfile -t ${imgName} --pull=never`);
+          shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
+        }
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
       script(deployId = 'default', env = 'development') {
