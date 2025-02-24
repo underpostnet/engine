@@ -1,3 +1,5 @@
+import { timer } from '../client/components/core/CommonJs.js';
+import { cliSpinner } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 
@@ -5,7 +7,7 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostCluster {
   static API = {
-    init(options = { valkey: false, mariadb: false, valkey: false, full: false, info: false, nsUse: '' }) {
+    async init(options = { valkey: false, mariadb: false, valkey: false, full: false, info: false, nsUse: '' }) {
       if (options.nsUse) {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;
@@ -78,6 +80,41 @@ class UnderpostCluster {
         );
         shellExec(`kubectl delete statefulset mongodb`);
         shellExec(`kubectl apply -k ./manifests/mongodb`);
+
+        await new Promise(async (resolve) => {
+          cliSpinner(3000, `[cluster.js] `, ` Load mongodb instance`, 'yellow', 'material');
+          await timer(3000);
+
+          const monitor = async () => {
+            cliSpinner(1000, `[cluster.js] `, ` Load mongodb instance`, 'yellow', 'material');
+            await timer(1000);
+            if (
+              shellExec(`kubectl get pods --all-namespaces -o wide`, {
+                silent: true,
+                stdout: true,
+                disableLog: true,
+              }).match(`mongodb-0                                    1/1     Running`)
+            )
+              return resolve();
+            return monitor();
+          };
+          await monitor();
+        });
+
+        const mongoConfig = {
+          _id: 'rs0',
+          members: [
+            { _id: 0, host: 'mongodb-0.mongodb-service:27017', priority: 1 },
+            { _id: 1, host: 'mongodb-1.mongodb-service:27017', priority: 1 },
+          ],
+        };
+
+        shellExec(
+          `kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
+          --eval 'use admin' \
+          --eval 'rs.initiate(${JSON.stringify(mongoConfig)})' \
+          --eval 'rs.status()'`,
+        );
       }
 
       if (options.full || options.contour)
