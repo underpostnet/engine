@@ -2,6 +2,10 @@ import fs from 'fs-extra';
 import Underpost from '../index.js';
 import { shellExec } from '../server/process.js';
 import { MariaDB } from '../db/mariadb/MariaDB.js';
+import dotenv from 'dotenv';
+import { getNpmRootPath } from '../server/conf.js';
+
+dotenv.config();
 
 class UnderpostImage {
   static API = {
@@ -14,8 +18,21 @@ class UnderpostImage {
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `./images`;
         const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
+
+        let secrets = '';
+        let secretDockerInput = '';
+
+        const envObj = dotenv.parse(fs.readFileSync(`${getNpmRootPath()}/underpost/.env`, 'utf8'));
+
+        for (const key of Object.keys(envObj)) {
+          secrets += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
+          secretDockerInput += ` --secret id=${key},env=${key} \ `;
+        }
+
         if (imageArchive !== true) {
-          shellExec(`cd ${path} && sudo podman build -f ./Dockerfile -t ${imgName} --pull=never`);
+          shellExec(
+            `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
+          );
           shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         }
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
