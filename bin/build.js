@@ -289,7 +289,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   );
 
   fs.copySync(`./src/cli`, `${basePath}/src/cli`);
-  fs.mkdirSync(`${basePath}/images`);
+  if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
 
   const env = process.argv.includes('development') ? 'development' : 'production';
 

@@ -39,6 +39,7 @@ const Scroll = {
     delete this.topRefreshEvents[id];
   },
   pullTopRefresh: function () {
+    return;
     append(
       'body',
       html` <style>
