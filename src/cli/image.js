@@ -28,7 +28,7 @@ class UnderpostImage {
           secrets += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
           secretDockerInput += ` --secret id=${key},env=${key} \ `;
         }
-
+        // --rm --no-cache
         if (imageArchive !== true) {
           shellExec(
             `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,

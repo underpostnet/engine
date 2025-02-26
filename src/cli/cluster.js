@@ -50,11 +50,11 @@ class UnderpostCluster {
       if (!(testClusterInit.match('kube-system') && testClusterInit.match('kube-proxy'))) {
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
-        shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
+        // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
         shellExec(`sudo systemctl restart kubelet`);
         shellExec(`sudo service docker restart`);
-        shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
         shellExec(`cd ./manifests && kind create cluster --config kind-config.yaml`);
+        shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
       } else logger.warn('Cluster already initialized');
 
       if (options.full || options.valkey) {
