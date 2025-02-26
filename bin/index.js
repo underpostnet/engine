@@ -54,6 +54,7 @@ program
   .command('push')
   .argument('<path>', 'Absolute or relative directory')
   .argument(`<uri>`, 'e.g. username/repository')
+  .option('-f', 'Force push overwriting repository')
   .description('Push github repository')
   .action(Underpost.repo.push);
 

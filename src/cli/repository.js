@@ -14,7 +14,7 @@ class UnderpostRepository {
     clone(gitUri = 'underpostnet/pwa-microservices-template') {
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
-      shellExec(
+      return shellExec(
         `git clone https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''}github.com/${gitUri}.git`,
         {
           disableLog: true,
@@ -60,10 +60,15 @@ class UnderpostRepository {
       shellExec(`cd ${repoPath} && git commit ${options?.empty ? `--allow-empty ` : ''}-m "${_message}"`);
     },
 
-    push(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template') {
-      shellExec(`cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}.git`, {
-        disableLog: true,
-      });
+    push(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template', options = { f: false }) {
+      shellExec(
+        `cd ${repoPath} && git push https://${process.env.GITHUB_TOKEN}@github.com/${gitUri}.git${
+          options?.f === true ? ' --force' : ''
+        }`,
+        {
+          disableLog: true,
+        },
+      );
       logger.info(
         'commit url',
         `http://github.com/${gitUri}/commit/${shellExec(`cd ${repoPath} && git rev-parse --verify HEAD`, {
