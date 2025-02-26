@@ -119,6 +119,7 @@ window.onload = () =>
   Worker.instance({
     router: RouterBymyelectrics,
     render: async () => {
+      localStorage.setItem('_theme', 'bymyelectrics-light');
       await Css.loadThemes([CssBymyelectricsLight, CssBymyelectricsDark]);
       await TranslateCore.Init();
       await TranslateBymyelectrics.Init();
