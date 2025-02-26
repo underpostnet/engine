@@ -525,9 +525,11 @@ const buildPortProxyRouter = (port, proxyRouter) => {
 
   if (Object.keys(router).length === 0) return router;
 
+  const reOrderRouter = {};
   for (const absoluteHostKey of orderArrayFromAttrInt(Object.keys(router), 'length'))
-    router[absoluteHostKey] = router[absoluteHostKey];
-  return router;
+    reOrderRouter[absoluteHostKey] = router[absoluteHostKey];
+
+  return reOrderRouter;
 };
 
 const cliBar = async (time = 5000) => {
