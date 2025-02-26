@@ -25,14 +25,17 @@ class UnderpostImage {
         const envObj = dotenv.parse(fs.readFileSync(`${getNpmRootPath()}/underpost/.env`, 'utf8'));
 
         for (const key of Object.keys(envObj)) {
+          continue;
           secrets += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
           secretDockerInput += ` --secret id=${key},env=${key} \ `;
         }
         // --rm --no-cache
         if (imageArchive !== true) {
+          fs.copyFile(`${getNpmRootPath()}/underpost/.env`, `${path}/.env.underpost`);
           shellExec(
             `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
           );
+          fs.removeSync(`${path}/.env.underpost`);
           shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         }
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
