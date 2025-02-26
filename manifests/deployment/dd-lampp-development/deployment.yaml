@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-lampp-development
+  labels:
+    app: dd-lampp-development
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dd-lampp-development
+  template:
+    metadata:
+      labels:
+        app: dd-lampp-development
+    spec:
+      containers:
+        - name: dd-lampp-development
+          image: localhost/dd-lampp-development:v2.8.451
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-lampp-development-service
+spec:
+  selector:
+    app: dd-lampp-development
+  ports:
+    - name: 'tcp-4001'
+      protocol: TCP
+      port: 4001
+      targetPort: 4001
+    - name: 'udp-4001'
+      protocol: UDP
+      port: 4001
+      targetPort: 4001
+
+    - name: 'tcp-4002'
+      protocol: TCP
+      port: 4002
+      targetPort: 4002
+    - name: 'udp-4002'
+      protocol: UDP
+      port: 4002
+      targetPort: 4002
+
+    - name: 'tcp-4003'
+      protocol: TCP
+      port: 4003
+      targetPort: 4003
+    - name: 'udp-4003'
+      protocol: UDP
+      port: 4003
+      targetPort: 4003
+
+    - name: 'tcp-4004'
+      protocol: TCP
+      port: 4004
+      targetPort: 4004
+    - name: 'udp-4004'
+      protocol: UDP
+      port: 4004
+      targetPort: 4004
+  type: LoadBalancer

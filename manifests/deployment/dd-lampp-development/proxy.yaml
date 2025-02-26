@@ -1,0 +1,61 @@
+
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.giancarlobertini.com
+spec:
+  virtualhost:
+    fqdn: www.giancarlobertini.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-lampp-development-service
+          port: 4001
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: giancarlobertini.com
+spec:
+  virtualhost:
+    fqdn: giancarlobertini.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-lampp-development-service
+          port: 4002
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.ayleenbertini.com
+spec:
+  virtualhost:
+    fqdn: www.ayleenbertini.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-lampp-development-service
+          port: 4003
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: ayleenbertini.com
+spec:
+  virtualhost:
+    fqdn: ayleenbertini.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-lampp-development-service
+          port: 4004

@@ -44,7 +44,7 @@ jobs:
           cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
           git clone --bare https://github.com/underpostnet/engine-cyberia.git
           cd engine
-          node bin/build dd-cyberia
+          node bin/build dd-cyberia development
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-cyberia.git ./.git
