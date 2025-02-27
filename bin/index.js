@@ -28,6 +28,7 @@ program
 program
   .command('clone')
   .argument(`<uri>`, 'e.g. username/repository')
+  .option('--bare', 'Clone only .git files')
   .description('Clone github repository')
   .action(Underpost.repo.clone);
 

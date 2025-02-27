@@ -11,11 +11,13 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostRepository {
   static API = {
-    clone(gitUri = 'underpostnet/pwa-microservices-template') {
+    clone(gitUri = 'underpostnet/pwa-microservices-template', options = { bare: false }) {
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
       return shellExec(
-        `git clone https://${process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''}github.com/${gitUri}.git`,
+        `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
+          process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
+        }github.com/${gitUri}.git`,
         {
           disableLog: true,
         },
