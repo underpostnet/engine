@@ -2,12 +2,12 @@ name: Test
 on: [push]
 jobs:
   test:
-    if: (github.repository == 'underpostnet/pwa-microservices-template') || (github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
+    # if: (github.repository == 'underpostnet/pwa-microservices-template') || (github.repository == 'underpostnet/pwa-microservices-template-ghpkg')
     name: Node ${{ matrix.node }} on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        node-version: [21.x]
+        node-version: [23.x]
         os: [ubuntu-latest]
       #  os: [ubuntu-latest, windows-latest]
 

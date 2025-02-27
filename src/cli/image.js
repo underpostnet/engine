@@ -19,7 +19,7 @@ class UnderpostImage {
         const imagesStoragePath = `./images`;
         const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
 
-        let secrets = '';
+        let secrets = ' ';
         let secretDockerInput = '';
 
         const envObj = dotenv.parse(fs.readFileSync(`${getNpmRootPath()}/underpost/.env`, 'utf8'));
