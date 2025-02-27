@@ -8,6 +8,7 @@ import { getNpmRootPath, loadConf } from '../src/server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../src/client/components/core/CommonJs.js';
 import UnderpostScript from '../src/cli/script.js';
+import { shellExec } from '../src/server/process.js';
 
 const npmRoot = getNpmRootPath();
 const underpostRoot = `${npmRoot}/underpost/.env`;
@@ -130,6 +131,14 @@ program
   .command('dockerfile-pull-base-images')
   .description('Pull underpost dockerfile images requirements')
   .action(Underpost.image.dockerfile.pullBaseImages);
+
+program
+  .command('install')
+  .description('Fast import npm dependencies')
+  .action(() => {
+    fs.copySync(`${npmRoot}/underpost/node_modules`, './node_modules');
+    shellExec(`npm install --only=dev --ignore-scripts`);
+  });
 
 program
   .command('script')
