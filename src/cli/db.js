@@ -1,3 +1,4 @@
+import { mergeFile } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
@@ -41,6 +42,21 @@ class UnderpostDB {
               const times = await fs.readdir(backUpPath);
               const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)));
               dbs[provider][dbName].currentBackupTimestamp = currentBackupTimestamp;
+
+              const _fromPartsParts = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}-parths.json`;
+              const _toSqlPath = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}.sql`;
+
+              if (fs.existsSync(_fromPartsParts) && !fs.existsSync(_toSqlPath)) {
+                const names = JSON.parse(fs.readFileSync(_fromPartsParts, 'utf8')).map((_path) => {
+                  return `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${_path.split('/').pop()}`;
+                });
+                logger.info('merge Back Up paths', {
+                  _fromPartsParts,
+                  _toSqlPath,
+                  names,
+                });
+                await mergeFile(names, _toSqlPath);
+              }
             }
           }
         }
