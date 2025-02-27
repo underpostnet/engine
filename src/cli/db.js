@@ -26,6 +26,25 @@ class UnderpostDB {
             }
           }
         }
+
+        if (!fs.existsSync(`../${repoName}`)) {
+          shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
+        } else {
+          shellExec(`cd ../${repoName} && underpost pull . ${process.env.GITHUB_USERNAME}/${repoName}`);
+        }
+
+        for (const provider of Object.keys(dbs)) {
+          for (const dbName of Object.keys(dbs[provider])) {
+            const { hostFolder } = dbs[provider][dbName];
+            if (hostFolder) {
+              const backUpPath = `../${repoName}/${hostFolder}`;
+              const times = await fs.readdir(backUpPath);
+              const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)));
+              dbs[provider][dbName].currentBackupTimestamp = currentBackupTimestamp;
+            }
+          }
+        }
+
         logger.info('', { repoName, dbs });
       }
     },
