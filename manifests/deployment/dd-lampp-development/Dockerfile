@@ -75,6 +75,8 @@ RUN underpost clone underpostnet/engine-lampp-private
 
 RUN sudo mv ./engine-lampp-private ./engine-private
 
+RUN sudo cp -a $(npm root -g)/underpost/node_modules /home/dd/engine/node_modules
+
 RUN underpost dockerfile-node-script dd-lampp development
 
 VOLUME [ "/home/dd/engine/logs" ]
