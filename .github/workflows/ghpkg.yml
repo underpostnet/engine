@@ -49,11 +49,11 @@ jobs:
           git add .       
           git commit -m "ci(package-pwa-microservices-template-ghpkg): ⚙️ Update github repo package"
           git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template.git
-          cd ../engine
-          git commit --allow-empty -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
-          git commit --allow-empty -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
-          git commit --allow-empty -m "ci(engine-lampp-repo-build): ⚙️ Update engine lampp repository"
-          git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine.git
+  # cd ../engine
+  # git commit --allow-empty -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
+  # git commit --allow-empty -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
+  # git commit --allow-empty -m "ci(engine-lampp-repo-build): ⚙️ Update engine lampp repository"
+  # git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine.git
 
   pwa-microservices-template-ghpk:
     if: github.repository == 'underpostnet/pwa-microservices-template' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template-ghpkg)')

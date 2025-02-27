@@ -80,6 +80,7 @@ try {
           '.github/workflows/engine.lampp.ci.yml',
           '.github/workflows/engine.core.ci.yml',
           '.github/workflows/engine.cyberia.ci.yml',
+          './manifests/deployment/dd-lampp-development',
           'bin/web3.js',
           'bin/cyberia.js',
         ]) {
