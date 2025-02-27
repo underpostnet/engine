@@ -102,6 +102,9 @@ try {
         templatePackageJson.description = description;
         templatePackageJson.scripts.dev = dev;
         templatePackageJson.scripts.build = build;
+        templatePackageJson.keywords = ['pwa', 'microservices', 'template', 'builder'].concat(
+          templatePackageJson.keywords,
+        );
         delete templatePackageJson.scripts['update-template'];
         fs.writeFileSync(
           '../pwa-microservices-template/package.json',
