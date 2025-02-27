@@ -7,10 +7,11 @@ const logger = loggerFactory(import.meta);
 class UnderpostDB {
   static API = {
     async import(options = { import: 'default' }) {
-      const dbs = {};
       for (const _deployId of options.import.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
+        const dbs = {};
+        const repoName = `engine-${deployId.split('dd-')[1]}-cron-backups`;
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
@@ -20,13 +21,13 @@ class UnderpostDB {
               const { provider, name, user, password } = db;
               if (!dbs[provider]) dbs[provider] = {};
 
-              dbs[provider][name] = { user, password };
+              if (!(name in dbs[provider]))
+                dbs[provider][name] = { user, password, hostFolder: host + path.replaceAll('/', '-') };
             }
           }
         }
+        logger.info('', { repoName, dbs });
       }
-
-      // logger.info('', dbs);
     },
   };
 }
