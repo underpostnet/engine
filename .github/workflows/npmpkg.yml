@@ -1,0 +1,67 @@
+name: Update npm repo package
+on:
+  push:
+    branches: ['master']
+  pull_request:
+    branches: ['master']
+permissions:
+  contents: write
+  packages: write
+  id-token: write
+jobs:
+  pwa-microservices-template:
+    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(package-pwa-microservices-template)')
+    name: Update npm repo package Jobs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+      id-token: write
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '23.x'
+
+      - name: Install dependencies
+        run: |
+          npm install -g underpost
+          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
+          underpost install
+
+      - name: Set git credentials
+        run: |
+          git config --global credential.helper ""
+          git config credential.helper ""
+          git config --global user.name 'underpostnet'
+          git config --global user.email 'development@underpost.net'
+          git config --global credential.interactive always
+          git config user.name 'underpostnet'
+          git config user.email 'development@underpost.net'
+          git config credential.interactive always
+
+      - name: Clone github package repository
+        run: |
+          cd .. && underpost clone underpostnet/pwa-microservices-template
+          cd engine
+          npm run update-template
+          cd ../pwa-microservices-template
+          git remote set-url origin git@github.com:underpostnet/pwa-microservices-template.git
+          git add .       
+          underpost cmt . ci package-pwa-microservices-template-ghpkg 'Update npm repo package'
+          underpost push . underpostnet/pwa-microservices-template
+  # cd ../engine
+  # git commit --allow-empty -m "ci(engine-core-repo-build): ⚙️ Update engine core repository"
+  # git commit --allow-empty -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
+  # git commit --allow-empty -m "ci(engine-lampp-repo-build): ⚙️ Update engine lampp repository"
+  # git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine.git
+
+# git clone --bare https://github.com/underpostnet/engine.git
+# mkdir engine
+# mv ./engine.git ./engine/.git
+# cd engine
+# git init
+
+# git push -u origin https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/pwa-microservices-template-ghpkg.git
+# git push -u origin master
