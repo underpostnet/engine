@@ -1,16 +1,16 @@
 name: Engine cyberia Repo Builder
 on:
-  push:
-    branches: ['master']
-  pull_request:
-    branches: ['master']
+  workflow_run:
+    workflows: ['Update npm repo package']
+    types:
+      - completed
 permissions:
   contents: write
   packages: write
   id-token: write
 jobs:
   pwa-microservices-template:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-cyberia-repo-build)')
+    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(engine-cyberia-repo-build)')
     name: Update github repo package Jobs
     runs-on: ubuntu-latest
     permissions:
@@ -26,7 +26,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          npm install
+          npm install -g underpost
+          underpost install
+          underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
 
       - name: Set git credentials
         run: |
@@ -41,14 +43,14 @@ jobs:
 
       - name: Build repository
         run: |
-          cd .. && git clone https://github.com/underpostnet/pwa-microservices-template.git
-          git clone --bare https://github.com/underpostnet/engine-cyberia.git
+          cd .. && underpost clone underpostnet/pwa-microservices-template
+          underpost clone --bare underpostnet/engine-cyberia
           cd engine
           node bin/build dd-cyberia development
           cd ../pwa-microservices-template
           rm -rf ./.git
           mv ../engine-cyberia.git ./.git
           git init
-          git add .       
-          git commit -m "ci(engine-cyberia-repo-build): ⚙️ Update engine cyberia repository"
-          git push https://${{ secrets.GIT_AUTH_TOKEN }}@github.com/underpostnet/engine-cyberia.git
+          git add .
+          underpost cmt . ci engine-cyberia-repo-build 'Update engine cyberia repository'
+          underpost push . underpostnet/engine-cyberia
