@@ -5,6 +5,7 @@
  */
 
 import UnderpostCluster from './cli/cluster.js';
+import UnderpostDB from './cli/db.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostRepository from './cli/repository.js';
@@ -74,6 +75,13 @@ class Underpost {
    * @memberof Underpost
    */
   static script = UnderpostScript.API;
+  /**
+   * Database cli API
+   * @static
+   * @type {UnderpostDB.API}
+   * @memberof Underpost
+   */
+  static db = UnderpostDB.API;
 }
 
 const up = Underpost;
