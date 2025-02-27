@@ -1,12 +1,12 @@
 name: Docker Image CI
 on:
-  push:
-    branches: ['master']
-  pull_request:
-    branches: ['master']
+  workflow_run:
+    workflows: ['Update github repo package']
+    types:
+      - completed
 jobs:
   build:
-    if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(docker-image-engine)')
+    # if: github.repository == 'underpostnet/engine' && startsWith(github.event.head_commit.message, 'ci(docker-image-engine)')
     runs-on: ubuntu-latest
 
     permissions:
@@ -36,4 +36,4 @@ jobs:
           context: .
           file: ./Dockerfile
           push: true
-          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v2.8.452
+          tags: ${{ secrets.DOCKER_HUB_USERNAME }}/underpost-engine:v2.8.453

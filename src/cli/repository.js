@@ -94,7 +94,7 @@ class UnderpostRepository {
           if (fs.existsSync(`${destFolder}/node_modules`)) fs.removeSync(`${destFolder}/node_modules`);
           fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${exeRootPath}/.dockerignore`, 'utf8'), 'utf8');
           shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
-          shellExec(`cd ${destFolder} && npm install`);
+          shellExec(`cd ${destFolder} && underpost install`);
           shellExec(`cd ${destFolder} && npm run build`);
           shellExec(`cd ${destFolder} && npm run dev`);
           return resolve();

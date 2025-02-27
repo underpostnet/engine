@@ -134,10 +134,9 @@ program
 
 program
   .command('install')
-  .description('Fast import npm dependencies')
+  .description('Fast import underpost npm dependencies')
   .action(() => {
     fs.copySync(`${npmRoot}/underpost/node_modules`, './node_modules');
-    shellExec(`npm install --only=dev --ignore-scripts`);
   });
 
 program
