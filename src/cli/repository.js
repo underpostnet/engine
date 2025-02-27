@@ -83,18 +83,16 @@ class UnderpostRepository {
       return new Promise(async (resolve, reject) => {
         try {
           const exeRootPath = `${getNpmRootPath()}/underpost`;
-          // const exeRootPath = '/home/dd/pwa-microservices-template';
           actionInitLog();
           await logger.setUpInfo();
-          const destFolder = `${process.cwd()}/${repositoryName}`;
+          const destFolder = `./${repositoryName}`;
           logger.info('Note: This process may take several minutes to complete');
           logger.info('build app', { destFolder });
+          if (fs.existsSync(destFolder)) fs.removeSync(destFolder);
           fs.mkdirSync(destFolder, { recursive: true });
           fs.copySync(exeRootPath, destFolder);
-          if (fs.existsSync(`${destFolder}/node_modules`)) fs.removeSync(`${destFolder}/node_modules`);
           fs.writeFileSync(`${destFolder}/.gitignore`, fs.readFileSync(`${exeRootPath}/.dockerignore`, 'utf8'), 'utf8');
           shellExec(`cd ${destFolder} && git init && git add . && git commit -m "Base template implementation"`);
-          shellExec(`cd ${destFolder} && underpost install`);
           shellExec(`cd ${destFolder} && npm run build`);
           shellExec(`cd ${destFolder} && npm run dev`);
           return resolve();

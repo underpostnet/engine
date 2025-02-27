@@ -85,6 +85,7 @@ const format = (meta) =>
  */
 const setUpInfo = async (logger = new winston.Logger()) => {
   logger.info('argv', process.argv);
+  logger.info('cwd', process.cwd());
   logger.info('platform', process.platform);
   logger.info('env', process.env.NODE_ENV);
   logger.info('--max-old-space-size', {
