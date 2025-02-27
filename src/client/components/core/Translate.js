@@ -508,6 +508,10 @@ const TranslateCore = {
       en: 'Invalid identity document',
       es: 'Documento de identidad inválido',
     };
+    Translate.Data['expired-session'] = {
+      en: 'Your session has expired. Please log in again.',
+      es: 'Su sesión ha expirado. Por favor, inicie sesión de nuevo.',
+    };
   },
 };
 
