@@ -79,8 +79,6 @@ RUN underpost install
 
 RUN underpost dockerfile-node-script dd-lampp development
 
-RUN underpost config clean
-
 VOLUME [ "/home/dd/engine/logs" ]
 
 EXPOSE 22
