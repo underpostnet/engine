@@ -87,10 +87,12 @@ try {
           '.github/workflows/engine.core.ci.yml',
           '.github/workflows/engine.cyberia.ci.yml',
           './manifests/deployment/dd-lampp-development',
+          './manifests/deployment/dd-cyberia-development',
+          './manifests/deployment/dd-core-development',
           'bin/web3.js',
           'bin/cyberia.js',
         ]) {
-          fs.removeSync('../pwa-microservices-template/' + deletePath);
+          if (fs.existsSync(deletePath)) fs.removeSync('../pwa-microservices-template/' + deletePath);
         }
         const originPackageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
         const templatePackageJson = JSON.parse(fs.readFileSync('../pwa-microservices-template/package.json', 'utf8'));
