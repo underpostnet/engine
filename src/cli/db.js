@@ -36,7 +36,7 @@ class UnderpostDB {
 
         for (const provider of Object.keys(dbs)) {
           for (const dbName of Object.keys(dbs[provider])) {
-            const { hostFolder } = dbs[provider][dbName];
+            const { hostFolder, user, password } = dbs[provider][dbName];
             if (hostFolder) {
               const backUpPath = `../${repoName}/${hostFolder}`;
               const times = await fs.readdir(backUpPath);
@@ -56,6 +56,28 @@ class UnderpostDB {
                   names,
                 });
                 await mergeFile(names, _toSqlPath);
+              }
+
+              switch (provider) {
+                case 'mariadb': {
+                  const podName = `mariadb-statefulset-0`;
+                  const nameSpace = 'default';
+                  const serviceName = 'mariadb';
+                  shellExec(`sudo kubectl cp ${_toSqlPath} ${nameSpace}/${podName}:/${dbName}.sql`);
+                  const cmd = `mariadb -u ${user} -p${password} ${dbName} < /${dbName}.sql`;
+                  shellExec(
+                    `kubectl exec -i ${podName} -- ${serviceName} -p${password} -e 'CREATE DATABASE ${dbName};'`,
+                  );
+                  shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                  break;
+                }
+
+                case 'mongoose': {
+                  break;
+                }
+
+                default:
+                  break;
               }
             }
           }
