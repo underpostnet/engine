@@ -95,10 +95,10 @@ class UnderpostDB {
 
                 case 'mongoose': {
                   if (options.import === true) {
-                  const podName = `mongodb-0`;
-                  shellExec(`sudo kubectl cp ${_toBsonPath} ${nameSpace}/${podName}:/${dbName}`);
-                  const cmd = `mongorestore -d ${dbName} /${dbName}`;
-                  shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                    const podName = `mongodb-0`;
+                    shellExec(`sudo kubectl cp ${_toBsonPath} ${nameSpace}/${podName}:/${dbName}`);
+                    const cmd = `mongorestore -d ${dbName} /${dbName}`;
+                    shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
                   }
                   if (options.export === true) {
                     const podName = `backup-access`;
