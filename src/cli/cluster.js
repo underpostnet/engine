@@ -43,7 +43,7 @@ class UnderpostCluster {
         return;
       }
       const testClusterInit = shellExec(`kubectl get pods --all-namespaces -o wide`, {
-        disableLogging: true,
+        disableLog: true,
         silent: true,
         stdout: true,
       });
