@@ -1,7 +1,5 @@
 ARG BASE_DEBIAN=buster
 
-USER root
-
 FROM debian:${BASE_DEBIAN}
 
 ENV DEBIAN_FRONTEND=noninteractive
