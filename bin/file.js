@@ -1,7 +1,13 @@
 import fs from 'fs-extra';
 
 import { loggerFactory } from '../src/server/logger.js';
-import { cap, getCapVariableName, getDirname, newInstance } from '../src/client/components/core/CommonJs.js';
+import {
+  cap,
+  getCapVariableName,
+  getDirname,
+  newInstance,
+  uniqueArray,
+} from '../src/client/components/core/CommonJs.js';
 import { shellCd, shellExec } from '../src/server/process.js';
 import walk from 'ignore-walk';
 import { validateTemplatePath } from '../src/server/conf.js';
@@ -102,8 +108,8 @@ try {
         templatePackageJson.description = description;
         templatePackageJson.scripts.dev = dev;
         templatePackageJson.scripts.build = build;
-        templatePackageJson.keywords = ['pwa', 'microservices', 'template', 'builder'].concat(
-          templatePackageJson.keywords,
+        templatePackageJson.keywords = uniqueArray(
+          ['pwa', 'microservices', 'template', 'builder'].concat(templatePackageJson.keywords),
         );
         delete templatePackageJson.scripts['update-template'];
         fs.writeFileSync(
