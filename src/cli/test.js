@@ -2,6 +2,7 @@ import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -27,15 +28,15 @@ class UnderpostTest {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
-    async callback(deployList = 'default', options = { insideContainer: false }) {
+    async callback(deployList = '', options = { insideContainer: false }) {
       if (deployList) {
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
           if (!deployId) continue;
-          switch (deployId) {
-            case 'dd-lampp':
-              {
-                if (options.insideContainer === true) {
+          if (options.insideContainer === true)
+            switch (deployId) {
+              case 'dd-lampp':
+                {
                   const { MARIADB_HOST, MARIADB_USER, MARIADB_PASSWORD, DD_LAMPP_TEST_DB_0 } = process.env;
 
                   await MariaDB.query({
@@ -44,20 +45,29 @@ class UnderpostTest {
                     password: MARIADB_PASSWORD,
                     query: `SHOW TABLES FROM ${DD_LAMPP_TEST_DB_0}`,
                   });
-                } else {
                 }
-              }
-              break;
+                break;
 
-            default:
-              if (options.insideContainer === true) {
-                shellExec('npm run test');
-              } else {
+              default:
+                {
+                  shellExec('npm run test');
+                }
+
+                break;
+            }
+          else {
+            const pods = UnderpostDeploy.API.getPods(deployId);
+            if (pods.length > 0)
+              for (const deployData of pods) {
+                const { NAME } = deployData;
+                shellExec(
+                  `sudo kubectl exec -i ${NAME} -- sh -c "cd /home/dd/engine && underpost test ${deployId} --inside-container"`,
+                );
               }
-              break;
+            else logger.warn(`Couldn't find pods in deployment`, { deployId });
           }
         }
-      } else return this.run();
+      } else return UnderpostTest.API.run();
     },
   };
 }
