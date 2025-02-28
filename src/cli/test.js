@@ -1,3 +1,4 @@
+import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
@@ -25,6 +26,38 @@ class UnderpostTest {
     run() {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
+    },
+    async callback(deployList = 'default', options = { insideContainer: false }) {
+      if (deployList) {
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          if (!deployId) continue;
+          switch (deployId) {
+            case 'dd-lampp':
+              {
+                if (options.insideContainer === true) {
+                  const { MARIADB_HOST, MARIADB_USER, MARIADB_PASSWORD, DD_LAMPP_TEST_DB_0 } = process.env;
+
+                  await MariaDB.query({
+                    host: MARIADB_HOST,
+                    user: MARIADB_USER,
+                    password: MARIADB_PASSWORD,
+                    query: `SHOW TABLES FROM ${DD_LAMPP_TEST_DB_0}`,
+                  });
+                } else {
+                }
+              }
+              break;
+
+            default:
+              if (options.insideContainer === true) {
+                shellExec('npm run test');
+              } else {
+              }
+              break;
+          }
+        }
+      } else return this.run();
     },
   };
 }

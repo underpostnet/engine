@@ -165,6 +165,11 @@ program
   )
   .action((...args) => Underpost.script[args[0]](args[1], args[2]));
 
-program.command('test').description('Run tests').action(Underpost.test.run);
+program
+  .command('test')
+  .argument('[deploy-list]', 'Deploy id list, e.g. default-a, default-b')
+  .description('Manage Test, for default run current underpost default test')
+  .option('--inside-container', 'Inside container execution context')
+  .action(Underpost.test.callback);
 
 program.parse();
