@@ -101,6 +101,7 @@ program
   .command('deploy')
   .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
   .argument('[env]', 'Optional environment, for default is development')
+  .option('--remove', 'Delete deployments and services')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 
