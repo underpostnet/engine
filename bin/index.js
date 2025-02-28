@@ -142,11 +142,11 @@ program
 
 program
   .command('db')
-  .option('--import <deploy-id-list>', 'Import databases to containers from deploy id list, e.g. default-a, default-b')
+  .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
+  .option('--import', 'Import container backups from repositories')
+  .option('--export', 'Export container backups to repositories')
   .description('Manage databases')
-  .action((...args) => {
-    if (args && args[0].import) return UnderpostDB.API.import(...args);
-  });
+  .action(UnderpostDB.API.callback);
 
 program
   .command('script')
