@@ -170,6 +170,7 @@ program
   .argument('[deploy-list]', 'Deploy id list, e.g. default-a, default-b')
   .description('Manage Test, for default run current underpost default test')
   .option('--inside-container', 'Inside container execution context')
+  .option('--sh', 'Copy to clipboard, container entrypoint shell command')
   .action(Underpost.test.callback);
 
 program.parse();

@@ -1,7 +1,7 @@
 import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
-import { shellExec } from '../server/process.js';
+import { pbcopy, shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
@@ -28,7 +28,12 @@ class UnderpostTest {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
-    async callback(deployList = '', options = { insideContainer: false }) {
+    async callback(deployList = '', options = { insideContainer: false, sh: false }) {
+      if (options.sh === true) {
+        const [pod] = UnderpostDeploy.API.getPods(deployList);
+        if (pod) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
+        return logger.warn(`Couldn't find pods in deployment`, deployList);
+      }
       if (deployList) {
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
