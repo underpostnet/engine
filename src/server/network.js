@@ -120,7 +120,14 @@ const saveRuntimeCron = async () => {
 
 const listenServerFactory = (logic = async () => {}) => {
   return {
-    listen: async (...args) => (logic ? await logic(...args) : undefined, args[1]()),
+    listen: async (...args) => (
+      setTimeout(() => {
+        const message = 'Listen server factory timeout';
+        logger.error(message);
+        throw new Error(message);
+      }, 80000000), // ~ 55 days
+      (logic ? await logic(...args) : undefined, args[1]())
+    ),
   };
 };
 
