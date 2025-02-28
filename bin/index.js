@@ -98,6 +98,13 @@ program
   .description('Manage cluster, for default initialization base kind cluster');
 
 program
+  .command('deploy')
+  .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
+  .argument('[env]', 'Optional environment, for default is development')
+  .description('Manage deployment, for default deploy development pods')
+  .action(Underpost.deploy.callback);
+
+program
   .command('secret')
   .argument('<platform>', `Options: ${Object.keys(Underpost.secret)}`)
   .option('--init', 'Init secrets platform environment')
