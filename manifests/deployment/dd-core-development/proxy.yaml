@@ -1,0 +1,237 @@
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: underpost.net
+spec:
+  virtualhost:
+    fqdn: underpost.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4013
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4014
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.underpost.net
+spec:
+  virtualhost:
+    fqdn: www.underpost.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4015
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: cryptokoyn.net
+spec:
+  virtualhost:
+    fqdn: cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4016
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4017
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cryptokoyn.net
+spec:
+  virtualhost:
+    fqdn: www.cryptokoyn.net
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4018
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: dogmadual.com
+spec:
+  virtualhost:
+    fqdn: dogmadual.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4019
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.dogmadual.com
+spec:
+  virtualhost:
+    fqdn: www.dogmadual.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4020
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4021
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: nexodev.org
+spec:
+  virtualhost:
+    fqdn: nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4022
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.nexodev.org
+spec:
+  virtualhost:
+    fqdn: www.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4023
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4024
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: healthcare.nexodev.org
+spec:
+  virtualhost:
+    fqdn: healthcare.nexodev.org
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4025
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4026
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: itemledger.com
+spec:
+  virtualhost:
+    fqdn: itemledger.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4027
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4028
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.itemledger.com
+spec:
+  virtualhost:
+    fqdn: www.itemledger.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4029
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.bymyelectrics.com
+spec:
+  virtualhost:
+    fqdn: www.bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4030
+    - conditions:
+        - prefix: /peer
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4031
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: bymyelectrics.com
+spec:
+  virtualhost:
+    fqdn: bymyelectrics.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-core-development-service
+          port: 4032

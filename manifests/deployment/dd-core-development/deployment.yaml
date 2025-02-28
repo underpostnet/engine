@@ -1,0 +1,208 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-core-development
+  labels:
+    app: dd-core-development
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dd-core-development
+  template:
+    metadata:
+      labels:
+        app: dd-core-development
+    spec:
+      containers:
+        - name: dd-core-development
+          image: localhost/dd-core-development:v2.8.46
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-core-development-service
+spec:
+  selector:
+    app: dd-core-development
+  ports:
+    - name: 'tcp-4013'
+      protocol: TCP
+      port: 4013
+      targetPort: 4013
+    - name: 'udp-4013'
+      protocol: UDP
+      port: 4013
+      targetPort: 4013
+
+    - name: 'tcp-4014'
+      protocol: TCP
+      port: 4014
+      targetPort: 4014
+    - name: 'udp-4014'
+      protocol: UDP
+      port: 4014
+      targetPort: 4014
+
+    - name: 'tcp-4015'
+      protocol: TCP
+      port: 4015
+      targetPort: 4015
+    - name: 'udp-4015'
+      protocol: UDP
+      port: 4015
+      targetPort: 4015
+
+    - name: 'tcp-4016'
+      protocol: TCP
+      port: 4016
+      targetPort: 4016
+    - name: 'udp-4016'
+      protocol: UDP
+      port: 4016
+      targetPort: 4016
+
+    - name: 'tcp-4017'
+      protocol: TCP
+      port: 4017
+      targetPort: 4017
+    - name: 'udp-4017'
+      protocol: UDP
+      port: 4017
+      targetPort: 4017
+
+    - name: 'tcp-4018'
+      protocol: TCP
+      port: 4018
+      targetPort: 4018
+    - name: 'udp-4018'
+      protocol: UDP
+      port: 4018
+      targetPort: 4018
+
+    - name: 'tcp-4019'
+      protocol: TCP
+      port: 4019
+      targetPort: 4019
+    - name: 'udp-4019'
+      protocol: UDP
+      port: 4019
+      targetPort: 4019
+
+    - name: 'tcp-4020'
+      protocol: TCP
+      port: 4020
+      targetPort: 4020
+    - name: 'udp-4020'
+      protocol: UDP
+      port: 4020
+      targetPort: 4020
+
+    - name: 'tcp-4021'
+      protocol: TCP
+      port: 4021
+      targetPort: 4021
+    - name: 'udp-4021'
+      protocol: UDP
+      port: 4021
+      targetPort: 4021
+
+    - name: 'tcp-4022'
+      protocol: TCP
+      port: 4022
+      targetPort: 4022
+    - name: 'udp-4022'
+      protocol: UDP
+      port: 4022
+      targetPort: 4022
+
+    - name: 'tcp-4023'
+      protocol: TCP
+      port: 4023
+      targetPort: 4023
+    - name: 'udp-4023'
+      protocol: UDP
+      port: 4023
+      targetPort: 4023
+
+    - name: 'tcp-4024'
+      protocol: TCP
+      port: 4024
+      targetPort: 4024
+    - name: 'udp-4024'
+      protocol: UDP
+      port: 4024
+      targetPort: 4024
+
+    - name: 'tcp-4025'
+      protocol: TCP
+      port: 4025
+      targetPort: 4025
+    - name: 'udp-4025'
+      protocol: UDP
+      port: 4025
+      targetPort: 4025
+
+    - name: 'tcp-4026'
+      protocol: TCP
+      port: 4026
+      targetPort: 4026
+    - name: 'udp-4026'
+      protocol: UDP
+      port: 4026
+      targetPort: 4026
+
+    - name: 'tcp-4027'
+      protocol: TCP
+      port: 4027
+      targetPort: 4027
+    - name: 'udp-4027'
+      protocol: UDP
+      port: 4027
+      targetPort: 4027
+
+    - name: 'tcp-4028'
+      protocol: TCP
+      port: 4028
+      targetPort: 4028
+    - name: 'udp-4028'
+      protocol: UDP
+      port: 4028
+      targetPort: 4028
+
+    - name: 'tcp-4029'
+      protocol: TCP
+      port: 4029
+      targetPort: 4029
+    - name: 'udp-4029'
+      protocol: UDP
+      port: 4029
+      targetPort: 4029
+
+    - name: 'tcp-4030'
+      protocol: TCP
+      port: 4030
+      targetPort: 4030
+    - name: 'udp-4030'
+      protocol: UDP
+      port: 4030
+      targetPort: 4030
+
+    - name: 'tcp-4031'
+      protocol: TCP
+      port: 4031
+      targetPort: 4031
+    - name: 'udp-4031'
+      protocol: UDP
+      port: 4031
+      targetPort: 4031
+
+    - name: 'tcp-4032'
+      protocol: TCP
+      port: 4032
+      targetPort: 4032
+    - name: 'udp-4032'
+      protocol: UDP
+      port: 4032
+      targetPort: 4032
+  type: LoadBalancer
