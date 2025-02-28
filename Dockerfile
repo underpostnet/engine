@@ -1,10 +1,12 @@
 ARG BASE_DEBIAN=buster
 
+USER root
+
 FROM debian:${BASE_DEBIAN}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /code
+WORKDIR /home/dd
 
 # Set root password to root, format is 'user:password'.
 RUN echo 'root:root' | chpasswd
@@ -39,10 +41,10 @@ RUN npm --version
 
 RUN npm install -g underpost
 
-VOLUME [ "/code/app/logs" ]
+VOLUME [ "/home/dd/engine/logs" ]
 
 EXPOSE 22
 
 EXPOSE 4000-4004
 
-CMD [ "underpost", "new", "app" ]
+CMD [ "underpost", "new", "engine" ]
