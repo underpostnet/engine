@@ -1,7 +1,7 @@
 import fs from 'fs-extra';
 
 import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
-import { loggerFactory } from './logger.js';
+import { actionInitLog, loggerFactory } from './logger.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { getDeployId } from './conf.js';
 
@@ -134,7 +134,10 @@ const listenServerFactory = (logic = async () => {}) => {
 const listenPortController = async (server, port, metadata) =>
   new Promise((resolve) => {
     try {
-      if (!server) server = listenServerFactory();
+      if (port === ':') {
+        server.listen(port, actionInitLog);
+        return resolve(true);
+      }
 
       const { host, path, client, runtime, meta } = metadata;
       const error = [];

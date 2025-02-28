@@ -4,6 +4,7 @@ import { pbcopy, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 import { getNpmRootPath } from '../server/conf.js';
+import { listenPortController, listenServerFactory } from '../server/network.js';
 
 dotenv.config();
 
@@ -86,9 +87,10 @@ class UnderpostRepository {
     new(repositoryName) {
       return new Promise(async (resolve, reject) => {
         try {
-          const exeRootPath = `${getNpmRootPath()}/underpost`;
-          actionInitLog();
           await logger.setUpInfo();
+          if (repositoryName === 'service') return resolve(await listenPortController(listenServerFactory(), ':'));
+          else actionInitLog();
+          const exeRootPath = `${getNpmRootPath()}/underpost`;
           const destFolder = `./${repositoryName}`;
           logger.info('Note: This process may take several minutes to complete');
           logger.info('build app', { destFolder });

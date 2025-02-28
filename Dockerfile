@@ -45,4 +45,4 @@ EXPOSE 22
 
 EXPOSE 4000-4004
 
-CMD [ "underpost", "new", "engine" ]
+CMD [ "underpost", "new", "service" ]
