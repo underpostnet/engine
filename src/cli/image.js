@@ -1,7 +1,6 @@
 import fs from 'fs-extra';
 import Underpost from '../index.js';
 import { shellExec } from '../server/process.js';
-import { MariaDB } from '../db/mariadb/MariaDB.js';
 import dotenv from 'dotenv';
 import { getNpmRootPath } from '../server/conf.js';
 
@@ -45,17 +44,6 @@ class UnderpostImage {
           case 'dd-lampp':
             {
               const lamppPublicPath = '/xampp/htdocs/online';
-              if (process.argv.includes('test')) {
-                const { MARIADB_HOST, MARIADB_USER, MARIADB_PASSWORD, DD_LAMPP_TEST_DB_0 } = process.env;
-
-                await MariaDB.query({
-                  host: MARIADB_HOST,
-                  user: MARIADB_USER,
-                  password: MARIADB_PASSWORD,
-                  query: `SHOW TABLES FROM ${DD_LAMPP_TEST_DB_0}`,
-                });
-                process.exit(0);
-              }
               shellExec(`sudo mkdir -p ${lamppPublicPath}`);
 
               {
