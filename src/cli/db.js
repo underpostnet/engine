@@ -38,6 +38,8 @@ class UnderpostDB {
           for (const dbName of Object.keys(dbs[provider])) {
             const { hostFolder, user, password } = dbs[provider][dbName];
             if (hostFolder) {
+              logger.info('import', { hostFolder, provider, dbName });
+
               const backUpPath = `../${repoName}/${hostFolder}`;
               const times = await fs.readdir(backUpPath);
               const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)));
@@ -45,6 +47,7 @@ class UnderpostDB {
 
               const _fromPartsParts = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}-parths.json`;
               const _toSqlPath = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}.sql`;
+              const _toBsonPath = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}`;
 
               if (fs.existsSync(_fromPartsParts) && !fs.existsSync(_toSqlPath)) {
                 const names = JSON.parse(fs.readFileSync(_fromPartsParts, 'utf8')).map((_path) => {
@@ -73,6 +76,11 @@ class UnderpostDB {
                 }
 
                 case 'mongoose': {
+                  const podName = `mongodb-0`;
+                  const nameSpace = 'default';
+                  shellExec(`sudo kubectl cp ${_toBsonPath} ${nameSpace}/${podName}:/${dbName}`);
+                  const cmd = `mongorestore -d ${dbName} /${dbName}`;
+                  shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
                   break;
                 }
 
@@ -82,8 +90,6 @@ class UnderpostDB {
             }
           }
         }
-
-        logger.info('', { repoName, dbs });
       }
     },
   };
