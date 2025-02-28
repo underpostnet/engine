@@ -93,7 +93,7 @@ class UnderpostCluster {
                 silent: true,
                 stdout: true,
                 disableLog: true,
-              }).match(`mongodb-0                                    1/1     Running`)
+              }).match(`mongodb-1                                    1/1     Running`)
             )
               return resolve();
             return monitor();
@@ -110,7 +110,7 @@ class UnderpostCluster {
         };
 
         shellExec(
-          `kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
+          `sudo kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
           --eval 'use admin' \
           --eval 'rs.initiate(${JSON.stringify(mongoConfig)})' \
           --eval 'rs.status()'`,
