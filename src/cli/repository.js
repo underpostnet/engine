@@ -54,6 +54,10 @@ class UnderpostRepository {
         empty: false,
       },
     ) {
+      if (commitType === 'reset') {
+        shellExec(`cd ${repoPath} && git reset --soft HEAD~${isNaN(parseInt(subModule)) ? 1 : parseInt(subModule)}`);
+        return;
+      }
       if (options.info) return logger.info('', commitData);
       const _message = `${commitType}${subModule ? `(${subModule})` : ''}${process.argv.includes('!') ? '!' : ''}: ${
         commitData[commitType].emoji
