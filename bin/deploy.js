@@ -159,10 +159,6 @@ try {
       }
       break;
 
-    case 'remove-await-deploy': {
-      if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-      break;
-    }
     case 'new-nodejs-app':
       {
         const deployId = process.argv[3];
@@ -229,6 +225,7 @@ try {
       break;
     case 'build-full-client':
       {
+        dotenv.config({ override: true });
         if (!process.argv[3]) process.argv[3] = 'default';
         const { deployId, folder } = loadConf(process.argv[3]);
 
@@ -254,7 +251,7 @@ try {
                   serverConf[host][path].replicas.map((replica) => buildReplicaId({ deployId, replica })),
                 );
 
-                shellExec(Cmd.replica(deployId, host, path));
+                // shellExec(Cmd.replica(deployId, host, path));
               }
             }
           }
@@ -263,7 +260,7 @@ try {
         await buildClient();
 
         for (const replicaDeployId of deployIdSingleReplicas) {
-          shellExec(Cmd.conf(replicaDeployId));
+          shellExec(Cmd.conf(replicaDeployId, process.env.NODE_ENV));
           shellExec(Cmd.build(replicaDeployId));
         }
       }

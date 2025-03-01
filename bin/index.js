@@ -127,6 +127,7 @@ program
   .command('dockerfile-node-script')
   .argument('<deploy-id>', 'Deploy configuration id')
   .argument('[env]', 'Optional environment, for default is development')
+  .option('--run', 'Run custom entry point script')
   .description('Dockerfile custom node build script')
   .action(Underpost.image.dockerfile.script);
 

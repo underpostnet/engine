@@ -3,6 +3,7 @@ import Underpost from '../index.js';
 import { shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { getNpmRootPath } from '../server/conf.js';
+import { timer } from '../client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -39,7 +40,7 @@ class UnderpostImage {
         }
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
-      async script(deployId = 'default', env = 'development') {
+      async script(deployId = 'default', env = 'development', options = { run: false }) {
         switch (deployId) {
           case 'dd-lampp':
             {
@@ -99,6 +100,24 @@ class UnderpostImage {
         }
         shellExec(`node bin/deploy conf ${deployId} ${env}`);
         shellExec(`node bin/deploy build-full-client ${deployId}`);
+        if (options.run === true) {
+          const runCmd = env === 'production' ? 'prod-img' : 'dev-img';
+          if (fs.existsSync(`./engine-private/replica`)) {
+            const replicas = await fs.readdir(`./engine-private/replica`);
+            for (const replica of replicas) {
+              shellExec(`node bin/deploy conf ${replica} ${env}`);
+              shellExec(`npm run ${runCmd} ${replica} deploy`, { async: true });
+              fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
+              const monitor = async () => {
+                await timer(1000);
+                if (fs.existsSync(`./tmp/await-deploy`)) return await monitor();
+              };
+              await monitor();
+            }
+            shellExec(`node bin/deploy conf ${deployId} ${env}`);
+          }
+          shellExec(`npm run ${runCmd} ${deployId} deploy`);
+        }
       },
     },
   };
