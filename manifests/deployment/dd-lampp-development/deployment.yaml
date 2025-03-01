@@ -17,7 +17,6 @@ spec:
       containers:
         - name: dd-lampp-development
           image: localhost/dd-lampp-development:v2.8.47
-
 ---
 apiVersion: v1
 kind: Service

@@ -34,6 +34,28 @@ if (process.argv.includes('clean')) {
   process.exit(0);
 }
 
+if (process.argv.includes('conf')) {
+  const privateRepoName = `${repoName}-private`;
+  const gitPrivateUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoName}.git`;
+
+  if (!fs.existsSync(`../${privateRepoName}`)) {
+    shellExec(`cd .. && git clone ${gitPrivateUrl}`, { silent: true });
+  } else {
+    shellExec(`cd ../${privateRepoName} && git pull`);
+  }
+  const toPath = `../${privateRepoName}/conf/${confName}`;
+  fs.removeSync(toPath);
+  fs.mkdirSync(toPath, { recursive: true });
+  fs.copySync(`./engine-private/conf/${confName}`, toPath);
+  shellExec(
+    `cd ../${privateRepoName}` +
+      ` && git add .` +
+      ` && git commit -m "ci(engine-core-conf): ⚙️ Update ${confName} conf"` +
+      ` && git push`,
+  );
+  process.exit(0);
+}
+
 const { DefaultConf } = await import(`../conf.${confName}.js`);
 
 {
