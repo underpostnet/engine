@@ -35,24 +35,30 @@ if (process.argv.includes('clean')) {
 }
 
 if (process.argv.includes('conf')) {
-  const privateRepoName = `${repoName}-private`;
-  const gitPrivateUrl = `https://${process.env.GITHUB_TOKEN}@github.com/underpostnet/${privateRepoName}.git`;
+  for (const _confName of (confName === 'dd'
+    ? fs.readFileSync(`./engine-private/deploy/dd-router`, 'utf8')
+    : confName
+  ).split(',')) {
+    const _repoName = `engine-${_confName.split('dd-')[1]}`;
+    const privateRepoName = `${_repoName}-private`;
+    const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
 
-  if (!fs.existsSync(`../${privateRepoName}`)) {
-    shellExec(`cd .. && git clone ${gitPrivateUrl}`, { silent: true });
-  } else {
-    shellExec(`cd ../${privateRepoName} && git pull`);
+    if (!fs.existsSync(`../${privateRepoName}`)) {
+      shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
+    } else {
+      shellExec(`cd ../${privateRepoName} && underpost pull . ${privateGitUri}`);
+    }
+    const toPath = `../${privateRepoName}/conf/${_confName}`;
+    fs.removeSync(toPath);
+    fs.mkdirSync(toPath, { recursive: true });
+    fs.copySync(`./engine-private/conf/${_confName}`, toPath);
+    shellExec(
+      `cd ../${privateRepoName}` +
+        ` && git add .` +
+        ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
+        ` && underpost push . ${privateGitUri}`,
+    );
   }
-  const toPath = `../${privateRepoName}/conf/${confName}`;
-  fs.removeSync(toPath);
-  fs.mkdirSync(toPath, { recursive: true });
-  fs.copySync(`./engine-private/conf/${confName}`, toPath);
-  shellExec(
-    `cd ../${privateRepoName}` +
-      ` && git add .` +
-      ` && git commit -m "ci(engine-core-conf): ⚙️ Update ${confName} conf"` +
-      ` && git push`,
-  );
   process.exit(0);
 }
 
