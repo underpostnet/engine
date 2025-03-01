@@ -99,7 +99,7 @@ program
 
 program
   .command('deploy')
-  .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
+  .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
   .argument('[env]', 'Optional environment, for default is development')
   .option('--remove', 'Delete deployments and services')
   .option('--sync', 'Sync deployments env, ports, and replicas')
@@ -153,7 +153,7 @@ program
 
 program
   .command('db')
-  .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
+  .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
   .option('--import', 'Import container backups from repositories')
   .option('--export', 'Export container backups to repositories')
   .description('Manage databases')
@@ -171,7 +171,7 @@ program
 
 program
   .command('test')
-  .argument('[deploy-list]', 'Deploy id list, e.g. default-a, default-b')
+  .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
   .description('Manage Test, for default run current underpost default test')
   .option('--inside-container', 'Inside container execution context')
   .option('--sh', 'Copy to clipboard, container entrypoint shell command')
