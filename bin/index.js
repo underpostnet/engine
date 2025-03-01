@@ -175,6 +175,7 @@ program
   .description('Manage Test, for default run current underpost default test')
   .option('--inside-container', 'Inside container execution context')
   .option('--sh', 'Copy to clipboard, container entrypoint shell command')
+  .option('--logs', 'Display container logs')
   .action(Underpost.test.callback);
 
 program.parse();

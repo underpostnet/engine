@@ -28,10 +28,13 @@ class UnderpostTest {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
-    async callback(deployList = '', options = { insideContainer: false, sh: false }) {
-      if (options.sh === true) {
+    async callback(deployList = '', options = { insideContainer: false, sh: false, logs: false }) {
+      if (options.sh === true || options.logs === true) {
         const [pod] = UnderpostDeploy.API.getPods(deployList);
-        if (pod) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
+        if (pod) {
+          if (options.sh) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
+          if (options.logs) return shellExec(`sudo kubectl logs -f ${pod.NAME}`);
+        }
         return logger.warn(`Couldn't find pods in deployment`, deployList);
       }
       if (deployList) {
