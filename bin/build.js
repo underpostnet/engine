@@ -52,6 +52,12 @@ if (process.argv.includes('conf')) {
     fs.removeSync(toPath);
     fs.mkdirSync(toPath, { recursive: true });
     fs.copySync(`./engine-private/conf/${_confName}`, toPath);
+    if (fs.existsSync(`./engine-private/replica`)) {
+      const replicas = await fs.readdir(`./engine-private/replica`);
+      for (const replica of replicas)
+        if (replica.match(_confName))
+          fs.copySync(`./engine-private/replica/${replica}`, `../${privateRepoName}/replica/${replica}`);
+    }
     shellExec(
       `cd ../${privateRepoName}` +
         ` && git add .` +
