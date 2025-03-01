@@ -573,6 +573,14 @@ const isValidFormat = (value, format) => {
   }
 };
 
+const getCurrentTrace = () => {
+  try {
+    _stack;
+  } catch (error) {
+    return error.stack.split('is not defined')[1];
+  }
+};
+
 /**
  * Returns the time difference between UTC time and local time, in minutes.
  * @memberof CommonJS
@@ -943,6 +951,7 @@ export {
   commonAdminGuard,
   commonModeratorGuard,
   isChileanIdentityDocument,
+  getCurrentTrace,
   userRoleEnum,
   commitData,
 };

@@ -40,21 +40,26 @@ const logger = loggerFactory(import.meta);
 
 const Config = {
   default: DefaultConf,
-  build: async function (options = { folder: '' }) {
+  build: async function (options = { folder: '' }, deployContext, deployList, subConf) {
+    if (!deployContext) deployContext = process.argv[2];
     if (!fs.existsSync(`./tmp`)) fs.mkdirSync(`./tmp`, { recursive: true });
     fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
-    if (fs.existsSync(`./engine-private/conf/${process.argv[2]}`)) return loadConf(process.argv[2]);
-    if (fs.existsSync(`./engine-private/replica/${process.argv[2]}`)) return loadConf(process.argv[2]);
+    if (fs.existsSync(`./engine-private/conf/${deployContext}`))
+      return loadConf(deployContext, process.env.NODE_ENV, subConf);
+    if (fs.existsSync(`./engine-private/replica/${deployContext}`))
+      return loadConf(deployContext, process.env.NODE_ENV, subConf);
 
-    if (process.argv[2] === 'deploy') return;
+    if (deployContext === 'deploy') return;
 
-    if (process.argv[2] === 'proxy') {
+    if (deployContext === 'proxy') {
+      if (!deployList) deployList = process.argv[3];
+      if (!subConf) subConf = process.argv[4];
       this.default.server = {};
-      for (const deployId of process.argv[3].split(',')) {
+      for (const deployId of deployList.split(',')) {
         let confPath = `./engine-private/conf/${deployId}/conf.server.json`;
         const privateConfDevPath = fs.existsSync(`./engine-private/replica/${deployId}/conf.server.json`)
           ? `./engine-private/replica/${deployId}/conf.server.json`
-          : `./engine-private/conf/${deployId}/conf.server.dev.${process.argv[4]}.json`;
+          : `./engine-private/conf/${deployId}/conf.server.dev.${subConf}.json`;
         const confDevPath = fs.existsSync(privateConfDevPath)
           ? privateConfDevPath
           : `./engine-private/conf/${deployId}/conf.server.dev.json`;
@@ -62,7 +67,7 @@ const Config = {
         if (process.env.NODE_ENV === 'development' && fs.existsSync(confDevPath)) confPath = confDevPath;
         const serverConf = JSON.parse(fs.readFileSync(confPath, 'utf8'));
 
-        for (const host of Object.keys(loadReplicas(serverConf))) {
+        for (const host of Object.keys(loadReplicas(serverConf, deployContext, subConf))) {
           if (serverConf[host]['/'])
             this.default.server[host] = {
               ...this.default.server[host],
@@ -92,7 +97,7 @@ const Config = {
   },
 };
 
-const loadConf = (deployId, envInput) => {
+const loadConf = (deployId, envInput, subConf) => {
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
@@ -109,7 +114,8 @@ const loadConf = (deployId, envInput) => {
       ? fs.readFileSync(`${folder}/conf.${typeConf}.json`, 'utf8')
       : JSON.stringify(Config.default[typeConf]);
     if (process.env.NODE_ENV === 'development' && typeConf === 'server') {
-      const devConfPath = `${folder}/conf.${typeConf}.dev${process.argv[3] ? `.${process.argv[3]}` : ''}.json`;
+      if (!subConf) subConf = process.argv[3];
+      const devConfPath = `${folder}/conf.${typeConf}.dev${subConf ? `.${subConf}` : ''}.json`;
       if (fs.existsSync(devConfPath)) srcConf = fs.readFileSync(devConfPath, 'utf8');
     }
     if (typeConf === 'server') srcConf = JSON.stringify(loadReplicas(JSON.parse(srcConf)), null, 4);
@@ -135,15 +141,17 @@ const loadConf = (deployId, envInput) => {
   return { folder, deployId };
 };
 
-const loadReplicas = (confServer) => {
+const loadReplicas = (confServer, deployContext, subConf) => {
+  if (!deployContext) deployContext = process.argv[2];
+  if (!subConf) subConf = process.argv[3];
   for (const host of Object.keys(confServer)) {
     for (const path of Object.keys(confServer[host])) {
       const { replicas, singleReplica } = confServer[host][path];
       if (
         replicas &&
-        (process.argv[2] === 'proxy' ||
+        (deployContext === 'proxy' ||
           !singleReplica ||
-          (singleReplica && process.env.NODE_ENV === 'development' && !process.argv[3]))
+          (singleReplica && process.env.NODE_ENV === 'development' && !subConf))
       )
         for (const replicaPath of replicas) {
           confServer[host][replicaPath] = newInstance(confServer[host][path]);

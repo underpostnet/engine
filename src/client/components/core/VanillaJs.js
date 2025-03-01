@@ -419,14 +419,6 @@ const isActiveTab = () => document.hasFocus();
 const isActiveElement = (classSearch = '') =>
   document.activeElement?.classList?.value?.match(classSearch) ? true : false;
 
-const getCurrentTrace = () => {
-  try {
-    _stack;
-  } catch (error) {
-    return error.stack.split('is not defined')[1];
-  }
-};
-
 const isDevInstance = () => location.origin.match('localhost') && location.port;
 
 const getDataFromInputFile = async (file) => Array.from(new Uint8Array(await file.arrayBuffer()));
@@ -460,7 +452,6 @@ export {
   isNavigator,
   getTimeZone,
   getAllChildNodes,
-  getCurrentTrace,
   isActiveTab,
   isActiveElement,
   isDevInstance,

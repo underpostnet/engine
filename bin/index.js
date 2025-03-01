@@ -102,6 +102,8 @@ program
   .argument('<deploy-list>', 'Deploy id list, e.g. default-a, default-b')
   .argument('[env]', 'Optional environment, for default is development')
   .option('--remove', 'Delete deployments and services')
+  .option('--sync', 'Sync deployments env, ports, and replicas')
+  .option('--info-router', 'Display router structure')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 

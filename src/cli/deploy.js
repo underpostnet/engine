@@ -1,12 +1,38 @@
+import { buildPortProxyRouter, buildProxyRouter, Config, getDataDeploy } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
+import dotenv from 'dotenv';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostDeploy {
   static API = {
-    callback: (deployList = 'default', env = 'development', options = { remove: false }) => {
+    async sync(deployList) {
+      const deployGroupId = '_dd';
+      fs.writeFileSync('./engine-private/deploy/_dd.json', JSON.stringify(deployList.split(',')), 'utf8');
+      return getDataDeploy({
+        buildSingleReplica: true,
+        deployGroupId,
+      });
+    },
+    async routerFactory(deployList, env) {
+      const initEnvPath = `./engine-private/conf/${deployList.split(',')[0]}/.env.${env}`;
+      const initEnvObj = dotenv.parse(fs.readFileSync(initEnvPath, 'utf8'));
+      process.env.PORT = initEnvObj.PORT;
+      process.env.NODE_ENV = env;
+      await Config.build(undefined, 'proxy', deployList);
+      return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
+    },
+    async callback(
+      deployList = 'default',
+      env = 'development',
+      options = { remove: false, infoRouter: false, sync: false },
+    ) {
+      if (options.sync) UnderpostDeploy.API.sync(deployList);
+      if (options.infoRouter === true)
+        return logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;

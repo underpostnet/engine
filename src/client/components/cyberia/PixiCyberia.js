@@ -1,4 +1,4 @@
-import { s, append, getProxyPath, htmls, getCurrentTrace } from '../core/VanillaJs.js';
+import { s, append, getProxyPath, htmls } from '../core/VanillaJs.js';
 import {
   getDistance,
   getId,
@@ -1426,8 +1426,6 @@ const PixiCyberia = {
       this.transports[indexTransport] = [];
       {
         // https://pixijs.com/8.x/examples/graphics/dynamic
-
-        // getCurrentTrace()
 
         // const componentInstance = new Sprite(Texture.WHITE);
         const { componentInstance, alphaTicker } = await this.gfxFactory({
