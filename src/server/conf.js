@@ -520,8 +520,9 @@ const buildPortProxyRouter = (port, proxyRouter) => {
       ? `${host}${path === '/' ? '' : path}`
       : `${host}:${port}${path === '/' ? '' : path}`;
 
-    if (process.argv.includes('localhost') && !(absoluteHost in router)) router[absoluteHost] = target;
-    else router[absoluteHost] = target;
+    if (process.argv.includes('localhost')) {
+      if (!(absoluteHost in router)) router[absoluteHost] = target;
+    } else router[absoluteHost] = target;
   }); // order router
 
   if (Object.keys(router).length === 0) return router;
