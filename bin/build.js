@@ -3,7 +3,14 @@ import { loggerFactory } from '../src/server/logger.js';
 import { shellExec } from '../src/server/process.js';
 import dotenv from 'dotenv';
 import { getCapVariableName } from '../src/client/components/core/CommonJs.js';
-import { buildProxyRouter, buildPortProxyRouter, Config, getPathsSSR, buildKindPorts } from '../src/server/conf.js';
+import {
+  buildProxyRouter,
+  buildPortProxyRouter,
+  Config,
+  getPathsSSR,
+  buildKindPorts,
+  loadReplicas,
+} from '../src/server/conf.js';
 
 const baseConfPath = './engine-private/conf/dd-cron/.env.production';
 if (fs.existsSync(baseConfPath)) dotenv.config({ path: baseConfPath, override: true });
@@ -51,8 +58,11 @@ if (process.argv.includes('proxy')) {
 
   await Config.build();
   process.env.NODE_ENV = 'production';
+
+  const confServer = loadReplicas(
+    JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8')),
+  );
   const router = buildPortProxyRouter(443, buildProxyRouter());
-  const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
   const confHosts = Object.keys(confServer);
 
   for (const host of Object.keys(router)) {
@@ -61,10 +71,10 @@ if (process.argv.includes('proxy')) {
     }
   }
 
-  const ports = Object.values(router).map((p) => p.split(':')[2]);
+  const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
 
-  const fromPort = ports[0];
-  const toPort = ports[ports.length - 1];
+  const fromPort = Math.min(...ports);
+  const toPort = Math.max(...ports);
 
   logger.info('port range', { fromPort, toPort, router });
 
@@ -105,6 +115,7 @@ spec:
     const pathPortConditions = [];
     for (const path of Object.keys(confServer[host])) {
       const { peer } = confServer[host][path];
+      if (!router[`${host}${path === '/' ? '' : path}`]) continue;
       const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
       // logger.info('', { host, port, path });
       pathPortConditions.push({

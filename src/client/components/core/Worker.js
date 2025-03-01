@@ -22,41 +22,44 @@ const Worker = {
     setTimeout(() => {
       if ('onLine' in navigator && navigator.onLine) window.ononline();
     });
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      logger.info('The controller of current browsing context has changed.');
-    });
-    navigator.serviceWorker.ready.then((worker) => {
-      logger.info('Ready', worker);
-      // event message
-      navigator.serviceWorker.addEventListener('message', (event) => {
-        logger.info('Received event message', event.data);
-        const { status } = event.data;
-
-        switch (status) {
-          case 'loader':
-            {
-              LoadingAnimation.RenderCurrentSrcLoad(event);
-            }
-            break;
-
-          default:
-            break;
-        }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        logger.info('The controller of current browsing context has changed.');
       });
+      navigator.serviceWorker.ready.then((worker) => {
+        logger.info('Ready', worker);
+        // event message
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          logger.info('Received event message', event.data);
+          const { status } = event.data;
 
-      // if (navigator.serviceWorker.controller)
-      //   navigator.serviceWorker.controller.postMessage({
-      //     title: 'Hello from Client event message',
-      //   });
+          switch (status) {
+            case 'loader':
+              {
+                LoadingAnimation.RenderCurrentSrcLoad(event);
+              }
+              break;
 
-      // broadcast message
-      // const channel = new BroadcastChannel('sw-messages');
-      // channel.addEventListener('message', (event) => {
-      //   logger.info('Received broadcast message', event.data);
-      // });
-      // channel.postMessage({ title: 'Hello from Client broadcast message' });
-      // channel.close();
-    });
+            default:
+              break;
+          }
+        });
+
+        // if (navigator.serviceWorker.controller)
+        //   navigator.serviceWorker.controller.postMessage({
+        //     title: 'Hello from Client event message',
+        //   });
+
+        // broadcast message
+        // const channel = new BroadcastChannel('sw-messages');
+        // channel.addEventListener('message', (event) => {
+        //   logger.info('Received broadcast message', event.data);
+        // });
+        // channel.postMessage({ title: 'Hello from Client broadcast message' });
+        // channel.close();
+      });
+    }
+
     this.RouterInstance = router();
     const isInstall = await this.status();
     if (!isInstall) await this.install();

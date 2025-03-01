@@ -77,7 +77,7 @@ const saveRuntimeRouter = async () => {
 
     if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
   } catch (error) {
-    logger.error(error);
+    logger.error(error, error.stack);
   }
 };
 
@@ -114,7 +114,7 @@ const saveRuntimeCron = async () => {
 
     if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
   } catch (error) {
-    logger.error(error);
+    logger.error(error, error.stack);
   }
 };
 

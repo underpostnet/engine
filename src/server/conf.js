@@ -513,14 +513,15 @@ const buildPortProxyRouter = (port, proxyRouter) => {
   // build router
   Object.keys(hosts).map((hostKey) => {
     let { host, path, target, proxy, peer } = hosts[hostKey];
-    if (process.env.NODE_ENV === 'development') host = `localhost`;
+    if (process.argv.includes('localhost') && process.env.NODE_ENV === 'development') host = `localhost`;
 
     if (!proxy.includes(port)) return;
     const absoluteHost = [80, 443].includes(port)
       ? `${host}${path === '/' ? '' : path}`
       : `${host}:${port}${path === '/' ? '' : path}`;
 
-    if (!(absoluteHost in router)) router[absoluteHost] = target;
+    if (process.argv.includes('localhost') && !(absoluteHost in router)) router[absoluteHost] = target;
+    else router[absoluteHost] = target;
   }); // order router
 
   if (Object.keys(router).length === 0) return router;

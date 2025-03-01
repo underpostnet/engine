@@ -1,0 +1,66 @@
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: www.cyberiaonline.com
+spec:
+  virtualhost:
+    fqdn: www.cyberiaonline.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4005
+    - conditions:
+        - prefix: /admin
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4006
+    - conditions:
+        - prefix: /admin0
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4007
+    - conditions:
+        - prefix: /interior32
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4008
+    - conditions:
+        - prefix: /seed-city
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4009
+    - conditions:
+        - prefix: /zax-shop-odisea-department
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4010
+    - conditions:
+        - prefix: /hh
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4011
+---
+apiVersion: projectcontour.io/v1
+kind: HTTPProxy
+metadata:
+  name: cyberiaonline.com
+spec:
+  virtualhost:
+    fqdn: cyberiaonline.com
+  routes:
+    - conditions:
+        - prefix: /
+      enableWebsockets: true
+      services:
+        - name: dd-cyberia-development-service
+          port: 4012
