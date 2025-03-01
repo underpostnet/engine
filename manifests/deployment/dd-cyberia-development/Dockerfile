@@ -59,12 +59,10 @@ RUN sudo mv ./engine-cyberia-private ./engine-private
 
 RUN underpost install
 
-RUN underpost dockerfile-node-script dd-cyberia development
-
 VOLUME [ "/home/dd/engine/logs" ]
 
 EXPOSE 22
 
 EXPOSE 4005-4012
 
-CMD [ "npm", "run", "dev-img", "dd-cyberia", "deploy" ]
+CMD [ "underpost", "dockerfile-node-script", "dd-cyberia" ,"development", "--run" ]
