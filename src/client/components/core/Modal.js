@@ -9,7 +9,6 @@ import {
   htmls,
   sa,
   getAllChildNodes,
-  getCurrentTrace,
   isActiveElement,
 } from './VanillaJs.js';
 import { BtnIcon } from './BtnIcon.js';
