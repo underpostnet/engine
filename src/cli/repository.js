@@ -15,7 +15,7 @@ class UnderpostRepository {
     clone(gitUri = 'underpostnet/pwa-microservices-template', options = { bare: false }) {
       const repoName = gitUri.split('/').pop();
       if (fs.existsSync(`./${repoName}`)) fs.removeSync(`./${repoName}`);
-      return shellExec(
+      shellExec(
         `git clone ${options?.bare === true ? ` --bare ` : ''}https://${
           process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
         }github.com/${gitUri}.git`,
@@ -23,16 +23,6 @@ class UnderpostRepository {
           disableLog: true,
         },
       );
-      if (process.env.GITHUB_TOKEN) {
-        shellExec(
-          `git clone https://${
-            process.env.GITHUB_TOKEN ? `${process.env.GITHUB_TOKEN}@` : ''
-          }github.com/${gitUri}-private.git`,
-        );
-        fs.moveSync(`./${repoName}-private`, `./${repoName}/engine-private`, {
-          overwrite: true,
-        });
-      }
     },
     pull(repoPath = './', gitUri = 'underpostnet/pwa-microservices-template') {
       shellExec(
