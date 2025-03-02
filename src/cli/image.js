@@ -13,7 +13,7 @@ class UnderpostImage {
       pullBaseImages() {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
       },
-      build(deployId = 'default', env = 'development', path = '.', imageArchive = false) {
+      build(deployId = 'default', env = 'development', path = '.', options = { imageArchive: false }) {
         const imgName = `${deployId}-${env}:${Underpost.version}`;
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `./images`;
@@ -30,7 +30,7 @@ class UnderpostImage {
           secretDockerInput += ` --secret id=${key},env=${key} \ `;
         }
         // --rm --no-cache
-        if (imageArchive !== true) {
+        if (options.imageArchive !== true) {
           fs.copyFile(`${getNpmRootPath()}/underpost/.env`, `${path}/.env.underpost`);
           shellExec(
             `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
