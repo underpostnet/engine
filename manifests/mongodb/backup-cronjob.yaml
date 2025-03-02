@@ -16,25 +16,27 @@ spec:
                 - -c
                 - |
                   # Perform backup
-                  mongodump -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --host=mongodb-service --port=27017 --out=/backup/$(date +\%Y-\%m-\%dT\%H-\%M-\%S)
+                  mongodump --host=mongodb-service --port=27017 --out=/backup/$(date +\%Y-\%m-\%dT\%H-\%M-\%S)
                   # Remove backups older than 7 days
                   find /backup -type d -mtime +7 -exec rm -rf {} +
               volumeMounts:
                 - name: backup-storage
                   mountPath: /backup
-              env:
-                - name: MONGO_INITDB_ROOT_USERNAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: mongodb-secret
-                      key: username
-                - name: MONGO_INITDB_ROOT_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: mongodb-secret
-                      key: password
           restartPolicy: Never
           volumes:
             - name: backup-storage
               persistentVolumeClaim:
                 claimName: backup-pvc
+#     mongodump -u $MONGO_INITDB_ROOT_USERNAME -p $MONGO_INITDB_ROOT_PASSWORD --host=mongodb-service --port=27017 --out=/backup/$(date +\%Y-\%m-\%dT\%H-\%M-\%S)
+
+# env:
+#   - name: MONGO_INITDB_ROOT_USERNAME
+#     valueFrom:
+#       secretKeyRef:
+#         name: mongodb-secret
+#         key: username
+#   - name: MONGO_INITDB_ROOT_PASSWORD
+#     valueFrom:
+#       secretKeyRef:
+#         name: mongodb-secret
+#         key: password
