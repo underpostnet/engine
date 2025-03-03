@@ -1,6 +1,6 @@
 import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
-import { actionInitLog, loggerFactory } from '../server/logger.js';
+import { actionInitLog, loggerFactory, setUpInfo } from '../server/logger.js';
 import { pbcopy, shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
 

@@ -36,7 +36,7 @@ if (process.argv.includes('clean')) {
 
 if (process.argv.includes('conf')) {
   for (const _confName of (confName === 'dd'
-    ? fs.readFileSync(`./engine-private/deploy/dd-router`, 'utf8')
+    ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
     : confName
   ).split(',')) {
     const _repoName = `engine-${_confName.split('dd-')[1]}`;

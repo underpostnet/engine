@@ -9,7 +9,7 @@ const CoreService = {
     /** @type {import('./core.model.js').CoreModel} */
     const Core = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Core;
     if (req.path.startsWith('/sh')) {
-      if (req.body.print) return shellExec(req.body.sh, { stdout: true });
+      if (req.body.stdout) return shellExec(req.body.sh, { stdout: true });
       shellExec(req.body.sh, { async: true });
       return 'Command "' + req.body.sh + '" running';
     }

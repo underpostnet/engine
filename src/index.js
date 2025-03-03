@@ -5,6 +5,7 @@
  */
 
 import UnderpostCluster from './cli/cluster.js';
+import UnderpostCron from './cli/cron.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
@@ -90,6 +91,13 @@ class Underpost {
    * @memberof Underpost
    */
   static deploy = UnderpostDeploy.API;
+  /**
+   * Cron cli API
+   * @static
+   * @type {UnderpostCron.API}
+   * @memberof Underpost
+   */
+  static cron = UnderpostCron.API;
 }
 
 const up = Underpost;

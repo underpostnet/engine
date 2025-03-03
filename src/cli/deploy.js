@@ -182,8 +182,8 @@ spec:
       env = 'development',
       options = { remove: false, infoRouter: false, sync: false, buildManifest: false },
     ) {
-      if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd-router`))
-        deployList = fs.readFileSync(`./engine-private/deploy/dd-router`, 'utf8');
+      if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
+        deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.sync) UnderpostDeploy.API.sync(deployList);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env);
       if (options.infoRouter === true)

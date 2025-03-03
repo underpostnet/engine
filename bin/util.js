@@ -112,14 +112,6 @@ try {
       fs.writeFileSync('b64-image', `data:image/jpg;base64,${fs.readFileSync(process.argv[3]).toString('base64')}`);
       break;
 
-    case 'clean-env': {
-      shellExec(`git checkout package.json`);
-      shellExec(`git checkout .env.production`);
-      shellExec(`git checkout .env.development`);
-      shellExec(`git checkout .env.test`);
-      shellExec(`git checkout jsdoc.json`);
-      break;
-    }
     case 'get-keys': {
       const sentence = fs.existsSync('./_')
         ? fs.readFileSync('./_', 'utf8')
