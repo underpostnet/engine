@@ -600,7 +600,9 @@ const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1
 const getDataDeploy = (
   options = { buildSingleReplica: false, deployGroupId: '', deployId: '', disableSyncEnvPort: false },
 ) => {
-  let dataDeploy = JSON.parse(fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}.json`, 'utf8'));
+  let dataDeploy = fs.existsSync(`./engine-private/deploy/${options.deployGroupId}`)
+    ? fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}`)
+    : fs.readFileSync(`./engine-private/deploy/${options.deployGroupId}.router`, 'utf8').split(',');
 
   if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
 

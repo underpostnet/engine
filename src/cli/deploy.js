@@ -17,8 +17,8 @@ const logger = loggerFactory(import.meta);
 class UnderpostDeploy {
   static API = {
     sync(deployList) {
-      const deployGroupId = '_dd';
-      fs.writeFileSync(`./engine-private/deploy/${deployGroupId}.json`, JSON.stringify(deployList.split(',')), 'utf8');
+      const deployGroupId = 'dd.tmp';
+      fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, JSON.stringify(deployList.split(',')), 'utf8');
       return getDataDeploy({
         buildSingleReplica: true,
         deployGroupId,
