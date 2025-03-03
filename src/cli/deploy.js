@@ -18,7 +18,7 @@ class UnderpostDeploy {
   static API = {
     sync(deployList) {
       const deployGroupId = 'dd.tmp';
-      fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, JSON.stringify(deployList.split(',')), 'utf8');
+      fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
       return getDataDeploy({
         buildSingleReplica: true,
         deployGroupId,
