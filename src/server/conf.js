@@ -98,6 +98,14 @@ const Config = {
 };
 
 const loadConf = (deployId, envInput, subConf) => {
+  if (deployId === 'clean') {
+    shellExec(`git checkout package.json`);
+    shellExec(`git checkout .env.production`);
+    shellExec(`git checkout .env.development`);
+    shellExec(`git checkout .env.test`);
+    shellExec(`git checkout jsdoc.json`);
+    return;
+  }
   const folder = fs.existsSync(`./engine-private/replica/${deployId}`)
     ? `./engine-private/replica/${deployId}`
     : `./engine-private/conf/${deployId}`;
