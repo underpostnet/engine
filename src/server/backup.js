@@ -9,7 +9,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 class BackUp {
-  callback = async function (deployList, options = { disableKindCluster: false }) {
+  static callback = async function (deployList, options = { disableKindCluster: false }) {
     if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
       deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
@@ -36,10 +36,8 @@ class BackUp {
         for (const path of Object.keys(confServer[host])) {
           // retention policy
           const { db } = confServer[host][path];
-          if (!db) {
-            logger.error(`db not found`, db);
-            continue;
-          }
+          if (!db) continue;
+          logger.info('Init backup', { host, path, db });
 
           const backUpPath = `${process.cwd()}/engine-private/cron-backups/${getCronBackUpFolder(host, path)}`;
           if (!fs.existsSync(backUpPath)) fs.mkdirSync(`${backUpPath}`, { recursive: true });
