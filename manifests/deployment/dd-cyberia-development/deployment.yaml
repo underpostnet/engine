@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development
-          image: localhost/dd-cyberia-development:v2.8.52
+          image: localhost/dd-cyberia-development:v2.8.521
 ---
 apiVersion: v1
 kind: Service
