@@ -101,12 +101,12 @@ class UnderpostImage {
         shellExec(`node bin/deploy conf ${deployId} ${env}`);
         shellExec(`node bin/deploy build-full-client ${deployId}`);
         if (options.run === true) {
-          const runCmd = env === 'production' ? 'prod-img' : 'dev-img';
+          const runCmd = env === 'production' ? 'start' : 'run dev-img';
           if (fs.existsSync(`./engine-private/replica`)) {
             const replicas = await fs.readdir(`./engine-private/replica`);
             for (const replica of replicas) {
               shellExec(`node bin/deploy conf ${replica} ${env}`);
-              shellExec(`npm run ${runCmd} ${replica} deploy`, { async: true });
+              shellExec(`npm ${runCmd} ${replica} deploy`, { async: true });
               fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
               const monitor = async () => {
                 await timer(1000);
@@ -116,7 +116,7 @@ class UnderpostImage {
             }
             shellExec(`node bin/deploy conf ${deployId} ${env}`);
           }
-          shellExec(`npm run ${runCmd} ${deployId} deploy`);
+          shellExec(`npm ${runCmd} ${deployId} deploy`);
         }
       },
     },

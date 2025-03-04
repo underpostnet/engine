@@ -27,9 +27,6 @@ RUN mkdir -p /var/run/sshd
 # Allow root login via password
 RUN sed -ri 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
 
-# copy supervisor config file to start openssh-server
-COPY supervisord-openssh-server.conf /etc/supervisor/conf.d/supervisord-openssh-server.conf
-
 # install open ssl git and others tools
 RUN apt-get install -yq --no-install-recommends libssl-dev curl wget git gnupg
 
