@@ -1072,7 +1072,7 @@ const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
   shellExec(`node bin/deploy valkey-service`);
   const proxyDeployId = fs.readFileSync(`./engine-private/deploy/${deployGroupId}.proxy`, 'utf8').trim();
   shellExec(`node bin/deploy conf ${proxyDeployId} production`);
-  shellExec(`node start ${proxyDeployId} maintenance`);
+  shellExec(`npm start ${proxyDeployId} maintenance`);
 };
 
 const getNpmRootPath = () =>
