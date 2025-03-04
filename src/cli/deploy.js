@@ -205,12 +205,19 @@ spec:
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
           shellExec(`sudo kubectl delete HTTPProxy ${host}`);
+          if (env === 'production') shellExec(`sudo kubectl delete Certificate ${host}`);
           if (!options.remove === true && env === 'development') concatHots += ` ${host}`;
         }
 
+        const manifestsPath =
+          env === 'production'
+            ? `engine-private/conf/${deployId}/build/production`
+            : `manifests/deployment/${deployId}-${env}`;
+
         if (!options.remove === true) {
-          shellExec(`sudo kubectl apply -f ./manifests/deployment/${deployId}-${env}/deployment.yaml`);
-          shellExec(`sudo kubectl apply -f ./manifests/deployment/${deployId}-${env}/proxy.yaml`);
+          shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
+          shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
+          if (env === 'production') shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
 
         let renderHosts;

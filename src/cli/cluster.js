@@ -2,12 +2,23 @@ import { timer } from '../client/components/core/CommonJs.js';
 import { cliSpinner } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
+import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostCluster {
   static API = {
-    async init(options = { valkey: false, mariadb: false, valkey: false, full: false, info: false, nsUse: '' }) {
+    async init(
+      options = {
+        valkey: false,
+        mariadb: false,
+        valkey: false,
+        full: false,
+        info: false,
+        certManager: false,
+        nsUse: '',
+      },
+    ) {
       if (options.nsUse) {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;
@@ -88,14 +99,7 @@ class UnderpostCluster {
           const monitor = async () => {
             cliSpinner(1000, `[cluster.js] `, ` Load mongodb instance`, 'yellow', 'material');
             await timer(1000);
-            if (
-              shellExec(`kubectl get pods --all-namespaces -o wide`, {
-                silent: true,
-                stdout: true,
-                disableLog: true,
-              }).match(`mongodb-1                                    1/1     Running`)
-            )
-              return resolve();
+            if (UnderpostDeploy.API.getPods('mongodb-1').find((p) => p.STATUS === 'Running')) return resolve();
             return monitor();
           };
           await monitor();
@@ -119,6 +123,23 @@ class UnderpostCluster {
 
       if (options.full || options.contour)
         shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
+
+      if (options.full || options.certManager) {
+        if (!UnderpostDeploy.API.getPods('cert-manager').find((p) => p.STATUS === 'Running')) {
+          shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
+          shellExec(
+            `helm install cert-manager jetstack/cert-manager \
+--namespace cert-manager \
+--create-namespace \
+--version v1.17.0 \
+--set crds.enabled=true`,
+          );
+        }
+
+        const letsEncName = 'letsencrypt-prod';
+        shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName}`);
+        shellExec(`sudo kubectl apply -f ./manifests/${letsEncName}.yaml`);
+      }
     },
     reset() {
       shellExec(`kind get clusters | xargs -t -n1 kind delete cluster --name`);
