@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-core-development
-          image: localhost/dd-core-development:v2.8.5
+          image: localhost/dd-core-development:v2.8.51
 ---
 apiVersion: v1
 kind: Service
