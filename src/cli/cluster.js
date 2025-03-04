@@ -51,6 +51,7 @@ class UnderpostCluster {
         logger.info('----------------------------------------------------------------');
         shellExec(`kubectl get secrets --all-namespaces -o wide`);
         shellExec(`docker secret ls`);
+        shellExec(`kubectl get crd --all-namespaces -o wide`);
         return;
       }
       const testClusterInit = shellExec(`kubectl get pods --all-namespaces -o wide`, {
