@@ -10,6 +10,7 @@ const logger = loggerFactory(import.meta);
 class UnderpostCluster {
   static API = {
     async init(
+      podName,
       options = {
         valkey: false,
         mariadb: false,
@@ -17,9 +18,14 @@ class UnderpostCluster {
         full: false,
         info: false,
         certManager: false,
+        listPods: false,
+        reset: false,
         nsUse: '',
       },
     ) {
+      if (options.reset === true) return await UnderpostCluster.API.reset();
+      if (options.listPods === true) return console.table(UnderpostDeploy.API.getPods(podName ?? undefined));
+
       if (options.nsUse) {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;

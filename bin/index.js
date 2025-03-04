@@ -83,6 +83,7 @@ program
 
 program
   .command('cluster')
+  .argument('[pod-name]', 'Optional pod name filter')
   .option('--reset', `Delete all clusters and prune all data and caches`)
   .option('--mariadb', 'Init with mariadb statefulset')
   .option('--mongodb', 'Init with mongodb statefulset')
@@ -92,10 +93,8 @@ program
   .option('--info', 'Get all kinds objects deployed')
   .option('--full', 'Init with all statefulsets and services available')
   .option('--ns-use <ns-name>', 'Switches current context to namespace')
-  .action((...args) => {
-    if (args[0].reset) return Underpost.cluster.reset();
-    return Underpost.cluster.init(args[0]);
-  })
+  .option('--list-pods', 'Display list pods information')
+  .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
 
 program
