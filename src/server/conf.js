@@ -598,7 +598,13 @@ const cliSpinner = async (time = 5000, message0, message1, color, type = 'dots')
 const buildReplicaId = ({ deployId, replica }) => `${deployId}-${replica.slice(1)}`;
 
 const getDataDeploy = (
-  options = { buildSingleReplica: false, deployGroupId: '', deployId: '', disableSyncEnvPort: false },
+  options = {
+    buildSingleReplica: false,
+    deployGroupId: '',
+    deployId: '',
+    disableSyncEnvPort: false,
+    deployIdConcat: [],
+  },
 ) => {
   let dataDeploy =
     options.deployGroupId === 'dd'
@@ -609,6 +615,8 @@ const getDataDeploy = (
     .split(',')
     .map((deployId) => deployId.trim())
     .filter((deployId) => deployId);
+
+  if (options.deployIdConcat) dataDeploy = dataDeploy.concat(options.deployIdConcat);
 
   if (options.deployId) dataDeploy = dataDeploy.filter((d) => d === options.deployId);
 
@@ -843,7 +851,7 @@ const deployRun = async (dataDeploy, currentAttempt = 1) => {
   if (failed.length > 0) {
     for (const deploy of failed) logger.error(deploy.deployId, Cmd.run(deploy.deployId));
     if (currentAttempt === maxAttempts) return logger.error(`max deploy attempts exceeded`);
-    if (process.argv.includes('manual')) await read({ prompt: 'Press enter to retry failed processes\n' });
+    await read({ prompt: 'Press enter to retry failed processes\n' });
     currentAttempt++;
     await deployRun(failed, currentAttempt);
   } else logger.info(`Deploy process successfully`);
@@ -989,7 +997,7 @@ const getPathsSSR = (conf) => {
 
 const Cmd = {
   delete: (deployId) => `pm2 delete ${deployId}`,
-  run: (deployId) => `node bin/deploy run ${deployId}`,
+  run: () => `npm start`,
   build: (deployId) => `node bin/deploy build-full-client ${deployId}${process.argv.includes('l') ? ' l' : ''}`,
   conf: (deployId, env) => `node bin/deploy conf ${deployId} ${env ? env : 'production'}`,
   replica: (deployId, host, path) => `node bin/deploy build-single-replica ${deployId} ${host} ${path}`,
@@ -1064,7 +1072,7 @@ const setUpProxyMaintenanceServer = ({ deployGroupId }) => {
   shellExec(`node bin/deploy valkey-service`);
   const proxyDeployId = fs.readFileSync(`./engine-private/deploy/${deployGroupId}.proxy`, 'utf8').trim();
   shellExec(`node bin/deploy conf ${proxyDeployId} production`);
-  shellExec(`node bin/deploy run ${proxyDeployId} maintenance`);
+  shellExec(`node start ${proxyDeployId} maintenance`);
 };
 
 const getNpmRootPath = () =>

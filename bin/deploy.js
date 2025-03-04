@@ -141,23 +141,6 @@ try {
       loadConf(process.argv[3], process.argv[4]);
       break;
     }
-    case 'run':
-      {
-        if (process.argv.includes('replicas')) {
-          const deployGroupId = getDeployGroupId();
-          const dataDeploy = getDataDeploy({
-            deployId: process.argv[3],
-            buildSingleReplica: true,
-            deployGroupId,
-          });
-          if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-          await deployRun(dataDeploy);
-        } else {
-          loadConf(process.argv[3]);
-          shellExec(`npm start ${process.argv.includes('maintenance') ? 'maintenance' : ''}`);
-        }
-      }
-      break;
 
     case 'new-nodejs-app':
       {
@@ -453,12 +436,13 @@ try {
     case 'run-macro':
       {
         if (fs.existsSync(`./tmp/await-deploy`)) fs.remove(`./tmp/await-deploy`);
-        const dataDeploy = getDataDeploy({ deployGroupId: process.argv[3], buildSingleReplica: true });
+        const dataDeploy = getDataDeploy({
+          deployGroupId: process.argv[3],
+          buildSingleReplica: true,
+          deployIdConcat: ['dd-proxy', 'dd-cron'],
+        });
         if (!process.argv[4]) await setUpProxyMaintenanceServer({ deployGroupId: process.argv[3] });
-        await deployRun(
-          process.argv[4] ? dataDeploy.filter((d) => d.deployId.match(process.argv[4])) : dataDeploy,
-          true,
-        );
+        await deployRun(process.argv[4] ? dataDeploy.filter((d) => d.deployId.match(process.argv[4])) : dataDeploy);
       }
       break;
 
