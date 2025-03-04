@@ -3,6 +3,7 @@ import { cliSpinner } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
+import UnderpostTest from './test.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -93,18 +94,7 @@ class UnderpostCluster {
         shellExec(`kubectl delete statefulset mongodb`);
         shellExec(`kubectl apply -k ./manifests/mongodb`);
 
-        await new Promise(async (resolve) => {
-          cliSpinner(3000, `[cluster.js] `, ` Load mongodb instance`, 'yellow', 'material');
-          await timer(3000);
-
-          const monitor = async () => {
-            cliSpinner(1000, `[cluster.js] `, ` Load mongodb instance`, 'yellow', 'material');
-            await timer(1000);
-            if (UnderpostDeploy.API.getPods('mongodb-1').find((p) => p.STATUS === 'Running')) return resolve();
-            return monitor();
-          };
-          await monitor();
-        });
+        await UnderpostTest.API.podStatusMonitor('mongodb-1');
 
         const mongoConfig = {
           _id: 'rs0',

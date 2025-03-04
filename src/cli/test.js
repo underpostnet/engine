@@ -1,3 +1,4 @@
+import { timer } from '../client/components/core/CommonJs.js';
 import { MariaDB } from '../db/mariadb/MariaDB.js';
 import { getNpmRootPath } from '../server/conf.js';
 import { actionInitLog, loggerFactory, setUpInfo } from '../server/logger.js';
@@ -76,6 +77,21 @@ class UnderpostTest {
           }
         }
       } else return UnderpostTest.API.run();
+    },
+    podStatusMonitor(podName, status = 'Running', deltaMs = 1000) {
+      return new Promise(async (resolve) => {
+        let index = 0;
+        logger.info(`Loading ${podName} instance`, { status, deltaMs });
+        const _monitor = async () => {
+          await timer(deltaMs);
+          const result = UnderpostDeploy.API.getPods(podName).find((p) => p.STATUS === status);
+          logger.info(`Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}ms`);
+          if (result) return resolve();
+          index++;
+          return _monitor();
+        };
+        await _monitor();
+      });
     },
   };
 }
