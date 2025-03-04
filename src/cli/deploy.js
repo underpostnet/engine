@@ -241,10 +241,11 @@ spec:
           default:
             break;
         }
-        logger.info(
-          `
+        if (renderHosts)
+          logger.info(
+            `
 ` + renderHosts,
-        );
+          );
       }
     },
     getPods(deployId) {

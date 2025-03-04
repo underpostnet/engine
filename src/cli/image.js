@@ -109,7 +109,7 @@ class UnderpostImage {
         shellExec(`node bin/deploy conf ${deployId} ${env}`);
         shellExec(`node bin/deploy build-full-client ${deployId}`);
         if (options.run === true) {
-          const runCmd = env === 'production' ? 'start' : 'run dev-img';
+          const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
           if (fs.existsSync(`./engine-private/replica`)) {
             const replicas = await fs.readdir(`./engine-private/replica`);
             for (const replica of replicas) {
