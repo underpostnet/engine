@@ -30,6 +30,14 @@ class UnderpostTest {
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
     async callback(deployList = '', options = { insideContainer: false, sh: false, logs: false }) {
+      if (
+        options.podName &&
+        typeof options.podName === 'string' &&
+        options.podStatus &&
+        typeof options.podStatus === 'string'
+      )
+        return await UnderpostTest.API.podStatusMonitor(options.podName, options.podStatus);
+
       if (options.sh === true || options.logs === true) {
         const [pod] = UnderpostDeploy.API.getPods(deployList);
         if (pod) {

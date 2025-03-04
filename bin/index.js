@@ -188,6 +188,8 @@ program
   .option('--inside-container', 'Inside container execution context')
   .option('--sh', 'Copy to clipboard, container entrypoint shell command')
   .option('--logs', 'Display container logs')
+  .option('--pod-name <pod-name>')
+  .option('--pod-status <pod-status>')
   .action(Underpost.test.callback);
 
 program.parse();
