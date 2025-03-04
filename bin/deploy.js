@@ -732,6 +732,14 @@ try {
 
         shellExec(`node bin/deploy update-dependencies`);
         shellExec(`auto-changelog`);
+        shellExec(`node bin deploy dd --build-manifest --sync --info-router`);
+        shellExec(`node bin deploy dd production --build-manifest --sync --info-router`);
+        shellExec(`node bin/deploy build dd conf`);
+        shellExec(`git add . && cd ./engine-private && git add .`);
+        shellExec(`node bin cmt . ci package-pwa-microservices-template 'update version ${newVersion}'`);
+        shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template 'update version ${newVersion}'`);
+        shellExec(`node bin push . underpostnet/engine`);
+        shellExec(`cd ./engine-private && node bin push . underpostnet/engine-private`);
       }
       break;
 
