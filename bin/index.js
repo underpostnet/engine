@@ -136,7 +136,8 @@ program
   .argument('<deploy-id>', 'Deploy configuration id')
   .argument('[env]', 'Optional environment, for default is development')
   .argument('[path]', 'Absolute or relative directory, for default is current')
-  .option('--image-archive', 'Only load tar image from /images')
+  .option('--image-archive', 'Only load tar image from ./images')
+  .option('--podman-save', 'Save image from podman to ./images')
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 

@@ -13,11 +13,18 @@ class UnderpostImage {
       pullBaseImages() {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
       },
-      build(deployId = 'default', env = 'development', path = '.', options = { imageArchive: false }) {
+      build(
+        deployId = 'default',
+        env = 'development',
+        path = '.',
+        options = { imageArchive: false, podmanSave: false },
+      ) {
         const imgName = `${deployId}-${env}:${Underpost.version}`;
         const podManImg = `localhost/${imgName}`;
-        const imagesStoragePath = `./images`;
-        const tarFile = `${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
+        const imagesStoragePath = `/images`;
+        if (!fs.existsSync(`${path}${imagesStoragePath}`))
+          fs.mkdirSync(`${path}${imagesStoragePath}`, { recursive: true });
+        const tarFile = `.${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
 
         let secrets = ' ';
         let secretDockerInput = '';
@@ -36,8 +43,9 @@ class UnderpostImage {
             `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
           );
           fs.removeSync(`${path}/.env.underpost`);
-          shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         }
+        if (options.imageArchive !== true || options.podmanSave === true)
+          shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
       async script(deployId = 'default', env = 'development', options = { run: false }) {
