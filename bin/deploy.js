@@ -732,16 +732,18 @@ try {
 
         shellExec(`node bin/deploy update-dependencies`);
         shellExec(`auto-changelog`);
-        shellExec(`underpost deploy dd --build-manifest --sync --info-router`);
-        shellExec(`underpost deploy dd production --build-manifest --sync --info-router`);
-        shellExec(`node bin/build dd conf`);
-        shellExec(`git add . && cd ./engine-private && git add .`);
-        shellExec(`underpost cmt . ci package-pwa-microservices-template 'update version ${newVersion}'`);
-        shellExec(
-          `underpost cmt ./engine-private ci package-pwa-microservices-template 'update version ${newVersion}'`,
-        );
-        shellExec(`underpost push . underpostnet/engine`);
-        shellExec(`cd ./engine-private && underpost push . underpostnet/engine-private`);
+        setTimeout(() => {
+          shellExec(`underpost deploy dd --build-manifest --sync --info-router`);
+          shellExec(`underpost deploy dd production --build-manifest --sync --info-router`);
+          shellExec(`node bin/build dd conf`);
+          shellExec(`git add . && cd ./engine-private && git add .`);
+          shellExec(`underpost cmt . ci package-pwa-microservices-template 'update version ${newVersion}'`);
+          shellExec(
+            `underpost cmt ./engine-private ci package-pwa-microservices-template 'update version ${newVersion}'`,
+          );
+          shellExec(`underpost push . underpostnet/engine`);
+          shellExec(`cd ./engine-private && underpost push . underpostnet/engine-private`);
+        }, 1000);
       }
       break;
 
