@@ -79,7 +79,17 @@ const MongooseDB = {
               if (process.argv.includes('rocky')) {
                 // https://github.com/mongodb/mongodb-selinux
                 // https://www.mongodb.com/docs/v7.0/tutorial/install-mongodb-enterprise-on-red-hat/
-                shellExec(`sudo chown -R mongod:mongod /var/lib/mongo`);
+                // https://www.mongodb.com/docs/v6.0/tutorial/install-mongodb-on-red-hat/
+                // https://www.mongodb.com/docs/v4.4/tutorial/install-mongodb-on-red-hat/
+                // dnf install selinux-policy-devel
+                // git clone https://github.com/mongodb/mongodb-selinux
+                // cd mongodb-selinux
+                // make
+                // sudo make install
+                // yum list installed | grep mongo
+                // sudo yum erase $(rpm -qa | grep mongodb)
+                // remove service
+                // sudo systemctl reset-failed
               }
               logger.info('install legacy 4.4');
               shellExec(`wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -`);
@@ -112,8 +122,12 @@ const MongooseDB = {
           shellExec(`sudo systemctl unmask mongod`);
           shellExec(`sudo pkill -f mongod`);
           shellExec(`sudo systemctl enable mongod.service`);
+
           shellExec(`sudo chown -R mongodb:mongodb /var/lib/mongodb`);
           shellExec(`sudo chown mongodb:mongodb /tmp/mongodb-27017.sock`);
+
+          shellExec(`sudo chown -R mongod:mongod /var/lib/mongodb`);
+          shellExec(`sudo chown mongod:mongod /tmp/mongodb-27017.sock`);
 
           logger.info('run server');
           shellExec(`sudo service mongod restart`);
