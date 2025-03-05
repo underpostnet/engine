@@ -4,6 +4,7 @@ import fs from 'fs';
 import validator from 'validator';
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
+import UnderpostRootEnv from '../cli/env.js';
 
 dotenv.config();
 
@@ -33,10 +34,8 @@ class Dns {
       } catch (error) {
         logger.error(error, { testIp, stack: error.stack });
       }
-      const ipFileName = `${deployId}.ip`;
-      const currentIp = fs.existsSync(`./${ipFileName}`)
-        ? fs.readFileSync(`./${ipFileName}`, 'utf8').trim()
-        : undefined;
+
+      const currentIp = UnderpostRootEnv.API.get('ip');
 
       if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
         logger.info(`new ip`, testIp);
@@ -60,7 +59,7 @@ class Dns {
           logger.info(ipUrlTest + ' verify ip', verifyIp);
           if (verifyIp === testIp) {
             logger.info('ip updated successfully', testIp);
-            fs.writeFileSync(`./${ipFileName}`, testIp, 'utf8');
+            UnderpostRootEnv.API.set('ip', testIp);
           } else logger.error('ip not updated', testIp);
         } catch (error) {
           logger.error(error, error.stack);
