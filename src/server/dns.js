@@ -1,17 +1,9 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
-import https from 'https';
 import validator from 'validator';
 import { ip } from './network.js';
 import { loggerFactory } from './logger.js';
-import { shellExec } from './process.js';
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
-
-axios.defaults.httpsAgent = httpsAgent;
 
 dotenv.config();
 
@@ -30,47 +22,49 @@ class Dns {
     // Forward the router's TCP/UDP ports to the LAN device's IP address
     for (const _deployId of deployList.split(',')) {
       const deployId = _deployId.trim();
-    const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
-    const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
-    const confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+      const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
+      const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
+      const confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
 
-    let testIp;
+      let testIp;
 
-    try {
-      testIp = await ip.public.ipv4();
-    } catch (error) {
-      logger.error(error, { testIp, stack: error.stack });
-    }
-      const ipFileName = `${deployId}.ip`;
-      const currentIp = fs.existsSync(`./engine-private/deploy/${ipFileName}`)
-        ? fs.readFileSync(`./engine-private/deploy/${ipFileName}`, 'utf8')
-      : undefined;
-
-    if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
-      logger.info(`new ip`, testIp);
-      for (const recordType of Object.keys(confCronData.records)) {
-        switch (recordType) {
-          case 'A':
-            for (const dnsProvider of confCronData.records[recordType]) {
-              if (typeof Dns.services.updateIp[dnsProvider.dns] === 'function')
-                await Dns.services.updateIp[dnsProvider.dns]({ ...dnsProvider, ip: testIp });
-            }
-            break;
-
-          default:
-            break;
-        }
-      }
       try {
-        const ipUrlTest = `https://${process.env.DEFAULT_DEPLOY_HOST}`;
-        const response = await axios.get(ipUrlTest);
-        const verifyIp = response.request.socket.remoteAddress;
-        logger.info(ipUrlTest + ' IP', verifyIp);
-        if (verifyIp === testIp) {
-            fs.writeFileSync(`./engine-private/deploy/${ipFileName}`, testIp, 'utf8');
-        } else logger.error('ip not updated');
+        testIp = await ip.public.ipv4();
       } catch (error) {
-        logger.error(error), 'ip not updated';
+        logger.error(error, { testIp, stack: error.stack });
+      }
+      const ipFileName = `${deployId}.ip`;
+      const currentIp = fs.existsSync(`./${ipFileName}`)
+        ? fs.readFileSync(`./${ipFileName}`, 'utf8').trim()
+        : undefined;
+
+      if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
+        logger.info(`new ip`, testIp);
+        for (const recordType of Object.keys(confCronData.records)) {
+          switch (recordType) {
+            case 'A':
+              for (const dnsProvider of confCronData.records[recordType]) {
+                if (typeof Dns.services.updateIp[dnsProvider.dns] === 'function')
+                  await Dns.services.updateIp[dnsProvider.dns]({ ...dnsProvider, ip: testIp });
+              }
+              break;
+
+            default:
+              break;
+          }
+        }
+        try {
+          const ipUrlTest = `https://${process.env.DEFAULT_DEPLOY_HOST}`;
+          const response = await axios.get(ipUrlTest);
+          const verifyIp = response.request.socket.remoteAddress;
+          logger.info(ipUrlTest + ' verify ip', verifyIp);
+          if (verifyIp === testIp) {
+            logger.info('ip updated successfully', testIp);
+            fs.writeFileSync(`./${ipFileName}`, testIp, 'utf8');
+          } else logger.error('ip not updated', testIp);
+        } catch (error) {
+          logger.error(error, error.stack);
+          logger.error('ip not updated', testIp);
         }
       }
     }
