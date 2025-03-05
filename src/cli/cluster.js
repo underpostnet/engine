@@ -1,5 +1,5 @@
 import { timer } from '../client/components/core/CommonJs.js';
-import { cliSpinner } from '../server/conf.js';
+import { cliSpinner, getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
@@ -23,6 +23,8 @@ class UnderpostCluster {
         nsUse: '',
       },
     ) {
+      const npmRoot = getNpmRootPath();
+      const underpostRoot = `${npmRoot}/underpost`;
       if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.getPods(podName ?? undefined));
 
@@ -72,13 +74,15 @@ class UnderpostCluster {
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
         shellExec(`sudo systemctl restart kubelet`);
         shellExec(`sudo service docker restart`);
-        shellExec(`cd ./manifests && kind create cluster --config kind-config.yaml`);
+        shellExec(`sudo systemctl enable --now containerd.service`);
+        shellExec(`sudo systemctl restart containerd`);
+        shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config.yaml`);
         shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
       } else logger.warn('Cluster already initialized');
 
       if (options.full || options.valkey) {
         shellExec(`kubectl delete statefulset service-valkey`);
-        shellExec(`kubectl apply -k ./manifests/valkey`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
       }
       if (options.full || options.mariadb) {
         shellExec(
@@ -88,7 +92,7 @@ class UnderpostCluster {
           `sudo kubectl create secret generic github-secret --from-literal=GITHUB_TOKEN=${process.env.GITHUB_TOKEN}`,
         );
         shellExec(`kubectl delete statefulset mariadb-statefulset`);
-        shellExec(`kubectl apply -k ./manifests/mariadb`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
       if (options.full || options.mongodb) {
         shellExec(
@@ -98,7 +102,7 @@ class UnderpostCluster {
           `sudo kubectl create secret generic mongodb-secret --from-file=username=/home/dd/engine/engine-private/mongodb-username --from-file=password=/home/dd/engine/engine-private/mongodb-password`,
         );
         shellExec(`kubectl delete statefulset mongodb`);
-        shellExec(`kubectl apply -k ./manifests/mongodb`);
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
         await UnderpostTest.API.podStatusMonitor('mongodb-1');
 
@@ -135,7 +139,7 @@ class UnderpostCluster {
 
         const letsEncName = 'letsencrypt-prod';
         shellExec(`sudo kubectl delete ClusterIssuer ${letsEncName}`);
-        shellExec(`sudo kubectl apply -f ./manifests/${letsEncName}.yaml`);
+        shellExec(`sudo kubectl apply -f ${underpostRoot}/manifests/${letsEncName}.yaml`);
       }
     },
     reset() {
