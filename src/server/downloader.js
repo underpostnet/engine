@@ -2,15 +2,7 @@ import axios from 'axios';
 import fs from 'fs';
 import { loggerFactory } from './logger.js';
 import dotenv from 'dotenv';
-import https from 'https';
-
 dotenv.config();
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
-
-axios.defaults.httpsAgent = httpsAgent;
 
 const logger = loggerFactory(import.meta);
 

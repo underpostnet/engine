@@ -19,16 +19,7 @@ import { DefaultConf } from '../../conf.js';
 import read from 'read';
 import splitFile from 'split-file';
 import axios from 'axios';
-import https from 'https';
 import { ssrFactory } from './client-formatted.js';
-
-// axios.defaults.baseURL = BASE_URL;
-
-// const httpsAgent = new https.Agent({
-//   rejectUnauthorized: false,
-// });
-
-// axios.defaults.httpsAgent = httpsAgent;
 
 colors.enable();
 

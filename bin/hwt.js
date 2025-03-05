@@ -1,18 +1,8 @@
 import fs from 'fs-extra';
-import axios from 'axios';
-import https from 'https';
 
-import dotenv from 'dotenv';
-import { shellCd, shellExec } from '../src/server/process.js';
 import { loggerFactory } from '../src/server/logger.js';
 
 const logger = loggerFactory(import.meta);
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
-
-axios.defaults.httpsAgent = httpsAgent;
 
 logger.info('argv', process.argv);
 

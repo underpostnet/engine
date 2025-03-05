@@ -2,8 +2,6 @@ import fs from 'fs-extra';
 import si from 'systeminformation';
 import * as dir from 'path';
 import { svg } from 'font-awesome-assets';
-import axios from 'axios';
-import https from 'https';
 
 import { loggerFactory } from '../src/server/logger.js';
 import { pbcopy, shellExec } from '../src/server/process.js';
@@ -11,11 +9,6 @@ import { buildKindPorts } from '../src/server/conf.js';
 import { FileFactory } from '../src/api/file/file.service.js';
 import { faBase64Png, getBufferPngText } from '../src/server/client-icons.js';
 import keyword_extractor from 'keyword-extractor';
-
-const httpsAgent = new https.Agent({
-  rejectUnauthorized: false,
-});
-axios.defaults.httpsAgent = httpsAgent;
 
 const logger = loggerFactory(import.meta);
 
