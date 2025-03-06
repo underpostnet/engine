@@ -742,7 +742,7 @@ try {
       shellExec(`node bin cmt . ci package-pwa-microservices-template`);
       shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
       shellExec(`node bin push . underpostnet/engine`);
-      shellExec(`cd ./engine-private && node bin push . underpostnet/engine-private`);
+      shellExec(`cd ./engine-private && node ../bin push . underpostnet/engine-private`);
       break;
     }
 
