@@ -19,15 +19,21 @@ class UnderpostScript {
       const packageJson = JSON.parse(fs.readFileSync(`${npmRoot}/package.json`, 'utf8'));
       if (options.itc === true) {
         value = packageJson.scripts[key];
-        if (fs.existsSync(`${value}`)) {
-          const podScriptPath = `/${value.split('/').pop()}`;
-          const nameSpace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
-          const podMatch = options.podName && typeof options.podName === 'string' ? options.podName : key;
+        const podScriptPath = `${options.itcPath && typeof options.itcPath === 'string' ? options.itcPath : '/'}${value
+          .split('/')
+          .pop()}`;
+        const nameSpace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
+        const podMatch = options.podName && typeof options.podName === 'string' ? options.podName : key;
 
+        if (fs.existsSync(`${value}`)) {
           for (const pod of UnderpostDeploy.API.getPods(podMatch)) {
             shellExec(`sudo kubectl cp ${value} ${nameSpace}/${pod.NAME}:${podScriptPath}`);
-            const cmd = `cd / && node ${podScriptPath}`;
+            const cmd = `node ${podScriptPath}`;
             shellExec(`sudo kubectl exec -i ${pod.NAME} -- sh -c "${cmd}"`);
+          }
+        } else {
+          for (const pod of UnderpostDeploy.API.getPods(podMatch)) {
+            shellExec(`sudo kubectl exec -i ${pod.NAME} -- sh -c "${value}"`);
           }
         }
 

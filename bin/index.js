@@ -165,6 +165,7 @@ program
   .argument('<script-name>', 'Script name')
   .argument('[script-value]', 'Literal command, or path')
   .option('--itc', 'Inside container execution context')
+  .option('--itc-path', 'Inside container path options')
   .option('--ns <ns-name>', 'Options name space context')
   .option('--pod-name <pod-name>')
   .description(
