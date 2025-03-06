@@ -59,6 +59,12 @@ if (process.argv.includes('conf')) {
         if (replica.match(_confName))
           fs.copySync(`./engine-private/replica/${replica}`, `../${privateRepoName}/replica/${replica}`);
     }
+    if (fs.existsSync(`./engine-private/itc-scripts`)) {
+      const itcScripts = await fs.readdir(`./engine-private/itc-scripts`);
+      for (const itcScript of itcScripts)
+        if (itcScript.match(_confName))
+          fs.copySync(`./engine-private/itc-scripts/${itcScript}`, `../${privateRepoName}/itc-scripts/${itcScript}`);
+    }
     shellExec(
       `cd ../${privateRepoName}` +
         ` && git add .` +
