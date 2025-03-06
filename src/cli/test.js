@@ -39,7 +39,7 @@ class UnderpostTest {
         return await UnderpostTest.API.podStatusMonitor(options.podName, options.podStatus);
 
       if (options.sh === true || options.logs === true) {
-        const [pod] = UnderpostDeploy.API.getPods(deployList);
+        const [pod] = UnderpostDeploy.API.get(deployList);
         if (pod) {
           if (options.sh) return pbcopy(`sudo kubectl exec -it ${pod.NAME} -- sh`);
           if (options.logs) return shellExec(`sudo kubectl logs -f ${pod.NAME}`);
@@ -73,7 +73,7 @@ class UnderpostTest {
                 break;
             }
           else {
-            const pods = UnderpostDeploy.API.getPods(deployId);
+            const pods = UnderpostDeploy.API.get(deployId);
             if (pods.length > 0)
               for (const deployData of pods) {
                 const { NAME } = deployData;
@@ -92,7 +92,7 @@ class UnderpostTest {
         logger.info(`Loading ${podName} instance`, { status, deltaMs });
         const _monitor = async () => {
           await timer(deltaMs);
-          const result = UnderpostDeploy.API.getPods(podName).find((p) => p.STATUS === status);
+          const result = UnderpostDeploy.API.get(podName).find((p) => p.STATUS === status);
           logger.info(`Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}ms`);
           if (result) return resolve();
           index++;

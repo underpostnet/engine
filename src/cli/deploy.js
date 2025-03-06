@@ -180,27 +180,41 @@ spec:
     async callback(
       deployList = 'default',
       env = 'development',
-      options = { remove: false, infoRouter: false, sync: false, buildManifest: false },
+      options = { remove: false, infoRouter: false, sync: false, buildManifest: false, infoUtil: false, expose: false },
     ) {
+      if (options.infoUtil === true)
+        return logger.info(`
+kubectl rollout restart deployment/deployment-name
+kubectl rollout undo deployment/deployment-name
+kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
+        `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.sync) UnderpostDeploy.API.sync(deployList);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env);
       if (options.infoRouter === true)
         return logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+      const etcHost = (
+        concat,
+      ) => `127.0.0.1  ${concat} localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
+      let concatHots = '';
 
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
-
+        if (options.expose === true) {
+          const svc = UnderpostDeploy.API.get(deployId, 'svc')[0];
+          const port = parseInt(svc[`PORT(S)`].split('/TCP')[0]);
+          logger.info(deployId, {
+            svc,
+            port,
+          });
+          shellExec(`sudo kubectl port-forward -n default svc/${svc.NAME} ${port}:${port}`, { async: true });
+          continue;
+        }
         shellExec(`sudo kubectl delete svc ${deployId}-${env}-service`);
         shellExec(`sudo kubectl delete deployment ${deployId}-${env}`);
-
-        const etcHost = (
-          concat,
-        ) => `127.0.0.1  ${concat} localhost localhost.localdomain localhost4 localhost4.localdomain4
-::1         localhost localhost.localdomain localhost6 localhost6.localdomain6`;
-        let concatHots = '';
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
@@ -219,37 +233,35 @@ spec:
           shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
           if (env === 'production') shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);
         }
-
-        let renderHosts;
-
-        switch (process.platform) {
-          case 'linux':
-            {
-              switch (env) {
-                case 'development':
-                  renderHosts = etcHost(concatHots);
-                  fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
-
-                  break;
-
-                default:
-                  break;
-              }
-            }
-            break;
-
-          default:
-            break;
-        }
-        if (renderHosts)
-          logger.info(
-            `
-` + renderHosts,
-          );
       }
+      let renderHosts;
+      switch (process.platform) {
+        case 'linux':
+          {
+            switch (env) {
+              case 'development':
+                renderHosts = etcHost(concatHots);
+                fs.writeFileSync(`/etc/hosts`, renderHosts, 'utf8');
+
+                break;
+
+              default:
+                break;
+            }
+          }
+          break;
+
+        default:
+          break;
+      }
+      if (renderHosts)
+        logger.info(
+          `
+` + renderHosts,
+        );
     },
-    getPods(deployId) {
-      const raw = shellExec(`sudo kubectl get pods --all-namespaces -o wide`, {
+    get(deployId, kindType = 'pods') {
+      const raw = shellExec(`sudo kubectl get ${kindType} --all-namespaces -o wide`, {
         stdout: true,
         disableLog: true,
         silent: true,

@@ -102,6 +102,8 @@ program
   .option('--remove', 'Delete deployments and services')
   .option('--sync', 'Sync deployments env, ports, and replicas')
   .option('--info-router', 'Display router structure')
+  .option('--expose', 'Expose service match deploy-list')
+  .option('--info-util', 'Display kubectl util management commands')
   .option('--build-manifest', 'Build kind yaml manifests: deployments, services, proxy and secrets')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);

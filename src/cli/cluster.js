@@ -26,7 +26,7 @@ class UnderpostCluster {
       const npmRoot = getNpmRootPath();
       const underpostRoot = `${npmRoot}/underpost`;
       if (options.reset === true) return await UnderpostCluster.API.reset();
-      if (options.listPods === true) return console.table(UnderpostDeploy.API.getPods(podName ?? undefined));
+      if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
 
       if (options.nsUse) {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
@@ -126,7 +126,7 @@ class UnderpostCluster {
         shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
 
       if (options.full || options.certManager) {
-        if (!UnderpostDeploy.API.getPods('cert-manager').find((p) => p.STATUS === 'Running')) {
+        if (!UnderpostDeploy.API.get('cert-manager').find((p) => p.STATUS === 'Running')) {
           shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
           shellExec(
             `helm install cert-manager jetstack/cert-manager \

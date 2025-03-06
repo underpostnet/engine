@@ -26,13 +26,13 @@ class UnderpostScript {
         const podMatch = options.podName && typeof options.podName === 'string' ? options.podName : key;
 
         if (fs.existsSync(`${value}`)) {
-          for (const pod of UnderpostDeploy.API.getPods(podMatch)) {
+          for (const pod of UnderpostDeploy.API.get(podMatch)) {
             shellExec(`sudo kubectl cp ${value} ${nameSpace}/${pod.NAME}:${podScriptPath}`);
             const cmd = `node ${podScriptPath}`;
             shellExec(`sudo kubectl exec -i ${pod.NAME} -- sh -c "${cmd}"`);
           }
         } else {
-          for (const pod of UnderpostDeploy.API.getPods(podMatch)) {
+          for (const pod of UnderpostDeploy.API.get(podMatch)) {
             shellExec(`sudo kubectl exec -i ${pod.NAME} -- sh -c "${value}"`);
           }
         }
