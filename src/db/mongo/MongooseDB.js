@@ -90,6 +90,8 @@ const MongooseDB = {
                 // sudo yum erase $(rpm -qa | grep mongodb)
                 // remove service
                 // sudo systemctl reset-failed
+                // MongoDB 5.0+ requires a CPU with AVX support
+                // check: grep avx /proc/cpuinfo
               }
               logger.info('install legacy 4.4');
               shellExec(`wget -qO - https://www.mongodb.org/static/pgp/server-4.4.asc | sudo apt-key add -`);
