@@ -9,7 +9,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 class BackUp {
-  static callback = async function (deployList, options = { disableKindCluster: false }) {
+  static callback = async function (deployList, options = { itc: false }) {
     if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
       deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
@@ -25,7 +25,7 @@ class BackUp {
       const deployId = _deployId.trim();
       if (!deployId) continue;
 
-      if (options.disableKindCluster !== true) {
+      if (!(options.itc === true)) {
         shellExec(`underpost db --export ${deployId}`);
         continue;
       }

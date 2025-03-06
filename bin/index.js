@@ -2,20 +2,18 @@
 
 import dotenv from 'dotenv';
 import { Command } from 'commander';
-import { loggerFactory } from '../src/server/logger.js';
 import Underpost from '../src/index.js';
-import { getNpmRootPath, loadConf } from '../src/server/conf.js';
+import { getUnderpostRootPath, loadConf } from '../src/server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../src/client/components/core/CommonJs.js';
 import UnderpostScript from '../src/cli/script.js';
 import UnderpostDB from '../src/cli/db.js';
 import UnderpostCron from '../src/cli/cron.js';
 
-const npmRoot = getNpmRootPath();
-const underpostRoot = `${npmRoot}/underpost/.env`;
-fs.existsSync(underpostRoot) ? dotenv.config({ path: underpostRoot, override: true }) : dotenv.config();
-
-const logger = loggerFactory(import.meta);
+const underpostRootPath = getUnderpostRootPath();
+fs.existsSync(`${underpostRootPath}/.env`)
+  ? dotenv.config({ path: `${underpostRootPath}/.env`, override: true })
+  : dotenv.config();
 
 const program = new Command();
 
@@ -150,7 +148,7 @@ program
   .command('install')
   .description('Fast import underpost npm dependencies')
   .action(() => {
-    fs.copySync(`${npmRoot}/underpost/node_modules`, './node_modules');
+    fs.copySync(`${underpostRootPath}/node_modules`, './node_modules');
   });
 
 program
@@ -165,17 +163,20 @@ program
   .command('script')
   .argument('operator', `Options: ${Object.keys(UnderpostScript.API)}`)
   .argument('<script-name>', 'Script name')
-  .argument('[script-value]', 'Literal command')
+  .argument('[script-value]', 'Literal command, or path')
+  .option('--itc', 'Inside container execution context')
+  .option('--ns <ns-name>', 'Options name space context')
+  .option('--pod-name <pod-name>')
   .description(
     'Supports a number of built-in underpost global scripts and their preset life cycle events as well as arbitrary scripts',
   )
-  .action((...args) => Underpost.script[args[0]](args[1], args[2]));
+  .action((...args) => Underpost.script[args[0]](args[1], args[2], args[3]));
 
 program
   .command('cron')
   .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
   .argument('[job-list]', `Deploy id list, e.g. ${Object.keys(UnderpostCron.JOB)}, for default all available jobs`)
-  .option('--disable-kind-cluster', 'Disable kind cluster configuration')
+  .option('--itc', 'Inside container execution context')
   .option('--init', 'Init cron jobs for cron job default deploy id')
   .description('Cron jobs management')
   .action(Underpost.cron.callback);
@@ -184,7 +185,7 @@ program
   .command('test')
   .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
   .description('Manage Test, for default run current underpost default test')
-  .option('--inside-container', 'Inside container execution context')
+  .option('--itc', 'Inside container execution context')
   .option('--sh', 'Copy to clipboard, container entrypoint shell command')
   .option('--logs', 'Display container logs')
   .option('--pod-name <pod-name>')

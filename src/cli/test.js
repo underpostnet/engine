@@ -29,7 +29,7 @@ class UnderpostTest {
       actionInitLog();
       shellExec(`cd ${getNpmRootPath()}/underpost && npm run test`);
     },
-    async callback(deployList = '', options = { insideContainer: false, sh: false, logs: false }) {
+    async callback(deployList = '', options = { itc: false, sh: false, logs: false }) {
       if (
         options.podName &&
         typeof options.podName === 'string' &&
@@ -50,7 +50,7 @@ class UnderpostTest {
         for (const _deployId of deployList.split(',')) {
           const deployId = _deployId.trim();
           if (!deployId) continue;
-          if (options.insideContainer === true)
+          if (options.itc === true)
             switch (deployId) {
               case 'dd-lampp':
                 {

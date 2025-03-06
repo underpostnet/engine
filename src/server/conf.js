@@ -995,7 +995,7 @@ const Cmd = {
   syncPorts: (deployGroupId) => `node bin/deploy sync-env-port ${deployGroupId}`,
   cron: (deployList, jobList, name, expression, options) =>
     `pm2 start ./bin/index.js --no-autorestart --instances 1 --cron "${expression}" --name ${name} -- cron ${
-      options?.disableKindCluster ? `--disable-kind-cluster ` : ''
+      options?.itc ? `--itc ` : ''
     }${deployList} ${jobList}`,
 };
 
@@ -1073,6 +1073,8 @@ const getNpmRootPath = () =>
     silent: true,
   }).trim();
 
+const getUnderpostRootPath = () => `${getNpmRootPath()}/underpost`;
+
 const writeEnv = (envPath, envObj) =>
   fs.writeFileSync(
     envPath,
@@ -1118,5 +1120,6 @@ export {
   buildPortProxyRouter,
   splitFileFactory,
   getNpmRootPath,
+  getUnderpostRootPath,
   writeEnv,
 };

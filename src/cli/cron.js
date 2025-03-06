@@ -46,7 +46,7 @@ class UnderpostCron {
     callback: async function (
       deployList = 'default',
       jobList = Object.keys(UnderpostCron.JOB),
-      options = { disableKindCluster: false, init: false },
+      options = { itc: false, init: false },
     ) {
       if (options.init === true) {
         await Underpost.test.setUpInfo();

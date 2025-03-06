@@ -54,23 +54,6 @@ class UnderpostImage {
             {
               const lamppPublicPath = '/xampp/htdocs/online';
               shellExec(`sudo mkdir -p ${lamppPublicPath}`);
-
-              {
-                shellExec(
-                  `cd ${lamppPublicPath} && git clone https://${process.env.GITHUB_TOKEN}@github.com/${process.env.DD_LAMPP_REPO_0}`,
-                );
-
-                shellExec(`cd ${lamppPublicPath} && sudo ${process.env.DD_LAMPP_SCRIPT_0}`);
-
-                shellExec(
-                  `sudo sed -i -e "s@define( 'DB_HOST', 'localhost' );@define( 'DB_HOST', '${process.env.MARIADB_HOST}' );@g" ${lamppPublicPath}/${process.env.DD_LAMPP_REPO_0_FOLDER}/wp-config.php`,
-                );
-              }
-              {
-                shellExec(
-                  `cd ${lamppPublicPath} && git clone https://${process.env.GITHUB_TOKEN}@github.com/${process.env.DD_LAMPP_REPO_1}`,
-                );
-              }
             }
             break;
 

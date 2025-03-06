@@ -2,6 +2,7 @@ import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
+import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,8 +14,25 @@ class UnderpostScript {
       packageJson.scripts[key] = value;
       fs.writeFileSync(`${npmRoot}/package.json`, JSON.stringify(packageJson, null, 4));
     },
-    run(key) {
+    run(key, value, options) {
       const npmRoot = `${getNpmRootPath()}/underpost`;
+      const packageJson = JSON.parse(fs.readFileSync(`${npmRoot}/package.json`, 'utf8'));
+      if (options.itc === true) {
+        value = packageJson.scripts[key];
+        if (fs.existsSync(`${value}`)) {
+          const podScriptPath = `/${value.split('/').pop()}`;
+          const nameSpace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
+          const podMatch = options.podName && typeof options.podName === 'string' ? options.podName : key;
+
+          for (const pod of UnderpostDeploy.API.getPods(podMatch)) {
+            shellExec(`sudo kubectl cp ${value} ${nameSpace}/${pod.NAME}:${podScriptPath}`);
+            const cmd = `cd / && node ${podScriptPath}`;
+            shellExec(`sudo kubectl exec -i ${pod.NAME} -- sh -c "${cmd}"`);
+          }
+        }
+
+        return;
+      }
       shellExec(`cd ${npmRoot} && npm run ${key}`);
     },
     get(key) {

@@ -18,6 +18,10 @@ spec:
         - name: mongodb
           image: docker.io/library/mongo:4.4
           command: ['mongod', '--replSet', 'rs0', '--bind_ip_all']
+          # -- bash
+          # mongo
+          # use admin
+          # rs.initiate()
           ports:
             - containerPort: 27017
 
@@ -41,10 +45,18 @@ metadata:
   name: mongodb-service
   namespace: default
 spec:
+  clusterIP: None
   selector:
     app: mongodb
   ports:
     - protocol: TCP
       port: 27017
-      targetPort: 27017
-  type: ClusterIP
+#     targetPort: 27017
+# type: ClusterIP
+
+# rs.initiate();
+# use admin;
+# db.createUser({user: "your_user",pwd: "your_password", roles: [{role: "userAdminAnyDatabase", db: "admin" },{ role: "readWriteAnyDatabase", db: "admin" }]});
+# cfg = rs.conf();
+# cfg.members[0].host = "127.0.0.1:27027";
+# rs.reconfig(cfg);
