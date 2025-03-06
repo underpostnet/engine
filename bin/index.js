@@ -158,6 +158,8 @@ program
   .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
   .option('--import', 'Import container backups from repositories')
   .option('--export', 'Export container backups to repositories')
+  .option('--pod-name <pod-name>', 'Optional pod context')
+  .option('--ns <ns-name>', 'Optional name space context')
   .description('Manage databases')
   .action(UnderpostDB.API.callback);
 

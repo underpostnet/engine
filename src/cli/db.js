@@ -7,9 +7,9 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostDB {
   static API = {
-    async callback(deployList = 'default', options = { import: false, export: false }) {
+    async callback(deployList = 'default', options = { import: false, export: false, podName: false, ns: false }) {
       const newBackupTimestamp = new Date().getTime();
-      const nameSpace = 'default';
+      const nameSpace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
@@ -74,7 +74,8 @@ class UnderpostDB {
 
               switch (provider) {
                 case 'mariadb': {
-                  const podName = `mariadb-statefulset-0`;
+                  const podName =
+                    options.podName && typeof options.podName === 'string' ? options.podName : `mariadb-statefulset-0`;
                   const serviceName = 'mariadb';
                   if (options.import === true) {
                     shellExec(`sudo kubectl cp ${_toSqlPath} ${nameSpace}/${podName}:/${dbName}.sql`);
@@ -95,7 +96,8 @@ class UnderpostDB {
 
                 case 'mongoose': {
                   if (options.import === true) {
-                    const podName = `mongodb-0`;
+                    const podName =
+                      options.podName && typeof options.podName === 'string' ? options.podName : `mongodb-0`;
                     shellExec(`sudo kubectl cp ${_toBsonPath} ${nameSpace}/${podName}:/${dbName}`);
                     const cmd = `mongorestore -d ${dbName} /${dbName}`;
                     shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
