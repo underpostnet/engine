@@ -672,80 +672,79 @@ try {
       break;
     }
 
-    case 'update-version':
-      {
-        const newVersion = process.argv[3];
-        const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
-        const { version } = originPackageJson;
-        originPackageJson.version = newVersion;
-        fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
+    case 'version-build': {
+      const newVersion = process.argv[3];
+      const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
+      const { version } = originPackageJson;
+      originPackageJson.version = newVersion;
+      fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
 
-        const originPackageLockJson = JSON.parse(fs.readFileSync(`package-lock.json`, 'utf8'));
-        originPackageLockJson.version = newVersion;
-        originPackageLockJson.packages[''].version = newVersion;
-        fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
+      const originPackageLockJson = JSON.parse(fs.readFileSync(`package-lock.json`, 'utf8'));
+      originPackageLockJson.version = newVersion;
+      originPackageLockJson.packages[''].version = newVersion;
+      fs.writeFileSync(`package-lock.json`, JSON.stringify(originPackageLockJson, null, 4), 'utf8');
 
-        if (fs.existsSync(`./engine-private/conf`)) {
-          const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
-          for (const relativePath of files) {
-            const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
-            if (filePah.split('/').pop() === 'package.json') {
-              const originPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
-              originPackage.version = newVersion;
-              fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
-            }
-            if (filePah.split('/').pop() === 'deployment.yaml') {
-              fs.writeFileSync(
-                filePah,
-                fs
-                  .readFileSync(filePah, 'utf8')
-                  .replaceAll(`v${version}`, `v${newVersion}`)
-                  .replaceAll(`engine.version: ${version}`, `engine.version: ${newVersion}`),
-                'utf8',
-              );
-            }
+      if (fs.existsSync(`./engine-private/conf`)) {
+        const files = await fs.readdir(`./engine-private/conf`, { recursive: true });
+        for (const relativePath of files) {
+          const filePah = `./engine-private/conf/${relativePath.replaceAll(`\\`, '/')}`;
+          if (filePah.split('/').pop() === 'package.json') {
+            const originPackage = JSON.parse(fs.readFileSync(filePah, 'utf8'));
+            originPackage.version = newVersion;
+            fs.writeFileSync(filePah, JSON.stringify(originPackage, null, 4), 'utf8');
+          }
+          if (filePah.split('/').pop() === 'deployment.yaml') {
+            fs.writeFileSync(
+              filePah,
+              fs
+                .readFileSync(filePah, 'utf8')
+                .replaceAll(`v${version}`, `v${newVersion}`)
+                .replaceAll(`engine.version: ${version}`, `engine.version: ${newVersion}`),
+              'utf8',
+            );
           }
         }
-
-        fs.writeFileSync(
-          `./docker-compose.yml`,
-          fs
-            .readFileSync(`./docker-compose.yml`, 'utf8')
-            .replaceAll(`engine.version: '${version}'`, `engine.version: '${newVersion}'`),
-          'utf8',
-        );
-
-        if (fs.existsSync(`./.github/workflows/docker-image.yml`))
-          fs.writeFileSync(
-            `./.github/workflows/docker-image.yml`,
-            fs
-              .readFileSync(`./.github/workflows/docker-image.yml`, 'utf8')
-              .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
-            'utf8',
-          );
-
-        fs.writeFileSync(
-          `./src/index.js`,
-          fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
-          'utf8',
-        );
-
-        shellExec(`node bin/deploy update-dependencies`);
-        shellExec(`auto-changelog`);
-        setTimeout(() => {
-          shellExec(`underpost deploy dd --build-manifest --sync --info-router`);
-          shellExec(`underpost deploy dd production --build-manifest --sync --info-router`);
-          shellExec(`node bin/build dd conf`);
-          shellExec(`git add . && cd ./engine-private && git add .`);
-          shellExec(`underpost cmt . ci package-pwa-microservices-template 'update version ${newVersion}'`);
-          shellExec(
-            `underpost cmt ./engine-private ci package-pwa-microservices-template 'update version ${newVersion}'`,
-          );
-          shellExec(`underpost push . underpostnet/engine`);
-          shellExec(`cd ./engine-private && underpost push . underpostnet/engine-private`);
-        }, 1000);
       }
+
+      fs.writeFileSync(
+        `./docker-compose.yml`,
+        fs
+          .readFileSync(`./docker-compose.yml`, 'utf8')
+          .replaceAll(`engine.version: '${version}'`, `engine.version: '${newVersion}'`),
+        'utf8',
+      );
+
+      if (fs.existsSync(`./.github/workflows/docker-image.yml`))
+        fs.writeFileSync(
+          `./.github/workflows/docker-image.yml`,
+          fs
+            .readFileSync(`./.github/workflows/docker-image.yml`, 'utf8')
+            .replaceAll(`underpost-engine:v${version}`, `underpost-engine:v${newVersion}`),
+          'utf8',
+        );
+
+      fs.writeFileSync(
+        `./src/index.js`,
+        fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
+        'utf8',
+      );
+
+      shellExec(`node bin/deploy update-dependencies`);
+      shellExec(`auto-changelog`);
+      shellExec(`node bin deploy dd --build-manifest --sync --info-router`);
+      shellExec(`node bin deploy dd production --build-manifest --sync --info-router`);
       break;
+    }
+
+    case 'version-deploy': {
+      shellExec(`node bin/build dd conf`);
+      shellExec(`git add . && cd ./engine-private && git add .`);
+      shellExec(`node bin cmt . ci package-pwa-microservices-template`);
+      shellExec(`node bin cmt ./engine-private ci package-pwa-microservices-template`);
+      shellExec(`node bin push . underpostnet/engine`);
+      shellExec(`cd ./engine-private && node bin push . underpostnet/engine-private`);
+      break;
+    }
 
     case 'update-authors': {
       // #### Ordered by first contribution.
