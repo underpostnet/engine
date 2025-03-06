@@ -179,9 +179,7 @@ const DefaultConf = /**/ {
     },
   },
   cron: {
-    ipDaemon: { ip: null },
     records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
-    backups: [{ deployGroupId: 'default-group' }],
     jobs: { dns: { expression: '* * * * *', enabled: true }, backups: { expression: '0 1 * * *', enabled: true } },
   },
 }; /**/

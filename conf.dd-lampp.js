@@ -94,8 +94,8 @@ const DefaultConf = /**/ {
     },
   },
   cron: {
-    ipDaemon: { ip: null, minutesTimeInterval: 3, disabled: true },
     records: { A: [{ host: 'example.com', dns: 'dondominio', api_key: '???', user: '???' }] },
+    jobs: { dns: { expression: '* * * * *', enabled: true }, backups: { expression: '0 1 * * *', enabled: true } },
   },
 }; /**/
 

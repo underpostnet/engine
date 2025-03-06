@@ -20,11 +20,15 @@ const logger = loggerFactory(import.meta);
 const confName = process.argv[2];
 const basePath = '../pwa-microservices-template';
 const repoName = `engine-${confName.split('dd-')[1]}`;
+const deployList = (confName === 'dd' ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8') : confName).split(
+  ',',
+);
 
 logger.info('', {
   confName,
   repoName,
   basePath,
+  deployList,
 });
 
 if (process.argv.includes('clean')) {
@@ -35,10 +39,7 @@ if (process.argv.includes('clean')) {
 }
 
 if (process.argv.includes('conf')) {
-  for (const _confName of (confName === 'dd'
-    ? fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8')
-    : confName
-  ).split(',')) {
+  for (const _confName of deployList) {
     const _repoName = `engine-${_confName.split('dd-')[1]}`;
     const privateRepoName = `${_repoName}-private`;
     const privateGitUri = `${process.env.GITHUB_USERNAME}/${privateRepoName}`;
@@ -64,6 +65,13 @@ if (process.argv.includes('conf')) {
         ` && underpost cmt . ci engine-core-conf 'Update ${_confName} conf'` +
         ` && underpost push . ${privateGitUri}`,
     );
+  }
+  process.exit(0);
+}
+
+if (confName === 'dd') {
+  for (const _confName of deployList) {
+    shellExec(`node bin/build ${_confName}`);
   }
   process.exit(0);
 }
@@ -132,6 +140,8 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
       }
     }
   }
+
+  shellExec(`node bin/deploy update-default-conf ${confName}`);
 
   fs.copyFileSync(`./conf.${confName}.js`, `${basePath}/conf.js`);
   fs.copyFileSync(

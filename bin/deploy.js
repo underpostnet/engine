@@ -731,6 +731,7 @@ try {
 
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
+      shellExec(`node bin/build dd`);
       shellExec(`node bin deploy dd --build-manifest --sync --info-router`);
       shellExec(`node bin deploy dd production --build-manifest --sync --info-router`);
       break;
@@ -837,7 +838,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         DefaultConf.client = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.client.json`, 'utf8'));
         DefaultConf.server = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.server.json`, 'utf8'));
         DefaultConf.ssr = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.ssr.json`, 'utf8'));
-        DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.cron.json`, 'utf8'));
+        // DefaultConf.cron = JSON.parse(fs.readFileSync(`./engine-private/conf/${confName}/conf.cron.json`, 'utf8'));
 
         for (const host of Object.keys(DefaultConf.server)) {
           for (const path of Object.keys(DefaultConf.server[host])) {
