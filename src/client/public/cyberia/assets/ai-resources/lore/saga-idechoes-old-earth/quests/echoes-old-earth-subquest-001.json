@@ -1,0 +1,155 @@
+{
+    "maxStep": 4,
+    "currentStep": 0,
+    "displaySearchObjects": [
+        {
+            "id": "encrypted-data-chip",
+            "quantity": 3,
+            "current": 0,
+            "step": 0,
+            "description": {
+                "en": "Recover Encrypted Data Chips from Zenith Empire Scouts.",
+                "es": "Recupera Chips de Datos Encriptados de Exploradores del Imperio Zenith."
+            }
+        },
+        {
+            "id": "kaito-rossi",
+            "actionIcon": "assets/ui-icons/talk.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/talk.png",
+                "assets/characters/kaito-rossi/portrait.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 1,
+            "delivery": true,
+            "description": {
+                "en": "Deliver the recovered data chips to Commander Kaito Rossi.",
+                "es": "Entrega los chips de datos recuperados al Comandante Kaito Rossi."
+            }
+        },
+        {
+            "id": "damaged-drone-core",
+            "quantity": 1,
+            "current": 0,
+            "step": 2,
+            "description": {
+                "en": "Salvage a Damaged Drone Core from a Nova Republic wreckage site.",
+                "es": "Recupera un Núcleo de Dron Dañado de un sitio de restos de la República Nova."
+            }
+        },
+        {
+            "id": "sera-rossi",
+            "actionIcon": "assets/ui-icons/hand.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/hand.png",
+                "assets/characters/sera-rossi/portrait.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 3,
+            "delivery": true,
+            "description": {
+                "en": "Give the Damaged Drone Core to Sera Rossi for analysis.",
+                "es": "Entrega el Núcleo de Dron Dañado a Sera Rossi para su análisis."
+            }
+        }
+    ],
+    "reward": [
+        {
+            "type": "credits",
+            "quantity": 500
+        },
+        {
+            "type": "item",
+            "id": "repair-kit-basic",
+            "quantity": 2
+        },
+        {
+            "type": "reputation",
+            "faction": "atlas-confederation",
+            "quantity": 100
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "kaito-rossi",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "Excellent work.  These chips will be invaluable to the Empire.",
+                            "es": "Excelente trabajo. Estos chips serán invaluables para el Imperio."
+                        }
+                    },
+                    {
+                        "displayId": "kaito-rossi",
+                        "image": "assets/characters/kaito-rossi/portrait.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "The Empire thanks you. Now, a more... delicate task.",
+                            "es": "El Imperio te lo agradece. Ahora, una tarea más... delicada."
+                        }
+                    },
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "Good, the drone core has usefull information",
+                            "es": "Bien, el nucleo del dron tiene información importante"
+                        }
+                    },
+                    {
+                        "displayId": "sera-rossi",
+                        "image": "assets/characters/sera-rossi/portrait.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "Thanks.  This could be useful... for the right people.",
+                            "es": "Gracias. Esto podría ser útil... para la gente adecuada."
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "icon": {
+        "folder": "quest/echoes-old-earth",
+        "id": "data-chip.png"
+    },
+    "title": {
+        "en": "Whispers of Anya",
+        "es": "Susurros de Anya"
+    },
+    "shortDescription": {
+        "en": "Uncover clues related to Dr. Anya Rossi's lost research.",
+        "es": "Descubre pistas relacionadas con la investigación perdida de la Dra. Anya Rossi."
+    },
+    "description": {
+        "en": "Commander Kaito Rossi has tasked you with recovering encrypted data chips from Zenith Empire scouts. These chips may contain fragmented information related to his mother, Dr. Anya Rossi, and her controversial genetic research. Later, he asks for you to give a Drone Core to Sera Rossi.",
+        "es": "El Comandante Kaito Rossi te ha encargado recuperar chips de datos encriptados de exploradores del Imperio Zenith.  Estos chips pueden contener información fragmentada relacionada con su madre, la Dra. Anya Rossi, y su controvertida investigación genética.  Luego, te pide que le des un Núcleo de Dron a Sera Rossi."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "en": "You've taken the first steps towards uncovering a hidden legacy.",
+        "es": "Has dado los primeros pasos para descubrir un legado oculto."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "The past is never truly gone. It echoes in the present.",
+        "es": "El pasado nunca se va del todo.  Resuena en el presente."
+    },
+    "questId": "echoes-old-earth-subquest-001"
+}
