@@ -1,0 +1,140 @@
+{
+    "maxStep": 4,
+    "currentStep": 0,
+    "displaySearchObjects": [
+        {
+            "id": "encrypted-data-chip",
+            "quantity": 1,
+            "current": 0,
+            "step": 0,
+            "assetFolder": "questItem"
+        },
+        {
+            "id": "zenith-security-terminal",
+            "actionIcon": "assets/ui-icons/computer.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/computer.png",
+                "assets/faction-symbol/zenith-empire.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 1,
+            "delivery": false,
+            "assetFolder": "questItem"
+        },
+        {
+            "id": "decryption-key",
+            "quantity": 1,
+            "current": 0,
+            "step": 2,
+            "assetFolder": "questItem"
+        },
+        {
+            "id": "aiko-ishikawa",
+            "actionIcon": "assets/ui-icons/hand.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/hand.png",
+                "assets/skin/aiko-ishikawa/01/0.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 3,
+            "delivery": true,
+            "assetFolder": "skin"
+        }
+    ],
+    "reward": [
+        {
+            "type": "coin",
+            "quantity": 50
+        },
+        {
+            "type": "faction-reputation",
+            "faction": "atlas-confederation",
+            "quantity": 10
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "aiko-ishikawa",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "image": "assets/skin/aiko-ishikawa/03/0.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "I need to find that data chip. It could contain vital information about my father.",
+                            "es": "Necesito encontrar ese chip de datos. Podría contener información vital sobre mi padre."
+                        }
+                    },
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "Now I need access a Zenith Security Terminal to try to interact with the data chip.",
+                            "es": "Ahora necesito acceder a una Terminal de Seguridad Zenith para intentar interactuar con el chip de datos"
+                        }
+                    },
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "I need a decryption key to unlock this data. I should search around.",
+                            "es": "Necesito una clave de descifrado para desbloquear estos datos. Debería buscar por los alrededores."
+                        }
+                    },
+                    {
+                        "image": "assets/skin/aiko-ishikawa/01/0.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "I've decrypted the chip!  The information... it confirms my father survived.  But he's... a Mutagen leader?",
+                            "es": "¡He descifrado el chip! La información... confirma que mi padre sobrevivió. ¿Pero es... un líder Mutágeno?"
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "icon": {
+        "folder": "questItem/encrypted-data-chip",
+        "id": "icon.png"
+    },
+    "title": {
+        "en": "Data Recovery",
+        "es": "Recuperación de Datos"
+    },
+    "shortDescription": {
+        "en": "Aiko searches for a crucial data chip.",
+        "es": "Aiko busca un chip de datos crucial."
+    },
+    "description": {
+        "en": "Following the discovery of the wreckage, Aiko must find a specific encrypted data chip that may contain information about her father, Kenzo.  She must then find a way to decrypt it.",
+        "es": "Tras el descubrimiento de los restos, Aiko debe encontrar un chip de datos encriptado específico que pueda contener información sobre su padre, Kenzo. Luego debe encontrar una manera de descifrarlo."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "en": "The data is recovered, revealing a shocking truth about Kenzo's fate.",
+        "es": "Los datos se recuperan, revelando una verdad impactante sobre el destino de Kenzo."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "The wreckage is scattered... but there must be something here of value.",
+        "es": "Los restos están dispersos... pero debe haber algo de valor aquí."
+    },
+    "questId": "ashes-of-orion-data-recovery"
+}

@@ -6,7 +6,7 @@ import Underpost from '../src/index.js';
 import fs from 'fs-extra';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
+import { CyberiaItemsType, LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
 import { random, s4 } from '../src/client/components/core/CommonJs.js';
@@ -129,7 +129,7 @@ program
   .argument('<saga-id>', 'Id of saga related')
   .argument('[ques-id]', 'Quest id model reference')
   .action(async (sagaId, options = { questId: '' }) => {
-    const idQuests = Object.keys(QuestComponent.Data);
+    const idQuests = Object.keys(QuestComponent.Data).filter((e) => !['odisea-seller'].includes(e));
     const idQuestJsonExample =
       options.questId && typeof options.questId === 'string'
         ? options.questId
@@ -156,6 +156,8 @@ program
       },
       null,
       4,
+    )}. The 'assetFolder' value attribute options available for the elements of 'displaySearchObjects' array are the following: ${Object.keys(
+      CyberiaItemsType,
     )} ${
       questsAlreadyCreated.length > 0
         ? `keep in mind that quest already created: ${questsAlreadyCreated
@@ -208,7 +210,7 @@ program
 
       for (const searchObject of questData.displaySearchObjects) {
         const { id } = searchObject;
-        console.log('gen media', id);
+        console.log('gen media', searchObject);
       }
     }
   })

@@ -534,6 +534,7 @@ const QuestComponent = {
             quantity: 2,
             current: 0,
             step: 0,
+            assetFolder: 'skin',
           },
           {
             id: 'punk',
@@ -542,6 +543,7 @@ const QuestComponent = {
             quantity: 1,
             current: 0,
             step: 1,
+            assetFolder: 'skin',
           },
         ],
         provide: {
@@ -612,6 +614,7 @@ const QuestComponent = {
             quantity: 1,
             current: 0,
             step: 0,
+            assetFolder: 'skin',
           },
           {
             id: 'agent',
@@ -620,6 +623,7 @@ const QuestComponent = {
             quantity: 1,
             current: 0,
             step: 1,
+            assetFolder: 'skin',
           },
         ],
         provide: {
@@ -795,8 +799,8 @@ const QuestComponent = {
         maxStep: 3,
         currentStep: 0,
         displaySearchObjects: [
-          { id: 'bone', quantity: 2, current: 0, step: 0 },
-          { id: 'bone-brown', quantity: 1, current: 0, step: 0 },
+          { id: 'bone', quantity: 2, current: 0, step: 0, assetFolder: 'quest' },
+          { id: 'bone-brown', quantity: 1, current: 0, step: 0, assetFolder: 'quest' },
           {
             id: 'ayleen',
             actionIcon: 'assets/ui-icons/hand.png',
@@ -805,9 +809,10 @@ const QuestComponent = {
             current: 0,
             step: 1,
             delivery: true,
+            assetFolder: 'skin',
           },
-          { id: 'bone', quantity: 1, current: 0, step: 2 },
-          { id: 'bone-brown', quantity: 1, current: 0, step: 2 },
+          { id: 'bone', quantity: 1, current: 0, step: 2, assetFolder: 'quest' },
+          { id: 'bone-brown', quantity: 1, current: 0, step: 2, assetFolder: 'quest' },
           {
             id: 'ayleen',
             actionIcon: 'assets/ui-icons/hand.png',
@@ -816,6 +821,7 @@ const QuestComponent = {
             current: 0,
             step: 3,
             delivery: true,
+            assetFolder: 'skin',
           },
         ],
         reward: [
