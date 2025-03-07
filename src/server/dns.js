@@ -12,8 +12,8 @@ const logger = loggerFactory(import.meta);
 
 class Dns {
   static callback = async function (deployList) {
-    // NAT-VPS modem/router device configuration:
-    // LAN --> [NAT-VPS] --> WAN
+    // Network topology configuration:
+    // LAN -> [NAT-VPS](modem/router device) -> WAN
     // enabled DMZ Host to proxy IP 80-443 (79-444) sometimes router block first port
     // disabled local red DHCP
     // verify inet ip proxy server address
