@@ -3,93 +3,71 @@
     "currentStep": 0,
     "displaySearchObjects": [
         {
-            "id": "zenith-schematics",
-            "quantity": 3,
+            "id": "zenith_data_core",
+            "quantity": 1,
             "current": 0,
             "step": 0
         },
         {
-            "id": "ryo-ishikawa",
+            "id": "mutagen_courier",
             "actionIcon": "assets/ui-icons/talk.png",
             "panelQuestIcons": [
                 "assets/ui-icons/talk.png",
-                "assets/skin/ryo-ishikawa/01.png"
+                "assets/skin/mutagen_courier/01/0.png"
             ],
             "quantity": 1,
             "current": 0,
             "step": 1,
-            "delivery": true
+            "delivery": false
         },
         {
-            "id": "atlas-datapad",
+            "id": "encrypted_message",
             "quantity": 1,
             "current": 0,
             "step": 2
         },
         {
-            "id": "aiko-ishikawa",
-            "actionIcon": "assets/ui-icons/talk.png",
+            "id": "kenzo_ishikawa",
+            "actionIcon": "assets/ui-icons/hand.png",
             "panelQuestIcons": [
-                "assets/ui-icons/talk.png",
-                "assets/skin/aiko-ishikawa/01.png"
+                "assets/ui-icons/hand.png",
+                "assets/skin/kenzo_ishikawa/01/0.png"
             ],
             "quantity": 1,
             "current": 0,
             "step": 3,
             "delivery": true
-        },
-        {
-            "id": "kenzo-ishikawa",
-            "actionIcon": "assets/ui-icons/talk.png",
-            "panelQuestIcons": [
-                "assets/ui-icons/talk.png",
-                "assets/skin/kenzo-ishikawa/01.png"
-            ],
-            "quantity": 1,
-            "current": 0,
-            "step": 4,
-            "delivery": false
         }
     ],
     "reward": [
         {
-            "type": "reputation",
-            "faction": "atlas-confederation",
+            "type": "coin",
             "quantity": 50
         },
         {
             "type": "item",
-            "id": "atlas_navigator_chip",
+            "id": "damaged_zenith_pistol",
             "quantity": 1
         }
     ],
     "provide": {
         "displayIds": [
             {
-                "id": "ryo-ishikawa",
+                "id": "kenzo_ishikawa",
                 "quantity": [
                     1
                 ],
                 "stepData": [
                     {
-                        "image": "assets/ui-icons/check.png",
+                        "image": "assets/ui-icons/search.png",
                         "imageStyle": {
                             "max-width": "80px",
                             "max-height": "80px"
                         },
-                        "bubble": false,
-                        "completeDialog": {
-                            "en": "Excellent.  Now, deliver these schematics to Ryo Ishikawa. He should be in the Nova Republic labs.",
-                            "es": "Excelente. Ahora, entrega estos esquemas a Ryo Ishikawa. Debería estar en los laboratorios de la República Nova."
-                        }
-                    },
-                    {
-                        "displayId": "ryo-ishikawa",
-                        "image": "assets/skin/ryo-ishikawa/02.png",
                         "bubble": true,
                         "completeDialog": {
-                            "en": "These schematics... they are outdated, but the underlying principles are sound.  I can use this.  Now, acquire an Atlas datapad.  I need to... adapt it.",
-                            "es": "Estos esquemas... están desactualizados, pero los principios subyacentes son sólidos. Puedo usar esto. Ahora, consigue un datapad Atlas. Necesito... adaptarlo."
+                            "en": "Find the Zenith Data Core. It was being transported through the derelict sector.",
+                            "es": "Encuentra el Núcleo de Datos Zenith. Estaba siendo transportado a través del sector abandonado."
                         }
                     },
                     {
@@ -100,26 +78,38 @@
                         },
                         "bubble": false,
                         "completeDialog": {
-                            "en": "The datapad acquired, take to Aiko Ishikawa",
-                            "es": "Con el datapad adquirido, entregaselo a Aiko Ishikawa"
+                            "en": "Good, now locate the Mutagen courier who intercepted the data.",
+                            "es": "Bien, ahora localiza al mensajero Mutagen que interceptó los datos."
                         }
                     },
                     {
-                        "displayId": "aiko-ishikawa",
-                        "image": "assets/skin/aiko-ishikawa/02.png",
+                        "displayId": "mutagen_courier",
+                        "image": "assets/skin/mutagen_courier/01/0.png",
                         "bubble": true,
                         "completeDialog": {
-                            "en": "This datapad... it's been tampered with.  Ryo's work, I presume? I'll need to investigate this.  There are rumors... rumors of my father. Find Kenzo Ishikawa, tell him I am looking for the family",
-                            "es": "Este datapad... ha sido manipulado. ¿Obra de Ryo, supongo? Tendré que investigar esto. Hay rumores... rumores de mi padre.  Encuentra a Kenzo Ishikawa. Dile que estoy buscando a mi familia."
+                            "en": "Retrieve the encrypted message from the courier.",
+                            "es": "Recupera el mensaje cifrado del mensajero."
                         }
                     },
                     {
-                        "displayId": "kenzo-ishikawa",
-                        "image": "assets/skin/kenzo-ishikawa/02.png",
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "Excellent. Bring the message back to me.",
+                            "es": "Excelente. Tráeme el mensaje de vuelta."
+                        }
+                    },
+                    {
+                        "displayId": "kenzo_ishikawa",
+                        "image": "assets/skin/kenzo_ishikawa/01/0.png",
                         "bubble": true,
                         "completeDialog": {
-                            "en": "Aiko... she still lives?  And Ryo... he works for *them*?  This changes everything.",
-                            "es": "Aiko... ¿sigue viva? ¿Y Ryo... trabaja para *ellos*? Esto lo cambia todo."
+                            "en": "Well done. This information is crucial.",
+                            "es": "Bien hecho. Esta información es crucial."
                         }
                     }
                 ]
@@ -127,30 +117,30 @@
         ]
     },
     "icon": {
-        "folder": "quest/ashes-of-orion",
-        "id": "family-crest.png"
+        "folder": "quest/data_core",
+        "id": "animation.gif"
     },
     "title": {
-        "en": "Scattered Echoes",
-        "es": "Ecos Dispersos"
+        "en": "Data Recovery",
+        "es": "Recuperación de Datos"
     },
     "shortDescription": {
-        "en": "Uncover the fragmented past of the Ishikawa family.",
-        "es": "Descubre el pasado fragmentado de la familia Ishikawa."
+        "en": "Retrieve stolen Zenith data for Kenzo.",
+        "es": "Recupera datos Zenith robados para Kenzo."
     },
     "description": {
-        "en": "Aiko Ishikawa receives a cryptic message hinting at her father's survival and her brother's involvement with the Nova Republic.  She needs your help to piece together the truth.",
-        "es": "Aiko Ishikawa recibe un mensaje críptico que insinúa la supervivencia de su padre y la implicación de su hermano con la República Nova. Necesita tu ayuda para reconstruir la verdad."
+        "en": "Kenzo Ishikawa needs you to recover a stolen Zenith data core containing vital schematics.  It was last known to be in transit through a dangerous derelict sector. Find the core, locate the Mutagen courier who has it, retrieve the encrypted message, and return it to Kenzo.",
+        "es": "Kenzo Ishikawa necesita que recuperes un núcleo de datos Zenith robado que contiene esquemas vitales.  Se sabe que estuvo en tránsito por un peligroso sector abandonado. Encuentra el núcleo, localiza al mensajero Mutagen que lo tiene, recupera el mensaje cifrado y devuélvelo a Kenzo."
     },
     "descriptionBubble": true,
     "successDescription": {
-        "en": "The first threads of the Ishikawa family's fate are revealed.  The search continues...",
-        "es": "Se revelan los primeros hilos del destino de la familia Ishikawa. La búsqueda continúa..."
+        "en": "The Zenith data has been recovered!",
+        "es": "¡Los datos Zenith han sido recuperados!"
     },
     "successDescriptionBubble": true,
     "defaultDialog": {
-        "en": "I have no tasks for you at the moment.",
-        "es": "No tengo tareas para ti en este momento."
+        "en": "The future of the Mutagens may depend on this.",
+        "es": "El futuro de los Mutagens puede depender de esto."
     },
     "questId": "ashes-of-orion-002"
 }

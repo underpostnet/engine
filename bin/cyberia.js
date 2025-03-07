@@ -155,8 +155,11 @@ program
     )} ${
       questsAlreadyCreated.length > 0
         ? `keep in mind that quest already created: ${questsAlreadyCreated
-            .filter((s) => s.match('.md'))
-            .map((s) => `${s}:  ${fs.readFileSync(`${questsPath}/${s}`, 'utf8')}`)
+            .filter((s) => s.match('.json'))
+            .map((s) => {
+              const _q = JSON.parse(fs.readFileSync(`${questsPath}/${s}`, 'utf8'));
+              return `${s} quest: ${s} description: ${_q.description.en} ${s} successDescription: ${_q.successDescription.en}`;
+            })
             .join(', ')}, so create a new quest id on JSON`
         : ''
     }.`;
