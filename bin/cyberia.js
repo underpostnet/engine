@@ -137,13 +137,14 @@ program
     const questsPath = `${lorePath}/${sagaId}/quests`;
     if (!fs.existsSync(questsPath)) fs.mkdirSync(questsPath, { recursive: true });
 
-    const questsAlreadyCreated = await fs.readdir(questsPath);
+    let questsAlreadyCreated = await fs.readdir(questsPath);
+    if (questsAlreadyCreated.length > 3) questsAlreadyCreated = questsAlreadyCreated.slice(-(3 * 2)); // last 3 chapters context
 
     const prompt = `${metanarrative}, and the current saga is about: ${fs.readFileSync(
       `${lorePath}/${sagaId}/saga.md`,
       'utf8',
     )}, Generate a new ${
-      questsAlreadyCreated.length > 0 ? 'first ' : ''
+      questsAlreadyCreated.length === 0 ? 'first ' : ''
     }quest saga json example instance, following this JSON format example:
     ${JSON.stringify(
       {
@@ -152,31 +153,29 @@ program
           en: '<insert-default-dialog-here>',
           es: '<insertar-default-dialogo-aqui>',
         },
-        questId: '<insert-new-sub-quest-id>',
+        questId: '<insert-saga-name>-000',
       },
       null,
       4,
-    )}. The 'assetFolder' value attribute options available for the elements of 'displaySearchObjects' array are the following: ${Object.keys(
+    )}. The 'itemType' value attribute of the 'displaySearchObjects' elements can only be: ${Object.keys(
       CyberiaItemsType,
-    )} ${
+    )} chose appropriate. ${
       questsAlreadyCreated.length > 0
-        ? `keep in mind that quest already created: ${questsAlreadyCreated
+        ? `Keep in mind that quest already created: ${questsAlreadyCreated
             .filter((s) => s.match('.json'))
             .map((s) => {
               const _q = JSON.parse(fs.readFileSync(`${questsPath}/${s}`, 'utf8'));
               return `${s} quest: ${s} description: ${_q.description.en} ${s} successDescription: ${_q.successDescription.en}`;
             })
-            .join(', ')}, so create a new quest id on JSON`
+            .join(', ')}.`
         : ''
-    }.`;
+    } It must have narrative consistency with the previous chapters. Add review of chapter after json`;
 
     console.log('prompt:', prompt);
 
     let response = await generateContent(prompt);
 
     console.log('response:', response);
-
-    console.log(response);
 
     response = response.split('```');
 
@@ -194,7 +193,7 @@ program
     fs.writeFileSync(`${questsPath}/${json.questId}.json`, JSON.stringify(json, null, 4), 'utf8');
     fs.writeFileSync(`${questsPath}/${json.questId}.md`, md, 'utf8');
   })
-  .description('Quest json data gameplay data generator');
+  .description('Quest gameplay json  data generator');
 
 program
   .command('media')
