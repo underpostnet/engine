@@ -155,6 +155,15 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
     `${basePath}/.github/workflows/engine.${confName.split('dd-')[1]}.ci.yml`,
   );
 
+  switch (confName) {
+    case 'dd-cyberia':
+      fs.copyFileSync(`./bin/cyberia.js`, `${basePath}/bin/cyberia.js`);
+      break;
+
+    default:
+      break;
+  }
+
   const packageJson = JSON.parse(fs.readFileSync(`${basePath}/package.json`, 'utf8'));
   packageJson.name = repoName;
   fs.writeFileSync(
