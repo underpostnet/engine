@@ -20,11 +20,12 @@ class UnderpostCluster {
         certManager: false,
         listPods: false,
         reset: false,
+        dev: false,
         nsUse: '',
       },
     ) {
       const npmRoot = getNpmRootPath();
-      const underpostRoot = `${npmRoot}/underpost`;
+      const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
       if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
 
@@ -76,7 +77,11 @@ class UnderpostCluster {
         shellExec(`sudo service docker restart`);
         shellExec(`sudo systemctl enable --now containerd.service`);
         shellExec(`sudo systemctl restart containerd`);
-        shellExec(`cd ${underpostRoot}/manifests && kind create cluster --config kind-config.yaml`);
+        shellExec(
+          `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
+            options?.dev === true ? '-dev' : ''
+          }.yaml`,
+        );
         shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
       } else logger.warn('Cluster already initialized');
 

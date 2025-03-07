@@ -91,6 +91,7 @@ program
   .option('--info', 'Get all kinds objects deployed')
   .option('--full', 'Init with all statefulsets and services available')
   .option('--ns-use <ns-name>', 'Switches current context to namespace')
+  .option('--dev', 'init with dev cluster')
   .option('--list-pods', 'Display list pods information')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
