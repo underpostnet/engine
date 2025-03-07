@@ -85,6 +85,7 @@ program
   .option('--reset', `Delete all clusters and prune all data and caches`)
   .option('--mariadb', 'Init with mariadb statefulset')
   .option('--mongodb', 'Init with mongodb statefulset')
+  .option('--mongodb4', 'Init with mongodb 4.4 service')
   .option('--valkey', 'Init with valkey service')
   .option('--contour', 'Init with project contour base HTTPProxy and envoy')
   .option('--cert-manager', 'Init with letsencrypt-prod ClusterIssuer')
@@ -196,6 +197,7 @@ program
   .option('--logs', 'Display container logs')
   .option('--pod-name <pod-name>')
   .option('--pod-status <pod-status>')
+  .option('--kind-type <kind-type>')
   .action(Underpost.test.callback);
 
 program.parse();

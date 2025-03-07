@@ -13,6 +13,8 @@ class UnderpostCluster {
       podName,
       options = {
         valkey: false,
+        mongodb: false,
+        mongodb4: false,
         mariadb: false,
         valkey: false,
         full: false,
@@ -29,11 +31,11 @@ class UnderpostCluster {
       if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
 
-      if (options.nsUse) {
+      if (options.nsUse && typeof options.nsUse === 'string') {
         shellExec(`kubectl config set-context --current --namespace=${options.nsUse}`);
         return;
       }
-      if (options.info) {
+      if (options.info === true) {
         shellExec(`kubectl config get-contexts`); // config env persisente for manage multiple clusters
         shellExec(`kubectl config get-clusters`);
         shellExec(`kubectl get nodes -o wide`); // set of nodes of a cluster
@@ -64,12 +66,8 @@ class UnderpostCluster {
         shellExec(`kubectl get crd --all-namespaces -o wide`);
         return;
       }
-      const testClusterInit = shellExec(`kubectl get pods --all-namespaces -o wide`, {
-        disableLog: true,
-        silent: true,
-        stdout: true,
-      });
-      if (!(testClusterInit.match('kube-system') && testClusterInit.match('kube-proxy'))) {
+
+      if (!UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) {
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
@@ -85,11 +83,11 @@ class UnderpostCluster {
         shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
       } else logger.warn('Cluster already initialized');
 
-      if (options.full || options.valkey) {
+      if (options.full === true || options.valkey === true) {
         shellExec(`kubectl delete statefulset service-valkey`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/valkey`);
       }
-      if (options.full || options.mariadb) {
+      if (options.full === true || options.mariadb === true) {
         shellExec(
           `sudo kubectl create secret generic mariadb-secret --from-file=username=/home/dd/engine/engine-private/mariadb-username --from-file=password=/home/dd/engine/engine-private/mariadb-password`,
         );
@@ -99,7 +97,29 @@ class UnderpostCluster {
         shellExec(`kubectl delete statefulset mariadb-statefulset`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mariadb`);
       }
-      if (options.full || options.mongodb) {
+      if (options.mongodb4 === true) {
+        shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb-4.4`);
+
+        const deploymentName = 'mongodb-deployment';
+
+        const successInstance = await UnderpostTest.API.statusMonitor(deploymentName);
+
+        if (successInstance) {
+          const mongoConfig = {
+            _id: 'rs0',
+            members: [{ _id: 0, host: '127.0.0.1:27017' }],
+          };
+
+          const [pod] = UnderpostDeploy.API.get(deploymentName);
+
+          shellExec(
+            `sudo kubectl exec -i ${pod.NAME} -- mongo --quiet \
+        --eval 'rs.initiate(${JSON.stringify(mongoConfig)})'`,
+          );
+        }
+
+        // await UnderpostTest.API.statusMonitor('mongodb-1');
+      } else if (options.full === true || options.mongodb === true) {
         shellExec(
           `sudo kubectl create secret generic mongodb-keyfile --from-file=/home/dd/engine/engine-private/mongodb-keyfile`,
         );
@@ -109,28 +129,30 @@ class UnderpostCluster {
         shellExec(`kubectl delete statefulset mongodb`);
         shellExec(`kubectl apply -k ${underpostRoot}/manifests/mongodb`);
 
-        await UnderpostTest.API.podStatusMonitor('mongodb-1');
+        const successInstance = await UnderpostTest.API.statusMonitor('mongodb-1');
 
-        const mongoConfig = {
-          _id: 'rs0',
-          members: [
-            { _id: 0, host: 'mongodb-0.mongodb-service:27017', priority: 1 },
-            { _id: 1, host: 'mongodb-1.mongodb-service:27017', priority: 1 },
-          ],
-        };
+        if (successInstance) {
+          const mongoConfig = {
+            _id: 'rs0',
+            members: [
+              { _id: 0, host: 'mongodb-0.mongodb-service:27017', priority: 1 },
+              { _id: 1, host: 'mongodb-1.mongodb-service:27017', priority: 1 },
+            ],
+          };
 
-        shellExec(
-          `sudo kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
-          --eval 'use admin' \
-          --eval 'rs.initiate(${JSON.stringify(mongoConfig)})' \
-          --eval 'rs.status()'`,
-        );
+          shellExec(
+            `sudo kubectl exec -i mongodb-0 -- mongosh --quiet --json=relaxed \
+        --eval 'use admin' \
+        --eval 'rs.initiate(${JSON.stringify(mongoConfig)})' \
+        --eval 'rs.status()'`,
+          );
+        }
       }
 
-      if (options.full || options.contour)
+      if (options.full === true || options.contour === true)
         shellExec(`kubectl apply -f https://projectcontour.io/quickstart/contour.yaml`);
 
-      if (options.full || options.certManager) {
+      if (options.full === true || options.certManager === true) {
         if (!UnderpostDeploy.API.get('cert-manager').find((p) => p.STATUS === 'Running')) {
           shellExec(`helm repo add jetstack https://charts.jetstack.io --force-update`);
           shellExec(

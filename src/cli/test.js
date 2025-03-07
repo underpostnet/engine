@@ -36,7 +36,7 @@ class UnderpostTest {
         options.podStatus &&
         typeof options.podStatus === 'string'
       )
-        return await UnderpostTest.API.podStatusMonitor(options.podName, options.podStatus);
+        return await UnderpostTest.API.statusMonitor(options.podName, options.podStatus, options.kindType);
 
       if (options.sh === true || options.logs === true) {
         const [pod] = UnderpostDeploy.API.get(deployList);
@@ -86,16 +86,27 @@ class UnderpostTest {
         }
       } else return UnderpostTest.API.run();
     },
-    podStatusMonitor(podName, status = 'Running', deltaMs = 1000) {
+    statusMonitor(podName, status = 'Running', kindType = '', deltaMs = 1000, maxAttempts = 60 * 5) {
+      if (!(kindType && typeof kindType === 'string')) kindType = 'pods';
       return new Promise(async (resolve) => {
         let index = 0;
-        logger.info(`Loading ${podName} instance`, { status, deltaMs });
+        logger.info(`Loading instance`, { podName, status, kindType, deltaMs, maxAttempts });
         const _monitor = async () => {
           await timer(deltaMs);
-          const result = UnderpostDeploy.API.get(podName).find((p) => p.STATUS === status);
-          logger.info(`Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}ms`);
-          if (result) return resolve();
+          const pods = UnderpostDeploy.API.get(podName, kindType);
+          const result = pods.find((p) => p.STATUS === status);
+          logger.info(
+            `Testing pod ${podName}... ${result ? 1 : 0}/1 - elapsed time ${deltaMs * (index + 1)}s - attempt ${
+              index + 1
+            }/${maxAttempts}`,
+            pods[0] ? pods[0].STATUS : 'Not found kind object',
+          );
+          if (result) return resolve(true);
           index++;
+          if (index === maxAttempts) {
+            logger.error(`Failed to test pod ${podName} within ${maxAttempts} attempts`);
+            return resolve(false);
+          }
           return _monitor();
         };
         await _monitor();
