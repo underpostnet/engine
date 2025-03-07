@@ -189,6 +189,13 @@ program
   .action(Underpost.cron.callback);
 
 program
+  .command('fs')
+  .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
+  .argument('[path]', 'Absolute or relative directory, for default is current')
+  .description('File storage management')
+  .action(Underpost.fs.callback);
+
+program
   .command('test')
   .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
   .description('Manage Test, for default run current underpost default test')

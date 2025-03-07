@@ -9,6 +9,7 @@ import UnderpostCron from './cli/cron.js';
 import UnderpostDB from './cli/db.js';
 import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
+import UnderpostFileStorage from './cli/fs.js';
 import UnderpostImage from './cli/image.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostScript from './cli/script.js';
@@ -98,6 +99,13 @@ class Underpost {
    * @memberof Underpost
    */
   static cron = UnderpostCron.API;
+  /**
+   * File Storage cli API
+   * @static
+   * @type {UnderpostFileStorage.API}
+   * @memberof UnderpostFileStorage
+   */
+  static fs = UnderpostFileStorage.API;
 }
 
 const up = Underpost;
