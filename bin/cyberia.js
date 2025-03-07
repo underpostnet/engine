@@ -6,9 +6,10 @@ import Underpost from '../src/index.js';
 import fs from 'fs-extra';
 import { DataBaseProvider } from '../src/db/DataBaseProvider.js';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { LoreCyberia } from '../src/client/components/cyberia/CommonCyberia.js';
+import { LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
+import { s4 } from '../src/client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -22,16 +23,7 @@ const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
 const platformSuffix = process.platform === 'linux' ? '' : 'C:';
 const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
-
-await DataBaseProvider.load({
-  apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
-  host,
-  path,
-  db,
-});
-
-/** @type {import('../src/api/cyberia-tile/cyberia-tile.model.js').CyberiaTileModel} */
-const CyberiaTile = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaTile;
+const lorePath = `./src/client/public/cyberia/assets/ai-resources/lore`;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL_NAME = 'gemini-2.0-pro-exp-02-05';
@@ -56,9 +48,44 @@ const generationConfig = {
   maxOutputTokens: 1024,
 };
 
+class CyberiaDB {
+  static instance = null;
+  static async connect() {
+    CyberiaDB.instance = await DataBaseProvider.load({
+      apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
+      host,
+      path,
+      db,
+    });
+
+    CyberiaDB.CyberiaTile = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaTile;
+  }
+  static async close() {
+    if (CyberiaDB.instance) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+  }
+  /** @type {import('../src/api/cyberia-tile/cyberia-tile.model.js').CyberiaTileModel} */
+  static CyberiaTile = null;
+}
 const closeProgram = async () => {
-  await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+  await CyberiaDB.close();
   process.exit(0);
+};
+
+const generateContent = async (prompt) => {
+  const result = await model.generateContent({
+    contents: [
+      {
+        role: 'user',
+        parts: [
+          {
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    // generationConfig,
+  });
+  return result.response.text();
 };
 
 const program = new Command();
@@ -69,24 +96,11 @@ program
   .command('saga')
   .option('--keywords [key-words]')
   .action(async (options = { keywords: '' }) => {
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            {
-              text: `${metanarrative}, ${
-                options.keywords && typeof options.keywords === 'string'
-                  ? `using these key concepts: ${options.keywords}, `
-                  : ''
-              }${sagaOptions}, and assign a dev storage id to the saga with this format saga-id:<insert-id-of-ref-title-saga>`,
-            },
-          ],
-        },
-      ],
-      // generationConfig,
-    });
-    const response = result.response.text();
+    const prompt = `${metanarrative}, ${
+      options.keywords && typeof options.keywords === 'string' ? `using these key concepts: ${options.keywords}, ` : ''
+    }${sagaOptions}, and assign a dev storage id to the saga with this format saga-id:<insert-id-of-ref-title-saga>`;
+
+    const response = await generateContent(prompt);
 
     const sagaId = keyword_extractor
       .extract(`${response.split(' ').find((r) => r.match('saga-id:'))}`, {
@@ -103,11 +117,74 @@ program
     logger.info('metadata', {
       sagaId,
     });
-    const storagePath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}`;
+    const storagePath = `${lorePath}/${sagaId}`;
     fs.mkdirSync(storagePath, { recursive: true });
     fs.writeFileSync(`${storagePath}/saga.md`, response, 'utf8');
     await closeProgram();
   })
   .description('Saga narrative generator');
+
+program
+  .command('quest')
+  .argument('<saga-id>', 'Id of saga related')
+  .argument('[ques-id]', 'Quest id model reference')
+  .action(async (sagaId, options = { questId: '' }) => {
+    const idQuestJsonExample = options.questId && typeof options.questId === 'string' ? options.questId : 'floki-bone';
+    const questsPath = `${lorePath}/${sagaId}/quests`;
+    if (!fs.existsSync(questsPath)) fs.mkdirSync(questsPath, { recursive: true });
+
+    const questsAlreadyCreated = await fs.readdir(questsPath);
+
+    const prompt = `${metanarrative}, and the current saga is about: ${fs.readFileSync(
+      `${lorePath}/${sagaId}/saga.md`,
+      'utf8',
+    )}, Generate a new ${
+      questsAlreadyCreated.length > 0 ? 'first ' : ''
+    }quest saga json example instance, following this JSON format example:
+    ${JSON.stringify(
+      {
+        ...QuestComponent.Data[idQuestJsonExample](),
+        defaultDialog: {
+          en: '<insert-default-dialog-here>',
+          es: '<insertar-default-dialogo-aqui>',
+        },
+        questId: '<insert-new-sub-quest-id>',
+      },
+      null,
+      4,
+    )} ${
+      questsAlreadyCreated.length > 0
+        ? `keep in mind that quest already created: ${questsAlreadyCreated
+            .filter((s) => s.match('.md'))
+            .map((s) => `${s}:  ${fs.readFileSync(`${questsPath}/${s}`, 'utf8')}`)
+            .join(', ')}, so create a new quest id on JSON`
+        : ''
+    }.`;
+
+    console.log('prompt:', prompt);
+
+    let response = await generateContent(prompt);
+
+    console.log('response:', response);
+
+    console.log(response);
+
+    response = response.split('```');
+
+    const md = response.pop();
+
+    const json = JSON.parse(
+      response
+        .join('```')
+        .replace(/```json/g, '')
+        .replace(/```/g, ''),
+    );
+
+    logger.info('metadata', { questId: json.questId });
+
+    fs.writeFileSync(`${questsPath}/${json.questId}.json`, JSON.stringify(json, null, 4), 'utf8');
+    fs.writeFileSync(`${questsPath}/${json.questId}.md`, md, 'utf8');
+  })
+  .description('Quest json data gameplay data generator');
 
 program.parse();

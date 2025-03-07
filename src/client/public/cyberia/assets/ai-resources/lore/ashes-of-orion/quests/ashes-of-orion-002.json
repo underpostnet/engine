@@ -1,0 +1,156 @@
+{
+    "maxStep": 4,
+    "currentStep": 0,
+    "displaySearchObjects": [
+        {
+            "id": "zenith-schematics",
+            "quantity": 3,
+            "current": 0,
+            "step": 0
+        },
+        {
+            "id": "ryo-ishikawa",
+            "actionIcon": "assets/ui-icons/talk.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/talk.png",
+                "assets/skin/ryo-ishikawa/01.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 1,
+            "delivery": true
+        },
+        {
+            "id": "atlas-datapad",
+            "quantity": 1,
+            "current": 0,
+            "step": 2
+        },
+        {
+            "id": "aiko-ishikawa",
+            "actionIcon": "assets/ui-icons/talk.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/talk.png",
+                "assets/skin/aiko-ishikawa/01.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 3,
+            "delivery": true
+        },
+        {
+            "id": "kenzo-ishikawa",
+            "actionIcon": "assets/ui-icons/talk.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/talk.png",
+                "assets/skin/kenzo-ishikawa/01.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 4,
+            "delivery": false
+        }
+    ],
+    "reward": [
+        {
+            "type": "reputation",
+            "faction": "atlas-confederation",
+            "quantity": 50
+        },
+        {
+            "type": "item",
+            "id": "atlas_navigator_chip",
+            "quantity": 1
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "ryo-ishikawa",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "Excellent.  Now, deliver these schematics to Ryo Ishikawa. He should be in the Nova Republic labs.",
+                            "es": "Excelente. Ahora, entrega estos esquemas a Ryo Ishikawa. Debería estar en los laboratorios de la República Nova."
+                        }
+                    },
+                    {
+                        "displayId": "ryo-ishikawa",
+                        "image": "assets/skin/ryo-ishikawa/02.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "These schematics... they are outdated, but the underlying principles are sound.  I can use this.  Now, acquire an Atlas datapad.  I need to... adapt it.",
+                            "es": "Estos esquemas... están desactualizados, pero los principios subyacentes son sólidos. Puedo usar esto. Ahora, consigue un datapad Atlas. Necesito... adaptarlo."
+                        }
+                    },
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "bubble": false,
+                        "completeDialog": {
+                            "en": "The datapad acquired, take to Aiko Ishikawa",
+                            "es": "Con el datapad adquirido, entregaselo a Aiko Ishikawa"
+                        }
+                    },
+                    {
+                        "displayId": "aiko-ishikawa",
+                        "image": "assets/skin/aiko-ishikawa/02.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "This datapad... it's been tampered with.  Ryo's work, I presume? I'll need to investigate this.  There are rumors... rumors of my father. Find Kenzo Ishikawa, tell him I am looking for the family",
+                            "es": "Este datapad... ha sido manipulado. ¿Obra de Ryo, supongo? Tendré que investigar esto. Hay rumores... rumores de mi padre.  Encuentra a Kenzo Ishikawa. Dile que estoy buscando a mi familia."
+                        }
+                    },
+                    {
+                        "displayId": "kenzo-ishikawa",
+                        "image": "assets/skin/kenzo-ishikawa/02.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "en": "Aiko... she still lives?  And Ryo... he works for *them*?  This changes everything.",
+                            "es": "Aiko... ¿sigue viva? ¿Y Ryo... trabaja para *ellos*? Esto lo cambia todo."
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "icon": {
+        "folder": "quest/ashes-of-orion",
+        "id": "family-crest.png"
+    },
+    "title": {
+        "en": "Scattered Echoes",
+        "es": "Ecos Dispersos"
+    },
+    "shortDescription": {
+        "en": "Uncover the fragmented past of the Ishikawa family.",
+        "es": "Descubre el pasado fragmentado de la familia Ishikawa."
+    },
+    "description": {
+        "en": "Aiko Ishikawa receives a cryptic message hinting at her father's survival and her brother's involvement with the Nova Republic.  She needs your help to piece together the truth.",
+        "es": "Aiko Ishikawa recibe un mensaje críptico que insinúa la supervivencia de su padre y la implicación de su hermano con la República Nova. Necesita tu ayuda para reconstruir la verdad."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "en": "The first threads of the Ishikawa family's fate are revealed.  The search continues...",
+        "es": "Se revelan los primeros hilos del destino de la familia Ishikawa. La búsqueda continúa..."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "I have no tasks for you at the moment.",
+        "es": "No tengo tareas para ti en este momento."
+    },
+    "questId": "ashes-of-orion-002"
+}
