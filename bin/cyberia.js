@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
-import { s4 } from '../src/client/components/core/CommonJs.js';
+import { random, s4 } from '../src/client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -129,7 +129,11 @@ program
   .argument('<saga-id>', 'Id of saga related')
   .argument('[ques-id]', 'Quest id model reference')
   .action(async (sagaId, options = { questId: '' }) => {
-    const idQuestJsonExample = options.questId && typeof options.questId === 'string' ? options.questId : 'floki-bone';
+    const idQuests = Object.keys(QuestComponent.Data);
+    const idQuestJsonExample =
+      options.questId && typeof options.questId === 'string'
+        ? options.questId
+        : idQuests[random(0, idQuests.length - 1)];
     const questsPath = `${lorePath}/${sagaId}/quests`;
     if (!fs.existsSync(questsPath)) fs.mkdirSync(questsPath, { recursive: true });
 
@@ -189,5 +193,25 @@ program
     fs.writeFileSync(`${questsPath}/${json.questId}.md`, md, 'utf8');
   })
   .description('Quest json data gameplay data generator');
+
+program
+  .command('media')
+  .argument('<saga-id>')
+  .argument('[quest-id]')
+  .action(async (sagaId, questId) => {
+    const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
+    for (const quest of quests) {
+      if (!quest.match('.json') || (questId && !quest.match(questId))) continue;
+      const questPath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests/${quest}`;
+      console.log('read', questPath);
+      const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
+
+      for (const searchObject of questData.displaySearchObjects) {
+        const { id } = searchObject;
+        console.log('gen media', id);
+      }
+    }
+  })
+  .description('Media generator related quest id');
 
 program.parse();

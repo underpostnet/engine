@@ -1,0 +1,185 @@
+{
+    "maxStep": 2,
+    "currentStep": 0,
+    "displaySearchObjects": [
+        {
+            "id": "aiko_ishikawa",
+            "actionIcon": "assets/ui-icons/chat.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/chat.png",
+                "assets/skin/aiko_ishikawa/01/0.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 0
+        },
+        {
+            "id": "derelict_freighter",
+            "actionIcon": "assets/ui-icons/explore.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/explore.png",
+                "assets/map/derelict_freighter.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 1
+        },
+        {
+            "id": "encrypted_message",
+            "actionIcon": "assets/ui-icons/data.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/data.png",
+                "assets/items/encrypted_message.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 2
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "aiko_ishikawa",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "displayId": "aiko_ishikawa",
+                        "image": "assets/skin/aiko_ishikawa/01/0.png",
+                        "bubble": true,
+                        "talkingDialog": [
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "Commander Ishikawa, I'm ready for my next assignment.",
+                                    "es": "Comandante Ishikawa, estoy listo para mi próxima asignación."
+                                }
+                            },
+                            {
+                                "image": "assets/skin/aiko_ishikawa/01/0.png",
+                                "dialog": {
+                                    "en": "We've received a distress signal from a freighter in the Atlas Confederation, the 'Stardust Wanderer'.  It's gone dark near the Xylos Nebula, a region known for spatial anomalies and... occasional pirate activity.  Your mission is to investigate.",
+                                    "es": "Hemos recibido una señal de socorro de un carguero en la Confederación Atlas, el 'Stardust Wanderer'. Se ha oscurecido cerca de la Nebulosa Xylos, una región conocida por anomalías espaciales y... actividad pirata ocasional. Tu misión es investigar."
+                                }
+                            },
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "Pirates? Should I prioritize a combat approach?",
+                                    "es": "¿Piratas? ¿Debo priorizar un enfoque de combate?"
+                                }
+                            },
+                            {
+                                "image": "assets/skin/aiko_ishikawa/01/0.png",
+                                "dialog": {
+                                    "en": "The Stardust Wanderer is carrying sensitive research data.  Our priority is recovery and ensuring the safety of any surviving crew.  Engage pirates only if necessary.  Negotiation is preferred, if possible. The data is our primary concern.",
+                                    "es": "El Stardust Wanderer lleva datos de investigación sensibles. Nuestra prioridad es la recuperación y garantizar la seguridad de cualquier tripulación superviviente. Enfréntate a los piratas solo si es necesario. Se prefiere la negociación, si es posible. Los datos son nuestra principal preocupación."
+                                }
+                            },
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "Understood. What kind of research data?",
+                                    "es": "Entendido. ¿Qué tipo de datos de investigación?"
+                                }
+                            },
+                            {
+                                "image": "assets/skin/aiko_ishikawa/01/0.png",
+                                "dialog": {
+                                    "en": "It's classified.  You'll receive further details once you've secured the ship's data core.  This is a high-priority mission. Good luck.",
+                                    "es": "Está clasificado. Recibirás más detalles una vez que hayas asegurado el núcleo de datos de la nave. Esta es una misión de alta prioridad. Buena suerte."
+                                }
+                            }
+                        ],
+                        "completeDialog": {
+                            "en": "Investigate the distress signal from the 'Stardust Wanderer' near the Xylos Nebula. Prioritize data recovery and crew safety.",
+                            "es": "Investiga la señal de socorro del 'Stardust Wanderer' cerca de la Nebulosa Xylos. Prioriza la recuperación de datos y la seguridad de la tripulación."
+                        }
+                    },
+                    {
+                        "displayId": "derelict_freighter",
+                        "image": "assets/map/derelict_freighter.png",
+                        "bubble": false,
+                        "talkingDialog": [
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "I've reached the Stardust Wanderer. It's heavily damaged, life signs are minimal...and there's evidence of weapons fire.",
+                                    "es": "He llegado al Stardust Wanderer. Está muy dañado, las señales de vida son mínimas... y hay evidencia de disparos."
+                                }
+                            },
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "I should search for the data.",
+                                    "es": "Debo buscar los datos."
+                                }
+                            }
+                        ],
+                        "completeDialog": {
+                            "en": "Find the data core location.",
+                            "es": "Encontrar la ubicación del núcleo de datos."
+                        }
+                    },
+                    {
+                        "displayId": "encrypted_message",
+                        "image": "assets/items/encrypted_message.png",
+                        "bubble": true,
+                        "talkingDialog": [
+                            {
+                                "image": "user-main",
+                                "dialog": {
+                                    "en": "I've found something in the main computer... an encrypted file and... a personal log entry. It mentions my father, Kenzo Ishikawa! But...it says he's a Mutagen.",
+                                    "es": "He encontrado algo en la computadora principal... un archivo encriptado y... una entrada de registro personal. ¡Menciona a mi padre, Kenzo Ishikawa! Pero... dice que es un Mutágeno."
+                                }
+                            }
+                        ],
+                        "completeDialog": {
+                            "en": "I recover the data.",
+                            "es": "Recupero los datos."
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "reward": [
+        {
+            "type": "xp",
+            "quantity": 100
+        },
+        {
+            "type": "reputation",
+            "faction": "atlas-confederation",
+            "quantity": 5
+        }
+    ],
+    "icon": {
+        "folder": "skin/aiko_ishikawa/01",
+        "id": "0.png"
+    },
+    "title": {
+        "en": "Distress Signal",
+        "es": "Señal de Socorro"
+    },
+    "shortDescription": {
+        "es": "Aiko Ishikawa debe investigar una señal de socorro.",
+        "en": "Aiko Ishikawa must investigate a distress signal."
+    },
+    "description": {
+        "es": "Aiko Ishikawa, piloto de la Confederación Atlas, recibe una señal de socorro de un carguero, el 'Stardust Wanderer'. La nave ha desaparecido cerca de la Nebulosa Xylos, una región peligrosa. La misión de Aiko es investigar, recuperar los datos de investigación que transportaba el carguero y asegurar la seguridad de cualquier superviviente.",
+        "en": "Aiko Ishikawa, an Atlas Confederation pilot, receives a distress signal from a freighter, the 'Stardust Wanderer'. The ship has gone dark near the Xylos Nebula, a dangerous region. Aiko's mission is to investigate, recover the research data the freighter was carrying, and ensure the safety of any survivors."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "es": "Aiko ha recuperado los datos y descubierto una impactante verdad sobre su padre.",
+        "en": "Aiko has recovered the data and discovered a shocking truth about her father."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "I need to report this to my superiors... and decide what to do about my father.",
+        "es": "Necesito informar esto a mis superiores... y decidir qué hacer con mi padre."
+    },
+    "questId": "ashes-of-orion-003"
+}
