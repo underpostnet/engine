@@ -12,7 +12,6 @@ class UnderpostCluster {
     async init(
       podName,
       options = {
-        valkey: false,
         mongodb: false,
         mongodb4: false,
         mariadb: false,
