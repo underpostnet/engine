@@ -10,6 +10,7 @@ import { CyberiaItemsType, LoreCyberia, QuestComponent } from '../src/client/com
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
 import { random, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
+import { pbcopy } from '../src/server/process.js';
 
 dotenv.config();
 
@@ -199,8 +200,32 @@ program
   .command('media')
   .argument('<saga-id>')
   .argument('[quest-id]')
-  .action(async (sagaId, questId) => {
+  .option('--cache')
+  .action(async (sagaId, questId, options = { cache: false }) => {
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
+
+    if (options.cache === true) {
+      const mediaObjects = JSON.parse(
+        fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
+      );
+
+      for (const media of mediaObjects) {
+        const { itemType, id, aestheticKeywords } = media;
+        switch (itemType) {
+          case 'skin':
+            pbcopy(
+              `generate 1 side profile sprite and 1 back sprite and 1 front sprite, of ${id}, ${aestheticKeywords}, Chibi, Cartoon, pixel art, 8bit `,
+            );
+            return;
+            break;
+
+          default:
+            break;
+        }
+      }
+
+      return;
+    }
 
     let idItems = {};
 
