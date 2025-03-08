@@ -11,6 +11,7 @@ import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
 import { random, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
 import { pbcopy } from '../src/server/process.js';
+import read from 'read';
 
 dotenv.config();
 
@@ -211,15 +212,20 @@ program
 
       for (const media of mediaObjects) {
         const { itemType, id, aestheticKeywords } = media;
+        // use https://deepai.org/machine-learning-model/text2img
         switch (itemType) {
           case 'skin':
             pbcopy(
               `generate 1 side profile sprite and 1 back sprite and 1 front sprite, of ${id}, ${aestheticKeywords}, Chibi, Cartoon, pixel art, 8bit `,
             );
-            return;
+            await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
+
             break;
 
           default:
+            pbcopy(`generate spreed sheet, of '${id}', ${aestheticKeywords}, rpg item, pixel art, 8bit`);
+            await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
+
             break;
         }
       }
