@@ -9,9 +9,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CyberiaItemsType, LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
-import { random, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
+import { random, range, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
 import { pbcopy, shellExec } from '../src/server/process.js';
 import read from 'read';
+import { setTransparency } from '../src/api/cyberia-tile/cyberia-tile.service.js';
+import Jimp from 'jimp';
 
 dotenv.config();
 
@@ -86,6 +88,77 @@ const generateContent = async (prompt) => {
     // generationConfig,
   });
   return result.response.text();
+};
+
+const buildAsset = async (displayId, options = { flip: false }) => {
+  const frameColor = 'rgba(255, 255, 255)';
+  const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
+  const basePath = `./src/client/public/cyberia/assets/ai-resources/media/${displayId}`;
+  const buildFrame = async (pos) => {
+    return await new Promise((resolve) => {
+      Jimp.read(`${basePath}/0${pos}.png`).then(async (image) => {
+        const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
+        if (!fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/0${pos}`))
+          fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/0${pos}`, { recursive: true });
+
+        const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
+
+        frame.composite(
+          image,
+          (frame.bitmap.width - image.bitmap.width) / 2,
+          (frame.bitmap.height - image.bitmap.height) / 2,
+        );
+
+        frame.resize(500, 500);
+
+        if (`${options.flip}` === `${pos}`) frame.flip(true, false);
+
+        const outPath = `/home/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/0${pos}/0.png`;
+
+        await setTransparency(frame);
+
+        frame.write(outPath);
+
+        if (!fs.existsSync(`./src/client/public/cyberia/assets/skin/${displayId}/1${pos}`))
+          fs.mkdirSync(`./src/client/public/cyberia/assets/skin/${displayId}/1${pos}`, { recursive: true });
+
+        for (const _pos of range(0, 1)) {
+          const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
+
+          frame.composite(
+            image,
+            (frame.bitmap.width - image.bitmap.width) / 2,
+            (frame.bitmap.height - image.bitmap.height) / (_pos === 0 ? 2.3 : 1.7),
+          );
+
+          frame.resize(500, 500);
+
+          if (`${options.flip}` === `${pos}`) frame.flip(true, false);
+
+          const outPath = `/home/dd/engine/src/client/public/cyberia/assets/skin/${displayId}/1${pos}/${_pos}.png`;
+
+          await setTransparency(frame);
+
+          frame.write(outPath);
+        }
+
+        return resolve();
+      });
+    });
+  };
+  for (const position of [2, 8, 6, 4]) await buildFrame(position);
+
+  fs.writeFileSync(
+    commonCyberiaPath,
+    fs.readFileSync(commonCyberiaPath, 'utf8').replace(
+      `/*replace-display-instance*/`,
+      `DisplayComponent.get['${displayId}'] = () => ({ ...DisplayComponent.get['anon'](), displayId: '${displayId}' });
+Stat.get['${displayId}'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+
+/*replace-display-instance*/`,
+    ),
+    'utf8',
+  );
 };
 
 const program = new Command();
@@ -197,11 +270,18 @@ program
 
 program
   .command('media')
-  .argument('<saga-id>')
+  .argument('[saga-id]')
   .argument('[quest-id]')
   .option('--prompt')
   .option('--build')
-  .action(async (sagaId, questId, options = { cache: false }) => {
+  .option('--flip <flip-position>')
+  .option('--id <media-id>')
+  .option('--import')
+  .action(async (sagaId, questId, options = { prompt: false, import: false, id: '', flip: '' }) => {
+    if (options.import === true) {
+      await buildAsset(options.id, options);
+      return;
+    }
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
 
     if (options.build === true) {
@@ -218,16 +298,26 @@ program
       for (const media of mediaObjects) {
         const { itemType, id, aestheticKeywords } = media;
         if (fs.existsSync(`./src/client/public/cyberia/assets/ai-resources/media/${id}`)) {
-          shellExec(
-            `${bgCmd}` +
-              ` -i ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}.jpeg` +
-              ` -o ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg`,
-          );
-          shellExec(
-            `python ../lab/src/cv2-sprite-sheet-0.py` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}`,
-          );
+          switch (itemType) {
+            case 'skin':
+              {
+                shellExec(
+                  `${bgCmd}` +
+                    ` -i ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}.jpeg` +
+                    ` -o ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg`,
+                );
+                shellExec(
+                  `python ../lab/src/cv2-sprite-sheet-0.py` +
+                    ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg` +
+                    ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}`,
+                );
+              }
+
+              break;
+
+            default:
+              break;
+          }
         }
       }
       return;
