@@ -202,7 +202,7 @@ program
   .action(async (sagaId, questId) => {
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
 
-    let idItems = [];
+    let idItems = {};
 
     for (const quest of quests) {
       if (!quest.match('.json') || (questId && !quest.match(questId))) continue;
@@ -211,15 +211,16 @@ program
       const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
 
       for (const searchObject of questData.displaySearchObjects) {
-        const { id } = searchObject;
-        idItems.push(id);
+        const { id, itemType } = searchObject;
+        idItems[id] = itemType;
       }
     }
 
-    idItems = uniqueArray(idItems).map((id) => {
+    idItems = Object.keys(idItems).map((id) => {
       return {
         id,
         aestheticKeywords: [],
+        itemType: idItems[id],
       };
     });
 
