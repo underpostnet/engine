@@ -223,6 +223,11 @@ program
               ` -i ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}.jpeg` +
               ` -o ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg`,
           );
+          shellExec(
+            `python ../lab/src/cv2-sprite-sheet-0.py` +
+              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg` +
+              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}`,
+          );
         }
       }
       return;
