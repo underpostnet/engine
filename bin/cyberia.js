@@ -10,7 +10,7 @@ import { CyberiaItemsType, LoreCyberia, QuestComponent } from '../src/client/com
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
 import { random, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
-import { pbcopy } from '../src/server/process.js';
+import { pbcopy, shellExec } from '../src/server/process.js';
 import read from 'read';
 
 dotenv.config();
@@ -23,8 +23,6 @@ const path = process.env.DEFAULT_DEPLOY_PATH;
 const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
-const platformSuffix = process.platform === 'linux' ? '' : 'C:';
-const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
 const lorePath = `./src/client/public/cyberia/assets/ai-resources/lore`;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -201,11 +199,36 @@ program
   .command('media')
   .argument('<saga-id>')
   .argument('[quest-id]')
-  .option('--cache')
+  .option('--prompt')
+  .option('--build')
   .action(async (sagaId, questId, options = { cache: false }) => {
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
 
-    if (options.cache === true) {
+    if (options.build === true) {
+      // https://github.com/nadermx/backgroundremover
+      // other option: ../lab/src/python pil-rembg.py
+      // other option: rembg i
+
+      const bgCmd = 'python -m backgroundremover.cmd.cli';
+
+      const mediaObjects = JSON.parse(
+        fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
+      );
+
+      for (const media of mediaObjects) {
+        const { itemType, id, aestheticKeywords } = media;
+        if (fs.existsSync(`./src/client/public/cyberia/assets/ai-resources/media/${id}`)) {
+          shellExec(
+            `${bgCmd}` +
+              ` -i ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}.jpeg` +
+              ` -o ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg`,
+          );
+        }
+      }
+      return;
+    }
+
+    if (options.prompt === true) {
       const mediaObjects = JSON.parse(
         fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
       );
