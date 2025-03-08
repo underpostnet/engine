@@ -1,0 +1,99 @@
+{
+    "maxStep": 1,
+    "currentStep": 0,
+    "title": {
+        "es": "Fragmento de Recuerdos",
+        "en": "Shard of Memories"
+    },
+    "displaySearchObjects": [
+        {
+            "id": "derelict_station_data_core",
+            "actionIcon": "assets/ui-icons/data.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/database.png",
+                "assets/questItems/data_core_fragment.png"
+            ],
+            "quantity": 3,
+            "current": 0,
+            "step": 0,
+            "itemType": "questItem"
+        },
+        {
+            "id": "zenith_empire_patrol",
+            "actionIcon": "assets/ui-icons/combat.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/sword.png",
+                "assets/faction-symbol/zenith-empire.png"
+            ],
+            "quantity": 5,
+            "current": 0,
+            "step": 1,
+            "itemType": "faction-symbol"
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "jax_valerius",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "completeDialog": {
+                            "en": "I need those data cores.  My sister... she might be out there.",
+                            "es": "Necesito esos núcleos de datos. Mi hermana... podría estar ahí fuera."
+                        }
+                    },
+                    {
+                        "displayId": "jax_valerius",
+                        "image": "assets/characters/jax_valerius.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "es": "Gracias.  Esto... esto significa mucho.",
+                            "en": "Thank you. This... this means everything."
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "reward": [
+        {
+            "type": "coin",
+            "quantity": 150
+        },
+        {
+            "type": "weapon",
+            "quantity": 1
+        }
+    ],
+    "icon": {
+        "folder": "characters",
+        "id": "jax_valerius.png"
+    },
+    "shortDescription": {
+        "es": "Jax busca información sobre su hermana perdida en núcleos de datos de una estación abandonada.",
+        "en": "Jax searches for information about his lost sister in data cores from a derelict station."
+    },
+    "description": {
+        "en": "Jax Valerius, desperate to find any trace of his sister, believes fragmented data cores on a derelict space station near the exclusion zone border may hold clues.  These stations were used for initial scans of potential colony worlds and might contain records of early Mutagen encounters. He needs someone to retrieve at least three intact data core fragments. Zenith Empire patrols are also in the area, investigating the station's sudden reactivation – they must be avoided or eliminated.",
+        "es": "Jax Valerius, desesperado por encontrar algún rastro de su hermana, cree que fragmentos de núcleos de datos en una estación espacial abandonada cerca del borde de la zona de exclusión pueden contener pistas. Estas estaciones se utilizaron para escaneos iniciales de mundos coloniales potenciales y podrían contener registros de los primeros encuentros con mutágenos. Necesita que alguien recupere al menos tres fragmentos de núcleos de datos intactos. Patrullas del Imperio Zenith también están en el área, investigando la repentina reactivación de la estación; deben ser evitadas o eliminadas."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "es": "Jax agradece tu ayuda con información y una recompensa.",
+        "en": "Jax thanks you for your help with information and a reward."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "The station is dangerous.  Mutagens, derelict security systems... be careful.",
+        "es": "La estación es peligrosa. Mutágenos, sistemas de seguridad abandonados... ten cuidado."
+    },
+    "questId": "obsidian-shard-001"
+}

@@ -1,0 +1,99 @@
+{
+    "maxStep": 2,
+    "currentStep": 0,
+    "title": {
+        "es": "La Senda del Mutágeno",
+        "en": "The Mutagen's Path"
+    },
+    "displaySearchObjects": [
+        {
+            "id": "mutagen_scout",
+            "actionIcon": "assets/ui-icons/target.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/skull.png",
+                "assets/skin/mutagens/scout/0.png"
+            ],
+            "quantity": 3,
+            "current": 0,
+            "step": 0,
+            "itemType": "skin"
+        },
+        {
+            "id": "encrypted_data_chip",
+            "actionIcon": "assets/ui-icons/data.png",
+            "panelQuestIcons": [
+                "assets/ui-icons/data_chip.png"
+            ],
+            "quantity": 1,
+            "current": 0,
+            "step": 1,
+            "itemType": "questItem"
+        }
+    ],
+    "provide": {
+        "displayIds": [
+            {
+                "id": "aiko_ishikawa",
+                "quantity": [
+                    1
+                ],
+                "stepData": [
+                    {
+                        "image": "assets/ui-icons/check.png",
+                        "imageStyle": {
+                            "max-width": "80px",
+                            "max-height": "80px"
+                        },
+                        "completeDialog": {
+                            "en": "Report back to me once you've gathered information.",
+                            "es": "Infórmame una vez que hayas recopilado información."
+                        }
+                    },
+                    {
+                        "displayId": "aiko_ishikawa",
+                        "image": "assets/skin/aiko/0.png",
+                        "bubble": true,
+                        "completeDialog": {
+                            "es": "Este chip de datos...  podría contener la clave para entender las acciones de mi padre.",
+                            "en": "This data chip... it could hold the key to understanding my father's actions."
+                        }
+                    }
+                ]
+            }
+        ]
+    },
+    "reward": [
+        {
+            "type": "cryptokoyn",
+            "quantity": 150
+        },
+        {
+            "type": "weapon",
+            "quantity": 1,
+            "id": "atlas_pistol_mk2"
+        }
+    ],
+    "icon": {
+        "folder": "skin/aiko",
+        "id": "0.png"
+    },
+    "shortDescription": {
+        "es": "Investiga la actividad Mutágena y busca información sobre Kenzo Ishikawa.",
+        "en": "Investigate Mutagen activity and search for information about Kenzo Ishikawa."
+    },
+    "description": {
+        "en": "Following the discovery of the distress signal, Aiko Ishikawa needs more concrete evidence.  She tasks you with infiltrating a known Mutagen hideout in a nearby asteroid field.  Your objectives are twofold: Eliminate a small group of Mutagen scouts to disrupt their operations and, most importantly, retrieve an encrypted data chip believed to contain information about Kenzo Ishikawa's plans and network. This mission is dangerous; the Mutagens are fiercely protective of their territory.",
+        "es": "Tras el descubrimiento de la señal de socorro, Aiko Ishikawa necesita pruebas más concretas. Te encarga infiltrarte en un escondite Mutágeno conocido en un campo de asteroides cercano. Tus objetivos son dobles: Eliminar a un pequeño grupo de exploradores Mutágenos para interrumpir sus operaciones y, lo más importante, recuperar un chip de datos encriptado que se cree que contiene información sobre los planes y la red de Kenzo Ishikawa. Esta misión es peligrosa; los Mutágenos protegen ferozmente su territorio."
+    },
+    "descriptionBubble": true,
+    "successDescription": {
+        "es": "Has cumplido tu misión.  La información de este chip podría cambiarlo todo.",
+        "en": "You've completed your mission. The information on this chip could change everything."
+    },
+    "successDescriptionBubble": true,
+    "defaultDialog": {
+        "en": "The Mutagens are a threat to the Confederation.  We need to understand their motives.  Find that data chip.",
+        "es": "Los Mutágenos son una amenaza para la Confederación. Necesitamos entender sus motivos. Encuentra ese chip de datos."
+    },
+    "questId": "ashes-of-orion-002"
+}

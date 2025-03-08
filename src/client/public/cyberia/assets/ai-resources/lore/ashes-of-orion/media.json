@@ -1,0 +1,167 @@
+[
+    {
+        "id": "kenzo-ishikawa",
+        "aestheticKeywords": [
+            "scarred",
+            "cybernetically augmented",
+            "worn-out clothing",
+            "functional clothing",
+            "salvaged Zenith rifle",
+            "modified weapon",
+            "post-apocalyptic warrior",
+            "technological sophistication",
+            "practical cybernetics",
+            "grizzled"
+        ]
+    },
+    {
+        "id": "mutagen-outpost-map",
+        "aestheticKeywords": [
+            "makeshift",
+            "hidden",
+            "underground",
+            "salvaged technology",
+            "post-apocalyptic",
+            "rebel base",
+            "worn",
+            "damaged",
+            "patched-up",
+            "jury-rigged"
+        ]
+    },
+    {
+        "id": "nova-republic-intel",
+        "aestheticKeywords": [
+            "digital",
+            "encrypted",
+            "holographic",
+            "high-tech",
+            "sterile",
+            "minimalist",
+            "glowing",
+            "futuristic",
+            "cyberpunk",
+            "classified"
+        ]
+    },
+    {
+        "id": "mutagen_scout",
+        "aestheticKeywords": [
+            "stealthy",
+            "ragged clothing",
+            "cybernetic enhancements",
+            "resourceful",
+            "rebellious",
+            "scarred",
+            "worn equipment",
+            "makeshift weapons",
+            "survivor",
+            "guerilla"
+        ]
+    },
+    {
+        "id": "encrypted_data_chip",
+        "aestheticKeywords": [
+            "glowing",
+            "circuitry",
+            "miniature",
+            "high-tech",
+            "secret",
+            "valuable",
+            "digital",
+            "encoded",
+            "futuristic",
+            "cyberpunk"
+        ]
+    },
+    {
+        "id": "nova-republic-security-bot",
+        "aestheticKeywords": [
+            "robotic",
+            "sleek",
+            "metallic",
+            "glowing optics",
+            "armed",
+            "patrolling",
+            "synthetic",
+            "emotionless",
+            "futuristic",
+            "cyberpunk"
+        ]
+    },
+    {
+        "id": "encrypted-data-core",
+        "aestheticKeywords": [
+            "glowing",
+            "complex circuitry",
+            "large",
+            "powerful",
+            "protected",
+            "humming",
+            "digital",
+            "encoded",
+            "futuristic",
+            "core"
+        ]
+    },
+    {
+        "id": "mutagen_comm_device",
+        "aestheticKeywords": [
+            "makeshift",
+            "patched-up",
+            "static",
+            "short-range",
+            "encrypted",
+            "rebel technology",
+            "worn",
+            "jury-rigged",
+            "salvaged",
+            "analog"
+        ]
+    },
+    {
+        "id": "zenith_outpost_logs",
+        "aestheticKeywords": [
+            "damaged",
+            "fragmented",
+            "old",
+            "historical",
+            "digital",
+            "imperial",
+            "formal",
+            "bureaucratic",
+            "worn interface",
+            "abandoned"
+        ]
+    },
+    {
+        "id": "kenzo_personal_log",
+        "aestheticKeywords": [
+            "worn",
+            "damaged",
+            "handheld",
+            "personal",
+            "emotional",
+            "bitter",
+            "grief-stricken",
+            "scratched surface",
+            "old technology",
+            "encrypted"
+        ]
+    },
+    {
+        "id": "aiko_ishikawa",
+        "aestheticKeywords": [
+            "Clean",
+            "functional uniform",
+            "Atlas Confederation",
+            "personalized flair",
+            "colorful scarf",
+            "unique patch",
+            "flight jacket",
+            "sleek exploration vessel",
+            "advanced sensors",
+            "communication equipment"
+        ]
+    }
+]

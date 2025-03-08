@@ -9,7 +9,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { CyberiaItemsType, LoreCyberia, QuestComponent } from '../src/client/components/cyberia/CommonCyberia.js';
 import { loggerFactory } from '../src/server/logger.js';
 import keyword_extractor from 'keyword-extractor';
-import { random, s4 } from '../src/client/components/core/CommonJs.js';
+import { random, s4, uniqueArray } from '../src/client/components/core/CommonJs.js';
 
 dotenv.config();
 
@@ -201,6 +201,9 @@ program
   .argument('[quest-id]')
   .action(async (sagaId, questId) => {
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
+
+    let idItems = [];
+
     for (const quest of quests) {
       if (!quest.match('.json') || (questId && !quest.match(questId))) continue;
       const questPath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests/${quest}`;
@@ -209,9 +212,44 @@ program
 
       for (const searchObject of questData.displaySearchObjects) {
         const { id } = searchObject;
-        console.log('gen media', searchObject);
+        idItems.push(id);
       }
     }
+
+    idItems = uniqueArray(idItems).map((id) => {
+      return {
+        id,
+        aestheticKeywords: [],
+      };
+    });
+
+    const prompt = `According to this context '${fs.readFileSync(
+      `${lorePath}/${sagaId}/saga.md`,
+      'utf8',
+    )}' and aesthetic description of some characters, complete 'aestheticKeywords' of this json: ${JSON.stringify(
+      idItems,
+      null,
+      4,
+    )}`;
+
+    console.log('prompt:', prompt);
+
+    let response = await generateContent(prompt);
+
+    console.log('response:', response);
+
+    response = response.split('```');
+
+    const md = response.pop();
+
+    const json = JSON.parse(
+      response
+        .join('```')
+        .replace(/```json/g, '')
+        .replace(/```/g, ''),
+    );
+
+    fs.writeFileSync(`${lorePath}/${sagaId}/media.json`, JSON.stringify(json, null, 4), 'utf8');
   })
   .description('Media generator related quest id');
 
