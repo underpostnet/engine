@@ -19,7 +19,7 @@ class UnderpostFileStorage {
         api_secret: process.env.CLOUDINARY_API_SECRET,
       });
     },
-    async uploadRecursive(path, options) {
+    async recursiveCallback(path, options) {
       let storage, storageConf;
       if (options.deployId && typeof options.deployId === 'string') {
         storageConf = `./engine-private/conf/${options.deployId}/storage.json`;
@@ -29,7 +29,13 @@ class UnderpostFileStorage {
       const files = await fs.readdir(path, { recursive: true });
       for (const relativePath of files) {
         const _path = path + '/' + relativePath;
-        if (!(_path in storage) || options.force === true) {
+        if (fs.statSync(_path).isDirectory()) {
+          if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
+          continue;
+        }
+        if (options.pull === true) {
+          await UnderpostFileStorage.API.pull(_path, options);
+        } else if (!(_path in storage) || options.force === true) {
           await UnderpostFileStorage.API.upload(_path, options);
           if (storage) storage[_path] = {};
         } else logger.warn('File already exists', _path);
@@ -37,8 +43,8 @@ class UnderpostFileStorage {
       if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
     },
     async callback(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
+      if (options.recursive === true) return await UnderpostFileStorage.API.recursiveCallback(path, options);
       if (options.pull === true) return await UnderpostFileStorage.API.pull(path, options);
-      if (options.recursive === true) return await UnderpostFileStorage.API.uploadRecursive(path, options);
       if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
       return await UnderpostFileStorage.API.upload(path);
     },
