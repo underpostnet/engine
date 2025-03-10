@@ -190,9 +190,9 @@ program
 
 program
   .command('fs')
-  .argument('<deploy-list>', 'Deploy id list, e.g. default-a,default-b')
-  .argument('[path]', 'Absolute or relative directory, for default is current')
-  .description('File storage management')
+  .argument('[path]', 'Absolute or relative directory')
+  .option('--rm', 'Remove file')
+  .description('File storage management, for default upload file')
   .action(Underpost.fs.callback);
 
 program
