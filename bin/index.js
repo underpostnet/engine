@@ -192,6 +192,10 @@ program
   .command('fs')
   .argument('[path]', 'Absolute or relative directory')
   .option('--rm', 'Remove file')
+  .option('--recursive', 'Upload files recursively')
+  .option('--deploy-id <deploy-id>', 'Deploy configuration id')
+  .option('--pull', 'Download file')
+  .option('--force', 'Force action')
   .description('File storage management, for default upload file')
   .action(Underpost.fs.callback);
 

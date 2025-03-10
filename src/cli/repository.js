@@ -98,6 +98,13 @@ class UnderpostRepository {
         }
       });
     },
+
+    getChangedFiles(extension = '', head = false) {
+      const extensionFilter = extension ? `-- '***.${extension}'` : '';
+      const command = `git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
+      const diffOutput = shellExec(command, { stdout: true, silent: true });
+      return diffOutput.toString().split('\n').filter(Boolean);
+    },
   };
 }
 
