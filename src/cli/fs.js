@@ -19,13 +19,20 @@ class UnderpostFileStorage {
         api_secret: process.env.CLOUDINARY_API_SECRET,
       });
     },
-    async recursiveCallback(path, options) {
+    getStorageConf(options) {
       let storage, storageConf;
       if (options.deployId && typeof options.deployId === 'string') {
         storageConf = `./engine-private/conf/${options.deployId}/storage.json`;
         if (!fs.existsSync(storageConf)) fs.writeFileSync(storageConf, JSON.stringify({}), 'utf8');
         storage = JSON.parse(fs.readFileSync(storageConf, 'utf8'));
       }
+      return { storage, storageConf };
+    },
+    writeStorageConf(storage, storageConf) {
+      if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
+    },
+    async recursiveCallback(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
+      const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
       const files = await fs.readdir(path, { recursive: true });
       for (const relativePath of files) {
         const _path = path + '/' + relativePath;
@@ -39,17 +46,18 @@ class UnderpostFileStorage {
           await UnderpostFileStorage.API.upload(_path, options);
           if (storage) storage[_path] = {};
         } else logger.warn('File already exists', _path);
+        UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
       }
-      if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
     },
     async callback(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
       if (options.recursive === true) return await UnderpostFileStorage.API.recursiveCallback(path, options);
       if (options.pull === true) return await UnderpostFileStorage.API.pull(path, options);
       if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
-      return await UnderpostFileStorage.API.upload(path);
+      return await UnderpostFileStorage.API.upload(path, options);
     },
-    async upload(path, options = { force: false }) {
+    async upload(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
       UnderpostFileStorage.API.cloudinaryConfig();
+      const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
       // path = UnderpostFileStorage.API.file2Zip(path);
       const uploadResult = await cloudinary.uploader
         .upload(path, {
@@ -61,6 +69,8 @@ class UnderpostFileStorage {
           logger.error(error, { path, stack: error.stack });
         });
       logger.info('upload result', uploadResult);
+      if (storage) storage[path] = {};
+      UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
       return uploadResult;
     },
     async pull(path) {
