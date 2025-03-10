@@ -490,6 +490,21 @@ const CyberiaWsBotManagement = {
 
       if (!world) return;
 
+      for (const questData of world._doc.quests) {
+        const { id } = questData;
+        if (!(id in QuestComponent.Data)) {
+          const media = JSON.parse(
+            fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${id}/media.json`, 'utf8'),
+          );
+
+          const questData = JSON.parse(
+            fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${id}/quests/${id}-001.json`, 'utf8'),
+          );
+
+          QuestComponent.loadMediaQuestComponents(id, questData, media);
+        }
+      }
+
       let instanceIndex = -1;
       for (const instance of world.instance) {
         instanceIndex++;

@@ -985,6 +985,31 @@ const QuestComponent = {
     DisplayComponent.get['kishins'](),
     DisplayComponent.get['odisea'](),
   ],
+  loadMediaQuestComponents: (id, questData, media) => {
+    const provideIds = questData.provide.displayIds.map((s) => s.id);
+
+    QuestComponent.Data[id] = () => {
+      return questData;
+    };
+
+    for (const mediaData of media) {
+      const { id, questKeyContext } = mediaData;
+      DisplayComponent.get[id] = () => ({
+        ...DisplayComponent.get['anon'](),
+        displayId: id,
+      });
+      Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+
+      QuestComponent.componentsScope[id] = {
+        questKeyContext,
+        defaultDialog: provideIds.includes(id) ? questData.defaultDialog : undefined,
+      };
+
+      const componentIndex = QuestComponent.components.findIndex((c) => c.displayId === id);
+
+      if (componentIndex < 0) QuestComponent.components.push(DisplayComponent.get[id]());
+    }
+  },
 };
 
 const ComponentElement = {

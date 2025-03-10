@@ -43,40 +43,18 @@ const QuestManagementCyberia = {
     const typeTarget = 'bot';
     this.questClosePanels = [];
 
-    for (const quesData of WorldCyberiaManagement.Data[type][id].model.world.quests) {
-      const { id } = quesData;
+    for (const questData of WorldCyberiaManagement.Data[type][id].model.world.quests) {
+      const { id } = questData;
       if (!(id in QuestComponent.Data)) {
         const media = await fetch(`${getProxyPath()}/assets/ai-resources/lore/${id}/media.json`);
 
-        const result = JSON.parse(
+        const questData = JSON.parse(
           await CoreService.getRaw({
             url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
           }),
         );
 
-        const provideIds = result.provide.displayIds.map((s) => s.id);
-
-        QuestComponent.Data[id] = () => {
-          return result;
-        };
-
-        for (const mediaData of media) {
-          const { id, questKeyContext } = mediaData;
-          DisplayComponent.get[id] = () => ({
-            ...DisplayComponent.get['anon'](),
-            displayId: id,
-          });
-          Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
-
-          QuestComponent.componentsScope[id] = {
-            questKeyContext,
-            defaultDialog: provideIds.includes(id) ? result.defaultDialog : undefined,
-          };
-
-          const componentIndex = QuestComponent.components.findIndex((c) => d.displayId === id);
-
-          if (componentIndex < 0) QuestComponent.components.push(DisplayComponent.get[id]());
-        }
+        QuestComponent.loadMediaQuestComponents(id, questData, media);
       }
     }
 
