@@ -1,3 +1,4 @@
+import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaQuestService } from '../../services/cyberia-quest/cyberia-quest.service.js';
 import { Auth } from '../core/Auth.js';
 import { BtnIcon } from '../core/BtnIcon.js';
@@ -22,7 +23,7 @@ import { Translate } from '../core/Translate.js';
 import { append, getLang, getProxyPath, htmls, s, sa } from '../core/VanillaJs.js';
 import { BagCyberia, Slot } from './BagCyberia.js';
 import { CharacterCyberia } from './CharacterCyberia.js';
-import { CyberiaShopStorage, QuestComponent, isElementCollision } from './CommonCyberia.js';
+import { CyberiaShopStorage, DisplayComponent, QuestComponent, Stat, isElementCollision } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
@@ -41,6 +42,43 @@ const QuestManagementCyberia = {
     const radius = 5;
     const typeTarget = 'bot';
     this.questClosePanels = [];
+
+    for (const quesData of WorldCyberiaManagement.Data[type][id].model.world.quests) {
+      const { id } = quesData;
+      if (!(id in QuestComponent.Data)) {
+        const media = await fetch(`${getProxyPath()}/assets/ai-resources/lore/${id}/media.json`);
+
+        const result = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
+          }),
+        );
+
+        const provideIds = result.provide.displayIds.map((s) => s.id);
+
+        QuestComponent.Data[id] = () => {
+          return result;
+        };
+
+        for (const mediaData of media) {
+          const { id, questKeyContext } = mediaData;
+          DisplayComponent.get[id] = () => ({
+            ...DisplayComponent.get['anon'](),
+            displayId: id,
+          });
+          Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+
+          QuestComponent.componentsScope[id] = {
+            questKeyContext,
+            defaultDialog: provideIds.includes(id) ? result.defaultDialog : undefined,
+          };
+
+          const componentIndex = QuestComponent.components.findIndex((c) => d.displayId === id);
+
+          if (componentIndex < 0) QuestComponent.components.push(DisplayComponent.get[id]());
+        }
+      }
+    }
 
     // const instanceDisplayIdQuest = uniqueArray(
     //   WorldCyberiaManagement.Data[type][id].model.world.instance
