@@ -230,7 +230,7 @@ program
       },
       null,
       4,
-    )}. The 'itemType' value attribute of the 'displaySearchObjects' elements can only be: ${Object.keys(
+    )}. The 'itemType' value attribute of the 'displaySearchObjects' and 'provide.displayIds' elements can only be: ${Object.keys(
       CyberiaItemsType,
     )} chose appropriate. ${
       questsAlreadyCreated.length > 0
@@ -361,6 +361,10 @@ program
 
       for (const searchObject of questData.displaySearchObjects) {
         const { id, itemType } = searchObject;
+        idItems[id] = itemType;
+      }
+      for (const provide of questData.provide.displayIds) {
+        const { id, itemType } = provide;
         idItems[id] = itemType;
       }
     }

@@ -492,6 +492,7 @@ const QuestComponent = {
           displayIds: [
             {
               id: 'odisea',
+              itemType: 'skin',
               quantity: [1],
               stepData: [],
             },
@@ -553,6 +554,7 @@ const QuestComponent = {
           displayIds: [
             {
               id: 'punk',
+              itemType: 'skin',
               quantity: [1],
               stepData: [
                 {
@@ -633,6 +635,7 @@ const QuestComponent = {
           displayIds: [
             {
               id: 'agent',
+              itemType: 'skin',
               quantity: [1],
               stepData: [
                 {
@@ -837,6 +840,7 @@ const QuestComponent = {
           displayIds: [
             {
               id: 'ayleen',
+              itemType: 'skin',
               quantity: [1],
               stepData: [
                 {
