@@ -242,7 +242,8 @@ program
             })
             .join(', ')}.`
         : ''
-    } It must have narrative consistency with the previous chapters. Add review of chapter after json`;
+    } , all image resource paths following this format 'assets/<item-type>/<item-id>/<side-number>/<frame-number>.png' with side number chose: '08' front side, '02' back side, '04' left side, and '06' 
+    right side, e. g. 'assets/skin/aiko-ishikawa/08/0.png'. It must have narrative consistency with the previous chapters. Add review of chapter after json`;
 
     console.log('prompt:', prompt);
 
@@ -374,13 +375,14 @@ program
         id,
         aestheticKeywords: [],
         itemType: idItems[id],
+        questKeyContext: '',
       };
     });
 
     const prompt = `According to this context '${fs.readFileSync(
       `${lorePath}/${sagaId}/saga.md`,
       'utf8',
-    )}' and aesthetic description of some characters, complete 'aestheticKeywords' of this json: ${JSON.stringify(
+    )}' and aesthetic description of some characters, complete 'aestheticKeywords' and 'questKeyContext' (provide, displaySearchObjects, or seller) of this json: ${JSON.stringify(
       idItems,
       null,
       4,

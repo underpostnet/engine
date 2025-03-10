@@ -1,5 +1,6 @@
 import { Schema, model } from 'mongoose';
 import { DisplayComponent, PositionsComponent } from '../../client/components/cyberia/CommonCyberia.js';
+import { QuestStatusSchema } from '../cyberia-quest/cyberia-quest.model.js';
 
 // https://mongoosejs.com/docs/2.7.x/docs/schematypes.html
 
@@ -99,27 +100,7 @@ const CyberiaUserSchema = new Schema({
       face: { type: Number },
     },
     quests: {
-      type: [
-        {
-          id: { type: String },
-          currentStep: { type: Number, default: 0 },
-          complete: { type: Boolean, default: false },
-          displaySearchObjects: {
-            type: [
-              {
-                id: { type: String },
-                quantity: { type: Number },
-                current: { type: Number, default: 0 },
-                step: { type: Number, default: 0 },
-                delivery: { type: Boolean },
-                actionIcon: { type: String },
-                panelQuestIcons: [{ type: String }],
-              },
-            ],
-            default: [],
-          },
-        },
-      ],
+      type: [QuestStatusSchema],
       default: [],
     },
   },
