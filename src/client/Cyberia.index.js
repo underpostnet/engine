@@ -27,9 +27,9 @@ window.onload = () =>
     router: RouterCyberia,
     render: async () => {
       await Css.loadThemes([CssCyberiaDark]);
+      await MatrixCyberia.loadData();
       await TranslateCore.Init();
       await TranslateCyberia.Init();
-      await MatrixCyberia.loadData();
       await MainUserCyberia.Render();
       await PixiCyberia.Init();
       await Responsive.Init();
