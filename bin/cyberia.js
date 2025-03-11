@@ -380,7 +380,7 @@ program
     const prompt = `According to this context '${fs.readFileSync(
       `${lorePath}/${sagaId}/saga.md`,
       'utf8',
-    )}' and aesthetic description of some characters, complete 'aestheticKeywords' and 'questKeyContext' (provide, displaySearchObjects, or seller) of this json: ${JSON.stringify(
+    )}' and aesthetic description of some characters, complete 'aestheticKeywords' and 'questKeyContext' (provide, displaySearchObjects, displaySearchDialog, or seller) of this json: ${JSON.stringify(
       idItems,
       null,
       4,

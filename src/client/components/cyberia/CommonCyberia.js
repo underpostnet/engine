@@ -458,9 +458,6 @@ Stat.get['kael-cipher'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
 DisplayComponent.get['anya-echo'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'anya-echo' });
 Stat.get['anya-echo'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
 
-DisplayComponent.get['kenzo-ishikawa'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'kenzo-ishikawa' });
-Stat.get['kenzo-ishikawa'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
-
 /*replace-display-instance*/
 
 DisplayComponent.get['odisea'] = () => ({
@@ -993,12 +990,26 @@ const QuestComponent = {
     };
 
     for (const mediaData of media) {
-      const { id, questKeyContext } = mediaData;
+      const { id, questKeyContext, itemType } = mediaData;
+      let assetFolder, dim;
+      switch (itemType) {
+        case 'questItem':
+          assetFolder = 'quest';
+          dim = 1;
+          break;
+
+        default:
+          assetFolder = itemType;
+          dim = 2;
+          break;
+      }
       DisplayComponent.get[id] = () => ({
         ...DisplayComponent.get['anon'](),
         displayId: id,
+        assetFolder,
       });
-      Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+
+      Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
 
       QuestComponent.componentsScope[id] = {
         questKeyContext,

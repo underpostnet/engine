@@ -1,6 +1,8 @@
+import { CoreService } from '../../services/core/core.service.js';
 import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.service.js';
 import { Responsive } from '../core/Responsive.js';
-import { append, s } from '../core/VanillaJs.js';
+import { append, getProxyPath, s } from '../core/VanillaJs.js';
+import { QuestComponent } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
 const MatrixCyberia = {
@@ -13,6 +15,25 @@ const MatrixCyberia = {
       dimAmplitude: 3, // 8,
       ...data,
     };
+    for (const questData of data.quests) {
+      const { id } = questData;
+      if (!(id in QuestComponent.Data)) {
+        const media = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}/assets/ai-resources/lore/${id}/media.json`,
+          }),
+        );
+
+        const questData = JSON.parse(
+          await CoreService.getRaw({
+            url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
+          }),
+        );
+
+        QuestComponent.loadMediaQuestComponents(id, questData, media);
+      }
+    }
+
     append('body', html`<div class="abs map-name-icon-container"></div>`);
   },
   Render: async function () {

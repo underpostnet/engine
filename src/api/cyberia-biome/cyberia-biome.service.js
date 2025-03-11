@@ -31,6 +31,7 @@ const CyberiaBiomeService = {
           dimPaintByCell: CyberiaWsInstanceScope[wsManagementId].biome.instance.dimPaintByCell,
           dimAmplitude: CyberiaWsInstanceScope[wsManagementId].biome.instance.dimAmplitude,
           name: CyberiaWsInstanceScope[wsManagementId].biome.instance.name,
+          quests: CyberiaWsInstanceScope[wsManagementId].world.instance._doc.quests,
         };
       case 'all':
         return await CyberiaBiome.find();
