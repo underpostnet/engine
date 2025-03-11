@@ -43,7 +43,7 @@ jobs:
         run: |
           npm install -g underpost
           underpost config set GITHUB_TOKEN ${{ secrets.GIT_AUTH_TOKEN }}
-          underpost install
+          npm install
           node ./bin/deploy rename-package @underpostnet/underpost
           node ./bin/deploy set-repo underpostnet/pwa-microservices-template-ghpkg
 

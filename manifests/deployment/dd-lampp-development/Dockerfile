@@ -72,7 +72,7 @@ RUN underpost clone underpostnet/engine-lampp-private
 
 RUN sudo mv ./engine-lampp-private ./engine-private
 
-RUN underpost install
+RUN npm install
 
 RUN underpost dockerfile-node-script dd-lampp development
 

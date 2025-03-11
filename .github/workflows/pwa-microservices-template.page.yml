@@ -43,7 +43,7 @@ jobs:
       - name: Build the site
         run: |
           npm install -g underpost
-          underpost install
+          npm install
           node bin/deploy update-default-conf ghpkg
           env-cmd -f .env.production node bin/deploy build-full-client github-pages underpostnet.github.io /pwa-microservices-template-ghpkg
       # git lfs install

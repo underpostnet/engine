@@ -54,7 +54,7 @@ RUN underpost clone underpostnet/engine-core-private
 
 RUN sudo mv ./engine-core-private ./engine-private
 
-RUN underpost install
+RUN npm install
 
 RUN underpost dockerfile-node-script dd-core development
 

@@ -54,7 +54,7 @@ RUN underpost clone underpostnet/engine-cyberia-private
 
 RUN sudo mv ./engine-cyberia-private ./engine-private
 
-RUN underpost install
+RUN npm install
 
 VOLUME [ "/home/dd/engine/logs" ]
 
