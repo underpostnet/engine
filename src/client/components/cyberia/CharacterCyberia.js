@@ -270,6 +270,7 @@ const CharacterCyberia = {
               .${container}-img {
                 width: 100%;
                 height: auto;
+                top: 70%;
               }
             </style>`}
         <div class="in ${container}-header">
