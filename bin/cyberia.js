@@ -122,6 +122,9 @@ const buildAsset = async (mediaObject, options = { flip: false }) => {
 
         frame.write(outPath);
 
+        if ('8' === `${pos}`)
+          frame.write(`/home/dd/engine/src/client/public/cyberia/assets/${itemType}/${displayId}/animation.gif`);
+
         if (!fs.existsSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}`))
           fs.mkdirSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}`, { recursive: true });
 
@@ -150,6 +153,7 @@ const buildAsset = async (mediaObject, options = { flip: false }) => {
     });
   };
   for (const position of [2, 8, 6, 4]) await buildFrame(position);
+  return;
 
   fs.writeFileSync(
     commonCyberiaPath,
