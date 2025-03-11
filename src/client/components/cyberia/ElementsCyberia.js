@@ -30,6 +30,12 @@ const ElementsCyberia = {
         path: [],
       };
   },
+  findBotIdFromDisplayId: function (displayId) {
+    const type = 'bot';
+    return Object.keys(this.Data[type]).find((botId) =>
+      this.Data[type][botId].components.skin.find((s) => s.current && s.displayId === displayId),
+    );
+  },
   getCurrentSkinDisplayId: function ({ type, id }) {
     const dataSkin = this.Data[type][id].components.skin.find((s) => s.current);
     return dataSkin ? dataSkin.displayId : undefined;

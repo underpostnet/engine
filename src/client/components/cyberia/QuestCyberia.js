@@ -338,8 +338,10 @@ const QuestManagementCyberia = {
                                 LoadingAnimation.img.play(`.${idModal}-talking-loading`, 'points');
 
                                 CharacterCyberia.renderCharacterCyberiaPreView({
-                                  type: 'user',
-                                  id: 'main',
+                                  type: displayStepData.customMainDisplayId ? 'bot' : 'user',
+                                  id: displayStepData.customMainDisplayId
+                                    ? ElementsCyberia.findBotIdFromDisplayId(displayStepData.customMainDisplayId)
+                                    : 'main',
                                   container: `${idModal}-element-0`,
                                   positionId: '06',
                                 });

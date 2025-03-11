@@ -99,11 +99,17 @@ class UnderpostRepository {
       });
     },
 
-    getChangedFiles(extension = '', head = false) {
+    getChangedFiles(path = '.', extension = '', head = false) {
       const extensionFilter = extension ? `-- '***.${extension}'` : '';
-      const command = `git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
+      const command = `cd ${path} && git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
+      const commandUntrack = `cd ${path} && git ls-files --others --exclude-standard`;
       const diffOutput = shellExec(command, { stdout: true, silent: true });
-      return diffOutput.toString().split('\n').filter(Boolean);
+      const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
+      return diffOutput
+        .toString()
+        .split('\n')
+        .filter(Boolean)
+        .concat(diffUntrackOutput.toString().split('\n').filter(Boolean));
     },
   };
 }

@@ -192,6 +192,7 @@ program
   .command('fs')
   .argument('[path]', 'Absolute or relative directory')
   .option('--rm', 'Remove file')
+  .option('--git', 'Current git changes')
   .option('--recursive', 'Upload files recursively')
   .option('--deploy-id <deploy-id>', 'Deploy configuration id')
   .option('--pull', 'Download file')

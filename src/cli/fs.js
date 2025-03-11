@@ -5,6 +5,8 @@ import AdmZip from 'adm-zip';
 import * as dir from 'path';
 import fs from 'fs-extra';
 import { Downloader } from '../server/downloader.js';
+import UnderpostRepository from './repository.js';
+import { shellExec } from '../server/process.js';
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
@@ -31,9 +33,15 @@ class UnderpostFileStorage {
     writeStorageConf(storage, storageConf) {
       if (storage) fs.writeFileSync(storageConf, JSON.stringify(storage, null, 4), 'utf8');
     },
-    async recursiveCallback(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
+    async recursiveCallback(
+      path,
+      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
+    ) {
       const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
-      const files = await fs.readdir(path, { recursive: true });
+      const files =
+        options.git === true
+          ? UnderpostRepository.API.getChangedFiles(path)
+          : await fs.readdir(path, { recursive: true });
       for (const relativePath of files) {
         const _path = path + '/' + relativePath;
         if (fs.statSync(_path).isDirectory()) {
@@ -46,11 +54,19 @@ class UnderpostFileStorage {
           await UnderpostFileStorage.API.upload(_path, options);
           if (storage) storage[_path] = {};
         } else logger.warn('File already exists', _path);
-        UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
+      }
+      UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
+      if (options.git === true) {
+        shellExec(`cd ${path} && git add .`);
+        shellExec(`underpost cmt ${path} feat`);
       }
     },
-    async callback(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
-      if (options.recursive === true) return await UnderpostFileStorage.API.recursiveCallback(path, options);
+    async callback(
+      path,
+      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
+    ) {
+      if (options.recursive === true || options.git === true)
+        return await UnderpostFileStorage.API.recursiveCallback(path, options);
       if (options.pull === true) return await UnderpostFileStorage.API.pull(path, options);
       if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
       return await UnderpostFileStorage.API.upload(path, options);
