@@ -2,6 +2,7 @@
 
 import fs from 'fs-extra';
 import vm from 'node:vm';
+import Underpost from '../index.js';
 
 const srcFormatted = (src) =>
   src
@@ -49,7 +50,7 @@ const viewFormatted = (src, dists, proxyPath, baseHost = '') => {
 };
 
 const ssrFactory = async (componentPath = `./src/client/ssr/Render.js`) => {
-  const context = { SrrComponent: () => {}, npm_package_version: process.env.npm_package_version };
+  const context = { SrrComponent: () => {}, npm_package_version: Underpost.version };
   vm.createContext(context);
   vm.runInContext(await srcFormatted(fs.readFileSync(componentPath, 'utf8')), context);
   return context.SrrComponent;
