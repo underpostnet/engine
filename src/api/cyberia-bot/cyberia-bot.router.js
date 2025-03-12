@@ -9,6 +9,7 @@ const CyberiaBotRouter = (options) => {
   const router = express.Router();
   router.post(`/:id`, async (req, res) => await CyberiaBotController.post(req, res, options));
   router.post(`/`, async (req, res) => await CyberiaBotController.post(req, res, options));
+  router.get(`/display-id/:id`, async (req, res) => await CyberiaBotController.get(req, res, options));
   router.get(`/:id`, async (req, res) => await CyberiaBotController.get(req, res, options));
   router.get(`/`, async (req, res) => await CyberiaBotController.get(req, res, options));
   router.put(`/:id`, async (req, res) => await CyberiaBotController.put(req, res, options));

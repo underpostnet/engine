@@ -642,6 +642,13 @@ const CyberiaWsBotManagement = {
       }, this.element[wsManagementId][id].deadTime);
     }
   },
+  findOneByDisplayId: function (wsManagementId, displayId) {
+    for (const id in this.element[wsManagementId]) {
+      if (this.element[wsManagementId][id].components.skin.find((s) => s.current && s.displayId === displayId))
+        return { id, ...this.element[wsManagementId][id] };
+    }
+    return null;
+  },
 };
 
 export { CyberiaWsBotManagement };

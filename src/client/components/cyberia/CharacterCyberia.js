@@ -222,9 +222,10 @@ const CharacterCyberia = {
   },
   CharacterCyberiaPreViewInterval: {},
   renderCharacterCyberiaPreView: async function (
-    options = { container: 'character-container-view', type: 'user', id: 'main', positionId: '18' },
+    options = { container: 'character-container-view', type: 'user', id: 'main', positionId: '18', displayId: '' },
   ) {
-    const { container, type, id, positionId } = options;
+    const { container, type, positionId } = options;
+    let { id } = options;
 
     const intervalTime = 200;
     const totalFrames = 5;
@@ -235,7 +236,9 @@ const CharacterCyberia = {
       id,
       renderId: 'element-interaction-panel',
       positionId,
+      displayId: options.displayId,
     });
+    if (!id) id = ElementsCyberia.findIdFromDisplayId(type, options.displayId);
 
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {

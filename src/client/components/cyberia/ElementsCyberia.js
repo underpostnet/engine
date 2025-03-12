@@ -1,3 +1,4 @@
+import { CyberiaBotService } from '../../services/cyberia-bot/cyberia-bot.service.js';
 import { cap } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
@@ -30,8 +31,7 @@ const ElementsCyberia = {
         path: [],
       };
   },
-  findBotIdFromDisplayId: function (displayId) {
-    const type = 'bot';
+  findIdFromDisplayId: function (type, displayId) {
     return Object.keys(this.Data[type]).find((botId) =>
       this.Data[type][botId].components.skin.find((s) => s.current && s.displayId === displayId),
     );
@@ -39,6 +39,15 @@ const ElementsCyberia = {
   getCurrentSkinDisplayId: function ({ type, id }) {
     const dataSkin = this.Data[type][id].components.skin.find((s) => s.current);
     return dataSkin ? dataSkin.displayId : undefined;
+  },
+  getElement: async function (type, id, displayId) {
+    if (id in ElementsCyberia.Data[type]) return ElementsCyberia.Data[type][id];
+    const result = await CyberiaBotService.get({ id: `display-id/${displayId}` });
+    id = result.data.id;
+    const element = result.data;
+    delete element.id;
+    ElementsCyberia.Init({ type, id, element });
+    return result.data;
   },
   formatDisplayText: (text) => cap(text.replaceAll('-', ' ')),
   getDisplayTitle: function ({ type, id, htmlTemplate }) {

@@ -35,7 +35,7 @@ const ElementPreviewCyberia = {
     `;
   },
   renderElementContainers: {},
-  renderElement: async function ({ type, id, renderId, positionId }) {
+  renderElement: async function ({ type, id, renderId, positionId, displayId }) {
     if (!positionId) positionId = '18';
     // for (const interval of Object.keys(this.Tokens[renderId].intervals)) {
     //   clearInterval(this.Tokens[renderId].intervals[interval]);
@@ -55,9 +55,11 @@ const ElementPreviewCyberia = {
 
     this.renderElementContainers[containerId] = globalContainer;
 
+    const element = await ElementsCyberia.getElement(type, id, displayId);
+
     const container = new Container();
-    container.x = appDim / 2 - (dim * ElementsCyberia.Data[type][id].dim) / 2;
-    container.y = appDim / 2 - (dim * ElementsCyberia.Data[type][id].dim) / 2;
+    container.x = appDim / 2 - (dim * element.dim) / 2;
+    container.y = appDim / 2 - (dim * element.dim) / 2;
     container.width = dim;
     container.height = dim;
     container.visible = true;
@@ -96,7 +98,7 @@ const ElementPreviewCyberia = {
     }
 
     for (const itemType of ['skin', 'weapon', 'breastplate']) {
-      const componentData = ElementsCyberia.Data[type][id].components[itemType].find((c) => c.current);
+      const componentData = element.components[itemType].find((c) => c.current);
 
       if (!componentData) continue;
 
@@ -121,7 +123,7 @@ const ElementPreviewCyberia = {
 
               const { indexLayer, componentInstance } = PixiCyberia.formatSpriteComponent({
                 dim,
-                element: ElementsCyberia.Data[type][id],
+                element,
                 displayId,
                 positionId,
               });
@@ -155,7 +157,7 @@ const ElementPreviewCyberia = {
               displayId,
               positionId,
               dim,
-              element: ElementsCyberia.Data[type][id],
+              element,
             });
             for (const attr of Object.keys(componentInstance)) {
               anim[attr] = componentInstance[attr];
