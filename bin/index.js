@@ -6,9 +6,6 @@ import Underpost from '../src/index.js';
 import { getUnderpostRootPath, loadConf } from '../src/server/conf.js';
 import fs from 'fs-extra';
 import { commitData } from '../src/client/components/core/CommonJs.js';
-import UnderpostScript from '../src/cli/script.js';
-import UnderpostDB from '../src/cli/db.js';
-import UnderpostCron from '../src/cli/cron.js';
 
 const underpostRootPath = getUnderpostRootPath();
 fs.existsSync(`${underpostRootPath}/.env`)
@@ -163,11 +160,11 @@ program
   .option('--pod-name <pod-name>', 'Optional pod context')
   .option('--ns <ns-name>', 'Optional name space context')
   .description('Manage databases')
-  .action(UnderpostDB.API.callback);
+  .action(Underpost.db.callback);
 
 program
   .command('script')
-  .argument('operator', `Options: ${Object.keys(UnderpostScript.API)}`)
+  .argument('operator', `Options: ${Object.keys(Underpost.script)}`)
   .argument('<script-name>', 'Script name')
   .argument('[script-value]', 'Literal command, or path')
   .option('--itc', 'Inside container execution context')
@@ -182,7 +179,7 @@ program
 program
   .command('cron')
   .argument('[deploy-list]', 'Deploy id list, e.g. default-a,default-b')
-  .argument('[job-list]', `Deploy id list, e.g. ${Object.keys(UnderpostCron.JOB)}, for default all available jobs`)
+  .argument('[job-list]', `Deploy id list, e.g. ${Object.keys(Underpost.cron)}, for default all available jobs`)
   .option('--itc', 'Inside container execution context')
   .option('--init', 'Init cron jobs for cron job default deploy id')
   .description('Cron jobs management')
