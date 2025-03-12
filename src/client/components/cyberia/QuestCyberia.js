@@ -267,13 +267,13 @@ const QuestManagementCyberia = {
 
                             //  <pre>${JSON.stringify(displayStepData.talkingDialog, null, 4)}</pre>
 
-                            if (displayStepData.talkingDialog)
-                              await QuestManagementCyberia.talkingDialog({
-                                displayStepData,
-                                questData,
-                                typeTarget,
-                                elementTargetId,
-                              });
+                            // if (displayStepData.talkingDialog)
+                            //   await QuestManagementCyberia.talkingDialog({
+                            //     displayStepData,
+                            //     questData,
+                            //     typeTarget,
+                            //     elementTargetId,
+                            //   });
 
                             if (itemData.current < itemData.quantity) {
                               handBlock[typeTarget][elementTargetId] = true;
@@ -572,8 +572,16 @@ const QuestManagementCyberia = {
       });
 
       await CharacterCyberia.renderCharacterCyberiaPreView({
-        type: typeTarget,
-        id: elementTargetId,
+        type: displayStepData.customTargetDisplayId
+          ? displayStepData.customTargetDisplayId === 'user-main'
+            ? 'user'
+            : 'bot'
+          : typeTarget,
+        id: displayStepData.customTargetDisplayId
+          ? displayStepData.customTargetDisplayId === 'user-main'
+            ? 'main'
+            : ElementsCyberia.findBotIdFromDisplayId(displayStepData.customTargetDisplayId)
+          : elementTargetId,
         container: `${idModal}-element-1`,
         positionId: '04',
       });
@@ -1218,6 +1226,15 @@ const QuestManagementCyberia = {
       questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
     });
     if (completeStep) {
+      const displayStepData = QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
+
+      if (displayStepData.talkingDialog)
+        await QuestManagementCyberia.talkingDialog({
+          displayStepData,
+          questData,
+          typeTarget: 'bot',
+          elementTargetId: ElementsCyberia.findBotIdFromDisplayId(displayId),
+        });
       const completeQuest = QuestComponent.verifyCompleteQuest({
         questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
       });
