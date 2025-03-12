@@ -27,6 +27,8 @@ const CyberiaQuestSchema = new Schema({
         stepData: [
           {
             image: { type: String },
+            customTargetDisplayId: { type: String },
+            customMainDisplayId: { type: String },
             imageStyle: { type: Schema.Types.Mixed },
             bubble: {
               type: Boolean,
