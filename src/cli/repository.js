@@ -99,17 +99,25 @@ class UnderpostRepository {
       });
     },
 
+    getDeleteFiles(path = '.') {
+      const commandUntrack = `cd ${path} && git ls-files --deleted`;
+      const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
+      return diffUntrackOutput.toString().split('\n').filter(Boolean);
+    },
+
     getChangedFiles(path = '.', extension = '', head = false) {
       const extensionFilter = extension ? `-- '***.${extension}'` : '';
       const command = `cd ${path} && git diff ${head ? 'HEAD^ HEAD ' : ''}--name-only ${extensionFilter}`;
       const commandUntrack = `cd ${path} && git ls-files --others --exclude-standard`;
       const diffOutput = shellExec(command, { stdout: true, silent: true });
       const diffUntrackOutput = shellExec(commandUntrack, { stdout: true, silent: true });
+      const deleteFiles = UnderpostRepository.API.getDeleteFiles(path);
       return diffOutput
         .toString()
         .split('\n')
         .filter(Boolean)
-        .concat(diffUntrackOutput.toString().split('\n').filter(Boolean));
+        .concat(diffUntrackOutput.toString().split('\n').filter(Boolean))
+        .filter((f) => !deleteFiles.includes(f));
     },
   };
 }
