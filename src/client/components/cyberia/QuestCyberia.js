@@ -26,6 +26,7 @@ import { ElementsCyberia } from './ElementsCyberia.js';
 import { InteractionPanelCyberia } from './InteractionPanelCyberia.js';
 import { MainUserCyberia } from './MainUserCyberia.js';
 import { MatrixCyberia } from './MatrixCyberia.js';
+import { PixiCyberia } from './PixiCyberia.js';
 import { PointAndClickMovementCyberia } from './PointAndClickMovementCyberia.js';
 import { SocketIoCyberia } from './SocketIoCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
@@ -68,7 +69,7 @@ const QuestManagementCyberia = {
           return clearInterval(this.IntervalQuestDetector);
         for (const elementTargetId of Object.keys(ElementsCyberia.Data[typeTarget])) {
           const idPanel = `action-panel-${typeTarget}-${elementTargetId}`;
-          if (s(`.${idPanel}`)) continue;
+          if (s(`.${idPanel}`) || !(elementTargetId in PixiCyberia.Data[typeTarget])) continue;
           const displayId = ElementsCyberia.getCurrentSkinDisplayId({ type: typeTarget, id: elementTargetId });
 
           // if (!Object.keys(QuestComponent.componentsScope).includes(displayId)) continue;
