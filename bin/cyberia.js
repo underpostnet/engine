@@ -90,12 +90,12 @@ const generateContent = async (prompt) => {
   return result.response.text();
 };
 
-const buildAsset = async (mediaObject, options = { flip: false }) => {
+const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
   const frameColor = 'rgba(255, 255, 255)';
   const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
   let { id, itemType } = mediaObject;
   const displayId = id;
-  const basePath = `./src/client/public/cyberia/assets/ai-resources/media/${displayId}`;
+  const basePath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${displayId}`;
   if (itemType === 'questItem') itemType = 'quest';
   const buildFrame = async (pos) => {
     return await new Promise((resolve) => {
@@ -291,7 +291,7 @@ program
         fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
       ).find((i) => i.id === options.id);
       logger.info('mediaObject', mediaObject);
-      await buildAsset(mediaObject, options);
+      await buildAsset(sagaId, mediaObject, options);
       return;
     }
     const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
@@ -310,16 +310,16 @@ program
       for (const media of mediaObjects) {
         const { itemType, id, aestheticKeywords } = media;
         if (options.id && typeof options.id === 'string' && options.id !== id) continue;
-        if (fs.existsSync(`./src/client/public/cyberia/assets/ai-resources/media/${id}`)) {
+        if (fs.existsSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}`)) {
           shellExec(
             `${bgCmd}` +
-              ` -i ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}.jpeg` +
-              ` -o ./src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg`,
+              ` -i ./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}.jpeg` +
+              ` -o ./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.jpeg`,
           );
           shellExec(
             `python ../lab/src/cv2-sprite-sheet-0.py` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}-alpha.jpeg` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/media/${id}/${id}`,
+              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.jpeg` +
+              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}`,
           );
         }
       }
