@@ -38,6 +38,14 @@ class UnderpostFileStorage {
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
     ) {
       const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
+      const deleteFiles = UnderpostRepository.API.getDeleteFiles(path);
+      for (const relativePath of deleteFiles) {
+        const _path = path + '/' + relativePath;
+        if (_path in storage) {
+          await UnderpostFileStorage.API.delete(_path);
+          delete storage[_path];
+        }
+      }
       const files =
         options.git === true
           ? UnderpostRepository.API.getChangedFiles(path)
