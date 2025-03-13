@@ -132,6 +132,27 @@ const ItemModal = {
                 return;
               }
               const result = await CyberiaItemService.post({ id: `buy/${storageBotId}/${item.type}/${item.id}` });
+              if (result.status === 'success') {
+                ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin -= basePrice;
+                Slot.coin.update({ bagId: 'cyberia-bag', type: elementOwnerType, id: elementOwnerId });
+
+                ElementsCyberia.Data[elementOwnerType][elementOwnerId][item.type].tree.push({ id: item.id });
+                if (
+                  !ElementsCyberia.Data[elementOwnerType][elementOwnerId].components[item.type].find(
+                    (c) => c.displayId === item.id,
+                  )
+                ) {
+                  ElementsCyberia.Data[elementOwnerType][elementOwnerId].components[item.type].push(
+                    DisplayComponent.get[item.id](),
+                  );
+                }
+                Slot[item.type].update({
+                  bagId: 'cyberia-bag',
+                  displayId: item.id,
+                  type: elementOwnerType,
+                  id: elementOwnerId,
+                });
+              }
             });
 
             const onChangeQuantitySellItemInput = () => {
@@ -145,6 +166,10 @@ const ItemModal = {
             EventsUI.onClick(`.btn-sell-${item.type}-${idModal}`, () => {});
           }
           break;
+
+        case 'reward': {
+          break;
+        }
 
         default:
           {
@@ -684,7 +709,7 @@ const Slot = {
         html`
           <div class="abs bag-slot-count">
             <div class="abs center ${disabledCount ? 'hide' : ''}">
-              x<span class="bag-slot-value-${slotId}">${getK(count)}</span>
+              x<span class="bag-slot-value-${slotId} bag-slot-value-${bagId}-${displayId}">${getK(count)}</span>
             </div>
             ${basePrice
               ? html`
@@ -739,6 +764,20 @@ const Slot = {
         indexBagCyberia++;
       }
       return indexBagCyberia;
+    },
+    update: async ({ bagId, displayId, type, id }) => {
+      if (!s(`.modal-bag`)) return;
+      if (!s(`.bag-slot-value-${bagId}-${displayId}`)) {
+        BagCyberia.indexBagCyberia = await Slot.weapon.renderBagCyberiaSlots({
+          bagId,
+          indexBagCyberia: BagCyberia.Tokens[bagId].indexBagCyberia,
+          displayId,
+        });
+      }
+      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+        BagCyberia.Tokens[bagId].owner.id
+      ].weapon.tree.filter((s) => s.id === displayId).length;
+      htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(count));
     },
   },
   breastplate: {

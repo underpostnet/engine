@@ -7,7 +7,7 @@ import { SocketIo } from '../core/SocketIo.js';
 import { getProxyPath, htmls, s, setPath } from '../core/VanillaJs.js';
 import { Webhook } from '../core/Webhook.js';
 import { Slot } from './BagCyberia.js';
-import { Stat } from './CommonCyberia.js';
+import { DisplayComponent, Stat } from './CommonCyberia.js';
 import { WebhookCyberia } from './WebhookCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 import { LogInCyberia } from './LogInCyberia.js';
@@ -115,6 +115,18 @@ const SocketIoCyberia = {
               if (type === 'user' && id === 'main') {
                 ElementsCyberia.Data[type][id].coin = element.coin;
                 Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+              }
+              break;
+            case 'update-weapon':
+              if (type === 'user' && id === 'main') {
+                const displayId = element.id;
+                const itemType = 'weapon';
+
+                ElementsCyberia.Data[type][id][itemType].tree.push({ id: displayId });
+                if (!ElementsCyberia.Data[type][id].components[itemType].find((c) => c.displayId === displayId)) {
+                  ElementsCyberia.Data[type][id].components[itemType].push(DisplayComponent.get[displayId]());
+                }
+                Slot[itemType].update({ bagId: 'cyberia-bag', displayId, type, id });
               }
               break;
             case 'update-resource':

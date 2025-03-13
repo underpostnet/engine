@@ -1160,7 +1160,7 @@ const PixiCyberia = {
       }
     }
   },
-  formatSpriteComponent: function ({ displayId, positionId, dim, element }) {
+  formatSpriteComponentDisplayId: function ({ displayId, positionId, dim, element }) {
     let indexLayer = 1;
     let componentInstance = {};
     switch (displayId) {
@@ -1225,20 +1225,7 @@ const PixiCyberia = {
         componentInstance.width = dim * element.dim;
         componentInstance.height = dim * element.dim * 0.4;
         break;
-      case 'hatchet':
-        componentInstance.width = (dim * element.dim) / 2;
-        componentInstance.height = (dim * element.dim) / 2;
-        componentInstance.y = (dim * element.dim) / 3;
-        switch (positionId) {
-          case '04':
-          case '14':
-            componentInstance.x = dim * element.dim * 0.2 * -1;
-            break;
-          default:
-            componentInstance.x = dim * element.dim - dim * element.dim * 0.3;
-            break;
-        }
-        break;
+
       default:
         componentInstance.width = dim * element.dim;
         componentInstance.height = dim * element.dim;
@@ -1247,6 +1234,39 @@ const PixiCyberia = {
         break;
     }
     return { componentInstance, indexLayer };
+  },
+  formatSpriteComponent: function ({ displayId, positionId, dim, element }) {
+    let indexLayer = 1;
+    let componentInstance = {};
+    if (DisplayComponent.get[displayId]) {
+      const { assetFolder } = DisplayComponent.get[displayId]();
+      if (['weapon'].includes(assetFolder)) {
+        switch (assetFolder) {
+          case 'weapon':
+            {
+              componentInstance.width = (dim * element.dim) / 2;
+              componentInstance.height = (dim * element.dim) / 2;
+              componentInstance.y = (dim * element.dim) / 3;
+              switch (positionId) {
+                case '04':
+                case '14':
+                  componentInstance.x = dim * element.dim * 0.2 * -1;
+                  break;
+                default:
+                  componentInstance.x = dim * element.dim - dim * element.dim * 0.3;
+                  break;
+              }
+            }
+
+            break;
+
+          default:
+            break;
+        }
+        return { componentInstance, indexLayer };
+      }
+    }
+    return PixiCyberia.formatSpriteComponentDisplayId({ displayId, positionId, dim, element });
   },
   transportTickers: [],
   transports: [],

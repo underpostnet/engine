@@ -55,17 +55,7 @@ const CyberiaItemService = {
       const socketId = CyberiaWsUserManagement.getCyberiaUserWsId(wsManagementId, userCyberia._id.toString());
       if (socketId) {
         CyberiaWsUserManagement.element[wsManagementId][socketId].coin -= itemStat.basePrice;
-        CyberiaWsUserManagement.element[wsManagementId][socketId][req.params.itemType].tree.push({ id: req.params.id });
-
-        if (
-          !CyberiaWsUserManagement.element[wsManagementId][socketId].components[req.params.itemType].find(
-            (c) => c.displayId === req.params.id,
-          )
-        ) {
-          CyberiaWsUserManagement.element[wsManagementId][socketId].components[req.params.itemType].push(
-            DisplayComponent.get[req.params.id](),
-          );
-        }
+        await CyberiaWsUserManagement.addItem(wsManagementId, socketId, req.params.itemType, req.params.id);
       } else throw new Error('no user socket found');
 
       return 'ok';

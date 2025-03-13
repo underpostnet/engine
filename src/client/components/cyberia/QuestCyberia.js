@@ -1062,7 +1062,7 @@ const QuestManagementCyberia = {
                     displayId: id,
                     // disabledCount,
                     // itemData,
-                    // context,
+                    context: 'reward',
                     // storageBotId,
                     quantity,
                   });

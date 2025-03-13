@@ -1,5 +1,9 @@
 import { newInstance, objectEquals, timer } from '../../../client/components/core/CommonJs.js';
-import { QuestComponent, setElementConsistency } from '../../../client/components/cyberia/CommonCyberia.js';
+import {
+  DisplayComponent,
+  QuestComponent,
+  setElementConsistency,
+} from '../../../client/components/cyberia/CommonCyberia.js';
 import { DataBaseProvider } from '../../../db/DataBaseProvider.js';
 import { CyberiaWsUserChannel } from '../channels/cyberia.ws.user.js';
 import { CyberiaWsEmit } from '../cyberia.ws.emit.js';
@@ -142,12 +146,36 @@ const CyberiaWsUserManagement = {
               });
               break;
 
+            case 'weapon':
+              await CyberiaWsUserManagement.addItem(wsManagementId, elementId, 'weapon', reward.id);
+              CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[elementId], {
+                status: 'update-weapon',
+                id: elementId,
+                element: {
+                  id: reward.id,
+                },
+              });
+              break;
+
             default:
               break;
           }
       } else {
         this.element[wsManagementId][elementId].model.quests[questIndex].currentStep++;
       }
+    }
+  },
+  addItem: (wsManagementId, socketId, itemType, displayId) => {
+    CyberiaWsUserManagement.element[wsManagementId][socketId][itemType].tree.push({ id: displayId });
+
+    if (
+      !CyberiaWsUserManagement.element[wsManagementId][socketId].components[itemType].find(
+        (c) => c.displayId === displayId,
+      )
+    ) {
+      CyberiaWsUserManagement.element[wsManagementId][socketId].components[itemType].push(
+        DisplayComponent.get[displayId](),
+      );
     }
   },
 };

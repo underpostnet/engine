@@ -15,7 +15,8 @@ const MatrixCyberia = {
       dimAmplitude: 3, // 8,
       ...data,
     };
-    for (const questData of data.quests) {
+    for (const questData of [{ id: 'ashes-of-orion' }]) {
+      // data.quests
       const { id } = questData;
       if (!(id in QuestComponent.Data)) {
         const media = JSON.parse(
@@ -24,13 +25,24 @@ const MatrixCyberia = {
           }),
         );
 
-        const questData = JSON.parse(
-          await CoreService.getRaw({
-            url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
-          }),
-        );
+        {
+          const questData = JSON.parse(
+            await CoreService.getRaw({
+              url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
+            }),
+          );
 
-        QuestComponent.loadMediaQuestComponents(id, questData, media);
+          QuestComponent.loadMediaQuestComponents(id, questData, media);
+        }
+        {
+          const questData = JSON.parse(
+            await CoreService.getRaw({
+              url: `${getProxyPath()}/assets/ai-resources/lore/${id}/quests/${id}-002.json`,
+            }),
+          );
+
+          QuestComponent.loadMediaQuestComponents(id, questData, []);
+        }
       }
     }
 
