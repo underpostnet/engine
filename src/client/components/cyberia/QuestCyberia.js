@@ -1053,10 +1053,19 @@ const QuestManagementCyberia = {
                 const type = r.type;
                 const index = i;
                 const bagId = questData.id + '-reward-slot';
-                const { quantity } = r;
+                const { quantity, id } = r;
                 setTimeout(() => {
-                  BagCyberia.Tokens[bagId] = { owner: { id: 'main', type: 'user' } };
-                  Slot[type].renderBagCyberiaSlots({ bagId, indexBagCyberia: index, quantity });
+                  BagCyberia.Tokens[bagId] = { owner: { id: elementTargetId, type: 'bot' } };
+                  const slotId = `${bagId}-${index}`;
+                  Slot[type].render({
+                    slotId,
+                    displayId: id,
+                    // disabledCount,
+                    // itemData,
+                    // context,
+                    // storageBotId,
+                    quantity,
+                  });
                 });
                 return html`<div class="inl bag-slot ${bagId}-${index}"></div>`;
               })

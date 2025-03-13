@@ -563,24 +563,26 @@ const Slot = {
     },
   },
   coin: {
-    renderBagCyberiaSlots: ({ bagId, indexBagCyberia, quantity }) => {
+    render: ({ slotId, quantity }) => {
       htmls(
-        `.${bagId}-${indexBagCyberia}`,
+        `.${slotId}`,
         html` <div class="abs bag-slot-count">
-            <div class="abs center">
-              x<span class="bag-slot-value-${bagId}-${indexBagCyberia}"
-                >${getK(
-                  quantity !== undefined
-                    ? quantity
-                    : ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].coin,
-                )}</span
-              >
-            </div>
+            <div class="abs center">x<span class="bag-slot-value-${slotId}">${getK(quantity)}</span></div>
           </div>
           <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
           <div class="in bag-slot-type-text">currency</div>
           <div class="in bag-slot-name-text">coin</div>`,
       );
+    },
+    renderBagCyberiaSlots: ({ bagId, indexBagCyberia, quantity }) => {
+      const slotId = `${bagId}-${indexBagCyberia}`;
+      Slot.coin.render({
+        slotId,
+        quantity:
+          quantity !== undefined
+            ? quantity
+            : ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].coin,
+      });
       if (!ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][BagCyberia.Tokens[bagId].owner.id].coin) {
         const bagId = 'cyberia-bag';
         if (s(`.${bagId}-${indexBagCyberia}`)) s(`.${bagId}-${indexBagCyberia}`).classList.add('hide');
@@ -662,12 +664,14 @@ const Slot = {
     },
   },
   weapon: {
-    render: function ({ bagId, slotId, displayId, disabledCount, itemData, context, storageBotId }) {
+    render: function ({ bagId, slotId, displayId, disabledCount, itemData, context, storageBotId, quantity }) {
       SlotEvents[slotId] = {};
       if (!s(`.${slotId}`)) return;
-      const count = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
-        BagCyberia.Tokens[bagId].owner.id
-      ].weapon.tree.filter((i) => i.id === displayId).length;
+      const count = quantity
+        ? quantity
+        : ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
+            BagCyberia.Tokens[bagId].owner.id
+          ].weapon.tree.filter((i) => i.id === displayId).length;
 
       let basePrice;
       if (itemData) {
