@@ -517,6 +517,16 @@ const QuestComponent = {
           es: '¡Gracias por apoyar a Odyssey Outfitting!',
         },
         successDescriptionBubble: true,
+        components: [
+          {
+            id: 'odisea',
+            questKeyContext: 'seller',
+            defaultDialog: {
+              es: `Hola que tal? te interesa comprar una herramienta de extracción de recursos planetarios?`,
+              en: `Hi, how are you? Are you interested in purchasing a planetary resource extraction tool?`,
+            },
+          },
+        ],
       };
     },
     'subkishins-0': () => {
@@ -602,6 +612,10 @@ const QuestComponent = {
           en: `Excellent work, take some coins.`,
         },
         successDescriptionBubble: true,
+        components: [
+          { id: 'kishins', questKeyContext: 'displayKillObjects' },
+          { id: 'punk', questKeyContext: 'provide' },
+        ],
       };
     },
     'scp-2040-dialog': () => {
@@ -795,6 +809,17 @@ const QuestComponent = {
           en: `To date, it is the most useful information given by SCP-2040 without it changing the subject to its Primary Message.`,
         },
         successDescriptionBubble: true,
+        components: [
+          { id: 'agent', questKeyContext: 'provide' },
+          {
+            id: 'scp-2040',
+            questKeyContext: 'displaySearchDialog',
+            defaultDialog: {
+              en: `I am not responding to your primary message`,
+              es: `No estoy respondiendo a tu mensaje principal`,
+            },
+          },
+        ],
       };
     },
     'floki-bone': () => {
@@ -908,6 +933,20 @@ const QuestComponent = {
           es: 'completo gracias!',
         },
         successDescriptionBubble: true,
+        components: [
+          {
+            id: 'ayleen',
+            questKeyContext: 'provide',
+          },
+          {
+            id: 'bone',
+            questKeyContext: 'displaySearchObjects',
+          },
+          {
+            id: 'bone-brown',
+            questKeyContext: 'displaySearchObjects',
+          },
+        ],
       };
     },
   },
@@ -938,50 +977,8 @@ const QuestComponent = {
     if (!currentStep) currentStep = questData.currentStep;
     return currentStep >= this.Data[questData.id]().maxStep && this.verifyCompleteQuestStep({ questData });
   },
-  componentsScope: {
-    ayleen: {
-      questKeyContext: 'provide',
-    },
-    agent: {
-      questKeyContext: 'provide',
-    },
-    punk: {
-      questKeyContext: 'provide',
-    },
-    bone: {
-      questKeyContext: 'displaySearchObjects',
-    },
-    odisea: {
-      questKeyContext: 'seller',
-      defaultDialog: {
-        es: `Hola que tal? te interesa comprar una herramienta de extracción de recursos planetarios?`,
-        en: `Hi, how are you? Are you interested in purchasing a planetary resource extraction tool?`,
-      },
-    },
-    'bone-brown': {
-      questKeyContext: 'displaySearchObjects',
-    },
-    'scp-2040': {
-      questKeyContext: 'displaySearchDialog',
-      defaultDialog: {
-        en: `I am not responding to your primary message`,
-        es: `No estoy respondiendo a tu mensaje principal`,
-      },
-    },
-    kishins: {
-      questKeyContext: 'displayKillObjects',
-    },
-  },
-  components: [
-    DisplayComponent.get['bone'](),
-    DisplayComponent.get['bone-brown'](),
-    DisplayComponent.get['ayleen'](),
-    DisplayComponent.get['agent'](),
-    DisplayComponent.get['scp-2040'](),
-    DisplayComponent.get['punk'](),
-    DisplayComponent.get['kishins'](),
-    DisplayComponent.get['odisea'](),
-  ],
+  componentsScope: {},
+  components: [],
   loadMediaQuestComponents: (id, questData, media) => {
     const provideIds = questData.provide.displayIds.map((s) => s.id);
 
