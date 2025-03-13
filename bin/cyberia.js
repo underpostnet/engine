@@ -95,7 +95,7 @@ const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
   const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
   let { id, itemType } = mediaObject;
   const displayId = id;
-  const basePath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${displayId}`;
+  const basePath = `${lorePath}/${sagaId}/media/${displayId}`;
   if (itemType === 'questItem') itemType = 'quest';
   const buildFrame = async (pos) => {
     return await new Promise((resolve) => {
@@ -122,7 +122,7 @@ const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
 
         frame.write(outPath);
 
-        if ('8' === `${pos}`)
+        if (options.preview === `${pos}` || (!options.preview && '8' === `${pos}`))
           frame.write(`/home/dd/engine/src/client/public/cyberia/assets/${itemType}/${displayId}/animation.gif`);
 
         if (!fs.existsSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}`))
@@ -283,18 +283,18 @@ program
   .option('--prompt')
   .option('--build')
   .option('--flip <flip-position>')
+  .option('--preview <preview-position>')
   .option('--id <media-id>')
   .option('--import')
-  .action(async (sagaId, questId, options = { prompt: false, import: false, id: '', flip: '' }) => {
+  .action(async (sagaId, questId, options = { prompt: false, import: false, id: '', flip: '', preview: '' }) => {
     if (options.import === true) {
-      const mediaObject = JSON.parse(
-        fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
-      ).find((i) => i.id === options.id);
+      const mediaObject = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).find(
+        (i) => i.id === options.id,
+      );
       logger.info('mediaObject', mediaObject);
       await buildAsset(sagaId, mediaObject, options);
       return;
     }
-    const quests = await fs.readdir(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests`);
 
     if (options.build === true) {
       // https://github.com/nadermx/backgroundremover
@@ -303,18 +303,16 @@ program
 
       const bgCmd = 'python -m backgroundremover.cmd.cli';
 
-      const mediaObjects = JSON.parse(
-        fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
-      );
+      const mediaObjects = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
 
       for (const media of mediaObjects) {
         const { itemType, id, aestheticKeywords } = media;
         if (options.id && typeof options.id === 'string' && options.id !== id) continue;
-        if (fs.existsSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}`)) {
+        if (fs.existsSync(`${lorePath}/${sagaId}/media/${id}`)) {
           shellExec(
             `${bgCmd}` +
-              ` -i ./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}.jpeg` +
-              ` -o ./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.jpeg`,
+              ` -i ${lorePath}/${sagaId}/media/${id}/${id}.jpeg` +
+              ` -o ${lorePath}/${sagaId}/media/${id}/${id}-alpha.jpeg`,
           );
           shellExec(
             `python ../lab/src/cv2-sprite-sheet-0.py` +
@@ -327,12 +325,11 @@ program
     }
 
     if (options.prompt === true) {
-      const mediaObjects = JSON.parse(
-        fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media.json`, 'utf8'),
-      );
+      const mediaObjects = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
 
       for (const media of mediaObjects) {
         const { itemType, id, aestheticKeywords } = media;
+        if (options.id && typeof options.id === 'string' && options.id !== id) continue;
         // use https://deepai.org/machine-learning-model/text2img
         switch (itemType) {
           case 'skin':
@@ -344,7 +341,9 @@ program
             break;
 
           default:
-            pbcopy(`generate spreed sheet, of '${id}', ${aestheticKeywords}, rpg item, pixel art, 8bit`);
+            pbcopy(
+              `generate spreed sheet, of '${id}', view from above and from the side, ${aestheticKeywords}, rpg item, pixel art, 8bit`,
+            );
             await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
 
             break;
@@ -354,11 +353,19 @@ program
       return;
     }
 
+    // Gen data media
+
+    const quests = await fs.readdir(`${lorePath}/${sagaId}/quests`);
     let idItems = {};
 
     for (const quest of quests) {
-      if (!quest.match('.json') || (questId && !quest.match(questId))) continue;
-      const questPath = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/quests/${quest}`;
+      if (
+        !(quest.match('.json') && quest.match(sagaId)) ||
+        (questId && !quest.match(questId)) ||
+        quest.match('instance.json')
+      )
+        continue;
+      const questPath = `${lorePath}/${sagaId}/quests/${quest}`;
       console.log('read', questPath);
       const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
 
@@ -370,9 +377,16 @@ program
         const { id, itemType } = provide;
         idItems[id] = itemType;
       }
+      for (const rewardObject of questData.reward) {
+        const { id, type } = rewardObject;
+        idItems[id] = type;
+      }
     }
+    let keysItem = Object.keys(idItems);
 
-    idItems = Object.keys(idItems).map((id) => {
+    if (options.id && typeof options.id === 'string') keysItem = keysItem.filter((id) => id === options.id);
+
+    idItems = keysItem.map((id) => {
       return {
         id,
         aestheticKeywords: [],
@@ -407,7 +421,13 @@ program
         .replace(/```/g, ''),
     );
 
-    fs.writeFileSync(`${lorePath}/${sagaId}/media.json`, JSON.stringify(json, null, 4), 'utf8');
+    if (options.id && typeof options.id === 'string') {
+      fs.writeFileSync(
+        `${lorePath}/${sagaId}/media.json`,
+        JSON.stringify(JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).concat(json), null, 4),
+        'utf8',
+      );
+    } else fs.writeFileSync(`${lorePath}/${sagaId}/media.json`, JSON.stringify(json, null, 4), 'utf8');
   })
   .description('Media generator related quest id');
 
