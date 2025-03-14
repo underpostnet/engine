@@ -19,6 +19,7 @@ const CyberiaWorldSchema = new Schema({
     type: [
       {
         id: { type: String },
+        sagaId: { type: String },
       },
     ],
     default: [
