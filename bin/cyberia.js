@@ -207,18 +207,13 @@ program
 program
   .command('quest')
   .argument('<saga-id>', 'Id of saga related')
-  .argument('[ques-id]', 'Quest id model reference')
-  .action(async (sagaId, options = { questId: '' }) => {
-    const idQuests = Object.keys(QuestComponent.Data).filter((e) => !['odisea-seller'].includes(e));
-    const idQuestJsonExample =
-      options.questId && typeof options.questId === 'string'
-        ? options.questId
-        : idQuests[random(0, idQuests.length - 1)];
+  .action(async (sagaId) => {
     const questsPath = `${lorePath}/${sagaId}/quests`;
     if (!fs.existsSync(questsPath)) fs.mkdirSync(questsPath, { recursive: true });
 
-    let questsAlreadyCreated = await fs.readdir(questsPath);
-    if (questsAlreadyCreated.length > 3) questsAlreadyCreated = questsAlreadyCreated.slice(-(3 * 2)); // last 3 chapters context
+    const originQuestsAlreadyCreated = await fs.readdir(questsPath);
+    const questsAlreadyCreated =
+      originQuestsAlreadyCreated.length > 3 ? originQuestsAlreadyCreated.slice(-3) : originQuestsAlreadyCreated; // last 3 chapters context
 
     const prompt = `${metanarrative}, and the current saga is about: ${fs.readFileSync(
       `${lorePath}/${sagaId}/saga.md`,
@@ -226,18 +221,10 @@ program
     )}, Generate a new ${
       questsAlreadyCreated.length === 0 ? 'first ' : ''
     }quest saga json example instance, following this JSON format example:
-    ${JSON.stringify(
-      {
-        ...QuestComponent.Data[idQuestJsonExample](),
-        defaultDialog: {
-          en: '<insert-default-dialog-here>',
-          es: '<insertar-default-dialogo-aqui>',
-        },
-        questId: '<insert-saga-name>-000',
-      },
-      null,
-      4,
-    )}. The 'itemType' value attribute of the 'displaySearchObjects' and 'provide.displayIds' elements can only be: ${Object.keys(
+    ${fs.readFileSync(
+      `./src/client/public/cyberia/assets/ai-resources/lore/ashes-of-orion/quests/ashes-of-orion-1.json`,
+      'utf8',
+    )}. Select appropriate  questKeyContext (provide, displaySearchObjects, displayKillObjects, displaySearchDialog, or seller) of components elements. The 'itemType' value attribute of the 'displaySearchObjects' and 'provide.displayIds' elements can only be: ${Object.keys(
       CyberiaItemsType,
     )} chose appropriate. ${
       questsAlreadyCreated.length > 0
@@ -269,10 +256,11 @@ program
         .replace(/```/g, ''),
     );
 
-    logger.info('metadata', { questId: json.questId });
-
-    fs.writeFileSync(`${questsPath}/${json.questId}.json`, JSON.stringify(json, null, 4), 'utf8');
-    fs.writeFileSync(`${questsPath}/${json.questId}.md`, md, 'utf8');
+    fs.writeFileSync(
+      `${questsPath}/${sagaId}-${originQuestsAlreadyCreated.length + 1}.json`,
+      JSON.stringify(json, null, 4),
+      'utf8',
+    );
   })
   .description('Quest gameplay json  data generator');
 
@@ -359,50 +347,52 @@ program
     let idItems = {};
 
     for (const quest of quests) {
-      if (
-        !(quest.match('.json') && quest.match(sagaId)) ||
-        (questId && !quest.match(questId)) ||
-        quest.match('instance.json')
-      )
-        continue;
+      if (questId && !quest.match(questId)) continue;
       const questPath = `${lorePath}/${sagaId}/quests/${quest}`;
       console.log('read', questPath);
       const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
 
-      for (const searchObject of questData.displaySearchObjects) {
-        const { id, itemType } = searchObject;
-        idItems[id] = itemType;
+      for (const searchObject of questData.components) {
+        const { id, itemType, questKeyContext } = searchObject;
+        idItems[id] = { itemType, questKeyContext };
       }
-      for (const provide of questData.provide.displayIds) {
-        const { id, itemType } = provide;
-        idItems[id] = itemType;
-      }
+
       for (const rewardObject of questData.reward) {
         const { id, type } = rewardObject;
-        idItems[id] = type;
+        if (['coin'].includes(type)) continue;
+        idItems[id] = { itemType: type, questKeyContext: 'reward' };
       }
     }
     let keysItem = Object.keys(idItems);
 
     if (options.id && typeof options.id === 'string') keysItem = keysItem.filter((id) => id === options.id);
 
+    const tags = {
+      provide: ['npc', 'cyberpunk'],
+      displayKillObjects: ['cyberpunk', 'creature', 'enemy'],
+      displaySearchObjects: ['cyberpunk', 'item'],
+      displaySearchDialog: ['npc', 'cyberpunk'],
+      seller: ['cyberpunk', 'seller', 'shop'],
+      reward: ['cyberpunk', 'item'],
+    };
+
     idItems = keysItem.map((id) => {
       return {
         id,
         aestheticKeywords: [],
-        itemType: idItems[id],
-        questKeyContext: '',
+        itemType: idItems[id].itemType,
+        tags: tags[idItems[id].questKeyContext],
       };
     });
 
     const prompt = `According to this context '${fs.readFileSync(
       `${lorePath}/${sagaId}/saga.md`,
       'utf8',
-    )}' and aesthetic description of some characters, complete 'aestheticKeywords' and 'questKeyContext' (provide, displaySearchObjects, displaySearchDialog, or seller) of this json: ${JSON.stringify(
+    )}' and aesthetic description of some characters, complete 'aestheticKeywords' of this json: ${JSON.stringify(
       idItems,
       null,
       4,
-    )}`;
+    )}, if case doesn't exist created according 'tags' and add generic according context`;
 
     console.log('prompt:', prompt);
 
