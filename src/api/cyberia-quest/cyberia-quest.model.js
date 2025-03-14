@@ -13,6 +13,8 @@ const DisplaySearchObjectsSchema = new Schema({
 });
 
 const CyberiaQuestSchema = new Schema({
+  id: { type: String },
+  sagaId: { type: String },
   maxStep: { type: Number },
   displaySearchObjects: {
     type: [DisplaySearchObjectsSchema],
@@ -88,7 +90,6 @@ const CyberiaQuestSchema = new Schema({
   },
   nextQuestIds: [{ id: { type: String }, sagaId: { type: String } }],
   prevQuestIds: [{ id: { type: String }, sagaId: { type: String } }],
-  sagaId: { type: String },
   components: [
     {
       id: { type: String },

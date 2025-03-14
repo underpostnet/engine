@@ -979,15 +979,16 @@ const QuestComponent = {
   },
   componentsScope: {},
   components: [],
-  loadMediaQuestComponents: (id, questData, media) => {
-    const provideIds = questData.provide.displayIds.map((s) => s.id);
+  loadMediaQuestComponents: (questData) => {
+    const { id, components } = questData;
 
-    QuestComponent.Data[id] = () => {
-      return questData;
-    };
+    if (!(id in QuestComponent.Data))
+      QuestComponent.Data[id] = () => {
+        return questData;
+      };
 
-    for (const mediaData of media) {
-      const { id, questKeyContext, itemType } = mediaData;
+    for (const component of components) {
+      const { id, itemType } = component;
       let assetFolder, dim;
       switch (itemType) {
         case 'questItem':
@@ -1000,18 +1001,16 @@ const QuestComponent = {
           dim = 2;
           break;
       }
-      DisplayComponent.get[id] = () => ({
-        ...DisplayComponent.get['anon'](),
-        displayId: id,
-        assetFolder,
-      });
+      if (!(id in DisplayComponent.get))
+        DisplayComponent.get[id] = () => ({
+          ...DisplayComponent.get['anon'](),
+          displayId: id,
+          assetFolder,
+        });
 
-      Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+      if (!(id in Stat.get)) Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
 
-      QuestComponent.componentsScope[id] = {
-        questKeyContext,
-        defaultDialog: provideIds.includes(id) ? questData.defaultDialog : undefined,
-      };
+      QuestComponent.componentsScope[id] = component;
 
       const componentIndex = QuestComponent.components.findIndex((c) => c.displayId === id);
 
