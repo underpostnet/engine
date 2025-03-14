@@ -86,8 +86,8 @@ const CyberiaQuestSchema = new Schema({
     type: Boolean,
     default: false,
   },
-  nextQuestIds: [{ type: String }],
-  prevQuestIds: [{ type: String }],
+  nextQuestIds: [{ id: { type: String }, sagaId: { type: String } }],
+  prevQuestIds: [{ id: { type: String }, sagaId: { type: String } }],
   sagaId: { type: String },
   components: [
     {
@@ -105,6 +105,7 @@ const CyberiaQuestModel = model('CyberiaQuest', CyberiaQuestSchema);
 
 const QuestStatusSchema = new Schema({
   id: { type: String },
+  sagaId: { type: String },
   currentStep: { type: Number, default: 0 },
   complete: { type: Boolean, default: false },
   displaySearchObjects: {
