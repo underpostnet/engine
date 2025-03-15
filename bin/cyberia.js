@@ -316,20 +316,27 @@ program
 
       const bgCmd = 'python -m backgroundremover.cmd.cli';
 
-      const mediaObjects = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
+      const mediaObjects =
+        options.id && typeof options.id === 'string'
+          ? [
+              {
+                id: options.id,
+              },
+            ]
+          : JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
 
       for (const media of mediaObjects) {
-        const { itemType, id, aestheticKeywords } = media;
-        if (options.id && typeof options.id === 'string' && options.id !== id) continue;
+        const { id } = media;
+        const imgExtension = fs.existsSync(`${lorePath}/${sagaId}/media/${id}/${id}.png`) ? 'png' : 'jpeg';
         if (fs.existsSync(`${lorePath}/${sagaId}/media/${id}`)) {
           shellExec(
             `${bgCmd}` +
-              ` -i ${lorePath}/${sagaId}/media/${id}/${id}.jpeg` +
-              ` -o ${lorePath}/${sagaId}/media/${id}/${id}-alpha.jpeg`,
+              ` -i ${lorePath}/${sagaId}/media/${id}/${id}.${imgExtension}` +
+              ` -o ${lorePath}/${sagaId}/media/${id}/${id}-alpha.${imgExtension}`,
           );
           shellExec(
             `python ../lab/src/cv2-sprite-sheet-0.py` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.jpeg` +
+              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.${imgExtension}` +
               ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}`,
           );
         }
