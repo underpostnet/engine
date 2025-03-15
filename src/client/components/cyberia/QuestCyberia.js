@@ -93,7 +93,12 @@ const QuestManagementCyberia = {
           if (!(displayId in displayIdCount)) displayIdCount[displayId] = 0;
           else displayIdCount[displayId]++;
 
-          const quests = QuestComponent.getQuestByDisplayId({ displayId });
+          const quests = QuestComponent.getQuestByDisplayId({ displayId }).filter(
+            (quest) =>
+              !ElementsCyberia.Data.user['main'].model.quests.find(
+                (_quest) => quest.id === _quest.id && _quest.complete === true,
+              ),
+          );
 
           if (quests.length === 0) quests.push(undefined);
 

@@ -24,6 +24,7 @@ const CyberiaQuestService = {
       const questObj = {
         displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
         id: req.params.questId,
+        sagaId: req.params.sagaId,
         currentStep: 0,
       };
       CyberiaWsUserManagement.element[wsManagementId][req.body.socketId].model.quests.push(questObj);
@@ -60,6 +61,7 @@ const CyberiaQuestService = {
           const questObj = {
             displaySearchObjects: QuestComponent.Data[req.params.questId]().displaySearchObjects,
             id: req.params.questId,
+            sagaId: req.params.sagaId,
             currentStep: 0,
           };
 

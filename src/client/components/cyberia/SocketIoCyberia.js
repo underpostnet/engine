@@ -136,6 +136,19 @@ const SocketIoCyberia = {
                 Slot.resource.update({ bagId: 'cyberia-bag', displayId: element.resource.id, type, id });
               }
               break;
+
+            case 'complete-quest':
+              {
+                if (type === 'user' && id === 'main') {
+                  const questIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
+                    (q) => q.id === args.questId,
+                  );
+                  if (questIndex >= 0) {
+                    ElementsCyberia.Data.user['main'].model.quests[questIndex].complete = true;
+                  }
+                }
+              }
+              break;
             case 'update-quantity-quest-item':
               if (type === 'user' && id === 'main') {
                 const { questData, displayId, questIndex, itemQuestIndex } = args;

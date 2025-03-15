@@ -131,6 +131,11 @@ const CyberiaWsUserManagement = {
 
       if (completeQuest) {
         this.element[wsManagementId][elementId].model.quests[questIndex].complete = true;
+        CyberiaWsEmit(CyberiaWsUserChannel.channel, CyberiaWsUserChannel.client[elementId], {
+          status: 'complete-quest',
+          id: elementId,
+          questId: this.element[wsManagementId][elementId].model.quests[questIndex].id,
+        });
 
         for (const reward of QuestComponent.Data[this.element[wsManagementId][elementId].model.quests[questIndex].id]()
           .reward)
