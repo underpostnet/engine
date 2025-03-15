@@ -1029,6 +1029,19 @@ const QuestComponent = {
       const componentIndex = QuestComponent.components.findIndex((c) => c.displayId === id);
 
       if (componentIndex < 0) QuestComponent.components.push(DisplayComponent.get[id]());
+
+      if (itemType === 'skill' && !(id in SkillCyberiaData)) {
+        SkillCyberiaData[id] = { type: 'basic', folder: 'skill' };
+        switch (id) {
+          case 'atlas_pistol_mk2_bullet':
+            Stat.get[id] = () => ({ ...Stat.get['red-power'](), dim: 1, damage: 100 });
+            break;
+
+          default:
+            Stat.get[id] = () => ({ ...Stat.get['red-power'](), dim: 1 });
+            break;
+        }
+      }
     }
   },
 };

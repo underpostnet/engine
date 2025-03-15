@@ -261,6 +261,12 @@ const ItemModal = {
 
             break;
 
+          case 'atlas_pistol_mk2_bullet':
+            {
+              ItemModal.Unequip.weapon({ type, id, weapon: { id: 'atlas_pistol_mk2' }, disabledSubEquip: true });
+            }
+            break;
+
           default:
             break;
         }
@@ -269,6 +275,11 @@ const ItemModal = {
           case 'hatchet':
             {
               this.weapon({ type, id, weapon: skill, disabledSubEquip: true });
+            }
+            break;
+          case 'atlas_pistol_mk2_bullet':
+            {
+              this.weapon({ type, id, weapon: { id: 'atlas_pistol_mk2' }, disabledSubEquip: true });
             }
             break;
 
@@ -313,7 +324,11 @@ const ItemModal = {
               this.skill({ type, id, skill: weapon, disabledSubEquip: true });
             }
             break;
-
+          case 'atlas_pistol_mk2':
+            {
+              this.skill({ type, id, skill: { id: 'atlas_pistol_mk2_bullet' }, disabledSubEquip: true });
+            }
+            break;
           default:
             break;
         }
@@ -356,7 +371,11 @@ const ItemModal = {
               this.weapon({ type, id, weapon: skill, disabledSubEquip: true });
             }
             break;
-
+          case 'atlas_pistol_mk2_bullet':
+            {
+              this.weapon({ type, id, weapon: { id: 'atlas_pistol_mk2' }, disabledSubEquip: true });
+            }
+            break;
           default:
             break;
         }
@@ -406,7 +425,11 @@ const ItemModal = {
               this.skill({ type, id, skill: weapon, disabledSubEquip: true });
             }
             break;
-
+          case 'atlas_pistol_mk2':
+            {
+              this.skill({ type, id, skill: { id: 'atlas_pistol_mk2_bullet' }, disabledSubEquip: true });
+            }
+            break;
           default:
             break;
         }
