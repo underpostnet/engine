@@ -1035,10 +1035,21 @@ const QuestComponent = {
         switch (id) {
           case 'atlas_pistol_mk2_bullet':
             Stat.get[id] = () => ({ ...Stat.get['red-power'](), dim: 1, damage: 100 });
+            DisplayComponent.get[id] = () => ({
+              ...DisplayComponent.get['red-power'](),
+              displayId: id,
+              assetFolder,
+              positions: PositionsComponent.default(),
+            });
             break;
 
           default:
             Stat.get[id] = () => ({ ...Stat.get['red-power'](), dim: 1 });
+            DisplayComponent.get[id] = () => ({
+              ...DisplayComponent.get['red-power'](),
+              displayId: id,
+              assetFolder,
+            });
             break;
         }
       }
