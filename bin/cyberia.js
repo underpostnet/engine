@@ -52,21 +52,24 @@ const generationConfig = {
 
 class CyberiaDB {
   static instance = null;
-  static async connect() {
+  static async connect(apis) {
     CyberiaDB.instance = await DataBaseProvider.load({
-      apis: ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
+      apis: apis ?? ['cyberia-tile', 'cyberia-biome', 'cyberia-instance', 'cyberia-world'],
       host,
       path,
       db,
     });
 
     CyberiaDB.CyberiaTile = DataBaseProvider.instance[`${host}${path}`].mongoose.models.CyberiaTile;
+    CyberiaDB.File = DataBaseProvider.instance[`${host}${path}`].mongoose.models.File;
   }
   static async close() {
     if (CyberiaDB.instance) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
   }
   /** @type {import('../src/api/cyberia-tile/cyberia-tile.model.js').CyberiaTileModel} */
   static CyberiaTile = null;
+  /** @type {import('../src/api/file/file.model.js').FileModel} */
+  static File = null;
 }
 const closeProgram = async () => {
   await CyberiaDB.close();
@@ -263,6 +266,28 @@ program
     );
   })
   .description('Quest gameplay json  data generator');
+
+program
+  .command('file')
+  .argument('<saga-id>')
+  .argument('<item-id>')
+  .argument('<file-id>')
+  .action(async (sagaId, itemId, fileId) => {
+    await CyberiaDB.connect(['file']);
+
+    const file = await CyberiaDB.File.findById(fileId);
+
+    const destFolder = `./src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${itemId}`;
+
+    logger.info('metadata', { destFolder, name: file._doc.name });
+
+    if (!fs.existsSync(destFolder)) fs.mkdirSync(destFolder, { recursive: true });
+
+    fs.writeFileSync(`${destFolder}/${itemId}.png`, Buffer.from(file.data, 'base64'));
+
+    await closeProgram();
+  })
+  .description('File management');
 
 program
   .command('media')
