@@ -483,12 +483,12 @@ const CssCyberiaDark = {
             color: white;
             width: 30px;
             height: 30px;
-            top: 5px;
+            top: 45px;
             right: 5px;
             z-index: 1;
           }
           .bag-slot-type-text {
-            padding-top: 70%;
+            padding-top: 85%;
             color: #ffcc00;
             font-size: 16px;
             text-align: center;
@@ -498,7 +498,7 @@ const CssCyberiaDark = {
             font-size: 20px;
             text-align: center;
             width: 100%;
-            padding-top: 85%;
+            padding-top: 0%;
           }
           .text-icon {
             font-size: 70px;
