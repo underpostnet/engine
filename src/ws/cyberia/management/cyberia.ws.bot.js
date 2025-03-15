@@ -490,36 +490,17 @@ const CyberiaWsBotManagement = {
 
       if (!world) return;
 
-      for (const questData of [{ id: 'ashes-of-orion' }]) {
-        // world._doc.quests
-        const { id } = questData;
-        if (!(id in QuestComponent.Data)) {
-          const media = JSON.parse(
-            fs.readFileSync(`./src/client/public/cyberia/assets/ai-resources/lore/${id}/media.json`, 'utf8'),
-          );
-
-          {
-            const questData = JSON.parse(
+      for (const sagaData of QuestComponent.questResourcesRef)
+        for (const questNumber of range(...sagaData.range))
+          await QuestComponent.loadMediaQuestComponents({
+            id: `${sagaData.sagaId}-${questNumber}`,
+            ...JSON.parse(
               fs.readFileSync(
-                `./src/client/public/cyberia/assets/ai-resources/lore/${id}/quests/${id}-001.json`,
+                `./src/client/public/cyberia/assets/ai-resources/lore/${sagaData.sagaId}/quests/${sagaData.sagaId}-${questNumber}.json`,
                 'utf8',
               ),
-            );
-
-            QuestComponent.loadMediaQuestComponents(id, questData, media);
-            {
-              const questData = JSON.parse(
-                fs.readFileSync(
-                  `./src/client/public/cyberia/assets/ai-resources/lore/${id}/quests/${id}-002.json`,
-                  'utf8',
-                ),
-              );
-
-              QuestComponent.loadMediaQuestComponents(id, questData, []);
-            }
-          }
-        }
-      }
+            ),
+          });
 
       let instanceIndex = -1;
       for (const instance of world.instance) {

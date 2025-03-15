@@ -950,6 +950,12 @@ const QuestComponent = {
       };
     },
   },
+  questResourcesRef: [
+    {
+      sagaId: 'ashes-of-orion',
+      range: [1, 2],
+    },
+  ],
   getQuestByDisplayId: function ({ displayId }) {
     const questData = [];
     for (const id of Object.keys(this.Data)) {
@@ -980,22 +986,30 @@ const QuestComponent = {
   componentsScope: {},
   components: [],
   loadMediaQuestComponents: (questData) => {
-    const { id, components } = questData;
+    const { id, components, reward } = questData;
 
     if (!(id in QuestComponent.Data))
       QuestComponent.Data[id] = () => {
         return questData;
       };
 
-    for (const component of components) {
-      const { id, itemType } = component;
+    for (const component of components.concat(reward)) {
+      let { id, itemType, type } = component;
+      if (type) {
+        if (['coin'].includes(type)) continue;
+        else itemType = type;
+      }
+
       let assetFolder, dim;
       switch (itemType) {
         case 'questItem':
           assetFolder = 'quest';
           dim = 1;
           break;
-
+        case 'weapon':
+          assetFolder = itemType;
+          dim = 1;
+          break;
         default:
           assetFolder = itemType;
           dim = 2;
