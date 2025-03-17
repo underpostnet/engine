@@ -204,6 +204,19 @@ const MenuHealthcare = {
         setTimeout(ThemeEvents['titleRender']);
         return '';
       },
+      slideMenuTopBarFix: async () => {
+        return html` <style>
+            .healthcare-bar-logo {
+              height: 200px;
+              top: -50px;
+            }
+            .slide-menu-top-bar-fix {
+              overflow: hidden;
+            }
+          </style>
+
+          <img class="in healthcare-bar-logo" src="${getProxyPath()}assets/icons/23.png" />`;
+      },
       mode: 'slide-menu',
       RouterInstance,
       heightTopBar,
@@ -239,8 +252,13 @@ const MenuHealthcare = {
             s(`.main-btn-${'record-mood'}`).click();
           });
           ThemeEvents['banner'] = () => {
-            if (darkTheme) s(`.healthcare-banner`).classList.add('negative-color');
-            else s(`.healthcare-banner`).classList.remove('negative-color');
+            if (darkTheme) {
+              s(`.healthcare-banner`).classList.add('negative-color');
+              s(`.healthcare-bar-logo`).classList.add('negative-color');
+            } else {
+              s(`.healthcare-banner`).classList.remove('negative-color');
+              s(`.healthcare-bar-logo`).classList.remove('negative-color');
+            }
           };
           ThemeEvents['banner']();
         });
@@ -265,8 +283,7 @@ const MenuHealthcare = {
           </div>
           <div class="fl home-menu-container">
             <div class="in home-h1-font-container">
-              <img class="in healthcare-banner" src="${getProxyPath()}assets/icons/23.png" />
-              <br />
+              <img class="in healthcare-banner hide" src="${getProxyPath()}assets/icons/23.png" />
               ${Translate.Render('¿')}${Translate.Render('home-getting')}
             </div>
             ${render}
@@ -667,7 +684,50 @@ const MenuHealthcare = {
             <div class="fl record-mood-emotion-cell-container">
               ${range(0, 5)
                 .map((emotionIndex) => {
-                  return html` <div class="in fll record-mood-emotion-cell">
+                  const btnId = `btn-record-mood-emotion-${emotionIndex + 1}`;
+                  setTimeout(() => {
+                    EventsUI.onClick(`.${btnId}`, async () => {
+                      const { barConfig } = await Themes[Css.currentTheme]();
+                      barConfig.buttons.restore.disabled = true;
+                      barConfig.buttons.minimize.disabled = true;
+
+                      await Modal.Render({
+                        // route: 'record-mood-' + (emotionIndex + 1),
+                        id: `modal-${btnId}`,
+                        barConfig,
+                        title: '',
+                        html: html` <style>
+                            .modal-body-img-${btnId} {
+                              width: 300px;
+                              height: 300px;
+                              box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+                              border-radius: 50%;
+                              transition: 0.3s;
+                            }
+                            .modal-body-img-${btnId}:hover {
+                              box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.35);
+                            }
+                          </style>
+                          <div class="in modal-body-${btnId}">
+                            <img
+                              class="abs center modal-body-img-${btnId}"
+                              src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"
+                            />
+                          </div>`,
+                        mode: 'view',
+                        slideMenu: 'modal-menu',
+                        maximize: true,
+                        dragDisabled: true,
+                        observer: true,
+                        RouterInstance,
+                      });
+                      Modal.Data[`modal-${btnId}`].onObserverListener['observer'] = () => {
+                        s(`.modal-body-${btnId}`).style.height = `${s(`.modal-${btnId}`).offsetHeight * 0.95}px`;
+                      };
+                      Modal.Data[`modal-${btnId}`].onObserverListener['observer']();
+                    });
+                  });
+                  return html` <div class="in fll record-mood-emotion-cell ${btnId}">
                     <img
                       class="abs center no-drag record-mood-emotion-cell-img"
                       src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"

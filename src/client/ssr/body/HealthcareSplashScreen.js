@@ -77,13 +77,13 @@ SrrComponent = ({ backgroundImage, metadata }) => html`
       ${new Array(6)
         .fill()
         .map(
-          (v, i) => html`<div class="ssr-abs ssr-btn ssr-btn-${i}">
+          (v, i) => html`<div class="ssr-abs ssr-btn ssr-btn-${i} hide">
             <div class="ssr-shimmer"></div>
           </div>`,
         )
         .join('')}
 
-      <div class="ssr-abs ssr-search-box"><div class="ssr-shimmer-search-box"></div></div>
+      <div class="ssr-abs ssr-search-box hide"><div class="ssr-shimmer-search-box"></div></div>
     </div>
     <div class="ssr-abs ssr-center ssr-loader"><div class="loader"></div></div>
   </div>
