@@ -17,6 +17,10 @@ const TranslateHealthcare = {
       es: 'Gracias tu hora ha sido agendada, prontamente la Nutricionista se contactará con usted para confirmar la cita',
       en: 'Thank you for your appointment, soon the Nutritionist will contact you to confirm the appointment',
     };
+    Translate.Data['record-mood-title'] = {
+      es: 'Registra tu estado de ánimo',
+      en: 'Record your mood',
+    };
 
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;

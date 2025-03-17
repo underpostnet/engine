@@ -890,8 +890,58 @@ const commitData = {
   },
 };
 
-const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
+const emotionsData = [
+  {
+    name: 'like',
+    ad_display: {
+      es: 'Me gusta',
+      en: 'Like',
+    },
+    emoji: '👍',
+  },
+  {
+    name: 'love',
+    ad_display: {
+      es: 'Me encanta',
+      en: 'Love',
+    },
+    emoji: '❤️',
+  },
+  {
+    name: 'haha',
+    ad_display: {
+      es: 'Me divierte',
+      en: 'Haha',
+    },
+    emoji: '😂',
+  },
+  {
+    name: 'wow',
+    ad_display: {
+      es: 'Me asombra',
+      en: 'Wow',
+    },
+    emoji: '😮',
+  },
+  {
+    name: 'sad',
+    ad_display: {
+      es: 'Me entristece',
+      en: 'Sad',
+    },
+    emoji: '😢',
+  },
+  {
+    name: 'angry',
+    ad_display: {
+      es: 'Me enoja',
+      en: 'Angry',
+    },
+    emoji: '😠',
+  },
+];
 
+const userRoleEnum = ['admin', 'moderator', 'user', 'guest'];
 const commonAdminGuard = (role) => userRoleEnum.indexOf(role) === userRoleEnum.indexOf('admin');
 const commonModeratorGuard = (role) => userRoleEnum.indexOf(role) <= userRoleEnum.indexOf('moderator');
 
@@ -954,4 +1004,5 @@ export {
   getCurrentTrace,
   userRoleEnum,
   commitData,
+  emotionsData,
 };
