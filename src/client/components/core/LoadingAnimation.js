@@ -81,6 +81,8 @@ const LoadingAnimation = {
         if (classes.find((e) => e.match('management-table-btn-mini'))) {
           style.top = '-2px';
           style.left = '-2px';
+        } else if (classes.find((e) => e.match('main-btn-')) && !classes.find((e) => e.match('main-btn-square-menu'))) {
+          style.top = '-8px';
         } else if (classes.find((e) => e.match('action-bar-box'))) {
           style.top = '-30px';
           style.left = '-12px';
