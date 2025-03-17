@@ -52,12 +52,13 @@ const TranslateCyberia = {
 
     {
       for (const key of Object.keys(QuestComponent.Data)) {
-        Translate.Data[`${key}-title`] = QuestComponent.Data[key]().title;
-        Translate.Data[`${key}-description`] = QuestComponent.Data[key]().description;
-        Translate.Data[`${key}-shortDescription`] = QuestComponent.Data[key]().shortDescription;
-        Translate.Data[`${key}-successDescription`] = QuestComponent.Data[key]().successDescription;
+        const questData = QuestComponent.Data[key]();
+        Translate.Data[`${key}-title`] = questData.title;
+        Translate.Data[`${key}-description`] = questData.description;
+        Translate.Data[`${key}-shortDescription`] = questData.shortDescription;
+        Translate.Data[`${key}-successDescription`] = questData.successDescription;
 
-        QuestComponent.Data[key]().provide.displayIds.forEach((provideData) =>
+        questData.provide.displayIds.forEach((provideData) =>
           provideData.stepData.forEach((stepData, i) => {
             Translate.Data[`${key}-completeDialog-step-${provideData.id}-${i}`] = stepData.completeDialog;
             if (stepData.talkingDialog)

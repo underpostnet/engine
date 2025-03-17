@@ -81,11 +81,21 @@ const CyberiaWsSkillManagement = {
       SkillCyberiaData[parentElement.skill.keys[skillKey]] &&
       SkillCyberiaData[parentElement.skill.keys[skillKey]].skillDisplayData
     ) {
-      this.element[wsManagementId][id].components.skin[0] = {
-        ...SkillCyberiaData[parentElement.skill.keys[skillKey]].skillDisplayData,
-        current: true,
-        enabled: true,
-      };
+      this.element[wsManagementId][id].components.skin[0] = [
+        {
+          ...SkillCyberiaData[parentElement.skill.keys[skillKey]].skillDisplayData,
+          current: true,
+          enabled: true,
+        },
+      ];
+    } else if (parentElement.skill.keys[skillKey] in DisplayComponent.get) {
+      this.element[wsManagementId][id].components.skin = [
+        {
+          ...DisplayComponent.get[parentElement.skill.keys[skillKey]](),
+          current: true,
+          enabled: true,
+        },
+      ];
     } else {
       this.element[wsManagementId][id].components.skin[0].displayId = parentElement.skill.keys[skillKey];
     }

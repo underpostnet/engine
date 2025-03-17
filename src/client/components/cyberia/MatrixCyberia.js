@@ -3,7 +3,7 @@ import { CyberiaBiomeService } from '../../services/cyberia-biome/cyberia-biome.
 import { range } from '../core/CommonJs.js';
 import { Responsive } from '../core/Responsive.js';
 import { append, getProxyPath, s } from '../core/VanillaJs.js';
-import { QuestComponent } from './CommonCyberia.js';
+import { loadDefaultResources, QuestComponent } from './CommonCyberia.js';
 import { ElementsCyberia } from './ElementsCyberia.js';
 
 const MatrixCyberia = {
@@ -16,6 +16,9 @@ const MatrixCyberia = {
       dimAmplitude: 3, // 8,
       ...data,
     };
+
+    loadDefaultResources();
+
     for (const questId of Object.keys(QuestComponent.Data))
       await QuestComponent.loadMediaQuestComponents({
         id: questId,
@@ -35,7 +38,7 @@ const MatrixCyberia = {
           ),
         });
 
-    append('body', html`<div class="abs map-name-icon-container"></div>`);
+    if (!s(`.map-name-icon-container`)) append('body', html`<div class="abs map-name-icon-container"></div>`);
   },
   Render: async function () {
     let start;

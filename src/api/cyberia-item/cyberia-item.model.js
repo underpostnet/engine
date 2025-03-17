@@ -5,6 +5,18 @@ import { BehaviorElement, CyberiaItemsType } from '../../client/components/cyber
 
 // All cyberia items associated with a public key can fully reconstruct a character's game state.
 
+const DisplaySchema = new Schema({
+  displayId: { type: String },
+  current: { type: Boolean },
+  enabled: { type: Boolean },
+  position: { type: String },
+  positions: { type: [{ positionId: { type: String }, frames: { type: Number } }] },
+  assetFolder: { type: String, default: 'skin' },
+  extension: { type: String, default: 'png' },
+  velFrame: { type: Number, default: 250 },
+  apiPaths: [{ type: String }],
+});
+
 const CyberiaItemSchema = new Schema({
   data: {
     type: {
@@ -35,4 +47,4 @@ const CyberiaItemModel = model('CyberiaItem', CyberiaItemSchema);
 
 const ProviderSchema = CyberiaItemSchema;
 
-export { CyberiaItemSchema, CyberiaItemModel, ProviderSchema };
+export { CyberiaItemSchema, CyberiaItemModel, ProviderSchema, DisplaySchema };

@@ -7,10 +7,10 @@ const logger = loggerFactory(import.meta);
 // https://developer.mozilla.org/en-US/docs/Web/API/AbortController
 const getBaseHost = () => location.host;
 
-const getApiBasePath = () => `${getProxyPath()}api/`;
+const getApiBasePath = (options) => `${options?.proxyPath ? `/${options.proxyPath}/` : getProxyPath()}api/`;
 
-const getApiBaseUrl = (options = { id: '', endpoint: '' }) =>
-  `${location.protocol}//${getBaseHost()}${getApiBasePath()}${options?.endpoint ? options.endpoint : ''}${
+const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
+  `${location.protocol}//${getBaseHost()}${getApiBasePath(options)}${options?.endpoint ? options.endpoint : ''}${
     options?.id ? `/${options.id}` : ''
   }`;
 

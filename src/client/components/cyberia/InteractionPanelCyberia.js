@@ -182,7 +182,10 @@ const InteractionPanelCyberia = {
     quest: async function ({ id, questData }) {
       if (!s(`.quest-interaction-panel`)) return;
 
-      questData = { ...QuestComponent.Data[questData.id](), ...questData };
+      questData = {
+        ...QuestComponent.Data[questData.id](),
+        ...questData,
+      };
 
       this.questTokens[id] = { questData, id };
 
@@ -192,7 +195,7 @@ const InteractionPanelCyberia = {
         (s) => s.displayId === questData.provide.displayIds[0].id,
       );
 
-      const { currentStep } = questData;
+      const { currentStep } = currentQuestData;
 
       if (!s(`.quest-interaction-panel-${id}`))
         append(

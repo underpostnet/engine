@@ -1,9 +1,9 @@
 import { CyberiaBotService } from '../../services/cyberia-bot/cyberia-bot.service.js';
-import { cap } from '../core/CommonJs.js';
+import { cap, random } from '../core/CommonJs.js';
 import { borderChar } from '../core/Css.js';
 import { loggerFactory } from '../core/Logger.js';
 import { SocketIo } from '../core/SocketIo.js';
-import { BaseElement } from './CommonCyberia.js';
+import { BaseElement, QuestComponent } from './CommonCyberia.js';
 import { WorldCyberiaManagement } from './WorldCyberia.js';
 
 const logger = loggerFactory(import.meta);
@@ -42,7 +42,12 @@ const ElementsCyberia = {
   },
   getElement: async function (type, id, displayId) {
     if (id in ElementsCyberia.Data[type]) return ElementsCyberia.Data[type][id];
-    const result = await CyberiaBotService.get({ id: `display-id/${displayId}` });
+    const { apiPaths } = displayId in QuestComponent.componentsScope ? QuestComponent.componentsScope[displayId] : {};
+    const proxyPath = apiPaths ? apiPaths[random(0, apiPaths.length - 1)] : undefined;
+    const result = await CyberiaBotService.get({
+      id: `display-id/${displayId}`,
+      proxyPath,
+    });
     id = result.data.id;
     const element = result.data;
     delete element.id;

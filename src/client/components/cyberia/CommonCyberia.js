@@ -440,23 +440,40 @@ const Stat = {
   },
 };
 
-DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
-Stat.get['gp0'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+const loadDefaultResources = () => {
+  QuestComponent.componentsScope['purple'] = {};
+  QuestComponent.components.push(DisplayComponent.get['purple']());
 
-DisplayComponent.get['gp1'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp1' });
-Stat.get['gp1'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+  DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
+  Stat.get['gp0'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+  QuestComponent.componentsScope['gp0'] = {};
+  QuestComponent.components.push(DisplayComponent.get['gp0']());
 
-DisplayComponent.get['marciano'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'marciano' });
-Stat.get['marciano'] = () => ({ ...Stat.get['anon'](), vel: 0.25 });
+  DisplayComponent.get['gp1'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp1' });
+  Stat.get['gp1'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+  QuestComponent.componentsScope['gp1'] = {};
+  QuestComponent.components.push(DisplayComponent.get['gp1']());
 
-DisplayComponent.get['green'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'green' });
-Stat.get['green'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+  DisplayComponent.get['marciano'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'marciano' });
+  Stat.get['marciano'] = () => ({ ...Stat.get['anon'](), vel: 0.25 });
+  QuestComponent.componentsScope['marciano'] = {};
+  QuestComponent.components.push(DisplayComponent.get['marciano']());
 
-DisplayComponent.get['kael-cipher'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'kael-cipher' });
-Stat.get['kael-cipher'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+  DisplayComponent.get['green'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'green' });
+  Stat.get['green'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
+  QuestComponent.componentsScope['green'] = {};
+  QuestComponent.components.push(DisplayComponent.get['green']());
 
-DisplayComponent.get['anya-echo'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'anya-echo' });
-Stat.get['anya-echo'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+  DisplayComponent.get['kael-cipher'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'kael-cipher' });
+  Stat.get['kael-cipher'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+  QuestComponent.componentsScope['kael-cipher'] = {};
+  QuestComponent.components.push(DisplayComponent.get['kael-cipher']());
+
+  DisplayComponent.get['anya-echo'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'anya-echo' });
+  Stat.get['anya-echo'] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim: 2 });
+  QuestComponent.componentsScope['anya-echo'] = {};
+  QuestComponent.components.push(DisplayComponent.get['anya-echo']());
+};
 
 /*replace-display-instance*/
 
@@ -480,6 +497,7 @@ const QuestComponent = {
   Data: {
     'odisea-seller': () => {
       return {
+        id: 'odisea-seller',
         maxStep: 1,
         currentStep: 0,
         displaySearchObjects: [],
@@ -531,6 +549,7 @@ const QuestComponent = {
     },
     'subkishins-0': () => {
       return {
+        id: 'subkishins-0',
         maxStep: 1,
         currentStep: 0,
         title: {
@@ -620,6 +639,7 @@ const QuestComponent = {
     },
     'scp-2040-dialog': () => {
       return {
+        id: 'scp-2040-dialog',
         maxStep: 1,
         currentStep: 0,
         displaySearchObjects: [
@@ -824,6 +844,7 @@ const QuestComponent = {
     },
     'floki-bone': () => {
       return {
+        id: 'floki-bone',
         maxStep: 3,
         currentStep: 0,
         displaySearchObjects: [
@@ -946,6 +967,9 @@ const QuestComponent = {
             id: 'bone-brown',
             questKeyContext: 'displaySearchObjects',
           },
+          {
+            id: 'dog',
+          },
         ],
       };
     },
@@ -959,18 +983,19 @@ const QuestComponent = {
   getQuestByDisplayId: function ({ displayId }) {
     const questData = [];
     for (const id of Object.keys(this.Data)) {
-      const provideDemand = this.Data[id]().provide.displayIds.filter((q) => q.id === displayId);
+      const _questData = QuestComponent.Data[id]();
+      const provideDemand = _questData.provide.displayIds.filter((q) => q.id === displayId);
 
       if (provideDemand.length > 0)
         for (const demandUnit of range(0, provideDemand.reduce((sum, el) => sum + el.quantity[0], 0) - 1))
-          questData.push({ id, ...this.Data[id](), demandUnit });
+          questData.push({ id, ..._questData, demandUnit });
 
-      // if (this.Data[id]().provide.displayIds.find((q) => q.id === displayId)) {
-      //   questData.push({ id, ...this.Data[id]() });
+      // if (_questData.provide.displayIds.find((q) => q.id === displayId)) {
+      //   questData.push({ id, ..._questData });
       // }
-      if (this.Data[id]().displaySearchObjects.find((q) => q.id === displayId)) {
+      if (_questData.displaySearchObjects.find((q) => q.id === displayId)) {
         if (['displaySearchDialog', 'displaySearchObjects'].includes(this.componentsScope[displayId].questKeyContext))
-          questData.push({ id, ...this.Data[id]() });
+          questData.push({ id, ..._questData });
       }
     }
     return questData;
@@ -986,11 +1011,12 @@ const QuestComponent = {
   componentsScope: {},
   components: [],
   loadMediaQuestComponents: (questData) => {
-    const { id, components, reward } = questData;
+    const _questData = newInstance(questData);
+    const { id, components, reward } = _questData;
 
     if (!(id in QuestComponent.Data))
       QuestComponent.Data[id] = () => {
-        return questData;
+        return newInstance(_questData);
       };
 
     for (const component of components.concat(reward)) {
@@ -1000,29 +1026,29 @@ const QuestComponent = {
         else itemType = type;
       }
 
-      let assetFolder, dim;
-      switch (itemType) {
-        case 'questItem':
-          assetFolder = 'quest';
-          dim = 1;
-          break;
-        case 'weapon':
-          assetFolder = itemType;
-          dim = 1;
-          break;
-        default:
-          assetFolder = itemType;
-          dim = 2;
-          break;
-      }
-      if (!(id in DisplayComponent.get))
+      if (!(id in DisplayComponent.get)) {
+        let assetFolder, dim;
+        switch (itemType) {
+          case 'questItem':
+            assetFolder = 'quest';
+            dim = 1;
+            break;
+          case 'weapon':
+            assetFolder = itemType;
+            dim = 1;
+            break;
+          default:
+            assetFolder = itemType;
+            dim = 2;
+            break;
+        }
         DisplayComponent.get[id] = () => ({
           ...DisplayComponent.get['anon'](),
           displayId: id,
           assetFolder,
         });
-
-      if (!(id in Stat.get)) Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+        Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+      }
 
       QuestComponent.componentsScope[id] = component;
 
@@ -1038,7 +1064,7 @@ const QuestComponent = {
             DisplayComponent.get[id] = () => ({
               ...DisplayComponent.get['red-power'](),
               displayId: id,
-              assetFolder,
+              assetFolder: itemType,
               positions: PositionsComponent.default(),
             });
             break;
@@ -1048,7 +1074,7 @@ const QuestComponent = {
             DisplayComponent.get[id] = () => ({
               ...DisplayComponent.get['red-power'](),
               displayId: id,
-              assetFolder,
+              assetFolder: itemType,
             });
             break;
         }
@@ -1767,4 +1793,5 @@ export {
   CyberiaInstancesStructs,
   LoreCyberia,
   CyberiaShopStorage,
+  loadDefaultResources,
 };

@@ -47,9 +47,9 @@ const CyberiaBotService = {
           return reject(error);
         }),
     ),
-  get: (options = { id: '', body: {} }) =>
+  get: (options = { id: '', body: {}, proxyPath: '' }) =>
     new Promise((resolve, reject) =>
-      fetch(getApiBaseUrl({ id: options.id, endpoint }), {
+      fetch(getApiBaseUrl({ id: options.id, endpoint, proxyPath: options.proxyPath }), {
         method: 'GET',
         headers: headersFactory(),
       })

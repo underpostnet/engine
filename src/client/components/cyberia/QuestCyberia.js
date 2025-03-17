@@ -268,8 +268,8 @@ const QuestManagementCyberia = {
                               ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
                                 .displaySearchObjects[displayIdIndex];
 
-                            const displayStepData =
-                              QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
+                            // const displayStepData =
+                            //   QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
 
                             //  <pre>${JSON.stringify(displayStepData.talkingDialog, null, 4)}</pre>
 
@@ -511,6 +511,7 @@ const QuestManagementCyberia = {
       barConfig.buttons.maximize.disabled = true;
       barConfig.buttons.minimize.disabled = true;
       barConfig.buttons.restore.disabled = true;
+      barConfig.buttons.close.disabled = true;
       await Modal.Render({
         id: idModal,
         barConfig,
@@ -557,7 +558,10 @@ const QuestManagementCyberia = {
       );
 
       Modal.Data[idModal].onCloseListener[idModal] = () => {
-        if (s(`.button-quest-modal-forward-${questData.id}`)) s(`.button-quest-modal-forward-${questData.id}`).remove();
+        if (s(`.button-quest-modal-forward-${questData.id}`)) {
+          s(`.button-quest-modal-forward-${questData.id}`).click();
+          s(`.button-quest-modal-forward-${questData.id}`).remove();
+        }
       };
 
       s(`.button-quest-modal-forward-${questData.id}`).onclick = async () => {
@@ -1053,8 +1057,8 @@ const QuestManagementCyberia = {
             ${Translate.Render('reward')}
           </div>
           <div class="in section-mp">
-            ${QuestComponent.Data[questData.id]()
-              .reward.map((r, i) => {
+            ${questData.reward
+              .map((r, i) => {
                 const type = r.type;
                 const index = i;
                 const bagId = questData.id + '-reward-slot';
@@ -1198,15 +1202,15 @@ const QuestManagementCyberia = {
 
       if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
         s(`.quest-interaction-panel-${interactionPanelQuestId}`).remove();
-
-      if (Auth.getToken()) {
-        const result = await CyberiaQuestService.post({ id: `abandon/${questData.id}` });
-      } else {
-        const result = await CyberiaQuestService.post({
-          id: `abandon-anon/${questData.id}`,
-          body: { socketId: SocketIo.socket.id },
-        });
+      const result = Auth.getToken()
+        ? await CyberiaQuestService.post({ id: `abandon/${questData.id}` })
+        : await CyberiaQuestService.post({
+            id: `abandon-anon/${questData.id}`,
+            body: { socketId: SocketIo.socket.id },
+          });
+      if (result.status === 'success') {
         await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
+        delete InteractionPanelCyberia.PanelRender.questTokens[interactionPanelQuestId];
       }
       s(`.btn-close-${idModal}`).click();
     });
@@ -1290,13 +1294,11 @@ const QuestManagementCyberia = {
     }
   },
   takeQuest: async function ({ questData }) {
-    questData = {
-      ...questData,
-      ...QuestComponent.Data[questData.id](),
-    };
+    questData = QuestComponent.Data[questData.id]();
     const interactionPanelQuestId = questData ? `interaction-panel-${questData.id}` : undefined;
-
-    ElementsCyberia.Data.user['main'].model.quests.push(questData);
+    const questIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex((q) => q.id === questData.id);
+    if (questIndex >= 0) ElementsCyberia.Data.user['main'].model.quests[questIndex] = questData;
+    else ElementsCyberia.Data.user['main'].model.quests.push(questData);
     if (Auth.getToken()) {
       const result = await CyberiaQuestService.post({ id: `take/${questData.id}` });
     } else {

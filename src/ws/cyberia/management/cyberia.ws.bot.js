@@ -24,6 +24,7 @@ import {
   QuestComponent,
   DisplayComponent,
   ResourcesComponentCyberia,
+  loadDefaultResources,
 } from '../../../client/components/cyberia/CommonCyberia.js';
 import pathfinding from 'pathfinding';
 import { CyberiaWsBotChannel } from '../channels/cyberia.ws.bot.js';
@@ -123,6 +124,7 @@ const CyberiaWsBotManagement = {
     const collisionMatrixCyberia = JSON.parse(fs.readFileSync(`./tmp/${skinId}-${biome._id.toString()}.json`, 'utf8'));
 
     this.localElementScope[wsManagementId][id] = {
+      displayId: skinId,
       api: { getRandomPosition },
       displayBotMetaData,
       disabled: false,
@@ -271,9 +273,14 @@ const CyberiaWsBotManagement = {
                                     this.element[wsManagementId][id].model.world,
                                     CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
                                   ) &&
-                                  ['quest-passive'].includes(
+                                  (['quest-passive'].includes(
                                     CyberiaWsBotManagement.element[wsManagementId][botId].behavior,
-                                  ) &&
+                                  ) ||
+                                    ['displaySearchObjects'].includes(
+                                      QuestComponent.componentsScope[
+                                        this.localElementScope[wsManagementId][botId].displayId
+                                      ].questKeyContext,
+                                    )) &&
                                   getDistance(
                                     CyberiaWsBotManagement.element[wsManagementId][botId].x,
                                     CyberiaWsBotManagement.element[wsManagementId][botId].y,
@@ -489,6 +496,14 @@ const CyberiaWsBotManagement = {
       const world = CyberiaWsInstanceScope[wsManagementId].world.instance;
 
       if (!world) return;
+
+      loadDefaultResources();
+
+      for (const questId of Object.keys(QuestComponent.Data))
+        await QuestComponent.loadMediaQuestComponents({
+          id: questId,
+          ...QuestComponent.Data[questId](),
+        });
 
       for (const sagaData of QuestComponent.questResourcesRef)
         for (const questNumber of range(...sagaData.range))
