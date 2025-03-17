@@ -34,6 +34,12 @@ const RoutesHealthcare = () => {
       render: () => s(`.main-btn-nutrition-tips`).click(),
       translateTitle: true,
     },
+    '/record-mood': {
+      title: 'record-mood',
+      render: () => s(`.main-btn-record-mood`).click(),
+      translateTitle: true,
+    },
+
     '/healthcare-appointment-management': {
       title: 'healthcare-appointment-management',
       render: () => s(`.main-btn-healthcare-appointment-management`).click(),

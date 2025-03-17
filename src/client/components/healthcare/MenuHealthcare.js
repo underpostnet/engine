@@ -139,6 +139,22 @@ const MenuHealthcare = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('nutrition-tips')),
           })}
           ${await BtnIcon.Render({
+            class: 'in wfa main-btn-menu main-btn-record-mood hide',
+            label: renderMenuLabel({
+              icon: html`<img
+                class="slide-menu-icon"
+                src="${getProxyPath()}${MenuHomeHealthcare['record-mood'].icon}"
+              />`,
+              text: html`<span class="inl menu-label-text menu-label-text-slide-menu-icon"
+                >${Translate.Render('record-mood')}</span
+              >`,
+            }),
+            attrs: `data-id="record-mood"`,
+            tabHref: `${getProxyPath()}record-mood`,
+            handleContainerClass: 'handle-btn-container',
+            tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('record-mood')),
+          })}
+          ${await BtnIcon.Render({
             class: 'in wfa main-btn-menu main-btn-calendar',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-calendar-alt"></i>`,
@@ -218,6 +234,9 @@ const MenuHealthcare = {
           };
           EventsUI.onClick(`.home-body-btn-${'nutrition-tips'}`, () => {
             s(`.main-btn-${'nutrition-tips'}`).click();
+          });
+          EventsUI.onClick(`.home-body-btn-${'record-mood'}`, () => {
+            s(`.main-btn-${'record-mood'}`).click();
           });
           ThemeEvents['banner'] = () => {
             if (darkTheme) s(`.healthcare-banner`).classList.add('negative-color');
@@ -578,6 +597,31 @@ const MenuHealthcare = {
           text: Translate.Render('healthcare-appointment-management'),
         }),
         html: async () => await HealthcareAppointmentManagement.RenderTable({ Elements: ElementsHealthcare }),
+        handleType: 'bar',
+        maximize: true,
+        mode: 'view',
+        slideMenu: 'modal-menu',
+        RouterInstance,
+        heightTopBar,
+        heightBottomBar,
+      });
+    });
+
+    EventsUI.onClick(`.main-btn-record-mood`, async () => {
+      const { barConfig } = await Themes[Css.currentTheme]();
+      await Modal.Render({
+        id: 'modal-record-mood',
+        route: 'record-mood',
+        barConfig,
+        title: renderViewTitle({
+          icon: html`<img class="slide-menu-icon" src="${getProxyPath()}${MenuHomeHealthcare['record-mood'].icon}" />`,
+          text: Translate.Render('record-mood'),
+        }),
+        html: async () => {
+          let render = 'record mod test';
+
+          return html`${render}`;
+        },
         handleType: 'bar',
         maximize: true,
         mode: 'view',
