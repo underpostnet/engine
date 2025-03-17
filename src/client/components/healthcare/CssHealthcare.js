@@ -38,7 +38,7 @@ const CssCommonHealthcare = async () => {
       .menu-label-text-slide-menu-icon {
         top: -4px;
       }
-      .nutrition-tips-panel-sub-container {
+      .b0-panel-sub-container {
         margin: 10px;
         padding: 0px;
         border-radius: 14px;
@@ -62,6 +62,14 @@ const CssCommonHealthcare = async () => {
       .healthcare-calendar-info-value {
         font-weight: bold;
         padding-left: 20px;
+      }
+      .add-note-btn {
+        font-size: 30px;
+        font-weight: bold;
+        font-family: 'cursive';
+        text-align: center;
+        min-width: 250px;
+        padding: 10px;
       }
     </style>
     ${borderChar(1, 'black', [])} ${boxShadow({ selector: `.home-body-btn` })}`;
@@ -113,10 +121,10 @@ const CssHealthcareDark = {
           .home-body-btn {
             background: #a80081;
           }
-          .nutrition-tips-panel-sub-container {
+          .b0-panel-sub-container {
             background-color: #501455;
           }
-          .nutrition-tips-panel-sub-container:hover {
+          .b0-panel-sub-container:hover {
             background-color: #731c7a;
           }
         </style>
@@ -170,10 +178,10 @@ const CssHealthcareLight = {
           .home-body-btn {
             background: #ffce95;
           }
-          .nutrition-tips-panel-sub-container {
+          .b0-panel-sub-container {
             background-color: #fff0cc;
           }
-          .nutrition-tips-panel-sub-container:hover {
+          .b0-panel-sub-container:hover {
             background-color: #fef7e7;
           }
         </style>

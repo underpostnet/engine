@@ -22,6 +22,16 @@ const TranslateHealthcare = {
       en: 'Record your mood',
     };
 
+    Translate.Data['record-mood-thank'] = {
+      es: 'Gracias por registrar tu estado de ánimo, regresa mañana para actualizarlo.',
+      en: 'Thank you for recording your mood, come back tomorrow to update it.',
+    };
+
+    Translate.Data['add-notes'] = {
+      es: 'Agregar notas',
+      en: 'Add notes',
+    };
+
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;
     });

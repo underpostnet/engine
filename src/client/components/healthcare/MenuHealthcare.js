@@ -707,12 +707,31 @@ const MenuHealthcare = {
                             .modal-body-img-${btnId}:hover {
                               box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.35);
                             }
+                            .${btnId}-thank-msg-container {
+                              max-width: 300px;
+                              font-size: 30px;
+                              font-family: 'cursive';
+                              text-align: center;
+                            }
                           </style>
                           <div class="in modal-body-${btnId}">
-                            <img
-                              class="abs center modal-body-img-${btnId}"
-                              src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"
-                            />
+                            <div class="abs center">
+                              <img
+                                class="inl modal-body-img-${btnId}"
+                                src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"
+                              />
+                              <br />
+                              <br />
+                              <div class="inl ${btnId}-thank-msg-container">
+                                ${Translate.Render('record-mood-thank')}
+                              </div>
+                              <br />
+                              <br />
+                              ${await BtnIcon.Render({
+                                label: html`${Translate.Render('add-notes')}`,
+                                class: 'b0-panel-sub-container add-note-btn',
+                              })}
+                            </div>
                           </div>`,
                         mode: 'view',
                         slideMenu: 'modal-menu',
@@ -766,7 +785,7 @@ const MenuHealthcare = {
 
           for (const indexTip of range(0, NutritionalTips.length - 1)) {
             render += html`<div class="in nutrition-tips-panel-container">
-              <div class="in nutrition-tips-panel-sub-container">
+              <div class="in b0-panel-sub-container">
                 <div class="fl">
                   <div class="in fll" style="width: 30%;">
                     <div class="in nutrition-tips-panel-cell">
