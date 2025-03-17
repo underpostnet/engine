@@ -647,6 +647,15 @@ const MenuHealthcare = {
               .record-mood-emotion-cell-img {
                 width: ${cellDim * 0.9}px;
                 height: ${cellDim * 0.9}px;
+                box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19);
+                border-radius: 50%;
+                cursor: pointer;
+                transition: 0.3s;
+              }
+              .record-mood-emotion-cell-img:hover {
+                box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.3), 0 6px 20px 0 rgba(0, 0, 0, 0.35);
+                width: ${cellDim * 0.97}px;
+                height: ${cellDim * 0.97}px;
               }
             </style>
             <div class="record-mood-emotion-cell-style">${renderStyle()}</div>

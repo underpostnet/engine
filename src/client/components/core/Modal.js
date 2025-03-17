@@ -49,6 +49,7 @@ const Modal = {
       mode: '' /* slide-menu */,
       RouterInstance: {},
       disableTools: [],
+      observer: false
     },
   ) {
     if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
