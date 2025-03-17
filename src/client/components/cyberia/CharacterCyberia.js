@@ -240,6 +240,8 @@ const CharacterCyberia = {
     });
     if (!id) id = ElementsCyberia.findIdFromDisplayId(type, options.displayId);
 
+    await timer(1250);
+
     const frames = [];
     for (const frame of range(0, totalFrames - 1)) {
       try {
