@@ -349,6 +349,7 @@ const MainUserCyberia = {
   keyBoardFocusQueue: [],
   focusTargetBlock: false,
   focusTarget: function () {
+    return;
     if (MainUserCyberia.focusTargetBlock) return;
     MainUserCyberia.focusTargetBlock = true;
     QuestManagementCyberia.questClosePanels = [];

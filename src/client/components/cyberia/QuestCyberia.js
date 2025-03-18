@@ -382,10 +382,10 @@ const QuestManagementCyberia = {
                     if (s(`.action-panel-close-${idPanel}`)) s(`.action-panel-close-${idPanel}`).click();
                     if (questData && s(`.button-quest-modal-forward-${questData.id}`))
                       s(`.button-quest-modal-forward-${questData.id}`).click();
-                    Keyboard.Event['focus'] = {
-                      f: MainUserCyberia.focusTarget,
-                      F: MainUserCyberia.focusTarget,
-                    };
+                    // Keyboard.Event['focus'] = {
+                    //   f: MainUserCyberia.focusTarget,
+                    //   F: MainUserCyberia.focusTarget,
+                    // };
                     instanceKeyBoardEventOk();
                   };
                   {
@@ -492,10 +492,10 @@ const QuestManagementCyberia = {
         // }
       }, 1250);
 
-      Keyboard.Event['focus'] = {
-        f: MainUserCyberia.focusTarget,
-        F: MainUserCyberia.focusTarget,
-      };
+      // Keyboard.Event['focus'] = {
+      //   f: MainUserCyberia.focusTarget,
+      //   F: MainUserCyberia.focusTarget,
+      // };
 
       await this.triggerQuestAvailableRender({ type, id });
     }
