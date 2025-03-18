@@ -286,7 +286,6 @@ const QuestManagementCyberia = {
                               setTimeout(() => {
                                 delete handBlock[typeTarget][elementTargetId];
                               }, respawn);
-                              Slot.questItem.update({ bagId: 'cyberia-bag', displayId, type: 'user', id: 'main' });
                               if (QuestComponent.componentsScope[displayId].questKeyContext === 'displaySearchObjects')
                                 SocketIoCyberia.disconnect({ type: typeTarget, id: elementTargetId });
                               SocketIo.Emit('user', {
@@ -302,10 +301,10 @@ const QuestManagementCyberia = {
                                 questData,
                                 searchObjectIndex: displayIdIndex,
                               });
-                              await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                             }
                           }
                         }
+                        await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                       };
 
                     if (questData) {
@@ -319,18 +318,18 @@ const QuestManagementCyberia = {
                     QuestComponent.componentsScope[displayId].questKeyContext !== 'provide';
                   const idKeyboardEvent = 'quest-key-event-ok' + idPanel;
                   const instanceKeyBoardEventOk = () => {
-                    if (okButtonDisabled) delete Keyboard.Event[idKeyboardEvent];
-                    else
-                      Keyboard.Event[idKeyboardEvent] = {
-                        a: () =>
-                          s(`.action-panel-ok-${idPanel}`) && !Modal.viewModalOpen()
-                            ? s(`.action-panel-ok-${idPanel}`).click()
-                            : null,
-                        A: () =>
-                          s(`.action-panel-ok-${idPanel}`) && !Modal.viewModalOpen()
-                            ? s(`.action-panel-ok-${idPanel}`).click()
-                            : null,
-                      };
+                    // if (okButtonDisabled) delete Keyboard.Event[idKeyboardEvent];
+                    // else
+                    Keyboard.Event[idKeyboardEvent] = {
+                      a: () =>
+                        s(`.action-panel-ok-${idPanel}`) // && !Modal.viewModalOpen()
+                          ? s(`.action-panel-ok-${idPanel}`).click()
+                          : null,
+                      A: () =>
+                        s(`.action-panel-ok-${idPanel}`) // && !Modal.viewModalOpen()
+                          ? s(`.action-panel-ok-${idPanel}`).click()
+                          : null,
+                    };
                   };
                   instanceKeyBoardEventOk();
 
@@ -338,40 +337,40 @@ const QuestManagementCyberia = {
                     questData && QuestComponent.componentsScope[displayId].questKeyContext === 'provide';
                   {
                     const idKeyboardEvent = 'quest-key-event-dude' + idPanel;
-                    if (!dudeButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
-                    else
-                      Keyboard.Event[idKeyboardEvent] = {
-                        s: () =>
-                          s(`.action-panel-dude-${idPanel}`) && !Modal.viewModalOpen()
-                            ? s(`.action-panel-dude-${idPanel}`).click()
-                            : null,
-                        S: () =>
-                          s(`.action-panel-dude-${idPanel}`) && !Modal.viewModalOpen()
-                            ? s(`.action-panel-dude-${idPanel}`).click()
-                            : null,
-                      };
+                    // if (!dudeButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
+                    // else
+                    Keyboard.Event[idKeyboardEvent] = {
+                      s: () =>
+                        s(`.action-panel-dude-${idPanel}`) // && !Modal.viewModalOpen()
+                          ? s(`.action-panel-dude-${idPanel}`).click()
+                          : null,
+                      S: () =>
+                        s(`.action-panel-dude-${idPanel}`) // && !Modal.viewModalOpen()
+                          ? s(`.action-panel-dude-${idPanel}`).click()
+                          : null,
+                    };
                   }
 
                   const actionButtonEnabled = questData && (enabledQuestPanel || enabledShopPanel);
 
                   {
                     const idKeyboardEvent = 'quest-key-event-hand' + idPanel;
-                    if (!actionButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
-                    else
-                      Keyboard.Event[idKeyboardEvent] = {
-                        a: () => {
-                          if (actionButtonEnabled)
-                            s(`.action-panel-hand-${idPanel}`) && !Modal.viewModalOpen()
-                              ? s(`.action-panel-hand-${idPanel}`).click()
-                              : null;
-                        },
-                        A: () => {
-                          if (actionButtonEnabled)
-                            s(`.action-panel-hand-${idPanel}`) && !Modal.viewModalOpen()
-                              ? s(`.action-panel-hand-${idPanel}`).click()
-                              : null;
-                        },
-                      };
+                    // if (!actionButtonEnabled) delete Keyboard.Event[idKeyboardEvent];
+                    // else
+                    Keyboard.Event[idKeyboardEvent] = {
+                      a: () => {
+                        if (actionButtonEnabled)
+                          s(`.action-panel-hand-${idPanel}`) // && !Modal.viewModalOpen()
+                            ? s(`.action-panel-hand-${idPanel}`).click()
+                            : null;
+                      },
+                      A: () => {
+                        if (actionButtonEnabled)
+                          s(`.action-panel-hand-${idPanel}`) // && !Modal.viewModalOpen()
+                            ? s(`.action-panel-hand-${idPanel}`).click()
+                            : null;
+                      },
+                    };
                   }
 
                   let keyBoardFocusBlock = false;
@@ -1232,6 +1231,7 @@ const QuestManagementCyberia = {
   }) {
     ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].displaySearchObjects[searchObjectIndex]
       .current++;
+    Slot.questItem.update({ bagId: 'cyberia-bag', displayId, type: 'user', id: 'main' });
     if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
       htmls(
         `.${questData.id}-${displayId}-${currentStep}-current`,
@@ -1268,8 +1268,11 @@ const QuestManagementCyberia = {
           interactionPanelQuestId,
           completeQuest,
         });
-        return;
-      }
+      } else
+        for (const { id } of ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
+          .displaySearchObjects) {
+          Slot.questItem.update({ bagId: 'cyberia-bag', displayId: id, type: 'user', id: 'main' });
+        }
 
       sa(
         `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,

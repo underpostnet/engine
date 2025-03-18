@@ -145,6 +145,10 @@ const SocketIoCyberia = {
                   );
                   if (questIndex >= 0) {
                     ElementsCyberia.Data.user['main'].model.quests[questIndex].complete = true;
+                    for (const { id } of ElementsCyberia.Data.user['main'].model.quests[questIndex]
+                      .displaySearchObjects) {
+                      Slot.questItem.update({ bagId: 'cyberia-bag', displayId: id, type: 'user', id: 'main' });
+                    }
                   }
                 }
               }
