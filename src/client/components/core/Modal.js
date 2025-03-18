@@ -77,6 +77,8 @@ const Modal = {
       options,
       onCloseListener: {},
       onMenuListener: {},
+      onCollapseMenuListener: {},
+      onExtendMenuListener: {},
       onDragEndListener: {},
       onObserverListener: {},
       onClickListener: {},
@@ -1384,6 +1386,9 @@ const Modal = {
             if (options.onCollapseMenu) options.onCollapseMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.add('hide');
             s(`.nav-path-container-${'modal-menu'}`).classList.add('hide');
+            Object.keys(this.Data[idModal].onCollapseMenuListener).map((keyListener) =>
+              this.Data[idModal].onCollapseMenuListener[keyListener](),
+            );
           } else {
             slideMenuWidth = originSlideMenuWidth;
             setTimeout(() => {
@@ -1404,6 +1409,9 @@ const Modal = {
             if (options.onExtendMenu) options.onExtendMenu();
             s(`.sub-menu-title-container-${'modal-menu'}`).classList.remove('hide');
             s(`.nav-path-container-${'modal-menu'}`).classList.remove('hide');
+            Object.keys(this.Data[idModal].onExtendMenuListener).map((keyListener) =>
+              this.Data[idModal].onExtendMenuListener[keyListener](),
+            );
           }
           // btn-bar-center-icon-menu
           this.actionBtnCenter();
