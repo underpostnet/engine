@@ -20,6 +20,7 @@ switch (process.argv[2]) {
     logger.info('Open new vs windows', 'Ctrl Shift N');
     logger.info('Close current vs windows', 'Ctrl Shift W');
     logger.info('Preview md', 'Ctrl shift V');
+    logger.info('Open git changes', 'Ctrl G + G');
     logger.warn('Terminal shortcut configure with command pallette', 'Ctl shift T');
     break;
   }

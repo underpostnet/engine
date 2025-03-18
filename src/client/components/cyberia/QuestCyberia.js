@@ -1089,11 +1089,11 @@ const QuestManagementCyberia = {
             label: html`${renderViewTitle({
               'ui-icon': `close.png`,
               text: html`${Translate.Render('dismiss-quest')}`,
-              dim: 30,
-              top: 4,
+              top: 2,
+              topText: 0,
             })}`,
             type: 'button',
-            class: `wfa section-mp-btn btn-dismiss-quest-${idModal} ${
+            class: `inl wfa section-mp-btn btn-dismiss-quest-${idModal} ${
               ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
             }`,
             style: 'max-width: 450px',
@@ -1102,11 +1102,11 @@ const QuestManagementCyberia = {
             label: html`${renderViewTitle({
               'ui-icon': `ok.png`,
               text: html`${Translate.Render('take-quest')}`,
-              dim: 30,
-              top: 4,
+              top: 2,
+              topText: 0,
             })}`,
             type: 'button',
-            class: `wfa section-mp-btn btn-ok-quest-${idModal} ${
+            class: `inl wfa section-mp-btn btn-ok-quest-${idModal} ${
               !ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id) ? '' : 'hide'
             }`,
             style: 'max-width: 450px',

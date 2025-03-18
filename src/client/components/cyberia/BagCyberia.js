@@ -186,21 +186,21 @@ const ItemModal = {
                 label: renderViewTitle({
                   'ui-icon': `equip.png`,
                   text: html`${Translate.Render('equip')}`,
-                  dim: 30,
-                  top: 4,
+                  top: 2,
+                  topText: 0,
                 }),
                 type: 'button',
-                class: `btn-equip-${item.type}-${idModal} inl wfa`,
+                class: `btn-equip-${item.type}-${idModal} section-mp-btn inl wfa`,
               })}
               ${await BtnIcon.Render({
                 label: renderViewTitle({
                   'ui-icon': `unequip.png`,
                   text: html`${Translate.Render('unequip')}`,
-                  dim: 30,
-                  top: 4,
+                  top: 2,
+                  topText: 0,
                 }),
                 type: 'button',
-                class: `btn-unequip-${item.type}-${idModal} inl wfa`,
+                class: `btn-unequip-${item.type}-${idModal} section-mp-btn inl wfa`,
               })} `,
             );
             EventsUI.onClick(`.btn-equip-${item.type}-${idModal}`, () => {

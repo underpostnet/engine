@@ -49,7 +49,7 @@ const Modal = {
       mode: '' /* slide-menu */,
       RouterInstance: {},
       disableTools: [],
-      observer: false
+      observer: false,
     },
   ) {
     if (options.heightBottomBar === undefined) options.heightBottomBar = 50;
@@ -1782,20 +1782,34 @@ const renderMenuLabel = ({ img, text, icon }) => {
     <div class="abs center main-btn-menu-text">${text}</div>`;
 };
 
-const renderViewTitle = (options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '', dim, top }) => {
-  if (options.dim === undefined) options.dim = 60;
+const renderViewTitle = (
+  options = { icon: '', img: '', text: '', assetFolder: '', 'ui-icons': '', dim, top, topText: '' },
+) => {
+  if (options.dim === undefined) options.dim = 30;
   const { img, text, icon, dim, top } = options;
   if (!img && !options['ui-icon']) return html`<span class="view-title-icon">${icon}</span> ${text}`;
   return html`<img
       class="abs img-btn-square-view-title"
       style="${renderCssAttr({
-        style: { width: `${dim}px`, height: `${dim}px`, top: top !== undefined ? `${top}px` : `-${dim / 2}px` },
+        style: {
+          width: `${dim}px`,
+          height: `${dim}px`,
+          top: top !== undefined ? `${top}px !important` : undefined,
+        },
       })}"
       src="${options['ui-icon']
         ? `${getProxyPath()}assets/${options.assetFolder ? options.assetFolder : 'ui-icons'}/${options['ui-icon']}`
         : img}"
     />
-    <div class="in text-btn-square-view-title" style="${renderCssAttr({ style: { 'padding-left': `${dim}px` } })}">
+    <div
+      class="in text-btn-square-view-title"
+      style="${renderCssAttr({
+        style: {
+          // 'padding-left': `${20 + dim}px`,
+          ...(options.topText !== undefined ? { top: options.topText + 'px !important' } : {}),
+        },
+      })}"
+    >
       ${text}
     </div>`;
 };

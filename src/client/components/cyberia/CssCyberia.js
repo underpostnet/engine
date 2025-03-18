@@ -88,7 +88,8 @@ const CssCommonCyberia = async () => {
         min-height: 40px;
       }
       .section-mp-btn {
-        margin: 0px;
+        margin: 5px;
+        padding: 10px;
       }
       .bubble-dialog-triangle {
       }
@@ -139,14 +140,15 @@ const CssCommonCyberia = async () => {
         height: 30px;
       }
       .img-btn-square-view-title {
-        width: 30px !important;
-        height: 30px !important;
-        left: 10px !important;
-        top: 0px !important;
+        width: 30px;
+        height: 30px;
+        left: 10px;
+        top: -2px;
       }
       .text-btn-square-view-title {
-        top: 6px !important;
-        color: #ffcc00 !important;
+        top: 8px;
+        color: #ffcc00;
+        padding-left: 48px;
       }
       .cyberia-splash-screen-logo-container {
         font-family: 'retro-font';
