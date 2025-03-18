@@ -34,6 +34,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 1 },
     { positionId: '18', frames: 1 },
   ],
+  frames6: () => [
+    { positionId: '02', frames: 6 },
+    { positionId: '04', frames: 6 },
+    { positionId: '06', frames: 6 },
+    { positionId: '08', frames: 6 },
+    { positionId: '12', frames: 6 },
+    { positionId: '14', frames: 6 },
+    { positionId: '16', frames: 6 },
+    { positionId: '18', frames: 6 },
+  ],
   default: () => [
     { positionId: '02', frames: 1 },
     { positionId: '04', frames: 1 },
@@ -282,6 +292,16 @@ const DisplayComponent = {
         extension: 'png',
       };
     },
+    coin: () => {
+      return {
+        displayId: 'coin',
+        position: '08',
+        positions: PositionsComponent['frames6'](),
+        velFrame: 0.1,
+        assetFolder: 'coin',
+        extension: 'gif',
+      };
+    },
   },
 };
 
@@ -363,9 +383,9 @@ const Stat = {
         vel: 1.5,
       };
     },
-    'bone-browne': () => {
+    'bone-brown': () => {
       return {
-        dim: 1.8,
+        dim: 1,
       };
     },
     hatchet: () => {
@@ -391,7 +411,11 @@ const Stat = {
     'generic-wood': () => {
       return {
         dim: 1,
+        basePrice: 2,
       };
+    },
+    coin: () => {
+      return {};
     },
   },
   set: function (type, element, build) {
@@ -443,6 +467,9 @@ const Stat = {
 const loadDefaultResources = () => {
   QuestComponent.componentsScope['purple'] = {};
   QuestComponent.components.push(DisplayComponent.get['purple']());
+
+  QuestComponent.componentsScope['generic-wood'] = {};
+  QuestComponent.components.push(DisplayComponent.get['generic-wood']());
 
   DisplayComponent.get['gp0'] = () => ({ ...DisplayComponent.get['anon'](), displayId: 'gp0' });
   Stat.get['gp0'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
@@ -1032,6 +1059,7 @@ const QuestComponent = {
           case 'questItem':
             assetFolder = 'quest';
             dim = 1;
+            Stat.get[id] = () => Stat.get['bone']();
             break;
           case 'weapon':
             assetFolder = itemType;
@@ -1047,7 +1075,7 @@ const QuestComponent = {
           displayId: id,
           assetFolder,
         });
-        Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+        if (!(id in Stat.get)) Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
       }
 
       QuestComponent.componentsScope[id] = component;
@@ -1060,7 +1088,9 @@ const QuestComponent = {
         SkillCyberiaData[id] = { type: 'basic', folder: 'skill' };
         switch (id) {
           case 'atlas_pistol_mk2_bullet':
-            Stat.get[id] = () => ({ ...Stat.get['red-power'](), dim: 1, damage: 100 });
+            const statFn = () => ({ ...Stat.get['red-power'](), dim: 1, damage: 100 });
+            Stat.get[id] = statFn;
+            Stat.get['atlas_pistol_mk2'] = statFn;
             DisplayComponent.get[id] = () => ({
               ...DisplayComponent.get['red-power'](),
               displayId: id,

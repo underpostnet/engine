@@ -68,7 +68,10 @@ const ItemModal = {
                       <div class="in flr">
                         ${ElementsCyberia.Data[elementOwnerType][elementOwnerId].coin} /
                         <span class="total-price-buy-${item.type}-${idModal}">${basePrice}</span>
-                        <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
+                        <img
+                          class="inl icon-img-btn-item-modal"
+                          src="${getProxyPath()}assets/coin/coin/animation.gif"
+                        />
                       </div>
                     `,
                     type: 'button',
@@ -95,7 +98,10 @@ const ItemModal = {
                       <div class="in flr">
                         <span class="total-price-sell-${item.type}-${idModal}">${basePrice * sellFactor}</span>
                         / ${basePrice * countCurrentItem * sellFactor}
-                        <img class="inl icon-img-btn-item-modal" src="${getProxyPath()}assets/coin/animation.gif" />
+                        <img
+                          class="inl icon-img-btn-item-modal"
+                          src="${getProxyPath()}assets/coin/coin/animation.gif"
+                        />
                       </div>
                     `,
                     type: 'button',
@@ -173,6 +179,7 @@ const ItemModal = {
 
         default:
           {
+            if (['resources', 'coin', 'quest'].includes(item.type)) break;
             htmls(
               `.${id0}-render-col-b`,
               html`${await BtnIcon.Render({
@@ -474,6 +481,7 @@ const ItemModal = {
       'damage',
       'lifeRegeneration',
       'lifeRegenerationVel',
+      'basePrice',
     ];
     let statsRender = '';
     if (options)
@@ -491,7 +499,16 @@ const ItemModal = {
           <div class="in section-mp">${statKey}</div>
         </div>
         <div class="in fll stat-table-cell">
-          <div class="in section-mp">${statData[statKey]}</div>
+          <div class="in section-mp" ${statKey === 'basePrice' ? `style="top: -10px"` : ''}>
+            ${statData[statKey]}
+            ${statKey === 'basePrice'
+              ? html` <img
+                  class="inl coin-slot-icon-img"
+                  style="top: 6px"
+                  src="${getProxyPath()}assets/coin/coin/animation.gif"
+                />`
+              : ''}
+          </div>
         </div>`;
     }
     return html` <div class="in section-mp">
@@ -532,6 +549,26 @@ const Slot = {
           <div class="abs bag-slot-name-text">${displayId}</div>
         `,
       );
+      SlotEvents[slotId].onClick = async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-resources-${slotId}`,
+          barConfig,
+          title: renderViewTitle({
+            img: `${getProxyPath()}assets/resources/${displayId}/animation.gif`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({
+            bagId,
+            idModal: `modal-resources-${slotId}`,
+            item: { type: 'resources', id: displayId },
+          })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
+        });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia, displayId }) {
       const setQuestItem = ElementsCyberia.Data[BagCyberia.Tokens[bagId].owner.type][
@@ -584,6 +621,26 @@ const Slot = {
           <div class="abs bag-slot-name-text">${displayId}</div>
         `,
       );
+      SlotEvents[slotId].onClick = async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-quest-${slotId}`,
+          barConfig,
+          title: renderViewTitle({
+            img: `${getProxyPath()}assets/quest/${displayId}/animation.gif`,
+            text: html`${displayId}`,
+          }),
+          html: html`${await ItemModal.Render({
+            bagId,
+            idModal: `modal-quest-${slotId}`,
+            item: { type: 'quest', id: displayId },
+          })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
+        });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: function ({ bagId, indexBagCyberia }) {
       const setQuestItem = uniqueArray(
@@ -611,20 +668,42 @@ const Slot = {
     },
   },
   coin: {
-    render: ({ slotId, quantity }) => {
+    render: ({ bagId, slotId, quantity }) => {
+      SlotEvents[slotId] = {};
       htmls(
         `.${slotId}`,
         html` <div class="abs bag-slot-count">
             <div class="abs center">x<span class="bag-slot-value-${slotId}">${getK(quantity)}</span></div>
           </div>
-          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/animation.gif" />
+          <img class="abs center bag-slot-img" src="${getProxyPath()}assets/coin/coin/animation.gif" />
           <div class="abs bag-slot-type-text">currency</div>
           <div class="abs bag-slot-name-text">coin</div>`,
       );
+      SlotEvents[slotId].onClick = async (e) => {
+        const { barConfig } = await Themes[Css.currentTheme]();
+        await Modal.Render({
+          id: `modal-coin-${slotId}`,
+          barConfig,
+          title: renderViewTitle({
+            img: `${getProxyPath()}assets/coin/coin/animation.gif`,
+            text: html`coin`,
+          }),
+          html: html`${await ItemModal.Render({
+            bagId,
+            idModal: `modal-coin-${slotId}`,
+            item: { type: 'coin', id: 'coin' },
+          })}`,
+          mode: 'view',
+          slideMenu: 'modal-menu',
+          maximize: Modal.mobileModal(),
+        });
+      };
+      EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
     },
     renderBagCyberiaSlots: ({ bagId, indexBagCyberia, quantity }) => {
       const slotId = `${bagId}-${indexBagCyberia}`;
       Slot.coin.render({
+        bagId,
         slotId,
         quantity:
           quantity !== undefined
@@ -739,7 +818,7 @@ const Slot = {
                   <div class="abs center" style="width: 100px">
                     x
                     <span class="bag-slot-value-${slotId}">${getK(basePrice)}</span
-                    ><img class="inl coin-slot-icon-img" src="${getProxyPath()}assets/coin/animation.gif" />
+                    ><img class="inl coin-slot-icon-img" src="${getProxyPath()}assets/coin/coin/animation.gif" />
                   </div>
                 `
               : ''}
