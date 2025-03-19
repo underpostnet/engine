@@ -86,9 +86,29 @@ const RecordMoodHealthcare = {
                         font-family: 'cursive';
                         text-align: center;
                       }
+                      .record-mood-layer-1 {
+                        padding-top: 60px;
+                        width: 320px;
+                        margin: auto;
+                      }
+                      .record-mood-textarea {
+                        max-width: 450px;
+                        min-width: 300px;
+                        margin: auto;
+                        padding: 10px;
+                        border: none;
+                        min-height: 200px;
+                        font-size: 20px;
+                      }
                     </style>
                     <div class="in modal-body-${btnId}">
-                      <div class="abs center">
+                      <div class="in record-mood-layer-1 hide">
+                        <div class="in home-h1-font-container">${Translate.Render('add-notes-title-1')}</div>
+                        <div class="in home-h2-font-container">${Translate.Render('add-notes-title-2')}</div>
+                        <br /><br />
+                        <textarea class="in record-mood-textarea"></textarea>
+                      </div>
+                      <div class="abs center record-mood-layer-0">
                         <img
                           class="inl modal-body-img-${btnId}"
                           src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"
@@ -115,6 +135,10 @@ const RecordMoodHealthcare = {
                   s(`.modal-body-${btnId}`).style.height = `${s(`.modal-${btnId}`).offsetHeight * 0.95}px`;
                 };
                 Modal.Data[`modal-${btnId}`].onObserverListener['observer']();
+                s(`.add-note-btn`).onclick = () => {
+                  s(`.record-mood-layer-0`).classList.add('hide');
+                  s(`.record-mood-layer-1`).classList.remove('hide');
+                };
               });
             });
             return html` <div class="in fll record-mood-emotion-cell ${btnId}">

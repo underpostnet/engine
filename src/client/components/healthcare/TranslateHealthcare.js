@@ -32,6 +32,16 @@ const TranslateHealthcare = {
       en: 'Add notes',
     };
 
+    Translate.Data['add-notes-title-1'] = {
+      es: 'Es muy importante escribir lo que sientes',
+      en: 'It is important to write what you feel',
+    };
+
+    Translate.Data['add-notes-title-2'] = {
+      es: 'Desahogate en este espacio te prometo que te sentiras mucho mejor despues de hacerlo',
+      en: `Don't forget this space, I promise you will feel much better after doing it`,
+    };
+
     Object.keys(MenuHomeHealthcare).map((id) => {
       Translate.Data[id] = MenuHomeHealthcare[id].displayName;
     });
