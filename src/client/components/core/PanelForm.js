@@ -421,8 +421,16 @@ const PanelForm = {
           ssr: true,
         })),
       });
-
+    let delayBlock = false;
     this.Data[idPanel].updatePanel = async () => {
+      if (delayBlock) return;
+      else {
+        delayBlock = true;
+        setTimeout(() => {
+          delayBlock = false;
+        }, 500);
+      }
+      console.error('update panel');
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
@@ -437,17 +445,18 @@ const PanelForm = {
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          if (!PanelForm.Data[idPanel].sessionIn) await this.Data[idPanel].updatePanel();
+          // if (!PanelForm.Data[idPanel].sessionIn)
+          await this.Data[idPanel].updatePanel();
         },
       });
 
     // if (options.route === 'home') setTimeout(this.Data[idPanel].updatePanel);
     setTimeout(() => {
-      if (
-        options.route !== 'home' &&
-        (!PanelForm.Data[idPanel].originData || PanelForm.Data[idPanel].originData.length === 0)
-      )
-        this.Data[idPanel].updatePanel();
+      // if (
+      //   options.route !== 'home' &&
+      //   (!PanelForm.Data[idPanel].originData || PanelForm.Data[idPanel].originData.length === 0)
+      // )
+      this.Data[idPanel].updatePanel();
     });
 
     if (options.parentIdModal) {

@@ -404,7 +404,15 @@ const CalendarCore = {
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
 
+    let delayBlock = false;
     this.Data[options.idModal].updatePanel = async () => {
+      if (delayBlock) return;
+      else {
+        delayBlock = true;
+        setTimeout(() => {
+          delayBlock = false;
+        }, 500);
+      }
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       if (s(`.main-body-calendar-${options.idModal}`)) {
@@ -426,7 +434,10 @@ const CalendarCore = {
         },
       });
 
-    if (options.route === 'home') setTimeout(CalendarCore.Data[options.idModal].updatePanel);
+    // if (options.route === 'home')
+    setTimeout(() => {
+      CalendarCore.Data[options.idModal].updatePanel();
+    });
 
     return html`
       <style>

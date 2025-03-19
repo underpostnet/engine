@@ -58,7 +58,7 @@ const DocumentService = {
         .limit(limit)
         .skip(skip)
         .populate(DocumentDto.populate.file())
-        .populate(user.role !== 'guest' ? DocumentDto.populate.user() : null);
+        .populate(user && user.role !== 'guest' ? DocumentDto.populate.user() : null);
     }
 
     switch (req.params.id) {
