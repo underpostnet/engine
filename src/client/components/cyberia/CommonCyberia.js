@@ -525,6 +525,7 @@ const QuestComponent = {
     'odisea-seller': () => {
       return {
         id: 'odisea-seller',
+        sagaId: 'default',
         maxStep: 1,
         currentStep: 0,
         displaySearchObjects: [],
@@ -577,6 +578,7 @@ const QuestComponent = {
     'subkishins-0': () => {
       return {
         id: 'subkishins-0',
+        sagaId: 'default',
         maxStep: 1,
         currentStep: 0,
         title: {
@@ -667,6 +669,7 @@ const QuestComponent = {
     'scp-2040-dialog': () => {
       return {
         id: 'scp-2040-dialog',
+        sagaId: 'default',
         maxStep: 1,
         currentStep: 0,
         displaySearchObjects: [
@@ -872,6 +875,7 @@ const QuestComponent = {
     'floki-bone': () => {
       return {
         id: 'floki-bone',
+        sagaId: 'default',
         maxStep: 3,
         currentStep: 0,
         displaySearchObjects: [

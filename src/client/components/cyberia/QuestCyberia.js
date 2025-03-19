@@ -668,7 +668,10 @@ const QuestManagementCyberia = {
           if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
         };
         await renderPhrase();
-        if (currentDialogIndex + 1 < displayStepData.talkingDialog.length) {
+        if (
+          currentDialogIndex + 1 < displayStepData.talkingDialog.length &&
+          s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`)
+        ) {
           if (s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.contains('hide'))
             s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.remove('hide');
           else s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.add('hide');
@@ -962,7 +965,8 @@ const QuestManagementCyberia = {
               if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep + 1}`).classList.remove('hide');
             }, 1000);
 
-          if (completeQuestStatic) s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
+          if (completeQuestStatic && s(`.quest-step-box-${questData.id}-${currentStep + 1}`))
+            s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
         });
         return html` <div class="in section-mp quest-modal-container" style="max-width: 450px">
           <div class="in sub-title-item-modal">
@@ -1202,9 +1206,9 @@ const QuestManagementCyberia = {
       if (s(`.quest-interaction-panel-${interactionPanelQuestId}`))
         s(`.quest-interaction-panel-${interactionPanelQuestId}`).remove();
       const result = Auth.getToken()
-        ? await CyberiaQuestService.post({ id: `abandon/${questData.id}` })
+        ? await CyberiaQuestService.post({ id: `abandon/${questData.sagaId}/${questData.id}` })
         : await CyberiaQuestService.post({
-            id: `abandon-anon/${questData.id}`,
+            id: `abandon-anon/${questData.sagaId}/${questData.id}`,
             body: { socketId: SocketIo.socket.id },
           });
       if (result.status === 'success') {
@@ -1303,10 +1307,10 @@ const QuestManagementCyberia = {
     if (questIndex >= 0) ElementsCyberia.Data.user['main'].model.quests[questIndex] = questData;
     else ElementsCyberia.Data.user['main'].model.quests.push(questData);
     if (Auth.getToken()) {
-      const result = await CyberiaQuestService.post({ id: `take/${questData.id}` });
+      const result = await CyberiaQuestService.post({ id: `take/${questData.sagaId}/${questData.id}` });
     } else {
       const result = await CyberiaQuestService.post({
-        id: `take-anon/${questData.id}`,
+        id: `take-anon/${questData.sagaId}/${questData.id}`,
         body: { socketId: SocketIo.socket.id },
       });
     }

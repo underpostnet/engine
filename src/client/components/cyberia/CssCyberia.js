@@ -90,6 +90,7 @@ const CssCommonCyberia = async () => {
       .section-mp-btn {
         margin: 5px;
         padding: 10px;
+        max-width: 200px;
       }
       .bubble-dialog-triangle {
       }

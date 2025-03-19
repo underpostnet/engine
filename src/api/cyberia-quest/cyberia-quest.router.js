@@ -25,17 +25,20 @@ const CyberiaQuestRouter = (options) => {
       };
     })();
   router.post(
-    `/take/:questId`,
+    `/take/:sagaId/:questId`,
     authMiddleware,
     async (req, res) => await CyberiaQuestController.post(req, res, options),
   );
   router.post(
-    `/abandon/:questId`,
+    `/abandon/:sagaId/:questId`,
     authMiddleware,
     async (req, res) => await CyberiaQuestController.post(req, res, options),
   );
-  router.post(`/take-anon/:questId`, async (req, res) => await CyberiaQuestController.post(req, res, options));
-  router.post(`/abandon-anon/:questId`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+  router.post(`/take-anon/:sagaId/:questId`, async (req, res) => await CyberiaQuestController.post(req, res, options));
+  router.post(
+    `/abandon-anon/:sagaId/:questId`,
+    async (req, res) => await CyberiaQuestController.post(req, res, options),
+  );
   router.post(`/:id`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.post(`/`, async (req, res) => await CyberiaQuestController.post(req, res, options));
   router.get(`/:id`, async (req, res) => await CyberiaQuestController.get(req, res, options));

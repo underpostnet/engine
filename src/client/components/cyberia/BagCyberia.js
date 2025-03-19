@@ -565,7 +565,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -637,7 +637,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -673,7 +673,8 @@ const Slot = {
         });
       } else if (value === 0 && s(`.bag-slot-value-${bagId}-${displayId}`)) {
         htmls(`.${Object.keys(SlotEvents).find((slotId) => SlotEvents[slotId].displayId === displayId)}`, '');
-      } else htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(value));
+      } else if (s(`.bag-slot-value-${bagId}-${displayId}`))
+        htmls(`.bag-slot-value-${bagId}-${displayId}`, getK(value));
     },
   },
   coin: {
@@ -704,7 +705,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -781,7 +782,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -859,7 +860,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -927,7 +928,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
@@ -984,7 +985,7 @@ const Slot = {
           })}`,
           mode: 'view',
           slideMenu: 'modal-menu',
-          maximize: Modal.mobileModal(),
+          maximize: true,
         });
       };
       EventsUI.onClick(`.${slotId}`, SlotEvents[slotId].onClick);
