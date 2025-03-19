@@ -668,10 +668,7 @@ const QuestManagementCyberia = {
           if (currentPhraseArrayIndex + 1 < sectionsIndex.length) await renderPhrase();
         };
         await renderPhrase();
-        if (
-          currentDialogIndex + 1 < displayStepData.talkingDialog.length &&
-          s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`)
-        ) {
+        if (currentDialogIndex + 1 < displayStepData.talkingDialog.length) {
           if (s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.contains('hide'))
             s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.remove('hide');
           else s(`.bubble-dialog-${idModal}-element-bubble-${dialogQuestIdSalt}-a`).classList.add('hide');
@@ -965,8 +962,7 @@ const QuestManagementCyberia = {
               if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep + 1}`).classList.remove('hide');
             }, 1000);
 
-          if (completeQuestStatic && s(`.quest-step-box-${questData.id}-${currentStep + 1}`))
-            s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
+          if (completeQuestStatic) s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
         });
         return html` <div class="in section-mp quest-modal-container" style="max-width: 450px">
           <div class="in sub-title-item-modal">
@@ -1256,13 +1252,19 @@ const QuestManagementCyberia = {
     if (completeStep) {
       const displayStepData = QuestComponent.Data[questData.id]().provide.displayIds[0].stepData[currentStep];
 
-      if (displayStepData.talkingDialog)
-        await QuestManagementCyberia.talkingDialog({
-          displayStepData,
-          questData,
-          typeTarget: 'bot',
-          elementTargetId: ElementsCyberia.findIdFromDisplayId('bot', displayId),
-        });
+      if (displayStepData.talkingDialog) {
+        try {
+          await QuestManagementCyberia.talkingDialog({
+            displayStepData,
+            questData,
+            typeTarget: 'bot',
+            elementTargetId: ElementsCyberia.findIdFromDisplayId('bot', displayId),
+          });
+        } catch (error) {
+          logger.error(error);
+        }
+      }
+
       const completeQuest = QuestComponent.verifyCompleteQuest({
         questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
       });

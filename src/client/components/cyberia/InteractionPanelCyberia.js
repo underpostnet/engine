@@ -676,12 +676,12 @@ const InteractionPanelCyberia = {
                 InteractionPanelCyberia.PanelRender.questTokensPaginationRange +
                 1
             ) {
-              s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.add('hide');
-            } else s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.remove('hide');
+              s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.add('gray');
+            } else s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.remove('gray');
 
             if (InteractionPanelCyberia.PanelRender.questTokensPaginationFrom === 0) {
-              s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.add('hide');
-            } else s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.remove('hide');
+              s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.add('gray');
+            } else s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.remove('gray');
           };
           s(`.quest-interaction-panel-footer-btn-arrow-down`).onclick = () => {
             InteractionPanelCyberia.PanelRender.questTokensPaginationFrom++;
@@ -693,25 +693,37 @@ const InteractionPanelCyberia = {
             displayArrowCallback();
             InteractionPanelCyberia.PanelRender.callBackQuestPanelRender();
           };
+
+          htmls(
+            `.quest-interaction-panel-pagination-display`,
+            html`
+              ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom + 1} -
+              ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
+              InteractionPanelCyberia.PanelRender.questTokensPaginationRange +
+              1}
+              / ${Object.keys(InteractionPanelCyberia.PanelRender.questTokens).length}
+            `,
+          );
         });
 
         render = async () => html`
           <div class="in quest-interaction-panel-container quest-interaction-panel-body"></div>
           <div class="in quest-interaction-panel-container quest-interaction-panel-footer">
+            <div class="quest-interaction-panel-pagination-display"></div>
             <div class="fl quest-interaction-panel-footer-arrows-btn">
               ${await BtnIcon.Render({
                 label: html`<img
                   class="abs center quest-interaction-panel-footer-btn-img"
                   src="${getProxyPath()}assets/ui-icons/arrow-up.png"
                 />`,
-                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-up hide',
+                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-up',
               })}
               ${await BtnIcon.Render({
                 label: html`<img
                   class="abs center quest-interaction-panel-footer-btn-img"
                   src="${getProxyPath()}assets/ui-icons/arrow-down.png"
                 />`,
-                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-down hide',
+                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-down',
               })}
             </div>
           </div>
