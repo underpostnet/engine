@@ -90,7 +90,8 @@ const CssCommonCyberia = async () => {
       .section-mp-btn {
         margin: 5px;
         padding: 10px;
-        max-width: 200px;
+        text-align: left;
+        max-width: 300px;
       }
       .bubble-dialog-triangle {
       }
@@ -217,6 +218,14 @@ const CssCommonCyberia = async () => {
       }
       .item-modal-quantity-input {
         width: 200px;
+      }
+      .quest-interaction-panel-footer-btn-img {
+        width: 35px;
+        height: 35px;
+      }
+      .quest-interaction-panel-footer-btn {
+        width: 40px;
+        height: 40px;
       }
     </style>
     ${borderChar(2, 'yellow', ['.cyberia-splash-screen-logo-container'])}

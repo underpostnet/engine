@@ -179,6 +179,28 @@ const InteractionPanelCyberia = {
       Responsive.Event[`map-interaction-panel`]();
     },
     questTokens: {},
+    questTokensPaginationFrom: 0,
+    questTokensPaginationRange: 2,
+    callBackQuestPanelRender: async () => {
+      for (const panelQuestId of Object.keys(InteractionPanelCyberia.PanelRender.questTokens).reverse())
+        if (s(`.quest-interaction-panel-${panelQuestId}`)) s(`.quest-interaction-panel-${panelQuestId}`).remove();
+
+      let index = -1;
+      for (const panelQuestId of Object.keys(InteractionPanelCyberia.PanelRender.questTokens).reverse()) {
+        index++;
+        if (
+          index >= InteractionPanelCyberia.PanelRender.questTokensPaginationFrom &&
+          index <=
+            InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
+              InteractionPanelCyberia.PanelRender.questTokensPaginationRange
+        ) {
+          if (!s(`.quest-interaction-panel-${panelQuestId}`))
+            await InteractionPanelCyberia.PanelRender.quest(
+              InteractionPanelCyberia.PanelRender.questTokens[panelQuestId],
+            );
+        }
+      }
+    },
     quest: async function ({ id, questData }) {
       if (!s(`.quest-interaction-panel`)) return;
 
@@ -187,7 +209,12 @@ const InteractionPanelCyberia = {
         ...questData,
       };
 
-      this.questTokens[id] = { questData, id };
+      if (!(id in this.questTokens)) {
+        this.questTokens[id] = { questData, id };
+        InteractionPanelCyberia.PanelRender.questTokensPaginationFrom = 1;
+        s(`.quest-interaction-panel-footer-btn-arrow-up`).click();
+        return;
+      }
 
       const currentQuestData = ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id);
 
@@ -291,6 +318,9 @@ const InteractionPanelCyberia = {
           id: `interaction-panel-${currentQuestData.id}`,
         });
       }
+
+      InteractionPanelCyberia.PanelRender.questTokensPaginationFrom = 1;
+      s(`.quest-interaction-panel-footer-btn-arrow-up`).click();
     },
   },
   Render: async function (options = { id: 'interaction-panel' }) {
@@ -638,9 +668,53 @@ const InteractionPanelCyberia = {
         };
         style['min-height'] = `200px`;
 
+        setTimeout(() => {
+          const displayArrowCallback = () => {
+            if (
+              Object.keys(InteractionPanelCyberia.PanelRender.questTokens).length <=
+              InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
+                InteractionPanelCyberia.PanelRender.questTokensPaginationRange +
+                1
+            ) {
+              s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.add('hide');
+            } else s(`.quest-interaction-panel-footer-btn-arrow-down`).classList.remove('hide');
+
+            if (InteractionPanelCyberia.PanelRender.questTokensPaginationFrom === 0) {
+              s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.add('hide');
+            } else s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.remove('hide');
+          };
+          s(`.quest-interaction-panel-footer-btn-arrow-down`).onclick = () => {
+            InteractionPanelCyberia.PanelRender.questTokensPaginationFrom++;
+            displayArrowCallback();
+            InteractionPanelCyberia.PanelRender.callBackQuestPanelRender();
+          };
+          s(`.quest-interaction-panel-footer-btn-arrow-up`).onclick = () => {
+            InteractionPanelCyberia.PanelRender.questTokensPaginationFrom--;
+            displayArrowCallback();
+            InteractionPanelCyberia.PanelRender.callBackQuestPanelRender();
+          };
+        });
+
         render = async () => html`
           <div class="in quest-interaction-panel-container quest-interaction-panel-body"></div>
-          <div class="in quest-interaction-panel-container quest-interaction-panel-footer"></div>
+          <div class="in quest-interaction-panel-container quest-interaction-panel-footer">
+            <div class="fl quest-interaction-panel-footer-arrows-btn">
+              ${await BtnIcon.Render({
+                label: html`<img
+                  class="abs center quest-interaction-panel-footer-btn-img"
+                  src="${getProxyPath()}assets/ui-icons/arrow-up.png"
+                />`,
+                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-up hide',
+              })}
+              ${await BtnIcon.Render({
+                label: html`<img
+                  class="abs center quest-interaction-panel-footer-btn-img"
+                  src="${getProxyPath()}assets/ui-icons/arrow-down.png"
+                />`,
+                class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-down hide',
+              })}
+            </div>
+          </div>
         `;
         break;
       default:
