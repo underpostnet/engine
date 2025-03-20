@@ -956,14 +956,14 @@ const QuestManagementCyberia = {
 
           if (completeStep || completeQuest)
             setTimeout(() => {
-              for (const i of range(0, currentStep)) {
+              for (const i of range(0, currentStep - 1)) {
                 s(`.quest-step-box-${questData.id}-${i}`).classList.remove('gray');
                 s(`.quest-step-check-img-${questData.id}-${i}`).classList.remove('hide');
               }
 
-              s(`.quest-step-box-${questData.id}-${currentStep + 1}`).classList.remove('gray');
-              s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
-              if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep + 1}`).classList.remove('hide');
+              s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
+              s(`.quest-step-box-${questData.id}-${currentStep}`).click();
+              if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep}`).classList.remove('hide');
             }, 1000);
 
           if (completeQuestStatic) s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
