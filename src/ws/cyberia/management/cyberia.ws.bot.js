@@ -234,6 +234,8 @@ const CyberiaWsBotManagement = {
                       )) {
                         for (const clientId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
                           if (
+                            !CyberiaWsUserManagement.localElementScope[wsManagementId][clientId]
+                              .immunityQuestModalDialog &&
                             CyberiaWsUserManagement.element[wsManagementId][clientId].life > 0 &&
                             objectEquals(
                               CyberiaWsUserManagement.element[wsManagementId][clientId].model.world,
@@ -273,14 +275,15 @@ const CyberiaWsBotManagement = {
                                     this.element[wsManagementId][id].model.world,
                                     CyberiaWsBotManagement.element[wsManagementId][botId].model.world,
                                   ) &&
-                                  (['quest-passive'].includes(
+                                  ['quest-passive'].includes(
                                     CyberiaWsBotManagement.element[wsManagementId][botId].behavior,
-                                  ) ||
-                                    ['displaySearchObjects'].includes(
-                                      QuestComponent.componentsScope[
-                                        this.localElementScope[wsManagementId][botId].displayId
-                                      ].questKeyContext,
-                                    )) &&
+                                  ) &&
+                                  // ||
+                                  //   ['displaySearchObjects'].includes(
+                                  //     QuestComponent.componentsScope[
+                                  //       this.localElementScope[wsManagementId][botId].displayId
+                                  //     ].questKeyContext,
+                                  //   )
                                   getDistance(
                                     CyberiaWsBotManagement.element[wsManagementId][botId].x,
                                     CyberiaWsBotManagement.element[wsManagementId][botId].y,

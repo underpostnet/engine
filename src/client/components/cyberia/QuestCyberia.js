@@ -308,7 +308,6 @@ const QuestManagementCyberia = {
                             }
                           }
                         }
-                        await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
                       };
 
                     if (questData) {
@@ -976,12 +975,11 @@ const QuestManagementCyberia = {
                 const currentStep = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].maxStep + 1;
                 s(`.quest-step-check-img-${questData.id}-${currentStep - 1}`).classList.remove('hide');
                 s(`.quest-step-check-img-${questData.id}-${currentStep}`).classList.remove('hide');
-              s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
-              s(`.quest-step-box-${questData.id}-${currentStep}`).click();
+                s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
+                s(`.quest-step-box-${questData.id}-${currentStep}`).click();
               } else {
                 s(`.quest-step-box-${questData.id}-${currentStep}`).click();
               }
-              InteractionPanelCyberia.PanelRender.removeAllActionPanel();
             }, 1000);
           }
 
@@ -1250,6 +1248,11 @@ const QuestManagementCyberia = {
       await this.takeQuest({ questData });
       s(`.btn-close-${idModal}`).click();
     });
+    Modal.Data[idModal].onCloseListener['immunity-off-quest-modal-dialog'] = () => {
+      SocketIo.Emit('user', {
+        status: 'immunity-off-quest-modal-dialog',
+      });
+    };
   },
   updateQuestItemProgressDisplay: async function ({
     interactionPanelQuestId,
@@ -1259,6 +1262,7 @@ const QuestManagementCyberia = {
     questData,
     searchObjectIndex,
   }) {
+    setTimeout(InteractionPanelCyberia.PanelRender.removeAllActionPanel);
     ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].displaySearchObjects[searchObjectIndex]
       .current++;
     Slot.questItem.update({ bagId: 'cyberia-bag', displayId, type: 'user', id: 'main' });
@@ -1280,6 +1284,10 @@ const QuestManagementCyberia = {
       questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
     });
     if (completeStep) {
+      SocketIo.Emit('user', {
+        status: 'immunity-on-quest-modal-dialog',
+        questData: { id: questData.id },
+      });
       const questId = `${questData.id}`;
       setTimeout(() => {
         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex((q) => q.id === questId);
@@ -1328,20 +1336,21 @@ const QuestManagementCyberia = {
         } catch (error) {
           logger.error(error);
         }
-      } else
+      } else {
         for (const { id } of ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex]
           .displaySearchObjects) {
           Slot.questItem.update({ bagId: 'cyberia-bag', displayId: id, type: 'user', id: 'main' });
         }
 
-      try {
-        await this.RenderModal({
-          questData,
-          interactionPanelQuestId,
-          completeStep,
-        });
-      } catch (error) {
-        logger.error(error);
+        try {
+          await this.RenderModal({
+            questData,
+            interactionPanelQuestId,
+            completeStep,
+          });
+        } catch (error) {
+          logger.error(error);
+        }
       }
     }
   },

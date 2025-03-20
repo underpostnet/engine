@@ -14,12 +14,13 @@ const CyberiaWsSkillController = {
   controller: function (socket, client, payload, wsManagementId) {
     switch (payload.status) {
       case 'create':
-        CyberiaWsSkillManagement.createSkill(
-          wsManagementId,
-          { id: socket.id, type: 'user' },
-          payload.skillKey,
-          CyberiaWsInstanceScope[wsManagementId].biome.instance,
-        );
+        if (!CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].immunityQuestModalDialog)
+          CyberiaWsSkillManagement.createSkill(
+            wsManagementId,
+            { id: socket.id, type: 'user' },
+            payload.skillKey,
+            CyberiaWsInstanceScope[wsManagementId].biome.instance,
+          );
         break;
 
       default:

@@ -44,6 +44,22 @@ const CyberiaWsUserController = {
       case 'propagate':
         propagate();
         break;
+
+      case 'immunity-on-quest-modal-dialog': {
+        if (
+          CyberiaWsUserManagement.element[wsManagementId][socket.id].model.quests.find(
+            (q) => q.id === args.questData.id && !q.complete,
+          )
+        ) {
+          CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].immunityQuestModalDialog = true;
+        }
+
+        break;
+      }
+      case 'immunity-off-quest-modal-dialog': {
+        CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].immunityQuestModalDialog = false;
+        break;
+      }
       case 'register-user':
         for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {
           if (
