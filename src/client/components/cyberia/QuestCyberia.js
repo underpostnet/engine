@@ -954,17 +954,36 @@ const QuestManagementCyberia = {
             };
           }
 
-          if (completeStep || completeQuest)
+          if (completeStep || completeQuest) {
+            const questId = `${questData.id}`;
             setTimeout(() => {
+              const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
+                (q) => q.id === questId,
+              );
+              const currentStep = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep;
               for (const i of range(0, currentStep - 1)) {
                 s(`.quest-step-box-${questData.id}-${i}`).classList.remove('gray');
                 s(`.quest-step-check-img-${questData.id}-${i}`).classList.remove('hide');
               }
 
               s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
+
+              const completeQuest = QuestComponent.verifyCompleteQuest({
+                questData: ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex],
+              });
+
+              if (completeQuest) {
+                const currentStep = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].maxStep + 1;
+                s(`.quest-step-check-img-${questData.id}-${currentStep - 1}`).classList.remove('hide');
+                s(`.quest-step-check-img-${questData.id}-${currentStep}`).classList.remove('hide');
+              s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
               s(`.quest-step-box-${questData.id}-${currentStep}`).click();
-              if (completeQuest) s(`.quest-step-check-img-${questData.id}-${currentStep}`).classList.remove('hide');
+              } else {
+                s(`.quest-step-box-${questData.id}-${currentStep}`).click();
+              }
+              InteractionPanelCyberia.PanelRender.removeAllActionPanel();
             }, 1000);
+          }
 
           if (completeQuestStatic) s(`.quest-step-box-${questData.id}-${currentStep + 1}`).click();
         });
@@ -1194,8 +1213,14 @@ const QuestManagementCyberia = {
     });
 
     Keyboard.Event[`quest-close-modal`] = {
-      F: () => (s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null),
-      f: () => (s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null),
+      F: async () => {
+        s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null;
+        await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
+      },
+      f: async () => {
+        s(`.btn-close-${idModal}`) ? s(`.btn-close-${idModal}`).click() : null;
+        await InteractionPanelCyberia.PanelRender.removeAllActionPanel();
+      },
     };
 
     EventsUI.onClick(`.btn-dismiss-quest-${idModal}`, async () => {
