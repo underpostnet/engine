@@ -3,8 +3,11 @@ import { range } from '../core/CommonJs.js';
 import { Css, Themes } from '../core/Css.js';
 import { EventsUI } from '../core/EventsUI.js';
 import { Modal } from '../core/Modal.js';
+import { PanelForm } from '../core/PanelForm.js';
+import { RouterEvents } from '../core/Router.js';
 import { Translate } from '../core/Translate.js';
 import { getProxyPath, htmls, s } from '../core/VanillaJs.js';
+import { ElementsHealthcare } from './ElementsHealthcare.js';
 
 const RecordMoodHealthcare = {
   Render: async function ({ idModal }) {
@@ -86,11 +89,6 @@ const RecordMoodHealthcare = {
                         font-family: 'cursive';
                         text-align: center;
                       }
-                      .record-mood-layer-1 {
-                        padding-top: 60px;
-                        width: 320px;
-                        margin: auto;
-                      }
                       .record-mood-textarea {
                         max-width: 450px;
                         min-width: 300px;
@@ -100,15 +98,14 @@ const RecordMoodHealthcare = {
                         min-height: 200px;
                         font-size: 20px;
                       }
+
+                      .record-mod-form-text-header-container {
+                        max-width: 230px;
+                        padding: 16px;
+                      }
                     </style>
                     <div class="in modal-body-${btnId}">
-                      <div class="in record-mood-layer-1 hide">
-                        <div class="in home-h1-font-container">${Translate.Render('add-notes-title-1')}</div>
-                        <div class="in home-h2-font-container">${Translate.Render('add-notes-title-2')}</div>
-                        <br /><br />
-                        <textarea class="in record-mood-textarea"></textarea>
-                      </div>
-                      <div class="abs center record-mood-layer-0">
+                      <div class="abs center">
                         <img
                           class="inl modal-body-img-${btnId}"
                           src="${getProxyPath()}assets/emotions/${emotionIndex + 1}.gif"
@@ -135,9 +132,75 @@ const RecordMoodHealthcare = {
                   s(`.modal-body-${btnId}`).style.height = `${s(`.modal-${btnId}`).offsetHeight * 0.95}px`;
                 };
                 Modal.Data[`modal-${btnId}`].onObserverListener['observer']();
-                s(`.add-note-btn`).onclick = () => {
-                  s(`.record-mood-layer-0`).classList.add('hide');
-                  s(`.record-mood-layer-1`).classList.remove('hide');
+                s(`.add-note-btn`).onclick = async () => {
+                  const { barConfig } = await Themes[Css.currentTheme]();
+                  const idModal = 'record-mood-note-modal';
+                  const routeModal = 'record-mood';
+                  const idPanel = 'record-mood-note-panel';
+                  const idEvent = `form-panel-${idModal}`;
+                  const heightTopBar = 50;
+                  const heightBottomBar = 50;
+
+                  await Modal.Render({
+                    // route: 'record-mood-' + (emotionIndex + 1),
+                    id: idModal,
+                    barConfig,
+                    title: '',
+                    html: html``,
+                    mode: 'view',
+                    slideMenu: 'modal-menu',
+                    maximize: true,
+                    dragDisabled: true,
+                    observer: true,
+                    // RouterInstance,
+                  });
+
+                  await PanelForm.instance({
+                    idPanel,
+                    heightTopBar,
+                    heightBottomBar,
+                    defaultUrlImage: `${getProxyPath()}assets/logo/base-icon.png`,
+                    Elements: ElementsHealthcare,
+                    parentIdModal: idModal,
+                    scrollClassContainer: `html-${idModal}`,
+                    route: routeModal,
+                    htmlFormHeader: () => html`
+                      <div class="in record-mod-form-text-header-container">
+                        <div class="in home-h1-font-container">${Translate.Render('add-notes-title-1')}</div>
+                        <div class="in home-h2-font-container">${Translate.Render('add-notes-title-2')}</div>
+                      </div>
+                    `,
+                    firsUpdateEvent: () => {
+                      setTimeout(() => {
+                        s(`.btn-${idPanel}-add`).click();
+                      });
+                    },
+                  });
+
+                  s(`.html-${idModal}`).style.overflow = 'auto';
+                  s(`.${idModal}`).style.overflow = 'hidden';
+
+                  const resizeModal = () => {
+                    Modal.Data[idModal].onObserverListener[idEvent] = () => {
+                      setTimeout(() => {
+                        if (s(`.html-${idModal}`))
+                          s(`.html-${idModal}`).style.height = `${
+                            s(`.${idModal}`).offsetHeight - Modal.headerTitleHeight - 1
+                          }px`;
+                      }, 750);
+                    };
+                    Modal.Data[idModal].onObserverListener[idEvent]();
+                  };
+                  setTimeout(() => {
+                    resizeModal();
+                  });
+                  RouterEvents[idEvent] = ({ route }) => {
+                    if (route === routeModal) {
+                      setTimeout(() => {
+                        resizeModal();
+                      }, 400);
+                    }
+                  };
                 };
               });
             });

@@ -26,6 +26,7 @@ const Panel = {
       idPanel: '',
       parentIdModal: '',
       scrollClassContainer: '',
+      htmlFormHeader: async () => '',
       formData: [],
       data: [],
       originData: () => [],
@@ -244,12 +245,13 @@ const Panel = {
 
     let render = '';
     let renderForm = html` <div class="in modal stq" style="top: 0px; z-index: 1; padding-bottom: 5px">
-      ${await BtnIcon.Render({
-        class: `section-mp btn-custom btn-${idPanel}-close`,
-        label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
-        type: 'button',
-      })}
-    </div>`;
+        ${await BtnIcon.Render({
+          class: `section-mp btn-custom btn-${idPanel}-close`,
+          label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
+          type: 'button',
+        })}
+      </div>
+      ${options?.htmlFormHeader ? await options.htmlFormHeader() : ''}`;
 
     for (const modelData of formData) {
       if (modelData.disableRender) continue;

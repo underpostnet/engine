@@ -29,6 +29,8 @@ const PanelForm = {
       Elements: {},
       parentIdModal: undefined,
       route: 'home',
+      htmlFormHeader: async () => '',
+      firsUpdateEvent: async () => {},
     },
   ) {
     const { idPanel, heightTopBar, heightBottomBar, defaultUrlImage, Elements } = options;
@@ -99,6 +101,7 @@ const PanelForm = {
         heightTopBar,
         heightBottomBar,
         data,
+        htmlFormHeader: options.htmlFormHeader,
         parentIdModal: options.parentIdModal,
         originData: () => PanelForm.Data[idPanel].originData,
         filesData: () => PanelForm.Data[idPanel].filesData,
@@ -422,6 +425,7 @@ const PanelForm = {
         })),
       });
     let delayBlock = false;
+    let firsUpdateEvent = false;
     this.Data[idPanel].updatePanel = async () => {
       if (delayBlock) return;
       else {
@@ -430,7 +434,6 @@ const PanelForm = {
           delayBlock = false;
         }, 500);
       }
-      console.error('update panel');
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
@@ -439,6 +442,10 @@ const PanelForm = {
         `.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`,
         await panelRender({ data: this.Data[idPanel].data }),
       );
+      if (!firsUpdateEvent && options.firsUpdateEvent) {
+        firsUpdateEvent = true;
+        await options.firsUpdateEvent();
+      }
     };
     if (options.route)
       listenQueryPathInstance({

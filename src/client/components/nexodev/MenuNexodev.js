@@ -504,7 +504,7 @@ const MenuNexodev = {
               idPanel: 'nexodev-blog',
               heightTopBar,
               heightBottomBar,
-              defaultUrlImage: 'https://www.nexodev.org/assets/splash/android-chrome-96x96.png',
+              defaultUrlImage: `${getProxyPath()}assets/splash/android-chrome-96x96.png`,
               Elements: ElementsNexodev,
               parentIdModal: idModal,
               scrollClassContainer: `html-${idModal}`,
