@@ -609,6 +609,9 @@ const InteractionPanelCyberia = {
                   width: 100%;
                   height: 100%;
                 }
+                .quest-interaction-panel-pagination-display {
+                  padding: 10px;
+                }
               </style>
               ${borderChar(1, 'black', ['.quest-interaction-panel-search-object-container'])}
               ${dashRange({ selector: 'map-face-slot-dash', color: `#ffcc00` })}
@@ -687,35 +690,40 @@ const InteractionPanelCyberia = {
             if (InteractionPanelCyberia.PanelRender.questTokensPaginationFrom === 0) {
               s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.add('gray');
             } else s(`.quest-interaction-panel-footer-btn-arrow-up`).classList.remove('gray');
+            htmls(
+              `.quest-interaction-panel-pagination-display`,
+              html`
+                ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom + 1} -
+                ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
+                InteractionPanelCyberia.PanelRender.questTokensPaginationRange +
+                1}
+                / ${Object.keys(InteractionPanelCyberia.PanelRender.questTokens).length}
+              `,
+            );
           };
           s(`.quest-interaction-panel-footer-btn-arrow-down`).onclick = () => {
+            if (
+              InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
+                InteractionPanelCyberia.PanelRender.questTokensPaginationRange >=
+              Object.keys(InteractionPanelCyberia.PanelRender.questTokens).length - 1
+            )
+              return;
             InteractionPanelCyberia.PanelRender.questTokensPaginationFrom++;
             displayArrowCallback();
             InteractionPanelCyberia.PanelRender.callBackQuestPanelRender();
           };
           s(`.quest-interaction-panel-footer-btn-arrow-up`).onclick = () => {
+            if (InteractionPanelCyberia.PanelRender.questTokensPaginationFrom === 0) return;
             InteractionPanelCyberia.PanelRender.questTokensPaginationFrom--;
             displayArrowCallback();
             InteractionPanelCyberia.PanelRender.callBackQuestPanelRender();
           };
           InteractionPanelCyberia.PanelRender.restoreQuestPanelRender();
-
-          htmls(
-            `.quest-interaction-panel-pagination-display`,
-            html`
-              ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom + 1} -
-              ${InteractionPanelCyberia.PanelRender.questTokensPaginationFrom +
-              InteractionPanelCyberia.PanelRender.questTokensPaginationRange +
-              1}
-              / ${Object.keys(InteractionPanelCyberia.PanelRender.questTokens).length}
-            `,
-          );
         });
 
         render = async () => html`
           <div class="in quest-interaction-panel-container quest-interaction-panel-body"></div>
           <div class="in quest-interaction-panel-container quest-interaction-panel-footer">
-            <div class="quest-interaction-panel-pagination-display"></div>
             <div class="fl quest-interaction-panel-footer-arrows-btn">
               ${await BtnIcon.Render({
                 label: html`<img
@@ -731,6 +739,7 @@ const InteractionPanelCyberia = {
                 />`,
                 class: 'in fll quest-interaction-panel-footer-btn quest-interaction-panel-footer-btn-arrow-down',
               })}
+              <div class="in flr quest-interaction-panel-pagination-display"></div>
             </div>
           </div>
         `;
