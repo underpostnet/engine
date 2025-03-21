@@ -682,8 +682,7 @@ const CssCyberiaDark = {
             background: #191919;
             color: #717171;
             text-align: center;
-            padding-top: 4px;
-            padding-bottom: 4px;
+            height: 38.5px;
           }
           .btn-bar-modal-container {
             text-align: right;

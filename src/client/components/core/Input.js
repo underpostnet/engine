@@ -88,8 +88,10 @@ const Input = {
               <div class="fl input-row-${id}">
                 <div class="in fll" style="width: 80%;">${inputElement}</div>
                 <div class="in fll btn-eye-password btn-eye-${id}" style="width: 20%;">
-                  <i class="fas fa-eye fa-eye-${id} eye-password"></i>
-                  <i class="fas fa-eye-slash fa-eye-slash-${id} eye-password" style="display: none"></i>
+                  <div class="abs center">
+                    <i class="fas fa-eye fa-eye-${id} eye-password"></i>
+                    <i class="fas fa-eye-slash fa-eye-slash-${id} eye-password" style="display: none"></i>
+                  </div>
                 </div>
               </div>
             `
