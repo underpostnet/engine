@@ -81,7 +81,7 @@ const CyberiaWsSkillManagement = {
       SkillCyberiaData[parentElement.skill.keys[skillKey]] &&
       SkillCyberiaData[parentElement.skill.keys[skillKey]].skillDisplayData
     ) {
-      this.element[wsManagementId][id].components.skin[0] = [
+      this.element[wsManagementId][id].components.skin = [
         {
           ...SkillCyberiaData[parentElement.skill.keys[skillKey]].skillDisplayData,
           current: true,
