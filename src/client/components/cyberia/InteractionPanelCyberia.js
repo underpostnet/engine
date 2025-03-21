@@ -48,10 +48,11 @@ const InteractionPanelCyberia = {
     removeAllActionPanel: async function () {
       for (const idPanel of Object.keys(InteractionPanelCyberia.PanelRender.actionPanelTokens))
         await InteractionPanelCyberia.PanelRender.removeActionPanel(idPanel);
+      QuestManagementCyberia.questClosePanels = [];
     },
     removeActionPanel: async function (idPanel) {
       if (s(`.${idPanel}`)) s(`.${idPanel}`).remove();
-      // delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
+      delete InteractionPanelCyberia.PanelRender.actionPanelTokens[idPanel];
     },
     action: async function ({ idPanel, type, id, html }) {
       const maxHeight = 110;

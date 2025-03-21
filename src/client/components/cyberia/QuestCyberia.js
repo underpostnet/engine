@@ -241,6 +241,7 @@ const QuestManagementCyberia = {
                         );
                         if (!currentQuestData) {
                           s(`.action-panel-ok-${idPanel}`).classList.add('hide');
+                          if (QuestComponent.componentsScope[displayId].questKeyContext === 'seller') return;
                           await this.takeQuest({ questData });
                         }
                       };
@@ -376,26 +377,6 @@ const QuestManagementCyberia = {
                     };
                   }
 
-                  let keyBoardFocusBlock = false;
-                  const keyBoardFocusTrigger = () => {
-                    if (keyBoardFocusBlock) return;
-                    keyBoardFocusBlock = true;
-                    setTimeout(() => (keyBoardFocusBlock = false), 500);
-                    if (s(`.action-panel-close-${idPanel}`)) s(`.action-panel-close-${idPanel}`).click();
-                    if (questData && s(`.button-quest-modal-forward-${questData.id}`))
-                      s(`.button-quest-modal-forward-${questData.id}`).click();
-                    // Keyboard.Event['focus'] = {
-                    //   f: MainUserCyberia.focusTarget,
-                    //   F: MainUserCyberia.focusTarget,
-                    // };
-                    instanceKeyBoardEventOk();
-                  };
-                  {
-                    Keyboard.Event['focus'] = {
-                      f: keyBoardFocusTrigger,
-                      F: keyBoardFocusTrigger,
-                    };
-                  }
                   return await renderBubbleDialog({
                     id: idPanel,
                     html: async () => html`
@@ -559,18 +540,25 @@ const QuestManagementCyberia = {
         </div>`,
       );
 
-      Modal.Data[idModal].onCloseListener[idModal] = () => {
-        if (s(`.button-quest-modal-forward-${questData.id}`)) {
-          s(`.button-quest-modal-forward-${questData.id}`).click();
-          s(`.button-quest-modal-forward-${questData.id}`).remove();
-        }
-      };
-
       s(`.button-quest-modal-forward-${questData.id}`).onclick = async () => {
-        s(`.btn-close-${idModal}`).click();
+        s(`.button-quest-modal-forward-${questData.id}`).remove();
+        if (s(`.btn-close-${idModal}`)) s(`.btn-close-${idModal}`).click();
         await timer(500);
         resolve();
       };
+
+      {
+        const closeTalkingDialog = () => {
+          if (Keyboard.Event[`quest-close-forward-${questData.id}`])
+            delete Keyboard.Event[`quest-close-forward-${questData.id}`];
+          if (s(`.button-quest-modal-forward-${questData.id}`))
+            s(`.button-quest-modal-forward-${questData.id}`).click();
+        };
+        Keyboard.Event[`quest-close-forward-${questData.id}`] = {
+          F: closeTalkingDialog,
+          f: closeTalkingDialog,
+        };
+      }
 
       LoadingAnimation.img.play(`.${idModal}-talking-loading`, 'points');
       const mainType = displayStepData.customMainDisplayId ? 'bot' : 'user';
@@ -959,7 +947,9 @@ const QuestManagementCyberia = {
               const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex(
                 (q) => q.id === questId,
               );
-              const currentStep = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep;
+              const questData = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex];
+              const { currentStep } = questData;
+              const { maxStep } = QuestComponent.Data[questData.id]();
               for (const i of range(0, currentStep - 1)) {
                 s(`.quest-step-box-${questData.id}-${i}`).classList.remove('gray');
                 s(`.quest-step-check-img-${questData.id}-${i}`).classList.remove('hide');
@@ -972,7 +962,7 @@ const QuestManagementCyberia = {
               });
 
               if (completeQuest) {
-                const currentStep = ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].maxStep + 1;
+                const currentStep = maxStep + 1;
                 s(`.quest-step-check-img-${questData.id}-${currentStep - 1}`).classList.remove('hide');
                 s(`.quest-step-check-img-${questData.id}-${currentStep}`).classList.remove('hide');
                 s(`.quest-step-box-${questData.id}-${currentStep}`).classList.remove('gray');
@@ -1291,12 +1281,10 @@ const QuestManagementCyberia = {
       const questId = `${questData.id}`;
       setTimeout(() => {
         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex((q) => q.id === questId);
-        if (
-          ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep <
-          ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].maxStep
-        ) {
+        const { maxStep } = QuestComponent.Data[questId]();
+        if (ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep < maxStep) {
           sa(
-            `.quest-panel-step-${questData.id}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
+            `.quest-panel-step-${questId}-${ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep}`,
           ).forEach((el) => el.classList.add('hide'));
           ElementsCyberia.Data.user['main'].model.quests[currentQuestDataIndex].currentStep++;
           sa(
