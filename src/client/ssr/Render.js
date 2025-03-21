@@ -1,4 +1,4 @@
-SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents }) => html`
+SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents, renderPayload, renderApi }) => html`
   <!DOCTYPE html>
   <html dir="ltr" lang="en">
     <head>
@@ -6,6 +6,9 @@ SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents 
       <link rel="icon" type="image/x-icon" href="${ssrPath}favicon.ico" />
       <meta charset="UTF-8" />
       <meta name="viewport" content="initial-scale=1.0, maximum-scale=1.0, user-scalable=0" />
+      <script>
+        window.renderPayload = ${renderApi.JSONweb(renderPayload)};
+      </script>
       ${ssrHeadComponents}
     </head>
     <body>

@@ -1,6 +1,6 @@
-const PRE_CACHED_RESOURCES = [];
-const CACHE_NAME = 'app-cache';
-const PROXY_PATH = '/';
+const PRE_CACHED_RESOURCES = self.renderPayload?.PRE_CACHED_RESOURCES ? self.renderPayload.PRE_CACHED_RESOURCES : [];
+const CACHE_NAME = self.renderPayload?.CACHE_NAME ? self.renderPayload.CACHE_NAME : 'app-cache';
+const PROXY_PATH = self.renderPayload?.PROXY_PATH ? self.renderPayload.PROXY_PATH : '/';
 self.addEventListener('install', (event) => {
   // Activate right away
   self.skipWaiting();

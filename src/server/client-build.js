@@ -21,6 +21,7 @@ import swaggerAutoGen from 'swagger-autogen';
 import { SitemapStream, streamToPromise } from 'sitemap';
 import { Readable } from 'stream';
 import { buildIcons, buildTextImg, getBufferPngText } from './client-icons.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -250,20 +251,6 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               'services',
               baseHost,
             );
-            if (module === 'core' && (process.env.NODE_ENV === 'production' || process.argv.includes('static'))) {
-              if (apiBaseHost)
-                jsSrc = jsSrc.replace(
-                  'const getBaseHost = () => location.host;',
-                  `const getBaseHost = () => '${apiBaseHost}';`,
-                );
-              if (apiBaseProxyPath) {
-                jsSrc = jsSrc.replace('${getProxyPath()}api/', `${apiBaseProxyPath}${process.env.BASE_API}/`);
-                jsSrc = jsSrc.replace(
-                  "const getWsBasePath = () => (getProxyPath() !== '/' ? `${getProxyPath()}socket.io/` : undefined);",
-                  `const getWsBasePath = () => '${apiBaseProxyPath}socket.io/';`,
-                );
-              }
-            }
             fs.writeFileSync(
               jsPublicPath,
               minifyBuild || process.env.NODE_ENV === 'production' ? UglifyJS.minify(jsSrc).code : jsSrc,
@@ -487,7 +474,13 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
                   }
 
                   default:
-                    ssrBodyComponents += SrrComponent({ ssrPath, host, path, ttiLoadTimeLimit });
+                    ssrBodyComponents += SrrComponent({
+                      ssrPath,
+                      host,
+                      path,
+                      ttiLoadTimeLimit,
+                      version: Underpost.version,
+                    });
                     break;
                 }
               }
@@ -507,6 +500,15 @@ const buildClient = async (options = { liveClientBuildPaths: [], instances: [] }
               ssrPath,
               ssrHeadComponents,
               ssrBodyComponents,
+              renderPayload: {
+                apiBaseProxyPath,
+                apiBaseHost,
+                apiBasePath: process.env.BASE_API,
+                version: Underpost.version,
+              },
+              renderApi: {
+                JSONweb,
+              },
             });
 
             fs.writeFileSync(
@@ -707,6 +709,15 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
                 ssrPath,
                 ssrHeadComponents: '',
                 ssrBodyComponents: SsrComponent(),
+                renderPayload: {
+                  apiBaseProxyPath,
+                  apiBaseHost,
+                  apiBasePath: process.env.BASE_API,
+                  version: Underpost.version,
+                },
+                renderApi: {
+                  JSONweb,
+                },
               });
 
               const buildPath = `${
@@ -739,16 +750,14 @@ root file where the route starts, such as index.js, app.js, routes.js, etc ... *
         }
 
         {
-          const PRE_CACHED_JSON = `PRE_CACHED_RESOURCES = ${JSONweb(uniqueArray(PRE_CACHED_RESOURCES))}`;
-          const PROXY_PATH = `PROXY_PATH = '${path}'`;
+          const renderPayload = {
+            PRE_CACHED_RESOURCES: uniqueArray(PRE_CACHED_RESOURCES),
+            PROXY_PATH: path,
+          };
           fs.writeFileSync(
             `${rootClientPath}/sw.js`,
-            fs
-              .readFileSync(`${rootClientPath}/sw.js`, 'utf8')
-              .replaceAll(`PRE_CACHED_RESOURCES = []`, PRE_CACHED_JSON)
-              .replaceAll(`PRE_CACHED_RESOURCES=[]`, PRE_CACHED_JSON)
-              .replaceAll(`PROXY_PATH = '/'`, PROXY_PATH)
-              .replaceAll(`PROXY_PATH='/'`, PROXY_PATH),
+            `self.renderPayload = ${JSONweb(renderPayload)};
+${fs.readFileSync(`${rootClientPath}/sw.js`, 'utf8')}`,
             'utf8',
           );
         }

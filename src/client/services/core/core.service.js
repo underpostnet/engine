@@ -4,10 +4,21 @@ import { getProxyPath } from '../../components/core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
 
-// https://developer.mozilla.org/en-US/docs/Web/API/AbortController
-const getBaseHost = () => location.host;
+logger.info('Load service');
 
-const getApiBasePath = (options) => `${options?.proxyPath ? `/${options.proxyPath}/` : getProxyPath()}api/`;
+const endpoint = 'core';
+
+// https://developer.mozilla.org/en-US/docs/Web/API/AbortController
+const getBaseHost = () => (window.renderPayload?.apiBaseHost ? window.renderPayload.apiBaseHost : location.host);
+
+const getApiBasePath = (options) =>
+  `${
+    options?.proxyPath
+      ? `/${options.proxyPath}/`
+      : window.renderPayload?.apiBaseProxyPath
+      ? window.renderPayload.apiBaseProxyPath
+      : getProxyPath()
+  }${window.renderPayload?.apiBasePath ? window.renderPayload.apiBasePath : 'api'}/`;
 
 const getApiBaseUrl = (options = { id: '', endpoint: '', proxyPath: '' }) =>
   `${location.protocol}//${getBaseHost()}${getApiBasePath(options)}${options?.endpoint ? options.endpoint : ''}${
@@ -37,11 +48,6 @@ const payloadFactory = (body) => {
   if (body instanceof FormData) return body;
   return JSON.stringify(body);
 };
-
-logger.info('Load service');
-
-const endpoint = 'core';
-const _VERSION = window._VERSION;
 
 const CoreService = {
   getRaw: (options = { url: '' }) =>
@@ -159,7 +165,6 @@ const CoreService = {
 const ApiBase = getApiBaseUrl;
 
 export {
-  _VERSION,
   CoreService,
   headersFactory,
   payloadFactory,

@@ -19,7 +19,8 @@ import { DataBaseProvider } from '../db/DataBaseProvider.js';
 import { createPeerServer } from './peer.js';
 import { Lampp } from '../runtime/lampp/Lampp.js';
 import { getDeployId } from './conf.js';
-import { ssrFactory } from './client-formatted.js';
+import { JSONweb, ssrFactory } from './client-formatted.js';
+import Underpost from '../index.js';
 
 dotenv.config();
 
@@ -384,6 +385,13 @@ const buildRuntime = async () => {
             ssrPath,
             ssrHeadComponents: '',
             ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/404.js`))(),
+            renderPayload: {
+              apiBasePath: process.env.BASE_API,
+              version: Underpost.version,
+            },
+            renderApi: {
+              JSONweb,
+            },
           });
           const path404 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/404/index.html`;
           const page404 = fs.existsSync(path404) ? `${path === '/' ? '' : path}/404` : undefined;
@@ -400,6 +408,13 @@ const buildRuntime = async () => {
             ssrPath,
             ssrHeadComponents: '',
             ssrBodyComponents: (await ssrFactory(`./src/client/ssr/body/500.js`))(),
+            renderPayload: {
+              apiBasePath: process.env.BASE_API,
+              version: Underpost.version,
+            },
+            renderApi: {
+              JSONweb,
+            },
           });
           const path500 = `${directory ? directory : `${getRootDirectory()}${rootHostPath}`}/500/index.html`;
           const page500 = fs.existsSync(path500) ? `${path === '/' ? '' : path}/500` : undefined;
