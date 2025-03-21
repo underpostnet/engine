@@ -316,6 +316,10 @@ const ItemModal = {
       CharacterCyberia.RenderCharacterCyberiaSLot({ type, id, componentType: 'skin' });
     },
     weapon: function ({ type, id, weapon, disabledSubEquip }) {
+      const currentWeapon = ElementsCyberia.Data[type][id].components.weapon.find((c) => c.current);
+      if (currentWeapon) {
+        ItemModal.Unequip.weapon({ type, id, weapon: { id: currentWeapon.displayId }, disabledSubEquip });
+      }
       ElementsCyberia.Data[type][id].components.weapon = ElementsCyberia.Data[type][id].components.weapon.map(
         (weaponData) => {
           weaponData.enabled = weaponData.displayId === weapon.id;
