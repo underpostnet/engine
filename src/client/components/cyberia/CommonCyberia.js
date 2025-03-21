@@ -34,6 +34,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 1 },
     { positionId: '18', frames: 1 },
   ],
+  frames4: () => [
+    { positionId: '02', frames: 4 },
+    { positionId: '04', frames: 4 },
+    { positionId: '06', frames: 4 },
+    { positionId: '08', frames: 4 },
+    { positionId: '12', frames: 4 },
+    { positionId: '14', frames: 4 },
+    { positionId: '16', frames: 4 },
+    { positionId: '18', frames: 4 },
+  ],
   frames6: () => [
     { positionId: '02', frames: 6 },
     { positionId: '04', frames: 6 },
@@ -448,6 +458,10 @@ const Stat = {
         for (const keyStat of Object.keys(componentStat)) {
           switch (keyStat) {
             case 'damage':
+              element[keyStat] += componentStat[keyStat];
+              break;
+
+            case 'maxLife':
               element[keyStat] += componentStat[keyStat];
               break;
 
@@ -909,6 +923,11 @@ const QuestComponent = {
             type: 'coin',
             quantity: 20,
           },
+          {
+            type: 'weapon',
+            id: 'ice-cream',
+            quantity: 1,
+          },
         ],
         provide: {
           displayIds: [
@@ -1074,12 +1093,27 @@ const QuestComponent = {
             dim = 2;
             break;
         }
-        DisplayComponent.get[id] = () => ({
-          ...DisplayComponent.get['anon'](),
-          displayId: id,
-          assetFolder,
-        });
-        if (!(id in Stat.get)) Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+        switch (id) {
+          case 'ice-cream': {
+            Stat.get[id] = () => ({ dim: 1, maxLife: 100 });
+            DisplayComponent.get[id] = () => ({
+              ...DisplayComponent.get['anon'](),
+              displayId: id,
+              assetFolder: itemType,
+              positions: PositionsComponent.frames4(),
+              extension: 'gif',
+            });
+            break;
+          }
+          default:
+            DisplayComponent.get[id] = () => ({
+              ...DisplayComponent.get['anon'](),
+              displayId: id,
+              assetFolder,
+            });
+            if (!(id in Stat.get)) Stat.get[id] = () => ({ ...Stat.get['anon'](), vel: 0.14, dim });
+            break;
+        }
       }
 
       QuestComponent.componentsScope[id] = component;

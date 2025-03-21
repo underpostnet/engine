@@ -93,7 +93,11 @@ const PointAndClickMovementCyberia = {
       if (ElementsCyberia.LocalDataScope['user']['main'].path[0])
         for (const point of newInstance(ElementsCyberia.LocalDataScope['user']['main'].path)) {
           await timer(CyberiaParams.EVENT_CALLBACK_TIME);
-          if (currentIdPath === idPath && !PixiCyberia.transportBlock) {
+          if (
+            currentIdPath === idPath &&
+            !PixiCyberia.transportBlock &&
+            !ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog
+          ) {
             ElementsCyberia.Data.user.main.x = point[0];
             ElementsCyberia.Data.user.main.y = point[1];
             PixiCyberia.updatePosition({ type: 'user', id: 'main' });

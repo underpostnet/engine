@@ -1242,6 +1242,7 @@ const QuestManagementCyberia = {
       SocketIo.Emit('user', {
         status: 'immunity-off-quest-modal-dialog',
       });
+      ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog = false;
     };
   },
   updateQuestItemProgressDisplay: async function ({
@@ -1278,6 +1279,7 @@ const QuestManagementCyberia = {
         status: 'immunity-on-quest-modal-dialog',
         questData: { id: questData.id },
       });
+      ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog = true;
       const questId = `${questData.id}`;
       setTimeout(() => {
         const currentQuestDataIndex = ElementsCyberia.Data.user['main'].model.quests.findIndex((q) => q.id === questId);

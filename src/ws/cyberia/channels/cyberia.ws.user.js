@@ -213,6 +213,11 @@ const CyberiaWsUserController = {
         }
         break;
       case 'update-position':
+        if (
+          CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].transportBlock ||
+          CyberiaWsUserManagement.localElementScope[wsManagementId][socket.id].immunityQuestModalDialog
+        )
+          break;
         CyberiaWsUserManagement.element[wsManagementId][socket.id].x = element.x;
         CyberiaWsUserManagement.element[wsManagementId][socket.id].y = element.y;
         for (const elementId of Object.keys(CyberiaWsUserManagement.element[wsManagementId])) {

@@ -39,18 +39,18 @@ const CyberiaItemService = {
 
       const biome = await CyberiaBiome.findById(world.face[providerBot.model.world.face - 1].toString());
 
-      if (
-        !isElementCollision({
-          dimPaintByCell: biome._doc.dimPaintByCell,
-          A: userCyberia._doc,
-          B: {
-            x: providerBot.x - providerBot.dim * 2,
-            y: providerBot.y - providerBot.dim * 2,
-            dim: providerBot.dim * 5,
-          },
-        })
-      )
-        throw new Error('invalid provider distance');
+      // if (
+      //   !isElementCollision({
+      //     dimPaintByCell: biome._doc.dimPaintByCell,
+      //     A: userCyberia._doc,
+      //     B: {
+      //       x: providerBot.x - providerBot.dim * 2,
+      //       y: providerBot.y - providerBot.dim * 2,
+      //       dim: providerBot.dim * 5,
+      //     },
+      //   })
+      // )
+      //   throw new Error('invalid provider distance');
 
       const socketId = CyberiaWsUserManagement.getCyberiaUserWsId(wsManagementId, userCyberia._id.toString());
       if (socketId) {

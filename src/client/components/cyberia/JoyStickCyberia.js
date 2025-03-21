@@ -38,6 +38,7 @@ const JoyStickCyberia = {
         });
         if (
           PixiCyberia.transportBlock ||
+          ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog ||
           BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })
         )
           return;

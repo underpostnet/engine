@@ -228,6 +228,7 @@ const PixiCyberia = {
 
         if (
           PixiCyberia.transportBlock ||
+          ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog ||
           BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })
         )
           return;
@@ -834,8 +835,11 @@ const PixiCyberia = {
   updatePosition: function (options) {
     const { type, id } = options;
 
-    if (type === 'user' && id === 'main') {
-      if (PixiCyberia.transportBlock) return;
+    if (
+      type === 'user' &&
+      id === 'main' &&
+      !(PixiCyberia.transportBlock || ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog)
+    ) {
       if (ElementsCyberia.Data[type][id].x <= ElementsCyberia.Data[type][id].dim) {
         console.warn('limit map position', 'left');
         WorldCyberiaManagement.ChangeFace({ type, id, direction: 'left' });
@@ -852,9 +856,7 @@ const PixiCyberia = {
         console.warn('limit map position', 'bottom');
         WorldCyberiaManagement.ChangeFace({ type, id, direction: 'bottom' });
       }
-    }
 
-    if (type === 'user' && id === 'main') {
       (async () => {
         if (
           BiomeCyberiaScope.Data[MatrixCyberia.Data.biomeDataId] &&

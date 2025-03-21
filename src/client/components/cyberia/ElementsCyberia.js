@@ -29,6 +29,7 @@ const ElementsCyberia = {
     if (!this.LocalDataScope[type][id])
       this.LocalDataScope[type][id] = {
         path: [],
+        immunityQuestModalDialog: false,
       };
   },
   findIdFromDisplayId: function (type, displayId) {
