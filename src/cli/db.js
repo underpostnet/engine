@@ -56,6 +56,7 @@ class UnderpostDB {
               logger.info('', { hostFolder, provider, dbName });
 
               const backUpPath = `../${repoName}/${hostFolder}`;
+              shellExec(`cd ${backUpPath} && find . -type d -empty -delete`); // delete empty folders
               const times = await fs.readdir(backUpPath);
               const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)));
               dbs[provider][dbName].currentBackupTimestamp = currentBackupTimestamp;
