@@ -58,9 +58,9 @@ class UnderpostDB {
               const backUpPath = `../${repoName}/${hostFolder}`;
               shellExec(`cd ${backUpPath} && find . -type d -empty -delete`); // delete empty folders
               const times = await fs.readdir(backUpPath);
-              const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)));
+              const currentBackupTimestamp = Math.max(...times.map((t) => parseInt(t)).filter((t) => !isNaN(t)));
               dbs[provider][dbName].currentBackupTimestamp = currentBackupTimestamp;
-              const removeBackupTimestamp = Math.min(...times.map((t) => parseInt(t)));
+              const removeBackupTimestamp = Math.min(...times.map((t) => parseInt(t)).filter((t) => !isNaN(t)));
 
               const sqlContainerPath = `/home/${dbName}.sql`;
               const _fromPartsParts = `../${repoName}/${hostFolder}/${currentBackupTimestamp}/${dbName}-parths.json`;
