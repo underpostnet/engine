@@ -26,7 +26,7 @@ class BackUp {
       if (!deployId) continue;
 
       if (!(options.itc === true)) {
-        shellExec(`underpost db ${options.git ? '--git ' : ''}--export ${deployId}`);
+        shellExec(`node bin db ${options.git ? '--git ' : ''}--export ${deployId}`);
         continue;
       }
 
