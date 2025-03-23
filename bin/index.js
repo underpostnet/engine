@@ -188,6 +188,7 @@ program
   .argument('[job-list]', `Deploy id list, e.g. ${Object.keys(Underpost.cron)}, for default all available jobs`)
   .option('--itc', 'Inside container execution context')
   .option('--init', 'Init cron jobs for cron job default deploy id')
+  .option('--git', 'Upload to github')
   .description('Cron jobs management')
   .action(Underpost.cron.callback);
 

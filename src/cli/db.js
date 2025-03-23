@@ -19,6 +19,7 @@ class UnderpostDB {
         outPath: '',
         drop: false,
         preserveUUID: false,
+        git: false,
       },
     ) {
       const newBackupTimestamp = new Date().getTime();
