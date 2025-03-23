@@ -150,6 +150,8 @@ const LoadingAnimation = {
         s(backgroundContainer).style.opacity = 0;
         setTimeout(async () => {
           s(backgroundContainer).style.display = 'none';
+          if (s(`.modal-menu`)) s(`.modal-menu`).classList.remove('hide');
+          if (s(`.main-body-btn-container`)) s(`.main-body-btn-container`).classList.remove('hide');
           if (callBack) callBack();
         }, 300);
       });

@@ -16,6 +16,7 @@ import { SkillCyberia } from './SkillCyberia.js';
 import { QuestManagementCyberia } from './QuestCyberia.js';
 import { NotificationManager } from '../core/NotificationManager.js';
 import { CyberiaItemService } from '../../services/cyberia-item/cyberia-item.service.js';
+import { LoadingAnimation } from '../core/LoadingAnimation.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -1152,6 +1153,10 @@ const BagCyberia = {
               ) {
                 const payLoadEquip = options.owner;
                 payLoadEquip[dataBagCyberiaFrom.type] = { id: dataBagCyberiaFrom.id };
+                if (s(`.character-container-view`)) {
+                  htmls(`.character-container-view`, html`<div class="abs center character-preview-loading"></div>`);
+                  LoadingAnimation.img.play(`.character-preview-loading`, 'points');
+                }
                 ItemModal.Equip[dataBagCyberiaFrom.type](payLoadEquip);
                 return;
               }

@@ -159,7 +159,8 @@ const Modal = {
             };
             options.mode === 'slide-menu-right' ? (options.style.right = '0px') : (options.style.left = '0px');
             const contentIconClass = 'abs center';
-
+            if (options.class) options.class += ' hide';
+            else options.class = 'hide';
             options.dragDisabled = true;
             options.titleClass = 'hide';
             top = '0px';
@@ -241,7 +242,7 @@ const Modal = {
                 'body',
                 html`
                   <div
-                    class="abs main-body-btn-container"
+                    class="abs main-body-btn-container hide"
                     style="top: ${options.heightTopBar + 50}px; z-index: 9; ${true ||
                     (options.mode && options.mode.match('right'))
                       ? 'right'
