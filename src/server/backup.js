@@ -9,7 +9,7 @@ dotenv.config();
 const logger = loggerFactory(import.meta);
 
 class BackUp {
-  static callback = async function (deployList, options = { itc: false }) {
+  static callback = async function (deployList, options = { itc: false, git: false }) {
     if ((!deployList || deployList === 'dd') && fs.existsSync(`./engine-private/deploy/dd.router`))
       deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
 
@@ -26,7 +26,7 @@ class BackUp {
       if (!deployId) continue;
 
       if (!(options.itc === true)) {
-        shellExec(`underpost db --export ${deployId}`);
+        shellExec(`underpost db ${options.git ? '--git ' : ''}--export ${deployId}`);
         continue;
       }
 

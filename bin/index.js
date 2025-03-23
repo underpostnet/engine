@@ -159,6 +159,11 @@ program
   .option('--import', 'Import container backups from repositories')
   .option('--export', 'Export container backups to repositories')
   .option('--pod-name <pod-name>', 'Optional pod context')
+  .option('--collection <collection>', 'Collection')
+  .option('--out-path <out-path>', 'Custom out path backup')
+  .option('--drop', 'Drop databases')
+  .option('--preserveUUID', 'Preserve Ids')
+  .option('--git', 'Upload to github')
   .option('--ns <ns-name>', 'Optional name space context')
   .description('Manage databases')
   .action(Underpost.db.callback);

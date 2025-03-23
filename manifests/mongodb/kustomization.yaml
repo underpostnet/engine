@@ -7,5 +7,5 @@ resources:
   - headless-service.yaml
   - statefulset.yaml
   - backup-pv-pvc.yaml
-  - backup-cronjob.yaml
-  - backup-access.yaml
+  # - backup-cronjob.yaml
+  # - backup-access.yaml

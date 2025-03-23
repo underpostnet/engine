@@ -453,4 +453,31 @@ program
   })
   .description('Media generator related quest id');
 
+program
+  .command('universe')
+  .argument('<universe-name>', 'Universe name')
+  .option('--import')
+  .option('--export')
+  .action((...args) => {
+    const universeId = args[0];
+    const collections = ['cyberiabiomes', 'cyberiaworlds', 'cyberiainstances'];
+    const outputPath = `./engine-private/cyberia-universes/${universeId}`;
+    const deployId = 'dd-cyberia';
+    if (args[1].export === true) {
+      if (!fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
+      if (!fs.existsSync(outputPath + '-files')) fs.mkdirSync(outputPath + '-files', { recursive: true });
+      for (const collection of collections)
+        shellExec(`node bin db --export --collection ${collection} --out-path ${outputPath} ${deployId}`);
+      shellExec(`node bin db --export --collection ${'files'} --out-path ${outputPath}-files ${deployId}`);
+    } else if (args[1].import === true) {
+      if (!fs.existsSync(outputPath)) {
+        logger.error('Could not find output path', outputPath);
+      } else {
+        shellExec(`node bin db --import --drop --preserveUUID --out-path ${outputPath}/${db.name} ${deployId}`);
+        shellExec(`node bin db --import --out-path ${outputPath}-files/${db.name} ${deployId}`);
+      }
+    }
+  })
+  .description('Universer management');
+
 program.parse();

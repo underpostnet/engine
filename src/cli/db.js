@@ -2,12 +2,25 @@ import { mergeFile, splitFileFactory } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
+import UnderpostDeploy from './deploy.js';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostDB {
   static API = {
-    async callback(deployList = 'default', options = { import: false, export: false, podName: false, ns: false }) {
+    async callback(
+      deployList = 'default',
+      options = {
+        import: false,
+        export: false,
+        podName: false,
+        ns: false,
+        collection: '',
+        outPath: '',
+        drop: false,
+        preserveUUID: false,
+      },
+    ) {
       const newBackupTimestamp = new Date().getTime();
       const nameSpace = options.ns && typeof options.ns === 'string' ? options.ns : 'default';
       for (const _deployId of deployList.split(',')) {
@@ -68,58 +81,104 @@ class UnderpostDB {
               }
 
               if (options.export === true && times.length >= 5) {
+                logger.info('remove', `../${repoName}/${hostFolder}/${removeBackupTimestamp}`);
                 fs.removeSync(`../${repoName}/${hostFolder}/${removeBackupTimestamp}`);
+                logger.info('create', `../${repoName}/${hostFolder}/${newBackupTimestamp}`);
                 fs.mkdirSync(`../${repoName}/${hostFolder}/${newBackupTimestamp}`, { recursive: true });
               }
 
               switch (provider) {
                 case 'mariadb': {
-                  const podName =
-                    options.podName && typeof options.podName === 'string' ? options.podName : `mariadb-statefulset-0`;
+                  const podNames =
+                    options.podName && typeof options.podName === 'string'
+                      ? options.podName.split(',')
+                      : UnderpostDeploy.API.get('mariadb'); // `mariadb-statefulset-0`;
                   const serviceName = 'mariadb';
-                  if (options.import === true) {
-                    shellExec(`sudo kubectl cp ${_toSqlPath} ${nameSpace}/${podName}:/${dbName}.sql`);
-                    const cmd = `mariadb -u ${user} -p${password} ${dbName} < /${dbName}.sql`;
-                    shellExec(
-                      `kubectl exec -i ${podName} -- ${serviceName} -p${password} -e 'CREATE DATABASE ${dbName};'`,
-                    );
-                    shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
-                  }
-                  if (options.export === true) {
-                    const cmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${sqlContainerPath}`;
-                    shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
-                    shellExec(`sudo kubectl cp ${nameSpace}/${podName}:${sqlContainerPath} ${_toNewSqlPath}`);
-                    await splitFileFactory(dbName, _toNewSqlPath);
+                  for (const podNameData of [podNames[0]]) {
+                    const podName = podNameData.NAME;
+                    if (options.import === true) {
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}.sql"`);
+                      shellExec(`sudo kubectl cp ${_toSqlPath} ${nameSpace}/${podName}:/${dbName}.sql`);
+                      const cmd = `mariadb -u ${user} -p${password} ${dbName} < /${dbName}.sql`;
+                      shellExec(
+                        `kubectl exec -i ${podName} -- ${serviceName} -p${password} -e 'CREATE DATABASE ${dbName};'`,
+                      );
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                    }
+                    if (options.export === true) {
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf ${sqlContainerPath}"`);
+                      const cmd = `mariadb-dump --user=${user} --password=${password} --lock-tables ${dbName} > ${sqlContainerPath}`;
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                      shellExec(
+                        `sudo kubectl cp ${nameSpace}/${podName}:${sqlContainerPath} ${
+                          options.outPath ? options.outPath : _toNewSqlPath
+                        }`,
+                      );
+                      await splitFileFactory(dbName, options.outPath ? options.outPath : _toNewSqlPath);
+                    }
                   }
                   break;
                 }
 
                 case 'mongoose': {
                   if (options.import === true) {
-                    const podName =
-                      options.podName && typeof options.podName === 'string' ? options.podName : `mongodb-0`;
-                    shellExec(`sudo kubectl cp ${_toBsonPath} ${nameSpace}/${podName}:/${dbName}`);
-                    const cmd = `mongorestore -d ${dbName} /${dbName}`;
-                    shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                    const podNames =
+                      options.podName && typeof options.podName === 'string'
+                        ? options.podName.split(',')
+                        : UnderpostDeploy.API.get('mongo');
+                    // `mongodb-0`;
+                    for (const podNameData of [podNames[0]]) {
+                      const podName = podNameData.NAME;
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}"`);
+                      shellExec(
+                        `sudo kubectl cp ${
+                          options.outPath ? options.outPath : _toBsonPath
+                        } ${nameSpace}/${podName}:/${dbName}`,
+                      );
+                      const cmd = `mongorestore -d ${dbName} /${dbName}${options.drop ? ' --drop' : ''}${
+                        options.preserveUUID ? ' --preserveUUID' : ''
+                      }`;
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`);
+                    }
                   }
                   if (options.export === true) {
-                    const podName = `backup-access`;
-                    const containerBaseBackupPath = '/backup';
-                    let timeFolder = shellExec(
-                      `sudo kubectl exec -i ${podName} -- sh -c "cd ${containerBaseBackupPath} && ls -a"`,
-                      {
-                        stdout: true,
-                        disableLog: false,
-                        silent: true,
-                      },
-                    ).split(`\n`);
-                    timeFolder = timeFolder[timeFolder.length - 2];
-                    if (timeFolder === '..') {
-                      logger.warn(`Cannot backup available`, { timeFolder });
-                    } else {
+                    const podNames =
+                      options.podName && typeof options.podName === 'string'
+                        ? options.podName.split(',')
+                        : UnderpostDeploy.API.get('mongo'); // `backup-access`;
+                    for (const podNameData of [podNames[0]]) {
+                      const podName = podNameData.NAME;
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}"`);
+                      if (options.collections)
+                        for (const collection of options.collections)
+                          shellExec(
+                            `sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /${dbName}"`,
+                          );
+                      else shellExec(`sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} -o /${dbName}"`);
                       shellExec(
-                        `sudo kubectl cp ${nameSpace}/${podName}:${containerBaseBackupPath}/${timeFolder}/${dbName} ${_toNewBsonPath}`,
+                        `sudo kubectl cp ${nameSpace}/${podName}:/${dbName} ${
+                          options.outPath ? options.outPath : _toNewBsonPath
+                        }`,
                       );
+                    }
+                    if (false) {
+                      const containerBaseBackupPath = '/backup';
+                      let timeFolder = shellExec(
+                        `sudo kubectl exec -i ${podName} -- sh -c "cd ${containerBaseBackupPath} && ls -a"`,
+                        {
+                          stdout: true,
+                          disableLog: false,
+                          silent: true,
+                        },
+                      ).split(`\n`);
+                      timeFolder = timeFolder[timeFolder.length - 2];
+                      if (timeFolder === '..') {
+                        logger.warn(`Cannot backup available`, { timeFolder });
+                      } else {
+                        shellExec(
+                          `sudo kubectl cp ${nameSpace}/${podName}:${containerBaseBackupPath}/${timeFolder}/${dbName} ${_toNewBsonPath}`,
+                        );
+                      }
                     }
                   }
                   break;
@@ -131,7 +190,7 @@ class UnderpostDB {
             }
           }
         }
-        if (options.export === true) {
+        if (options.export === true && options.git === true) {
           shellExec(`cd ../${repoName} && git add .`);
           shellExec(
             `underpost cmt ../${repoName} backup '' '${new Date(newBackupTimestamp).toLocaleDateString()} ${new Date(

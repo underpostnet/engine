@@ -996,7 +996,7 @@ const Cmd = {
   cron: (deployList, jobList, name, expression, options) =>
     `pm2 start ./bin/index.js --no-autorestart --instances 1 --cron "${expression}" --name ${name} -- cron ${
       options?.itc ? `--itc ` : ''
-    }${deployList} ${jobList}`,
+    }${options?.git ? `--git ` : ''}${deployList} ${jobList}`,
 };
 
 const fixDependencies = async () => {
