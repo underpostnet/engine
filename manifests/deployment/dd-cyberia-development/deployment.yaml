@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development
-          image: localhost/underpost-engine:v2.8.611
+          image: localhost/underpost-engine:v2.8.612
           lifecycle:
             postStart:
               exec:
@@ -25,9 +25,18 @@ spec:
                   - -c
                   - >
                     sleep 60 &&
+                    npm install -g underpost
+                    underpost secret underpost --create-from-file /etc/config/.env.development
                     underpost config set deploy-id dd-cyberia &&
                     underpost config set deploy-env development
-# image: localhost/dd-cyberia-development:v2.8.611
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: underpost-config
+# image: localhost/dd-cyberia-development:v2.8.612
 ---
 apiVersion: v1
 kind: Service

@@ -78,8 +78,17 @@ spec:
                   - -c
                   - >
                     sleep 60 &&
+                    npm install -g underpost
+                    underpost secret underpost --create-from-file /etc/config/.env.${env}
                     underpost config set deploy-id ${deployId} &&
                     underpost config set deploy-env ${env}
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: underpost-config
 # image: localhost/${deployId}-${env}:${version && typeof version === 'string' ? version : Underpost.version}
 ---
 apiVersion: v1
@@ -214,6 +223,10 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options.version);
       if (options.infoRouter === true)
         return logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+      shellExec(`kubectl delete configmap underpost-config`);
+      shellExec(
+        `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
+      );
       const etcHost = (
         concat,
       ) => `127.0.0.1  ${concat} localhost localhost.localdomain localhost4 localhost4.localdomain4

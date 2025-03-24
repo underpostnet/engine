@@ -43,21 +43,20 @@ class UnderpostImage {
         }
         // --rm --no-cache
         if (options.imageArchive !== true) {
-          fs.copyFile(`${getNpmRootPath()}/underpost/.env`, `${path}/.env.underpost`);
           shellExec(
             `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
           );
-          fs.removeSync(`${path}/.env.underpost`);
         }
         if (options.imageArchive !== true || options.podmanSave === true)
           shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
       async script(deployId = 'default', env = 'development', options = { run: false, build: false }) {
-        if (deployId === 'deploy') {
+        if (deployId === 'service') {
           const _deployId = UnderpostRootEnv.API.get('deploy-id');
           const _env = UnderpostRootEnv.API.get('deploy-env');
-          if (_deployId) {
+          process.env.GITHUB_TOKEN = UnderpostRootEnv.API.get('GITHUB_TOKEN');
+          if (_deployId && process.env.GITHUB_TOKEN) {
             deployId = _deployId;
             if (_env) env = _env;
           } else {
@@ -68,7 +67,6 @@ class UnderpostImage {
         if (options.build === true) {
           const buildBasePath = `/home/dd`;
           const repoName = `engine-${deployId.split('-')[1]}`;
-          fs.mkdirSync(buildBasePath, { recursive: true });
           shellExec(`cd ${buildBasePath} && underpost clone underpostnet/${repoName}`);
           shellExec(`cd ${buildBasePath} && sudo mv ./${repoName} ./engine`);
           shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);

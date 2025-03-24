@@ -30,7 +30,7 @@ class UnderpostRootEnv {
       const envPath = `${exeRootPath}/.env`;
       if (!fs.existsSync(envPath)) return logger.error(`Unable to find underpost root environment`);
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
-      logger.info('underpost root', { [key]: env[key] });
+      logger.info(`${key}(${typeof env[key]})`, env[key]);
       return env[key];
     },
     list() {

@@ -1157,7 +1157,7 @@ const Modal = {
           top: ${top};
           left: ${left};
           overflow: auto; /* resizable required */
-          resize: auto; /* resizable required */
+          resize: both; /* resizable required */
           transition: ${transition};
           opacity: 0;
           z-index: 1;
