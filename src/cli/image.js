@@ -57,14 +57,12 @@ class UnderpostImage {
         if (deployId === 'deploy') {
           const _deployId = UnderpostRootEnv.API.get('deploy-id');
           const _env = UnderpostRootEnv.API.get('deploy-env');
-          const _path = UnderpostRootEnv.API.get('deploy-path');
           if (_deployId) {
             deployId = _deployId;
             if (_env) env = _env;
-            if (_path) path = _path;
           } else {
             await timer(30 * 1000);
-            return await UnderpostImage.API.script(deployId, env, path, options);
+            return await UnderpostImage.API.dockerfile.script(deployId, env, options);
           }
         }
         if (options.build === true) {
