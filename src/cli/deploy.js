@@ -69,9 +69,7 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}
-          image: localhost/underpost-engine:${
-            version && typeof version === 'string' ? version : Underpost.version
-          }       
+          image: localhost/underpost-engine:${version && typeof version === 'string' ? version : Underpost.version}
           lifecycle:
             postStart:
               exec:

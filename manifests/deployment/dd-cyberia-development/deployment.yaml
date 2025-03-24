@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development
-          image: localhost/underpost-engine:v2.8.56       
+          image: localhost/underpost-engine:v2.8.56
           lifecycle:
             postStart:
               exec:
