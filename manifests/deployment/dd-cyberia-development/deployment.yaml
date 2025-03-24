@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development
-          image: localhost/underpost-engine:v2.8.6
+          image: localhost/underpost-engine:v2.8.61
           lifecycle:
             postStart:
               exec:
@@ -27,7 +27,7 @@ spec:
                     sleep 60 &&
                     underpost config set deploy-id dd-cyberia &&
                     underpost config set deploy-env development
-# image: localhost/dd-cyberia-development:v2.8.6
+# image: localhost/dd-cyberia-development:v2.8.61
 ---
 apiVersion: v1
 kind: Service
