@@ -26,7 +26,7 @@ class UnderpostImage {
         const imgName = `${
           options.imageName && typeof options.imageName === 'string' ? options.imageName : `${deployId}-${env}`
         }:${
-          options.imageVersion && typeof options.imageVersions === 'string' ? options.imageVersion : Underpost.version
+          options.imageVersion && typeof options.imageVersion === 'string' ? options.imageVersion : Underpost.version
         }`;
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `/images`;
@@ -55,21 +55,6 @@ class UnderpostImage {
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
       async script(deployId = 'default', env = 'development', options = { run: false, build: false }) {
-        let attempts = 0;
-        if (deployId === 'service') {
-          const _deployId = UnderpostRootEnv.API.get('deploy-id');
-          const _env = UnderpostRootEnv.API.get('deploy-env');
-          process.env.GITHUB_TOKEN = UnderpostRootEnv.API.get('GITHUB_TOKEN');
-          if (_deployId && process.env.GITHUB_TOKEN) {
-            deployId = _deployId;
-            if (_env) env = _env;
-          } else {
-            await timer(30 * 1000);
-            attempts++;
-            logger.info('Deploy env status attempt', attempts);
-            return await UnderpostImage.API.dockerfile.script(deployId, env, options);
-          }
-        }
         if (options.build === true) {
           const buildBasePath = `/home/dd`;
           const repoName = `engine-${deployId.split('-')[1]}`;
@@ -78,7 +63,7 @@ class UnderpostImage {
           shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);
           shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
           shellCd(`${buildBasePath}/engine`);
-          shellExec(`npm install`);
+          shellExec(`underpost install`);
           const itcScripts = fs.readdir('./engine-private/itc-scripts');
           for (const itcScript of itcScripts)
             if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
