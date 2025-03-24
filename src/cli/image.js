@@ -137,7 +137,7 @@ class UnderpostImage {
             }
             shellExec(`node bin/deploy conf ${deployId} ${env}`);
           }
-          shellExec(`npm ${runCmd} ${deployId} deploy`);
+          shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`);
         }
       },
     },

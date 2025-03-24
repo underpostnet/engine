@@ -155,9 +155,9 @@ class UnderpostDB {
                       if (options.collections)
                         for (const collection of options.collections)
                           shellExec(
-                            `sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /${dbName}"`,
+                            `sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /"`,
                           );
-                      else shellExec(`sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} -o /${dbName}"`);
+                      else shellExec(`sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} -o /"`);
                       shellExec(
                         `sudo kubectl cp ${nameSpace}/${podName}:/${dbName} ${
                           options.outPath ? options.outPath : _toNewBsonPath
