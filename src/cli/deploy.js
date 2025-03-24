@@ -32,7 +32,7 @@ class UnderpostDeploy {
       await Config.build(undefined, 'proxy', deployList);
       return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
     },
-    async buildManifest(deployList, env) {
+    async buildManifest(deployList, env, version) {
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
@@ -69,7 +69,20 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}
-          image: localhost/${deployId}-${env}:${Underpost.version}
+          image: localhost/underpost-engine:${
+            version && typeof version === 'string' ? version : Underpost.version
+          }       
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - >
+                    sleep 60 &&
+                    underpost config set deploy-id ${deployId} &&
+                    underpost config set deploy-env ${env}
+# image: localhost/${deployId}-${env}:${version && typeof version === 'string' ? version : Underpost.version}
 ---
 apiVersion: v1
 kind: Service
@@ -188,6 +201,7 @@ spec:
         infoUtil: false,
         expose: false,
         cert: false,
+        version: '',
       },
     ) {
       if (options.infoUtil === true)
@@ -199,7 +213,7 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.sync) UnderpostDeploy.API.sync(deployList);
-      if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env);
+      if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options.version);
       if (options.infoRouter === true)
         return logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
       const etcHost = (

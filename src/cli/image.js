@@ -1,9 +1,10 @@
 import fs from 'fs-extra';
 import Underpost from '../index.js';
-import { shellExec } from '../server/process.js';
+import { shellCd, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { getNpmRootPath } from '../server/conf.js';
 import { timer } from '../client/components/core/CommonJs.js';
+import UnderpostRootEnv from './env.js';
 
 dotenv.config();
 
@@ -17,9 +18,13 @@ class UnderpostImage {
         deployId = 'default',
         env = 'development',
         path = '.',
-        options = { imageArchive: false, podmanSave: false },
+        options = { imageArchive: false, podmanSave: false, imageName: '', imageVersion: '' },
       ) {
-        const imgName = `${deployId}-${env}:${Underpost.version}`;
+        const imgName = `${
+          options.imageName && typeof options.imageName === 'string' ? options.imageName : `${deployId}-${env}`
+        }:${
+          options.imageVersion && typeof options.imageVersions === 'string' ? options.imageVersion : Underpost.version
+        }`;
         const podManImg = `localhost/${imgName}`;
         const imagesStoragePath = `/images`;
         if (!fs.existsSync(`${path}${imagesStoragePath}`))
@@ -48,7 +53,34 @@ class UnderpostImage {
           shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
-      async script(deployId = 'default', env = 'development', options = { run: false }) {
+      async script(deployId = 'default', env = 'development', options = { run: false, build: false }) {
+        if (deployId === 'deploy') {
+          const _deployId = UnderpostRootEnv.API.get('deploy-id');
+          const _env = UnderpostRootEnv.API.get('deploy-env');
+          const _path = UnderpostRootEnv.API.get('deploy-path');
+          if (_deployId) {
+            deployId = _deployId;
+            if (_env) env = _env;
+            if (_path) path = _path;
+          } else {
+            await timer(30 * 1000);
+            return await UnderpostImage.API.script(deployId, env, path, options);
+          }
+        }
+        if (options.build === true) {
+          const buildBasePath = `/home/dd`;
+          const repoName = `engine-${deployId.split('-')[1]}`;
+          fs.mkdirSync(buildBasePath, { recursive: true });
+          shellExec(`cd ${buildBasePath} && underpost clone underpostnet/${repoName}`);
+          shellExec(`cd ${buildBasePath} && sudo mv ./${repoName} ./engine`);
+          shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);
+          shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
+          shellCd(`${buildBasePath}/engine`);
+          shellExec(`npm install`);
+          const itcScripts = fs.readdir('./engine-private/itc-scripts');
+          for (const itcScript of itcScripts)
+            if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
+        }
         switch (deployId) {
           case 'dd-lampp':
             {

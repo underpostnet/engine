@@ -50,19 +50,24 @@ class UnderpostFileStorage {
         options.git === true
           ? UnderpostRepository.API.getChangedFiles(path)
           : await fs.readdir(path, { recursive: true });
-      for (const relativePath of files) {
-        const _path = path + '/' + relativePath;
-        if (fs.statSync(_path).isDirectory()) {
-          if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
-          continue;
+      if (options.pull === true) {
+        for (const _path of Object.keys(storage)) {
+          if (!fs.existsSync(_path) || options.force === true) {
+            if (options.force === true && fs.existsSync(_path)) fs.removeSync(_path);
+            await UnderpostFileStorage.API.pull(_path, options);
+          } else logger.warn(`Pull path already exists`, _path);
         }
-        if (options.pull === true) {
-          await UnderpostFileStorage.API.pull(_path, options);
-        } else if (!(_path in storage) || options.force === true) {
-          await UnderpostFileStorage.API.upload(_path, options);
-          if (storage) storage[_path] = {};
-        } else logger.warn('File already exists', _path);
-      }
+      } else
+        for (const relativePath of files) {
+          const _path = path + '/' + relativePath;
+          if (fs.statSync(_path).isDirectory()) {
+            if (options.pull === true && !fs.existsSync(_path)) fs.mkdirSync(_path, { recursive: true });
+            continue;
+          } else if (!(_path in storage) || options.force === true) {
+            await UnderpostFileStorage.API.upload(_path, options);
+            if (storage) storage[_path] = {};
+          } else logger.warn('File already exists', _path);
+        }
       UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
       if (options.git === true) {
         shellExec(`cd ${path} && git add .`);
@@ -99,6 +104,8 @@ class UnderpostFileStorage {
     },
     async pull(path) {
       UnderpostFileStorage.API.cloudinaryConfig();
+      const folder = dir.dirname(path);
+      if (!fs.existsSync(folder)) fs.mkdirSync(folder, { recursive: true });
       const downloadResult = await cloudinary.utils.download_archive_url({
         public_ids: [path],
         resource_type: 'raw',

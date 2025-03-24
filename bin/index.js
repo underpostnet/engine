@@ -105,6 +105,7 @@ program
   .option('--info-util', 'Display kubectl util management commands')
   .option('--cert', 'Reset tls/ssl certificate secrets')
   .option('--build-manifest', 'Build kind yaml manifests: deployments, services, proxy and secrets')
+  .option('--version', 'Set custom version')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 
@@ -138,6 +139,8 @@ program
   .argument('[path]', 'Absolute or relative directory, for default is current')
   .option('--image-archive', 'Only load tar image from ./images')
   .option('--podman-save', 'Save image from podman to ./images')
+  .option('--image-name <image-name>', 'Set custom image name')
+  .option('--image-version <image-version>', 'Set custom image version')
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 
