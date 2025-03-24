@@ -579,6 +579,7 @@ const DefaultConf = /**/ {
           'SettingsHealthcare',
           'TranslateHealthcare',
           'AppointmentFormHealthCare',
+          'RecordMoodHealthcare',
         ],
       },
       views: [
@@ -594,6 +595,7 @@ const DefaultConf = /**/ {
         { path: '/calendar', client: 'Healthcare', ssr: 'Healthcare' },
         { path: '/healthcare-appointment', client: 'Healthcare', ssr: 'Healthcare' },
         { path: '/healthcare-appointment-management', client: 'Healthcare', ssr: 'Healthcare' },
+        { path: '/record-mood', client: 'Healthcare', ssr: 'Healthcare' },
       ],
       dists: [
         {
