@@ -582,8 +582,8 @@ const PixiCyberia = {
         case 'lifeIndicator':
           {
             const componentInstance = new Container();
-            componentInstance.x = 0;
-            componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
+            componentInstance.x = [-1.5, 1][random(0, 1)] * ((dim * ElementsCyberia.Data[type][id].dim) / 2);
+            componentInstance.y = -1.6 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
             componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
             componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
@@ -607,13 +607,36 @@ const PixiCyberia = {
                 let diffLife = ElementsCyberia.Data[type][id].life - lastLife;
                 lastLife = newInstance(ElementsCyberia.Data[type][id].life);
                 if (diffLife > 0) diffLife = '+' + diffLife;
+                else if (ElementsCyberia.getCurrentSkinDisplayId(options) !== 'generic-wood') {
+                  const pixiFrames = [];
+                  for (const frame of range(0, 5)) {
+                    pixiFrames.push(Texture.from(`${getProxyPath()}assets/skill/blood/08/${frame}.png`));
+                  }
+                  const anim = new AnimatedSprite(pixiFrames);
+                  anim.animationSpeed = 0.5;
+                  const dataSpriteFormat = this.formatSpriteComponent({
+                    displayId: 'blood',
+                    positionId: '08',
+                    dim,
+                    element: ElementsCyberia.Data[type][id],
+                  });
+                  for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
+                    anim[attr] = dataSpriteFormat.componentInstance[attr];
+                  }
+                  this.Data[type][id].addChild(anim);
+                  anim.play();
+                  setTimeout(() => {
+                    this.Data[type][id].removeChild(anim);
+                    anim.destroy();
+                  }, 450);
+                }
                 diffLife = diffLife + ' ♥';
                 const componentInstance = new Text(
                   `${diffLife}`,
                   new TextStyle({
                     fill: diffLife[0] !== '+' ? '#FE2712' : '#7FFF00',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
+                    fontSize: 300 * (1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,

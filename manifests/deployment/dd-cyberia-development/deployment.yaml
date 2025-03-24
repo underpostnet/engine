@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
         - name: dd-cyberia-development
-          image: localhost/underpost-engine:v2.8.612
+          image: localhost/underpost-engine:v2.8.613
           lifecycle:
             postStart:
               exec:
@@ -36,7 +36,7 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-cyberia-development:v2.8.612
+# image: localhost/dd-cyberia-development:v2.8.613
 ---
 apiVersion: v1
 kind: Service

@@ -5,8 +5,11 @@ import dotenv from 'dotenv';
 import { getNpmRootPath } from '../server/conf.js';
 import { timer } from '../client/components/core/CommonJs.js';
 import UnderpostRootEnv from './env.js';
+import { loggerFactory } from '../server/logger.js';
 
 dotenv.config();
+
+const logger = loggerFactory(import.meta);
 
 class UnderpostImage {
   static API = {
@@ -52,6 +55,7 @@ class UnderpostImage {
         shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
       },
       async script(deployId = 'default', env = 'development', options = { run: false, build: false }) {
+        let attempts = 0;
         if (deployId === 'service') {
           const _deployId = UnderpostRootEnv.API.get('deploy-id');
           const _env = UnderpostRootEnv.API.get('deploy-env');
@@ -61,6 +65,8 @@ class UnderpostImage {
             if (_env) env = _env;
           } else {
             await timer(30 * 1000);
+            attempts++;
+            logger.info('Deploy env status attempt', attempts);
             return await UnderpostImage.API.dockerfile.script(deployId, env, options);
           }
         }

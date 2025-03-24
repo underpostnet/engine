@@ -28,7 +28,10 @@ class UnderpostRootEnv {
     get(key) {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      if (!fs.existsSync(envPath)) return logger.error(`Unable to find underpost root environment`);
+      if (!fs.existsSync(envPath)) {
+        logger.error(`Unable to find underpost root environment`);
+        return undefined;
+      }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
       logger.info(`${key}(${typeof env[key]})`, env[key]);
       return env[key];
@@ -36,7 +39,10 @@ class UnderpostRootEnv {
     list() {
       const exeRootPath = `${getNpmRootPath()}/underpost`;
       const envPath = `${exeRootPath}/.env`;
-      if (!fs.existsSync(envPath)) return logger.error(`Unable to find underpost root environment`);
+      if (!fs.existsSync(envPath)) {
+        logger.error(`Unable to find underpost root environment`);
+        return {};
+      }
       const env = dotenv.parse(fs.readFileSync(envPath, 'utf8'));
       logger.info('underpost root', env);
       return env;
