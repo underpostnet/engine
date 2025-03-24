@@ -127,7 +127,7 @@ class UnderpostImage {
             const replicas = await fs.readdir(`./engine-private/replica`);
             for (const replica of replicas) {
               shellExec(`node bin/deploy conf ${replica} ${env}`);
-              shellExec(`npm ${runCmd} ${replica} deploy`, { async: true });
+              shellExec(`npm ${runCmd} deploy deploy-id:${replica}`, { async: true });
               fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
               const monitor = async () => {
                 await timer(1000);
