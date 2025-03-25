@@ -79,7 +79,7 @@ const Docs = {
       icon: html`<i class="fa-brands fa-osi"></i>`,
       text: 'Source Docs',
       url: function () {
-        return `${getProxyPath()}docs/engine/${window.renderPayload.version}`;
+        return `${getProxyPath()}docs/engine/${window.renderPayload.version.replace('v', '')}`;
       },
     },
     {
