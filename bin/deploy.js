@@ -673,8 +673,8 @@ try {
     }
 
     case 'version-build': {
-      const newVersion = process.argv[3];
       const originPackageJson = JSON.parse(fs.readFileSync(`package.json`, 'utf8'));
+      const newVersion = process.argv[3] ?? originPackageJson.version;
       const { version } = originPackageJson;
       originPackageJson.version = newVersion;
       fs.writeFileSync(`package.json`, JSON.stringify(originPackageJson, null, 4), 'utf8');
