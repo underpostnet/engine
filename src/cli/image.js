@@ -64,9 +64,11 @@ class UnderpostImage {
           shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
           shellCd(`${buildBasePath}/engine`);
           shellExec(`underpost install`);
-          const itcScripts = await fs.readdir('./engine-private/itc-scripts');
-          for (const itcScript of itcScripts)
-            if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
+          if (fs.existsSync('./engine-private/itc-scripts')) {
+            const itcScripts = await fs.readdir('./engine-private/itc-scripts');
+            for (const itcScript of itcScripts)
+              if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
+          }
         }
         switch (deployId) {
           default:
