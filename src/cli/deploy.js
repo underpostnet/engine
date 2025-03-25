@@ -51,6 +51,16 @@ class UnderpostDeploy {
 
         logger.info('port range', { deployId, fromPort, toPort });
         // const customImg = `underpost-engine:${version && typeof version === 'string' ? version : Underpost.version}`;
+        // lifecycle:
+        // postStart:
+        //   exec:
+        //     command:
+        //       - /bin/sh
+        //       - -c
+        //       - >
+        //         sleep 20 &&
+        //         npm install -g underpost
+        //         underpost secret underpost --create-from-file /etc/config/.env.${env}
         const deploymentYamlParts = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -74,17 +84,10 @@ spec:
             - /bin/sh
             - -c
             - >
+              sleep 20 &&
+              npm install -g underpost
+              underpost secret underpost --create-from-file /etc/config/.env.${env}
               underpost dockerfile-node-script --build --run ${deployId} ${env}
-          lifecycle:
-            postStart:
-              exec:
-                command:
-                  - /bin/sh
-                  - -c
-                  - >
-                    sleep 20 &&
-                    npm install -g underpost
-                    underpost secret underpost --create-from-file /etc/config/.env.${env}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
