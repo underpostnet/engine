@@ -84,7 +84,8 @@ spec:
             - /bin/sh
             - -c
             - >
-              npm install --unsafe-perm -g underpost &&
+              npm install -g npm@11.2.0 &&
+              npm install --unsafe-perm --ignore-scripts -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost dockerfile-node-script --build --run ${deployId} ${env}
           volumeMounts:
