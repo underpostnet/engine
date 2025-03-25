@@ -407,19 +407,17 @@ const PixiCyberia = {
     this.Data[type][id].components = {
       'layer-1': { container: new Container() },
       layer0: { container: new Container() },
+      layer1: { container: new Container() },
+      layer2: { container: new Container() },
     };
 
-    this.Data[type][id].components['layer-1'].container.width = dim * ElementsCyberia.Data[type][id].dim;
-    this.Data[type][id].components['layer-1'].container.height = dim * ElementsCyberia.Data[type][id].dim;
-    this.Data[type][id].components['layer-1'].container.x = 0;
-    this.Data[type][id].components['layer-1'].container.y = 0;
-    this.Data[type][id].addChild(this.Data[type][id].components['layer-1'].container);
-
-    this.Data[type][id].components.layer0.container.width = dim * ElementsCyberia.Data[type][id].dim;
-    this.Data[type][id].components.layer0.container.height = dim * ElementsCyberia.Data[type][id].dim;
-    this.Data[type][id].components.layer0.container.x = 0;
-    this.Data[type][id].components.layer0.container.y = 0;
-    this.Data[type][id].addChild(this.Data[type][id].components.layer0.container);
+    for (const layer of Object.keys(this.Data[type][id].components)) {
+      this.Data[type][id].components[layer].container.width = dim * ElementsCyberia.Data[type][id].dim;
+      this.Data[type][id].components[layer].container.height = dim * ElementsCyberia.Data[type][id].dim;
+      this.Data[type][id].components[layer].container.x = 0;
+      this.Data[type][id].components[layer].container.y = 0;
+      this.Data[type][id].addChild(this.Data[type][id].components[layer].container);
+    }
 
     this.Data[type][id].intervals = {};
     this.Data[type][id].pixiTickers = {};
@@ -602,32 +600,40 @@ const PixiCyberia = {
           }
           {
             let lastLife = newInstance(ElementsCyberia.Data[type][id].life);
+            const displayId = ElementsCyberia.getCurrentSkinDisplayId(options);
+            let animBlood;
+            if (displayId !== 'generic-wood') {
+              const pixiFrames = [];
+              for (const frame of range(0, 5)) {
+                pixiFrames.push(Texture.from(`${getProxyPath()}assets/skill/blood/08/${frame}.png`));
+              }
+              animBlood = new AnimatedSprite(pixiFrames);
+              animBlood.animationSpeed = 0.5;
+              const dataSpriteFormat = this.formatSpriteComponent({
+                displayId: 'blood',
+                positionId: '08',
+                dim,
+                element: ElementsCyberia.Data[type][id],
+              });
+              for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
+                animBlood[attr] = dataSpriteFormat.componentInstance[attr];
+              }
+              animBlood.visible = false;
+              // this.Data[type][id].addChild(animBlood);
+              this.Data[type][id].components.layer2.container.addChild(animBlood);
+              animBlood.play();
+            }
             const callBack = () => {
               if (ElementsCyberia.Data[type][id].life !== lastLife) {
                 let diffLife = ElementsCyberia.Data[type][id].life - lastLife;
                 lastLife = newInstance(ElementsCyberia.Data[type][id].life);
                 if (diffLife > 0) diffLife = '+' + diffLife;
-                else if (ElementsCyberia.getCurrentSkinDisplayId(options) !== 'generic-wood') {
-                  const pixiFrames = [];
-                  for (const frame of range(0, 5)) {
-                    pixiFrames.push(Texture.from(`${getProxyPath()}assets/skill/blood/08/${frame}.png`));
-                  }
-                  const anim = new AnimatedSprite(pixiFrames);
-                  anim.animationSpeed = 0.5;
-                  const dataSpriteFormat = this.formatSpriteComponent({
-                    displayId: 'blood',
-                    positionId: '08',
-                    dim,
-                    element: ElementsCyberia.Data[type][id],
-                  });
-                  for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
-                    anim[attr] = dataSpriteFormat.componentInstance[attr];
-                  }
-                  this.Data[type][id].addChild(anim);
-                  anim.play();
+                else if (displayId !== 'generic-wood') {
+                  animBlood.visible = true;
                   setTimeout(() => {
-                    this.Data[type][id].removeChild(anim);
-                    anim.destroy();
+                    animBlood.visible = false;
+                    // this.Data[type][id].removeChild(anim);
+                    // anim.destroy();
                   }, 450);
                 }
                 diffLife = diffLife + ' ♥';
@@ -800,12 +806,8 @@ const PixiCyberia = {
           }
           anim.animationSpeed = velFrame; // 0 - 1
 
-          let componentContainer;
-          if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;
-          componentContainer
-            ? this.Data[type][id].components[componentContainer].container.addChild(anim)
-            : this.Data[type][id].addChild(anim);
-
+          this.Data[type][id].components[`layer${dataSpriteFormat.indexLayer}`].container.addChild(anim);
+          //  this.Data[type][id].addChild(anim)
           this.Data[type][id].intervals[componentType][`${displayId}-${positionId}`] = {
             pixiFrames,
             anim,
