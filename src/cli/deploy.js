@@ -84,8 +84,7 @@ spec:
             - /bin/sh
             - -c
             - >
-              sleep 20 &&
-              npm install -g underpost &&
+              npm install --unsafe-perm -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost dockerfile-node-script --build --run ${deployId} ${env}
           volumeMounts:

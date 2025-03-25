@@ -21,8 +21,7 @@ spec:
             - /bin/sh
             - -c
             - >
-              sleep 20 &&
-              npm install -g underpost &&
+              npm install --unsafe-perm -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.development &&
               underpost dockerfile-node-script --build --run dd-cyberia development
           volumeMounts:
@@ -32,7 +31,7 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-cyberia-development:v2.8.62
+# image: localhost/dd-cyberia-development:v2.8.621
 ---
 apiVersion: v1
 kind: Service
