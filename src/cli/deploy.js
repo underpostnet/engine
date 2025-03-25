@@ -85,6 +85,9 @@ spec:
             - -c
             - >
               npm install -g npm@11.2.0 &&
+              npm config delete proxy &&
+              npm config delete http-proxy &&
+              npm config delete https-proxy &&
               npm config set registry http://registry.npmjs.org/ &&
               npm install --unsafe-perm --ignore-scripts -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
