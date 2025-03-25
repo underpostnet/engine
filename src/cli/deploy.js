@@ -59,7 +59,7 @@ class UnderpostDeploy {
         //       - -c
         //       - >
         //         sleep 20 &&
-        //         npm install -g underpost
+        //         npm install -g underpost &&
         //         underpost secret underpost --create-from-file /etc/config/.env.${env}
         const deploymentYamlParts = `apiVersion: apps/v1
 kind: Deployment
@@ -85,8 +85,8 @@ spec:
             - -c
             - >
               sleep 20 &&
-              npm install -g underpost
-              underpost secret underpost --create-from-file /etc/config/.env.${env}
+              npm install -g underpost &&
+              underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost dockerfile-node-script --build --run ${deployId} ${env}
           volumeMounts:
             - name: config-volume

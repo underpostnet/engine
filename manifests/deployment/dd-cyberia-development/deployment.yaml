@@ -22,8 +22,8 @@ spec:
             - -c
             - >
               sleep 20 &&
-              npm install -g underpost
-              underpost secret underpost --create-from-file /etc/config/.env.development
+              npm install -g underpost &&
+              underpost secret underpost --create-from-file /etc/config/.env.development &&
               underpost dockerfile-node-script --build --run dd-cyberia development
           volumeMounts:
             - name: config-volume
