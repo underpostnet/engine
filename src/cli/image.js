@@ -69,13 +69,6 @@ class UnderpostImage {
             if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
         }
         switch (deployId) {
-          case 'dd-lampp':
-            {
-              const lamppPublicPath = '/xampp/htdocs/online';
-              shellExec(`sudo mkdir -p ${lamppPublicPath}`);
-            }
-            break;
-
           default:
             {
               {

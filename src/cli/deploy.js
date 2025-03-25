@@ -50,7 +50,7 @@ class UnderpostDeploy {
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
 
         logger.info('port range', { deployId, fromPort, toPort });
-
+        // const customImg = `underpost-engine:${version && typeof version === 'string' ? version : Underpost.version}`;
         const deploymentYamlParts = `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -69,7 +69,12 @@ spec:
     spec:
       containers:
         - name: ${deployId}-${env}
-          image: localhost/underpost-engine:${version && typeof version === 'string' ? version : Underpost.version}
+          image: localhost/debian:underpost
+          command:
+            - /bin/sh
+            - -c
+            - >
+              underpost dockerfile-node-script --build --run ${deployId} ${env}
           lifecycle:
             postStart:
               exec:
@@ -77,11 +82,9 @@ spec:
                   - /bin/sh
                   - -c
                   - >
-                    sleep 60 &&
+                    sleep 20 &&
                     npm install -g underpost
                     underpost secret underpost --create-from-file /etc/config/.env.${env}
-                    underpost config set deploy-id ${deployId} &&
-                    underpost config set deploy-env ${env}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config
