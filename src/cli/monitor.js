@@ -29,7 +29,8 @@ class UnderpostMonitor {
           .reduce((accumulator, value) => accumulator + value, 0);
 
         const monitor = async () => {
-          if (UnderpostRootEnv.API.get('running-job')) return;
+          await timer(30000);
+          if (UnderpostRootEnv.API.get('running-job')) return await monitor();
           for (const host of Object.keys(pathPortAssignmentData)) {
             for (const instance of pathPortAssignmentData[host]) {
               const { port, path } = instance;
@@ -56,7 +57,6 @@ class UnderpostMonitor {
               });
             }
           }
-          await timer(30000);
           await monitor();
         };
         await monitor();

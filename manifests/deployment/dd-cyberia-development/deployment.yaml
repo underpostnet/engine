@@ -36,7 +36,7 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-cyberia-development:v2.8.622
+# image: localhost/dd-cyberia-development:v2.8.635
 ---
 apiVersion: v1
 kind: Service

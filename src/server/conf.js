@@ -526,11 +526,11 @@ const pathPortAssignmentFactory = (router, confServer) => {
   return pathPortAssignmentData;
 };
 
-const deployRangePortFactory = async (router) => {
+const deployRangePortFactory = (router) => {
   const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
   const fromPort = Math.min(...ports);
   const toPort = Math.max(...ports);
-  return { port, fromPort, toPort };
+  return { ports, fromPort, toPort };
 };
 
 const buildKindPorts = (from, to) =>

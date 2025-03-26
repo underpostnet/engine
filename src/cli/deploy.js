@@ -38,13 +38,13 @@ class UnderpostDeploy {
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
-        const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
-        const { fromPort, toPort } = deployRangePortFactory(router);
         const confServer = loadReplicas(
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
           'proxy',
         );
+        const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+        const { fromPort, toPort } = deployRangePortFactory(router);
 
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
