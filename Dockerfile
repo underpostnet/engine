@@ -1,10 +1,10 @@
 ARG BASE_DEBIAN=buster
 
+USER root
+
 FROM debian:${BASE_DEBIAN}
 
 ENV DEBIAN_FRONTEND=noninteractive
-
-WORKDIR /home/dd
 
 # Set root password to root, format is 'user:password'.
 RUN echo 'root:root' | chpasswd
@@ -25,9 +25,6 @@ RUN mkdir -p /var/run/sshd
 # Allow root login via password
 RUN sed -ri 's/#PermitRootLogin prohibit-password/PermitRootLogin yes/g' /etc/ssh/sshd_config
 
-# copy supervisor config file to start openssh-server
-COPY supervisord-openssh-server.conf /etc/supervisor/conf.d/supervisord-openssh-server.conf
-
 # install open ssl git and others tools
 RUN apt-get install -yq --no-install-recommends libssl-dev curl wget git gnupg
 
@@ -37,12 +34,14 @@ RUN apt-get install -y nodejs build-essential
 RUN node --version
 RUN npm --version
 
-RUN npm install -g underpost
-
-VOLUME [ "/home/dd/engine/logs" ]
+WORKDIR /home/dd
 
 EXPOSE 22
 
-EXPOSE 4000-4004
+EXPOSE 80
 
-CMD [ "underpost", "new", "service" ]
+EXPOSE 443
+
+EXPOSE 3000-3100
+
+EXPOSE 4000-4100

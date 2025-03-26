@@ -6,8 +6,6 @@ FROM debian:${BASE_DEBIAN}
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-WORKDIR /home/dd
-
 # Set root password to root, format is 'user:password'.
 RUN echo 'root:root' | chpasswd
 
@@ -54,32 +52,14 @@ RUN apt-get install -y nodejs build-essential
 RUN node --version
 RUN npm --version
 
-RUN npm install -g underpost
-
-COPY ./.env.underpost ./.env.underpost
-
-RUN underpost secret underpost --create-from-file ./.env.underpost
-
-RUN sudo rm -rf ./.env.underpost
-
-RUN underpost clone underpostnet/engine-lampp
-
-RUN sudo mv ./engine-lampp ./engine
-
-WORKDIR /home/dd/engine
-
-RUN underpost clone underpostnet/engine-lampp-private
-
-RUN sudo mv ./engine-lampp-private ./engine-private
-
-RUN npm install
-
-RUN underpost dockerfile-node-script dd-lampp development
-
-VOLUME [ "/home/dd/engine/logs" ]
+WORKDIR /home/dd
 
 EXPOSE 22
 
-EXPOSE 4001-4004
+EXPOSE 80
 
-CMD [ "npm", "run", "dev-img", "dd-lampp", "deploy" ]
+EXPOSE 443
+
+EXPOSE 3000-3100
+
+EXPOSE 4000-4100

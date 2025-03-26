@@ -176,7 +176,7 @@ const { DefaultConf } = await import(`../conf.${confName}.js`);
   if (!fs.existsSync(`${basePath}/images`)) fs.mkdirSync(`${basePath}/images`);
 
   const env = process.argv.includes('development') ? 'development' : 'production';
-  const deploymentsFiles = ['Dockerfile', 'proxy.yaml', 'deployment.yaml', 'secret.yaml'];
+  const deploymentsFiles = ['proxy.yaml', 'deployment.yaml', 'secret.yaml'];
   // remove engine-private of .dockerignore for local testing
   for (const file of deploymentsFiles) {
     if (fs.existsSync(`./manifests/deployment/${confName}-${env}/${file}`)) {

@@ -135,13 +135,15 @@ program
 
 program
   .command('dockerfile-image-build')
-  .argument('<deploy-id>', 'Deploy configuration id')
-  .argument('[env]', 'Optional environment, for default is development')
-  .argument('[path]', 'Absolute or relative directory, for default is current')
-  .option('--image-archive', 'Only load tar image from ./images')
-  .option('--podman-save', 'Save image from podman to ./images')
-  .option('--image-name <image-name>', 'Set custom image name')
-  .option('--image-version <image-version>', 'Set custom image version')
+  .option('--path [path]', 'Dockerfile path')
+  .option('--image-name [image-name]', 'Set image name')
+  .option('--image-path [image-path]', 'Set tar image path')
+  .option('--dockerfile-name [dockerfile-name]', 'set Dockerfile name')
+  .option('--podman-save', 'Export tar file from podman')
+  .option('--kind-load', 'Import tar image to Kind cluster')
+  .option('--secrets', 'Dockerfile env secrets')
+  .option('--secrets-path [secrets-path]', 'Dockerfile custom path env secrets')
+  .option('--no-cache', 'Build without using cache')
   .description('Build image from Dockerfile')
   .action(Underpost.image.dockerfile.build);
 
@@ -224,8 +226,10 @@ program
   .command('monitor')
   .argument('<deploy-id>', 'Deploy configuration id')
   .argument('[env]', 'Optional environment, for default is development')
+  .option('--ms-interval <ms-interval>', 'Custom ms interval delta time')
+  .option('--now', 'Exec immediately monitor script')
+  .option('--single', 'Disable recurrence')
   .description('Monitor health server management')
-  .option('--itc', 'Inside container execution context')
   .action(Underpost.monitor.callback);
 
 program.parse();

@@ -18,41 +18,49 @@ class UnderpostImage {
         shellExec(`sudo podman pull docker.io/library/debian:buster`);
       },
       build(
-        deployId = 'default',
-        env = 'development',
-        path = '.',
-        options = { imageArchive: false, podmanSave: false, imageName: '', imageVersion: '' },
+        options = {
+          path: '',
+          imageName: '',
+          imagePath: '',
+          dockerfileName: '',
+          podmanSave: false,
+          kindLoad: false,
+          secrets: false,
+          secretsPath: '',
+          noCache: false,
+        },
       ) {
-        const imgName = `${
-          options.imageName && typeof options.imageName === 'string' ? options.imageName : `${deployId}-${env}`
-        }:${
-          options.imageVersion && typeof options.imageVersion === 'string' ? options.imageVersion : Underpost.version
-        }`;
-        const podManImg = `localhost/${imgName}`;
-        const imagesStoragePath = `/images`;
-        if (!fs.existsSync(`${path}${imagesStoragePath}`))
-          fs.mkdirSync(`${path}${imagesStoragePath}`, { recursive: true });
-        const tarFile = `.${imagesStoragePath}/${imgName.replace(':', '_')}.tar`;
-
-        let secrets = ' ';
+        const { path, imageName, imagePath, dockerfileName, podmanSave, secrets, secretsPath, kindLoad, noCache } =
+          options;
+        const podManImg = `localhost/${imageName}`;
+        if (imagePath && typeof imagePath === 'string' && !fs.existsSync(imagePath))
+          fs.mkdirSync(imagePath, { recursive: true });
+        const tarFile = `${imagePath}/${imageName.replace(':', '_')}.tar`;
+        let secretsInput = ' ';
         let secretDockerInput = '';
-
-        const envObj = dotenv.parse(fs.readFileSync(`${getNpmRootPath()}/underpost/.env`, 'utf8'));
-
-        for (const key of Object.keys(envObj)) {
-          continue;
-          secrets += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
-          secretDockerInput += ` --secret id=${key},env=${key} \ `;
-        }
-        // --rm --no-cache
-        if (options.imageArchive !== true) {
-          shellExec(
-            `cd ${path}${secrets}&& sudo podman build -f ./Dockerfile -t ${imgName} --pull=never --cap-add=CAP_AUDIT_WRITE${secretDockerInput}`,
+        let cache = '';
+        if (secrets === true) {
+          const envObj = dotenv.parse(
+            fs.readFileSync(
+              secretsPath && typeof secretsPath === 'string' ? secretsPath : `${getNpmRootPath()}/underpost/.env`,
+              'utf8',
+            ),
           );
+          for (const key of Object.keys(envObj)) {
+            secretsInput += ` && export ${key}="${envObj[key]}" `; // $(cat gitlab-token.txt)
+            secretDockerInput += ` --secret id=${key},env=${key} \ `;
+          }
         }
-        if (options.imageArchive !== true || options.podmanSave === true)
-          shellExec(`cd ${path} && podman save -o ${tarFile} ${podManImg}`);
-        shellExec(`cd ${path} && sudo kind load image-archive ${tarFile}`);
+        if (noCache === true) cache += ' --rm --no-cache';
+        if (path && typeof path === 'string')
+          shellExec(
+            `cd ${path}${secretsInput}&& sudo podman build -f ./${
+              dockerfileName && typeof dockerfileName === 'string' ? dockerfileName : 'Dockerfile'
+            } -t ${imageName} --pull=never --cap-add=CAP_AUDIT_WRITE${cache}${secretDockerInput}`,
+          );
+
+        if (podmanSave === true) shellExec(`podman save -o ${tarFile} ${podManImg}`);
+        if (kindLoad === true) shellExec(`sudo kind load image-archive ${tarFile}`);
       },
       async script(deployId = 'default', env = 'development', options = { run: false, build: false }) {
         if (options.build === true) {
