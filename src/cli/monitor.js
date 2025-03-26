@@ -27,7 +27,6 @@ class UnderpostMonitor {
         const maxAttempts = Object.keys(pathPortAssignmentData)
           .map((host) => pathPortAssignmentData[host].length)
           .reduce((accumulator, value) => accumulator + value, 0);
-        console.log({ maxAttempts });
 
         const monitor = async () => {
           if (UnderpostRootEnv.API.get('running-job')) return;

@@ -110,6 +110,7 @@ class UnderpostImage {
           if (fs.existsSync(`./engine-private/replica`)) {
             const replicas = await fs.readdir(`./engine-private/replica`);
             for (const replica of replicas) {
+              if (!replica.match(deployId)) continue;
               shellExec(`node bin/deploy conf ${replica} ${env}`);
               shellExec(`npm ${runCmd} deploy deploy-id:${replica}`, { async: true });
               await awaitDeployMonitor(true);
