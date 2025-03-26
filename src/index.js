@@ -11,6 +11,7 @@ import UnderpostDeploy from './cli/deploy.js';
 import UnderpostRootEnv from './cli/env.js';
 import UnderpostFileStorage from './cli/fs.js';
 import UnderpostImage from './cli/image.js';
+import UnderpostMonitor from './cli/monitor.js';
 import UnderpostRepository from './cli/repository.js';
 import UnderpostScript from './cli/script.js';
 import UnderpostSecret from './cli/secrets.js';
@@ -106,6 +107,13 @@ class Underpost {
    * @memberof UnderpostFileStorage
    */
   static fs = UnderpostFileStorage.API;
+  /**
+   * Monitor cli API
+   * @static
+   * @type {UnderpostMonitor.API}
+   * @memberof UnderpostMonitor
+   */
+  static monitor = UnderpostMonitor.API;
 }
 
 const up = Underpost;

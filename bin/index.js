@@ -220,4 +220,12 @@ program
   .option('--kind-type <kind-type>')
   .action(Underpost.test.callback);
 
+program
+  .command('monitor')
+  .argument('<deploy-id>', 'Deploy configuration id')
+  .argument('[env]', 'Optional environment, for default is development')
+  .description('Monitor health server management')
+  .option('--itc', 'Inside container execution context')
+  .action(Underpost.monitor.callback);
+
 program.parse();

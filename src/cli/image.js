@@ -2,10 +2,10 @@ import fs from 'fs-extra';
 import Underpost from '../index.js';
 import { shellCd, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
-import { getNpmRootPath } from '../server/conf.js';
+import { awaitDeployMonitor, getNpmRootPath } from '../server/conf.js';
 import { timer } from '../client/components/core/CommonJs.js';
-import UnderpostRootEnv from './env.js';
 import { loggerFactory } from '../server/logger.js';
+import UnderpostMonitor from './monitor.js';
 
 dotenv.config();
 
@@ -69,42 +69,42 @@ class UnderpostImage {
             for (const itcScript of itcScripts)
               if (itcScript.match(deployId)) shellExec(`node ./engine-private/itc-scripts/${itcScript}`);
           }
-        }
-        switch (deployId) {
-          default:
-            {
+          switch (deployId) {
+            default:
               {
-                const originPath = `./src/db/mongo/MongooseDB.js`;
-                fs.writeFileSync(
-                  originPath,
-                  fs.readFileSync(originPath, 'utf8').replaceAll(
-                    `connect: async (host, name) => {`,
-                    `connect: async (host, name) => {
+                {
+                  const originPath = `./src/db/mongo/MongooseDB.js`;
+                  fs.writeFileSync(
+                    originPath,
+                    fs.readFileSync(originPath, 'utf8').replaceAll(
+                      `connect: async (host, name) => {`,
+                      `connect: async (host, name) => {
     host = 'mongodb://mongodb-0.mongodb-service:27017';
-        `,
-                  ),
-                  'utf8',
-                );
-              }
+          `,
+                    ),
+                    'utf8',
+                  );
+                }
 
-              {
-                const originPath = `./src/server/valkey.js`;
-                fs.writeFileSync(
-                  originPath,
-                  fs.readFileSync(originPath, 'utf8').replaceAll(
-                    `    // port: 6379,
+                {
+                  const originPath = `./src/server/valkey.js`;
+                  fs.writeFileSync(
+                    originPath,
+                    fs.readFileSync(originPath, 'utf8').replaceAll(
+                      `    // port: 6379,
     // host: 'service-valkey.default.svc.cluster.local',`,
-                    `     port: 6379,
+                      `     port: 6379,
     host: 'service-valkey.default.svc.cluster.local',`,
-                  ),
-                  'utf8',
-                );
+                    ),
+                    'utf8',
+                  );
+                }
               }
-            }
-            break;
+              break;
+          }
+          shellExec(`node bin/deploy conf ${deployId} ${env}`);
+          shellExec(`node bin/deploy build-full-client ${deployId}`);
         }
-        shellExec(`node bin/deploy conf ${deployId} ${env}`);
-        shellExec(`node bin/deploy build-full-client ${deployId}`);
         if (options.run === true) {
           const runCmd = env === 'production' ? 'run prod-img' : 'run dev-img';
           if (fs.existsSync(`./engine-private/replica`)) {
@@ -112,16 +112,13 @@ class UnderpostImage {
             for (const replica of replicas) {
               shellExec(`node bin/deploy conf ${replica} ${env}`);
               shellExec(`npm ${runCmd} deploy deploy-id:${replica}`, { async: true });
-              fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
-              const monitor = async () => {
-                await timer(1000);
-                if (fs.existsSync(`./tmp/await-deploy`)) return await monitor();
-              };
-              await monitor();
+              await awaitDeployMonitor(true);
             }
-            shellExec(`node bin/deploy conf ${deployId} ${env}`);
           }
-          shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`);
+          shellExec(`node bin/deploy conf ${deployId} ${env}`);
+          shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`, { async: true });
+          await awaitDeployMonitor(true);
+          await UnderpostMonitor.API.callback(deployId, env, { itc: true });
         }
       },
     },

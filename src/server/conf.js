@@ -499,6 +499,40 @@ const buildProxyRouter = () => {
   return proxyRouter;
 };
 
+const pathPortAssignmentFactory = (router, confServer) => {
+  const pathPortAssignmentData = {};
+  for (const host of Object.keys(confServer)) {
+    const pathPortAssignment = [];
+    for (const path of Object.keys(confServer[host])) {
+      const { peer } = confServer[host][path];
+      if (!router[`${host}${path === '/' ? '' : path}`]) continue;
+      const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
+      // logger.info('', { host, port, path });
+      pathPortAssignment.push({
+        port,
+        path,
+      });
+
+      if (peer) {
+        //  logger.info('', { host, port: port + 1, path: '/peer' });
+        pathPortAssignment.push({
+          port: port + 1,
+          path: '/peer',
+        });
+      }
+    }
+    pathPortAssignmentData[host] = pathPortAssignment;
+  }
+  return pathPortAssignmentData;
+};
+
+const deployRangePortFactory = async (router) => {
+  const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
+  const fromPort = Math.min(...ports);
+  const toPort = Math.max(...ports);
+  return { port, fromPort, toPort };
+};
+
 const buildKindPorts = (from, to) =>
   range(parseInt(from), parseInt(to))
     .map(
@@ -729,7 +763,7 @@ const validateTemplatePath = (absolutePath = '') => {
   return true;
 };
 
-const deployTest = async (dataDeploy) => {
+const deployTest = async (dataDeploy = [{ deployId: 'default' }]) => {
   const failed = [];
   for (const deploy of dataDeploy) {
     const deployServerConfPath = fs.existsSync(`./engine-private/replica/${deploy.deployId}/conf.server.json`)
@@ -771,6 +805,12 @@ const deployTest = async (dataDeploy) => {
     if (fail) failed.push(deploy);
   }
   return { failed };
+};
+
+const awaitDeployMonitor = async (init = false, deltaMs = 1000) => {
+  if (init) fs.writeFileSync(`./tmp/await-deploy`, '', 'utf8');
+  await timer(deltaMs);
+  if (fs.existsSync(`./tmp/await-deploy`)) return await awaitDeployMonitor();
 };
 
 const getDeployGroupId = () => {
@@ -1122,4 +1162,8 @@ export {
   getNpmRootPath,
   getUnderpostRootPath,
   writeEnv,
+  deployTest,
+  pathPortAssignmentFactory,
+  deployRangePortFactory,
+  awaitDeployMonitor,
 };

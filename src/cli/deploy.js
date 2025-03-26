@@ -3,8 +3,10 @@ import {
   buildPortProxyRouter,
   buildProxyRouter,
   Config,
+  deployRangePortFactory,
   getDataDeploy,
   loadReplicas,
+  pathPortAssignmentFactory,
 } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
@@ -36,11 +38,9 @@ class UnderpostDeploy {
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
-
         const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-        const ports = Object.values(router).map((p) => parseInt(p.split(':')[2]));
-        const fromPort = Math.min(...ports);
-        const toPort = Math.max(...ports);
+        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+        const { fromPort, toPort } = deployRangePortFactory(router);
         const confServer = loadReplicas(
           JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
           'proxy',
@@ -141,27 +141,8 @@ spec:
     kind: ClusterIssuer
   secretName: ${host}`;
 
-          const pathPortConditions = [];
-          for (const path of Object.keys(confServer[host])) {
-            const { peer } = confServer[host][path];
-            if (!router[`${host}${path === '/' ? '' : path}`]) continue;
-            const port = parseInt(router[`${host}${path === '/' ? '' : path}`].split(':')[2]);
-            // logger.info('', { host, port, path });
-            pathPortConditions.push({
-              port,
-              path,
-            });
-
-            if (peer) {
-              //  logger.info('', { host, port: port + 1, path: '/peer' });
-              pathPortConditions.push({
-                port: port + 1,
-                path: '/peer',
-              });
-            }
-          }
-
-          // logger.info('', { host, pathPortConditions });
+          const pathPortAssignment = pathPortAssignmentData[host];
+          // logger.info('', { host, pathPortAssignment });
           proxyYaml += `
 ---
 apiVersion: projectcontour.io/v1
@@ -178,7 +159,7 @@ spec:
       secretName: ${host}`
           }
   routes:`;
-          for (const conditionObj of pathPortConditions) {
+          for (const conditionObj of pathPortAssignment) {
             const { path, port } = conditionObj;
             proxyYaml += `
     - conditions:
