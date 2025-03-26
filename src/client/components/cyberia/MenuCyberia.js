@@ -217,6 +217,7 @@ const MenuCyberia = {
         'element-interaction-panel',
         'menu-interaction-panel',
         'quest-interaction-panel',
+        'notification-interaction-panel',
       ],
       onCollapseMenu,
       onExtendMenu,

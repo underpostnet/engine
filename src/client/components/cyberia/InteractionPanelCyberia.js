@@ -351,6 +351,7 @@ const InteractionPanelCyberia = {
       // border: '1px solid red',
       'box-sizing': 'border-box',
     };
+    let containerClass;
     let render = async () => html`${id}`;
     let restorePosition = () => null;
     switch (id) {
@@ -620,6 +621,17 @@ const InteractionPanelCyberia = {
           };
         }
         break;
+
+      case 'notification-interaction-panel': {
+        style.top = '5px';
+        style.left = '10px';
+        style.height = `${100}px`;
+        style.width = `${250}px`;
+        style.background = ``;
+        containerClass = 'hide';
+        render = async () => html` test `;
+        break;
+      }
       case 'element-interaction-panel':
         restorePosition = (style = {}) => {
           style.top = `${110}px`;
@@ -776,6 +788,7 @@ const InteractionPanelCyberia = {
       btnContainerClass: 'inl',
       btnIconContainerClass: 'abs center',
       zIndexSync: true,
+      class: containerClass,
     });
 
     if (id !== 'menu-interaction-panel') {
@@ -1001,7 +1014,12 @@ const InteractionPanelCyberia = {
     }
   },
   mobileSingleInstance: function (id) {
-    for (const idModal of ['map-interaction-panel', 'quest-interaction-panel', 'element-interaction-panel']) {
+    for (const idModal of [
+      'map-interaction-panel',
+      'quest-interaction-panel',
+      'element-interaction-panel',
+      // 'notification-interaction-panel',
+    ]) {
       if (idModal !== id && s(`.${idModal}`)) {
         s(`.btn-close-${idModal}`).click();
       }
