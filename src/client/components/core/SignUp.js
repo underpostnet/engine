@@ -63,7 +63,7 @@ const SignUp = {
     });
     return html`
       ${await BtnIcon.Render({
-        class: 'section-mp form-button btn-sign-up-i-have-account',
+        class: 'in section-mp form-button btn-sign-up-i-have-account',
         label: html`<i class="fas fa-sign-in-alt"></i> ${Translate.Render('i-have-account')}<br />${Translate.Render(
             'log-in',
           )}`,
@@ -112,7 +112,7 @@ const SignUp = {
         ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-sign-up',
+            class: 'in section-mp form-button btn-sign-up',
             label: Translate.Render('sign-up'),
             type: 'submit',
           })}

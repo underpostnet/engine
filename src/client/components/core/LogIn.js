@@ -135,7 +135,7 @@ const LogIn = {
     return html`
       <div class="in">
         ${await BtnIcon.Render({
-          class: 'section-mp form-button btn-log-in-i-not-have-account',
+          class: 'in section-mp form-button btn-log-in-i-not-have-account',
           label: html`<i class="fas fa-user-plus"></i> ${Translate.Render(`i-not-have-account`)}
             <br />
             ${Translate.Render(`sign-up`)}`,
@@ -165,7 +165,7 @@ const LogIn = {
         </div>
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-log-in-forgot-password',
+            class: 'in section-mp form-button btn-log-in-forgot-password',
             label: html`<i class="fas fa-question-circle"></i> ${Translate.Render(`forgot-password`)}`,
             type: 'button',
           })}
@@ -181,7 +181,7 @@ const LogIn = {
 
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-log-in',
+            class: 'in section-mp form-button btn-log-in',
             label: Translate.Render('log-in'),
             type: 'submit',
           })}

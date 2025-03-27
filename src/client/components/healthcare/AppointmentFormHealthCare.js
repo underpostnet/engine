@@ -240,7 +240,7 @@ const AppointmentFormHealthcare = {
         </div>
         <div class="in">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-healthcare-appointment',
+            class: 'in section-mp form-button btn-healthcare-appointment',
             label: Translate.Render('healthcare-appointment'),
             type: 'submit',
           })}

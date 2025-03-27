@@ -38,7 +38,7 @@ class UnderpostFileStorage {
       options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
     ) {
       const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
-      const deleteFiles = UnderpostRepository.API.getDeleteFiles(path);
+      const deleteFiles = options.pull === true ? [] : UnderpostRepository.API.getDeleteFiles(path);
       for (const relativePath of deleteFiles) {
         const _path = path + '/' + relativePath;
         if (_path in storage) {
@@ -46,10 +46,6 @@ class UnderpostFileStorage {
           delete storage[_path];
         }
       }
-      const files =
-        options.git === true
-          ? UnderpostRepository.API.getChangedFiles(path)
-          : await fs.readdir(path, { recursive: true });
       if (options.pull === true) {
         for (const _path of Object.keys(storage)) {
           if (!fs.existsSync(_path) || options.force === true) {
@@ -57,7 +53,11 @@ class UnderpostFileStorage {
             await UnderpostFileStorage.API.pull(_path, options);
           } else logger.warn(`Pull path already exists`, _path);
         }
-      } else
+      } else {
+        const files =
+          options.git === true
+            ? UnderpostRepository.API.getChangedFiles(path)
+            : await fs.readdir(path, { recursive: true });
         for (const relativePath of files) {
           const _path = path + '/' + relativePath;
           if (fs.statSync(_path).isDirectory()) {
@@ -68,6 +68,7 @@ class UnderpostFileStorage {
             if (storage) storage[_path] = {};
           } else logger.warn('File already exists', _path);
         }
+      }
       UnderpostFileStorage.API.writeStorageConf(storage, storageConf);
       if (options.git === true) {
         shellExec(`cd ${path} && git add .`);

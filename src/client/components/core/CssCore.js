@@ -396,7 +396,8 @@ const CssCoreDark = {
           text-align: center;
           background: #1a1a1a;
           font-size: 17px;
-          height: 35px;
+          height: 30px;
+          padding: 5px 0px 5px 0px;
         }
         ::placeholder {
           color: #c6c4c4;
@@ -494,6 +495,7 @@ const CssCoreDark = {
           font-size: 20px;
           padding: 10px;
           text-align: center;
+          min-height: 45px;
         }
         .drop-zone-file-explorer {
           min-height: 300px;
@@ -700,7 +702,8 @@ const CssCoreLight = {
           text-align: center;
           background: #eaeaea;
           font-size: 17px;
-          height: 35px;
+          height: 30px;
+          padding: 5px 0px 5px 0px;
         }
         ::placeholder {
           color: #333;
@@ -800,6 +803,7 @@ const CssCoreLight = {
           font-size: 20px;
           padding: 10px;
           text-align: center;
+          min-height: 45px;
         }
         .input-container-width {
           cursor: pointer;

@@ -133,6 +133,8 @@ SrrComponent = ({ title, ssrPath, buildId, ssrHeadComponents, ssrBodyComponents,
           border: none;
           padding-block: 0;
           padding-inline: 0;
+          height: 30px;
+          line-height: 30px;
         }
         input::file-selector-button {
           outline: none !important;

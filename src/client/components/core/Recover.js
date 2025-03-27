@@ -126,7 +126,7 @@ const Recover = {
     });
     return html`
       ${await BtnIcon.Render({
-        class: 'section-mp form-button btn-recover-log-in hide',
+        class: 'in section-mp form-button btn-recover-log-in hide',
         label: Translate.Render('log-in'),
         type: 'button',
       })}
@@ -181,7 +181,7 @@ const Recover = {
         ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in recover-send-btn-container">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-recover',
+            class: 'in section-mp form-button btn-recover',
             label: Translate.Render(mode === 'recover-verify-email' ? 'send-recover-verify-email' : 'change-password'),
             type: 'button',
           })}
@@ -191,7 +191,7 @@ const Recover = {
             <i class="fa-solid fa-triangle-exclamation"></i> ${Translate.Render('15-min-valid-recover-email')}
           </div>
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-recover-resend',
+            class: 'in section-mp form-button btn-recover-resend',
             label: html`${Translate.Render('resend')} ${Translate.Render('recover-verify-email')}`,
             type: 'submit',
           })}

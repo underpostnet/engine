@@ -682,7 +682,8 @@ const CssCyberiaDark = {
             background: #191919;
             color: #717171;
             text-align: center;
-            height: 38.5px;
+            height: 30px;
+            padding: 5px 0px 5px 0px;
           }
           .btn-bar-modal-container {
             text-align: right;
@@ -744,6 +745,7 @@ const CssCyberiaDark = {
             font-size: 20px;
             padding: 10px;
             text-align: center;
+            min-height: 45px;
           }
           .drop-zone-file-explorer {
             min-height: 300px;

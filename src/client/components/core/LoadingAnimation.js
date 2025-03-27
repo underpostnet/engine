@@ -75,28 +75,12 @@ const LoadingAnimation = {
       const style = {
         'text-align': 'center',
       };
-      if (s(container).classList) {
-        const classes = Array.from(s(container).classList);
-        if (classes.find((e) => e.match('management-table-btn-mini'))) {
-          style.top = '-2px';
-          style.left = '-2px';
-        } else if (classes.find((e) => e.match('-btn-tool'))) {
-          style.top = '-26px';
-          style.left = '-10px';
-        } else if (classes.find((e) => e.match('main-btn-')) && !classes.find((e) => e.match('main-btn-square-menu'))) {
-          style.top = '-8px';
-          style.left = '-10px';
-        } else if (classes.find((e) => e.match('action-bar-box'))) {
-          style.top = '-30px';
-          style.left = '-12px';
-        }
-      }
 
       append(
         container,
         html`
           <div
-            class="in ${id}"
+            class="abs center ${id}"
             style="${renderCssAttr({
               style,
             })}"

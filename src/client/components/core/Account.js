@@ -252,7 +252,7 @@ const Account = {
         ${options?.bottomRender ? await options.bottomRender() : ``}
         <div class="in hide">
           ${await BtnIcon.Render({
-            class: 'section-mp form-button btn-account',
+            class: 'in section-mp form-button btn-account',
             label: Translate.Render('update'),
             type: 'submit',
           })}
@@ -260,13 +260,13 @@ const Account = {
       </form>
       <div class="in">
         ${await BtnIcon.Render({
-          class: 'section-mp form-button btn-account-delete hide',
+          class: 'in section-mp form-button btn-account-delete hide',
           label: html` ${Translate.Render(`delete-account`)}`,
           type: 'button',
           style: 'color: #5f5f5f',
         })}
         ${await BtnIcon.Render({
-          class: 'section-mp form-button btn-account-delete-confirm',
+          class: 'in section-mp form-button btn-account-delete-confirm',
           label: html` ${Translate.Render(`delete-account`)}`,
           type: 'button',
           style: 'color: #5f5f5f',

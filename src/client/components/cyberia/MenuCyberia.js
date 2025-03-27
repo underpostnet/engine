@@ -400,7 +400,7 @@ const MenuCyberia = {
               });
               return html` <div class="in">
                 ${await BtnIcon.Render({
-                  class: 'section-mp form-button btn-account-log-out',
+                  class: 'in section-mp form-button btn-account-log-out',
                   label: Translate.Render('log-out'),
                   type: 'button',
                 })}
