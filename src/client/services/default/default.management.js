@@ -80,36 +80,40 @@ const DefaultManagement = {
             class: `in fll section-mp management-table-btn-mini management-table-btn-remove-${id}-${cellRenderId}`,
           })}`;
           setTimeout(() => {
-            EventsUI.onClick(`.management-table-btn-remove-${id}-${cellRenderId}`, async () => {
-              const confirmResult = await Modal.RenderConfirm({
-                html: async () => {
-                  return html`
-                    <div class="in section-mp" style="text-align: center">
-                      ${Translate.Render('confirm-delete-item')}
-                      ${Object.keys(params.data).length > 0
-                        ? html`<br />
-                            "${options.defaultColKeyFocus
-                              ? getValueFromJoinString(params.data, options.defaultColKeyFocus)
-                              : params.data[Object.keys(params.data)[0]]}"`
-                        : ''}
-                    </div>
-                  `;
-                },
-                id: `delete-${params.data._id}`,
-              });
-              if (confirmResult.status !== 'confirm') return;
-              let result;
-              if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
-              else result = { status: 'success' };
+            EventsUI.onClick(
+              `.management-table-btn-remove-${id}-${cellRenderId}`,
+              async () => {
+                const confirmResult = await Modal.RenderConfirm({
+                  html: async () => {
+                    return html`
+                      <div class="in section-mp" style="text-align: center">
+                        ${Translate.Render('confirm-delete-item')}
+                        ${Object.keys(params.data).length > 0
+                          ? html`<br />
+                              "${options.defaultColKeyFocus
+                                ? getValueFromJoinString(params.data, options.defaultColKeyFocus)
+                                : params.data[Object.keys(params.data)[0]]}"`
+                          : ''}
+                      </div>
+                    `;
+                  },
+                  id: `delete-${params.data._id}`,
+                });
+                if (confirmResult.status !== 'confirm') return;
+                let result;
+                if (params.data._id) result = await ServiceProvider.delete({ id: params.data._id });
+                else result = { status: 'success' };
 
-              NotificationManager.Push({
-                html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
-                status: result.status,
-              });
-              if (result.status === 'success') {
-                AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
-              }
-            });
+                NotificationManager.Push({
+                  html: result.status === 'error' ? result.message : Translate.Render('item-success-delete'),
+                  status: result.status,
+                });
+                if (result.status === 'success') {
+                  AgGrid.grids[gridId].applyTransaction({ remove: [params.data] });
+                }
+              },
+              { context: 'modal' },
+            );
           });
         }
 
@@ -220,16 +224,19 @@ const DefaultManagement = {
         });
       });
       EventsUI.onClick(`.management-table-btn-clean-${id}`, async () => {
-        const confirmResult = await Modal.RenderConfirm({
-          html: async () => {
-            return html`
-              <div class="in section-mp" style="text-align: center;">
-                <strong>${Translate.Render('confirm-delete-all-data')}</strong>
-              </div>
-            `;
+        const confirmResult = await Modal.RenderConfirm(
+          {
+            html: async () => {
+              return html`
+                <div class="in section-mp" style="text-align: center;">
+                  <strong>${Translate.Render('confirm-delete-all-data')}</strong>
+                </div>
+              `;
+            },
+            id: `clean-table-${id}`,
           },
-          id: `clean-table-${id}`,
-        });
+          { context: 'modal' },
+        );
         if (confirmResult.status === 'cancelled') return;
         const result = await ServiceProvider.delete();
         NotificationManager.Push({

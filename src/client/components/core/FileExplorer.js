@@ -323,50 +323,54 @@ const FileExplorer = {
 
             downloadFile(new Blob([new Uint8Array(file.data.data)], { type: params.data.mimetype }), params.data.name);
           });
-          EventsUI.onClick(`.btn-file-delete-${params.data._id}`, async (e) => {
-            e.preventDefault();
-            {
-              const confirmResult = await Modal.RenderConfirm({
-                html: async () => {
-                  return html`
-                    <div class="in section-mp" style="text-align: center">
-                      ${Translate.Render('confirm-delete-item')}
-                      <br />
-                      "${params.data.title}"
-                    </div>
-                  `;
-                },
-                id: `delete-${params.data._id}`,
-              });
-              if (confirmResult.status !== 'confirm') return;
+          EventsUI.onClick(
+            `.btn-file-delete-${params.data._id}`,
+            async (e) => {
+              e.preventDefault();
+              {
+                const confirmResult = await Modal.RenderConfirm({
+                  html: async () => {
+                    return html`
+                      <div class="in section-mp" style="text-align: center">
+                        ${Translate.Render('confirm-delete-item')}
+                        <br />
+                        "${params.data.title}"
+                      </div>
+                    `;
+                  },
+                  id: `delete-${params.data._id}`,
+                });
+                if (confirmResult.status !== 'confirm') return;
 
-              const { data, status, message } = await FileService.delete({
-                id: params.data.fileId,
+                const { data, status, message } = await FileService.delete({
+                  id: params.data.fileId,
+                });
+                NotificationManager.Push({
+                  html: status,
+                  status,
+                });
+                if (status === 'error') return;
+              }
+              const { data, status, message } = await DocumentService.delete({
+                id: params.data._id,
               });
               NotificationManager.Push({
                 html: status,
                 status,
               });
               if (status === 'error') return;
-            }
-            const { data, status, message } = await DocumentService.delete({
-              id: params.data._id,
-            });
-            NotificationManager.Push({
-              html: status,
-              status,
-            });
-            if (status === 'error') return;
 
-            documentInstance = documentInstance.filter((f) => f._id !== params.data._id);
-            const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
-            files = format.files;
-            folders = format.folders;
-            // AgGrid.grids[gridFileId].setGridOption('rowData', files);
-            // const selectedData = gridApi.getSelectedRows();
-            AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
-            AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-          });
+              documentInstance = documentInstance.filter((f) => f._id !== params.data._id);
+              const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
+              files = format.files;
+              folders = format.folders;
+              // AgGrid.grids[gridFileId].setGridOption('rowData', files);
+              // const selectedData = gridApi.getSelectedRows();
+              AgGrid.grids[gridFileId].applyTransaction({ remove: [params.data] });
+              AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+            },
+            { context: 'modal' },
+          );
         });
       }
 
@@ -400,49 +404,53 @@ const FileExplorer = {
         `;
 
         setTimeout(() => {
-          EventsUI.onClick(`.btn-folder-delete-${id}`, async (e) => {
-            const confirmResult = await Modal.RenderConfirm({
-              html: async () => {
-                return html`
-                  <div class="in section-mp" style="text-align: center">
-                    ${Translate.Render('confirm-delete-item')}
-                    <br />
-                    "${params.data.location}"
-                  </div>
-                `;
-              },
-              id: `delete-${id}`,
-            });
-            if (confirmResult.status !== 'confirm') return;
+          EventsUI.onClick(
+            `.btn-folder-delete-${id}`,
+            async (e) => {
+              const confirmResult = await Modal.RenderConfirm({
+                html: async () => {
+                  return html`
+                    <div class="in section-mp" style="text-align: center">
+                      ${Translate.Render('confirm-delete-item')}
+                      <br />
+                      "${params.data.location}"
+                    </div>
+                  `;
+                },
+                id: `delete-${id}`,
+              });
+              if (confirmResult.status !== 'confirm') return;
 
-            e.preventDefault();
-            const idFilesDelete = [];
-            for (const file of documentInstance.filter(
-              (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
-            )) {
-              {
-                const { data, status, message } = await FileService.delete({
-                  id: file.fileId._id,
-                });
+              e.preventDefault();
+              const idFilesDelete = [];
+              for (const file of documentInstance.filter(
+                (f) => FileExplorer.locationFormat({ f }) === params.data.location, // .startsWith(params.data.location),
+              )) {
+                {
+                  const { data, status, message } = await FileService.delete({
+                    id: file.fileId._id,
+                  });
+                }
+                {
+                  idFilesDelete.push(file._id);
+                  const { data, status, message } = await DocumentService.delete({
+                    id: file._id,
+                  });
+                }
               }
-              {
-                idFilesDelete.push(file._id);
-                const { data, status, message } = await DocumentService.delete({
-                  id: file._id,
-                });
-              }
-            }
-            NotificationManager.Push({
-              html: Translate.Render('success-delete'),
-              status: 'success',
-            });
-            documentInstance = documentInstance.filter((f) => !idFilesDelete.includes(f._id));
-            const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
-            files = format.files;
-            folders = format.folders;
-            AgGrid.grids[gridFileId].setGridOption('rowData', files);
-            AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
-          });
+              NotificationManager.Push({
+                html: Translate.Render('success-delete'),
+                status: 'success',
+              });
+              documentInstance = documentInstance.filter((f) => !idFilesDelete.includes(f._id));
+              const format = FileExplorer.documentDataFormat({ document: documentInstance, location });
+              files = format.files;
+              folders = format.folders;
+              AgGrid.grids[gridFileId].setGridOption('rowData', files);
+              AgGrid.grids[gridFolderId].setGridOption('rowData', folders);
+            },
+            { context: 'modal' },
+          );
         });
       }
 

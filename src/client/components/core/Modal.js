@@ -1737,7 +1737,7 @@ const Modal = {
         titleClass: 'hide',
         style: {
           width: '300px',
-          height: '350px',
+          height: '400px',
           overflow: 'hidden',
           'z-index': '11',
           resize: 'none',

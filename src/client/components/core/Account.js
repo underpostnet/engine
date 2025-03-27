@@ -151,23 +151,27 @@ const Account = {
           // s(`.btn-close-modal-account`).click();
           s(`.main-btn-recover`).click();
         };
-        s(`.btn-account-delete-confirm`).onclick = async (e) => {
-          e.preventDefault();
-          const confirmResult = await Modal.RenderConfirm({
-            html: async () => {
-              return html`
-                <div class="in section-mp" style="text-align: center">
-                  ${Translate.Render('confirm-delete-account')}
-                </div>
-              `;
-            },
-            id: 'delete-account-modal',
-          });
-          if (confirmResult.status === 'cancelled') return;
-          s(`.btn-account-delete-confirm`).classList.add('hide');
-          s(`.btn-account-delete`).classList.remove('hide');
-          s(`.btn-account-delete`).click();
-        };
+        EventsUI.onClick(
+          `.btn-account-delete-confirm`,
+          async (e) => {
+            e.preventDefault();
+            const confirmResult = await Modal.RenderConfirm({
+              html: async () => {
+                return html`
+                  <div class="in section-mp" style="text-align: center">
+                    ${Translate.Render('confirm-delete-account')}
+                  </div>
+                `;
+              },
+              id: 'delete-account-modal',
+            });
+            if (confirmResult.status === 'cancelled') return;
+            s(`.btn-account-delete-confirm`).classList.add('hide');
+            s(`.btn-account-delete`).classList.remove('hide');
+            s(`.btn-account-delete`).click();
+          },
+          { context: 'modal' },
+        );
         EventsUI.onClick(`.btn-account-delete`, async (e) => {
           e.preventDefault();
           const result = await UserService.delete({ id: user._id });

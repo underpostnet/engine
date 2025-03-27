@@ -16,8 +16,7 @@ const EventsUI = {
       if (complete) {
         complete = false;
         await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);
-        if (!id.match('delete') && !id.match('remove') && !id.match('clean') && !id.match('clear'))
-          await LoadingAnimation.bar.play(id);
+        if (options.context !== 'modal') await LoadingAnimation.bar.play(id);
         try {
           await logic(e);
         } catch (error) {
@@ -27,8 +26,7 @@ const EventsUI = {
             html: error?.message ? error.message : error ? error : 'Event error',
           });
         }
-        if (!id.match('delete') && !id.match('remove') && !id.match('clean') && !id.match('clear'))
-          LoadingAnimation.bar.stop(id);
+        if (options.context !== 'modal') LoadingAnimation.bar.stop(id);
         await LoadingAnimation.spinner.stop(loadingContainer ? loadingContainer : id);
         complete = true;
         return;

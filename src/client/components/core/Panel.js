@@ -89,12 +89,16 @@ const Panel = {
               htmls(`.${idPanel}-cell-col-a-${id}`, render);
             },
           });
-        EventsUI.onClick(`.${idPanel}-btn-delete-${id}`, async (e) => {
-          logger.warn('delete', obj);
-          const { status } = await options.on.remove({ e, data: obj });
-          if (status === 'error') return;
-          if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
-        });
+        EventsUI.onClick(
+          `.${idPanel}-btn-delete-${id}`,
+          async (e) => {
+            logger.warn('delete', obj);
+            const { status } = await options.on.remove({ e, data: obj });
+            if (status === 'error') return;
+            if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
+          },
+          { context: 'modal' },
+        );
         EventsUI.onClick(`.${idPanel}-btn-edit-${id}`, async () => {
           logger.warn('edit', obj);
           if (obj._id) Panel.Tokens[idPanel].editId = obj._id;
