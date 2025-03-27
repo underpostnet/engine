@@ -1,6 +1,6 @@
 ARG BASE_DEBIAN=buster
 
-USER root
+# USER root
 
 FROM debian:${BASE_DEBIAN}
 
