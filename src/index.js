@@ -104,14 +104,14 @@ class Underpost {
    * File Storage cli API
    * @static
    * @type {UnderpostFileStorage.API}
-   * @memberof UnderpostFileStorage
+   * @memberof Underpost
    */
   static fs = UnderpostFileStorage.API;
   /**
    * Monitor cli API
    * @static
    * @type {UnderpostMonitor.API}
-   * @memberof UnderpostMonitor
+   * @memberof Underpost
    */
   static monitor = UnderpostMonitor.API;
 }
