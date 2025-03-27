@@ -246,7 +246,7 @@ const Panel = {
     let render = '';
     let renderForm = html` <div class="in modal stq" style="top: 0px; z-index: 1; padding-bottom: 5px">
         ${await BtnIcon.Render({
-          class: `section-mp btn-custom btn-${idPanel}-close`,
+          class: `inl section-mp btn-custom btn-${idPanel}-close`,
           label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
           type: 'button',
         })}
@@ -404,13 +404,13 @@ const Panel = {
     }
     let renderFormBtn = html`
       ${await BtnIcon.Render({
-        class: `section-mp btn-custom btn-${idPanel}-submit`,
+        class: `inl section-mp btn-custom btn-${idPanel}-submit`,
         label: html`<span class="btn-${idPanel}-label-add"><i class="fas fa-plus"></i> ${Translate.Render('add')}</span
           ><span class="btn-${idPanel}-label-edit hide"><i class="fas fa-edit"></i> ${Translate.Render('edit')}</span>`,
         type: 'submit',
       })}
       ${await BtnIcon.Render({
-        class: `section-mp btn-custom btn-${idPanel}-clean`,
+        class: `inl section-mp btn-custom btn-${idPanel}-clean`,
         label: html`<i class="fa-solid fa-broom"></i> ${Translate.Render('clear')}`,
         type: 'button',
       })}
@@ -546,7 +546,7 @@ const Panel = {
             s(`.${btnSelector}`).onclick = () => dataBtn.onClick();
           });
         customButtonsRender += ` ${await BtnIcon.Render({
-          class: `section-mp btn-custom ${btnSelector}`,
+          class: `inl section-mp btn-custom ${btnSelector}`,
           label: dataBtn.label,
           type: 'button',
         })}`;
@@ -656,7 +656,7 @@ const Panel = {
         >
           <div class="in ${idPanel}-form-header">
             ${await BtnIcon.Render({
-              class: `section-mp btn-custom btn-${idPanel}-add ${
+              class: `inl section-mp btn-custom btn-${idPanel}-add ${
                 options?.role?.add ? (!options.role.add() ? 'hide' : '') : ''
               }`,
               label: html`<i class="fas fa-plus"></i> ${Translate.Render('add')}`,

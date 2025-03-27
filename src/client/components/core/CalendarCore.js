@@ -409,9 +409,11 @@ const CalendarCore = {
       if (delayBlock) return;
       else {
         delayBlock = true;
+        const _currentPath = `${location.pathname}${location.search}`;
         setTimeout(() => {
           delayBlock = false;
-        }, 500);
+          if (`${location.pathname}${location.search}` !== _currentPath) this.Data[options.idModal].updatePanel();
+        }, 1000);
       }
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
@@ -521,7 +523,7 @@ const CalendarCore = {
       <div class="in calendar-container hide">
         <div class="stq modal calendar-buttons-container">
           ${await BtnIcon.Render({
-            class: `section-mp btn-custom close-calendar-container flr`,
+            class: `inl section-mp btn-custom close-calendar-container flr`,
             label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
             type: 'button',
           })}

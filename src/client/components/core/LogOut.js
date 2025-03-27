@@ -47,7 +47,7 @@ const LogOut = {
     return html` <form class="in">
       <div class="in">
         ${await BtnIcon.Render({
-          class: 'section-mp btn-custom btn-log-out',
+          class: 'inl section-mp btn-custom btn-log-out',
           label: html`<i class="fa-solid fa-power-off"></i> ${Translate.Render('log-out')}`,
           type: 'submit',
         })}

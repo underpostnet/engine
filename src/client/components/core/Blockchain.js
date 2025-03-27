@@ -25,7 +25,7 @@ const BlockChainManagement = {
                 placeholder: true,
               })}
               ${await BtnIcon.Render({
-                class: `section-mp btn-custom btn-upload-blockchain`,
+                class: `inl section-mp btn-custom btn-upload-blockchain`,
                 label: html`<i class="fas fa-plus"></i> ${Translate.Render(`create`)}`,
               })}
             </div>

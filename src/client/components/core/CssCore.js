@@ -472,6 +472,7 @@ const CssCoreDark = {
           width: 260px;
           font-size: 20px;
           padding: 10px;
+          min-height: 45px;
         }
         .toggle-form-container {
           border: 2px solid #313131;
@@ -779,6 +780,7 @@ const CssCoreLight = {
           width: 260px;
           font-size: 20px;
           padding: 10px;
+          min-height: 45px;
         }
         .toggle-form-container {
           border-radius: 5px;

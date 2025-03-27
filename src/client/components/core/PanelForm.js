@@ -430,9 +430,11 @@ const PanelForm = {
       if (delayBlock) return;
       else {
         delayBlock = true;
+        const _currentPath = `${location.pathname}${location.search}`;
         setTimeout(() => {
           delayBlock = false;
-        }, 500);
+          if (`${location.pathname}${location.search}` !== _currentPath) this.Data[idPanel].updatePanel();
+        }, 1000);
       }
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
