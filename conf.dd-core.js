@@ -941,7 +941,7 @@ const DefaultConf = /**/ {
     },
     Bymyelectrics: {
       head: ['Seo', 'PwaBymyelectrics', 'BymyelectricsScripts', 'Css'],
-      body: ['CacheControl'],
+      body: ['CacheControl', 'BymyelectricsSplashScreen'],
       mailer: { userVerifyEmail: 'DefaultVerifyEmail', userRecoverEmail: 'DefaultRecoverEmail' },
       offline: [
         { path: '/offline', title: 'No Network Connection', client: 'NoNetworkConnection', head: [], body: [] },
