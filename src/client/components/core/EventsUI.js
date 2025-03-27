@@ -16,7 +16,8 @@ const EventsUI = {
       if (complete) {
         complete = false;
         await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);
-        await LoadingAnimation.bar.play(id);
+        if (!id.match('delete') && !id.match('remove') && !id.match('clean') && !id.match('clear'))
+          await LoadingAnimation.bar.play(id);
         try {
           await logic(e);
         } catch (error) {
@@ -26,7 +27,8 @@ const EventsUI = {
             html: error?.message ? error.message : error ? error : 'Event error',
           });
         }
-        LoadingAnimation.bar.stop(id);
+        if (!id.match('delete') && !id.match('remove') && !id.match('clean') && !id.match('clear'))
+          LoadingAnimation.bar.stop(id);
         await LoadingAnimation.spinner.stop(loadingContainer ? loadingContainer : id);
         complete = true;
         return;

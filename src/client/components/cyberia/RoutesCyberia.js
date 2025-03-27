@@ -1,4 +1,5 @@
 import { loggerFactory } from '../core/Logger.js';
+import { Modal } from '../core/Modal.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
@@ -10,7 +11,7 @@ const RoutesCyberia = () => {
   return {
     '/': {
       title: 'MMORPG',
-      render: () => s(`.main-btn-home`).click(),
+      render: () => Modal.onHomeRouterEvent(),
       upperCase: true,
     },
     '/bag': { title: 'bag', render: () => s(`.main-btn-bag`).click(), translateTitle: true },

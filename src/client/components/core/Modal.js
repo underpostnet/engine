@@ -85,6 +85,7 @@ const Modal = {
       onExpandUiListener: {},
       onBarUiOpen: {},
       onBarUiClose: {},
+      onHome: {},
       query: options.query ? `${window.location.search}` : undefined,
     };
     const setCenterRestore = () => {
@@ -1010,14 +1011,15 @@ const Modal = {
                   e.preventDefault();
                   window.history.forward();
                 });
-                EventsUI.onClick(`.action-btn-home`, () => s(`.main-btn-home`).click());
-                EventsUI.onClick(`.action-btn-app-icon`, () => s(`.action-btn-home`).click());
+                EventsUI.onClick(`.action-btn-home`, async () => {
+                  await Modal.onHomeRouterEvent();
+                  Object.keys(this.Data[idModal].onHome).map((keyListener) => this.Data[idModal].onHome[keyListener]());
+                });
+                EventsUI.onClick(`.action-btn-app-icon`, () => Modal.onHomeRouterEvent());
                 Keyboard.instanceMultiPressKey({
                   id: 'input-shortcut-global-escape',
                   keys: ['Escape'],
                   eventCallBack: () => {
-                    // if (s(`.main-btn-home`)) s(`.main-btn-home`).click();
-
                     if (s(`.btn-close-${this.currentTopModalId}`)) s(`.btn-close-${this.currentTopModalId}`).click();
                   },
                 });
@@ -1343,7 +1345,7 @@ const Modal = {
           s(`.btn-icon-menu-back`).classList.add('hide');
           if (s(`.menu-btn-container-main`)) s(`.menu-btn-container-main`).classList.remove('hide');
         };
-        s(`.main-btn-home`).onclick = () => {
+        this.onHomeRouterEvent = async () => {
           for (const keyModal of Object.keys(this.Data)) {
             if (
               ![idModal, 'main-body-top', 'main-body']
@@ -1356,6 +1358,9 @@ const Modal = {
           s(`.btn-close-modal-menu`).click();
           setPath(getProxyPath());
           setDocTitle({ ...options.RouterInstance, route: '' });
+        };
+        s(`.main-btn-home`).onclick = async () => {
+          await this.onHomeRouterEvent();
         };
         EventsUI.onClick(`.btn-icon-menu-back`, backMenuButtonEvent);
         EventsUI.onClick(`.btn-icon-menu-mode`, () => {
@@ -1620,6 +1625,7 @@ const Modal = {
       ...this.Data[idModal],
     };
   },
+  onHomeRouterEvent: () => {},
   currentTopModalId: '',
   zIndexSync: function ({ idModal }) {
     setTimeout(() => {
@@ -1765,7 +1771,6 @@ const Modal = {
   },
   headerTitleHeight: 40,
   actionBtnCenter: function () {
-    // if (!s(`.btn-close-modal-menu`).classList.contains('hide')) return s(`.main-btn-home`).click();
     if (!s(`.btn-close-modal-menu`).classList.contains('hide')) {
       return s(`.btn-close-modal-menu`).click();
     }

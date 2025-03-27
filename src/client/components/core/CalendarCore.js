@@ -40,18 +40,6 @@ const CalendarCore = {
 
     const titleIcon = html`<i class="fas fa-calendar-alt"></i>`;
 
-    const getSrrData = () => {
-      this.Data[options.idModal].data = range(0, 5).map((i) => {
-        return {
-          id: `event-${i}`,
-          description: `Event ${s4()}${s4()}${s4()}`,
-          start: new Date().toTimeString(),
-          end: new Date().toTimeString(),
-        };
-      });
-    };
-    getSrrData();
-
     const getPanelData = async () => {
       const result = await EventSchedulerService.get({
         id: `${getQueryParams().cid ? getQueryParams().cid : Auth.getToken() ? 'creatorUser' : ''}`,
@@ -235,35 +223,9 @@ const CalendarCore = {
     ];
 
     setTimeout(() => {
-      const resizeModal = () => {
-        Modal.Data[options.idModal].onObserverListener[options.idModal] = () => {
-          if (s(`.main-body-calendar-${options.idModal}`))
-            s(`.main-body-calendar-${options.idModal}`).style.height = `${
-              s(`.${options.idModal}`).offsetHeight - Modal.headerTitleHeight
-            }px`;
-        };
-        Modal.Data[options.idModal].onObserverListener[options.idModal]();
-      };
-      setTimeout(resizeModal);
-      RouterEvents[`${options.idModal}-main-body`] = ({ route }) => {
-        if (route === 'calendar') {
-          setTimeout(() => {
-            resizeModal();
-          }, 400);
-        }
-      };
-
       s(`.close-calendar-container`).onclick = () => {
         s(`.calendar-container`).classList.add('hide');
         s(`.main-body-calendar-${options.idModal}`).classList.remove('hide');
-        htmls(
-          `.style-calendar`,
-          html`<style>
-            .modal-calendar {
-              overflow: hidden;
-            }
-          </style>`,
-        );
       };
     });
 
@@ -305,14 +267,6 @@ const CalendarCore = {
                 // renderCalendar();
                 CalendarCore.Data[options.idModal].calendar.setOption('height', 700);
                 Translate.Event['fullcalendar-lang']();
-                htmls(
-                  `.style-calendar`,
-                  html`<style>
-                    .modal-calendar {
-                      overflow: auto;
-                    }
-                  </style>`,
-                );
               },
             },
           ],
@@ -404,18 +358,11 @@ const CalendarCore = {
         <div class="in" style="margin-bottom: 100px"></div>`;
     };
 
-    let delayBlock = false;
+    let lastCid;
     this.Data[options.idModal].updatePanel = async () => {
-      if (delayBlock) return;
-      else {
-        delayBlock = true;
-        const _currentPath = `${location.pathname}${location.search}`;
-        setTimeout(() => {
-          delayBlock = false;
-          if (`${location.pathname}${location.search}` !== _currentPath) this.Data[options.idModal].updatePanel();
-        }, 1000);
-      }
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
+      if (lastCid === cid) return;
+      lastCid = cid;
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       if (s(`.main-body-calendar-${options.idModal}`)) {
         // if (Auth.getToken())
@@ -425,39 +372,22 @@ const CalendarCore = {
       }
     };
 
-    if (options.route)
+    if (options.route) {
       listenQueryPathInstance({
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          setTimeout(() => {
-            CalendarCore.Data[options.idModal].updatePanel();
-          });
+          CalendarCore.Data[options.idModal].updatePanel();
         },
       });
-
-    // if (options.route === 'home')
-    setTimeout(() => {
-      CalendarCore.Data[options.idModal].updatePanel();
-    });
-
+      if (!options.parentIdModal)
+        Modal.Data['modal-menu'].onHome[idPanel] = async () => {
+          lastCid = undefined;
+          setQueryPath({ path: options.route, queryPath: '' });
+          await this.Data[idPanel].updatePanel();
+        };
+    }
     return html`
-      <style>
-        .main-body-calendar-${options.idModal} {
-          overflow: auto;
-        }
-        .${idPanel}-form {
-          max-width: 750px !important;
-        }
-      </style>
-      <div class="style-calendar">
-        <style>
-          .modal-calendar {
-            overflow: hidden;
-          }
-        </style>
-      </div>
-
       <div class="in main-body-calendar-${options.idModal}">${await panelRender()}</div>
       <style>
         .calendar-container {
@@ -521,7 +451,7 @@ const CalendarCore = {
         }
       </style>
       <div class="in calendar-container hide">
-        <div class="stq modal calendar-buttons-container">
+        <div class="in modal calendar-buttons-container">
           ${await BtnIcon.Render({
             class: `inl section-mp btn-custom close-calendar-container flr`,
             label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,

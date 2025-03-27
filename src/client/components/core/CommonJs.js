@@ -577,7 +577,8 @@ const getCurrentTrace = () => {
   try {
     _stack;
   } catch (error) {
-    return error.stack.split('is not defined')[1];
+    console.error(error);
+    return error;
   }
 };
 

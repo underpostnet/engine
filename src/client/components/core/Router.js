@@ -52,7 +52,9 @@ const LoadRouter = function (RouterInstance) {
 
 const setQueryPath = (options = { path: '', queryPath: '' }, queryKey = 'cid') => {
   const { queryPath, path } = options;
-  const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${queryPath ? `?${queryKey}=${queryPath}` : ''}`;
+  const newUri = `${getProxyPath()}${path === 'home' ? '' : `${path}/`}${
+    typeof queryPath === 'string' ? `?${queryKey}=${queryPath}` : ''
+  }`;
   const currentUri = `${window.location.pathname}${location.search}`;
   if (currentUri !== newUri && currentUri !== `${newUri}/`) setPath(newUri);
 };

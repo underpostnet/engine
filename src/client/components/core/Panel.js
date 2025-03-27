@@ -55,7 +55,7 @@ const Panel = {
     const openPanelForm = () => {
       s(`.${idPanel}-form-body`).classList.remove('hide');
       s(`.btn-${idPanel}-add`).classList.add('hide');
-      s(`.${scrollClassContainer}`).style.overflow = 'hidden';
+      // s(`.${scrollClassContainer}`).style.overflow = 'hidden';
       if (options.customButtons) {
         let customBtnIndex = -1;
         for (const dataBtn of options.customButtons) {
@@ -121,7 +121,7 @@ const Panel = {
           if (options.onClick) await options.onClick({ payload });
         };
       });
-
+      if (s(`.${idPanel}-${id}`)) s(`.${idPanel}-${id}`).remove();
       return html` <div class="in box-shadow ${idPanel} ${idPanel}-${id}">
         <div class="fl ${idPanel}-tools session-fl-log-in  ${obj.tools ? '' : 'hide'}">
           ${await BtnIcon.Render({
@@ -244,7 +244,7 @@ const Panel = {
     };
 
     let render = '';
-    let renderForm = html` <div class="in modal stq" style="top: 0px; z-index: 1; padding-bottom: 5px">
+    let renderForm = html` <div class="in modal" style="top: 0px; z-index: 1; padding-bottom: 5px">
         ${await BtnIcon.Render({
           class: `inl section-mp btn-custom btn-${idPanel}-close`,
           label: html`<i class="fa-solid fa-xmark"></i> ${Translate.Render('close')}`,
@@ -417,49 +417,6 @@ const Panel = {
     `;
 
     setTimeout(async () => {
-      const resizeParentModal = () => {
-        if (options.parentIdModal) {
-          Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`] = () => {
-            if (s(`.${idPanel}-form-container`))
-              s(`.${idPanel}-form-container`).style.maxHeight = `${
-                s(`.${options.parentIdModal}`).offsetHeight - Modal.headerTitleHeight
-              }px`;
-          };
-          Modal.Data[options.parentIdModal].onObserverListener[`form-panel-${options.parentIdModal}`]();
-        } else {
-          Responsive.Event[`${idPanel}-responsive`] = () => {
-            if (s(`.${idPanel}-form-container`))
-              s(`.${idPanel}-form-container`).style.maxHeight =
-                options.route === 'home' &&
-                s(`.${idPanel}-form-body`) &&
-                !s(`.${idPanel}-form-body`).classList.contains('hide') &&
-                !s(`.main-body-btn-ui-open`).classList.contains('hide')
-                  ? `${window.innerHeight}px`
-                  : `${window.innerHeight - heightTopBar - heightBottomBar}px`;
-          };
-          Responsive.Event[`${idPanel}-responsive`]();
-        }
-      };
-      if (options.route === 'home') {
-        Modal.Data['modal-menu'].onBarUiClose[`${idPanel}-responsive`] = () => {
-          resizeParentModal();
-        };
-
-        Modal.Data['modal-menu'].onBarUiOpen[`${idPanel}-responsive`] = () => {
-          resizeParentModal();
-        };
-      }
-      setTimeout(resizeParentModal);
-      if (options.route) {
-        RouterEvents[options.parentIdModal] = ({ route }) => {
-          if (route === options.route) {
-            setTimeout(() => {
-              resizeParentModal();
-            }, 350);
-          }
-        };
-      }
-
       const validators = await Validator.instance(formData);
 
       s(`.${idPanel}-form`).onsubmit = (e) => {
@@ -581,7 +538,6 @@ const Panel = {
           padding: 10px;
           cursor: pointer;
           min-height: 400px;
-          overflow: hidden;
         }
         .${idPanel}:hover {
           background: #ffffff;
@@ -651,9 +607,7 @@ const Panel = {
         }
       </style>
       <div class="${idPanel}-container">
-        <div
-          class="stq modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}"
-        >
+        <div class="in modal ${idPanel}-form-container ${options.formContainerClass ? options.formContainerClass : ''}">
           <div class="in ${idPanel}-form-header">
             ${await BtnIcon.Render({
               class: `inl section-mp btn-custom btn-${idPanel}-add ${

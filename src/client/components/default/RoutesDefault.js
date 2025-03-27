@@ -1,4 +1,5 @@
 import { loggerFactory } from '../core/Logger.js';
+import { Modal } from '../core/Modal.js';
 import { getProxyPath, s } from '../core/VanillaJs.js';
 
 const logger = loggerFactory(import.meta);
@@ -10,10 +11,10 @@ const RoutesDefault = () => {
   return {
     '/': {
       title: 'Home',
-      render: () => s(`.main-btn-home`).click(),
+      render: () => Modal.onHomeRouterEvent(),
       upperCase: false,
     },
-    '/home': { title: 'home', render: () => s(`.main-btn-home`).click() },
+    '/home': { title: 'home', render: () => Modal.onHomeRouterEvent() },
     '/settings': { title: 'settings', render: () => s(`.main-btn-settings`).click(), translateTitle: true },
     '/log-in': { title: 'log-in', render: () => s(`.main-btn-log-in`).click(), translateTitle: true },
     '/sign-up': { title: 'sign-up', render: () => s(`.main-btn-sign-up`).click(), translateTitle: true },

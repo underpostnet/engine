@@ -1,4 +1,4 @@
-import { getCapVariableName, getId, newInstance, random, range, timer, uniqueArray } from './CommonJs.js';
+import { getCapVariableName, newInstance, random, range, uniqueArray } from './CommonJs.js';
 import { marked } from 'marked';
 import {
   getBlobFromUint8ArrayFile,
@@ -12,7 +12,6 @@ import { NotificationManager } from './NotificationManager.js';
 import { DocumentService } from '../../services/document/document.service.js';
 import { FileService } from '../../services/file/file.service.js';
 import { getSrcFromFileData } from './Input.js';
-import { Auth } from './Auth.js';
 import { imageShimmer, renderCssAttr } from './Css.js';
 import { Translate } from './Translate.js';
 import { Modal } from './Modal.js';
@@ -383,7 +382,7 @@ const PanelForm = {
     };
     const renderSrrPanelData = async () =>
       await panelRender({
-        data: range(0, 5).map((i) => ({
+        data: range(0, 0).map((i) => ({
           id: i,
           title: html`<div class="fl">
             <div
@@ -424,19 +423,12 @@ const PanelForm = {
           ssr: true,
         })),
       });
-    let delayBlock = false;
     let firsUpdateEvent = false;
+    let lastCid;
     this.Data[idPanel].updatePanel = async () => {
-      if (delayBlock) return;
-      else {
-        delayBlock = true;
-        const _currentPath = `${location.pathname}${location.search}`;
-        setTimeout(() => {
-          delayBlock = false;
-          if (`${location.pathname}${location.search}` !== _currentPath) this.Data[idPanel].updatePanel();
-        }, 1000);
-      }
       const cid = getQueryParams().cid ? getQueryParams().cid : '';
+      if (lastCid === cid) return;
+      lastCid = cid;
       if (options.route === 'home') Modal.homeCid = newInstance(cid);
       htmls(`.${options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body'}`, await renderSrrPanelData());
       await getPanelData();
@@ -449,24 +441,21 @@ const PanelForm = {
         await options.firsUpdateEvent();
       }
     };
-    if (options.route)
+    if (options.route) {
       listenQueryPathInstance({
         id: options.parentIdModal ? 'html-' + options.parentIdModal : 'main-body',
         routeId: options.route,
         event: async (path) => {
-          // if (!PanelForm.Data[idPanel].sessionIn)
           await this.Data[idPanel].updatePanel();
         },
       });
-
-    // if (options.route === 'home') setTimeout(this.Data[idPanel].updatePanel);
-    setTimeout(() => {
-      // if (
-      //   options.route !== 'home' &&
-      //   (!PanelForm.Data[idPanel].originData || PanelForm.Data[idPanel].originData.length === 0)
-      // )
-      this.Data[idPanel].updatePanel();
-    });
+      if (!options.parentIdModal)
+        Modal.Data['modal-menu'].onHome[idPanel] = async () => {
+          lastCid = undefined;
+          setQueryPath({ path: options.route, queryPath: '' });
+          await this.Data[idPanel].updatePanel();
+        };
+    }
 
     if (options.parentIdModal) {
       htmls(`.html-${options.parentIdModal}`, await renderSrrPanelData());

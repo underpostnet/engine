@@ -175,7 +175,7 @@ const MenuUnderpost = {
           idPanel: 'underpost-panel',
           heightTopBar,
           heightBottomBar,
-          defaultUrlImage: 'https://underpost.net/assets/splash/apple-touch-icon-precomposed.png',
+          defaultUrlImage: `${getProxyPath()}assets/splash/apple-touch-icon-precomposed.png`,
           Elements: ElementsUnderpost,
           route: 'home',
         }),

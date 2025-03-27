@@ -176,31 +176,6 @@ const RecordMoodHealthcare = {
                       });
                     },
                   });
-
-                  s(`.html-${idModal}`).style.overflow = 'auto';
-                  s(`.${idModal}`).style.overflow = 'hidden';
-
-                  const resizeModal = () => {
-                    Modal.Data[idModal].onObserverListener[idEvent] = () => {
-                      setTimeout(() => {
-                        if (s(`.html-${idModal}`))
-                          s(`.html-${idModal}`).style.height = `${
-                            s(`.${idModal}`).offsetHeight - Modal.headerTitleHeight - 1
-                          }px`;
-                      }, 750);
-                    };
-                    Modal.Data[idModal].onObserverListener[idEvent]();
-                  };
-                  setTimeout(() => {
-                    resizeModal();
-                  });
-                  RouterEvents[idEvent] = ({ route }) => {
-                    if (route === routeModal) {
-                      setTimeout(() => {
-                        resizeModal();
-                      }, 400);
-                    }
-                  };
                 };
               });
             });

@@ -178,7 +178,7 @@ const Account = {
           s(`.btn-account-delete-confirm`).classList.remove('hide');
           s(`.btn-account-delete`).classList.add('hide');
           if (result.status === 'success') {
-            s(`.main-btn-home`).click();
+            Modal.onHomeRouterEvent();
             await Auth.sessionOut();
           }
         });

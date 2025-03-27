@@ -385,10 +385,10 @@ const InteractionPanelCyberia = {
                 }
               };
               s(`.cy-int-btn-logo`).onclick = () => {
-                s(`.main-btn-home`).click();
+                Modal.onHomeRouterEvent();
               };
               s(`.cy-int-btn-map`).onclick = async () => {
-                s(`.main-btn-home`).click();
+                Modal.onHomeRouterEvent();
                 if (!s(`.map-interaction-panel`)) {
                   await this.Render({ id: 'map-interaction-panel' });
                   await this.PanelRender.map({ face: ElementsCyberia.Data.user.main.model.world.face });
@@ -401,7 +401,7 @@ const InteractionPanelCyberia = {
                 }
               };
               s(`.cy-int-btn-target`).onclick = async () => {
-                s(`.main-btn-home`).click();
+                Modal.onHomeRouterEvent();
                 if (!s(`.element-interaction-panel`)) {
                   await this.Render({ id: 'element-interaction-panel' });
                   await this.PanelRender.element(
@@ -416,7 +416,7 @@ const InteractionPanelCyberia = {
                 }
               };
               s(`.cy-int-btn-quest`).onclick = () => {
-                s(`.main-btn-home`).click();
+                Modal.onHomeRouterEvent();
                 if (!s(`.quest-interaction-panel`)) this.Render({ id: 'quest-interaction-panel' });
                 else {
                   this.restorePanel('quest-interaction-panel');

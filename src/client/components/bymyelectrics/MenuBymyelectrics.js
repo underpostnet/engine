@@ -95,7 +95,7 @@ const MenuBymyelectrics = {
             tooltipHtml: await Badge.Render(buildBadgeToolTipMenuOption('account')),
           })}
           ${await BtnIcon.Render({
-            class: 'in wfa main-btn-menu main-btn-settings hide',
+            class: 'in wfa main-btn-menu main-btn-settings',
             label: renderMenuLabel({
               icon: html`<i class="fas fa-sliders-h"></i>`,
               text: html`<span class="menu-label-text">${Translate.Render('settings')}</span>`,
