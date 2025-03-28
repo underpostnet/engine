@@ -13,10 +13,12 @@ import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import Underpost from '../index.js';
+import { DataBaseProvider } from '../db/DataBaseProvider.js';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostDeploy {
+  static NETWORK = {};
   static API = {
     sync(deployList) {
       const deployGroupId = 'dd.tmp';
@@ -85,11 +87,7 @@ spec:
             - -c
             - >
               npm install -g npm@11.2.0 &&
-              npm config delete proxy &&
-              npm config delete http-proxy &&
-              npm config delete https-proxy &&
-              npm config set registry http://registry.npmjs.org/ &&
-              npm install --unsafe-perm --ignore-scripts -g underpost &&
+              npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
               underpost dockerfile-node-script --build --run ${deployId} ${env}
           volumeMounts:
@@ -200,6 +198,7 @@ spec:
         expose: false,
         cert: false,
         version: '',
+        dashboardUpdate: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -212,8 +211,9 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.sync) UnderpostDeploy.API.sync(deployList);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options.version);
-      if (options.infoRouter === true)
-        return logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+      if (options.infoRouter === true) logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
+      if (options.dashboardUpdate === true) await UnderpostDeploy.API.updateDashboardData(deployList, env, options);
+      if (options.infoRouter === true) return;
       shellExec(`kubectl delete configmap underpost-config`);
       shellExec(
         `kubectl create configmap underpost-config --from-file=/home/dd/engine/engine-private/conf/dd-cron/.env.${env}`,
@@ -315,6 +315,60 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       }
 
       return result;
+    },
+    async updateDashboardData(deployList, env, options) {
+      try {
+        const deployId = process.env.DEFAULT_DEPLOY_ID;
+        const host = process.env.DEFAULT_DEPLOY_HOST;
+        const path = process.env.DEFAULT_DEPLOY_PATH;
+        const { db } = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'))[host][
+          path
+        ];
+
+        await DataBaseProvider.load({ apis: ['instance'], host, path, db });
+
+        /** @type {import('../api/instance/instance.model.js').InstanceModel} */
+        const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
+
+        await Instance.deleteMany();
+
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          if (!deployId) continue;
+          const confServer = loadReplicas(
+            JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+            'proxy',
+          );
+          const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+          const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+
+          for (const host of Object.keys(confServer)) {
+            for (const { path, port } of pathPortAssignmentData[host]) {
+              if (!confServer[host][path]) continue;
+
+              const { client, runtime, apis } = confServer[host][path];
+
+              const body = {
+                deployId,
+                host,
+                path,
+                port,
+                client,
+                runtime,
+                apis,
+              };
+
+              logger.info('save', body);
+
+              await new Instance(body).save();
+            }
+          }
+        }
+
+        await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
+      } catch (error) {
+        logger.error(error, error.stack);
+      }
     },
   };
 }

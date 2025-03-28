@@ -47,7 +47,7 @@ if (process.argv.includes('conf')) {
     if (!fs.existsSync(`../${privateRepoName}`)) {
       shellExec(`cd .. && underpost clone ${privateGitUri}`, { silent: true });
     } else {
-      shellExec(`cd ../${privateRepoName} && underpost pull . ${privateGitUri}`);
+      shellExec(`cd ../${privateRepoName} && git checkout . && git clean -f -d && underpost pull . ${privateGitUri}`);
     }
     const toPath = `../${privateRepoName}/conf/${_confName}`;
     fs.removeSync(toPath);

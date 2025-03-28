@@ -9,7 +9,7 @@ import compression from 'compression';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { listenPortController, saveRuntimeRouter, logRuntimeRouter, listenServerFactory } from './network.js';
+import { listenPortController, logRuntimeRouter, listenServerFactory } from './network.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -41,7 +41,6 @@ const buildRuntime = async () => {
   // logger.info('promCounterOption', promCounterOption);
 
   const requestCounter = new promClient.Counter(promCounterOption);
-  const ipInstance = ''; // await ip.public.ipv4();
   const initPort = parseInt(process.env.PORT) + 1;
   let currentPort = initPort;
   const confServer = JSON.parse(fs.readFileSync(`./conf/conf.server.json`, 'utf8'));
@@ -484,7 +483,6 @@ const buildRuntime = async () => {
   if (Xampp.enabled() && Xampp.router) Xampp.initService();
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
 
-  saveRuntimeRouter();
   logRuntimeRouter();
 };
 

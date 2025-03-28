@@ -2,13 +2,21 @@ import axios from 'axios';
 import dotenv from 'dotenv';
 import fs from 'fs';
 import validator from 'validator';
-import { ip } from './network.js';
+import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { loggerFactory } from './logger.js';
 import UnderpostRootEnv from '../cli/env.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
+
+const ip = {
+  public: {
+    get: async () => await publicIp(), // => 'fe80::200:f8ff:fe21:67cf'
+    ipv4: async () => await publicIpv4(), // => '46.5.21.123'
+    ipv6: async () => await publicIpv6(), // => 'fe80::200:f8ff:fe21:67cf'
+  },
+};
 
 class Dns {
   static callback = async function (deployList) {

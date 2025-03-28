@@ -105,6 +105,7 @@ program
   .option('--info-util', 'Display kubectl util management commands')
   .option('--cert', 'Reset tls/ssl certificate secrets')
   .option('--build-manifest', 'Build kind yaml manifests: deployments, services, proxy and secrets')
+  .option('--dashboard-update', 'Update dashboard instance data with current router config')
   .option('--version', 'Set custom version')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
@@ -195,6 +196,7 @@ program
   .option('--itc', 'Inside container execution context')
   .option('--init', 'Init cron jobs for cron job default deploy id')
   .option('--git', 'Upload to github')
+  .option('--dashboard-update', 'Update dashboard cron data with current jobs config')
   .description('Cron jobs management')
   .action(Underpost.cron.callback);
 

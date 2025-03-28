@@ -1,121 +1,16 @@
-import fs from 'fs-extra';
-
-import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { actionInitLog, loggerFactory } from './logger.js';
-import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import { getDeployId } from './conf.js';
-
-// Network Address Translation Management
-
-// import dotenv from 'dotenv';
-// dotenv.config();
+import UnderpostDeploy from '../cli/deploy.js';
 
 const logger = loggerFactory(import.meta);
-
-const ip = {
-  public: {
-    get: async () => await publicIp(), // => 'fe80::200:f8ff:fe21:67cf'
-    ipv4: async () => await publicIpv4(), // => '46.5.21.123'
-    ipv6: async () => await publicIpv6(), // => 'fe80::200:f8ff:fe21:67cf'
-  },
-};
-
-let ipInstance = '';
-const networkRouter = {};
 
 const logRuntimeRouter = () => {
   const displayLog = {};
 
-  for (const host of Object.keys(networkRouter))
-    for (const path of Object.keys(networkRouter[host]))
-      displayLog[networkRouter[host][path].publicHost] = networkRouter[host][path].local;
+  for (const host of Object.keys(UnderpostDeploy.NETWORK))
+    for (const path of Object.keys(UnderpostDeploy.NETWORK[host]))
+      displayLog[UnderpostDeploy.NETWORK[host][path].publicHost] = UnderpostDeploy.NETWORK[host][path].local;
 
   logger.info('Runtime network', displayLog);
-};
-
-const saveRuntimeRouter = async () => {
-  try {
-    const deployId = process.env.DEFAULT_DEPLOY_ID;
-    const host = process.env.DEFAULT_DEPLOY_HOST;
-    const path = process.env.DEFAULT_DEPLOY_PATH;
-    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-    if (!deployId || !host || !path || !fs.existsSync(confServerPath)) {
-      // logger.warn('default deploy instance not found');
-      return;
-    }
-    const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
-    const { db } = confServer[host][path];
-
-    let closeConn;
-    if (!DataBaseProvider.instance[`${host}${path}`]) {
-      await DataBaseProvider.load({ apis: ['instance'], host, path, db });
-      closeConn = true;
-    }
-
-    /** @type {import('../api/instance/instance.model.js').InstanceModel} */
-    const Instance = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Instance;
-
-    for (const _host of Object.keys(networkRouter)) {
-      for (const _path of Object.keys(networkRouter[_host])) {
-        const body = {
-          host: _host,
-          path: _path,
-          deployId: getDeployId(),
-          client: networkRouter[_host][_path].client,
-          runtime: networkRouter[_host][_path].runtime,
-          port: networkRouter[_host][_path].port,
-          apis: networkRouter[_host][_path].apis,
-        };
-        const instance = await Instance.findOne({ deployId: body.deployId, host: _host, path: _path });
-        if (instance) {
-          await Instance.findByIdAndUpdate(instance._id, body);
-        } else {
-          await new Instance(body).save();
-        }
-      }
-    }
-
-    if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-  } catch (error) {
-    logger.error(error, error.stack);
-  }
-};
-
-const netWorkCron = [];
-
-const saveRuntimeCron = async () => {
-  try {
-    const deployId = process.env.DEFAULT_DEPLOY_ID;
-    const host = process.env.DEFAULT_DEPLOY_HOST;
-    const path = process.env.DEFAULT_DEPLOY_PATH;
-    const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
-    const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
-    const { db } = confServer[host][path];
-
-    let closeConn;
-    if (!DataBaseProvider.instance[`${host}${path}`]) {
-      await DataBaseProvider.load({ apis: ['cron'], host, path, db });
-      closeConn = true;
-    }
-
-    /** @type {import('../api/cron/cron.model.js').CronModel} */
-    const Cron = DataBaseProvider.instance[`${host}${path}`].mongoose.models.Cron;
-
-    // await Cron.insertMany(netWorkCron);
-
-    for (const cronInstance of netWorkCron) {
-      const cron = await Cron.findOne({ deployId: cronInstance.deployId, jobId: cronInstance.jobId });
-      if (cron) {
-        await Cron.findByIdAndUpdate(cron._id, cronInstance);
-      } else {
-        await new Cron(cronInstance).save();
-      }
-    }
-
-    if (closeConn) await DataBaseProvider.instance[`${host}${path}`].mongoose.close();
-  } catch (error) {
-    logger.error(error, error.stack);
-  }
 };
 
 const listenServerFactory = (logic = async () => {}) => {
@@ -150,13 +45,12 @@ const listenPortController = async (server, port, metadata) =>
       if (error.length > 0) throw new Error('Listen port controller requires values: ' + error.join(', '));
 
       server.listen(port, () => {
-        if (!networkRouter[host]) networkRouter[host] = {};
-        networkRouter[host][path] = {
+        if (!UnderpostDeploy.NETWORK[host]) UnderpostDeploy.NETWORK[host] = {};
+        UnderpostDeploy.NETWORK[host][path] = {
           meta,
           client,
           runtime,
           port,
-          public: `http://${ipInstance}:${port}${path}`,
           publicHost:
             port === 80
               ? `http://${host}${path}`
@@ -175,13 +69,4 @@ const listenPortController = async (server, port, metadata) =>
     }
   });
 
-export {
-  ip,
-  listenPortController,
-  networkRouter,
-  netWorkCron,
-  saveRuntimeRouter,
-  logRuntimeRouter,
-  listenServerFactory,
-  saveRuntimeCron,
-};
+export { listenPortController, logRuntimeRouter, listenServerFactory };

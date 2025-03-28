@@ -445,7 +445,6 @@ const CalendarCore = {
 
         .calendar-buttons-container {
           padding-bottom: 15px;
-          top: ${Modal.headerTitleHeight}px;
           height: 60px;
           z-index: 4;
         }

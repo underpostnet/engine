@@ -71,7 +71,8 @@ class UnderpostImage {
           shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);
           shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
           shellCd(`${buildBasePath}/engine`);
-          shellExec(`underpost install`);
+          shellExec(`npm install`);
+          shellExec(`node bin/deploy conf ${deployId} ${env}`);
           if (fs.existsSync('./engine-private/itc-scripts')) {
             const itcScripts = await fs.readdir('./engine-private/itc-scripts');
             for (const itcScript of itcScripts)
@@ -110,7 +111,6 @@ class UnderpostImage {
               }
               break;
           }
-          shellExec(`node bin/deploy conf ${deployId} ${env}`);
           shellExec(`node bin/deploy build-full-client ${deployId}`);
         }
         if (options.run === true) {
