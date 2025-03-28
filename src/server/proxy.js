@@ -5,9 +5,9 @@ import dotenv from 'dotenv';
 
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { loggerFactory, loggerMiddleware } from './logger.js';
-import { listenPortController } from './network.js';
 import { createSslServer, sslRedirectMiddleware } from './ssl.js';
 import { buildPortProxyRouter, buildProxyRouter, maintenanceMiddleware } from './conf.js';
+import UnderpostStartUp from './start.js';
 
 dotenv.config();
 
@@ -71,11 +71,11 @@ const buildProxy = async () => {
         switch (port) {
           case 443:
             const { ServerSSL } = await createSslServer(app, hosts);
-            await listenPortController(ServerSSL, port, runningData);
+            await UnderpostStartUp.API.listenPortController(ServerSSL, port, runningData);
             break;
 
           default:
-            await listenPortController(app, port, runningData);
+            await UnderpostStartUp.API.listenPortController(app, port, runningData);
 
             break;
         }
@@ -83,7 +83,7 @@ const buildProxy = async () => {
         break;
 
       default:
-        await listenPortController(app, port, runningData);
+        await UnderpostStartUp.API.listenPortController(app, port, runningData);
 
         break;
     }

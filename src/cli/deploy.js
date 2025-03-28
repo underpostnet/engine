@@ -88,7 +88,7 @@ spec:
               npm install -g npm@11.2.0 &&
               npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.${env} &&
-              underpost dockerfile-node-script --build --run ${deployId} ${env}
+              underpost start --build --run ${deployId} ${env}
           volumeMounts:
             - name: config-volume
               mountPath: /etc/config

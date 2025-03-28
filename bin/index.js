@@ -23,6 +23,15 @@ program
   .action(Underpost.repo.new);
 
 program
+  .command('start')
+  .argument('<deploy-id>', 'Deploy configuration id')
+  .argument('[env]', 'Optional environment, for default is development')
+  .option('--run', 'Run app servers and monitor health server')
+  .option('--build', 'Build app client')
+  .action(Underpost.start.callback)
+  .description('Dockerfile custom node build script');
+
+program
   .command('clone')
   .argument(`<uri>`, 'e.g. username/repository')
   .option('--bare', 'Clone only .git files')
@@ -124,15 +133,6 @@ program
     if (args[1].list) return Underpost.secret[args[0]].list();
     if (args[1].init) return Underpost.secret[args[0]].init();
   });
-
-program
-  .command('dockerfile-node-script')
-  .argument('<deploy-id>', 'Deploy configuration id')
-  .argument('[env]', 'Optional environment, for default is development')
-  .option('--run', 'Run custom entry point script')
-  .option('--build', 'Build custom image container scripts')
-  .description('Dockerfile custom node build script')
-  .action(Underpost.image.dockerfile.script);
 
 program
   .command('dockerfile-image-build')

@@ -9,7 +9,7 @@ import compression from 'compression';
 
 import { createServer } from 'http';
 import { getRootDirectory } from './process.js';
-import { listenPortController, logRuntimeRouter, listenServerFactory } from './network.js';
+import UnderpostStartUp from './start.js';
 import { loggerFactory, loggerMiddleware } from './logger.js';
 import { getCapVariableName, newInstance } from '../client/components/core/CommonJs.js';
 import { Xampp } from '../runtime/xampp/Xampp.js';
@@ -182,7 +182,11 @@ const buildRuntime = async () => {
           // RewriteCond %{HTTP_HOST} ^(?:www\.)?(.+)$ [NC]
           // RewriteRule ^ https://%1%{REQUEST_URI} [L,NE,R=301]
 
-          await listenPortController(listenServerFactory(), port, runningData);
+          await UnderpostStartUp.API.listenPortController(
+            UnderpostStartUp.API.listenServerFactory(),
+            port,
+            runningData,
+          );
           break;
         case 'xampp':
           if (!Xampp.enabled()) continue;
@@ -229,7 +233,11 @@ const buildRuntime = async () => {
           // if (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') {
           //   $_SERVER['HTTPS'] = 'on';
           // }
-          await listenPortController(listenServerFactory(), port, runningData);
+          await UnderpostStartUp.API.listenPortController(
+            UnderpostStartUp.API.listenServerFactory(),
+            port,
+            runningData,
+          );
           break;
         case 'nodejs':
           const app = express();
@@ -282,7 +290,7 @@ const buildRuntime = async () => {
             currentPort += 2;
             const staticPort = newInstance(currentPort);
 
-            await listenPortController(app, staticPort, runningData);
+            await UnderpostStartUp.API.listenPortController(app, staticPort, runningData);
             currentPort++;
             continue;
           }
@@ -333,7 +341,7 @@ const buildRuntime = async () => {
             //   }),
             // );
 
-            await listenPortController(app, port, runningData);
+            await UnderpostStartUp.API.listenPortController(app, port, runningData);
             break;
           }
 
@@ -441,7 +449,7 @@ const buildRuntime = async () => {
                 port,
                 origins,
               });
-              await listenPortController(listenServerFactory(), port, {
+              await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), port, {
                 runtime: 'nodejs',
                 client: null,
                 host,
@@ -461,7 +469,7 @@ const buildRuntime = async () => {
               path,
             });
 
-            await listenPortController(peerServer, peerPort, {
+            await UnderpostStartUp.API.listenPortController(peerServer, peerPort, {
               runtime: 'nodejs',
               client: null,
               host,
@@ -470,7 +478,7 @@ const buildRuntime = async () => {
             });
           }
 
-          await listenPortController(server, port, runningData);
+          await UnderpostStartUp.API.listenPortController(server, port, runningData);
 
           break;
         default:
@@ -483,7 +491,7 @@ const buildRuntime = async () => {
   if (Xampp.enabled() && Xampp.router) Xampp.initService();
   if (Lampp.enabled() && Lampp.router) Lampp.initService();
 
-  logRuntimeRouter();
+  UnderpostStartUp.API.logRuntimeRouter();
 };
 
 export { buildRuntime };

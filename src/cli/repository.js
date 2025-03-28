@@ -4,7 +4,7 @@ import { pbcopy, shellExec } from '../server/process.js';
 import { actionInitLog, loggerFactory } from '../server/logger.js';
 import fs from 'fs-extra';
 import { getNpmRootPath } from '../server/conf.js';
-import { listenPortController, listenServerFactory } from '../server/network.js';
+import UnderpostStartUp from '../server/start.js';
 
 dotenv.config();
 
@@ -78,7 +78,10 @@ class UnderpostRepository {
       return new Promise(async (resolve, reject) => {
         try {
           await logger.setUpInfo();
-          if (repositoryName === 'service') return resolve(await listenPortController(listenServerFactory(), ':'));
+          if (repositoryName === 'service')
+            return resolve(
+              await UnderpostStartUp.API.listenPortController(UnderpostStartUp.API.listenServerFactory(), ':'),
+            );
           else actionInitLog();
           const exeRootPath = `${getNpmRootPath()}/underpost`;
           const destFolder = `./${repositoryName}`;
