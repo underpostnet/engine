@@ -12,7 +12,6 @@ import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
-import Underpost from '../index.js';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
 
 const logger = loggerFactory(import.meta);
@@ -52,7 +51,7 @@ class UnderpostDeploy {
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
 
         logger.info('port range', { deployId, fromPort, toPort });
-        // const customImg = `underpost-engine:${version && typeof version === 'string' ? version : Underpost.version}`;
+        // const customImg = `underpost-engine:${version && typeof version === 'string' ? version : '0.0.0'}`;
         // lifecycle:
         // postStart:
         //   exec:
@@ -97,7 +96,7 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/${deployId}-${env}:${version && typeof version === 'string' ? version : Underpost.version}
+# image: localhost/${deployId}-${env}:${version && typeof version === 'string' ? version : '0.0.0'}
 ---
 apiVersion: v1
 kind: Service

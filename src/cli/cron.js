@@ -5,7 +5,6 @@
  */
 
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
-import Underpost from '../index.js';
 import BackUp from '../server/backup.js';
 import { Cmd } from '../server/conf.js';
 import Dns from '../server/dns.js';
@@ -55,7 +54,6 @@ class UnderpostCron {
     ) {
       if (options.init === true) {
         UnderpostCron.NETWORK = [];
-        await Underpost.test.setUpInfo();
         const jobDeployId = fs.readFileSync('./engine-private/deploy/dd.cron', 'utf8').trim();
         deployList = fs.readFileSync('./engine-private/deploy/dd.router', 'utf8').trim();
         const confCronConfig = JSON.parse(fs.readFileSync(`./engine-private/conf/${jobDeployId}/conf.cron.json`));
