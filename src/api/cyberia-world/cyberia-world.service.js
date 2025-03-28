@@ -1,20 +1,11 @@
 import { loggerFactory } from '../../server/logger.js';
 import { DataBaseProvider } from '../../db/DataBaseProvider.js';
 import dotenv from 'dotenv';
-import { networkRouter } from '../../server/network.js';
 import { CyberiaWorldDto } from './cyberia-world.model.js';
 
 dotenv.config();
 
 const logger = loggerFactory(import.meta);
-
-const getCyberiaPortByWorldPath = (options = { host: '' }, pathWorld = '') =>
-  process.env.NODE_ENV === 'development' &&
-  networkRouter[options.host] &&
-  networkRouter[options.host][pathWorld] &&
-  networkRouter[options.host][pathWorld].port
-    ? `:${networkRouter[options.host][pathWorld].port}`
-    : ``;
 
 const CyberiaWorldService = {
   post: async (req, res, options) => {
@@ -64,4 +55,4 @@ const CyberiaWorldService = {
   },
 };
 
-export { CyberiaWorldService, getCyberiaPortByWorldPath };
+export { CyberiaWorldService };

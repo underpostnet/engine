@@ -6,7 +6,6 @@ import {
   isElementCollision,
 } from '../../client/components/cyberia/CommonCyberia.js';
 import dotenv from 'dotenv';
-import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 import { CyberiaWsUserManagement } from '../../ws/cyberia/management/cyberia.ws.user.js';
 import validator from 'validator';
 
@@ -74,7 +73,6 @@ const CyberiaUserService = {
 
         if (userCyberia.model.world._id.toString() !== options.cyberia.world.instance._id.toString()) {
           let x, y, face;
-          // const redirectPort = getCyberiaPortByWorldPath(options, `/${userCyberiaWorld._doc.name}`);
           const userCyberiaBiome = await CyberiaBiome.findOne({
             _id: userCyberiaWorld.face[userCyberia.model.world.face - 1],
           });

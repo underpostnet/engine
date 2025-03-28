@@ -1,5 +1,4 @@
 import { loggerFactory } from '../../server/logger.js';
-import { getCyberiaPortByWorldPath } from '../cyberia-world/cyberia-world.service.js';
 import { CyberiaUserService } from './cyberia-user.service.js';
 const logger = loggerFactory(import.meta);
 
