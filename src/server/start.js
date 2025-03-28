@@ -1,9 +1,9 @@
 import UnderpostDeploy from '../cli/deploy.js';
 import UnderpostMonitor from '../cli/monitor.js';
-
+import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
-import { shellExec } from './process.js';
+import { shellCd, shellExec } from './process.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -73,9 +73,9 @@ class UnderpostStartUp {
         }
       }),
 
-    async callback(deployId = 'default', env = 'development', options = { build: false }) {
+    async callback(deployId = 'default', env = 'development', options = { build: false, run: false }) {
       if (options.build === true) await UnderpostStartUp.API.build(deployId, env);
-      return await UnderpostStartUp.API.run(deployId, env);
+      if (options.run === true) await UnderpostStartUp.API.run(deployId, env);
     },
     async build(deployId = 'default', env = 'development') {
       const buildBasePath = `/home/dd`;
@@ -85,7 +85,6 @@ class UnderpostStartUp {
       shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);
       shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
       shellCd(`${buildBasePath}/engine`);
-      shellExec(`npm install`);
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {
         const itcScripts = await fs.readdir('./engine-private/itc-scripts');

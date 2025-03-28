@@ -29,7 +29,7 @@ program
   .option('--run', 'Run app servers and monitor health server')
   .option('--build', 'Build app client')
   .action(Underpost.start.callback)
-  .description('Dockerfile custom node build script');
+  .description('Start up server, build pipelines, or services');
 
 program
   .command('clone')
