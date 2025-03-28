@@ -1,14 +1,14 @@
+import Underpost from '../index.js';
 import { actionInitLog, loggerFactory } from './logger.js';
-import UnderpostDeploy from '../cli/deploy.js';
 
 const logger = loggerFactory(import.meta);
 
 const logRuntimeRouter = () => {
   const displayLog = {};
 
-  for (const host of Object.keys(UnderpostDeploy.NETWORK))
-    for (const path of Object.keys(UnderpostDeploy.NETWORK[host]))
-      displayLog[UnderpostDeploy.NETWORK[host][path].publicHost] = UnderpostDeploy.NETWORK[host][path].local;
+  for (const host of Object.keys(Underpost.deployNetwork))
+    for (const path of Object.keys(Underpost.deployNetwork[host]))
+      displayLog[Underpost.deployNetwork[host][path].publicHost] = Underpost.deployNetwork[host][path].local;
 
   logger.info('Runtime network', displayLog);
 };
@@ -45,8 +45,8 @@ const listenPortController = async (server, port, metadata) =>
       if (error.length > 0) throw new Error('Listen port controller requires values: ' + error.join(', '));
 
       server.listen(port, () => {
-        if (!UnderpostDeploy.NETWORK[host]) UnderpostDeploy.NETWORK[host] = {};
-        UnderpostDeploy.NETWORK[host][path] = {
+        if (!Underpost.deployNetwork[host]) Underpost.deployNetwork[host] = {};
+        Underpost.deployNetwork[host][path] = {
           meta,
           client,
           runtime,

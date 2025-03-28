@@ -94,6 +94,13 @@ class Underpost {
    */
   static deploy = UnderpostDeploy.API;
   /**
+   * Deployment cli NETWORK
+   * @static
+   * @type {UnderpostDeploy.NETWORK}
+   * @memberof Underpost
+   */
+  static deployNetwork = UnderpostDeploy.NETWORK;
+  /**
    * Cron cli API
    * @static
    * @type {UnderpostCron.API}

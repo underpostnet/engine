@@ -1,9 +1,7 @@
 import fs from 'fs-extra';
-import Underpost from '../index.js';
 import { shellCd, shellExec } from '../server/process.js';
 import dotenv from 'dotenv';
 import { awaitDeployMonitor, getNpmRootPath } from '../server/conf.js';
-import { timer } from '../client/components/core/CommonJs.js';
 import { loggerFactory } from '../server/logger.js';
 import UnderpostMonitor from './monitor.js';
 
