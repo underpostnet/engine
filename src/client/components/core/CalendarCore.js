@@ -446,7 +446,6 @@ const CalendarCore = {
         .calendar-buttons-container {
           padding-bottom: 15px;
           height: 60px;
-          z-index: 4;
         }
       </style>
       <div class="in calendar-container hide">

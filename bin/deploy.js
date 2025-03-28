@@ -33,8 +33,9 @@ import { MongooseDB } from '../src/db/mongo/MongooseDB.js';
 import { Lampp } from '../src/runtime/lampp/Lampp.js';
 import { DefaultConf } from '../conf.js';
 import { JSONweb } from '../src/server/client-formatted.js';
-import ejs from 'easy-json-schema';
+
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
+import { ejs } from '../src/server/json-schema.js';
 
 const logger = loggerFactory(import.meta);
 
