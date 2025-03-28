@@ -22,11 +22,7 @@ spec:
             - -c
             - >
               npm install -g npm@11.2.0 &&
-              npm config delete proxy &&
-              npm config delete http-proxy &&
-              npm config delete https-proxy &&
-              npm config set registry http://registry.npmjs.org/ &&
-              npm install --unsafe-perm --ignore-scripts -g underpost &&
+              npm install -g underpost &&
               underpost secret underpost --create-from-file /etc/config/.env.development &&
               underpost dockerfile-node-script --build --run dd-cyberia development
           volumeMounts:
@@ -36,7 +32,7 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-cyberia-development:v2.8.637
+# image: localhost/dd-cyberia-development:0.0.0
 ---
 apiVersion: v1
 kind: Service
