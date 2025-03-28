@@ -41,7 +41,7 @@ const InstanceService = {
     /** @type {import('./instance.model.js').InstanceModel} */
     const Instance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Instance;
     if (req.params.id) return await Instance.findByIdAndDelete(req.params.id);
-    else return await await Instance.deleteMany();
+    else return await Instance.deleteMany();
   },
 };
 

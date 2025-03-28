@@ -26,7 +26,7 @@ const CyberiaInstanceService = {
     /** @type {import('./cyberia-instance.model.js').CyberiaInstanceModel} */
     const CyberiaInstance = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaInstance;
     if (req.params.id) return await CyberiaInstance.findByIdAndDelete(req.params.id);
-    else return await await CyberiaInstance.deleteMany();
+    else return await CyberiaInstance.deleteMany();
   },
 };
 

@@ -24,7 +24,7 @@ const CompanyService = {
     /** @type {import('./company.model.js').CompanyModel} */
     const Company = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Company;
     if (req.params.id) return await Company.findByIdAndDelete(req.params.id);
-    else return await await Company.deleteMany();
+    else return await Company.deleteMany();
   },
 };
 

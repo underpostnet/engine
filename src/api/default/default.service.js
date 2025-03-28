@@ -24,7 +24,7 @@ const DefaultService = {
     /** @type {import('./default.model.js').DefaultModel} */
     const Default = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Default;
     if (req.params.id) return await Default.findByIdAndDelete(req.params.id);
-    else return await await Default.deleteMany();
+    else return await Default.deleteMany();
   },
 };
 

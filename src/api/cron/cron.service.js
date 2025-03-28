@@ -24,7 +24,7 @@ const CronService = {
     /** @type {import('./cron.model.js').CronModel} */
     const Cron = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.Cron;
     if (req.params.id) return await Cron.findByIdAndDelete(req.params.id);
-    else return await await Cron.deleteMany();
+    else return await Cron.deleteMany();
   },
 };
 

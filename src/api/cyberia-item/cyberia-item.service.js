@@ -77,7 +77,7 @@ const CyberiaItemService = {
     /** @type {import('./cyberia-item.model.js').CyberiaItemModel} */
     const CyberiaItem = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.CyberiaItem;
     if (req.params.id) return await CyberiaItem.findByIdAndDelete(req.params.id);
-    else return await await CyberiaItem.deleteMany();
+    else return await CyberiaItem.deleteMany();
   },
 };
 

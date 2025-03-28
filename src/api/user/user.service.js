@@ -378,7 +378,7 @@ const UserService = {
         switch (user.role) {
           case 'admin': {
             if (req.params.id) return await User.findByIdAndDelete(req.params.id);
-            else return await await User.deleteMany();
+            else return await User.deleteMany();
           }
           default:
             if (req.auth.user._id !== req.params.id) throw new Error(`Invalid token user id`);

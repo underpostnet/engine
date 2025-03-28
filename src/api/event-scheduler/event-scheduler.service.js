@@ -47,7 +47,7 @@ const EventSchedulerService = {
     /** @type {import('./event-scheduler.model.js').EventSchedulerModel} */
     const EventScheduler = DataBaseProvider.instance[`${options.host}${options.path}`].mongoose.models.EventScheduler;
     if (req.params.id) return await EventScheduler.findByIdAndDelete(req.params.id);
-    else return await await EventScheduler.deleteMany();
+    else return await EventScheduler.deleteMany();
   },
 };
 
