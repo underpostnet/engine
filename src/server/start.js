@@ -85,6 +85,7 @@ class UnderpostStartUp {
       shellExec(`cd ${buildBasePath}/engine && underpost clone underpostnet/${repoName}-private`);
       shellExec(`cd ${buildBasePath}/engine && sudo mv ./${repoName}-private ./engine-private`);
       shellCd(`${buildBasePath}/engine`);
+      shellExec(`npm install`);
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       if (fs.existsSync('./engine-private/itc-scripts')) {
         const itcScripts = await fs.readdir('./engine-private/itc-scripts');
