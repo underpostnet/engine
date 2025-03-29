@@ -115,6 +115,7 @@ const SocketIoCyberia = {
               if (type === 'user' && id === 'main') {
                 ElementsCyberia.Data[type][id].coin = element.coin;
                 Slot.coin.update({ bagId: 'cyberia-bag', type, id });
+                PixiCyberia.renderEventIcon({ type, id, displayId: 'coin' });
               }
               break;
             case 'update-weapon':

@@ -629,7 +629,7 @@ const WorldCyberia = {
   adjacentFaceJsonEditor: {
     content: {
       json: {
-        type: 'default',
+        type: null,
         value: '',
         fileId: '',
       },

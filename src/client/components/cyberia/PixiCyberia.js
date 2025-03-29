@@ -608,7 +608,7 @@ const PixiCyberia = {
                 pixiFrames.push(Texture.from(`${getProxyPath()}assets/skill/blood/08/${frame}.png`));
               }
               animBlood = new AnimatedSprite(pixiFrames);
-              animBlood.animationSpeed = 0.5;
+              animBlood.animationSpeed = 0.25;
               const dataSpriteFormat = this.formatSpriteComponent({
                 displayId: 'blood',
                 positionId: '08',
@@ -1617,6 +1617,36 @@ const PixiCyberia = {
       }
     };
     return { componentInstance, alphaTicker };
+  },
+  renderEventIcon: function ({ type, id, displayId }) {
+    const displayData = DisplayComponent.get[displayId]();
+    const { frames } = displayData.positions.find((p) => p.positionId === '08');
+    const pixiFrames = [];
+    for (const frame of range(0, frames - 1)) {
+      pixiFrames.push(
+        Texture.from(
+          `${getProxyPath()}assets/${displayData.assetFolder}/${displayId}/08/${frame}.${displayData.extension}`,
+        ),
+      );
+    }
+
+    const iconSprite = new AnimatedSprite(pixiFrames);
+    const dim = this.MetaData.dim / MatrixCyberia.Data.dim;
+    iconSprite.width = dim / 2;
+    iconSprite.height = dim / 2;
+    iconSprite.x = dim * ElementsCyberia.Data[type][id].x + dim / 4;
+    iconSprite.y = dim * ElementsCyberia.Data[type][id].y + dim / 2;
+    iconSprite.zIndex = this.MetaData.dim;
+    iconSprite.animationSpeed = 0.3;
+
+    this.AppTopLevelColor.stage.addChild(iconSprite);
+
+    iconSprite.play();
+
+    setTimeout(() => {
+      this.AppTopLevelColor.stage.removeChild(iconSprite);
+      iconSprite.destroy();
+    }, 1250);
   },
 };
 
