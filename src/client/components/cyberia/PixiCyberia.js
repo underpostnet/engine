@@ -524,8 +524,8 @@ const PixiCyberia = {
         case 'coinIndicator':
           {
             const componentInstance = new Container();
-            componentInstance.x = 0;
-            componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
+            componentInstance.x = [-2.5, 2][random(0, 1)] * ((dim * ElementsCyberia.Data[type][id].dim) / 2);
+            componentInstance.y = -1.8 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
             componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
             componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
@@ -555,7 +555,7 @@ const PixiCyberia = {
                   new TextStyle({
                     fill: diffCoin[0] !== '+' ? '#d4da1e' : '#d4da1e',
                     fontFamily: 'retro-font', // Impact
-                    fontSize: 100 * (1 / MatrixCyberia.Data.dimAmplitude),
+                    fontSize: 300 * (1 / MatrixCyberia.Data.dimAmplitude),
                     dropShadow: true,
                     dropShadowAngle: 1,
                     dropShadowBlur: 3,
