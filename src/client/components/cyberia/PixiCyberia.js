@@ -525,7 +525,7 @@ const PixiCyberia = {
           {
             const componentInstance = new Container();
             componentInstance.x = [-2.5, 2][random(0, 1)] * ((dim * ElementsCyberia.Data[type][id].dim) / 2);
-            componentInstance.y = -1.8 * dim * ElementsCyberia.Data[type][id].dim * 0.8;
+            componentInstance.y = [-2.5, 2][random(0, 1)] * dim * ElementsCyberia.Data[type][id].dim * 0.8;
             componentInstance.width = dim * ElementsCyberia.Data[type][id].dim;
             componentInstance.height = dim * ElementsCyberia.Data[type][id].dim * 0.4;
             this.Data[type][id].components[componentType].container = componentInstance;
