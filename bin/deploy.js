@@ -1049,6 +1049,33 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
+    case 'update-instances': {
+      shellExec(`node bin deploy dd production --sync --build-manifest --info-router --dashboard-update`);
+      shellExec(`node bin cron --dashboard-update --init`);
+      const deployId = 'dd-core';
+      const host = 'www.nexodev.org';
+      const path = '/';
+
+      {
+        const outputPath = './engine-private/instances';
+        if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
+        const collection = 'instances';
+        shellExec(
+          `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+        );
+      }
+      {
+        const outputPath = './engine-private/crons';
+        if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
+        const collection = 'crons';
+        shellExec(
+          `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+        );
+      }
+      // shellExec(`node bin db --import --drop --preserveUUID --out-path ${outputPath}/${db.name} ${deployId}`);
+      break;
+    }
+
     default:
       break;
   }

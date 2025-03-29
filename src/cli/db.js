@@ -15,11 +15,13 @@ class UnderpostDB {
         export: false,
         podName: false,
         ns: false,
-        collection: '',
+        collections: '',
         outPath: '',
         drop: false,
         preserveUUID: false,
         git: false,
+        hosts: '',
+        paths: '',
       },
     ) {
       const newBackupTimestamp = new Date().getTime();
@@ -39,20 +41,27 @@ class UnderpostDB {
               if (!dbs[provider]) dbs[provider] = {};
 
               if (!(name in dbs[provider]))
-                dbs[provider][name] = { user, password, hostFolder: host + path.replaceAll('/', '-') };
+                dbs[provider][name] = { user, password, hostFolder: host + path.replaceAll('/', '-'), host, path };
             }
           }
         }
 
-        if (!fs.existsSync(`../${repoName}`)) {
-          shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
-        } else {
-          shellExec(`cd ../${repoName} && underpost pull . ${process.env.GITHUB_USERNAME}/${repoName}`);
+        if (options.git === true) {
+          if (!fs.existsSync(`../${repoName}`)) {
+            shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
+          } else {
+            shellExec(`cd ../${repoName} && underpost pull . ${process.env.GITHUB_USERNAME}/${repoName}`);
+          }
         }
 
         for (const provider of Object.keys(dbs)) {
           for (const dbName of Object.keys(dbs[provider])) {
-            const { hostFolder, user, password } = dbs[provider][dbName];
+            const { hostFolder, user, password, host, path } = dbs[provider][dbName];
+            if (
+              (options.hosts && !options.hosts.split(',').includes(host)) ||
+              (options.paths && !options.paths.split(',').includes(path))
+            )
+              continue;
             if (hostFolder) {
               logger.info('', { hostFolder, provider, dbName });
 
@@ -153,7 +162,7 @@ class UnderpostDB {
                       const podName = podNameData.NAME;
                       shellExec(`sudo kubectl exec -i ${podName} -- sh -c "rm -rf /${dbName}"`);
                       if (options.collections)
-                        for (const collection of options.collections)
+                        for (const collection of options.collections.split(','))
                           shellExec(
                             `sudo kubectl exec -i ${podName} -- sh -c "mongodump -d ${dbName} --collection ${collection} -o /"`,
                           );
