@@ -50,6 +50,7 @@ class UnderpostDB {
           if (!fs.existsSync(`../${repoName}`)) {
             shellExec(`cd .. && underpost clone ${process.env.GITHUB_USERNAME}/${repoName}`);
           } else {
+            shellExec(`cd ../${repoName} && git checkout . && git clean -f -d`);
             shellExec(`cd ../${repoName} && underpost pull . ${process.env.GITHUB_USERNAME}/${repoName}`);
           }
         }
