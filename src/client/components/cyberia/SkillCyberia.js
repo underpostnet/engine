@@ -96,6 +96,18 @@ const SkillCyberia = {
     }
   },
   renderDeadCooldown: function ({ type, id }) {
+    s(`.dead-timer-modal`).classList.remove('hide');
+    let count = 0;
+    htmls(`.dead-timer-count`, ElementsCyberia.Data[type][id].deadTime / 1000);
+    const interval = setInterval(() => {
+      count++;
+      htmls(`.dead-timer-count`, ElementsCyberia.Data[type][id].deadTime / 1000 - count);
+    }, 1000);
+    setTimeout(() => {
+      clearInterval(interval);
+      s(`.dead-timer-modal`).classList.add('hide');
+    }, ElementsCyberia.Data[type][id].deadTime);
+
     if (ElementsCyberia.LocalDataScope[type][id].skill)
       for (const skillKey of Object.keys(ElementsCyberia.LocalDataScope[type][id].skill)) {
         ElementsCyberia.LocalDataScope[type][id].skill[skillKey](

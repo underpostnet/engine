@@ -44,6 +44,8 @@ import { LoadingAnimation } from '../core/LoadingAnimation.js';
 import { Auth } from '../core/Auth.js';
 import { getNumberByHex } from '../core/ColorPalette.js';
 import { EventsUI } from '../core/EventsUI.js';
+import { Translate } from '../core/Translate.js';
+import { borderChar } from '../core/Css.js';
 
 // https://pixijs.com/8.x/examples/sprite/animated-sprite-jet
 // https://developer.mozilla.org/en-US/docs/Web/API/Window/requestAnimationFrame
@@ -79,7 +81,20 @@ const PixiCyberia = {
             left: 0px;
             z-index: 1;
           }
+          .dead-timer-modal {
+            color: black;
+            top: 23.5%;
+            z-index: 3;
+          }
+          .dead-timer-modal-img {
+            height: 80px;
+          }
+          .dead-timer-count {
+            font-size: 35px;
+            color: white;
+          }
         </style>
+        ${borderChar(2, 'red', ['.dead-timer-modal'])}
         <div class="fix pixi-container">
           <div class="abs adjacent-map adjacent-map-limit-top">
             <div class="abs adjacent-map-background adjacent-map-background-top"></div>
@@ -108,6 +123,13 @@ const PixiCyberia = {
           </div>
         </div>
         <div class="fix pixi-container-top-level" style="opacity: 1"></div>
+        <div class="abs center dead-timer-modal hide">
+          <img class="inl dead-timer-modal-img" src="${getProxyPath()}assets/util/dead.png" />
+          <br />
+          <span>${Translate.Render('you-are-dead')}</span>
+          <br /><br />
+          <span class="dead-timer-count"></span>
+        </div>
       `,
     );
     this.App = new Application({
@@ -466,11 +488,11 @@ const PixiCyberia = {
             this.Data[type][id].components[componentType][`pointer-arrow`] = componentInstance;
             this.Data[type][id].addChild(componentInstance);
 
-            const frames = [-1.8, -2.0];
+            const frames = [0, dim / 8];
             let frame = 0;
             const callBack = function () {
               if (!componentInstance.visible || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id]) return;
-              componentInstance.y = -1 * dim * ElementsCyberia.Data[type][id].dim - (dim / 4) * frames[frame];
+              componentInstance.y = -4 * (dim / 3) - frames[frame];
               frame++;
               if (frame === frames.length) frame = 0;
             };

@@ -40,6 +40,11 @@ const TranslateCyberia = {
 
     Translate.Data['space'] = { en: 'Space', es: 'Espacial' };
 
+    Translate.Data['you-are-dead'] = {
+      en: 'You are dead',
+      es: 'Has muerto',
+    };
+
     Translate.Data['dismiss-quest'] = {
       en: 'Dismiss Quest',
       es: 'Abandonar Misión',
