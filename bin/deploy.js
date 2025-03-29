@@ -1060,19 +1060,29 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         const outputPath = './engine-private/instances';
         if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
         const collection = 'instances';
-        shellExec(
-          `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-        );
+        if (process.argv.includes('export'))
+          shellExec(
+            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+          );
+        if (process.argv.includes('import'))
+          shellExec(
+            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+          );
       }
       {
         const outputPath = './engine-private/crons';
         if (fs.existsSync(outputPath)) fs.mkdirSync(outputPath, { recursive: true });
         const collection = 'crons';
-        shellExec(
-          `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
-        );
+        if (process.argv.includes('export'))
+          shellExec(
+            `node bin db --export --collections ${collection} --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+          );
+        if (process.argv.includes('import'))
+          shellExec(
+            `node bin db --import --drop --preserveUUID --out-path ${outputPath} --hosts ${host} --paths '${path}' ${deployId}`,
+          );
       }
-      // shellExec(`node bin db --import --drop --preserveUUID --out-path ${outputPath}/${db.name} ${deployId}`);
+
       break;
     }
 
