@@ -223,41 +223,45 @@ const PixiCyberia = {
   adjacentIds: ['top', 'bottom', 'left', 'right', 'top-left', 'top-right', 'bottom-left', 'bottom-right'],
   instanceAdjacentEvents: async function () {
     for (const adjId of this.adjacentIds) {
-      EventsUI.onClick(`.adjacent-map-background-${adjId}`, async (...args) => {
-        let x = newInstance(ElementsCyberia.Data.user.main.x);
-        let y = newInstance(ElementsCyberia.Data.user.main.y);
+      EventsUI.onClick(
+        `.adjacent-map-background-${adjId}`,
+        async (...args) => {
+          let x = newInstance(ElementsCyberia.Data.user.main.x);
+          let y = newInstance(ElementsCyberia.Data.user.main.y);
 
-        switch (adjId) {
-          case 'left':
-            x = ElementsCyberia.Data.user.main.x - ElementsCyberia.Data.user.main.vel;
-            break;
-          case 'right':
-            x = ElementsCyberia.Data.user.main.x + ElementsCyberia.Data.user.main.vel;
-            break;
-          case 'bottom':
-          case 'bottom-right':
-          case 'bottom-left':
-            y = ElementsCyberia.Data.user.main.y + ElementsCyberia.Data.user.main.vel;
-            break;
-          case 'top':
-          case 'top-right':
-          case 'top-left':
-            y = ElementsCyberia.Data.user.main.y - ElementsCyberia.Data.user.main.vel;
-            break;
-          default:
-            break;
-        }
+          switch (adjId) {
+            case 'left':
+              x = ElementsCyberia.Data.user.main.x - ElementsCyberia.Data.user.main.vel;
+              break;
+            case 'right':
+              x = ElementsCyberia.Data.user.main.x + ElementsCyberia.Data.user.main.vel;
+              break;
+            case 'bottom':
+            case 'bottom-right':
+            case 'bottom-left':
+              y = ElementsCyberia.Data.user.main.y + ElementsCyberia.Data.user.main.vel;
+              break;
+            case 'top':
+            case 'top-right':
+            case 'top-left':
+              y = ElementsCyberia.Data.user.main.y - ElementsCyberia.Data.user.main.vel;
+              break;
+            default:
+              break;
+          }
 
-        if (
-          PixiCyberia.transportBlock ||
-          ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog ||
-          BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })
-        )
-          return;
-        ElementsCyberia.Data.user.main.x = x;
-        ElementsCyberia.Data.user.main.y = y;
-        PixiCyberia.updatePosition({ type: 'user', id: 'main' });
-      });
+          if (
+            PixiCyberia.transportBlock ||
+            ElementsCyberia.LocalDataScope['user']['main'].immunityQuestModalDialog ||
+            BiomeCyberiaManagement.isBiomeCyberiaCollision({ type: 'user', id: 'main', x, y })
+          )
+            return;
+          ElementsCyberia.Data.user.main.x = x;
+          ElementsCyberia.Data.user.main.y = y;
+          PixiCyberia.updatePosition({ type: 'user', id: 'main' });
+        },
+        { clickEffect: true },
+      );
     }
   },
   mainUserMovementControllerInterval: null,

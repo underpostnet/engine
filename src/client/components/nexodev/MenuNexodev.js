@@ -302,7 +302,6 @@ const MenuNexodev = {
       htmlMainBody: async () => {
         setTimeout(() => {
           s(`.landing-sig-up-btn`).onclick = (e) => {
-            cssEffect(`.landing-sig-up-btn`, e);
             s(`.main-btn-sign-up`).click();
           };
         });

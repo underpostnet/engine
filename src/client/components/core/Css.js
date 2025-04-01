@@ -761,7 +761,6 @@ const renderWave = ({ id }) => {
 const cssTokensEffect = {};
 const cssTokensContainer = {};
 const cssEffect = async (containerSelector, event) => {
-  return;
   // Array.from(event.target.classList)
   let offsetX, offsetY;
   if (Array.from(event.srcElement.classList).includes('ripple') && cssTokensContainer[containerSelector]) {

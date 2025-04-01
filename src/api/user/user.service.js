@@ -325,11 +325,14 @@ const UserService = {
         return await User.find().select(UserDto.select.getAll());
 
       case 'auth': {
-        const user = (await ValkeyAPI.getValkeyObject(options, req.auth.user.email))
-          ? await ValkeyAPI.getValkeyObject(options, req.auth.user.email)
-          : await User.findOne({
-              _id: req.auth.user._id,
-            });
+        let user;
+        if (req.auth.user._id.match('guest')) {
+          user = await ValkeyAPI.getValkeyObject(options, req.auth.user.email);
+          if (!user) throw new Error('guest user expired');
+        } else
+          user = await User.findOne({
+            _id: req.auth.user._id,
+          });
 
         const file = await File.findOne({ _id: user.profileImageId });
 

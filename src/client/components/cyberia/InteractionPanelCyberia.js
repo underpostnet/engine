@@ -204,7 +204,7 @@ const InteractionPanelCyberia = {
     },
     restoreQuestPanelRender: function () {
       InteractionPanelCyberia.PanelRender.questTokensPaginationFrom = 1;
-      s(`.quest-interaction-panel-footer-btn-arrow-up`).click();
+      if (s(`.quest-interaction-panel-footer-btn-arrow-up`)) s(`.quest-interaction-panel-footer-btn-arrow-up`).click();
     },
     quest: async function ({ id, questData, disabledRender }) {
       if (!s(`.quest-interaction-panel`)) return;

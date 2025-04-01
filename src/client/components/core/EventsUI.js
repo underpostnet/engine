@@ -12,7 +12,7 @@ const EventsUI = {
     if (!s(id)) return;
     let complete = true;
     s(id)[type] = async function (e) {
-      cssEffect(id, e);
+      if (options.clickEffect) cssEffect(id, e);
       if (complete) {
         complete = false;
         await LoadingAnimation.spinner.play(loadingContainer ? loadingContainer : id);
