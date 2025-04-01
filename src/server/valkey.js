@@ -5,11 +5,23 @@ import { loggerFactory } from './logger.js';
 
 const logger = loggerFactory(import.meta);
 
+const ValkeyInstances = {};
+
 let valkeyEnabled = true;
 
 const disableValkeyErrorMessage = 'valkey is not enabled';
 
 const isValkeyEnable = () => valkeyEnabled;
+
+const createValkeyConnection = async (
+  instance = { host: '', port: 0 },
+  valkeyServerConnectionOptions = { host: '', port: 0 },
+) => {
+  ValkeyInstances[`${instance.host}${instance.path}`] = await ValkeyAPI.valkeyClientFactory(
+    valkeyServerConnectionOptions,
+  );
+  return ValkeyInstances[`${instance.host}${instance.path}`];
+};
 
 const selectDtoFactory = (payload, select) => {
   const result = {};
@@ -19,10 +31,12 @@ const selectDtoFactory = (payload, select) => {
   return result;
 };
 
-const valkeyClientFactory = async () => {
+const valkeyClientFactory = async (options) => {
   const valkey = new Valkey({
     // port: 6379,
     // host: 'service-valkey.default.svc.cluster.local',
+    port: options?.port ? options.port : undefined,
+    host: options?.port ? options.host : undefined,
     retryStrategy: (attempt) => {
       if (attempt === 1) {
         valkey.disconnect();
@@ -46,12 +60,12 @@ const valkeyClientFactory = async () => {
   return valkey;
 };
 
-const getValkeyObject = async (key = '') => {
+const getValkeyObject = async (options = { host: '', port: 0 }, key = '') => {
   if (!valkeyEnabled) {
     logger.warn(disableValkeyErrorMessage + ' get', key);
     return null;
   }
-  const object = await valkey.get(key);
+  const object = await ValkeyInstances[`${options.host}${options.path}`].get(key);
   try {
     return JSON.parse(object);
   } catch (error) {
@@ -60,19 +74,19 @@ const getValkeyObject = async (key = '') => {
   }
 };
 
-const setValkeyObject = async (key = '', payload = {}) => {
+const setValkeyObject = async (options = { host: '', port: 0 }, key = '', payload = {}) => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
-  return await valkey.set(key, JSON.stringify(payload));
+  return await ValkeyInstances[`${options.host}${options.path}`].set(key, JSON.stringify(payload));
 };
 
-const updateValkeyObject = async (key = '', payload = {}) => {
+const updateValkeyObject = async (options = { host: '', port: 0 }, key = '', payload = {}) => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
-  const object = await getValkeyObject(key, valkey);
+  const object = await getValkeyObject(key);
   object.updatedAt = new Date().toISOString();
-  return await valkey.set(key, JSON.stringify({ ...object, ...payload }));
+  return await ValkeyInstances[`${options.host}${options.path}`].set(key, JSON.stringify({ ...object, ...payload }));
 };
 
-const valkeyObjectFactory = async (module = '', options = { host: 'localhost', object: {} }) => {
+const valkeyObjectFactory = async (options = { host: 'localhost', object: {} }, module = '') => {
   if (!valkeyEnabled) throw new Error(disableValkeyErrorMessage);
   const idoDate = new Date().toISOString();
   options.object = options.object || {};
@@ -112,9 +126,8 @@ const ValkeyAPI = {
   setValkeyObject,
   valkeyObjectFactory,
   updateValkeyObject,
+  createValkeyConnection,
 };
-
-const valkey = await ValkeyAPI.valkeyClientFactory();
 
 export {
   valkeyClientFactory,
@@ -124,5 +137,6 @@ export {
   valkeyObjectFactory,
   updateValkeyObject,
   isValkeyEnable,
+  createValkeyConnection,
   ValkeyAPI,
 };

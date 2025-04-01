@@ -225,8 +225,8 @@ const UserService = {
         } else throw new Error('invalid email or password');
 
       case 'guest': {
-        const user = await ValkeyAPI.valkeyObjectFactory('user', options);
-        await ValkeyAPI.setValkeyObject(user.email, user);
+        const user = await ValkeyAPI.valkeyObjectFactory(options, 'user');
+        await ValkeyAPI.setValkeyObject(options, user.email, user);
         return {
           token: hashJWT({ user: UserDto.auth.payload(user) }),
           user: selectDtoFactory(user, UserDto.select.get()),
@@ -325,15 +325,15 @@ const UserService = {
         return await User.find().select(UserDto.select.getAll());
 
       case 'auth': {
-        const user = (await ValkeyAPI.getValkeyObject(req.auth.user.email))
-          ? await ValkeyAPI.getValkeyObject(req.auth.user.email)
+        const user = (await ValkeyAPI.getValkeyObject(options, req.auth.user.email))
+          ? await ValkeyAPI.getValkeyObject(options, req.auth.user.email)
           : await User.findOne({
               _id: req.auth.user._id,
             });
 
         const file = await File.findOne({ _id: user.profileImageId });
 
-        if (!file && !(await ValkeyAPI.getValkeyObject(req.auth.user.email))) {
+        if (!file && !(await ValkeyAPI.getValkeyObject(options, req.auth.user.email))) {
           await User.findByIdAndUpdate(
             user._id,
             { profileImageId: await getDefaultProfileImageId(File) },
@@ -342,8 +342,8 @@ const UserService = {
             },
           );
         }
-        return (await ValkeyAPI.getValkeyObject(req.auth.user.email))
-          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(req.auth.user.email), UserDto.select.get())
+        return (await ValkeyAPI.getValkeyObject(options, req.auth.user.email))
+          ? selectDtoFactory(await ValkeyAPI.getValkeyObject(options, req.auth.user.email), UserDto.select.get())
           : await User.findOne({
               _id: req.auth.user._id,
             }).select(UserDto.select.get());

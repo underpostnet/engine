@@ -21,6 +21,7 @@ import { Lampp } from '../runtime/lampp/Lampp.js';
 import { getDeployId } from './conf.js';
 import { JSONweb, ssrFactory } from './client-formatted.js';
 import Underpost from '../index.js';
+import { createValkeyConnection } from './valkey.js';
 
 dotenv.config();
 
@@ -67,6 +68,7 @@ const buildRuntime = async () => {
         peer,
         singleReplica,
         replicas,
+        valkey,
       } = confServer[host][path];
 
       if (singleReplica && replicas && replicas.length > 0 && !singleReplicaHosts.includes(host)) {
@@ -360,6 +362,9 @@ const buildRuntime = async () => {
           }
 
           if (db && apis) await DataBaseProvider.load({ apis, host, path, db });
+
+          // valkey server
+          await createValkeyConnection({ host, path }, valkey);
 
           if (mailer) {
             const mailerSsrConf = confSSR[getCapVariableName(client)];
