@@ -923,6 +923,49 @@ const mergeFile = async (parts = [], outputFilePath) => {
   });
 };
 
+const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
+  const confServer = loadReplicas(
+    JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+  );
+  for (const host of Object.keys(confServer)) {
+    for (const path of Object.keys(confServer[host])) {
+      if (!confServer[host][path].db) continue;
+      const { singleReplica, replicas, db } = confServer[host][path];
+      const { provider } = db;
+      if (singleReplica) {
+        for (const replica of replicas) {
+          const deployIdReplica = buildReplicaId({ replica, deployId });
+          const confServerReplica = JSON.parse(
+            fs.readFileSync(`./engine-private/replica/${deployIdReplica}/conf.server.json`, 'utf8'),
+          );
+          for (const _host of Object.keys(confServerReplica)) {
+            for (const _path of Object.keys(confServerReplica[_host])) {
+              confServerReplica[_host][_path].valkey = valkey;
+              switch (provider) {
+                case 'mongoose':
+                  confServerReplica[_host][_path].db.host = mongo.host;
+                  break;
+              }
+            }
+          }
+          fs.writeFileSync(
+            `./engine-private/replica/${deployIdReplica}/conf.server.json`,
+            JSON.stringify(confServerReplica, null, 4),
+            'utf8',
+          );
+        }
+      }
+      confServer[host][path].valkey = valkey;
+      switch (provider) {
+        case 'mongoose':
+          confServer[host][path].db.host = mongo.host;
+          break;
+      }
+    }
+  }
+  fs.writeFileSync(`./engine-private/conf/${deployId}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+};
+
 const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deployId: '' }) => {
   const { host, path, conf, deployId } = options;
   const { runtime, db, git, directory } = conf[host][path];
@@ -1166,4 +1209,5 @@ export {
   pathPortAssignmentFactory,
   deployRangePortFactory,
   awaitDeployMonitor,
+  rebuildConfFactory,
 };
