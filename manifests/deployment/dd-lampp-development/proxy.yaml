@@ -12,8 +12,10 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-service
+        - name: dd-lampp-development-blue-service
           port: 4001
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -27,8 +29,10 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-service
+        - name: dd-lampp-development-blue-service
           port: 4002
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -42,8 +46,10 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-service
+        - name: dd-lampp-development-blue-service
           port: 4003
+          weight: 100
+    
 ---
 apiVersion: projectcontour.io/v1
 kind: HTTPProxy
@@ -57,5 +63,7 @@ spec:
         - prefix: /
       enableWebsockets: true
       services:
-        - name: dd-lampp-development-service
+        - name: dd-lampp-development-blue-service
           port: 4004
+          weight: 100
+    

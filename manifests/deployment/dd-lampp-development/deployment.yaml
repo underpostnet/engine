@@ -1,21 +1,22 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dd-lampp-development
+  name: dd-lampp-development-blue
   labels:
-    app: dd-lampp-development
+    app: dd-lampp-development-blue
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: dd-lampp-development
+      app: dd-lampp-development-blue
   template:
     metadata:
       labels:
-        app: dd-lampp-development
+        app: dd-lampp-development-blue
     spec:
       containers:
-        - name: dd-lampp-development
+        - name: dd-lampp-development-blue
           image: localhost/debian:underpost
           command:
             - /bin/sh
@@ -32,15 +33,94 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-lampp-development:0.0.0
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dd-lampp-development-service
+  name: dd-lampp-development-blue-service
 spec:
   selector:
-    app: dd-lampp-development
+    app: dd-lampp-development-blue
+  ports:
+    - name: 'tcp-4001'
+      protocol: TCP
+      port: 4001
+      targetPort: 4001
+    - name: 'udp-4001'
+      protocol: UDP
+      port: 4001
+      targetPort: 4001
+
+    - name: 'tcp-4002'
+      protocol: TCP
+      port: 4002
+      targetPort: 4002
+    - name: 'udp-4002'
+      protocol: UDP
+      port: 4002
+      targetPort: 4002
+
+    - name: 'tcp-4003'
+      protocol: TCP
+      port: 4003
+      targetPort: 4003
+    - name: 'udp-4003'
+      protocol: UDP
+      port: 4003
+      targetPort: 4003
+
+    - name: 'tcp-4004'
+      protocol: TCP
+      port: 4004
+      targetPort: 4004
+    - name: 'udp-4004'
+      protocol: UDP
+      port: 4004
+      targetPort: 4004
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-lampp-development-green
+  labels:
+    app: dd-lampp-development-green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dd-lampp-development-green
+  template:
+    metadata:
+      labels:
+        app: dd-lampp-development-green
+    spec:
+      containers:
+        - name: dd-lampp-development-green
+          image: localhost/debian:underpost
+          command:
+            - /bin/sh
+            - -c
+            - >
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              underpost secret underpost --create-from-file /etc/config/.env.development &&
+              underpost start --build --run dd-lampp development
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: underpost-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-lampp-development-green-service
+spec:
+  selector:
+    app: dd-lampp-development-green
   ports:
     - name: 'tcp-4001'
       protocol: TCP

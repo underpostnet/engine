@@ -1,21 +1,22 @@
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: dd-cyberia-development
+  name: dd-cyberia-development-blue
   labels:
-    app: dd-cyberia-development
+    app: dd-cyberia-development-blue
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: dd-cyberia-development
+      app: dd-cyberia-development-blue
   template:
     metadata:
       labels:
-        app: dd-cyberia-development
+        app: dd-cyberia-development-blue
     spec:
       containers:
-        - name: dd-cyberia-development
+        - name: dd-cyberia-development-blue
           image: localhost/debian:underpost
           command:
             - /bin/sh
@@ -32,15 +33,130 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/dd-cyberia-development:0.0.0
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: dd-cyberia-development-service
+  name: dd-cyberia-development-blue-service
 spec:
   selector:
-    app: dd-cyberia-development
+    app: dd-cyberia-development-blue
+  ports:
+    - name: 'tcp-4005'
+      protocol: TCP
+      port: 4005
+      targetPort: 4005
+    - name: 'udp-4005'
+      protocol: UDP
+      port: 4005
+      targetPort: 4005
+
+    - name: 'tcp-4006'
+      protocol: TCP
+      port: 4006
+      targetPort: 4006
+    - name: 'udp-4006'
+      protocol: UDP
+      port: 4006
+      targetPort: 4006
+
+    - name: 'tcp-4007'
+      protocol: TCP
+      port: 4007
+      targetPort: 4007
+    - name: 'udp-4007'
+      protocol: UDP
+      port: 4007
+      targetPort: 4007
+
+    - name: 'tcp-4008'
+      protocol: TCP
+      port: 4008
+      targetPort: 4008
+    - name: 'udp-4008'
+      protocol: UDP
+      port: 4008
+      targetPort: 4008
+
+    - name: 'tcp-4009'
+      protocol: TCP
+      port: 4009
+      targetPort: 4009
+    - name: 'udp-4009'
+      protocol: UDP
+      port: 4009
+      targetPort: 4009
+
+    - name: 'tcp-4010'
+      protocol: TCP
+      port: 4010
+      targetPort: 4010
+    - name: 'udp-4010'
+      protocol: UDP
+      port: 4010
+      targetPort: 4010
+
+    - name: 'tcp-4011'
+      protocol: TCP
+      port: 4011
+      targetPort: 4011
+    - name: 'udp-4011'
+      protocol: UDP
+      port: 4011
+      targetPort: 4011
+
+    - name: 'tcp-4012'
+      protocol: TCP
+      port: 4012
+      targetPort: 4012
+    - name: 'udp-4012'
+      protocol: UDP
+      port: 4012
+      targetPort: 4012
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dd-cyberia-development-green
+  labels:
+    app: dd-cyberia-development-green
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: dd-cyberia-development-green
+  template:
+    metadata:
+      labels:
+        app: dd-cyberia-development-green
+    spec:
+      containers:
+        - name: dd-cyberia-development-green
+          image: localhost/debian:underpost
+          command:
+            - /bin/sh
+            - -c
+            - >
+              npm install -g npm@11.2.0 &&
+              npm install -g underpost &&
+              underpost secret underpost --create-from-file /etc/config/.env.development &&
+              underpost start --build --run dd-cyberia development
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/config
+      volumes:
+        - name: config-volume
+          configMap:
+            name: underpost-config
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dd-cyberia-development-green-service
+spec:
+  selector:
+    app: dd-cyberia-development-green
   ports:
     - name: 'tcp-4005'
       protocol: TCP
