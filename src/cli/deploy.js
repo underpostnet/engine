@@ -155,8 +155,12 @@ spec:
         - prefix: ${path}
       enableWebsockets: true
       services:
-        - name: ${deployId}-${env}-service
-          port: ${port}`;
+        - name: ${deployId}-${env}-${'blue'}-service
+          port: ${port}
+          weight: 100
+        - name: ${deployId}-${env}-${'green'}-service
+          port: ${port}
+          weight: 0`;
           }
         }
         const yamlPath = `./engine-private/conf/${deployId}/build/${env}/proxy.yaml`;
