@@ -45,7 +45,7 @@ class UnderpostMonitor {
         .reduce((accumulator, value) => accumulator + value, 0);
 
       const monitor = async (reject) => {
-        logger.info('Check server health');
+        logger.info(`[${deployId}-${env}] Check server health`);
         for (const host of Object.keys(pathPortAssignmentData)) {
           for (const instance of pathPortAssignmentData[host]) {
             const { port, path } = instance;
@@ -120,10 +120,10 @@ class UnderpostMonitor {
       let optionsMsTimeout = parseInt(options.msInterval);
       if (isNaN(optionsMsTimeout)) optionsMsTimeout = 30000;
       const monitorCallBack = (resolve, reject) => {
-        const envMsTimeout = UnderpostRootEnv.API.get('monitor-ms');
+        const envMsTimeout = UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-ms`);
         setTimeout(
           async () => {
-            switch (UnderpostRootEnv.API.get('monitor-input')) {
+            switch (UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`)) {
               case 'pause':
                 monitorCallBack(resolve, reject);
                 return;
