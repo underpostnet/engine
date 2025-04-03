@@ -524,6 +524,7 @@ const CssCoreDark = {
           margin: 5px 0 0 0;
           padding: 5px;
           font-size: 16px;
+          min-height: 40px;
         }
         .btn-input-extension:hover {
         }
@@ -843,6 +844,7 @@ const CssCoreLight = {
           margin: 5px 0 0 0;
           padding: 5px;
           font-size: 16px;
+          min-height: 40px;
         }
         .btn-input-extension:hover {
         }
