@@ -10,14 +10,24 @@ const logger = loggerFactory(import.meta);
 
 class UnderpostMonitor {
   static API = {
-    async callback(deployId, env = 'development', options = { now: false, single: false, msInterval: '', type: '' }) {
+    async callback(
+      deployId,
+      env = 'development',
+      options = { now: false, single: false, msInterval: '', type: '' },
+      auxRouter,
+    ) {
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
         for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','))
-          UnderpostMonitor.API.callback(_deployId, env, options);
+          UnderpostMonitor.API.callback(
+            _deployId.trim(),
+            env,
+            options,
+            await UnderpostDeploy.API.routerFactory(_deployId, env),
+          );
         return;
       }
 
-      const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+      const router = auxRouter ?? (await UnderpostDeploy.API.routerFactory(deployId, env));
 
       const confServer = loadReplicas(
         JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
@@ -26,7 +36,7 @@ class UnderpostMonitor {
 
       const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
 
-      logger.info('', pathPortAssignmentData);
+      logger.info(`${deployId} ${env}`, pathPortAssignmentData);
 
       let errorPayloads = [];
       let traffic = 'blue';
@@ -41,7 +51,7 @@ class UnderpostMonitor {
             const { port, path } = instance;
             if (path.match('peer') || path.match('socket')) continue;
             let urlTest = `http://localhost:${port}${path}`;
-            switch (type) {
+            switch (options.type) {
               case 'blue-green':
                 urlTest = `https://${host}${path}`;
                 break;
@@ -66,8 +76,11 @@ class UnderpostMonitor {
                 errorPayloads.push(errorPayload);
                 if (errorPayloads.length >= maxAttempts) {
                   const message = JSON.stringify(errorPayloads, null, 4);
-                  logger.error(`Deployment ${deployId} has been reached max attempts error payloads`, errorPayloads);
-                  switch (type) {
+                  logger.error(
+                    `Deployment ${deployId} ${env} has been reached max attempts error payloads`,
+                    errorPayloads,
+                  );
+                  switch (options.type) {
                     case 'blue-green':
                       {
                         const confServer = JSON.parse(
@@ -127,7 +140,7 @@ class UnderpostMonitor {
           !isNaN(envMsTimeout) ? envMsTimeout : optionsMsTimeout,
         );
       };
-      return await new Promise((...args) => monitorCallBack(...args));
+      return new Promise((...args) => monitorCallBack(...args));
     },
   };
 }
