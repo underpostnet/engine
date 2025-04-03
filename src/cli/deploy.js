@@ -35,51 +35,25 @@ class UnderpostDeploy {
       await Config.build(undefined, 'proxy', deployList);
       return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
     },
-    async buildManifest(deployList, env, version) {
-      for (const _deployId of deployList.split(',')) {
-        const deployId = _deployId.trim();
-        if (!deployId) continue;
-        const confServer = loadReplicas(
-          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
-          'proxy',
-        );
-        const router = await UnderpostDeploy.API.routerFactory(deployId, env);
-        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
-        const { fromPort, toPort } = deployRangePortFactory(router);
-
-        fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
-        if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
-
-        logger.info('port range', { deployId, fromPort, toPort });
-        // const customImg = `underpost-engine:${version && typeof version === 'string' ? version : '0.0.0'}`;
-        // lifecycle:
-        // postStart:
-        //   exec:
-        //     command:
-        //       - /bin/sh
-        //       - -c
-        //       - >
-        //         sleep 20 &&
-        //         npm install -g underpost &&
-        //         underpost secret underpost --create-from-file /etc/config/.env.${env}
-        const deploymentYamlParts = `apiVersion: apps/v1
+    deploymentYamlPartsFactory({ deployId, env, suffix }) {
+      return `apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: ${deployId}-${env}
+  name: ${deployId}-${env}-${suffix}
   labels:
-    app: ${deployId}-${env}
+    app: ${deployId}-${env}-${suffix}
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: ${deployId}-${env}
+      app: ${deployId}-${env}-${suffix}
   template:
     metadata:
       labels:
-        app: ${deployId}-${env}
+        app: ${deployId}-${env}-${suffix}
     spec:
       containers:
-        - name: ${deployId}-${env}
+        - name: ${deployId}-${env}-${suffix}
           image: localhost/debian:underpost
           command:
             - /bin/sh
@@ -96,27 +70,45 @@ spec:
         - name: config-volume
           configMap:
             name: underpost-config
-# image: localhost/${deployId}-${env}:${version && typeof version === 'string' ? version : '0.0.0'}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: ${deployId}-${env}-service
+  name: ${deployId}-${env}-${suffix}-service
 spec:
   selector:
-    app: ${deployId}-${env}
+    app: ${deployId}-${env}-${suffix}
   ports:
-  type: LoadBalancer`.split('ports:');
-        deploymentYamlParts[1] =
-          buildKindPorts(fromPort, toPort) +
-          `  type: LoadBalancer
-`;
-
-        fs.writeFileSync(
-          `./engine-private/conf/${deployId}/build/${env}/deployment.yaml`,
-          deploymentYamlParts.join(`ports:
-`),
+{{ports}}  type: LoadBalancer`;
+    },
+    async buildManifest(deployList, env, version) {
+      for (const _deployId of deployList.split(',')) {
+        const deployId = _deployId.trim();
+        if (!deployId) continue;
+        const confServer = loadReplicas(
+          JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+          'proxy',
         );
+        const router = await UnderpostDeploy.API.routerFactory(deployId, env);
+        const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
+        const { fromPort, toPort } = deployRangePortFactory(router);
+
+        fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
+        if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
+
+        logger.info('port range', { deployId, fromPort, toPort });
+
+        let deploymentYamlParts = '';
+        for (const deploymentColor of ['blue', 'green']) {
+          deploymentYamlParts += `---
+${UnderpostDeploy.API.deploymentYamlPartsFactory({
+  deployId,
+  env,
+  suffix: deploymentColor,
+}).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
+`;
+        }
+        fs.writeFileSync(`./engine-private/conf/${deployId}/build/${env}/deployment.yaml`, deploymentYamlParts, 'utf8');
 
         let proxyYaml = '';
         let secretYaml = '';
