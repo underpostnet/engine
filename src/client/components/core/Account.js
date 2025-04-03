@@ -204,7 +204,7 @@ const Account = {
             disabled: false,
             extension: async () =>
               html`${await BtnIcon.Render({
-                class: `wfa btn-input-extension btn-account-update-username`,
+                class: `in btn-input-extension btn-account-update-username`,
                 type: 'button',
                 style: 'text-align: left',
                 label: html`${Translate.Render(`update`)}`,
@@ -223,7 +223,7 @@ const Account = {
             extension: !(options && options.disabled && options.disabled.includes('emailConfirm'))
               ? async () => html`<div class="in verify-email-status"></div>
                   ${await BtnIcon.Render({
-                    class: `wfa btn-input-extension btn-confirm-email`,
+                    class: `in btn-input-extension btn-confirm-email`,
                     type: 'button',
                     style: 'text-align: left',
                     label: html`<div class="in">
@@ -246,7 +246,7 @@ const Account = {
             disabledEye: true,
             extension: async () =>
               html`${await BtnIcon.Render({
-                class: `wfa btn-input-extension btn-account-change-password`,
+                class: `in btn-input-extension btn-account-change-password`,
                 type: 'button',
                 style: 'text-align: left',
                 label: html`${Translate.Render(`change-password`)}`,

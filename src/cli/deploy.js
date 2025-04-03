@@ -91,7 +91,7 @@ spec:
   ports:
 {{ports}}  type: LoadBalancer`;
     },
-    async buildManifest(deployList, env, version) {
+    async buildManifest(deployList, env, options) {
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
@@ -102,7 +102,8 @@ spec:
         const router = await UnderpostDeploy.API.routerFactory(deployId, env);
         const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
         const { fromPort, toPort } = deployRangePortFactory(router);
-        const deploymentVersions = ['blue', 'green'];
+        const deploymentVersions =
+          options.versions && typeof options.versions === 'string' ? options.versions.split(',') : ['blue', 'green'];
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
 
@@ -169,7 +170,8 @@ spec:
       deployId,
       env,
       port,
-      deploymentVersions,
+      deploymentVersions:
+        options.traffic && typeof options.traffic === 'string' ? options.traffic.split(',') : ['blue'],
     })}`;
           }
         }
@@ -202,7 +204,8 @@ spec:
         infoUtil: false,
         expose: false,
         cert: false,
-        version: '',
+        versions: '',
+        traffic: '',
         dashboardUpdate: false,
       },
     ) {
@@ -215,7 +218,7 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
       if (options.sync) UnderpostDeploy.API.sync(deployList);
-      if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options.version);
+      if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
       if (options.infoRouter === true) logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
       if (options.dashboardUpdate === true) await UnderpostDeploy.API.updateDashboardData(deployList, env, options);
       if (options.infoRouter === true) return;

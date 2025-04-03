@@ -115,7 +115,8 @@ program
   .option('--cert', 'Reset tls/ssl certificate secrets')
   .option('--build-manifest', 'Build kind yaml manifests: deployments, services, proxy and secrets')
   .option('--dashboard-update', 'Update dashboard instance data with current router config')
-  .option('--version', 'Set custom version')
+  .option('--versions <deployment-versions>', 'Comma separated custom deployment versions')
+  .option('--traffic <traffic-versions>', 'Comma separated custom deployment traffic')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 
@@ -233,6 +234,7 @@ program
   .option('--ms-interval <ms-interval>', 'Custom ms interval delta time')
   .option('--now', 'Exec immediately monitor script')
   .option('--single', 'Disable recurrence')
+  .option('--type <type>', 'Se custom monitor type')
   .description('Monitor health server management')
   .action(Underpost.monitor.callback);
 

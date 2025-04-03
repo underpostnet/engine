@@ -20,14 +20,20 @@ class UnderpostStartUp {
     },
     listenServerFactory: (logic = async () => {}) => {
       return {
-        listen: async (...args) => (
-          setTimeout(() => {
-            const message = 'Listen server factory timeout';
-            logger.error(message);
-            throw new Error(message);
-          }, 80000000), // ~ 55 days
-          (logic ? await logic(...args) : undefined, args[1]())
-        ),
+        listen: async (...args) => {
+          const msDelta = 1000;
+          const msMax = 30 * 24 * 60 * 60 * 1000; // ~ 1 month
+          let msCount = 0;
+          setInterval(() => {
+            msCount += msDelta;
+            if (msCount >= msMax) {
+              const message = 'Listen server factory timeout';
+              logger.error(message);
+              throw new Error(message);
+            }
+          }, msDelta);
+          return logic ? await logic(...args) : undefined, args[1]();
+        },
       };
     },
     listenPortController: async (server, port, metadata) =>
@@ -108,7 +114,6 @@ class UnderpostStartUp {
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`, { async: true });
       await awaitDeployMonitor(true);
-      return await UnderpostMonitor.API.callback(deployId, env);
     },
   };
 }

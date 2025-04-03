@@ -4,12 +4,19 @@ import UnderpostDeploy from './deploy.js';
 import axios from 'axios';
 import UnderpostRootEnv from './env.js';
 import fs from 'fs-extra';
+import { shellExec } from '../server/process.js';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostMonitor {
   static API = {
-    async callback(deployId, env = 'development', options = { now: false, single: false, msInterval: '' }) {
+    async callback(deployId, env = 'development', options = { now: false, single: false, msInterval: '', type: '' }) {
+      if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
+        for (const _deployId of fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8').split(','))
+          UnderpostMonitor.API.callback(_deployId, env, options);
+        return;
+      }
+
       const router = await UnderpostDeploy.API.routerFactory(deployId, env);
 
       const confServer = loadReplicas(
@@ -21,7 +28,8 @@ class UnderpostMonitor {
 
       logger.info('', pathPortAssignmentData);
 
-      const errorPayloads = [];
+      let errorPayloads = [];
+      let traffic = 'blue';
       const maxAttempts = Object.keys(pathPortAssignmentData)
         .map((host) => pathPortAssignmentData[host].length)
         .reduce((accumulator, value) => accumulator + value, 0);
@@ -32,7 +40,15 @@ class UnderpostMonitor {
           for (const instance of pathPortAssignmentData[host]) {
             const { port, path } = instance;
             if (path.match('peer') || path.match('socket')) continue;
-            const urlTest = `http://localhost:${port}${path}`;
+            let urlTest = `http://localhost:${port}${path}`;
+            switch (type) {
+              case 'blue-green':
+                urlTest = `https://${host}${path}`;
+                break;
+
+              default:
+                break;
+            }
             // logger.info('Test instance', urlTest);
             await axios.get(urlTest, { timeout: 10000 }).catch((error) => {
               // console.log(error);
@@ -50,8 +66,35 @@ class UnderpostMonitor {
                 errorPayloads.push(errorPayload);
                 if (errorPayloads.length >= maxAttempts) {
                   const message = JSON.stringify(errorPayloads, null, 4);
-                  if (reject) reject(message);
-                  else throw new Error(message);
+                  logger.error(`Deployment ${deployId} has been reached max attempts error payloads`, errorPayloads);
+                  switch (type) {
+                    case 'blue-green':
+                      {
+                        const confServer = JSON.parse(
+                          fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'),
+                        );
+
+                        for (const host of Object.keys(confServer)) {
+                          shellExec(`sudo kubectl delete HTTPProxy ${host}`);
+                        }
+
+                        if (traffic === 'blue') traffic = 'green';
+                        else traffic = 'blue';
+
+                        shellExec(
+                          `node bin deploy --info-router --build-manifest --traffic ${traffic} ${deployId} ${env}`,
+                        );
+
+                        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+                        errorPayloads = [];
+                      }
+
+                      break;
+
+                    default:
+                      if (reject) reject(message);
+                      else throw new Error(message);
+                  }
                 }
                 logger.error('Error accumulator', errorPayloads.length);
               }
