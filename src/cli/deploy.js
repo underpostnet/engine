@@ -35,6 +35,16 @@ class UnderpostDeploy {
       await Config.build(undefined, 'proxy', deployList);
       return buildPortProxyRouter(env === 'development' ? 80 : 443, buildProxyRouter());
     },
+    deploymentYamlServiceFactory({ deployId, env, port, deploymentVersions }) {
+      return deploymentVersions
+        .map(
+          (version, i) => `    - name: ${deployId}-${env}-${version}-service
+          port: ${port}
+          weight: ${i === 0 ? 100 : 0}
+    `,
+        )
+        .join('');
+    },
     deploymentYamlPartsFactory({ deployId, env, suffix }) {
       return `apiVersion: apps/v1
 kind: Deployment
@@ -92,19 +102,19 @@ spec:
         const router = await UnderpostDeploy.API.routerFactory(deployId, env);
         const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
         const { fromPort, toPort } = deployRangePortFactory(router);
-
+        const deploymentVersions = ['blue', 'green'];
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
 
         logger.info('port range', { deployId, fromPort, toPort });
 
         let deploymentYamlParts = '';
-        for (const deploymentColor of ['blue', 'green']) {
+        for (const deploymentVersion of deploymentVersions) {
           deploymentYamlParts += `---
 ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId,
   env,
-  suffix: deploymentColor,
+  suffix: deploymentVersion,
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
@@ -155,12 +165,12 @@ spec:
         - prefix: ${path}
       enableWebsockets: true
       services:
-        - name: ${deployId}-${env}-${'blue'}-service
-          port: ${port}
-          weight: 100
-        - name: ${deployId}-${env}-${'green'}-service
-          port: ${port}
-          weight: 0`;
+    ${UnderpostDeploy.API.deploymentYamlServiceFactory({
+      deployId,
+      env,
+      port,
+      deploymentVersions,
+    })}`;
           }
         }
         const yamlPath = `./engine-private/conf/${deployId}/build/${env}/proxy.yaml`;
