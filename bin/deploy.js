@@ -1092,6 +1092,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
+    case 'monitor': {
+      shellExec(`node bin monitor --type ${process.argv[3]} ${process.argv[4]} ${process.argv[5]}`, {
+        async: true,
+      });
+      break;
+    }
+
     default:
       break;
   }
