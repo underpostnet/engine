@@ -235,6 +235,7 @@ spec:
         traffic: '',
         dashboardUpdate: false,
         replicas: '',
+        disableUpdateDeployment: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -276,10 +277,11 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
           continue;
         }
 
-        for (const version of options.versions.split(',')) {
-          shellExec(`sudo kubectl delete svc ${deployId}-${env}-${version}-service`);
-          shellExec(`sudo kubectl delete deployment ${deployId}-${env}-${version}`);
-        }
+        if (!options.disableUpdateDeployment)
+          for (const version of options.versions.split(',')) {
+            shellExec(`sudo kubectl delete svc ${deployId}-${env}-${version}-service`);
+            shellExec(`sudo kubectl delete deployment ${deployId}-${env}-${version}`);
+          }
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
@@ -294,7 +296,7 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
             : `manifests/deployment/${deployId}-${env}`;
 
         if (!options.remove === true) {
-          shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
+          if (!options.disableUpdateDeployment) shellExec(`sudo kubectl apply -f ./${manifestsPath}/deployment.yaml`);
           shellExec(`sudo kubectl apply -f ./${manifestsPath}/proxy.yaml`);
           if (env === 'production' && options.cert === true)
             shellExec(`sudo kubectl apply -f ./${manifestsPath}/secret.yaml`);

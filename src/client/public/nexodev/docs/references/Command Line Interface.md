@@ -238,6 +238,7 @@ Options:
   --replicas <replicas>             Set custom number of replicas
   --versions <deployment-versions>  Comma separated custom deployment versions
   --traffic <traffic-versions>      Comma separated custom deployment traffic
+  --disable-update-deployment       Disable update deployments
   -h, --help                        display help for command
  
 ```

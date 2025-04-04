@@ -119,6 +119,7 @@ program
   .option('--replicas <replicas>', 'Set custom number of replicas')
   .option('--versions <deployment-versions>', 'Comma separated custom deployment versions')
   .option('--traffic <traffic-versions>', 'Comma separated custom deployment traffic')
+  .option('--disable-update-deployment', 'Disable update deployments')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 
