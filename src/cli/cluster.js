@@ -202,7 +202,7 @@ class UnderpostCluster {
     },
     getResourcesCapacity() {
       const resources = {};
-      const info = false
+      const info = true
         ? `Capacity:
   cpu:                8
   ephemeral-storage:  153131976Ki

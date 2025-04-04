@@ -734,8 +734,8 @@ try {
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
-      shellExec(`node bin deploy dd --build-manifest --sync --info-router`);
-      shellExec(`node bin deploy dd production --build-manifest --sync --info-router`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd`);
+      shellExec(`node bin deploy --build-manifest --sync --info-router --replicas 1 dd production`);
       break;
     }
 

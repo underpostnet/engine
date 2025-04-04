@@ -6,7 +6,7 @@ metadata:
   labels:
     app: dd-lampp-development-blue
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: dd-lampp-development-blue
@@ -20,11 +20,11 @@ spec:
           image: localhost/debian:underpost
           resources:
             requests:
-              memory: "347512Ki"
-              cpu: "233m"
+              memory: "99289Ki"
+              cpu: "66m"
             limits:
-              memory: "943248Ki"
-              cpu: "632m"
+              memory: "1588628Ki"
+              cpu: "1066m"
           command:
             - /bin/sh
             - -c
@@ -93,7 +93,7 @@ metadata:
   labels:
     app: dd-lampp-development-green
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
       app: dd-lampp-development-green
@@ -107,11 +107,11 @@ spec:
           image: localhost/debian:underpost
           resources:
             requests:
-              memory: "347512Ki"
-              cpu: "233m"
+              memory: "99289Ki"
+              cpu: "66m"
             limits:
-              memory: "943248Ki"
-              cpu: "632m"
+              memory: "1588628Ki"
+              cpu: "1066m"
           command:
             - /bin/sh
             - -c
