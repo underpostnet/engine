@@ -139,12 +139,10 @@ try {
         const splitKeyword = '## underpost ci/cd cli';
         fs.writeFileSync(
           `../pwa-microservices-template/README.md`,
-          fs.readFileSync(`../pwa-microservices-template/README.md`, 'utf8').replace(
-            `<!-- -->`,
+          fs.readFileSync(`../pwa-microservices-template/README.md`, 'utf8').split(`<!-- -->`)[0] +
             `<!-- -->
 ${splitKeyword + fs.readFileSync(`./README.md`, 'utf8').split(splitKeyword)[1]}`,
-            'utf8',
-          ),
+          'utf8',
         );
       }
 
