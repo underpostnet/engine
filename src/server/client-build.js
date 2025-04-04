@@ -683,6 +683,19 @@ Sitemap: https://${host}${path === '/' ? '' : path}/sitemap.xml`,
 root file where the route starts, such as index.js, app.js, routes.js, etc ... */
 
         await swaggerAutoGen({ openapi: '3.0.0' })(outputFile, routes, doc);
+
+        const htmlFiles = await fs.readdir(`./public/${host}/docs/engine/${Underpost.version.replace('v', '')}`);
+        for (const htmlFile of htmlFiles) {
+          if (htmlFile.match('.html')) {
+            fs.writeFileSync(
+              `./public/${host}/docs/engine/${Underpost.version.replace('v', '')}/${htmlFile}`,
+              fs
+                .readFileSync(`./public/${host}/docs/engine/${Underpost.version.replace('v', '')}/${htmlFile}`, 'utf8')
+                .replaceAll('Tutorials', 'References'),
+              'utf8',
+            );
+          }
+        }
       }
 
       if (client) {

@@ -23,7 +23,7 @@
       "homepageTitle": "Docs",
       "favicon": "./public/www.nexodev.org/"
     },
-    "tutorials": "./public/www.nexodev.org/docs/learn"
+    "tutorials": "./public/www.nexodev.org/docs/references"
   },
   "markdown": {
     "hardwrap": false,

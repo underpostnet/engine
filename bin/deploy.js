@@ -36,6 +36,7 @@ import { JSONweb } from '../src/server/client-formatted.js';
 
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { ejs } from '../src/server/json-schema.js';
+import { buildCliDoc } from '../src/cli/index.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -729,7 +730,7 @@ try {
         fs.readFileSync(`./src/index.js`, 'utf8').replaceAll(`${version}`, `${newVersion}`),
         'utf8',
       );
-
+      shellExec(`node bin/deploy cli-docs`);
       shellExec(`node bin/deploy update-dependencies`);
       shellExec(`auto-changelog`);
       shellExec(`node bin/build dd`);
@@ -1083,6 +1084,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           );
       }
 
+      break;
+    }
+
+    case 'cli-docs': {
+      buildCliDoc();
       break;
     }
 
