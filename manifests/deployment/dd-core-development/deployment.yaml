@@ -18,6 +18,13 @@ spec:
       containers:
         - name: dd-core-development-blue
           image: localhost/debian:underpost
+          resources:
+            requests:
+              memory: "347512Ki"
+              cpu: "233m"
+            limits:
+              memory: "943248Ki"
+              cpu: "632m"
           command:
             - /bin/sh
             - -c
@@ -242,6 +249,13 @@ spec:
       containers:
         - name: dd-core-development-green
           image: localhost/debian:underpost
+          resources:
+            requests:
+              memory: "347512Ki"
+              cpu: "233m"
+            limits:
+              memory: "943248Ki"
+              cpu: "632m"
           command:
             - /bin/sh
             - -c
