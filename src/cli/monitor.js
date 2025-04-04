@@ -14,6 +14,7 @@ class UnderpostMonitor {
       deployId,
       env = 'development',
       options = { now: false, single: false, msInterval: '', type: '' },
+      commanderOptions,
       auxRouter,
     ) {
       if (deployId === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`)) {
@@ -22,6 +23,7 @@ class UnderpostMonitor {
             _deployId.trim(),
             env,
             options,
+            commanderOptions,
             await UnderpostDeploy.API.routerFactory(_deployId, env),
           );
         return;
@@ -52,6 +54,7 @@ class UnderpostMonitor {
             if (path.match('peer') || path.match('socket')) continue;
             let urlTest = `http://localhost:${port}${path}`;
             switch (options.type) {
+              case 'remote':
               case 'blue-green':
                 urlTest = `https://${host}${path}`;
                 break;
@@ -100,15 +103,18 @@ class UnderpostMonitor {
                         );
 
                         shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
-                        errorPayloads = [];
                       }
 
+                      break;
+
+                    case 'remote':
                       break;
 
                     default:
                       if (reject) reject(message);
                       else throw new Error(message);
                   }
+                  errorPayloads = [];
                 }
                 logger.error('Error accumulator', errorPayloads.length);
               }
