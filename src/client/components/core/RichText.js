@@ -7,28 +7,18 @@ const RichText = {
   Render: async function (options = { id: '', parentIdModal: '' }) {
     const id = options?.id ? options.id : getId(this.Tokens, 'rich-text-');
     this.Tokens[id] = {};
-    let top, height;
     setTimeout(() => {
       const easyMDE = new EasyMDE({
         element: s(`.${id}`),
+        hideIcons: ['fullscreen', 'side-by-side'],
         onToggleFullScreen: (onFs) => {
           if (onFs) {
             if (options.parentIdModal) {
-              s(`.btn-bar-modal-container-${options.parentIdModal}`).classList.add('hide');
-              top = newInstance(s(`.${options.parentIdModal}`).style.top);
-              height = newInstance(s(`.${options.parentIdModal}`).style.height);
-              s(`.${options.parentIdModal}`).style.top = '0px';
-              s(`.${options.parentIdModal}`).style.height = `${window.innerHeight}px`;
             }
             // Modal.cleanUI();
-            if (s(`.slide-menu-top-bar`)) s(`.slide-menu-top-bar`).classList.add('hide');
           } else {
             if (options.parentIdModal) {
-              s(`.btn-bar-modal-container-${options.parentIdModal}`).classList.remove('hide');
-              s(`.${options.parentIdModal}`).style.top = top;
-              s(`.${options.parentIdModal}`).style.height = height;
             }
-            if (s(`.slide-menu-top-bar`)) s(`.slide-menu-top-bar`).classList.add('remove');
             // Modal.restoreUI();
           }
         },
