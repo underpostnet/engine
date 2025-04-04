@@ -275,8 +275,11 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
           shellExec(`sudo kubectl port-forward -n default svc/${svc.NAME} ${port}:${port}`, { async: true });
           continue;
         }
-        shellExec(`sudo kubectl delete svc ${deployId}-${env}-service`);
-        shellExec(`sudo kubectl delete deployment ${deployId}-${env}`);
+
+        for (const version of options.versions.split(',')) {
+          shellExec(`sudo kubectl delete svc ${deployId}-${env}-${version}-service`);
+          shellExec(`sudo kubectl delete deployment ${deployId}-${env}-${version}`);
+        }
 
         const confServer = JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8'));
         for (const host of Object.keys(confServer)) {
