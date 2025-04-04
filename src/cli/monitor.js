@@ -90,6 +90,7 @@ class UnderpostMonitor {
                         for (const host of Object.keys(confServer)) {
                           shellExec(`sudo kubectl delete HTTPProxy ${host}`);
                         }
+                        shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${traffic}`);
 
                         if (traffic === 'blue') traffic = 'green';
                         else traffic = 'blue';
@@ -119,10 +120,43 @@ class UnderpostMonitor {
       if (options.single === true) return;
       let optionsMsTimeout = parseInt(options.msInterval);
       if (isNaN(optionsMsTimeout)) optionsMsTimeout = 30000;
+      let monitorTrafficName;
+      let monitorPodName;
       const monitorCallBack = (resolve, reject) => {
         const envMsTimeout = UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-ms`);
         setTimeout(
           async () => {
+            switch (options.type) {
+              case 'blue-green':
+                {
+                  if (monitorTrafficName !== traffic) {
+                    monitorTrafficName = undefined;
+                    monitorPodName = undefined;
+                  }
+                  const cmd = `underpost config get container-status`;
+                  const checkDeploymentReadyStatus = () => {
+                    const [podName] = UnderpostDeploy.API.get(`${deployId}-${env}-${traffic}`);
+                    if (
+                      shellExec(`sudo kubectl exec -i ${podName} -- sh -c "${cmd}"`, { stdout: true }).match(
+                        `${deployId}-${env}-running-deployment`,
+                      )
+                    ) {
+                      monitorPodName = podName;
+                      monitorTrafficName = `${traffic}`;
+                    }
+                  };
+                  if (!monitorPodName) {
+                    checkDeploymentReadyStatus();
+                    monitorCallBack(resolve, reject);
+                    return;
+                  }
+                }
+
+                break;
+
+              default:
+                break;
+            }
             switch (UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`)) {
               case 'pause':
                 monitorCallBack(resolve, reject);

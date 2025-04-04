@@ -1,5 +1,4 @@
-import { timer } from '../client/components/core/CommonJs.js';
-import { cliSpinner, getNpmRootPath } from '../server/conf.js';
+import { getNpmRootPath } from '../server/conf.js';
 import { loggerFactory } from '../server/logger.js';
 import { shellExec } from '../server/process.js';
 import UnderpostDeploy from './deploy.js';
@@ -23,10 +22,14 @@ class UnderpostCluster {
         reset: false,
         dev: false,
         nsUse: '',
+        infoCapacity: false,
+        infoCapacityPod: false,
       },
     ) {
       const npmRoot = getNpmRootPath();
       const underpostRoot = options?.dev === true ? '.' : `${npmRoot}/underpost`;
+      if (options.infoCapacityPod === true) return logger.info('', UnderpostDeploy.API.resourcesFactory());
+      if (options.infoCapacity === true) return logger.info('', UnderpostCluster.API.getResourcesCapacity());
       if (options.reset === true) return await UnderpostCluster.API.reset();
       if (options.listPods === true) return console.table(UnderpostDeploy.API.get(podName ?? undefined));
 
@@ -196,6 +199,46 @@ class UnderpostCluster {
         `sudo sed -i -e "s@/var/lib/containers/storage@/home/containers/storage@g" /etc/containers/storage.conf`,
       );
       shellExec(`sudo podman system reset -f`);
+    },
+    getResourcesCapacity() {
+      const resources = {};
+      const info = false
+        ? `Capacity:
+  cpu:                8
+  ephemeral-storage:  153131976Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             11914720Ki
+  pods:               110
+Allocatable:
+  cpu:                8
+  ephemeral-storage:  153131976Ki
+  hugepages-1Gi:      0
+  hugepages-2Mi:      0
+  memory:             11914720Ki
+  pods: `
+        : shellExec(`kubectl describe node kind-worker | grep -E '(Allocatable:|Capacity:)' -A 6`, {
+            stdout: true,
+            silent: true,
+          });
+      info
+        .split('Allocatable:')[1]
+        .split('\n')
+        .filter((row) => row.match('cpu') || row.match('memory'))
+        .map((row) => {
+          if (row.match('cpu'))
+            resources.cpu = {
+              value: parseInt(row.split(':')[1].trim()) * 1000,
+              unit: 'm',
+            };
+          if (row.match('memory'))
+            resources.memory = {
+              value: parseInt(row.split(':')[1].split('Ki')[0].trim()),
+              unit: 'Ki',
+            };
+        });
+
+      return resources;
     },
   };
 }

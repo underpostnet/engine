@@ -100,6 +100,8 @@ program
   .option('--ns-use <ns-name>', 'Switches current context to namespace')
   .option('--dev', 'init with dev cluster')
   .option('--list-pods', 'Display list pods information')
+  .option('--info-capacity', 'display current total machine capacity info')
+  .option('--info-capacity-pod', 'display current machine capacity pod info')
   .action(Underpost.cluster.init)
   .description('Manage cluster, for default initialization base kind cluster');
 
@@ -115,6 +117,7 @@ program
   .option('--cert', 'Reset tls/ssl certificate secrets')
   .option('--build-manifest', 'Build kind yaml manifests: deployments, services, proxy and secrets')
   .option('--dashboard-update', 'Update dashboard instance data with current router config')
+  .option('--replicas <replicas>', 'Set custom number of replicas')
   .option('--versions <deployment-versions>', 'Comma separated custom deployment versions')
   .option('--traffic <traffic-versions>', 'Comma separated custom deployment traffic')
   .description('Manage deployment, for default deploy development pods')
@@ -234,7 +237,7 @@ program
   .option('--ms-interval <ms-interval>', 'Custom ms interval delta time')
   .option('--now', 'Exec immediately monitor script')
   .option('--single', 'Disable recurrence')
-  .option('--type <type>', 'Se custom monitor type')
+  .option('--type <type>', 'Set custom monitor type')
   .description('Monitor health server management')
   .action(Underpost.monitor.callback);
 

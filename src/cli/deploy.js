@@ -13,15 +13,31 @@ import { shellExec } from '../server/process.js';
 import fs from 'fs-extra';
 import dotenv from 'dotenv';
 import { DataBaseProvider } from '../db/DataBaseProvider.js';
+import UnderpostRootEnv from './env.js';
+import UnderpostCluster from './cluster.js';
 
 const logger = loggerFactory(import.meta);
 
 class UnderpostDeploy {
   static NETWORK = {};
   static API = {
-    sync(deployList) {
+    sync(deployList, { versions, replicas }) {
       const deployGroupId = 'dd.tmp';
       fs.writeFileSync(`./engine-private/deploy/${deployGroupId}`, deployList, 'utf8');
+      const totalPods = deployList.split(',').length * versions.split(',').length * parseInt(replicas);
+      const limitFactor = 0.95;
+      const reserveFactor = 0.35;
+      const resources = UnderpostCluster.API.getResourcesCapacity();
+      const memory = parseInt(resources.memory.value / totalPods);
+      const cpu = parseInt(resources.cpu.value / totalPods);
+      UnderpostRootEnv.API.set(
+        'resources.requests.memory',
+        `${parseInt(memory * reserveFactor)}${resources.memory.unit}`,
+      );
+      UnderpostRootEnv.API.set('resources.requests.cpu', `${parseInt(cpu * reserveFactor)}${resources.cpu.unit}`);
+      UnderpostRootEnv.API.set('resources.limits.memory', `${parseInt(memory * limitFactor)}${resources.memory.unit}`);
+      UnderpostRootEnv.API.set('resources.limits.cpu', `${parseInt(cpu * limitFactor)}${resources.cpu.unit}`);
+      UnderpostRootEnv.API.set('total-pods', totalPods);
       return getDataDeploy({
         buildSingleReplica: true,
         deployGroupId,
@@ -45,7 +61,7 @@ class UnderpostDeploy {
         )
         .join('');
     },
-    deploymentYamlPartsFactory({ deployId, env, suffix }) {
+    deploymentYamlPartsFactory({ deployId, env, suffix, resources, replicas }) {
       return `apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -53,7 +69,7 @@ metadata:
   labels:
     app: ${deployId}-${env}-${suffix}
 spec:
-  replicas: 2
+  replicas: ${replicas}
   selector:
     matchLabels:
       app: ${deployId}-${env}-${suffix}
@@ -65,6 +81,13 @@ spec:
       containers:
         - name: ${deployId}-${env}-${suffix}
           image: localhost/debian:underpost
+          resources:
+            requests:
+              memory: "${resources.requests.memory}"
+              cpu: "${resources.requests.cpu}"
+            limits:
+              memory: "${resources.limits.memory}"
+              cpu: "${resources.limits.cpu}"
           command:
             - /bin/sh
             - -c
@@ -92,6 +115,9 @@ spec:
 {{ports}}  type: LoadBalancer`;
     },
     async buildManifest(deployList, env, options) {
+      const resources = UnderpostDeploy.API.resourcesFactory();
+      const replicas = options.replicas;
+
       for (const _deployId of deployList.split(',')) {
         const deployId = _deployId.trim();
         if (!deployId) continue;
@@ -102,8 +128,7 @@ spec:
         const router = await UnderpostDeploy.API.routerFactory(deployId, env);
         const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
         const { fromPort, toPort } = deployRangePortFactory(router);
-        const deploymentVersions =
-          options.versions && typeof options.versions === 'string' ? options.versions.split(',') : ['blue', 'green'];
+        const deploymentVersions = options.versions.split(',');
         fs.mkdirSync(`./engine-private/conf/${deployId}/build/${env}`, { recursive: true });
         if (env === 'development') fs.mkdirSync(`./manifests/deployment/${deployId}-${env}`, { recursive: true });
 
@@ -116,6 +141,8 @@ ${UnderpostDeploy.API.deploymentYamlPartsFactory({
   deployId,
   env,
   suffix: deploymentVersion,
+  resources,
+  replicas,
 }).replace('{{ports}}', buildKindPorts(fromPort, toPort))}
 `;
         }
@@ -207,6 +234,7 @@ spec:
         versions: '',
         traffic: '',
         dashboardUpdate: false,
+        replicas: '',
       },
     ) {
       if (options.infoUtil === true)
@@ -217,7 +245,9 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
         `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
-      if (options.sync) UnderpostDeploy.API.sync(deployList);
+      if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
+      if (!options.replicas) options.replicas = 2;
+      if (options.sync) UnderpostDeploy.API.sync(deployList, options);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
       if (options.infoRouter === true) logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));
       if (options.dashboardUpdate === true) await UnderpostDeploy.API.updateDashboardData(deployList, env, options);
@@ -323,6 +353,19 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       }
 
       return result;
+    },
+    resourcesFactory() {
+      return {
+        requests: {
+          memory: UnderpostRootEnv.API.get('resources.requests.memory'),
+          cpu: UnderpostRootEnv.API.get('resources.requests.cpu'),
+        },
+        limits: {
+          memory: UnderpostRootEnv.API.get('resources.limits.memory'),
+          cpu: UnderpostRootEnv.API.get('resources.limits.cpu'),
+        },
+        totalPods: UnderpostRootEnv.API.get('total-pods'),
+      };
     },
     async updateDashboardData(deployList, env, options) {
       try {

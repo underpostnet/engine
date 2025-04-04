@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';
 import { shellCd, shellExec } from './process.js';
+import UnderpostRootEnv from '../cli/env.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -114,6 +115,7 @@ class UnderpostStartUp {
       shellExec(`node bin/deploy conf ${deployId} ${env}`);
       shellExec(`npm ${runCmd} deploy deploy-id:${deployId}`, { async: true });
       await awaitDeployMonitor(true);
+      UnderpostRootEnv.API.set('container-status', `${deployId}-${env}-running-deployment`);
     },
   };
 }
