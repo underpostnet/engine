@@ -24,6 +24,7 @@ class UnderpostCluster {
         nsUse: '',
         infoCapacity: false,
         infoCapacityPod: false,
+        istio: false,
       },
     ) {
       const npmRoot = getNpmRootPath();
@@ -69,20 +70,40 @@ class UnderpostCluster {
         return;
       }
 
-      if (!UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) {
+      if (
+        (!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
+        (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers'))
+      ) {
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);
         shellExec(`sudo systemctl restart kubelet`);
         shellExec(`sudo service docker restart`);
         shellExec(`sudo systemctl enable --now containerd.service`);
-        shellExec(`sudo systemctl restart containerd`);
-        shellExec(
-          `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
-            options?.dev === true ? '-dev' : ''
-          }.yaml`,
-        );
-        shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
+        shellExec(`sudo swapoff -a; sudo sed -i '/swap/d' /etc/fstab`);
+        if (options.istio === true) {
+          shellExec(`sysctl net.bridge.bridge-nf-call-iptables=1`);
+          shellExec(`sudo kubeadm init --pod-network-cidr=192.168.0.0/16`);
+          shellExec(`sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config`);
+          shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
+          // https://docs.tigera.io/calico/latest/getting-started/kubernetes/quickstart
+          shellExec(
+            `sudo kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.3/manifests/tigera-operator.yaml`,
+          );
+          // shellExec(
+          //   `wget https://raw.githubusercontent.com/projectcalico/calico/v3.25.0/manifests/custom-resources.yaml`,
+          // );
+          shellExec(`sudo kubectl apply -f ./manifests/calico-custom-resources.yaml`);
+          shellExec(`sudo systemctl restart containerd`);
+        } else {
+          shellExec(`sudo systemctl restart containerd`);
+          shellExec(
+            `cd ${underpostRoot}/manifests && kind create cluster --config kind-config${
+              options?.dev === true ? '-dev' : ''
+            }.yaml`,
+          );
+          shellExec(`sudo chown $(id -u):$(id -g) $HOME/.kube/config**`);
+        }
       } else logger.warn('Cluster already initialized');
 
       if (options.full === true || options.valkey === true) {
