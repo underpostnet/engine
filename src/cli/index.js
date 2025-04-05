@@ -237,6 +237,7 @@ program
   .option('--ms-interval <ms-interval>', 'Custom ms interval delta time')
   .option('--now', 'Exec immediately monitor script')
   .option('--single', 'Disable recurrence')
+  .option('--replicas <replicas>', 'Set custom number of replicas')
   .option('--type <type>', 'Set custom monitor type')
   .description('Monitor health server management')
   .action(Underpost.monitor.callback);

@@ -5,6 +5,7 @@ import validator from 'validator';
 import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { loggerFactory } from './logger.js';
 import UnderpostRootEnv from '../cli/env.js';
+import dns from 'node:dns';
 
 dotenv.config();
 
@@ -18,6 +19,9 @@ const ip = {
   },
 };
 
+const isInternetConnection = (domain = 'google.com') =>
+  new Promise((resolve) => dns.lookup(domain, {}, (err) => resolve(err ? false : true)));
+
 class Dns {
   static callback = async function (deployList) {
     // Network topology configuration:
@@ -29,6 +33,10 @@ class Dns {
     // LAN server or device's local servers port ->  3000-3100 (2999-3101)
     // DNS Records: [ANAME](Address Dynamic) -> [A](ipv4) host | [AAAA](ipv6) host -> [public-ip]
     // Forward the router's TCP/UDP ports to the LAN device's IP address
+    const isOnline = await isInternetConnection();
+
+    if (!isOnline) return;
+
     for (const _deployId of deployList.split(',')) {
       const deployId = _deployId.trim();
       const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
@@ -47,6 +55,7 @@ class Dns {
 
       if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
         logger.info(`new ip`, testIp);
+        UnderpostRootEnv.API.set('monitor-input', 'pause');
         for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {
             case 'A':
@@ -68,6 +77,7 @@ class Dns {
           if (verifyIp === testIp) {
             logger.info('ip updated successfully', testIp);
             UnderpostRootEnv.API.set('ip', testIp);
+            UnderpostRootEnv.API.delete('monitor-input');
           } else logger.error('ip not updated', testIp);
         } catch (error) {
           logger.error(error, error.stack);
@@ -102,3 +112,5 @@ class Dns {
 }
 
 export default Dns;
+
+export { Dns, ip, isInternetConnection };

@@ -5,6 +5,7 @@ import axios from 'axios';
 import UnderpostRootEnv from './env.js';
 import fs from 'fs-extra';
 import { shellExec } from '../server/process.js';
+import { isInternetConnection } from '../server/dns.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -13,7 +14,7 @@ class UnderpostMonitor {
     async callback(
       deployId,
       env = 'development',
-      options = { now: false, single: false, msInterval: '', type: '' },
+      options = { now: false, single: false, msInterval: '', type: '', replicas: '' },
       commanderOptions,
       auxRouter,
     ) {
@@ -99,7 +100,9 @@ class UnderpostMonitor {
                         else traffic = 'blue';
 
                         shellExec(
-                          `node bin deploy --info-router --build-manifest --traffic ${traffic} ${deployId} ${env}`,
+                          `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
+                            options.replicas ? options.replicas : 1
+                          } ${deployId} ${env}`,
                         );
 
                         shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
@@ -125,13 +128,19 @@ class UnderpostMonitor {
       if (options.now === true) await monitor();
       if (options.single === true) return;
       let optionsMsTimeout = parseInt(options.msInterval);
-      if (isNaN(optionsMsTimeout)) optionsMsTimeout = 30000;
+      if (isNaN(optionsMsTimeout)) optionsMsTimeout = 60250; // 60.25 seconds
       let monitorTrafficName;
       let monitorPodName;
       const monitorCallBack = (resolve, reject) => {
         const envMsTimeout = UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-ms`);
         setTimeout(
           async () => {
+            const isOnline = await isInternetConnection();
+            if (!isOnline) {
+              logger.warn('No internet connection');
+              monitorCallBack(resolve, reject);
+              return;
+            }
             switch (options.type) {
               case 'blue-green':
                 {
@@ -166,19 +175,22 @@ class UnderpostMonitor {
               default:
                 break;
             }
-            switch (UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`)) {
-              case 'pause':
-                monitorCallBack(resolve, reject);
-                return;
-              case 'restart':
-                return reject();
-              case 'stop':
-                return resolve();
-              default:
-                await monitor(reject);
-                monitorCallBack(resolve, reject);
-                return;
-            }
+            for (const monitorStatus of [
+              UnderpostRootEnv.API.get(`monitor-input`),
+              UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`),
+            ])
+              switch (monitorStatus) {
+                case 'pause':
+                  monitorCallBack(resolve, reject);
+                  return;
+                case 'restart':
+                  return reject();
+                case 'stop':
+                  return resolve();
+              }
+            await monitor(reject);
+            monitorCallBack(resolve, reject);
+            return;
           },
           !isNaN(envMsTimeout) ? envMsTimeout : optionsMsTimeout,
         );
