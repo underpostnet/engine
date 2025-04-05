@@ -43,9 +43,11 @@ class UnderpostMonitor {
 
       let errorPayloads = [];
       let traffic = 'blue';
-      const maxAttempts = Object.keys(pathPortAssignmentData)
-        .map((host) => pathPortAssignmentData[host].length)
-        .reduce((accumulator, value) => accumulator + value, 0);
+      const maxAttempts = parseInt(
+        Object.keys(pathPortAssignmentData)
+          .map((host) => pathPortAssignmentData[host].length)
+          .reduce((accumulator, value) => accumulator + value, 0) * 2.5,
+      );
 
       const monitor = async (reject) => {
         logger.info(`[${deployId}-${env}] Check server health`);
