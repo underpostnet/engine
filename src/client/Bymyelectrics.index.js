@@ -21,6 +21,8 @@ import { CssBymyelectricsDark, CssBymyelectricsLight } from './components/bymyel
 
 const htmlMainBody = async () => {
   const id0DynamicCol = `dynamicCol-0`;
+  const id1DynamicCol = `dynamicCol-1`;
+
   setTimeout(() => {
     Responsive.Event[`landing`] = () => {
       s(`.home-first-screen`).style.height = ` ${window.innerHeight - 100}px`;
@@ -63,11 +65,66 @@ const htmlMainBody = async () => {
         background-position: center;
         background-repeat: no-repeat;
       }
+      .${id1DynamicCol} {
+        text-align: center;
+      }
+      .sub-title-sec-1 {
+        font-size: 40px;
+        color: #2f5596;
+        font-weight: bold;
+      }
+      .sec-1-sub-container {
+        margin: auto;
+        max-width: 300px;
+      }
+      .sec-1-sub-container-text {
+        font-size: 24px;
+      }
+      .sec-1-icon {
+        font-size: 100px;
+      }
     </style>
     ${borderChar(2, 'black', ['.home-first-screen'])}
     <div class="in home-first-screen" style="height: ${window.innerHeight - 100}px">
       <div class="abs center proyectistas-p">
         ${Translate.Render('electrical-designers', undefined, { disableTextFormat: true })}
+      </div>
+    </div>
+    ${dynamicCol({ containerSelector: id1DynamicCol, id: id1DynamicCol, type: 'a-50-b-50' })}
+    <div class="in section-mp landing-container">
+      <div class="fl ${id1DynamicCol}">
+        <div class="in fll ${id1DynamicCol}-col-a">
+          <div class="in sec-1-sub-container">
+            <br /><br />
+            <span class="sub-title-sec-1"
+              ><i class="fas fa-medal sec-1-icon"></i><br /><br />
+              Misión</span
+            >
+            <br />
+            <br />
+            <div class="in sec-1-sub-container-text">
+              Ser el estándar de excelencia en ingeniería eléctrica, liderando la innovación tecnológica y la
+              sostenibilidad, con un firme compromiso con la responsabilidad, la calidad y la satisfacción de nuestros
+              clientes
+            </div>
+          </div>
+        </div>
+        <div class="in fll ${id1DynamicCol}-col-b">
+          <div class="in sec-1-sub-container">
+            <br /><br />
+            <span class="sub-title-sec-1">
+              <i class="far fa-lightbulb sec-1-icon"></i> <br /><br />
+              Visión</span
+            >
+            <br />
+            <br />
+            <div class="in sec-1-sub-container-text">
+              Desarrollar soluciones de ingeniería eléctrica de clase mundial, combinando calidad, innovación y
+              sostenibilidad, para superar las expectativas de nuestros clientes, impulsar el avance tecnológico y
+              fomentar un desarrollo sostenible para la sociedad
+            </div>
+          </div>
+        </div>
       </div>
     </div>
     ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
