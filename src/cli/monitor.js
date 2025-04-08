@@ -50,6 +50,8 @@ class UnderpostMonitor {
       );
 
       const monitor = async (reject) => {
+        const currentTimestamp = new Date().getTime();
+        errorPayloads = errorPayloads.filter((e) => currentTimestamp - e.timestamp < 60 * 1000 * 5);
         logger.info(`[${deployId}-${env}] Check server health`);
         for (const host of Object.keys(pathPortAssignmentData)) {
           for (const instance of pathPortAssignmentData[host]) {
@@ -77,6 +79,7 @@ class UnderpostMonitor {
                 status: error.status,
                 code: error.code,
                 errors: error.errors,
+                timestamp: new Date().getTime(),
               };
               if (errorPayload.status !== 404) {
                 errorPayloads.push(errorPayload);
