@@ -767,6 +767,7 @@ const InteractionPanelCyberia = {
       style.resize = 'auto';
       style.overflow = 'auto';
     }
+    if (Modal.mobileModal()) dragDisabled = true;
     await Modal.Render({
       id,
       barConfig,
