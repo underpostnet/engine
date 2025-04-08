@@ -43,6 +43,7 @@ const htmlMainBody = async () => {
       .sub-title {
         font-size: 25px;
         text-align: center;
+        font-weight: bold;
       }
       footer {
         background: #2f5596;
@@ -72,6 +73,7 @@ const htmlMainBody = async () => {
         font-size: 40px;
         color: #2f5596;
         font-weight: bold;
+        text-align: center;
       }
       .sec-1-sub-container {
         margin: auto;
@@ -82,6 +84,12 @@ const htmlMainBody = async () => {
       }
       .sec-1-icon {
         font-size: 100px;
+      }
+      .sec-2-sub-container-text {
+        max-width: 68%;
+        padding: 10px;
+        text-align: justify;
+        margin: auto;
       }
     </style>
     ${borderChar(2, 'black', ['.home-first-screen'])}
@@ -129,16 +137,40 @@ const htmlMainBody = async () => {
     </div>
     ${dynamicCol({ containerSelector: id0DynamicCol, id: id0DynamicCol, type: 'a-50-b-50' })}
     <div class="in section-mp landing-container">
-      <div class="fl ${id0DynamicCol}">
+      <br />
+      <div class="in sub-title-sec-1">Nuestros servicios</div>
+      <br />
+      <div class="in sub-title">Proyectos de diseño e ingeniería de detalle</div>
+      <br />
+      <div class="in sec-2-sub-container-text">
+        Ingeniería By My Electrics ofrece soluciones técnicas adaptadas a las necesidades de cada cliente, destacándose
+        en el desarrollo de filosofías de control para alimentadores, partidores con relés inteligentes, VDF, UPS,
+        sistemas de transferencia y diseño de tableros protocolizados y no protocolizados, diseño de planos eléctricos,
+        mecánicos, control, y modelado en AutoCAD. Nuestro enfoque incluye detectar errores, proponer soluciones y
+        garantizar la satisfacción del cliente mediante diseños personalizados en diferentes perspectivas.
+      </div>
+
+      <br />
+      <div class="in sub-title">Desarrollo de Documentación Técnica</div>
+      <br />
+      <div class="in sec-2-sub-container-text">
+        Ingeniería By My Electrics realiza emisión de documentación técnica en formato propio o adaptándonos a los
+        requerimientos específicos de cada cliente para los manuales de instalación, operación y mantención de equipos,
+        realizamos memorias de cálculo asegurando el cumplimiento de normativas técnicas y estándares de la industria
+        siguiendo el Reglamento de instalaciones de consumo de electricidad (RIC) y pliegos técnicos normativos. Además,
+        realizamos traducción de documentación a pedido garantizando la precisión técnica adaptándose a la terminología
+        local e internacional
+      </div>
+      <!--   <div class="fl ${id0DynamicCol}">
         <div class="in fll ${id0DynamicCol}-col-a">
-          <img class="in landing-logo-0" src="${getProxyPath()}assets/social.png" />
+              <img class="in landing-logo-0" src="${getProxyPath()}assets/social.png" />   
         </div>
         <div class="in fll ${id0DynamicCol}-col-b">
           <br /><br />
           <div class="in section-mp">${Translate.Render('description-0')}</div>
           <div class="in section-mp">${Translate.Render('description-1')}</div>
         </div>
-      </div>
+      </div>   -->
       <br />
       <div class="in sub-title">${Translate.Render('our-clients')}</div>
       <br />
