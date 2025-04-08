@@ -72,7 +72,7 @@ class UnderpostCluster {
 
       if (
         (!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
-        (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers'))
+        (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0])
       ) {
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
