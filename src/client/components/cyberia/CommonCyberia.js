@@ -94,6 +94,16 @@ const PositionsComponent = {
     { positionId: '16', frames: 3 },
     { positionId: '18', frames: 3 },
   ],
+  frames10: () => [
+    { positionId: '02', frames: 10 },
+    { positionId: '04', frames: 10 },
+    { positionId: '06', frames: 10 },
+    { positionId: '08', frames: 10 },
+    { positionId: '12', frames: 10 },
+    { positionId: '14', frames: 10 },
+    { positionId: '16', frames: 10 },
+    { positionId: '18', frames: 10 },
+  ],
   frames11: () => [
     { positionId: '02', frames: 11 },
     { positionId: '04', frames: 11 },
@@ -282,6 +292,16 @@ const DisplayComponent = {
         extension: 'png',
       };
     },
+    heal: () => {
+      return {
+        displayId: 'heal',
+        position: '08',
+        positions: PositionsComponent['frames10'](),
+        velFrame: 0.2,
+        assetFolder: 'skill',
+        extension: 'png',
+      };
+    },
     dog: () => {
       return {
         displayId: 'dog',
@@ -375,15 +395,23 @@ const Stat = {
       return {
         cooldown: 750,
         timeLife: 300,
-        damage: 10,
+        damage: 4,
         vel: 0.3,
       };
     },
     'green-power': () => {
       return {
-        cooldown: 750,
+        cooldown: 2000,
         timeLife: 300,
-        damage: 10,
+        heal: 70,
+        vel: 0.8,
+      };
+    },
+    heal: () => {
+      return {
+        cooldown: 2000,
+        timeLife: 1500,
+        heal: 70,
         vel: 0.8,
       };
     },
@@ -1223,7 +1251,8 @@ const SkillCyberiaType = {
 
 const SkillCyberiaData = {
   'red-power': { type: 'basic', folder: 'skill' },
-  'green-power': { type: 'basic', folder: 'skill' },
+  'green-power': { type: 'primary', folder: 'skill' },
+  heal: { type: 'primary', folder: 'skill' },
   hatchet: {
     type: 'basic',
     folder: 'weapon',
@@ -1240,7 +1269,8 @@ const SkillCyberiaElement = () => {
   return {
     cooldown: 750,
     timeLife: 300,
-    damage: 10,
+    damage: 3,
+    heal: 7,
   };
 };
 
@@ -1256,6 +1286,9 @@ const PlayerElement = () => {
       tree: [
         {
           id: 'red-power',
+        },
+        {
+          id: 'heal',
         },
       ],
     },

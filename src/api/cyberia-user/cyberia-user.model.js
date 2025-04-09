@@ -17,7 +17,7 @@ const CyberiaUserSchema = new Schema({
   coin: { type: Number, default: 0 },
   cooldown: { type: Number, default: 750 },
   timeLife: { type: Number, default: 300 },
-  damage: { type: Number, default: 10 },
+  damage: { type: Number, default: 3 },
   heal: { type: Number, default: 7 },
   lifeRegeneration: { type: Number, default: 5 },
   lifeRegenerationVel: { type: Number, default: 1500 },
@@ -30,7 +30,7 @@ const CyberiaUserSchema = new Schema({
       secondary: { type: String },
       definitive: { type: String },
     },
-    tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }] },
+    tree: { type: [{ id: { type: String } }], default: [{ id: 'red-power' }, { id: 'heal' }] },
   },
   weapon: {
     tree: { type: [{ id: { type: String } }], default: [{ id: 'hatchet' }] },

@@ -478,15 +478,23 @@ const ItemModal = {
   RenderStat: function (statData, options) {
     // TODO: xp, and level feature
     const displayStats = [
+      'id',
+      'itemType',
       'dim',
       'vel',
       'maxLife',
       'life',
       'deadTime',
+      'timeLife',
       'damage',
+      'heal',
       'lifeRegeneration',
       'lifeRegenerationVel',
+      'cooldown',
+      'cooldownIncubation',
       'basePrice',
+      'behavior',
+      'timestamp',
     ];
     let statsRender = '';
     if (options)
@@ -495,7 +503,7 @@ const ItemModal = {
             <div class="in section-mp">${statKey}</div>
           </div>
           <div class="in fll stat-table-cell">
-            <div class="in section-mp">${options[statKey]}</div>
+            <div class="in section-mp">${options[statKey] ?? '-'}</div>
           </div>`;
       }
     for (const statKey of Object.keys(statData)) {

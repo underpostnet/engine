@@ -116,6 +116,30 @@ const CyberiaWsSkillManagement = {
     this.localElementScope[wsManagementId][id].movement = {
       Callback: async () => {
         try {
+          switch (parentElement.skill.keys[skillKey]) {
+            case 'heal':
+              {
+                switch (parent.type) {
+                  case 'user':
+                    const newLife =
+                      CyberiaWsUserManagement.element[wsManagementId][parent.id].life +
+                      skillData.heal +
+                      parentElement.heal;
+                    CyberiaWsUserManagement.updateLife({
+                      wsManagementId,
+                      id: parent.id,
+                      life: newLife,
+                    });
+                    break;
+                  default:
+                    break;
+                }
+              }
+              return;
+
+            default:
+              break;
+          }
           await timer(CyberiaParams.EVENT_CALLBACK_TIME);
           if (!this.element[wsManagementId][id]) return;
           for (const directionCode of direction) {
@@ -170,15 +194,29 @@ const CyberiaWsSkillManagement = {
                       dimPaintByCell: biome.dimPaintByCell,
                     })
                   )
-                    if (!(parent.type === 'user' && parent.id === clientId))
+                    if (!(parent.type === 'user' && parent.id === clientId)) {
+                      let newLife;
+                      switch (parentElement.skill.keys[skillKey]) {
+                        case 'green-power':
+                          newLife =
+                            CyberiaWsUserManagement.element[wsManagementId][clientId].life +
+                            skillData.heal +
+                            parentElement.heal;
+                          break;
+
+                        default:
+                          newLife =
+                            CyberiaWsUserManagement.element[wsManagementId][clientId].life -
+                            skillData.damage -
+                            parentElement.damage;
+                          break;
+                      }
                       CyberiaWsUserManagement.updateLife({
                         wsManagementId,
                         id: clientId,
-                        life:
-                          CyberiaWsUserManagement.element[wsManagementId][clientId].life -
-                          skillData.damage -
-                          parentElement.damage,
+                        life: newLife,
                       });
+                    }
                   break;
 
                 default:
@@ -228,10 +266,22 @@ const CyberiaWsSkillManagement = {
                         break;
                     }
                     if (!enabledFlow) break;
-                    const newLife =
-                      CyberiaWsBotManagement.element[wsManagementId][botId].life -
-                      skillData.damage -
-                      parentElement.damage;
+                    let newLife;
+                    switch (parentElement.skill.keys[skillKey]) {
+                      case 'green-power':
+                        newLife =
+                          CyberiaWsBotManagement.element[wsManagementId][botId].life +
+                          skillData.heal +
+                          parentElement.heal;
+                        break;
+
+                      default:
+                        newLife =
+                          CyberiaWsBotManagement.element[wsManagementId][botId].life -
+                          skillData.damage -
+                          parentElement.damage;
+                        break;
+                    }
                     CyberiaWsBotManagement.updateLife({
                       wsManagementId,
                       id: botId,
