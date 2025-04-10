@@ -27,7 +27,12 @@ class Dns {
     // Network topology configuration:
     // LAN -> [NAT-VPS](modem/router device) -> WAN
     // enabled DMZ Host to proxy IP 80-443 (79-444) sometimes router block first port
-    // disabled local red DHCP
+
+    // Enabling DHCP
+    // Navigate to Subnets > VLAN > Configure DHCP.
+    // Select the appropriate DHCP options (Managed or Relay).
+    // Save and apply changes.
+
     // verify inet ip proxy server address
     // DHCP (Dynamic Host Configuration Protocol) LAN reserver IP -> MAC ID
     // LAN server or device's local servers port ->  3000-3100 (2999-3101)
