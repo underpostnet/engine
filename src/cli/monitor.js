@@ -49,6 +49,17 @@ class UnderpostMonitor {
           .reduce((accumulator, value) => accumulator + value, 0) * 2.5,
       );
 
+      const switchTraffic = () => {
+        if (traffic === 'blue') traffic = 'green';
+        else traffic = 'blue';
+        shellExec(
+          `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
+            options.replicas ? options.replicas : 1
+          } ${deployId} ${env}`,
+        );
+        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+      };
+
       const monitor = async (reject) => {
         const currentTimestamp = new Date().getTime();
         errorPayloads = errorPayloads.filter((e) => currentTimestamp - e.timestamp < 60 * 1000 * 5);
@@ -101,16 +112,7 @@ class UnderpostMonitor {
                         }
                         shellExec(`sudo kubectl rollout restart deployment/${deployId}-${env}-${traffic}`);
 
-                        if (traffic === 'blue') traffic = 'green';
-                        else traffic = 'blue';
-
-                        shellExec(
-                          `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
-                            options.replicas ? options.replicas : 1
-                          } ${deployId} ${env}`,
-                        );
-
-                        shellExec(`sudo kubectl apply -f ./engine-private/conf/${deployId}/build/${env}/proxy.yaml`);
+                        switchTraffic();
                       }
 
                       break;
@@ -181,17 +183,25 @@ class UnderpostMonitor {
                 break;
             }
             for (const monitorStatus of [
-              UnderpostRootEnv.API.get(`monitor-input`),
-              UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`),
+              { key: `monitor-input`, value: UnderpostRootEnv.API.get(`monitor-input`) },
+              {
+                key: `${deployId}-${env}-monitor-input`,
+                value: UnderpostRootEnv.API.get(`${deployId}-${env}-monitor-input`),
+              },
             ])
-              switch (monitorStatus) {
+              switch (monitorStatus.value) {
                 case 'pause':
                   monitorCallBack(resolve, reject);
                   return;
                 case 'restart':
+                  UnderpostRootEnv.API.delete(monitorStatus.key);
                   return reject();
                 case 'stop':
+                  UnderpostRootEnv.API.delete(monitorStatus.key);
                   return resolve();
+                case 'blue-green-switch':
+                  UnderpostRootEnv.API.delete(monitorStatus.key);
+                  switchTraffic();
               }
             await monitor(reject);
             monitorCallBack(resolve, reject);
