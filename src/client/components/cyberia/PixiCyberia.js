@@ -36,6 +36,7 @@ import {
   SkillCyberiaData,
   isElementCollision,
   WorldCyberiaLimit,
+  PositionsComponent,
 } from './CommonCyberia.js';
 import { BiomeCyberiaManagement, BiomeCyberiaScope } from './BiomeCyberia.js';
 import { ElementPreviewCyberia } from './ElementPreviewCyberia.js';
@@ -494,9 +495,11 @@ const PixiCyberia = {
 
             const frames = [0, dim / 8];
             let frame = 0;
+            const setArrowYTicker = () => (componentInstance.y = -4 * (dim / 3) - frames[frame]);
+            setArrowYTicker();
             const callBack = function () {
               if (!componentInstance.visible || !ElementsCyberia.Data[type] || !ElementsCyberia.Data[type][id]) return;
-              componentInstance.y = -4 * (dim / 3) - frames[frame];
+              setArrowYTicker();
               frame++;
               if (frame === frames.length) frame = 0;
             };
@@ -736,19 +739,21 @@ const PixiCyberia = {
 
       let skinPosition = '08';
       const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
-      if (currentDataSkin) skinPosition = currentDataSkin.position;
-      if (ElementsCyberia.Data[type][id].parent) {
-        const parentElement =
-          ElementsCyberia.Data[ElementsCyberia.Data[type][id].parent.type][
-            ElementsCyberia.Data[type][id].parent.id === SocketIo.socket.id
-              ? 'main'
-              : ElementsCyberia.Data[type][id].parent.id
-          ];
-        if (parentElement) skinPosition = `1${parentElement.components.skin.find((s) => s.current).position[1]}`;
-        else {
-          console.error(`Parent element not found for ${type}-${id}`);
-          SocketIoCyberia.disconnect({ type, id });
-          return;
+      if (!PositionsComponent.unique08.includes(currentDataSkin.displayId)) {
+        if (currentDataSkin) skinPosition = currentDataSkin.position;
+        if (ElementsCyberia.Data[type][id].parent) {
+          const parentElement =
+            ElementsCyberia.Data[ElementsCyberia.Data[type][id].parent.type][
+              ElementsCyberia.Data[type][id].parent.id === SocketIo.socket.id
+                ? 'main'
+                : ElementsCyberia.Data[type][id].parent.id
+            ];
+          if (parentElement) skinPosition = `1${parentElement.components.skin.find((s) => s.current).position[1]}`;
+          else {
+            console.error(`Parent element not found for ${type}-${id}`);
+            SocketIoCyberia.disconnect({ type, id });
+            return;
+          }
         }
       }
 
@@ -762,6 +767,7 @@ const PixiCyberia = {
 
         for (const positionData of positions) {
           const { positionId, frames } = positionData;
+          if (PositionsComponent.unique08.includes(displayId) && positionId !== '08') continue;
           const pixiFrames = [];
           for (const frame of range(0, frames - 1)) {
             const src = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${frame}.${
@@ -769,60 +775,6 @@ const PixiCyberia = {
             }`;
 
             pixiFrames.push(Texture.from(src));
-            continue;
-            const componentInstance = Sprite.from(src);
-            let componentContainer;
-            const dataSpriteFormat = this.formatSpriteComponent({
-              displayId,
-              positionId,
-              dim,
-              element: ElementsCyberia.Data[type][id],
-            });
-            for (const attr of Object.keys(dataSpriteFormat.componentInstance)) {
-              componentInstance[attr] = dataSpriteFormat.componentInstance[attr];
-            }
-            if (dataSpriteFormat.indexLayer !== 1) componentContainer = `layer${dataSpriteFormat.indexLayer}`;
-
-            componentInstance.visible = position === positionId && frame === 0 && enabled;
-            this.Data[type][id].components[componentType][`${src}-${index}`] = componentInstance;
-
-            componentContainer
-              ? this.Data[type][id].components[componentContainer].container.addChild(componentInstance)
-              : this.Data[type][id].addChild(componentInstance);
-
-            if (frame === 0) {
-              let currentFrame = 0;
-              let currentSrc;
-              let currentIndex = newInstance(index);
-
-              const callBack = () => {
-                if (!ElementsCyberia.Data[type][id]) return this.removeElement({ type, id });
-                if (!ElementsCyberia.Data[type][id].components[componentType][currentIndex])
-                  return clearInterval(this.Data[type][id].intervals[componentType][`${currentSrc}-${currentIndex}`]);
-                const position = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.current).position;
-
-                currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
-                  extension ? extension : `png`
-                }`;
-                this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible = false;
-
-                currentFrame++;
-                if (currentFrame === frames) currentFrame = 0;
-
-                currentSrc = `${getProxyPath()}assets/${assetFolder}/${displayId}/${positionId}/${currentFrame}.${
-                  extension ? extension : `png`
-                }`;
-
-                const enabledSkin = ElementsCyberia.Data[type][id].components[componentType].find((s) => s.enabled);
-                this.Data[type][id].components[componentType][`${currentSrc}-${currentIndex}`].visible =
-                  position === positionId && enabledSkin && enabledSkin.displayId === displayId;
-              };
-              setTimeout(() => callBack());
-              this.Data[type][id].intervals[componentType][`${src}-${currentIndex}`] = {
-                callBack,
-                interval: setInterval(callBack, velFrame ? velFrame : CyberiaParams.EVENT_CALLBACK_TIME * 10),
-              };
-            }
           }
 
           // Create an AnimatedSprite (brings back memories from the days of Flash, right ?)
@@ -1079,7 +1031,8 @@ const PixiCyberia = {
 
     let skinPosition = '08';
     const currentDataSkin = ElementsCyberia.Data[type][id].components['skin'].find((s) => s.enabled);
-    if (currentDataSkin) skinPosition = currentDataSkin.position;
+    if (currentDataSkin && !PositionsComponent.unique08.includes(currentDataSkin.displayId))
+      skinPosition = currentDataSkin.position;
 
     for (const componentType of Object.keys(CharacterCyberiaStatsType))
       if (this.Data[type][id].intervals[componentType]) {

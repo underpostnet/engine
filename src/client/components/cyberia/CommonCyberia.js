@@ -24,36 +24,6 @@ const ModelElement = {
 };
 
 const PositionsComponent = {
-  frames1: () => [
-    { positionId: '02', frames: 1 },
-    { positionId: '04', frames: 1 },
-    { positionId: '06', frames: 1 },
-    { positionId: '08', frames: 1 },
-    { positionId: '12', frames: 1 },
-    { positionId: '14', frames: 1 },
-    { positionId: '16', frames: 1 },
-    { positionId: '18', frames: 1 },
-  ],
-  frames4: () => [
-    { positionId: '02', frames: 4 },
-    { positionId: '04', frames: 4 },
-    { positionId: '06', frames: 4 },
-    { positionId: '08', frames: 4 },
-    { positionId: '12', frames: 4 },
-    { positionId: '14', frames: 4 },
-    { positionId: '16', frames: 4 },
-    { positionId: '18', frames: 4 },
-  ],
-  frames6: () => [
-    { positionId: '02', frames: 6 },
-    { positionId: '04', frames: 6 },
-    { positionId: '06', frames: 6 },
-    { positionId: '08', frames: 6 },
-    { positionId: '12', frames: 6 },
-    { positionId: '14', frames: 6 },
-    { positionId: '16', frames: 6 },
-    { positionId: '18', frames: 6 },
-  ],
   default: () => [
     { positionId: '02', frames: 1 },
     { positionId: '04', frames: 1 },
@@ -64,55 +34,17 @@ const PositionsComponent = {
     { positionId: '16', frames: 2 },
     { positionId: '18', frames: 2 },
   ],
-  wing: () => [
-    { positionId: '02', frames: 2 },
-    { positionId: '04', frames: 2 },
-    { positionId: '06', frames: 2 },
-    { positionId: '08', frames: 2 },
-    { positionId: '12', frames: 2 },
-    { positionId: '14', frames: 2 },
-    { positionId: '16', frames: 2 },
-    { positionId: '18', frames: 2 },
-  ],
-  ghost: () => [
-    { positionId: '02', frames: 8 },
-    { positionId: '04', frames: 8 },
-    { positionId: '06', frames: 8 },
-    { positionId: '08', frames: 8 },
-    { positionId: '12', frames: 8 },
-    { positionId: '14', frames: 8 },
-    { positionId: '16', frames: 8 },
-    { positionId: '18', frames: 8 },
-  ],
-  frames3: () => [
-    { positionId: '02', frames: 3 },
-    { positionId: '04', frames: 3 },
-    { positionId: '06', frames: 3 },
-    { positionId: '08', frames: 3 },
-    { positionId: '12', frames: 3 },
-    { positionId: '14', frames: 3 },
-    { positionId: '16', frames: 3 },
-    { positionId: '18', frames: 3 },
-  ],
-  frames10: () => [
-    { positionId: '02', frames: 10 },
-    { positionId: '04', frames: 10 },
-    { positionId: '06', frames: 10 },
-    { positionId: '08', frames: 10 },
-    { positionId: '12', frames: 10 },
-    { positionId: '14', frames: 10 },
-    { positionId: '16', frames: 10 },
-    { positionId: '18', frames: 10 },
-  ],
-  frames11: () => [
-    { positionId: '02', frames: 11 },
-    { positionId: '04', frames: 11 },
-    { positionId: '06', frames: 11 },
-    { positionId: '08', frames: 11 },
-    { positionId: '12', frames: 11 },
-    { positionId: '14', frames: 11 },
-    { positionId: '16', frames: 11 },
-    { positionId: '18', frames: 11 },
+  frames: (frames) => PositionsComponent.default().map((o) => ((o.frames = frames), o)),
+  unique08: [
+    'coin',
+    'bone',
+    'bone-brown',
+    'generic-wood',
+    'heal',
+    'mutagen-outpost-map',
+    'nova-republic-intel',
+    'green-power',
+    'red-power',
   ],
 };
 
@@ -136,7 +68,7 @@ const DisplayComponent = {
       return {
         displayId: 'bone',
         position: '08',
-        positions: PositionsComponent.frames1(),
+        positions: PositionsComponent.frames(1),
         velFrame: 0.03,
         assetFolder: 'quest',
         extension: 'gif',
@@ -146,7 +78,7 @@ const DisplayComponent = {
       return {
         displayId: 'hatchet',
         position: '08',
-        positions: PositionsComponent.frames1(),
+        positions: PositionsComponent.frames(1),
         velFrame: 0.03,
         assetFolder: 'weapon',
         extension: 'png',
@@ -156,7 +88,7 @@ const DisplayComponent = {
       return {
         displayId: 'bone-brown',
         position: '08',
-        positions: PositionsComponent.frames1(),
+        positions: PositionsComponent.frames(1),
         velFrame: 0.03,
         assetFolder: 'quest',
         extension: 'gif',
@@ -206,7 +138,7 @@ const DisplayComponent = {
       return {
         displayId: 'ghost',
         position: '08',
-        positions: PositionsComponent.ghost(),
+        positions: PositionsComponent.frames(8),
         assetFolder: 'skin',
         velFrame: 0.03,
         extension: 'png',
@@ -256,7 +188,7 @@ const DisplayComponent = {
       return {
         displayId: 'tim-knife',
         position: '08',
-        positions: PositionsComponent['frames3'](),
+        positions: PositionsComponent.frames(3),
         velFrame: 0.03,
         assetFolder: 'weapon',
         extension: 'gif',
@@ -266,7 +198,7 @@ const DisplayComponent = {
       return {
         displayId: 'brown-wing',
         position: '08',
-        positions: PositionsComponent.wing(),
+        positions: PositionsComponent.frames(2),
         velFrame: 0.03,
         assetFolder: 'breastplate',
         extension: 'png',
@@ -276,7 +208,7 @@ const DisplayComponent = {
       return {
         displayId: 'red-power',
         position: '08',
-        positions: PositionsComponent['frames3'](),
+        positions: PositionsComponent.frames(3),
         velFrame: 0.03,
         assetFolder: 'skill',
         extension: 'png',
@@ -286,7 +218,7 @@ const DisplayComponent = {
       return {
         displayId: 'green-power',
         position: '08',
-        positions: PositionsComponent['frames3'](),
+        positions: PositionsComponent.frames(3),
         velFrame: 0.03,
         assetFolder: 'skill',
         extension: 'png',
@@ -296,7 +228,7 @@ const DisplayComponent = {
       return {
         displayId: 'heal',
         position: '08',
-        positions: PositionsComponent['frames10'](),
+        positions: PositionsComponent.frames(10),
         velFrame: 0.2,
         assetFolder: 'skill',
         extension: 'png',
@@ -306,7 +238,7 @@ const DisplayComponent = {
       return {
         displayId: 'dog',
         position: '08',
-        positions: PositionsComponent['frames11'](),
+        positions: PositionsComponent.frames(11),
         velFrame: 0.1,
         assetFolder: 'skin',
         extension: 'png',
@@ -316,7 +248,7 @@ const DisplayComponent = {
       return {
         displayId: 'generic-wood',
         position: '08',
-        positions: PositionsComponent['frames1'](),
+        positions: PositionsComponent.frames(1),
         velFrame: 0.1,
         assetFolder: 'resources',
         extension: 'png',
@@ -326,7 +258,7 @@ const DisplayComponent = {
       return {
         displayId: 'coin',
         position: '08',
-        positions: PositionsComponent['frames6'](),
+        positions: PositionsComponent.frames(6),
         velFrame: 0.1,
         assetFolder: 'coin',
         extension: 'gif',
@@ -549,7 +481,7 @@ const loadDefaultResources = () => {
 DisplayComponent.get['odisea'] = () => ({
   ...DisplayComponent.get['anon'](),
   displayId: 'odisea',
-  positions: PositionsComponent['frames1'](),
+  positions: PositionsComponent.frames(1),
 });
 Stat.get['odisea'] = () => ({ ...Stat.get['anon'](), vel: 0.14 });
 
@@ -1128,7 +1060,7 @@ const QuestComponent = {
               ...DisplayComponent.get['anon'](),
               displayId: id,
               assetFolder: itemType,
-              positions: PositionsComponent.frames4(),
+              positions: PositionsComponent.frames(4),
               extension: 'gif',
             });
             break;
@@ -1259,7 +1191,7 @@ const SkillCyberiaData = {
     skillDisplayData: {
       ...DisplayComponent.get['hatchet'](),
       assetFolder: 'skill',
-      positions: PositionsComponent.wing(),
+      positions: PositionsComponent.frames(2),
       velFrame: 0.8,
     },
   },
