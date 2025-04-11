@@ -783,6 +783,9 @@ const InteractionPanelCyberia = {
     });
 
     if (id !== 'menu-interaction-panel') {
+      if (Modal.mobileModal()) {
+        s(`.${id}`).style.transition = '.3s';
+      }
       switch (id) {
         case 'element-interaction-panel':
           prepend(
@@ -834,6 +837,8 @@ const InteractionPanelCyberia = {
       Modal.Data[id].onCloseListener[id] = () => {
         const interactionPanelStorage = localStorage.getItem('modal') ? JSON.parse(localStorage.getItem('modal')) : {};
         delete interactionPanelStorage[id];
+        delete Modal.Data['modal-menu'].onBarUiOpen[id];
+        delete Modal.Data['modal-menu'].onBarUiClose[id];
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
       };
 
@@ -846,8 +851,23 @@ const InteractionPanelCyberia = {
         localStorage.setItem('modal', JSON.stringify(interactionPanelStorage));
       };
 
+      Modal.Data['modal-menu'].onBarUiOpen[id] = () => {
+        if (Modal.mobileModal() && s(`.${id}`)) {
+          s(`.${id}`).style.top = `110px`;
+        }
+      };
+      Modal.Data['modal-menu'].onBarUiClose[id] = () => {
+        if (Modal.mobileModal() && s(`.${id}`)) {
+          s(`.${id}`).style.top = `10px`;
+        }
+      };
+      let lastMobileStatus = newInstance(Modal.mobileModal());
       Responsive.Event[id] = () => {
         if (!s(`.${id}`)) return;
+        if (lastMobileStatus !== Modal.mobileModal()) {
+          lastMobileStatus = newInstance(Modal.mobileModal());
+          return s(`.btn-close-${id}`).click();
+        }
         const height = s(`.${id}`).offsetHeight - 30;
         const width = s(`.${id}`).offsetWidth;
 

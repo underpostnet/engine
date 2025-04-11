@@ -438,8 +438,8 @@ const CssCyberiaDark = {
             right: 5px;
             /* border: 2px solid red; */
             box-sizing: border-box;
-            width: 200px;
-            height: 200px;
+            width: 175px;
+            height: 175px;
             z-index: 3;
             cursor: url('${getProxyPath()}assets/cursor/white-pointer.png') -30 -30, auto !important;
           }
@@ -761,7 +761,7 @@ const CssCyberiaDark = {
             height: 100%;
           }
           .main-skill-cooldown-delay-time-text {
-            font-size: 21px;
+            font-size: 18px;
           }
           .character-container-stats {
             width: 320px;
