@@ -199,6 +199,16 @@ const CyberiaWsUserController = {
             channel,
             CyberiaWsUserManagement.element[wsManagementId][socket.id],
           );
+
+          const item = CyberiaWsUserManagement.element[wsManagementId][socket.id].skill.tree.find(
+            (o) => o.id === 'heal',
+          );
+          if (!item) {
+            CyberiaWsUserManagement.element[wsManagementId][socket.id].skill.tree.push({
+              id: 'heal',
+            });
+          }
+
           propagate();
         }
         break;
