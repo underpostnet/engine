@@ -25,15 +25,13 @@ const MatrixCyberia = {
         ...QuestComponent.Data[questId](),
       });
 
-    for (const sagaData of QuestComponent.questResourcesRef)
-      for (const questNumber of range(...sagaData.range))
+    for (const questData of data.quests)
+      if (questData.sagaId)
         await QuestComponent.loadMediaQuestComponents({
-          id: `${sagaData.sagaId}-${questNumber}`,
+          ...questData,
           ...JSON.parse(
             await CoreService.getRaw({
-              url: `${getProxyPath()}assets/ai-resources/lore/${sagaData.sagaId}/quests/${
-                sagaData.sagaId
-              }-${questNumber}.json`,
+              url: `${getProxyPath()}assets/ai-resources/lore/${questData.sagaId}/quests/${questData.id}.json`,
             }),
           ),
         });

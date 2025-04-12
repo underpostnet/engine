@@ -293,164 +293,192 @@ program
   .command('media')
   .argument('[saga-id]')
   .argument('[quest-id]')
+  .option('--build-global-assets-index')
   .option('--prompt')
   .option('--build')
   .option('--flip <flip-position>')
   .option('--preview <preview-position>')
   .option('--id <media-id>')
   .option('--import')
-  .action(async (sagaId, questId, options = { prompt: false, import: false, id: '', flip: '', preview: '' }) => {
-    if (options.import === true) {
-      const mediaObject = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).find(
-        (i) => i.id === options.id,
-      );
-      logger.info('mediaObject', mediaObject);
-      await buildAsset(sagaId, mediaObject, options);
-      return;
-    }
+  .action(
+    async (
+      sagaId,
+      questId,
+      options = { prompt: false, import: false, id: '', flip: '', preview: '', buildGlobalAssetsIndex: false },
+    ) => {
+      if (options.buildGlobalAssetsIndex === true) {
+        const indexStorage = './engine-private/conf/dd-cyberia/global-assets-index.json';
 
-    if (options.build === true) {
-      // https://github.com/nadermx/backgroundremover
-      // other option: ../lab/src/python pil-rembg.py
-      // other option: rembg i
+        const globalAssetsIndex = {};
 
-      const bgCmd = 'python -m backgroundremover.cmd.cli';
+        for (const sagaId of await fs.readdir(lorePath))
+          if (fs.existsSync(`${lorePath}/${sagaId}/quests`))
+            for (const questId of await fs.readdir(`${lorePath}/${sagaId}/quests`)) {
+              const dataQuest = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/quests/${questId}`, 'utf8'));
+              if (dataQuest.id) {
+                for (const component of dataQuest.components) {
+                  const { id, apiPaths } = component;
+                  globalAssetsIndex[id] = { apiPaths, sagaId, questId };
+                }
+              }
+            }
 
-      const mediaObjects =
-        options.id && typeof options.id === 'string'
-          ? [
-              {
-                id: options.id,
-              },
-            ]
-          : JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
+        fs.writeFileSync(indexStorage, JSON.stringify(globalAssetsIndex, null, 4), 'utf8');
+        return;
+      }
 
-      for (const media of mediaObjects) {
-        const { id } = media;
-        const imgExtension = fs.existsSync(`${lorePath}/${sagaId}/media/${id}/${id}.png`) ? 'png' : 'jpeg';
-        if (fs.existsSync(`${lorePath}/${sagaId}/media/${id}`)) {
-          shellExec(
-            `${bgCmd}` +
-              ` -i ${lorePath}/${sagaId}/media/${id}/${id}.${imgExtension}` +
-              ` -o ${lorePath}/${sagaId}/media/${id}/${id}-alpha.${imgExtension}`,
-          );
-          shellExec(
-            `python ../lab/src/cv2-sprite-sheet-0.py` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.${imgExtension}` +
-              ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}`,
-          );
+      if (options.import === true) {
+        const mediaObject = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).find(
+          (i) => i.id === options.id,
+        );
+        logger.info('mediaObject', mediaObject);
+        await buildAsset(sagaId, mediaObject, options);
+        return;
+      }
+
+      if (options.build === true) {
+        // https://github.com/nadermx/backgroundremover
+        // other option: ../lab/src/python pil-rembg.py
+        // other option: rembg i
+
+        const bgCmd = 'python -m backgroundremover.cmd.cli';
+
+        const mediaObjects =
+          options.id && typeof options.id === 'string'
+            ? [
+                {
+                  id: options.id,
+                },
+              ]
+            : JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
+
+        for (const media of mediaObjects) {
+          const { id } = media;
+          const imgExtension = fs.existsSync(`${lorePath}/${sagaId}/media/${id}/${id}.png`) ? 'png' : 'jpeg';
+          if (fs.existsSync(`${lorePath}/${sagaId}/media/${id}`)) {
+            shellExec(
+              `${bgCmd}` +
+                ` -i ${lorePath}/${sagaId}/media/${id}/${id}.${imgExtension}` +
+                ` -o ${lorePath}/${sagaId}/media/${id}/${id}-alpha.${imgExtension}`,
+            );
+            shellExec(
+              `python ../lab/src/cv2-sprite-sheet-0.py` +
+                ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}-alpha.${imgExtension}` +
+                ` ${process.cwd()}/src/client/public/cyberia/assets/ai-resources/lore/${sagaId}/media/${id}/${id}`,
+            );
+          }
+        }
+        return;
+      }
+
+      if (options.prompt === true) {
+        const mediaObjects = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
+
+        for (const media of mediaObjects) {
+          const { itemType, id, aestheticKeywords } = media;
+          if (options.id && typeof options.id === 'string' && options.id !== id) continue;
+          // use https://deepai.org/machine-learning-model/text2img
+          switch (itemType) {
+            case 'skin':
+              pbcopy(
+                `generate 1 side profile sprite and 1 back sprite and 1 front sprite, of ${id}, ${aestheticKeywords}, Chibi, Cartoon, pixel art, 8bit `,
+              );
+              await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
+
+              break;
+
+            default:
+              pbcopy(
+                `generate spreed sheet, of '${id}', view from above and from the side, ${aestheticKeywords}, rpg item, pixel art, 8bit`,
+              );
+              await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
+
+              break;
+          }
+        }
+
+        return;
+      }
+
+      // Gen data media
+
+      const quests = await fs.readdir(`${lorePath}/${sagaId}/quests`);
+      let idItems = {};
+
+      for (const quest of quests) {
+        if (questId && !quest.match(questId)) continue;
+        const questPath = `${lorePath}/${sagaId}/quests/${quest}`;
+        console.log('read', questPath);
+        const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
+
+        for (const searchObject of questData.components) {
+          const { id, itemType, questKeyContext } = searchObject;
+          idItems[id] = { itemType, questKeyContext };
+        }
+
+        for (const rewardObject of questData.reward) {
+          const { id, type } = rewardObject;
+          if (['coin'].includes(type)) continue;
+          idItems[id] = { itemType: type, questKeyContext: 'reward' };
         }
       }
-      return;
-    }
+      let keysItem = Object.keys(idItems);
 
-    if (options.prompt === true) {
-      const mediaObjects = JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8'));
+      if (options.id && typeof options.id === 'string') keysItem = keysItem.filter((id) => id === options.id);
 
-      for (const media of mediaObjects) {
-        const { itemType, id, aestheticKeywords } = media;
-        if (options.id && typeof options.id === 'string' && options.id !== id) continue;
-        // use https://deepai.org/machine-learning-model/text2img
-        switch (itemType) {
-          case 'skin':
-            pbcopy(
-              `generate 1 side profile sprite and 1 back sprite and 1 front sprite, of ${id}, ${aestheticKeywords}, Chibi, Cartoon, pixel art, 8bit `,
-            );
-            await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
-
-            break;
-
-          default:
-            pbcopy(
-              `generate spreed sheet, of '${id}', view from above and from the side, ${aestheticKeywords}, rpg item, pixel art, 8bit`,
-            );
-            await read({ prompt: `Prompt '${id}' copy to clipboard, press enter to continue.\n` });
-
-            break;
-        }
-      }
-
-      return;
-    }
-
-    // Gen data media
-
-    const quests = await fs.readdir(`${lorePath}/${sagaId}/quests`);
-    let idItems = {};
-
-    for (const quest of quests) {
-      if (questId && !quest.match(questId)) continue;
-      const questPath = `${lorePath}/${sagaId}/quests/${quest}`;
-      console.log('read', questPath);
-      const questData = JSON.parse(fs.readFileSync(questPath, 'utf8'));
-
-      for (const searchObject of questData.components) {
-        const { id, itemType, questKeyContext } = searchObject;
-        idItems[id] = { itemType, questKeyContext };
-      }
-
-      for (const rewardObject of questData.reward) {
-        const { id, type } = rewardObject;
-        if (['coin'].includes(type)) continue;
-        idItems[id] = { itemType: type, questKeyContext: 'reward' };
-      }
-    }
-    let keysItem = Object.keys(idItems);
-
-    if (options.id && typeof options.id === 'string') keysItem = keysItem.filter((id) => id === options.id);
-
-    const tags = {
-      provide: ['npc', 'cyberpunk'],
-      displayKillObjects: ['cyberpunk', 'creature', 'enemy'],
-      displaySearchObjects: ['cyberpunk', 'item'],
-      displaySearchDialog: ['npc', 'cyberpunk'],
-      seller: ['cyberpunk', 'seller', 'shop'],
-      reward: ['cyberpunk', 'item'],
-    };
-
-    idItems = keysItem.map((id) => {
-      return {
-        id,
-        aestheticKeywords: [],
-        itemType: idItems[id].itemType,
-        tags: tags[idItems[id].questKeyContext],
+      const tags = {
+        provide: ['npc', 'cyberpunk'],
+        displayKillObjects: ['cyberpunk', 'creature', 'enemy'],
+        displaySearchObjects: ['cyberpunk', 'item'],
+        displaySearchDialog: ['npc', 'cyberpunk'],
+        seller: ['cyberpunk', 'seller', 'shop'],
+        reward: ['cyberpunk', 'item'],
       };
-    });
 
-    const prompt = `According to this context '${fs.readFileSync(
-      `${lorePath}/${sagaId}/saga.md`,
-      'utf8',
-    )}' and aesthetic description of some characters, complete 'aestheticKeywords' of this json: ${JSON.stringify(
-      idItems,
-      null,
-      4,
-    )}, if case doesn't exist created according 'tags' and add generic according context`;
+      idItems = keysItem.map((id) => {
+        return {
+          id,
+          aestheticKeywords: [],
+          itemType: idItems[id].itemType,
+          tags: tags[idItems[id].questKeyContext],
+        };
+      });
 
-    console.log('prompt:', prompt);
-
-    let response = await generateContent(prompt);
-
-    console.log('response:', response);
-
-    response = response.split('```');
-
-    const md = response.pop();
-
-    const json = JSON.parse(
-      response
-        .join('```')
-        .replace(/```json/g, '')
-        .replace(/```/g, ''),
-    );
-
-    if (options.id && typeof options.id === 'string') {
-      fs.writeFileSync(
-        `${lorePath}/${sagaId}/media.json`,
-        JSON.stringify(JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).concat(json), null, 4),
+      const prompt = `According to this context '${fs.readFileSync(
+        `${lorePath}/${sagaId}/saga.md`,
         'utf8',
+      )}' and aesthetic description of some characters, complete 'aestheticKeywords' of this json: ${JSON.stringify(
+        idItems,
+        null,
+        4,
+      )}, if case doesn't exist created according 'tags' and add generic according context`;
+
+      console.log('prompt:', prompt);
+
+      let response = await generateContent(prompt);
+
+      console.log('response:', response);
+
+      response = response.split('```');
+
+      const md = response.pop();
+
+      const json = JSON.parse(
+        response
+          .join('```')
+          .replace(/```json/g, '')
+          .replace(/```/g, ''),
       );
-    } else fs.writeFileSync(`${lorePath}/${sagaId}/media.json`, JSON.stringify(json, null, 4), 'utf8');
-  })
+
+      if (options.id && typeof options.id === 'string') {
+        fs.writeFileSync(
+          `${lorePath}/${sagaId}/media.json`,
+          JSON.stringify(JSON.parse(fs.readFileSync(`${lorePath}/${sagaId}/media.json`, 'utf8')).concat(json), null, 4),
+          'utf8',
+        );
+      } else fs.writeFileSync(`${lorePath}/${sagaId}/media.json`, JSON.stringify(json, null, 4), 'utf8');
+    },
+  )
   .description('Media generator related quest id');
 
 program

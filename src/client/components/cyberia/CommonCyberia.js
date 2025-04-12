@@ -984,12 +984,6 @@ const QuestComponent = {
       };
     },
   },
-  questResourcesRef: [
-    {
-      sagaId: 'ashes-of-orion',
-      range: [1, 2],
-    },
-  ],
   getQuestByDisplayId: function ({ displayId }) {
     const questData = [];
     for (const id of Object.keys(this.Data)) {

@@ -655,6 +655,7 @@ const WorldCyberia = {
       json: [
         {
           id: '',
+          sagaId: '',
         },
       ],
     },

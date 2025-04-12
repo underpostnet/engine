@@ -1629,6 +1629,7 @@ const Modal = {
   currentTopModalId: '',
   zIndexSync: function ({ idModal }) {
     setTimeout(() => {
+      if (!this.Data[idModal]) return;
       const cleanTopModal = () => {
         Object.keys(this.Data).map((_idModal) => {
           if (this.Data[_idModal].options.zIndexSync && s(`.${_idModal}`)) s(`.${_idModal}`).style.zIndex = '3';

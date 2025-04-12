@@ -224,6 +224,11 @@ const InteractionPanelCyberia = {
 
       const currentQuestData = ElementsCyberia.Data.user['main'].model.quests.find((q) => q.id === questData.id);
 
+      if (!currentQuestData) {
+        delete this.questTokens[id];
+        return;
+      }
+
       const providerQuestSpriteData = QuestComponent.components.find(
         (s) => s.displayId === questData.provide.displayIds[0].id,
       );

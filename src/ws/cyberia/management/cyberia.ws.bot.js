@@ -508,13 +508,13 @@ const CyberiaWsBotManagement = {
           ...QuestComponent.Data[questId](),
         });
 
-      for (const sagaData of QuestComponent.questResourcesRef)
-        for (const questNumber of range(...sagaData.range))
+      for (const questData of world.quests)
+        if (questData.sagaId)
           await QuestComponent.loadMediaQuestComponents({
-            id: `${sagaData.sagaId}-${questNumber}`,
+            ...questData,
             ...JSON.parse(
               fs.readFileSync(
-                `./src/client/public/cyberia/assets/ai-resources/lore/${sagaData.sagaId}/quests/${sagaData.sagaId}-${questNumber}.json`,
+                `./src/client/public/cyberia/assets/ai-resources/lore/${questData.sagaId}/quests/${questData.id}.json`,
                 'utf8',
               ),
             ),
