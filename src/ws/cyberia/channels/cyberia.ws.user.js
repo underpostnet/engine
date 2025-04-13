@@ -209,6 +209,8 @@ const CyberiaWsUserController = {
             });
           }
 
+          // TODO: dynamic assets load
+
           propagate();
         }
         break;

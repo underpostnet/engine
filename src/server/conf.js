@@ -927,7 +927,9 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
   const confServer = loadReplicas(
     JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
   );
+  const hosts = {};
   for (const host of Object.keys(confServer)) {
+    hosts[host] = {};
     for (const path of Object.keys(confServer[host])) {
       if (!confServer[host][path].db) continue;
       const { singleReplica, replicas, db } = confServer[host][path];
@@ -940,6 +942,7 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
           );
           for (const _host of Object.keys(confServerReplica)) {
             for (const _path of Object.keys(confServerReplica[_host])) {
+              hosts[host][_path] = { replica: { host, path } };
               confServerReplica[_host][_path].valkey = valkey;
               switch (provider) {
                 case 'mongoose':
@@ -954,7 +957,7 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
             'utf8',
           );
         }
-      }
+      } else hosts[host][path] = {};
       confServer[host][path].valkey = valkey;
       switch (provider) {
         case 'mongoose':
@@ -964,6 +967,7 @@ const rebuildConfFactory = ({ deployId, valkey, mongo }) => {
     }
   }
   fs.writeFileSync(`./engine-private/conf/${deployId}/conf.server.json`, JSON.stringify(confServer, null, 4), 'utf8');
+  return { hosts };
 };
 
 const getRestoreCronCmd = async (options = { host: '', path: '', conf: {}, deployId: '' }) => {

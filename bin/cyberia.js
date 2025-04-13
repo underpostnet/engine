@@ -318,7 +318,7 @@ program
               if (dataQuest.id) {
                 for (const component of dataQuest.components) {
                   const { id, apiPaths } = component;
-                  globalAssetsIndex[id] = { apiPaths, sagaId, questId };
+                  if (apiPaths) globalAssetsIndex[id] = { apiPaths, sagaId, questId };
                 }
               }
             }

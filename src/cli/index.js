@@ -216,6 +216,7 @@ program
   .option('--deploy-id <deploy-id>', 'Deploy configuration id')
   .option('--pull', 'Download file')
   .option('--force', 'Force action')
+  .option('--storage-file-path', 'custom file storage path')
   .description('File storage management, for default upload file')
   .action(Underpost.fs.callback);
 

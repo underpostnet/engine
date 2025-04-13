@@ -46,6 +46,8 @@ const SocketIoCyberia = {
           // logger.info('ws on event', args);
           const { id, element, status } = args;
 
+          // TODO: dynamic assets load
+
           switch (status) {
             case 'update-life':
               if (!ElementsCyberia.Data[type][id]) return;

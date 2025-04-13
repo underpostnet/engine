@@ -24,7 +24,7 @@ class UnderpostFileStorage {
     getStorageConf(options) {
       let storage, storageConf;
       if (options.deployId && typeof options.deployId === 'string') {
-        storageConf = `./engine-private/conf/${options.deployId}/storage.json`;
+        storageConf = options.storageFilePath ?? `./engine-private/conf/${options.deployId}/storage.json`;
         if (!fs.existsSync(storageConf)) fs.writeFileSync(storageConf, JSON.stringify({}), 'utf8');
         storage = JSON.parse(fs.readFileSync(storageConf, 'utf8'));
       }
@@ -35,7 +35,15 @@ class UnderpostFileStorage {
     },
     async recursiveCallback(
       path,
-      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, git: false },
+      options = {
+        rm: false,
+        recursive: false,
+        deployId: '',
+        force: false,
+        pull: false,
+        git: false,
+        storageFilePath: '',
+      },
     ) {
       const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
       const deleteFiles = options.pull === true ? [] : UnderpostRepository.API.getDeleteFiles(path);
@@ -85,7 +93,10 @@ class UnderpostFileStorage {
       if (options.rm === true) return await UnderpostFileStorage.API.delete(path, options);
       return await UnderpostFileStorage.API.upload(path, options);
     },
-    async upload(path, options = { rm: false, recursive: false, deployId: '', force: false, pull: false }) {
+    async upload(
+      path,
+      options = { rm: false, recursive: false, deployId: '', force: false, pull: false, storageFilePath: '' },
+    ) {
       UnderpostFileStorage.API.cloudinaryConfig();
       const { storage, storageConf } = UnderpostFileStorage.API.getStorageConf(options);
       // path = UnderpostFileStorage.API.file2Zip(path);
