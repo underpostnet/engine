@@ -26,6 +26,7 @@ import {
   fixDependencies,
   setUpProxyMaintenanceServer,
   writeEnv,
+  getUnderpostRootPath,
 } from '../src/server/conf.js';
 import { buildClient } from '../src/server/client-build.js';
 import { range, setPad, timer, uniqueArray } from '../src/client/components/core/CommonJs.js';
@@ -1101,6 +1102,31 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           async: true,
         },
       );
+      break;
+    }
+
+    case 'postgresql': {
+      if (process.argv.includes('install')) {
+        shellExec(`sudo dnf install -y postgresql-server postgresql`);
+      }
+      shellExec(`sudo postgresql-setup --initdb`);
+      shellExec(`sudo systemctl enable postgresql.service`);
+      shellExec(`sudo systemctl start postgresql.service`);
+      shellExec(`sudo systemctl status postgresql.service`);
+      // psql login
+      // psql -U <user> <db-name>
+      break;
+    }
+
+    case 'maas': {
+      dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
+      shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
+      shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
+      shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
+      shellExec(
+        `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
+      );
+      shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
       break;
     }
 
