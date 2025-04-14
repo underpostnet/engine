@@ -220,6 +220,14 @@ spec:
         }
       }
     },
+    getCurrentTraffic(deployId) {
+      // kubectl get deploy,sts,svc,configmap,secret -n default -o yaml --export > default.yaml
+      const hostTest = Object.keys(
+        JSON.parse(fs.readFileSync(`./engine-private/conf/${deployId}/conf.server.json`, 'utf8')),
+      )[0];
+      const info = shellExec(`sudo kubectl get HTTPProxy/${hostTest} -o yaml`, { silent: true, stdout: true });
+      return info.match('blue') ? 'blue' : info.match('green') ? 'green' : null;
+    },
     async callback(
       deployList = 'default',
       env = 'development',
@@ -236,6 +244,7 @@ spec:
         dashboardUpdate: false,
         replicas: '',
         disableUpdateDeployment: false,
+        infoTraffic: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -246,8 +255,19 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
         `);
       if (deployList === 'dd' && fs.existsSync(`./engine-private/deploy/dd.router`))
         deployList = fs.readFileSync(`./engine-private/deploy/dd.router`, 'utf8');
+      if (options.infoTraffic === true) {
+        for (const _deployId of deployList.split(',')) {
+          const deployId = _deployId.trim();
+          logger.info('', {
+            deployId,
+            env,
+            traffic: UnderpostDeploy.API.getCurrentTraffic(deployId),
+          });
+        }
+        return;
+      }
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
-      if (!options.replicas) options.replicas = 2;
+      if (!options.replicas) options.replicas = 1;
       if (options.sync) UnderpostDeploy.API.sync(deployList, options);
       if (options.buildManifest === true) await UnderpostDeploy.API.buildManifest(deployList, env, options);
       if (options.infoRouter === true) logger.info('router', await UnderpostDeploy.API.routerFactory(deployList, env));

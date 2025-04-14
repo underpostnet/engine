@@ -67,6 +67,7 @@ class UnderpostCluster {
         shellExec(`kubectl get secrets --all-namespaces -o wide`);
         shellExec(`docker secret ls`);
         shellExec(`kubectl get crd --all-namespaces -o wide`);
+        shellExec(`sudo kubectl api-resources`);
         return;
       }
 
@@ -74,6 +75,9 @@ class UnderpostCluster {
         (!options.istio && !UnderpostDeploy.API.get('kube-apiserver-kind-control-plane')[0]) ||
         (options.istio === true && !UnderpostDeploy.API.get('calico-kube-controllers')[0])
       ) {
+        shellExec(`sudo setenforce 0`);
+        shellExec(`sudo sed -i 's/^SELINUX=enforcing$/SELINUX=permissive/' /etc/selinux/config`);
+        shellExec(`sudo systemctl enable --now kubelet`);
         shellExec(`containerd config default > /etc/containerd/config.toml`);
         shellExec(`sed -i -e "s/SystemdCgroup = false/SystemdCgroup = true/g" /etc/containerd/config.toml`);
         // shellExec(`cp /etc/kubernetes/admin.conf ~/.kube/config`);

@@ -121,6 +121,7 @@ program
   .option('--versions <deployment-versions>', 'Comma separated custom deployment versions')
   .option('--traffic <traffic-versions>', 'Comma separated custom deployment traffic')
   .option('--disable-update-deployment', 'Disable update deployments')
+  .option('--info-traffic', 'get traffic conf form current resources deployments')
   .description('Manage deployment, for default deploy development pods')
   .action(Underpost.deploy.callback);
 
@@ -216,7 +217,7 @@ program
   .option('--deploy-id <deploy-id>', 'Deploy configuration id')
   .option('--pull', 'Download file')
   .option('--force', 'Force action')
-  .option('--storage-file-path', 'custom file storage path')
+  .option('--storage-file-path <storage-file-path>', 'custom file storage path')
   .description('File storage management, for default upload file')
   .action(Underpost.fs.callback);
 
@@ -241,6 +242,7 @@ program
   .option('--single', 'Disable recurrence')
   .option('--replicas <replicas>', 'Set custom number of replicas')
   .option('--type <type>', 'Set custom monitor type')
+  .option('--sync', 'Sync with current proxy deployments proxy traffic')
   .description('Monitor health server management')
   .action(Underpost.monitor.callback);
 

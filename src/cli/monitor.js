@@ -14,7 +14,7 @@ class UnderpostMonitor {
     async callback(
       deployId,
       env = 'development',
-      options = { now: false, single: false, msInterval: '', type: '', replicas: '' },
+      options = { now: false, single: false, msInterval: '', type: '', replicas: '', sync: false },
       commanderOptions,
       auxRouter,
     ) {
@@ -39,19 +39,29 @@ class UnderpostMonitor {
 
       const pathPortAssignmentData = pathPortAssignmentFactory(router, confServer);
 
-      logger.info(`${deployId} ${env}`, pathPortAssignmentData);
-
       let errorPayloads = [];
-      let traffic = 'blue';
+      if (options.sync === true) {
+        UnderpostDeploy.API.set(`${deployId}-${env}-traffic`, UnderpostDeploy.API.getCurrentTraffic(deployId));
+      }
+      let traffic = UnderpostDeploy.API.get(`${deployId}-${env}-traffic`) ?? 'blue';
       const maxAttempts = parseInt(
         Object.keys(pathPortAssignmentData)
           .map((host) => pathPortAssignmentData[host].length)
           .reduce((accumulator, value) => accumulator + value, 0) * 2.5,
       );
 
+      logger.info(`Init deploy monitor`, {
+        pathPortAssignmentData,
+        maxAttempts,
+        deployId,
+        env,
+        traffic,
+      });
+
       const switchTraffic = () => {
         if (traffic === 'blue') traffic = 'green';
         else traffic = 'blue';
+        UnderpostDeploy.API.set(`${deployId}-${env}-traffic`, traffic);
         shellExec(
           `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
             options.replicas ? options.replicas : 1

@@ -2,6 +2,7 @@
     "recommendations": [
         "antiantisepticeye.vscode-color-picker",
         "bashmish.es6-string-css",
+        "codeium.codeium",
         "eamodio.gitlens",
         "esbenp.prettier-vscode",
         "foxundermoon.shell-format",
@@ -11,7 +12,6 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "streetsidesoftware.code-spell-checker",
-        "tabnine.tabnine-vscode",
         "tobermory.es6-string-html"
     ]
 }
