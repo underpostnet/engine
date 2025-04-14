@@ -41,9 +41,10 @@ class UnderpostMonitor {
 
       let errorPayloads = [];
       if (options.sync === true) {
-        UnderpostDeploy.API.set(`${deployId}-${env}-traffic`, UnderpostDeploy.API.getCurrentTraffic(deployId));
+        const currentTraffic = UnderpostDeploy.API.getCurrentTraffic(deployId);
+        if (currentTraffic) UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, currentTraffic);
       }
-      let traffic = UnderpostDeploy.API.get(`${deployId}-${env}-traffic`) ?? 'blue';
+      let traffic = UnderpostRootEnv.API.get(`${deployId}-${env}-traffic`) ?? 'blue';
       const maxAttempts = parseInt(
         Object.keys(pathPortAssignmentData)
           .map((host) => pathPortAssignmentData[host].length)
@@ -61,7 +62,7 @@ class UnderpostMonitor {
       const switchTraffic = () => {
         if (traffic === 'blue') traffic = 'green';
         else traffic = 'blue';
-        UnderpostDeploy.API.set(`${deployId}-${env}-traffic`, traffic);
+        UnderpostRootEnv.API.set(`${deployId}-${env}-traffic`, traffic);
         shellExec(
           `node bin deploy --info-router --build-manifest --traffic ${traffic} --replicas ${
             options.replicas ? options.replicas : 1
