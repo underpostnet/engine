@@ -245,6 +245,7 @@ spec:
         replicas: '',
         disableUpdateDeployment: false,
         infoTraffic: false,
+        rebuildClientsBundle: false,
       },
     ) {
       if (options.infoUtil === true)
@@ -266,6 +267,7 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
         }
         return;
       }
+      if (options.rebuildClientsBundle === true) await UnderpostDeploy.API.rebuildClientsBundle(deployList);
       if (!(options.versions && typeof options.versions === 'string')) options.versions = 'blue,green';
       if (!options.replicas) options.replicas = 1;
       if (options.sync) UnderpostDeploy.API.sync(deployList, options);
@@ -378,6 +380,23 @@ kubectl scale statefulsets <stateful-set-name> --replicas=<new-replicas>
       }
 
       return result;
+    },
+    rebuildClientsBundle(deployList) {
+      for (const _deployId of deployList.split(',')) {
+        const deployId = _deployId.trim();
+        const repoName = `engine-${deployId.split('-')[1]}`;
+
+        shellExec(`underpost script set ${deployId}-client-build '
+cd /home/dd/engine &&
+git checkout . &&
+underpost pull . underpostnet/${repoName} &&
+underpost pull ./engine-private underpostnet/${repoName}-private &&
+underpost env ${deployId} production &&
+node bin/deploy build-full-client ${deployId}
+'`);
+
+        shellExec(`node bin script run ${deployId}-client-build --itc --pod-name ${deployId}`);
+      }
     },
     resourcesFactory() {
       return {
