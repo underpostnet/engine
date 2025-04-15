@@ -1103,6 +1103,16 @@ const QuestComponent = {
       }
     }
   },
+  defaultQuests: [
+    {
+      sagaId: 'ashes-of-orion',
+      id: 'ashes-of-orion-1',
+    },
+    {
+      sagaId: 'ashes-of-orion',
+      id: 'ashes-of-orion-2',
+    },
+  ],
 };
 
 const ComponentElement = {

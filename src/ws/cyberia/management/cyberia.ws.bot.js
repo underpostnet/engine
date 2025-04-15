@@ -508,7 +508,7 @@ const CyberiaWsBotManagement = {
           ...QuestComponent.Data[questId](),
         });
 
-      for (const questData of world.quests)
+      for (const questData of QuestComponent.defaultQuests) // world.quests
         if (questData.sagaId)
           await QuestComponent.loadMediaQuestComponents({
             ...questData,

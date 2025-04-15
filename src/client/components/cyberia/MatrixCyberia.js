@@ -25,7 +25,7 @@ const MatrixCyberia = {
         ...QuestComponent.Data[questId](),
       });
 
-    for (const questData of data.quests)
+    for (const questData of QuestComponent.defaultQuests) // data.quests
       if (questData.sagaId)
         await QuestComponent.loadMediaQuestComponents({
           ...questData,
