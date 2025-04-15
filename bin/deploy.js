@@ -1115,6 +1115,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`sudo systemctl status postgresql.service`);
       // psql login
       // psql -U <user> <db-name>
+      // gedit /var/lib/pgsql/data/pg_hba.conf
       break;
     }
 
@@ -1123,10 +1124,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
       shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
       shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
+      shellExec(`DB_PG_MAAS_HOST=${process.env.DB_PG_MAAS_HOST}`);
       shellExec(
         `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
       );
       shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
+      shellExec(
+        `sudo maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@host/$DB_PG_MAAS_HOST"`,
+      );
       break;
     }
 
