@@ -25,7 +25,9 @@ const path = process.env.DEFAULT_DEPLOY_PATH;
 const confServerPath = `./engine-private/conf/${deployId}/conf.server.json`;
 const confServer = JSON.parse(fs.readFileSync(confServerPath, 'utf8'));
 const { db } = confServer[host][path];
-const lorePath = `./src/client/public/cyberia/assets/ai-resources/lore`;
+
+const lorePath = (storage) => `./src/client/public/${storage}/assets/ai-resources/lore`;
+const storagePath = (storage, itemType, displayId) => `src/client/public/${storage}/assets/${itemType}/${displayId}`;
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL_NAME = 'gemini-2.0-pro-exp-02-05';
@@ -94,6 +96,7 @@ const generateContent = async (prompt) => {
 };
 
 const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
+  const storage = 'cyberia';
   const frameColor = 'rgba(255, 255, 255)';
   const commonCyberiaPath = `src/client/components/cyberia/CommonCyberia.js`;
   let { id, itemType } = mediaObject;
@@ -104,8 +107,8 @@ const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
     return await new Promise((resolve) => {
       Jimp.read(`${basePath}/0${pos}.png`).then(async (image) => {
         const dim = image.bitmap.width > image.bitmap.height ? image.bitmap.width : image.bitmap.height;
-        if (!fs.existsSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/0${pos}`))
-          fs.mkdirSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/0${pos}`, { recursive: true });
+        if (!fs.existsSync(`./${storagePath(storage, itemType, displayId)}/0${pos}`))
+          fs.mkdirSync(`./${storagePath(storage, itemType, displayId)}/0${pos}`, { recursive: true });
 
         const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
 
@@ -119,17 +122,17 @@ const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
 
         if (`${options.flip}` === `${pos}`) frame.flip(true, false);
 
-        const outPath = `/home/dd/engine/src/client/public/cyberia/assets/${itemType}/${displayId}/0${pos}/0.png`;
+        const outPath = `/home/dd/engine/${storagePath(storage, itemType, displayId)}/0${pos}/0.png`;
 
         await setTransparency(frame);
 
         frame.write(outPath);
 
         if (options.preview === `${pos}` || (!options.preview && '8' === `${pos}`))
-          frame.write(`/home/dd/engine/src/client/public/cyberia/assets/${itemType}/${displayId}/animation.gif`);
+          frame.write(`/home/dd/engine/${storagePath(storage, itemType, displayId)}/animation.gif`);
 
-        if (!fs.existsSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}`))
-          fs.mkdirSync(`./src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}`, { recursive: true });
+        if (!fs.existsSync(`./${storagePath(storage, itemType, displayId)}/1${pos}`))
+          fs.mkdirSync(`./${storagePath(storage, itemType, displayId)}/1${pos}`, { recursive: true });
 
         for (const _pos of range(0, 1)) {
           const frame = new Jimp(dim + dim * 0.25, dim + dim * 0.25, frameColor);
@@ -144,7 +147,7 @@ const buildAsset = async (sagaId, mediaObject, options = { flip: false }) => {
 
           if (`${options.flip}` === `${pos}`) frame.flip(true, false);
 
-          const outPath = `/home/dd/engine/src/client/public/cyberia/assets/${itemType}/${displayId}/1${pos}/${_pos}.png`;
+          const outPath = `/home/dd/engine/${storagePath(storage, itemType, displayId)}/1${pos}/${_pos}.png`;
 
           await setTransparency(frame);
 
@@ -480,6 +483,15 @@ program
     },
   )
   .description('Media generator related quest id');
+
+program.command('storage-split <from-storage> <to-storage>').action(async () => {
+  const fromStorage = args[0];
+  const toStorage = args[1];
+  const fromFiles = await fs.readdir(fromStorage);
+  for (const file of fromFiles) {
+    const destFolder = `${toStorage}/${file}`;
+  }
+});
 
 program
   .command('universe')
