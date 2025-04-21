@@ -6,6 +6,8 @@ import { publicIp, publicIpv4, publicIpv6 } from 'public-ip';
 import { loggerFactory } from './logger.js';
 import UnderpostRootEnv from '../cli/env.js';
 import dns from 'node:dns';
+import os from 'node:os';
+import { shellExec } from './process.js';
 
 dotenv.config();
 
@@ -21,6 +23,17 @@ const ip = {
 
 const isInternetConnection = (domain = 'google.com') =>
   new Promise((resolve) => dns.lookup(domain, {}, (err) => resolve(err ? false : true)));
+
+// export INTERFACE=$(ip route | grep default | cut -d ' ' -f 5)
+// export IP_ADDRESS=$(ip -4 addr show dev $INTERFACE | grep -oP '(?<=inet\s)\d+(\.\d+){3}')
+const getLocalIPv4Address = () =>
+  os.networkInterfaces()[
+    shellExec(`ip route | grep default | cut -d ' ' -f 5`, {
+      stdout: true,
+      silent: true,
+      disableLog: true,
+    }).trim()
+  ].find((i) => i.family === 'IPv4').address;
 
 class Dns {
   static callback = async function (deployList) {
@@ -118,4 +131,4 @@ class Dns {
 
 export default Dns;
 
-export { Dns, ip, isInternetConnection };
+export { Dns, ip, isInternetConnection, getLocalIPv4Address };
