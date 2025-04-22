@@ -38,6 +38,7 @@ import { JSONweb } from '../src/server/client-formatted.js';
 import { Xampp } from '../src/runtime/xampp/Xampp.js';
 import { ejs } from '../src/server/json-schema.js';
 import { buildCliDoc } from '../src/cli/index.js';
+import { getLocalIPv4Address } from '../src/server/dns.js';
 
 const logger = loggerFactory(import.meta);
 
@@ -1108,30 +1109,69 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     case 'postgresql': {
       if (process.argv.includes('install')) {
         shellExec(`sudo dnf install -y postgresql-server postgresql`);
+        shellExec(`sudo postgresql-setup --initdb`);
+        shellExec(`chown postgres /var/lib/pgsql/data`);
+        shellExec(`sudo systemctl enable postgresql.service`);
+        shellExec(`sudo systemctl start postgresql.service`);
+      } else {
+        shellExec(`sudo systemctl enable postgresql.service`);
+        shellExec(`sudo systemctl restart postgresql.service`);
       }
-      shellExec(`sudo postgresql-setup --initdb`);
-      shellExec(`sudo systemctl enable postgresql.service`);
-      shellExec(`sudo systemctl start postgresql.service`);
+
       shellExec(`sudo systemctl status postgresql.service`);
+
       // psql login
-      // psql -U <user> <db-name>
+      // psql -U <user> -h 127.0.0.1 -W <db-name>
+
       // gedit /var/lib/pgsql/data/pg_hba.conf
+      // host    <db-name>    	<db-user>        <db-host>               md5
+      // local   all             postgres                                trust
+      // # "local" is for Unix domain socket connections only
+      // local   all             all                                     md5
+      // # IPv4 local connections:
+      // host    all             all             127.0.0.1/32            md5
+      // # IPv6 local connections:
+      // host    all             all             ::1/128                 md5
+
+      // gedit /var/lib/pgsql/data/postgresql.conf
+      // listen_addresses = '*'
+
       break;
     }
 
     case 'maas': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
+      const IP_ADDRESS = getLocalIPv4Address();
+
       shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
       shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
       shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
       shellExec(`DB_PG_MAAS_HOST=${process.env.DB_PG_MAAS_HOST}`);
+      // DROP, ALTER, CREATE, WITH ENCRYPTED
+      // sudo -u <user> -h <host> psql <db-name>
       shellExec(
-        `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
+        `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '${process.env.DB_PG_MAAS_PASS}'"`,
       );
-      shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
       shellExec(
-        `sudo maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@host/$DB_PG_MAAS_HOST"`,
+        `sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '${process.env.DB_PG_MAAS_PASS}'"`,
       );
+      const actions = ['LOGIN', 'SUPERUSER', 'INHERIT', 'CREATEDB', 'CREATEROLE', 'REPLICATION'];
+      shellExec(`sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ${actions.join(' ')}"`);
+      shellExec(`sudo -i -u postgres psql -c "\\du"`);
+
+      // shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
+      shellExec(
+        `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
+          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
+      );
+
+      // shellExec(
+      //   `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
+      //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
+      // );
+
+      // shellExec(`sudo maas create admin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
+
       break;
     }
 
