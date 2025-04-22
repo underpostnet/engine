@@ -1170,7 +1170,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
 
-      // shellExec(`sudo maas create admin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
+      // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
+      // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
+      // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
 
       break;
     }
