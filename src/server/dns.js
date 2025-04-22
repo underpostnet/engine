@@ -55,25 +55,25 @@ class Dns {
 
     if (!isOnline) return;
 
-    for (const _deployId of deployList.split(',')) {
-      const deployId = _deployId.trim();
-      const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
-      const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
-      const confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
+    let testIp;
 
-      let testIp;
+    try {
+      testIp = await ip.public.ipv4();
+    } catch (error) {
+      logger.error(error, { testIp, stack: error.stack });
+    }
 
-      try {
-        testIp = await ip.public.ipv4();
-      } catch (error) {
-        logger.error(error, { testIp, stack: error.stack });
-      }
+    const currentIp = UnderpostRootEnv.API.get('ip');
 
-      const currentIp = UnderpostRootEnv.API.get('ip');
+    if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
+      logger.info(`new ip`, testIp);
+      UnderpostRootEnv.API.set('monitor-input', 'pause');
 
-      if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
-        logger.info(`new ip`, testIp);
-        UnderpostRootEnv.API.set('monitor-input', 'pause');
+      for (const _deployId of deployList.split(',')) {
+        const deployId = _deployId.trim();
+        const privateCronConfPath = `./engine-private/conf/${deployId}/conf.cron.json`;
+        const confCronPath = fs.existsSync(privateCronConfPath) ? privateCronConfPath : './conf/conf.cron.json';
+        const confCronData = JSON.parse(fs.readFileSync(confCronPath, 'utf8'));
         for (const recordType of Object.keys(confCronData.records)) {
           switch (recordType) {
             case 'A':
