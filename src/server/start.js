@@ -1,5 +1,4 @@
 import UnderpostDeploy from '../cli/deploy.js';
-import UnderpostMonitor from '../cli/monitor.js';
 import fs from 'fs-extra';
 import { awaitDeployMonitor } from './conf.js';
 import { actionInitLog, loggerFactory } from './logger.js';

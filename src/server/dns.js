@@ -65,7 +65,7 @@ class Dns {
 
     const currentIp = UnderpostRootEnv.API.get('ip');
 
-    if (testIp && typeof testIp === 'string' && validator.isIP(testIp) && currentIp !== testIp) {
+    if (validator.isIP(testIp) && currentIp !== testIp) {
       logger.info(`new ip`, testIp);
       UnderpostRootEnv.API.set('monitor-input', 'pause');
 
