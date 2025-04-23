@@ -1170,8 +1170,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const actions = ['LOGIN', 'SUPERUSER', 'INHERIT', 'CREATEDB', 'CREATEROLE', 'REPLICATION'];
       shellExec(`sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ${actions.join(' ')}"`);
       shellExec(`sudo -i -u postgres psql -c "\\du"`);
+      shellExec(`sudo -i -u postgres psql -c "\\l"`);
 
-      // shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
+      shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
+
       shellExec(
         `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
           ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
