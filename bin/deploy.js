@@ -1120,6 +1120,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       shellExec(`sudo systemctl status postgresql.service`);
 
+      // sudo systemctl stop postgresql
+      // sudo systemctl disable postgresql
+
       // psql login
       // psql -U <user> -h 127.0.0.1 -W <db-name>
 
@@ -1135,6 +1138,15 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // gedit /var/lib/pgsql/data/postgresql.conf
       // listen_addresses = '*'
+
+      break;
+    }
+
+    case 'postgresql-14': {
+      shellExec(`sudo /usr/pgsql-14/bin/postgresql-14-setup initdb`);
+      shellExec(`sudo systemctl start postgresql-14`);
+      shellExec(`sudo systemctl enable postgresql-14`);
+      shellExec(`sudo systemctl status postgresql-14`);
 
       break;
     }
