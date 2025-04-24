@@ -1151,6 +1151,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
+    case 'pg-list-db': {
+      shellExec(`sudo -i -u postgres psql -c "\\l"`);
+      break;
+    }
+
+    case 'pg-list-table': {
+      shellExec(`sudo -i -u postgres psql -c "\\dt *.*"`);
+      // schema_name.*
+      break;
+    }
+
     case 'maas': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
@@ -1191,6 +1202,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Rocky:
       // /etc/NetworkManager/system-connections
 
+      // https://github.com/temporalio/temporal/tree/main/schema/postgresql
       // /var/lib/snapd/snap/maas/38907/usr/bin
       // temporal-sql-tool
 
