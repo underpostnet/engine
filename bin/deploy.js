@@ -1209,11 +1209,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
 
       // Rocky:
+      // sudo dnf install postgresql14-contrib
       // /etc/NetworkManager/system-connections
 
       // https://github.com/temporalio/temporal/tree/main/schema/postgresql
       // /var/lib/snapd/snap/maas/38907/usr/bin
       // temporal-sql-tool
+      // /snap/maas/38907/var/lib/temporal/schema/visibility/versioned
 
       // journalctl -u snap.maas.pebble -t maas-regiond
       // journalctl -u snap.maas.pebble -t maas-temporal -n 100 --no-pager -f
