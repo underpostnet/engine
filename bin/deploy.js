@@ -1234,6 +1234,20 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
+    case 'blue': {
+      // lsusb | grep blue -i
+      // rfkill list
+      // sudo service bluetooth start
+      // bluetoothctl show
+      // sudo rfkill unblock bluetooth
+      // dmesg | grep -i bluetooth
+      // journalctl -u bluetooth -f
+      // sudo dnf update bluez bluez-libs bluez-utils
+      // sudo rmmod btusb
+      // sudo modprobe btusb
+      break;
+    }
+
     default:
       break;
   }
