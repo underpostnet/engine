@@ -1179,7 +1179,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       );
 
-      // shellExec(
+      // console.log(
       //   `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
@@ -1187,6 +1187,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
+
+      // Rocky:
+      // /etc/NetworkManager/system-connections
+
+      // /var/lib/snapd/snap/maas/38907/usr/bin
+      // temporal-sql-tool
+
+      // journalctl -u snap.maas.pebble -t maas-regiond
+      // journalctl -u snap.maas.pebble -t maas-temporal
+
+      // sudo snap install temporal
 
       break;
     }
