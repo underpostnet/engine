@@ -1234,6 +1234,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Remove:
       // sudo dnf remove <package> -y; sudo dnf autoremove -y; sudo dnf clean packages
 
+      // Back into your firmware setup (UEFI or BIOS config screen).
+      // grub> fwsetup
+
+      // Poweroff:
+      // grub> halt
+
       break;
     }
 
