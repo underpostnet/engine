@@ -1229,6 +1229,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // sudo snap install temporal
       // journalctl -u snap.maas.pebble -t maas-regiond
       // journalctl -u snap.maas.pebble -t maas-temporal -n 100 --no-pager -f
+      // sudo snap restart maas.pebble
 
       break;
     }
