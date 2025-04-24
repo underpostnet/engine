@@ -1186,19 +1186,23 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       const actions = ['LOGIN', 'SUPERUSER', 'INHERIT', 'CREATEDB', 'CREATEROLE', 'REPLICATION'];
       shellExec(`sudo -i -u postgres psql -c "ALTER USER \"$DB_PG_MAAS_USER\" WITH ${actions.join(' ')}"`);
       shellExec(`sudo -i -u postgres psql -c "\\du"`);
-      shellExec(`sudo -i -u postgres psql -c "\\l"`);
 
       shellExec(`sudo -i -u postgres createdb -O "$DB_PG_MAAS_USER" "$DB_PG_MAAS_NAME"`);
 
-      shellExec(
-        `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
-          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
-      );
+      shellExec(`sudo -i -u postgres psql -c "\\l"`);
 
-      // console.log(
-      //   `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
+      // shellExec(
+      //   `maas init region+rack --database-uri "postgres://$DB_PG_MAAS_USER:$DB_PG_MAAS_PASS@$DB_PG_MAAS_HOST/$DB_PG_MAAS_NAME"` +
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
+
+      console.log(
+        `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
+          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
+      );
+      console.log(
+        `psql -U ${process.env.DB_PG_MAAS_USER} -h ${process.env.DB_PG_MAAS_HOST} -W ${process.env.DB_PG_MAAS_NAME}`,
+      );
 
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
@@ -1212,7 +1216,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // temporal-sql-tool
 
       // journalctl -u snap.maas.pebble -t maas-regiond
-      // journalctl -u snap.maas.pebble -t maas-temporal
+      // journalctl -u snap.maas.pebble -t maas-temporal -n 100 --no-pager -f
 
       // sudo snap install temporal
 
