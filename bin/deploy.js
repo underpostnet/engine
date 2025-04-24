@@ -1210,6 +1210,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // Rocky:
       // sudo dnf install postgresql14-contrib
+
+      // MaaS admin CLI:
+      // maas login <maas-username> http://localhost:5240/MAAS
+      // paste GUI API KEY (profile section)
+
       // /etc/NetworkManager/system-connections
 
       // https://github.com/temporalio/temporal/tree/main/schema/postgresql
