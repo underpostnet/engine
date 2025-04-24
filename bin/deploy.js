@@ -1231,6 +1231,34 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // journalctl -u snap.maas.pebble -t maas-temporal -n 100 --no-pager -f
       // sudo snap restart maas.pebble
 
+      // Remove:
+      // sudo dnf remove <package> -y; sudo dnf autoremove -y; sudo dnf clean packages
+
+      break;
+    }
+
+    case 'maas-ports': {
+      // Configure firewall:
+
+      // systemctl stop firewalld
+      // systemctl mask firewalld
+
+      // ufw disable
+      // ufw enable
+
+      // sudo snap install ufw
+
+      shellExec(`ufw allow 53/tcp`);
+      shellExec(`ufw allow 53/udp`);
+
+      shellExec(`ufw allow 67/tcp`);
+      shellExec(`ufw allow 67/udp`);
+
+      shellExec(`ufw allow 69/tcp`);
+      shellExec(`ufw allow 69/udp`);
+
+      shellExec(`ufw allow 4011/tcp`);
+      shellExec(`ufw allow 4011/udp`);
       break;
     }
 
