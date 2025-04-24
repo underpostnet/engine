@@ -1161,6 +1161,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // schema_name.*
       break;
     }
+    case 'pg-drop-db': {
+      shellExec(`sudo -i -u postgres psql -c "DROP DATABASE ${process.argv[3]} WITH (FORCE)"`);
+      shellExec(`sudo -i -u postgres psql -c "DROP USER ${process.argv[4]}"`);
+      break;
+    }
 
     case 'maas': {
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
