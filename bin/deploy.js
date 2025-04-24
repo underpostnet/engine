@@ -1208,12 +1208,22 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
 
+      // MaaS admin CLI:
+      // maas login <maas-admin-username> http://localhost:5240/MAAS
+      // paste GUI API KEY (profile section)
+
+      // Import custom image
+      // maas <maas-admin-username> boot-resources create name='custom/RockyLinuxRpi4' \
+      // title='RockyLinuxRpi4' \
+      // architecture='arm64/generic' \
+      // filetype='tgz' \
+      // content@=/home/RockyLinuxRpi_9-latest.tar.gz
+
+      // Image extension transform (.img.xz to .tar.gz):
+      // tar -cvzf image-name.tar.gz image-name.img.xz
+
       // Rocky network configuration:
       // /etc/NetworkManager/system-connections
-
-      // MaaS admin CLI:
-      // maas login <maas-username> http://localhost:5240/MAAS
-      // paste GUI API KEY (profile section)
 
       // Temporal:
       // sudo snap install temporal
