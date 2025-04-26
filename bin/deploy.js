@@ -1219,11 +1219,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // filetype='tgz' \
       // content@=/home/RockyLinuxRpi_9-latest.tar.gz
 
+      // Image boot resource:
+      // /var/snap/maas/current/root/snap/maas
+
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
 
       // Rocky network configuration:
       // /etc/NetworkManager/system-connections
+
+      // Rocky kernel params update
+      // sudo grubby --args="<key>=<value> <key>=<value>" --update-kernel=ALL
 
       // Temporal:
       // sudo snap install temporal
@@ -1268,6 +1274,18 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       shellExec(`ufw allow 4011/tcp`);
       shellExec(`ufw allow 4011/udp`);
+      break;
+    }
+
+    case 'rpi4': {
+      // Rpi4 Bootloader:
+      // 1) Run EEPROM rpi-imager network bootloader, expected led or hdmi green screen
+      // 2) Run OS pi lite rpi-imager
+      // 3) boot.conf
+      // 4) config.txt
+      // 5) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
+      // 6) sudo reboot
+
       break;
     }
 
