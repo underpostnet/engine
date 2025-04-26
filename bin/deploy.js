@@ -1244,6 +1244,9 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // check: ~./cache
       // check: ~./config
 
+      // Check file logs
+      // grep -i -E -C 1 '<key-a>|<key-b>' /example.log | tail -n 600
+
       // Back into your firmware setup (UEFI or BIOS config screen).
       // grub> fwsetup
 
