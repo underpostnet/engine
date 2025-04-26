@@ -1229,6 +1229,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Ensure Rocky NFS server and /etc/exports configured
       // sudo systemctl restart nfs-server
       // Check mounts: showmount -e <server-ip>
+      // Check nfs ports: rpcinfo -p
 
       // Check firewall-cmd
       // firewall-cmd --permanent --add-service=rpc-bind
