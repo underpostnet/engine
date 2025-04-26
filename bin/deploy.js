@@ -1230,6 +1230,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // sudo systemctl restart nfs-server
       // Check mounts: showmount -e <server-ip>
       // Check nfs ports: rpcinfo -p
+      // sudo chown root:root /nfs-export/rpi4mb
+      // sudo chmod 755 /nfs-export/rpi4mb
 
       // Check firewall-cmd
       // firewall-cmd --permanent --add-service=rpc-bind
