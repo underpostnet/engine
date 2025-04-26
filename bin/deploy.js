@@ -1223,6 +1223,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // /var/snap/maas/current/root/snap/maas
       // /var/snap/maas/common/maas/tftp_root
       // /var/snap/maas/common/maas/dhcpd.conf
+      // sudo snap restart maas.pebble
+      // mkdir /var/snap/maas/common/maas/tftp_root/bootloaders/rpi
 
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
@@ -1308,9 +1310,12 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // 5) Run lite RPiOs from rpi-imager
       // with config.txt and boot.conf files in root disk path
 
-      // 6) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
+      // 6) check: 'vcgencmd bootloader_version'
+      // 7) check: 'vcgencmd bootloader_config'
 
-      // 7) sudo reboot
+      // 8) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
+
+      // 9) sudo reboot
 
       break;
     }
