@@ -1221,6 +1221,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // Image boot resource:
       // /var/snap/maas/current/root/snap/maas
+      // /var/snap/maas/common/maas/tftp_root
+      // /var/snap/maas/common/maas/dhcpd.conf
 
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
@@ -1267,8 +1269,17 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // sudo snap install ufw
 
+      shellExec(`ufw allow 43/tcp`);
+      shellExec(`ufw allow 43/udp`);
+
       shellExec(`ufw allow 53/tcp`);
       shellExec(`ufw allow 53/udp`);
+
+      shellExec(`ufw allow 60/tcp`);
+      shellExec(`ufw allow 60/udp`);
+
+      shellExec(`ufw allow 66/tcp`);
+      shellExec(`ufw allow 66/udp`);
 
       shellExec(`ufw allow 67/tcp`);
       shellExec(`ufw allow 67/udp`);
