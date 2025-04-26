@@ -1225,6 +1225,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // /var/snap/maas/common/maas/dhcpd.conf
       // sudo snap restart maas.pebble
       // mkdir /var/snap/maas/common/maas/tftp_root/bootloaders/rpi
+      // Ensure Rocky NFS server and /etc/exports configured
 
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
@@ -1240,7 +1241,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // sudo snap install temporal
       // journalctl -u snap.maas.pebble -t maas-regiond
       // journalctl -u snap.maas.pebble -t maas-temporal -n 100 --no-pager -f
-      // sudo snap restart maas.pebble
 
       // Remove:
       // sudo dnf remove <package> -y; sudo dnf autoremove -y; sudo dnf clean packages
@@ -1291,6 +1291,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       shellExec(`ufw allow 4011/tcp`);
       shellExec(`ufw allow 4011/udp`);
+
+      shellExec(`ufw allow 111/tcp`); // nfs
+      shellExec(`ufw allow 111/udp`); // nfs
+
+      shellExec(`ufw allow 2049/tcp`); // nfs
+      shellExec(`ufw allow 2049/udp`); // nfs
+
       break;
     }
 
