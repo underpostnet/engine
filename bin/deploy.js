@@ -1225,7 +1225,14 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // /var/snap/maas/common/maas/dhcpd.conf
       // sudo snap restart maas.pebble
       // mkdir /var/snap/maas/common/maas/tftp_root/bootloaders/rpi
+
       // Ensure Rocky NFS server and /etc/exports configured
+      // sudo systemctl restart nfs-server
+      // Check mounts: showmount -e <server-ip>
+
+      // Check firewall-cmd
+      // firewall-cmd --permanent --add-service=rpc-bind
+      // firewall-cmd --reload
 
       // Image extension transform (.img.xz to .tar.gz):
       // tar -cvzf image-name.tar.gz image-name.img.xz
