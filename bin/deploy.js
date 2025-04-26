@@ -1230,6 +1230,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // Rocky kernel params update
       // sudo grubby --args="<key>=<value> <key>=<value>" --update-kernel=ALL
+      // sudo reboot now
 
       // Temporal:
       // sudo snap install temporal
@@ -1278,13 +1279,24 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
 
     case 'rpi4': {
-      // Rpi4 Bootloader:
-      // 1) Run EEPROM rpi-imager network bootloader, expected led or hdmi green screen
-      // 2) Run OS pi lite rpi-imager
-      // 3) boot.conf
-      // 4) config.txt
-      // 5) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
-      // 6) sudo reboot
+      // Rpi4 Config Bootloader:
+
+      // 1) config.txt
+      // 2) boot.conf
+
+      // Rpi4 Run Bootloader:
+
+      // 3) Run EEPROM network bootloader from rpi-imager
+      // with config.txt and boot.conf files in root disk path
+
+      // 4) check led or hdmi green screen.
+
+      // 5) Run lite RPiOs from rpi-imager
+      // with config.txt and boot.conf files in root disk path
+
+      // 6) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
+
+      // 7) sudo reboot
 
       break;
     }
