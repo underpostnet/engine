@@ -1224,7 +1224,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // /var/snap/maas/common/maas/tftp_root
       // /var/snap/maas/common/maas/dhcpd.conf
       // sudo snap restart maas.pebble
-      // mkdir /var/snap/maas/common/maas/tftp_root/bootloaders/rpi
 
       // Ensure Rocky NFS server and /etc/exports configured
       // sudo systemctl restart nfs-server
