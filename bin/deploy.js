@@ -1271,6 +1271,19 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       break;
     }
 
+    case 'nfs': {
+      // disable share:
+      // sudo exportfs -u <client-ip>:/nfs-export/rpi4mb
+
+      // update exports:
+      shellExec(`sudo exportfs -a -r`);
+      shellExec(`sudo exportfs -v`);
+
+      // active nfs
+      shellExec(`sudo exportfs -s`);
+      break;
+    }
+
     case 'maas-ports': {
       // Configure firewall:
 
