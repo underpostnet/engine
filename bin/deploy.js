@@ -1331,27 +1331,21 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
     }
 
     case 'rpi4': {
-      // Rpi4 Config Bootloader:
-
-      // 1) config.txt
-      // 2) boot.conf
-
       // Rpi4 Run Bootloader:
 
-      // 3) Run EEPROM network bootloader from rpi-imager
-      // with config.txt and boot.conf files in root disk path
+      // 1) create boot.conf
 
-      // 4) check led or hdmi green screen.
+      // 2) Run lite RPiOs from rpi-imager
+      // with boot.conf files in root disk path
 
-      // 5) Run lite RPiOs from rpi-imager
-      // with config.txt and boot.conf files in root disk path
+      // 3) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
 
-      // 6) check: 'vcgencmd bootloader_version'
-      // 7) check: 'vcgencmd bootloader_config'
+      // 4) sudo reboot
 
-      // 8) cd /boot/firmware && sudo rpi-eeprom-config --apply boot.conf
+      // 5) check: 'vcgencmd bootloader_version'
+      // 6) check: 'vcgencmd bootloader_config'
 
-      // 9) sudo reboot
+      // 7) shutdown and restart without sd card
 
       break;
     }
