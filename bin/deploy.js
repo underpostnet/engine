@@ -1231,7 +1231,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Check nfs ports: rpcinfo -p
       // sudo chown -R root:root /nfs-export/rpi4mb
       // sudo chmod 755 /nfs-export/rpi4mb
+
+      // tftp server
       // sudo chown -R root:root /var/snap/maas/common/maas/tftp_root/rpi4mb
+
+      // tftp client
+      // sudo dnf install tftp
+      // tftp <server-ip> -c get <path>
 
       // Check firewall-cmd
       // firewall-cmd --permanent --add-service=rpc-bind
