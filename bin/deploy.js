@@ -1222,6 +1222,8 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Image boot resource:
       // /var/snap/maas/current/root/snap/maas
       // /var/snap/maas/common/maas/tftp_root
+      // sudo chmod 755 /var/snap/maas/common/maas/tftp_root
+
       // /var/snap/maas/common/maas/dhcpd.conf
       // sudo snap restart maas.pebble
 
