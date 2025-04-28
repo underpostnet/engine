@@ -72,6 +72,8 @@ class UnderpostMonitor {
       };
 
       const monitor = async (reject) => {
+        if (UnderpostRootEnv.API.get(`monitor-init-callback-script`))
+          shellExec(UnderpostRootEnv.API.get(`monitor-init-callback-script`));
         const currentTimestamp = new Date().getTime();
         errorPayloads = errorPayloads.filter((e) => currentTimestamp - e.timestamp < 60 * 1000 * 5);
         logger.info(`[${deployId}-${env}] Check server health`);
@@ -137,7 +139,7 @@ class UnderpostMonitor {
                   }
                   errorPayloads = [];
                 }
-                logger.error('Error accumulator', errorPayloads.length);
+                logger.error(`Error accumulator ${deployId}-${env}-${traffic}`, errorPayloads.length);
               }
             });
           }
