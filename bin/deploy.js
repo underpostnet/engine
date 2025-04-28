@@ -1225,6 +1225,20 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // /var/snap/maas/common/maas/dhcpd.conf
       // sudo snap restart maas.pebble
 
+      // PXE Linux files:
+      // /var/snap/maas/common/maas/image-storage/bootloaders/pxe/i386
+      // sudo nmcli con modify <interface-device-name-connection-id> ethtool.feature-rx on ethtool.feature-tx off
+      // sudo nmcli connection up <interface-device-name-connection-id>
+
+      // man nm-settings |grep feature-tx-checksum
+
+      // nmcli c modify <interface-device-name-connection-id> \
+      //  ethtool.feature-tx-checksum-fcoe-crc off \
+      //  ethtool.feature-tx-checksum-ip-generic off \
+      //  ethtool.feature-tx-checksum-ipv4 off \
+      //  ethtool.feature-tx-checksum-ipv6 off \
+      //  ethtool.feature-tx-checksum-sctp off
+
       // Ensure Rocky NFS server and /etc/exports configured
       // sudo systemctl restart nfs-server
       // Check mounts: showmount -e <server-ip>
