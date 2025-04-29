@@ -55,9 +55,13 @@ const PopSchema = new Schema(
       },
     ],
     operator: {
-      type: String,
+      type: {
+        userId: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+        },
+      },
       required: true,
-      trim: true,
     },
     createdBy: {
       userId: {
