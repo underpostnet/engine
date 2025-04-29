@@ -34,11 +34,6 @@ const PopSchema = new Schema(
       coordinates: {
         type: [Number],
         required: true,
-        validate: {
-          validator: (coords) =>
-            coords.length === 2 && coords[0] >= -180 && coords[0] <= 180 && coords[1] >= -90 && coords[1] <= 90,
-          message: 'Coordenadas inválidas',
-        },
       },
     },
     components: [
