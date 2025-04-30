@@ -1171,13 +1171,13 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       dotenv.config({ path: `${getUnderpostRootPath()}/.env`, override: true });
       const IP_ADDRESS = getLocalIPv4Address();
 
-      shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
-      shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
-      shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
-      shellExec(`DB_PG_MAAS_HOST=${process.env.DB_PG_MAAS_HOST}`);
-      // DROP, ALTER, CREATE, WITH ENCRYPTED
-      // sudo -u <user> -h <host> psql <db-name>
       if (process.argv.includes('db')) {
+        // DROP, ALTER, CREATE, WITH ENCRYPTED
+        // sudo -u <user> -h <host> psql <db-name>
+        shellExec(`DB_PG_MAAS_NAME=${process.env.DB_PG_MAAS_NAME}`);
+        shellExec(`DB_PG_MAAS_PASS=${process.env.DB_PG_MAAS_PASS}`);
+        shellExec(`DB_PG_MAAS_USER=${process.env.DB_PG_MAAS_USER}`);
+        shellExec(`DB_PG_MAAS_HOST=${process.env.DB_PG_MAAS_HOST}`);
         shellExec(
           `sudo -i -u postgres psql -c "CREATE USER \"$DB_PG_MAAS_USER\" WITH ENCRYPTED PASSWORD '$DB_PG_MAAS_PASS'"`,
         );
@@ -1200,6 +1200,11 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       if (process.argv.includes('psql')) {
         const cmd = `psql -U ${process.env.DB_PG_MAAS_USER} -h ${process.env.DB_PG_MAAS_HOST} -W ${process.env.DB_PG_MAAS_NAME}`;
+        pbcopy(cmd);
+        process.exit(0);
+      }
+      if (process.argv.includes('logs')) {
+        const cmd = `journalctl -f -t dhcpd -u snap.maas.pebble.service`;
         pbcopy(cmd);
         process.exit(0);
       }
@@ -1319,10 +1324,10 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`node bin/deploy nfs`);
 
       shellExec(`sudo snap restart maas.pebble`);
+      await timer(5000);
+      shellExec(`maas status`);
 
-      await timer(3000);
-
-      shellExec(`journalctl -f -t dhcpd -u snap.maas.pebble.service`);
+      shellExec(`node bin/deploy maas logs`);
 
       break;
     }
