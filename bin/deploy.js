@@ -1198,14 +1198,18 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       //     ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
       // );
 
-      console.log(
-        `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
-          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`,
-      );
-      console.log(
-        `psql -U ${process.env.DB_PG_MAAS_USER} -h ${process.env.DB_PG_MAAS_HOST} -W ${process.env.DB_PG_MAAS_NAME}`,
-      );
-
+      if (process.argv.includes('psql')) {
+        const cmd = `psql -U ${process.env.DB_PG_MAAS_USER} -h ${process.env.DB_PG_MAAS_HOST} -W ${process.env.DB_PG_MAAS_NAME}`;
+        pbcopy(cmd);
+        process.exit(0);
+      }
+      if (process.argv.includes('reset')) {
+        const cmd =
+          `maas init region+rack --database-uri "postgres://${process.env.DB_PG_MAAS_USER}:${process.env.DB_PG_MAAS_PASS}@${process.env.DB_PG_MAAS_HOST}/${process.env.DB_PG_MAAS_NAME}"` +
+          ` --maas-url http://${IP_ADDRESS}:5240/MAAS`;
+        pbcopy(cmd);
+        process.exit(0);
+      }
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
@@ -1290,6 +1294,35 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       // Poweroff:
       // grub> halt
+      const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
+
+      switch (process.argv[3]) {
+        case '0':
+          {
+            shellExec(`sudo rm -rf ${tftpRoot}/rpi4mb`);
+            shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite ${tftpRoot}/rpi4mb`);
+          }
+          break;
+        case '1':
+          {
+            shellExec(`sudo rm -rf ${tftpRoot}/rpi4mb`);
+            shellExec(`sudo cp -a ../bootloaders/RPi4_UEFI_Firmware_v1.41 ${tftpRoot}/rpi4mb`);
+          }
+          break;
+
+        default:
+          break;
+      }
+
+      shellExec(`sudo rm -rf /etc/exports`);
+      shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite/exports /etc/exports`);
+      shellExec(`node bin/deploy nfs`);
+
+      shellExec(`sudo snap restart maas.pebble`);
+
+      await timer(3000);
+
+      shellExec(`journalctl -f -t dhcpd -u snap.maas.pebble.service`);
 
       break;
     }
