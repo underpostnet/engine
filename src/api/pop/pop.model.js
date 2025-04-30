@@ -33,7 +33,6 @@ const PopSchema = new Schema(
       },
       coordinates: {
         type: [Number],
-        required: true,
       },
     },
     components: [
@@ -46,47 +45,45 @@ const PopSchema = new Schema(
           required: true,
         },
         status: { type: String, enum: ['active', 'inactive', 'planned'], default: 'inactive' },
-        createdAt: { type: Date, default: Date.now },
+        createdAt: { type: Date },
       },
     ],
-    operator: {
-      type: {
+    operators: [
+      {
         userId: {
           type: Schema.Types.ObjectId,
           ref: 'User',
         },
+        roles: [
+          {
+            type: String,
+          },
+        ],
       },
-      required: true,
-    },
+    ],
     createdBy: {
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
     updatedBy: {
-      userId: {
-        type: Schema.Types.ObjectId,
-        ref: 'User',
-      },
+      type: Schema.Types.ObjectId,
+      ref: 'User',
     },
     changeLog: [
       {
-        changedAt: { type: Date, default: Date.now },
-        changedBy: { type: String },
+        changedAt: { type: Date },
+        changedBy: {
+          type: Schema.Types.ObjectId,
+          ref: 'User',
+        },
         description: { type: String },
       },
     ],
   },
   {
     timestamps: true,
-    versionKey: 'schemaVersion',
   },
 );
-
-PopSchema.index({ location: '2dsphere' });
-PopSchema.index({ operator: 1, companyCode: 1 });
-PopSchema.index({ popId: 1 }, { unique: true });
 
 const PopModel = model('Pop', PopSchema);
 
