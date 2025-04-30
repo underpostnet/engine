@@ -1204,6 +1204,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         process.exit(0);
       }
       if (process.argv.includes('logs')) {
+        shellExec(`maas status`);
         const cmd = `journalctl -f -t dhcpd -u snap.maas.pebble.service`;
         pbcopy(cmd);
         process.exit(0);
@@ -1300,18 +1301,18 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       // Poweroff:
       // grub> halt
       const tftpRoot = `/var/snap/maas/common/maas/tftp_root`;
-
+      let bootLoader, bootFolder;
       switch (process.argv[3]) {
         case '0':
           {
-            shellExec(`sudo rm -rf ${tftpRoot}/rpi4mb`);
-            shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite ${tftpRoot}/rpi4mb`);
+            bootLoader = '/EEPROM_RPiOSlite';
+            bootFolder = '/rpi4mb';
           }
           break;
         case '1':
           {
-            shellExec(`sudo rm -rf ${tftpRoot}/rpi4mb`);
-            shellExec(`sudo cp -a ../bootloaders/RPi4_UEFI_Firmware_v1.41 ${tftpRoot}/rpi4mb`);
+            bootLoader = '/RPi4_UEFI_Firmware_v1.41';
+            bootFolder = '/rpi4mb';
           }
           break;
 
@@ -1319,14 +1320,26 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
           break;
       }
 
+      shellExec(`sudo rm -rf ${tftpRoot}${bootFolder}`);
+      shellExec(`sudo cp -a ../bootloaders${bootLoader} ${tftpRoot}${bootFolder}`);
+
       shellExec(`sudo rm -rf /etc/exports`);
       shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite/exports /etc/exports`);
       shellExec(`node bin/deploy nfs`);
 
       shellExec(`sudo snap restart maas.pebble`);
-      await timer(5000);
-      shellExec(`maas status`);
-
+      let secs = 0;
+      while (
+        !(
+          shellExec(`maas status`, { silent: true, disableLog: true, stdout: true })
+            .split(' ')
+            .filter((l) => l.match('inactive')).length === 1
+        )
+      ) {
+        await timer(1000);
+        console.log(`Waiting... (${++secs}s)`);
+      }
+      logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
       shellExec(`node bin/deploy maas logs`);
 
       break;
