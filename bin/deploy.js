@@ -1327,14 +1327,6 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
       shellExec(`sudo cp -a ../bootloaders/EEPROM_RPiOSlite/exports /etc/exports`);
       shellExec(`node bin/deploy nfs`);
 
-      if (bootFolder === '/rpi4mb') {
-        shellExec(`mkdir ${tftpRoot}${bootFolder}/pxe`);
-        for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
-          shellExec(
-            `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${bootFolder}/pxe/${file}`,
-          );
-        }
-      }
       shellExec(`sudo chown -R root:root ${tftpRoot}${bootFolder}`);
       shellExec(`sudo snap restart maas.pebble`);
       let secs = 0;
@@ -1348,6 +1340,24 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         await timer(1000);
         console.log(`Waiting... (${++secs}s)`);
       }
+      if (bootFolder === '/rpi4mb') {
+        shellExec(`mkdir ${tftpRoot}${bootFolder}/pxe`);
+        for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
+          shellExec(
+            `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${bootFolder}/pxe/${file}`,
+          );
+        }
+        const ipxeSrc = fs
+          .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
+          .replaceAll('amd64', 'arm64')
+          .replaceAll('${next-server}', IP_ADDRESS);
+
+        setTimeout(() => {
+          fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
+        }, 1000);
+        fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
+      }
+
       logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
       shellExec(`node engine-private/r`);
       shellExec(`node bin/deploy maas logs`);
