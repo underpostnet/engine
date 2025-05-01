@@ -1341,21 +1341,30 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         console.log(`Waiting... (${++secs}s)`);
       }
       if (bootFolder === '/rpi4mb') {
+        // subnet DHCP snippets
+        // # UEFI ARM64
+        // if option arch = 00:0B {
+        //   filename "rpi4mb/pxe/grubaa64.efi";
+        // }
+        // elsif option arch = 00:13 and option vendor-class-identifier = "HTTPClient" {
+        //   filename "http://<IP_ADDRESS>:5248/images/bootloaders/uefi/arm64/grubaa64.efi";
+        //   option vendor-class-identifier "HTTPClient";
+        // }
         shellExec(`mkdir ${tftpRoot}${bootFolder}/pxe`);
         for (const file of ['bootaa64.efi', 'grubaa64.efi']) {
           shellExec(
             `sudo cp -a /var/snap/maas/common/maas/image-storage/bootloaders/uefi/arm64/${file} ${tftpRoot}${bootFolder}/pxe/${file}`,
           );
         }
-        const ipxeSrc = fs
-          .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
-          .replaceAll('amd64', 'arm64')
-          .replaceAll('${next-server}', IP_ADDRESS);
+        // const ipxeSrc = fs
+        //   .readFileSync(`${tftpRoot}/ipxe.cfg`, 'utf8')
+        //   .replaceAll('amd64', 'arm64')
+        //   .replaceAll('${next-server}', IP_ADDRESS);
 
-        setTimeout(() => {
-          fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
-        }, 1000);
-        fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
+        // setTimeout(() => {
+        //   fs.writeFileSync(`${tftpRoot}/ipxe.cfg`, ipxeSrc, 'utf8');
+        // }, 1000);
+        // fs.writeFileSync(`${tftpRoot}${bootFolder}/ipxe.cfg`, ipxeSrc, 'utf8');
       }
 
       logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
