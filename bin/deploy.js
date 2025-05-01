@@ -1216,6 +1216,29 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
         pbcopy(cmd);
         process.exit(0);
       }
+      if (process.argv.includes('dhcp')) {
+        const snippets = JSON.parse(
+          shellExec(`maas maas dhcpsnippets read`, { stdout: true, silent: true, disableLog: true }),
+        );
+        for (const snippet of snippets) {
+          switch (snippet.name) {
+            case 'arm64':
+              snippet.value = snippet.value.split(`\n`);
+              snippet.value[1] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
+              snippet.value[5] = `          filename "http://${IP_ADDRESS}:5248/images/bootloaders/uefi/arm64/grubaa64.efi";`;
+              snippet.value = snippet.value.join(`\n`);
+              shellExec(`maas maas dhcpsnippet update ${snippet.name} value='${snippet.value}'`);
+              break;
+
+            default:
+              break;
+          }
+        }
+
+        console.log(snippets);
+
+        process.exit(0);
+      }
       // shellExec(`MAAS_ADMIN_USERNAME=${process.env.MAAS_ADMIN_USERNAME}`);
       // shellExec(`MAAS_ADMIN_EMAIL=${process.env.MAAS_ADMIN_EMAIL}`);
       // shellExec(`maas createadmin --username $MAAS_ADMIN_USERNAME --email $MAAS_ADMIN_EMAIL`);
@@ -1369,6 +1392,7 @@ ${shellExec(`git log | grep Author: | sort -u`, { stdout: true }).split(`\n`).jo
 
       logger.info('succes maas deploy', { tftpRoot, bootFolder, bootLoader });
       shellExec(`node engine-private/r`);
+      shellExec(`node bin/deploy maas dhcp`);
       shellExec(`node bin/deploy maas logs`);
 
       break;
